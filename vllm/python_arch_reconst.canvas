@@ -1,0 +1,318 @@
+{
+  "nodes": [
+    {
+      "type": "file",
+      "id": "da35623f-8ca8-425c-b769-2aa26143a2af",
+      "x": 1387.635729386892,
+      "y": -553.8541226215646,
+      "width": 500,
+      "height": 300,
+      "file": "class:worker/worker.py::Worker"
+    },
+    {
+      "type": "text",
+      "id": "7e98620a-8fc7-4654-8d87-b6ea31f821da",
+      "x": -115.75,
+      "y": -1070.6,
+      "width": 116,
+      "height": 108,
+      "text": "---\ntext-align: center\n\n---\n\n \n ## User  \n API User"
+    },
+    {
+      "type": "group",
+      "id": "33ea85e9-62db-499f-a884-e330bb60d5b0",
+      "x": -454.75,
+      "y": -812.5999999999999,
+      "width": 549.5,
+      "height": 436,
+      "label": "API Gateway | Python, FastAPI, CLI"
+    },
+    {
+      "type": "text",
+      "id": "0c1227e9-8dcf-4322-b3a5-d7f681a8e556",
+      "x": -190.83894092736148,
+      "y": -770.0412772753373,
+      "width": 162,
+      "height": 108,
+      "text": "---\nfiles: [\"entrypoints/api_server.py\",\"entrypoints/openai/protocol.py\"]\ntext-align: center\n\n--- \n## API Server  \n  FastAPI"
+    },
+    {
+      "type": "text",
+      "id": "cb77244c-fd60-4b43-a7ad-80c749842d74",
+      "x": -404.75,
+      "y": -762.5999999999999,
+      "width": 146,
+      "height": 108,
+      "text": "---\nfiles: [\"entrypoints/cli/main.py\",\"entrypoints/cli/serve.py\"]\ntext-align: center\n\n--- \n## CLI Main  \n  Python CLI"
+    },
+    {
+      "type": "text",
+      "id": "641b27e0-4eba-460b-b1cf-e55db8d5a8d2",
+      "x": -174.68895110133803,
+      "y": -600.2185359734293,
+      "width": 205,
+      "height": 108,
+      "text": "---\nfiles: [\"entrypoints/openai/serving_engine.py\",\"entrypoints/openai/serving_completion.py\"]\ntext-align: center\n\n--- \n## Serving Engine  \n  Python"
+    },
+    {
+      "type": "group",
+      "id": "f74d721b-1974-437c-aa36-f00baa056ce4",
+      "x": 286.08473706705297,
+      "y": -767.5489109440659,
+      "width": 970.4165116931589,
+      "height": 388,
+      "label": "LLM Core Engine | Python"
+    },
+    {
+      "type": "text",
+      "id": "7cbe7380-7b22-4035-b17d-56fc0850411d",
+      "x": 361.0803749706366,
+      "y": -677.6366055581657,
+      "width": 173,
+      "height": 108,
+      "text": "---\nfiles: [\"engine/llm_engine.py\",\"engine/async_llm_engine.py\"]\ntext-align: center\n\n--- \n## LLM Engine  \n  Python"
+    },
+    {
+      "type": "text",
+      "id": "c04e3e93-61b3-482b-8908-8196c664bf18",
+      "x": 622.9121520436927,
+      "y": -743.255141531595,
+      "width": 567.2693154086081,
+      "height": 322.44408148017646,
+      "text": "---\nfiles: [\"engine/output_processor/interfaces.py\",\"engine/output_processor/single_step.py\"]\ntext-align: center\n---\n## Output Processor  \n  Python"
+    },
+    {
+      "type": "group",
+      "id": "e6ffd664-03ae-4fba-961c-c1399925bbf1",
+      "x": -551.7394087842247,
+      "y": -172.01993905462896,
+      "width": 843.8267918200088,
+      "height": 538.1484425978127,
+      "label": "Model Execution | Python, PyTorch"
+    },
+    {
+      "type": "text",
+      "id": "fb255e1c-6361-49f9-b843-7da255e72324",
+      "x": -501.06292903192127,
+      "y": -122.01993905462896,
+      "width": 434.1503120677055,
+      "height": 254.79610624983684,
+      "text": "---\nfiles: [\"model_executor/model_loader/default_loader.py\",\"model_executor/model_loader/gguf_loader.py\"]\ntext-align: center\n---\n## Model Loader  \n  PyTorch"
+    },
+    {
+      "type": "text",
+      "id": "9fa4b39e-183f-4121-8c0b-9dcd196b523a",
+      "x": 53.08738303578417,
+      "y": -122.01993905462896,
+      "width": 189,
+      "height": 108,
+      "text": "---\nfiles: [\"model_executor/layers/linear.py\",\"model_executor/layers/fused_moe/layer.py\"]\ntext-align: center\n\n--- \n## Model Layers  \n  PyTorch"
+    },
+    {
+      "type": "text",
+      "id": "95945773-166e-41fa-8cc9-77a887f6a0f9",
+      "x": -211.6792839571425,
+      "y": 227.7464163599823,
+      "width": 186,
+      "height": 108,
+      "text": "---\nfiles: [\"model_executor/layers/quantization/marlin.py\",\"model_executor/layers/quantization/fp8.py\"]\ntext-align: center\n\n--- \n## Quantization  \n  PyTorch, CUDA"
+    },
+    {
+      "type": "group",
+      "id": "31c96f47-fee2-4526-8275-3a77f16c2cc9",
+      "x": 399.2342677420196,
+      "y": -305.9629300107013,
+      "width": 599.9451720042806,
+      "height": 252.67398712577977,
+      "label": "Resource Management | Python"
+    },
+    {
+      "type": "text",
+      "id": "c908946f-7744-450a-8d31-402d4c12bc46",
+      "x": 474.5872272466265,
+      "y": -231.60965892777907,
+      "width": 157,
+      "height": 108,
+      "text": "---\nfiles: [\"core/scheduler.py\",\"v1/core/sched/scheduler.py\"]\ntext-align: center\n\n--- \n## Scheduler  \n  Python"
+    },
+    {
+      "type": "text",
+      "id": "3a422240-adbb-4e8a-bd17-a5e199c2169b",
+      "x": 738.767601727873,
+      "y": -197.20638833424698,
+      "width": 205,
+      "height": 108.80000000000001,
+      "text": "---\nfiles: [\"core/block_manager.py\",\"core/block/cpu_gpu_block_allocator.py\"]\ntext-align: center\n\n--- \n## Block Manager  \n  Python"
+    },
+    {
+      "type": "group",
+      "id": "14f31a32-cc84-4aad-8377-b50be0dbf736",
+      "x": 120.25,
+      "y": -1170.6,
+      "width": 953,
+      "height": 208,
+      "label": "Distributed System | Python, NCCL, Ray"
+    },
+    {
+      "type": "text",
+      "id": "9293d740-d3f7-41b9-bb2c-61ff950a5db3",
+      "x": 462.25,
+      "y": -1120.6,
+      "width": 186,
+      "height": 108,
+      "text": "---\nfiles: [\"distributed/parallel_state.py\",\"distributed/utils.py\"]\ntext-align: center\n\n--- \n## Parallel State  \n  Python, Ray"
+    },
+    {
+      "type": "text",
+      "id": "af578938-01b2-4493-b893-efa00eaa3729",
+      "x": 768.25,
+      "y": -1120.6,
+      "width": 255,
+      "height": 108,
+      "text": "---\nfiles: [\"distributed/communication_op.py\",\"distributed/device_communicators/cuda_communicator.py\"]\ntext-align: center\n\n--- \n## Communication Ops  \n  NCCL, CUDA"
+    },
+    {
+      "type": "text",
+      "id": "99756cee-6268-43cb-a1d6-218892fbc087",
+      "x": 170.25,
+      "y": -1120.6,
+      "width": 172,
+      "height": 108,
+      "text": "---\nfiles: [\"distributed/kv_transfer/kv_transfer_state.py\",\"distributed/kv_transfer/kv_pipe/base.py\"]\ntext-align: center\n\n--- \n## KV Transfer  \n  Python, CUDA"
+    },
+    {
+      "type": "group",
+      "id": "c31476a9-6ee0-4ff9-a154-c9dca8982435",
+      "x": 382.47912914676476,
+      "y": 9.680059966590903,
+      "width": 645,
+      "height": 436,
+      "label": "Attention Backends | Python, CUDA, Triton"
+    },
+    {
+      "type": "text",
+      "id": "c19e702a-a6d2-413f-8e39-2df6ac2d688b",
+      "x": 456.9749228395061,
+      "y": 75.23909426956894,
+      "width": 210,
+      "height": 108,
+      "text": "---\nfiles: [\"attention/layer.py\",\"attention/selector.py\"]\ntext-align: center\n\n--- \n## Attention Layer  \n  Python"
+    },
+    {
+      "type": "text",
+      "id": "4a7c1343-05e5-47f6-a5d5-bf951500a0ad",
+      "x": 458.47492283950623,
+      "y": 236.94407854383638,
+      "width": 207,
+      "height": 108,
+      "text": "---\nfiles: [\"attention/backends/flash_attn.py\",\"vllm_flash_attn/flash_attn_interface.py\"]\ntext-align: center\n\n--- \n## Flash Attention  \n  CUDA"
+    },
+    {
+      "type": "text",
+      "id": "269c9602-025b-4b95-a8d2-03b08cf5f968",
+      "x": 729.4537404079557,
+      "y": 77.26853352647905,
+      "width": 215,
+      "height": 108,
+      "text": "---\nfiles: [\"attention/ops/triton_flash_attention.py\",\"attention/ops/triton_unified_attention.py\"]\ntext-align: center\n\n--- \n## Triton Attention  \n  Triton, CUDA"
+    }
+  ],
+  "edges": [
+    {
+      "id": "f770fbcf-1389-46f9-99f2-10093124e102",
+      "fromNode": "7e98620a-8fc7-4654-8d87-b6ea31f821da",
+      "fromSide": "bottom",
+      "toNode": "0c1227e9-8dcf-4322-b3a5-d7f681a8e556",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "Sends requests"
+    },
+    {
+      "id": "22289cd9-9648-47aa-819c-fb8368379d49",
+      "fromNode": "0c1227e9-8dcf-4322-b3a5-d7f681a8e556",
+      "fromSide": "bottom",
+      "toNode": "641b27e0-4eba-460b-b1cf-e55db8d5a8d2",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "Routes requests"
+    },
+    {
+      "id": "0250a235-75b2-4b51-b325-95b7c076d5e1",
+      "fromNode": "7cbe7380-7b22-4035-b17d-56fc0850411d",
+      "fromSide": "bottom",
+      "toNode": "c908946f-7744-450a-8d31-402d4c12bc46",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "Manages requests"
+    },
+    {
+      "id": "58097d9d-1677-4b59-a168-34bcc78ad382",
+      "fromNode": "7cbe7380-7b22-4035-b17d-56fc0850411d",
+      "fromSide": "bottom",
+      "toNode": "fb255e1c-6361-49f9-b843-7da255e72324",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "Loads models"
+    },
+    {
+      "id": "d54a6c4d-04f6-4b19-8019-720dc3777f42",
+      "fromNode": "7cbe7380-7b22-4035-b17d-56fc0850411d",
+      "fromSide": "bottom",
+      "toNode": "9fa4b39e-183f-4121-8c0b-9dcd196b523a",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "Executes layers"
+    },
+    {
+      "id": "4f8b2e81-efe5-4a10-92ce-b32c602f2540",
+      "fromNode": "9fa4b39e-183f-4121-8c0b-9dcd196b523a",
+      "fromSide": "bottom",
+      "toNode": "95945773-166e-41fa-8cc9-77a887f6a0f9",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "Applies quantization"
+    },
+    {
+      "id": "f23e95bb-f55c-4289-99b6-b0b40359b00c",
+      "fromNode": "c19e702a-a6d2-413f-8e39-2df6ac2d688b",
+      "fromSide": "bottom",
+      "toNode": "4a7c1343-05e5-47f6-a5d5-bf951500a0ad",
+      "toSide": "top",
+      "toEnd": "arrow",
+      "label": "Selects backend"
+    },
+    {
+      "id": "9d573b8f-cbbf-4096-acdd-8065988bec4a",
+      "fromNode": "641b27e0-4eba-460b-b1cf-e55db8d5a8d2",
+      "fromSide": "bottom",
+      "toNode": "7cbe7380-7b22-4035-b17d-56fc0850411d",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "Submits requests",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "b529fce7-3715-486e-aa76-9792444e5bad",
+      "fromNode": "c908946f-7744-450a-8d31-402d4c12bc46",
+      "fromSide": "bottom",
+      "toNode": "3a422240-adbb-4e8a-bd17-a5e199c2169b",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "Manages KV cache",
+      "style": "solid",
+      "shape": "curved"
+    },
+    {
+      "id": "e428cb45-ff2e-4703-8a82-dc6d20f544a2",
+      "fromNode": "9fa4b39e-183f-4121-8c0b-9dcd196b523a",
+      "fromSide": "bottom",
+      "toNode": "c19e702a-a6d2-413f-8e39-2df6ac2d688b",
+      "toSide": "left",
+      "toEnd": "arrow",
+      "label": "Uses attention",
+      "style": "solid",
+      "shape": "curved"
+    }
+  ]
+}

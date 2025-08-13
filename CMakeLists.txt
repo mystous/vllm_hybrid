@@ -71,6 +71,40 @@ if (CUDA_FOUND AND NOT NVCC_EXECUTABLE)
     message(FATAL_ERROR "nvcc not found")
 endif()
 
+# vLLM GitHub Issue
+#
+# Import torch cmake configuration.
+# Torch also imports CUDA (and partially HIP) languages with some customizations,
+# so there is no need to do this explicitly with check_language/enable_language,
+# etc.
+#
+
+# Workaround for PyTorch NVTX headers issue with newer CUDA Toolkits
+# Assumes find_package(CUDAToolkit) was already done
+message(STATUS "Applying custom PyTorch NVTX headers workaround...")
+if(NOT TARGET CUDA::nvToolsExt)    
+    message(STATUS "--> nvToolsExt Not found, looking for nvtx3.")
+    if (NOT TARGET CUDA::nvtx3)
+        message(STATUS "--> nvtx3 not found, adding library.")
+        add_library(CUDA::nvtx3 INTERFACE IMPORTED)
+        target_include_directories(CUDA::nvtx3 SYSTEM INTERFACE "${CUDAToolkit_INCLUDE_DIRS}")
+        target_link_libraries(CUDA::nvtx3 INTERFACE ${CMAKE_DL_LIBS})
+    endif()
+    if (TARGET CUDA::nvtx3)
+    	add_library(CUDA::nvToolsExt INTERFACE IMPORTED)
+    	target_compile_definitions(
+        	CUDA::nvToolsExt INTERFACE
+        	TORCH_CUDA_USE_NVTX3
+    	)
+    	target_link_libraries(CUDA::nvToolsExt INTERFACE CUDA::nvtx3)
+    	message(STATUS "--> Workaround applied. Created CUDA::nvToolsExt target linked to CUDA::nvtx3.")
+    else()
+    	message(STATUS "--> nvtx3 not found.")
+    endif()
+else()
+    message(STATUS "--> Workaround not needed or conditions not met.")
+endif()
+
 #
 # Import torch cmake configuration.
 # Torch also imports CUDA (and partially HIP) languages with some customizations,

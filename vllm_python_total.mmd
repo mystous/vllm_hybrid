@@ -1,0 +1,275 @@
+classDiagram
+    %% ---------------- vllm/v1/utils.py ----------------
+    class ConstantList {
+        +__init__(x: list[T])
+        +append(item)
+        +extend(item)
+        +insert(item)
+        +pop(item)
+        +remove(item)
+        +clear()
+        +index(item, start, stop)
+        +__getitem__(item)
+        +__setitem__(item, value)
+        +__delitem__(item)
+        +__iter__()
+        +__contains__(item)
+        +__len__()
+        +__repr__()
+    }
+
+    class APIServerProcessManager {
+        +__init__(target_server_fn, listen_address, sock, args, num_servers, input_addresses, output_addresses, stats_update_address)
+        +close()
+    }
+
+    %% ---------------- Executor ----------------
+    class ExecutorBase
+
+    class Executor {
+        +get_class(vllm_config)
+        +initialize_from_config(kv_cache_configs)
+        +register_failure_callback(callback)
+        +determine_available_memory()
+        +get_kv_cache_specs()
+        +execute_model(scheduler_output)
+        +max_concurrent_batches
+        +profile(is_start)
+    }
+    ExecutorBase <|-- Executor
+
+    class UniProcExecutor
+    UniProcExecutorV0 <|-- UniProcExecutor
+    Executor <|-- UniProcExecutor
+
+    class ExecutorWithExternalLauncher
+    ExecutorWithExternalLauncherV0 <|-- ExecutorWithExternalLauncher
+    Executor <|-- ExecutorWithExternalLauncher
+
+    %% ---------------- RayDistributedExecutor ----------------
+    class RayDistributedExecutorV0
+    class KVOutputAggregator
+
+    class FutureWrapper {
+        +__init__(refs, aggregator)
+        +result(timeout)
+    }
+
+    class RayDistributedExecutor {
+        +supports_pp: bool
+        +_init_executor()
+        +max_concurrent_batches
+        +execute_model(scheduler_output)
+        +reinitialize_distributed(reconfig_request)
+    }
+    RayDistributedExecutorV0 <|-- RayDistributedExecutor
+    Executor <|-- RayDistributedExecutor
+
+    %% ---------------- MultiprocExecutor ----------------
+    class MultiprocExecutor {
+        +supports_pp: bool
+        +_init_executor()
+        +start_worker_monitor()
+        +register_failure_callback(callback)
+        +execute_model(scheduler_output)
+        +collective_rpc(...)
+        +shutdown()
+        +check_health()
+        +max_concurrent_batches
+        +_get_output_rank()
+    }
+    Executor <|-- MultiprocExecutor
+
+    class UnreadyWorkerProcHandle {
+        +proc: BaseProcess
+        +rank: int
+        +ready_pipe: Connection
+        +death_writer: Optional[Connection]
+    }
+    class WorkerProcHandle {
+        +proc: BaseProcess
+        +rank: int
+        +worker_response_mq: MessageQueue
+        +death_writer: Optional[Connection]
+        +from_unready_handle(...)
+    }
+    class WorkerProc {
+        +READY_STR
+        +__init__(...)
+        +make_worker_process(...)
+        +wait_for_ready(...)
+        +shutdown()
+        +worker_main(...)
+        +worker_busy_loop()
+    }
+    class WorkerProc_ResponseStatus {
+        SUCCESS
+        FAILURE
+    }
+
+    %% ---------------- WorkerBase ----------------
+    class WorkerBase {
+        +vllm_config: VllmConfig
+        +model_config
+        +cache_config
+        +lora_config
+        +load_config
+        +parallel_config
+        +scheduler_config
+        +device_config
+        +speculative_config
+        +observability_config
+        +kv_transfer_config
+        +compilation_config
+        +current_platform
+        +__init__(vllm_config)
+        +init_device()
+        +initialize_cache(num_gpu_blocks, num_cpu_blocks)
+        +get_model()
+        +load_model()
+        +execute_model(execute_model_req)
+        +start_worker_execution_loop()
+        +determine_num_available_blocks()
+        +get_cache_block_size_bytes()
+        +add_lora(lora_request)
+        +remove_lora(lora_id)
+        +pin_lora(lora_id)
+        +list_loras()
+        +vocab_size
+    }
+
+    class DelegateWorkerBase {
+        +worker: WorkerBase
+        +__init__(*args, **kwargs)
+        +init_device()
+        +determine_num_available_blocks()
+        +initialize_cache(...)
+        +load_model()
+        +get_model()
+        +execute_model(...)
+        +get_cache_block_size_bytes()
+        +add_lora(...)
+        +remove_lora(...)
+        +pin_lora(...)
+        +list_loras()
+        +__getattr__(attr)
+    }
+    WorkerBase <|-- DelegateWorkerBase
+
+    class LoRANotSupportedWorkerBase {
+        +add_lora(...)
+        +remove_lora(...)
+        +pin_lora(...)
+        +list_loras()
+    }
+    WorkerBase <|-- LoRANotSupportedWorkerBase
+
+    class WorkerInput {
+        +num_seq_groups: Optional[int]
+        +blocks_to_swap_in: Optional[torch.Tensor]
+        +blocks_to_swap_out: Optional[torch.Tensor]
+        +blocks_to_copy: Optional[torch.Tensor]
+        +virtual_engine: int
+        +num_steps: int
+        +from_broadcasted_tensor_dict(...)
+        +as_broadcastable_tensor_dict()
+    }
+
+    class LocalOrDistributedWorkerBase {
+        +is_driver_worker: bool
+        +model_runner: ModelRunnerBase
+        +observability_config: Optional[ObservabilityConfig]
+        +do_metadata_broadcast
+        +kv_cache
+        +prepare_worker_input(...)
+        +execute_worker(...)
+        +_get_worker_input_from_broadcast()
+        +_get_driver_input_and_broadcast(...)
+        +prepare_input(...)
+        +get_model()
+        +execute_model(...)
+        +_execute_model_spmd(...)
+    }
+    WorkerBase <|-- LocalOrDistributedWorkerBase
+
+    class WorkerWrapperBase {
+        +rpc_rank: int
+        +worker: Optional[WorkerBase]
+        +vllm_config: Optional[VllmConfig]
+        +adjust_rank(rank_mapping)
+        +update_environment_variables(envs_list)
+        +init_worker(all_kwargs)
+        +initialize_from_config(kv_cache_configs)
+        +init_device()
+        +execute_method(method, *args, **kwargs)
+        +__getattr__(attr)
+    }
+
+    %% ---------------- Worker ----------------
+    class Worker {
+        +local_rank: int
+        +rank: int
+        +distributed_init_method: str
+        +is_driver_worker: bool
+        +model_runner: GPUModelRunnerBase
+        +cache_engine: List[CacheEngine]
+        +gpu_cache: Optional[List[List[torch.Tensor]]]
+        +_seq_group_metadata_cache: Dict[str, SequenceGroupMetadata]
+        +_sleep_saved_buffers: Dict[str, torch.Tensor]
+        +profiler
+        +start_profile()
+        +stop_profile()
+        +sleep(level)
+        +wake_up(tags)
+        +init_device()
+        +load_model()
+        +save_sharded_state(path, pattern, max_size)
+        +save_tensorized_model(tensorizer_config)
+        +determine_num_available_blocks()
+        +_assert_memory_footprint_increased_during_profiling()
+        +initialize_cache(num_gpu_blocks, num_cpu_blocks)
+        +_init_cache_engine()
+        +_warm_up_model()
+        +do_metadata_broadcast
+        +kv_cache
+        +prepare_worker_input(...)
+        +execute_worker(worker_input)
+        +_get_cached_seq_group_metadata(...)
+        +_execute_model_spmd(...)
+        +add_lora(lora_request)
+        +remove_lora(lora_id)
+        +pin_lora(lora_id)
+        +list_loras()
+        +max_model_len
+        +vocab_size
+        +get_cache_block_size_bytes()
+    }
+    LocalOrDistributedWorkerBase <|-- Worker
+
+    %% ---------------- 관계 ----------------
+    WorkerProc --> WorkerWrapperBase : uses
+    WorkerWrapperBase --> WorkerBase : has
+    Worker --> GPUModelRunnerBase : model_runner
+    Worker --> CacheEngine : cache_engine
+    Worker --> CuMemAllocator : uses
+    Worker --> SequenceGroupMetadata : _seq_group_metadata_cache
+    Worker --> SamplerOutput : execute_worker()
+    Worker --> LoRARequest : add_lora()
+    Worker --> TensorizerConfig : save_tensorized_model()
+    Worker --> VllmConfig : vllm_config
+
+    MultiprocExecutor --> WorkerProc : manages
+    MultiprocExecutor --> WorkerProcHandle : manages
+    MultiprocExecutor --> UnreadyWorkerProcHandle : manages
+
+    RayDistributedExecutor --> KVOutputAggregator : uses
+    RayDistributedExecutor --> FutureWrapper : returns
+
+    APIServerProcessManager --> BaseProcess : manages
+
+    DelegateWorkerBase --> WorkerBase : delegates
+    LoRANotSupportedWorkerBase --> WorkerBase : inherits
+    LocalOrDistributedWorkerBase --> WorkerBase : inherits
+    Worker --> LocalOrDistributedWorkerBase : inherits
+
+    WorkerInput --> torch.Tensor : blocks_to_swap_in, blocks_to_swap_out, blocks_to_copy

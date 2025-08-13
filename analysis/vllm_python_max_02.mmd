@@ -1,0 +1,602 @@
+classDiagram
+%% ========================= Interfaces & ABC =========================
+class ABC
+class SequenceGroupOutputProcessor {
+  <<interface>>
+  +create_output_processor(...)
+  +process_outputs(sequence_group, outputs, is_async)
+  +process_prompt_logprob(seq_group, outputs)
+}
+class SingleStepOutputProcessor {
+  +__init__(scheduler_config, detokenizer, scheduler, seq_counter, stop_checker)
+  +process_outputs(...)
+  +process_prompt_logprob(...)
+  +_process_sequence_group_outputs(...)
+  -detokenizer: Detokenizer
+  -scheduler: List[Scheduler]
+  -seq_counter: Counter
+  -stop_checker: StopChecker
+}
+SequenceGroupOutputProcessor <|.. SingleStepOutputProcessor
+SingleStepOutputProcessor o-- Detokenizer
+SingleStepOutputProcessor o-- Scheduler
+SingleStepOutputProcessor o-- Counter
+SingleStepOutputProcessor o-- StopChecker
+
+%% ========================= Engine & Async Engine =========================
+class LLMEngine {
+  +vllm_config: VllmConfig
+  +model_executor: ExecutorBase
+  +scheduler: list[Scheduler]
+  +output_processor: SequenceGroupOutputProcessor
+  +tokenizer: Optional[TokenizerGroup]
+  +seq_id_to_seq_group: Dict[str, SequenceGroupBase]
+  +add_request(...)
+  +abort_request(...)
+  +step()
+  +collective_rpc(...)
+  +add_lora(...); +remove_lora(...); +list_loras(); +pin_lora(...)
+  +start_profile(); +stop_profile()
+  +sleep(); +wake_up(); +is_sleeping()
+  +check_health()
+  +reset_mm_cache(); +reset_prefix_cache()
+  +is_tracing_enabled(); +do_tracing(...); +create_trace_span(seq_group)
+}
+class AsyncLLMEngine {
+  +engine: _AsyncLLMEngine
+  +request_tracker: RequestTracker
+  +background_loop: Optional[asyncio.Future]
+  +add_request(...); +generate(...); +encode(...); +abort(...)
+  +start_background_loop(); +shutdown_background_loop()
+}
+EngineClient <|-- AsyncLLMEngine
+AsyncLLMEngine o-- LLMEngine
+AsyncLLMEngine o-- RequestTracker
+AsyncLLMEngine o-- AsyncStream
+
+class _AsyncLLMEngine {
+  +step_async(...)
+  +add_request_async(...)
+  +check_health_async()
+  +collective_rpc_async(...)
+}
+LLMEngine <|-- _AsyncLLMEngine
+
+class RequestTracker {
+  +add_request(...); +abort_request(...)
+  +process_request_output(...); +process_exception(...)
+  +get_new_and_aborted_requests()
+  -_request_streams: Dict[str, AsyncStream]
+  -_aborted_requests: asyncio.Queue[str]
+  -_new_requests: asyncio.Queue[Tuple[AsyncStream, dict]]
+}
+RequestTracker o-- AsyncStream
+
+class AsyncStream { +put(item) +finish(exception) +generator() -_queue: asyncio.Queue }
+
+%% ========================= Scheduler & Sequences =========================
+class Scheduler {
+  +schedule()
+  +add_seq_group(seq_group)
+  +free_seq(seq)
+  +fork_seq(parent_seq, child_seq)
+  +get_prefix_cache_hit_rate(device)
+  +reset_prefix_cache(device)
+  +get_num_unfinished_seq_groups()
+  +get_and_reset_finished_requests_ids()
+  +abort_seq_group(request_id, seq_id_to_seq_group)
+  +_free_seq_group_cross_attn_blocks(seq_group)
+  +has_unfinished_seqs()
+  +block_manager: BlockSpaceManager
+  +waiting: Deque[SequenceGroup]
+  +running: Deque[SequenceGroup]
+  +swapped: Deque[SequenceGroup]
+}
+class SchedulingBudget {
+  +can_schedule(...)
+  +remaining_token_budget()
+  +add_num_batched_tokens(...); +subtract_num_batched_tokens(...)
+  +add_num_seqs(...); +subtract_num_seqs(...)
+}
+class PreemptionMode { SWAP RECOMPUTE }
+class PartialPrefillMetadata
+class SchedulerOutputs {
+  +scheduled_seq_groups: Sequence[ScheduledSequenceGroup]
+  +blocks_to_swap_in: List[Tuple[int,int]]
+  +blocks_to_swap_out: List[Tuple[int,int]]
+  +blocks_to_copy: List[Tuple[int,int]]
+  +ignored_seq_groups: List[SequenceGroup]
+  +num_lookahead_slots: int
+  +running_queue_size: int
+  +preempted: int
+  +num_prefill_groups
+  +num_batched_tokens
+}
+class ScheduledSequenceGroup { +seq_group: SequenceGroup +token_chunk_size: int }
+
+Scheduler o-- BlockSpaceManager
+Scheduler o-- SequenceGroup
+Scheduler o-- SequenceGroupMetadata
+Scheduler o-- SchedulingBudget
+Scheduler o-- SchedulerOutputs
+Scheduler o-- PartialPrefillMetadata
+Scheduler --> ScheduledSequenceGroup
+Scheduler --> PreemptionMode
+
+class SequenceGroup {
+  +first_seq
+  +sampling_params
+  +prompt_logprobs
+  +lora_request
+  +get_seqs(status)
+  +is_encoder_decoder()
+  +get_encoder_seq()
+}
+class SequenceGroupOutput { +samples }
+class CompletionSequenceGroupOutput { +prompt_logprobs +samples }
+SequenceGroupOutput <|-- CompletionSequenceGroupOutput
+
+class Sequence {
+  +seq_id
+  +append_token_id(token_id, logprobs, output_embed)
+  +is_finished()
+  +get_token_ids()
+  +extra_hash()
+  +data
+}
+
+%% ========================= Stop/Detok/Counter =========================
+class StopChecker { +maybe_stop_sequence(seq, new_char_count, sampling_params, lora_req) }
+class Detokenizer {
+  +decode_sequence_inplace(seq, sampling_params)
+  +decode_prompt_logprobs_inplace(seq_group, prompt_logprobs, position_offset)
+}
+class Counter
+
+%% ========================= Blocks & Allocators =========================
+class BlockSpaceManager {
+  <<interface>>
+  +can_allocate(seq_group, num_lookahead_slots)
+  +allocate(seq_group)
+  +free(seq)
+  +fork(parent_seq, child_seq)
+  +swap_in(seq_group)
+  +swap_out(seq_group)
+  +get_prefix_cache_hit_rate(device)
+  +reset_prefix_cache(device)
+}
+class SelfAttnBlockSpaceManager {
+  +__init__(block_size, num_gpu_blocks, num_cpu_blocks, ...)
+  +block_allocator: CpuGpuBlockAllocator
+  +block_tables: Dict[SeqId, BlockTable]
+  +cross_block_tables: Dict[EncoderSeqId, BlockTable]
+  +_computed_blocks_tracker: ComputedBlocksTracker
+  +_last_access_blocks_tracker: LastAccessBlocksTracker
+  +can_allocate(seq_group, num_lookahead_slots)
+  +allocate(seq_group); +free(seq); +fork(parent_seq, child_seq)
+  +remove_seq_from_computed_blocks_tracker(seq)
+  +free_cross(seq_group)
+  +can_append_slots(seq_group, num_lookahead_slots); +append_slots(seq, num_lookahead_slots)
+  +get_block_table(seq); +get_cross_block_table(seq_group)
+  +access_all_blocks_in_seq(seq, now)
+  +mark_blocks_as_computed(seq_group, token_chunk_size)
+  +get_common_computed_block_ids(seqs)
+  +can_swap_in(seq_group, num_lookahead_slots); +swap_in(seq_group)
+  +can_swap_out(seq_group); +swap_out(seq_group)
+  +get_num_free_gpu_blocks(); +get_num_free_cpu_blocks()
+  +get_prefix_cache_hit_rate(device); +reset_prefix_cache(device)
+  +_can_swap(seq_group, device, status, num_lookahead_slots)
+  +get_num_cached_tokens(seq)
+}
+BlockSpaceManager <|.. SelfAttnBlockSpaceManager
+SelfAttnBlockSpaceManager o-- CpuGpuBlockAllocator
+SelfAttnBlockSpaceManager o-- BlockTable
+
+class BlockAllocator {
+  <<interface>>
+  +allocate_mutable_block(...)
+  +allocate_immutable_block(...)
+  +free(block)
+  +fork(last_block)
+  +swap_in(blocks); +swap_out(blocks)
+  +get_num_free_blocks(...); +get_num_total_blocks(...)
+  +get_physical_block_id(...)
+  +reset_prefix_cache(...); +get_prefix_cache_hit_rate(...)
+}
+class DeviceAwareBlockAllocator {
+  +allocate_mutable_block(...); +allocate_immutable_blocks(...); +allocate_immutable_block(...)
+  +free(block); +fork(last_block)
+  +get_num_free_blocks(device); +get_num_total_blocks(device)
+  +get_physical_block_id(device, absolute_id)
+  +swap(blocks, src_device, dst_device)
+  +get_num_full_blocks_touched(blocks, device)
+  +clear_copy_on_writes()
+  +mark_blocks_as_accessed(block_ids, now)
+  +mark_blocks_as_computed(block_ids)
+  +get_common_computed_block_ids(computed_seq_block_ids)
+  +all_block_ids
+  +get_prefix_cache_hit_rate(device); +reset_prefix_cache(device)
+  +get_and_reset_swaps()
+  +find_cached_blocks_prefix(block_hashes, device)
+}
+class CpuGpuBlockAllocator {
+  +create(...); +__init__(cpu_block_allocator, gpu_block_allocator)
+  +allocate_or_get_null_block()
+  +allocate_mutable_block(...); +allocate_immutable_blocks(...); +allocate_immutable_block(...)
+  +free(block); +fork(last_block)
+  +get_num_free_blocks(device); +get_num_total_blocks(device)
+  +get_physical_block_id(device, absolute_id)
+  +swap(blocks, src_device, dst_device)
+  +get_num_full_blocks_touched(blocks, device)
+  +clear_copy_on_writes()
+  +mark_blocks_as_accessed(block_ids, now)
+  +mark_blocks_as_computed(block_ids)
+  +get_common_computed_block_ids(computed_seq_block_ids)
+  +all_block_ids
+  +get_prefix_cache_hit_rate(device); +reset_prefix_cache(device)
+  +get_and_reset_swaps()
+  +find_cached_blocks_prefix(block_hashes, device)
+  -_allocators: Dict[Device, BlockAllocator]
+  -_block_ids_to_allocator: Dict[int, BlockAllocator]
+  -_null_block: Optional[Block]
+}
+DeviceAwareBlockAllocator <|-- CpuGpuBlockAllocator
+CpuGpuBlockAllocator o-- BlockAllocator
+CpuGpuBlockAllocator o-- NullBlock
+
+class BlockTable {
+  +block_size: int
+  +block_allocator: CpuGpuBlockAllocator
+  +blocks: List[Block]
+  +allocate(...); +fork(...); +update(...); +free(...)
+  +get_num_blocks_touched_by_append_slots(...)
+  +get_unseen_token_ids(...)
+  +append_token_ids(...)
+  +physical_block_ids: List[int]
+}
+class Block {
+  +block_id: int
+  +token_ids: List[int]
+  +num_tokens_total: int
+  +num_empty_slots: int
+  +is_full: bool
+  +prev_block: Optional[Block]
+  +extra_hash: Optional[int]
+  +computed: bool
+  +last_accessed: float
+  +content_hash: Optional[int]
+  +append_token_ids(...)
+}
+class NullBlock {
+  +block_id
+  +token_ids
+  +num_empty_slots
+  +is_full
+  +prev_block
+  +computed
+  +last_accessed
+  +content_hash
+  -_proxy: Block
+}
+NullBlock *-- Block
+
+class NaiveBlockAllocator
+BlockAllocator <|.. NaiveBlockAllocator
+class PrefixCachingBlockAllocator
+BlockAllocator <|.. PrefixCachingBlockAllocator
+
+%% ========================= Worker & Cache =========================
+class CacheEngine {
+  +swap_in(src_to_dst)
+  +swap_out(src_to_dst)
+  +copy(src_to_dsts)
+  +get_cache_block_size(cache_config, model_config, parallel_config)
+  -gpu_cache: List[torch.Tensor]
+  -cpu_cache: List[torch.Tensor]
+  -attn_backend
+}
+CacheEngine o-- torch.Tensor
+
+class WorkerBase {
+  +init_device()
+  +initialize_cache(num_gpu_blocks, num_cpu_blocks)
+  +get_model(); +load_model()
+  +execute_model(execute_model_req)
+  +start_worker_execution_loop()
+  +determine_num_available_blocks()
+  +get_cache_block_size_bytes()
+  +add_lora(lora_request); +remove_lora(lora_id); +pin_lora(lora_id); +list_loras()
+  +vocab_size
+}
+class LocalOrDistributedWorkerBase
+WorkerBase <|-- LocalOrDistributedWorkerBase
+
+class Worker {
+  +start_profile(); +stop_profile()
+  +sleep(level); +wake_up(tags)
+  +init_device(); +load_model()
+  +save_sharded_state(path, pattern, max_size)
+  +save_tensorized_model(tensorizer_config)
+  +determine_num_available_blocks()
+  +initialize_cache(num_gpu_blocks, num_cpu_blocks)
+  +_init_cache_engine(); +_warm_up_model()
+  +do_metadata_broadcast; +kv_cache
+  +prepare_worker_input(execute_model_req)
+  +execute_worker(worker_input)
+  +_get_cached_seq_group_metadata(seq_group_metadata_list, finished_request_ids)
+  +_execute_model_spmd(execute_model_req, intermediate_tensors)
+  +add_lora(lora_request); +remove_lora(lora_id); +pin_lora(lora_id); +list_loras()
+  +max_model_len; +vocab_size; +get_cache_block_size_bytes()
+  -model_runner: GPUModelRunnerBase
+  -cache_engine: List[CacheEngine]
+  -gpu_cache: Optional[List[List[torch.Tensor]]]
+  -_seq_group_metadata_cache: Dict[str, SequenceGroupMetadata]
+}
+LocalOrDistributedWorkerBase <|-- Worker
+Worker o-- GPUModelRunnerBase
+Worker o-- CacheEngine
+Worker o-- SequenceGroupMetadata
+
+%% ========================= Executors =========================
+class ExecutorBase
+class Executor {
+  +get_class(vllm_config)
+  +initialize_from_config(kv_cache_configs)
+  +register_failure_callback(callback)
+  +determine_available_memory()
+  +get_kv_cache_specs()
+  +execute_model(scheduler_output)
+  +max_concurrent_batches
+  +profile(is_start)
+}
+ExecutorBase <|-- Executor
+
+class UniProcExecutor
+Executor <|-- UniProcExecutor
+class ExecutorWithExternalLauncher
+Executor <|-- ExecutorWithExternalLauncher
+
+class RayDistributedExecutorV0
+class KVOutputAggregator
+class FutureWrapper { +refs +aggregator: Optional[KVOutputAggregator] +result(timeout) }
+class RayDistributedExecutor {
+  +supports_pp: bool
+  +_init_executor()
+  +max_concurrent_batches
+  +execute_model(...)
+  +reinitialize_distributed(...)
+  +kv_output_aggregator: KVOutputAggregator
+}
+RayDistributedExecutorV0 <|-- RayDistributedExecutor
+Executor <|-- RayDistributedExecutor
+Future <|-- FutureWrapper
+
+class MultiprocExecutor {
+  +supports_pp: bool
+  +_init_executor()
+  +start_worker_monitor()
+  +register_failure_callback(...)
+  +execute_model(...)
+  +collective_rpc(...)
+  +shutdown(); +check_health()
+  +max_concurrent_batches; +_get_output_rank()
+  +workers: list[WorkerProcHandle]
+  +rpc_broadcast_mq: MessageQueue
+  +io_thread_pool: Optional[ThreadPoolExecutor]
+  +failure_callback: Optional[FailureCallback]
+  +kv_output_aggregator: KVOutputAggregator
+}
+Executor <|-- MultiprocExecutor
+
+class WorkerProc {
+  +make_worker_process(...); +wait_for_ready(...); +shutdown()
+  +worker_main(...); +worker_busy_loop()
+  +ResponseStatus(Enum)
+  -worker: WorkerWrapperBase
+  -rpc_broadcast_mq: MessageQueue
+  -worker_response_mq: MessageQueue
+}
+class WorkerProcHandle { +proc: BaseProcess +rank: int +worker_response_mq: MessageQueue +death_writer: Optional[Connection] +from_unready_handle(...) }
+class UnreadyWorkerProcHandle { +proc: BaseProcess +rank: int +ready_pipe: Connection +death_writer: Optional[Connection] }
+class WorkerWrapperBase {
+  +init_worker(all_kwargs); +initialize_from_config(kv_cache_configs)
+  +init_device(); +execute_method(method, *args, **kwargs)
+  +__getattr__(attr)
+  -worker: Optional[WorkerBase]
+  -vllm_config: Optional[VllmConfig]
+}
+WorkerProc o-- WorkerWrapperBase
+WorkerProc o-- MessageQueue
+
+%% ========================= Model Loader =========================
+class BaseModelLoader
+class DefaultModelLoader
+BaseModelLoader <|-- DefaultModelLoader
+class GGUFModelLoader
+BaseModelLoader <|-- GGUFModelLoader
+
+%% ========================= Model (Deepseek example) =========================
+class DeepseekModel {
+  +get_input_embeddings(input_ids)
+  +forward(input_ids, positions, intermediate_tensors, inputs_embeds)
+  +load_weights(weights)
+  -embed_tokens: VocabParallelEmbedding
+  -layers: List[DeepseekDecoderLayer]
+  -norm: RMSNorm
+}
+DeepseekModel *-- DeepseekDecoderLayer
+DeepseekModel o-- VocabParallelEmbedding
+DeepseekModel o-- RMSNorm
+
+class DeepseekDecoderLayer {
+  +forward(positions, hidden_states, residual)
+  -self_attn: DeepseekAttention
+  -mlp: DeepseekMLP or DeepseekMoE
+  -input_layernorm: RMSNorm
+  -post_attention_layernorm: RMSNorm
+}
+DeepseekDecoderLayer *-- DeepseekAttention
+DeepseekDecoderLayer *-- DeepseekMLP
+DeepseekDecoderLayer *-- DeepseekMoE
+DeepseekDecoderLayer o-- RMSNorm
+
+class DeepseekAttention {
+  +forward(positions, hidden_states)
+  -qkv_proj: QKVParallelLinear
+  -o_proj: RowParallelLinear
+  -rotary_emb
+  -attn: Attention
+}
+DeepseekAttention *-- QKVParallelLinear
+DeepseekAttention *-- RowParallelLinear
+DeepseekAttention *-- Attention
+
+class DeepseekMLP {
+  +forward(x)
+  -gate_up_proj: MergedColumnParallelLinear
+  -down_proj: RowParallelLinear
+  -act_fn: SiluAndMul
+}
+DeepseekMLP *-- MergedColumnParallelLinear
+DeepseekMLP *-- RowParallelLinear
+DeepseekMLP o-- SiluAndMul
+
+class DeepseekMoE {
+  +forward(hidden_states)
+  -experts: nn.ModuleList[DeepseekMLP]
+  -gate: ReplicatedLinear
+  -shared_experts: DeepseekMLP
+}
+DeepseekMoE o-- DeepseekMLP
+DeepseekMoE o-- ReplicatedLinear
+
+class DeepseekForCausalLM {
+  +forward(...); +compute_logits(...); +load_weights(...)
+  -model: DeepseekModel
+  -lm_head: ParallelLMHead
+  -logits_processor: LogitsProcessor
+}
+DeepseekForCausalLM o-- DeepseekModel
+DeepseekForCausalLM o-- ParallelLMHead
+DeepseekForCausalLM o-- LogitsProcessor
+
+%% ========================= Linear Layers & Fused MoE =========================
+class LinearBase
+class ReplicatedLinear
+LinearBase <|-- ReplicatedLinear
+class MergedReplicatedLinear
+ReplicatedLinear <|-- MergedReplicatedLinear
+class ColumnParallelLinear
+LinearBase <|-- ColumnParallelLinear
+class MergedColumnParallelLinear
+ColumnParallelLinear <|-- MergedColumnParallelLinear
+class QKVParallelLinear
+ColumnParallelLinear <|-- QKVParallelLinear
+class RowParallelLinear
+LinearBase <|-- RowParallelLinear
+
+class FusedMoE
+torch.nn.Module <|-- FusedMoE
+class QuantizeMethodBase
+class FusedMoEMethodBase
+QuantizeMethodBase <|-- FusedMoEMethodBase
+class UnquantizedFusedMoEMethod
+FusedMoEMethodBase <|-- UnquantizedFusedMoEMethod
+class CustomOp
+CustomOp <|-- UnquantizedFusedMoEMethod
+
+%% ========================= Serving =========================
+class OpenAIServing {
+  +handle(ctx)
+  +_preprocess(ctx); +_build_response(ctx)
+  +_validate_request(ctx)
+  +_create_pooling_params(ctx)
+  +_prepare_generators(ctx)
+  +_collect_batch(ctx)
+  +create_error_response(...); +create_streaming_error_response(...)
+  +_check_model(request); +_maybe_get_adapters(request)
+  +_get_model_name(...)
+  -engine_client: EngineClient
+  -model_config: ModelConfig
+  -models: OpenAIServingModels
+  -request_logger: Optional[RequestLogger]
+}
+OpenAIServing o-- EngineClient
+OpenAIServing o-- ModelConfig
+OpenAIServing o-- OpenAIServingModels
+OpenAIServing o-- RequestLogger
+
+class EmbeddingMixin
+OpenAIServing <|-- EmbeddingMixin
+class OpenAIServingEmbedding
+EmbeddingMixin <|-- OpenAIServingEmbedding
+
+%% ========================= Misc & Utilities =========================
+class APIServerProcessManager
+class ConstantList
+Sequence <|-- ConstantList
+
+class MessageQueue
+class VocabParallelEmbedding
+class RMSNorm
+class Attention
+class SiluAndMul
+class ParallelLMHead
+class LogitsProcessor
+class TokenizerGroup
+class EngineClient
+class RequestLogger
+class OpenAIServingModels
+class SequenceGroupMetadata
+class SequenceGroupMetadataDelta
+class SamplerOutput
+class TensorizerConfig
+class KVCacheManager
+class EncoderCacheManager
+class StructuredOutputManager
+class KVConnectorBase_V1
+class MultiModalRegistry
+
+%% ========================= Cross-Module Relationships =========================
+LLMEngine --> Scheduler : manages
+LLMEngine --> SequenceGroupOutputProcessor : uses
+LLMEngine --> ExecutorBase : uses
+LLMEngine --> TokenizerGroup : uses
+LLMEngine --> SequenceGroupBase : manages
+LLMEngine --> StopChecker : uses
+LLMEngine --> Detokenizer : uses
+LLMEngine --> LoRARequest : manages
+LLMEngine --> RequestOutput : returns
+LLMEngine --> PoolingRequestOutput : returns
+
+BlockSpaceManager --> CpuGpuBlockAllocator : uses
+CpuGpuBlockAllocator --> BlockAllocator : uses
+BlockAllocator --> Block : allocates
+BlockTable --> Block : manages
+BlockTable --> CpuGpuBlockAllocator : uses
+BlockTable --> BlockTable : forks
+CpuGpuBlockAllocator --> NullBlock : allocate_or_get_null_block
+CpuGpuBlockAllocator --> Block : allocate_mutable_block, allocate_immutable_block
+
+Worker --> GPUModelRunnerBase : model_runner
+Worker --> CacheEngine : cache_engine
+Worker --> SequenceGroupMetadata : _seq_group_metadata_cache
+Worker --> SamplerOutput : returns
+Worker --> LoRARequest : manages
+Worker --> TensorizerConfig : save_tensorized_model
+Worker --> VllmConfig : vllm_config
+
+MultiprocExecutor --> WorkerProc : manages
+MultiprocExecutor --> WorkerProcHandle : manages
+MultiprocExecutor --> UnreadyWorkerProcHandle : manages
+RayDistributedExecutor --> KVOutputAggregator : uses
+RayDistributedExecutor --> FutureWrapper : returns
+
+Scheduler --> KVCacheManager
+Scheduler --> EncoderCacheManager
+Scheduler --> StructuredOutputManager
+Scheduler --> KVConnectorBase_V1
+Scheduler --> MultiModalRegistry
+
+%% ========================= Enum Example =========================
+class WorkerProc.ResponseStatus { SUCCESS FAILURE }
