@@ -24,24 +24,7 @@ SingleStepOutputProcessor o-- Counter
 SingleStepOutputProcessor o-- StopChecker
 
 %% ========================= Engine & Async Engine =========================
-class LLMEngine {
-  +vllm_config: VllmConfig
-  +model_executor: ExecutorBase
-  +scheduler: list[Scheduler]
-  +output_processor: SequenceGroupOutputProcessor
-  +tokenizer: Optional[TokenizerGroup]
-  +seq_id_to_seq_group: Dict[str, SequenceGroupBase]
-  +add_request(...)
-  +abort_request(...)
-  +step()
-  +collective_rpc(...)
-  +add_lora(...); +remove_lora(...); +list_loras(); +pin_lora(...)
-  +start_profile(); +stop_profile()
-  +sleep(); +wake_up(); +is_sleeping()
-  +check_health()
-  +reset_mm_cache(); +reset_prefix_cache()
-  +is_tracing_enabled(); +do_tracing(...); +create_trace_span(seq_group)
-}
+
 class AsyncLLMEngine {
   +engine: _AsyncLLMEngine
   +request_tracker: RequestTracker
@@ -625,30 +608,9 @@ class APIServerProcessManager {
   +close()
 }
 
-%% ========================= Engine & Async Engine =========================
-class LLMEngine {
-  +vllm_config: VllmConfig
-  +model_executor: ExecutorBase
-  +scheduler: list[Scheduler]
-  +output_processor: SequenceGroupOutputProcessor
-  +tokenizer: Optional[TokenizerGroup]
-  +seq_id_to_seq_group: Dict[str, SequenceGroupBase]
-  +add_request(...)
-  +step()
-  +abort_request(...)
-  +add_lora(...)
-  +remove_lora(...)
-  +list_loras()
-  +pin_lora(...)
-  +start_profile()
-  +stop_profile()
-  +sleep()
-  +wake_up()
-  +is_sleeping()
-  +check_health()
-  +reset_mm_cache()
-  +reset_prefix_cache()
-}
+
+
+
 class AsyncLLMEngine {
   +engine: _AsyncLLMEngine
   +request_tracker: RequestTracker
@@ -1518,29 +1480,32 @@ OpenAIServingEmbedding --> EmbeddingResponse : returns
     WorkerWrapperBase "1" o-- "1" WorkerBase
 
       %% 엔진 및 스케줄러
-    class LLMEngine {
-        +vllm_config: VllmConfig
-        +model_executor: ExecutorBase
-        +scheduler: list[Scheduler]
-        +output_processor: SequenceGroupOutputProcessor
-        +tokenizer: Optional[TokenizerGroup]
-        +seq_id_to_seq_group: Dict[str, SequenceGroupBase]
-        +add_request(...)
-        +step()
-        +abort_request(...)
-        +add_lora(...)
-        +remove_lora(...)
-        +list_loras()
-        +pin_lora(...)
-        +start_profile()
-        +stop_profile()
-        +sleep()
-        +wake_up()
-        +is_sleeping()
-        +check_health()
-        +reset_mm_cache()
-        +reset_prefix_cache()
-    }
+class LLMEngine {
+  +vllm_config: VllmConfig
+  +model_executor: ExecutorBase
+  +scheduler: list[Scheduler]
+  +output_processor: SequenceGroupOutputProcessor
+  +tokenizer: Optional[TokenizerGroup]
+  +seq_id_to_seq_group: Dict[str, SequenceGroupBase]
+  +add_request(...)
+  +step()
+  +abort_request(...)
+  +add_lora(...)
+  +remove_lora(...)
+  +list_loras()
+  +pin_lora(...)
+  +start_profile()
+  +stop_profile()
+  +sleep()
+  +wake_up()
+  +is_sleeping()
+  +check_health()
+  +reset_mm_cache()
+  +reset_prefix_cache()
+  +collective_rpc(...)
+  +add_lora(...); +remove_lora(...); +list_loras(); +pin_lora(...)
+  +is_tracing_enabled(); +do_tracing(...); +create_trace_span(seq_group)
+}
 
     class AsyncLLMEngine {
         +engine: _AsyncLLMEngine
