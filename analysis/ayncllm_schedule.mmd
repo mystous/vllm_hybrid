@@ -1,0 +1,168 @@
+sequenceDiagram
+    participant User
+    participant AsyncLLMEngine
+    participant RequestTracker
+    participant _AsyncLLMEngine
+    participant LLMEngine
+    participant Scheduler
+    participant ModelExecutor
+    participant AsyncStream
+    participant InputPreprocessor
+    participant Tokenizer
+    participant AnyTokenizer
+    participant StatLogger
+
+    %% ========================= 1) Generate / Encode / Add Request =========================
+    User->>AsyncLLMEngine: generate(prompt, sampling_params, request_id, ...)
+    AsyncLLMEngine->>AsyncLLMEngine: add_request(...)
+    AsyncLLMEngine->>RequestTracker: add_request(...)
+    AsyncLLMEngine->>AsyncLLMEngine: start_background_loop() (if needed)
+    AsyncLLMEngine->>AsyncLLMEngine: run_engine_loop()
+    AsyncLLMEngine->>AsyncLLMEngine: engine_step(virtual_engine)
+    AsyncLLMEngine->>_AsyncLLMEngine: step_async(virtual_engine)
+    _AsyncLLMEngine->>LLMEngine: schedule()
+    LLMEngine->>Scheduler: schedule()
+    Scheduler-->>LLMEngine: SchedulerOutputs
+    LLMEngine->>ModelExecutor: execute_model_async(ExecuteModelRequest)
+    ModelExecutor-->>LLMEngine: outputs
+    LLMEngine-->>_AsyncLLMEngine: outputs
+    _AsyncLLMEngine-->>AsyncLLMEngine: outputs
+    AsyncLLMEngine->>RequestTracker: process_request_output(...)
+    AsyncLLMEngine-->>User: yield RequestOutput
+
+    User->>AsyncLLMEngine: encode(prompt, pooling_params, request_id, ...)
+    AsyncLLMEngine->>_AsyncLLMEngine: step_async(virtual_engine)
+    _AsyncLLMEngine->>LLMEngine: schedule()
+    LLMEngine->>Scheduler: schedule()
+    Scheduler-->>LLMEngine: SchedulerOutputs
+    LLMEngine->>ModelExecutor: execute_model_async(ExecuteModelRequest)
+    ModelExecutor-->>LLMEngine: outputs
+    LLMEngine-->>_AsyncLLMEngine: outputs
+    _AsyncLLMEngine-->>AsyncLLMEngine: outputs
+    AsyncLLMEngine->>RequestTracker: process_request_output(...)
+    AsyncLLMEngine-->>User: yield PoolingRequestOutput
+
+    User->>AsyncLLMEngine: generate()/encode()/add_request()
+    AsyncLLMEngine->>AsyncLLMEngine: is_running?
+    alt not running
+        AsyncLLMEngine->>AsyncLLMEngine: start_background_loop()
+        AsyncLLMEngine->>RequestTracker: __init__()
+    end
+    AsyncLLMEngine->>RequestTracker: add_request()
+    AsyncLLMEngine->>AsyncStream: generator()
+
+    %% ========================= 2) Background Engine Loop =========================
+    loop background loop
+        AsyncLLMEngine->>RequestTracker: get_new_and_aborted_requests()
+        AsyncLLMEngine->>_AsyncLLMEngine: add_request_async() (for each new)
+        _AsyncLLMEngine->>InputPreprocessor: preprocess_async()
+        _AsyncLLMEngine->>LLMEngine: _add_processed_request()
+        AsyncLLMEngine->>_AsyncLLMEngine: abort_request() (for each aborted)
+        _AsyncLLMEngine->>LLMEngine: abort_request()
+        AsyncLLMEngine->>_AsyncLLMEngine: step_async()
+        _AsyncLLMEngine->>Scheduler: schedule()
+        Scheduler->>Scheduler: _schedule/_schedule_default/_schedule_chunked_prefill
+        Scheduler->>Scheduler: _schedule_prefills/_schedule_running/_schedule_swapped
+        Scheduler->>Scheduler: _can_append_slots/_append_slots/_preempt/_swap_in/_swap_out
+        Scheduler->>Scheduler: get_and_reset_finished_requests_ids()
+        _AsyncLLMEngine->>ModelExecutor: execute_model_async()
+        ModelExecutor-->>_AsyncLLMEngine: outputs
+        _AsyncLLMEngine->>Scheduler: update_cached_scheduler_output()
+        _AsyncLLMEngine->>Scheduler: finish_step()
+        _AsyncLLMEngine->>LLMEngine: _process_model_outputs()
+        _AsyncLLMEngine->>StatLogger: do_log_stats()
+        _AsyncLLMEngine->>LLMEngine: do_tracing()
+        _AsyncLLMEngine->>RequestTracker: process_request_output()
+        AsyncLLMEngine->>RequestTracker: process_request_outputs()
+        AsyncLLMEngine->>AsyncStream: put()/finish()
+        AsyncLLMEngine->>User: yield RequestOutput/PoolingRequestOutput
+    end
+
+    %% ========================= 3) Abort =========================
+    User->>AsyncLLMEngine: abort(request_id)
+    AsyncLLMEngine->>AsyncLLMEngine: _abort(request_id)
+    AsyncLLMEngine->>RequestTracker: abort_request(request_id, ...)
+    User->>AsyncLLMEngine: abort()
+    AsyncLLMEngine->>RequestTracker: abort_request()
+
+    %% ========================= 4) Explicit add_request path =========================
+    User->>AsyncLLMEngine: add_request(request_id, prompt, params, ...)
+    AsyncLLMEngine->>RequestTracker: add_request(...)
+    AsyncLLMEngine-->>User: AsyncStream.generator()
+
+    %% ========================= 5) One-off engine_step helper =========================
+    AsyncLLMEngine->>_AsyncLLMEngine: add_request_async(...) (for each new)
+    AsyncLLMEngine->>_AsyncLLMEngine: abort_request(...) (if aborted)
+    AsyncLLMEngine->>_AsyncLLMEngine: step_async(virtual_engine)
+    _AsyncLLMEngine-->>AsyncLLMEngine: outputs
+    AsyncLLMEngine->>RequestTracker: process_request_output(...)
+    AsyncLLMEngine-->>AsyncLLMEngine: all_finished
+
+    %% ========================= 6) Foreground run loop wrapper =========================
+    AsyncLLMEngine->>AsyncLLMEngine: run_engine_loop(engine_ref)
+    loop while True
+        AsyncLLMEngine->>AsyncLLMEngine: wait_for_new_requests() (if idle)
+    end
+
+    %% ========================= 7) Management / Introspection =========================
+    User->>AsyncLLMEngine: get_vllm_config()/get_model_config()/...
+    AsyncLLMEngine->>_AsyncLLMEngine: get_vllm_config()/get_model_config()/...
+    _AsyncLLMEngine-->>AsyncLLMEngine: config
+
+    User->>AsyncLLMEngine: start_profile()/stop_profile()
+    AsyncLLMEngine->>_AsyncLLMEngine: start_profile()/stop_profile()
+
+    User->>AsyncLLMEngine: sleep()/wake_up()/is_sleeping()
+    AsyncLLMEngine->>_AsyncLLMEngine: sleep()/wake_up()/is_sleeping()
+
+    User->>AsyncLLMEngine: add_lora(lora_request)
+    AsyncLLMEngine->>_AsyncLLMEngine: add_lora(lora_request)
+
+    User->>AsyncLLMEngine: check_health()
+    AsyncLLMEngine->>_AsyncLLMEngine: check_health_async()
+
+    User->>AsyncLLMEngine: do_log_stats(...)
+    AsyncLLMEngine->>_AsyncLLMEngine: do_log_stats(...)
+
+    User->>AsyncLLMEngine: check_health()/get_vllm_config()/get_model_config()/get_parallel_config()/get_decoding_config()/get_scheduler_config)/get_lora_config()
+    AsyncLLMEngine->>_AsyncLLMEngine: check_health_async()/get_vllm_config()/get_model_config()/get_parallel_config()/get_decoding_config()/get_scheduler_config)/get_lora_config()
+    User->>AsyncLLMEngine: start_profile()/stop_profile()/reset_mm_cache()/reset_prefix_cache()/sleep()/wake_up()/is_sleeping)/add_lora()/collective_rpc()
+    AsyncLLMEngine->>_AsyncLLMEngine: start_profile()/stop_profile()/reset_mm_cache()/reset_prefix_cache()/sleep()/wake_up()/is_sleeping()/add_lora()/collective_rpc_async()
+
+    %% ========================= 8) Internal Utilities / States =========================
+    AsyncLLMEngine->>AsyncLLMEngine: set_errored()
+    AsyncLLMEngine->>AsyncLLMEngine: _error_callback()
+    AsyncLLMEngine->>AsyncLLMEngine: shutdown_background_loop()
+    AsyncLLMEngine->>AsyncLLMEngine: process_request_outputs()
+    AsyncLLMEngine->>AsyncLLMEngine: engine_step()
+    AsyncLLMEngine->>AsyncLLMEngine: dead_error
+    AsyncLLMEngine->>AsyncLLMEngine: is_running/is_stopped/errored
+
+    %% ========================= 9) Tokenizer =========================
+    User->>AsyncLLMEngine: get_tokenizer()
+    AsyncLLMEngine->>_AsyncLLMEngine: get_tokenizer_async()
+    _AsyncLLMEngine->>Tokenizer: get_lora_tokenizer_async()
+
+    %% ========================= 10) Extended internals (merged, exact duplicates removed) =========================
+    %% Bootstrap details
+    RequestTracker->>AsyncStream: __init__()
+    RequestTracker->>AsyncStream: put()
+    RequestTracker->>AsyncStream: finish()
+
+    %% Extra LLMEngine-internal steps exposed via _AsyncLLMEngine
+    _AsyncLLMEngine->>LLMEngine: get_and_reset_finished_requests_ids()
+    _AsyncLLMEngine->>LLMEngine: _cache_scheduler_outputs_for_multi_step()
+    _AsyncLLMEngine->>LLMEngine: _get_last_sampled_token_ids()
+    _AsyncLLMEngine->>LLMEngine: model_executor.execute_model_async()
+    _AsyncLLMEngine->>LLMEngine: _update_cached_scheduler_output()
+    _AsyncLLMEngine->>LLMEngine: finish_step()
+    _AsyncLLMEngine->>LLMEngine: append_output()
+    _AsyncLLMEngine->>LLMEngine: _advance_to_next_step()
+    _AsyncLLMEngine->>LLMEngine: do_log_stats()
+
+    %% Engine controls & helpers added
+    AsyncLLMEngine->>AsyncLLMEngine: _engine_abort()
+    AsyncLLMEngine->>AsyncLLMEngine: get_input_preprocessor()
+
+    %% Tokenizer variant (distinct participant name, so kept)
+    _AsyncLLMEngine->>AnyTokenizer: get_lora_tokenizer_async()

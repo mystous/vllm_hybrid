@@ -1,0 +1,65 @@
+classDiagram
+
+class AsyncLLMEngine{
+    %% Members
+    - _request_tracker: RequestTracker
+    - engine: LLMEngine
+    + _engine_class: Type[_AsyncLLMEngine]
+    %% Methods
+    + engine_step(self, virtual_engine: int) -> bool
+    + start_background_loop(self)
+}
+class WorkerBase
+class Worker
+class LocalOrDistributedWorkerBase
+class AsyncStream
+class RequestTracker
+class _AsyncLLMEngine
+class LLMEngine{
+   - executor_class: Type[ExecutorBase]
+}
+class AsyncLLMEngine
+class EngineClient
+class ABC
+class AsyncScheduler
+class Scheduler{
+    - BlockSpaceManagerImpl: BlockSpaceManager
+}
+class ExecutorBase
+class DistributedExecutorBase
+class UniProcExecutor
+
+class RayDistributedExecutor
+
+DistributedExecutorBase --|> ExecutorBase
+UniProcExecutor --|> ExecutorBase
+RayDistributedExecutor --|> DistributedExecutorBase
+
+class BlockSpaceManager
+class SelfAttnBlockSpaceManager
+class PlaceholderBlockSpaceManager
+SelfAttnBlockSpaceManager --|> BlockSpaceManager
+PlaceholderBlockSpaceManager --|> BlockSpaceManager
+
+class ABCMeta {
+    + __new__(mcls, name, bases, namespace, **kwargs)
+    + register(cls, subclass)
+    + __instancecheck__(cls, instance)
+    + __subclasscheck__(cls, subclass)
+    + _dump_registry(cls, file=None)
+    + _abc_registry_clear(cls)
+    + _abc_caches_clear(cls)
+}
+
+LocalOrDistributedWorkerBase <|-- Worker
+WorkerBase <|-- LocalOrDistributedWorkerBase
+LLMEngine <|-- _AsyncLLMEngine
+LLMEngine o-- ExecutorBase : executor_class
+EngineClient <|-- AsyncLLMEngine
+ABC <|-- EngineClient
+AsyncLLMEngine o-- _AsyncLLMEngine : _engine_class
+ABC --|> ABCMeta
+AsyncScheduler --|>Scheduler
+AsyncLLMEngine o-- RequestTracker : _request_tracker
+AsyncLLMEngine o-- LLMEngine : engine
+Scheduler o-- BlockSpaceManager : BlockSpaceManagerImpl
