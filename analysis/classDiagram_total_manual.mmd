@@ -1,5 +1,12 @@
 classDiagram
+dirction TB
 
+class func{
+    <<global function>>
+    + get_model() -> nn.Module
+}
+
+func --> BaseModelLoader
 class AsyncLLMEngine{
     %% Members
     - _request_tracker: RequestTracker
@@ -9,37 +16,151 @@ class AsyncLLMEngine{
     + engine_step(self, virtual_engine: int) -> bool
     + start_background_loop(self)
 }
-class WorkerBase
-class Worker
+class _SpecialForm
+class Callable
+Callable--_SpecialForm
+class WorkerBase{
+    - current_platform: Platform
+}
+WorkerBase o-- Platform: current_platform
+class Worker{
+    - model_runner: GPUModelRunnerBase
+}
+class GPUModelRunnerBase{
+    - model: nn.Module
+    + builder: ModelInputForGPUBuilder
+    + _model_input_cls: TModelInputForGPU
+    + _builder_cls: ModelInputForGPUBuilder
+}
+
+GPUModelRunnerBase o-- nn.Module : model
+GPUModelRunnerBase --> func: get_model()
+class Platform{
+    + device_name: str
+    + device_type: str
+    + dispatch_key: str
+    + ray_device_key: str
+    + dist_backend: str
+}
+class CudaPlatformBase
+class CpuPlatform
+CpuPlatform --|> Platform
+CudaPlatformBase --|> Platform
+class CUDAGraphRunner{
+    - _graph: torch.cuda.CUDAGraph
+}
+
+CUDAGraphRunner o-- torch.cuda.CUDAGraph: _graph
+
+class ModelRunner
+class TModelInputForGPU
+<<interface>> TModelInputForGPU
+ModelInputForGPU ..|> TModelInputForGPU
+ModelInputForGPU --|> ModelRunnerInputBase
+ModelRunner --|> GPUModelRunnerBase
+ModelInputForGPUWithSamplingMetadata --|> ModelInputForGPU
+GPUModelRunnerBase o-- ModelInputForGPUWithSamplingMetadata : _model_input_cls
+GPUModelRunnerBase *-- ModelInputForGPUBuilder : builder
+class ModelRunnerBase~TModelInputForGPU~
+GPUModelRunnerBase --|> ModelRunnerBase
+Worker o-- GPUModelRunnerBase
+CUDAGraphRunner --|> nn.Module
+
+class ModelInputForGPU
+
+
 class LocalOrDistributedWorkerBase
 class AsyncStream
 class RequestTracker
 class _AsyncLLMEngine
 class LLMEngine{
    - executor_class: Type[ExecutorBase]
+   - scheduler: Scheduler
 }
+LLMEngine o-- Scheduler: scheduer
 class AsyncLLMEngine
 class EngineClient
 class ABC
 class AsyncScheduler
 class Scheduler{
-    - BlockSpaceManagerImpl: BlockSpaceManager
+    + output_proc_callback: Callable
+    + scheduler_outputs: SchedulerOutputs
+    - block_manager: BlockSpaceManager
+    - waiting: SequenceGroup[]
+    - running: SequenceGroup[]
+    - swapped: SequenceGroup[]
 }
+
+class SchedulerOutputs{
+    + scheduled_seq_groups: ScheduledSequenceGroup[]
+}
+
+class ScheduledSequenceGroup{
+    + seq_group: SequenceGroup
+}
+
+class SequenceGroup{
+    + seqs: Sequence[]
+}
+
+class Sequence{
+    - seq_id
+    - block_size
+    - eos_token_id
+    - status
+    + get_output_text_to_return(self, buffer_length: int, delta: bool) -> str:
+}
+
+SequenceGroup o-- Sequence: seqs
+ScheduledSequenceGroup *-- SequenceGroup: seq_group
+SchedulerOutputs o-- ScheduledSequenceGroup: scheduled_seq_groups
+Scheduler o-- SchedulerOutputs : scheduler_outputs
+Scheduler o-- Callable : output_proc_callback
 class ExecutorBase
 class DistributedExecutorBase
 class UniProcExecutor
 
-class RayDistributedExecutor
+class RayDistributedExecutor{
+    - workers: RayWorkerWrapper[]
+}
+
+class RayWorkerWrapper
+class WorkerWrapperBase{
+    - worker: WorkerBase
+}
+
+WorkerWrapperBase o-- WorkerBase: worker
+
+RayWorkerWrapper --|> WorkerWrapperBase
+
+RayDistributedExecutor o-- RayWorkerWrapper: workers
+
+class CustomOp
+
+CustomOp --|> nn.Module
 
 DistributedExecutorBase --|> ExecutorBase
 UniProcExecutor --|> ExecutorBase
 RayDistributedExecutor --|> DistributedExecutorBase
 
 class BlockSpaceManager
-class SelfAttnBlockSpaceManager
+class SelfAttnBlockSpaceManager{
+    - block_allocator: CpuGpuBlockAllocator
+}
+SelfAttnBlockSpaceManager o-- CpuGpuBlockAllocator: block_allocator
 class PlaceholderBlockSpaceManager
 SelfAttnBlockSpaceManager --|> BlockSpaceManager
 PlaceholderBlockSpaceManager --|> BlockSpaceManager
+
+class BaseModelLoader{
+    - model: nn.Module
+}
+
+class TensorizerLoader
+
+TensorizerLoader --|> BaseModelLoader
+
+BaseModelLoader o-- nn.Module : model
 
 class ABCMeta {
     + __new__(mcls, name, bases, namespace, **kwargs)
@@ -62,4 +183,4 @@ ABC --|> ABCMeta
 AsyncScheduler --|>Scheduler
 AsyncLLMEngine o-- RequestTracker : _request_tracker
 AsyncLLMEngine o-- LLMEngine : engine
-Scheduler o-- BlockSpaceManager : BlockSpaceManagerImpl
+Scheduler o-- BlockSpaceManager : block_manager
