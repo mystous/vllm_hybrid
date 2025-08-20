@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant Client
+    participant AsyncLLMEngine
+
+    
+
+    Client-->>AsyncLLMEngine: generate()
+    activate AsyncLLMEngine
+    AsyncLLMEngine->>AsyncLLMEngine: add_request()
+    activate AsyncLLMEngine
+    AsyncLLMEngine->>AsyncLLMEngine: start_background_loop()
+ 
+    AsyncLLMEngine->>+RequestTracker:
+    AsyncLLMEngine->>AsyncLLMEngine: self._request_tracker = RequestTracker()
+    AsyncLLMEngine->>AsyncLLMEngine: self._background_loop_unshielded = <br>asncio.get_event_loop(run_engine_loop())
+    AsyncLLMEngine->>AsyncLLMEngine: self.background_loop = <br>asncio.shield(self._background_loop_unshielded)
+
+    AsyncLLMEngine->>RequestTracker: add_request()
+    RequestTracker->>AsyncLLMEngine: return AsyncStream()
+    AsyncLLMEngine->>AsyncLLMEngine: stream = AsyncStream
+    AsyncLLMEngine-->>+AsyncStream: generator()
+    AsyncLLMEngine-->>Client: return AsyncGenerator[RequestOutput, None]
+    deactivate AsyncLLMEngine
+    deactivate AsyncLLMEngine
+    deactivate RequestTracker
+    deactivate AsyncStream
