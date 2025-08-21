@@ -1,0 +1,76 @@
+classDiagram
+dirction TB
+
+%% ZeroMQ
+class zmq 
+class AsyncEngineArgs
+class AsyncLLM{
+    - vllm_config : VllmConfig
+    - tokenizer : TokenizerGroup
+    - processor : Processor
+    - output_processor : OputputProcessor
+    - engine_core : MPClient
+    
+    + from_engine_args(AsyncEngineArgs)
+}
+
+class CoreEngineActorManager{
+    - executor_class : Executor
+}
+
+%% rank와 client의 주소를 저장하고 관리 하는 클래스
+class MPClient{
+    - resource : BackgroundResources
+    - encoder : MsgpackEncoder
+    - decoder : MsgpackDecoder
+    - input_socket : zmq
+}
+
+MPClient o-- MsgpackEncoder: encoder
+MPClient o-- MsgpackDecoder: decoder
+MPClient o-- zmq
+
+class AsyncMPClient{
+    - outputs_queue[] : EngineCoreOutputs
+}
+
+AsyncMPClient o-- EngineCoreOutputs : 
+
+class BackgroundResources{
+    + engine_manager : Union[CoreEngineProcManager,CoreEngineActorManager]
+    + coordinator : DPCoordinator
+    + output_socket : zmq
+}
+
+class OpenAIServingCompletion{
+    + engine_client : EngineClient
+}
+
+OpenAIServingCompletion--|>OpenAIServing
+OpenAIServingCompletion o-- EngineClient: engine_client
+
+AsyncLLM o-- VllmConfig : vllm_config
+AsyncLLM o-- TokenizerGroup: tokenizer
+AsyncLLM o-- Processor: processor
+AsyncLLM o-- OputputProcessor: output_processor
+AsyncLLM o-- MPClient: engine_core
+
+EngineCoreClient<|--MPClient
+DPAsyncMPClient--|>AsyncMPClient
+DPAsyncMPClient<|--DPLBAsyncMPClient
+
+Executor o-- CoreEngineActorManager
+
+MPClient<|--AsyncMPClient
+MPClient o-- BackgroundResources
+
+dataclass <|-- EngineArgs
+EngineArgs <|--AsyncEngineArgs
+
+AsyncLLM-->AsyncEngineArgs
+EngineClient <|--AsyncLLM
+
+BackgroundResources o-- DPCoordinator
+BackgroundResources o-- CoreEngineProcManager
+BackgroundResources o-- CoreEngineActorManager
+BackgroundResources o-- zmq
