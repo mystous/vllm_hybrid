@@ -1,26 +1,169 @@
 sequenceDiagram
     participant Client
-    participant AsyncLLMEngine
+    participant OpenAIServingCompletion
 
+    %% Initialization Start
+    note right of Client: Initialization Start
+    Client->>+AsyncEngineArgs: from_cli_args()
+    AsyncEngineArgs->>Client: return AsyncEngineArgs<br>engine_args = AsyncEngineArgs
+    AsyncEngineArgs->>+EngineArgs: __post_init__()
+    EngineArgs->>vllm.plugins: load_general_plugins()
+    vllm.plugins->>vllm.plugins: load_plugins_by_group()
+    AsyncEngineArgs->>Client: return AsyncEngineArgs<br>engine_args = AsyncEngineArgs()
+    Client->>AsyncLLM: from_vllm_config(engine_args)
+    activate AsyncLLM
+        AsyncLLM->>AsyncEngineArgs: create_engine_config()
+        AsyncEngineArgs->>AsyncLLM: return VllmConfig<br>vllm_config = VllmConfig
+        AsyncLLM->>+Executor: get_class(engine_args)
+        Executor->>AsyncLLM: return Executor<br>executor_class = Executor
+        AsyncLLM->>AsyncLLM:__init__(vllm_config, executor_class)
+        activate AsyncLLM
+            AsyncLLM->>+TokenizerGroup: init_tokenizer_from_configs()
+            TokenizerGroup->>AsyncLLM: return TokenizerGroup<br>self.tokenizer = return TokenizerGroup
+            AsyncLLM->>+Processor:__init()__
+            Processor->>AsyncLLM: return Processor<br>self.processor = Processor
+            AsyncLLM->>+OputputProcessor:__init()__
+            OputputProcessor->>AsyncLLM: return OputputProcessor<br>self.output_processor = OputputProcessor
+            AsyncLLM->>+EngineCoreClient: make_async_mp_client(vllm_config, executor_class)
+            activate EngineCoreClient
+                EngineCoreClient->>MPClient: __init()__
+                activate MPClient
+                    MPClient->>MsgpackEncoder: __init()__
+                    MsgpackEncoder->>MPClient: return MsgpackEncoder<br>self.encoder = MsgpackEncoder
+                    MPClient->>MsgpackDecoder: __init()__
+                    MsgpackDecoder->>MPClient: return MsgpackDecoder<br>self.decoder = MsgpackDecoder
+
+                    MPClient->>vllm.v1.utils: launch_core_engines()
+                    activate vllm.v1.utils
+                        vllm.v1.utils->>+CoreEngineActorManager: __init()__
+                        CoreEngineActorManager->>vllm.v1.utils: return CoreEngineActorManager<br>engine_actor_manager = CoreEngineActorManager
+                    deactivate vllm.v1.utils
+                    vllm.v1.utils->>MPClient: return Union[CoreEngineProcManager, CoreEngineActorManager],<br>DPCoordinator, EngineZmqAddresses<br>self.resources.coordinator = coordinator<br>self.resources.engine_manager = engine_manager
+                    %% engine_manager:
+                    %% 엔진 프로세스/액터를 관리하는 객체
+                    %% 예: CoreEngineProcManager 또는 CoreEngineActorManager
+                    %% coordinator:
+                    %% 분산 환경에서 rank, 통신, 상태를 관리하는 객체
+                    %% 예: DPCoordinator
+                    %% addresses:
+                    %% 엔진과 클라이언트 간 통신에 필요한 소켓 주소 정보
+                    %% 예: input/output/stats 소켓 주소 등
+                
+                    MPClient->>AsyncMPClient:__init__()
+                    activate AsyncMPClient
+                        AsyncMPClient->>asyncio.Queue:
+                        asyncio.Queue->>AsyncMPClient: return asyncio.Queue[EngineCoreOutputs]<br>self.outputs_queue = asyncio.Queue[EngineCoreOutputs]
+                        alt  running in an asyncio event loop
+                            AsyncMPClient->>AsyncMPClient: _ensure_output_queue_task()
+                        end
+                    deactivate AsyncMPClient
+                    AsyncMPClient->>MPClient:
+                deactivate MPClient
+                MPClient->>EngineCoreClient:
+            deactivate EngineCoreClient
+
+            EngineCoreClient->>AsyncLLM: return MPClient<br>self.engine_core = MPClient
+            AsyncLLM->>AsyncLLM: self._run_output_handler()
+            alt self.output_handler is not None loop
+                activate AsyncLLM
+                    AsyncLLM->>AsyncLLM: create_task(output_handler())
+                    loop Background output_handler Loop
+                        AsyncLLM-->>AsyncMPClient: get_output_async()
+                        activate AsyncMPClient
+                            AsyncMPClient->>AsyncMPClient: _ensure_output_queue_task()
+                            AsyncMPClient->>asyncio.Queue: get()
+                            asyncio.Queue->>AsyncMPClient: return EngineCoreOutputs<br>output = EngineCoreOutputs
+                            AsyncMPClient->>AsyncLLM: return EngineCoreOutputs<br>outputs = EngineCoreOutputs
+                        deactivate AsyncMPClient
+                    end
+                deactivate AsyncLLM
+                AsyncLLM->>AsyncLLM: return task<br>self.output_handler = output_handler()
+            end
+            AsyncLLM->>Client: return AsyncLLM<br>engine_client = AsyncLLM()
+        deactivate AsyncLLM
+    deactivate AsyncLLM
+    note right of Client: Initialization Finish
+    %% Initialization Finish
     
+    note left of Client: Start OpenAI Completions Request
+    Client->>Client: create_completion()
+    Client->>+OpenAIServingCompletion: completion() -> OpenAIServingCompletion
+    OpenAIServingCompletion->>Client: return OpenAIServingCompletion<br>handler = OpenAIServingCompletion
+    Client->>OpenAIServingCompletion: create_completion()
+    activate OpenAIServingCompletion
+        OpenAIServingCompletion->>OpenAIServingCompletion: _base_request_id()<br>return str<br>request_id = str
+        OpenAIServingCompletion->>AsyncLLM: get_tokenizer()
+        AsyncLLM->>OpenAIServingCompletion: return AnyTokenizer<br>tokenizer = AnyTokenizer
+        OpenAIServingCompletion->>OpenAIServingCompletion: _preprocess_completion()<br>return Union, list<br>request_prompts, engine_prompts = Union, list
+        loop engine_prompt in engine_prompts
+            OpenAIServingCompletion->>AsyncLLM: generate()
+            activate AsyncLLM
+                AsyncLLM->>AsyncLLM: self._run_output_handler()
+                alt self.output_handler is not None loop
+                        AsyncLLM->>AsyncLLM: create_task(output_handler())
+                        loop Background output_handler Loop
+                            AsyncLLM-->>AsyncMPClient: get_output_async()
+                            activate AsyncMPClient
+                                AsyncMPClient->>AsyncMPClient: _ensure_output_queue_task()
+                                AsyncMPClient->>asyncio.Queue: get()
+                                asyncio.Queue->>AsyncMPClient: return EngineCoreOutputs<br>output = EngineCoreOutputs
+                                AsyncMPClient->>AsyncLLM: return EngineCoreOutputs<br>outputs = EngineCoreOutputs
+                            deactivate AsyncMPClient
+                        end
+                    AsyncLLM->>AsyncLLM: return task<br>self.output_handler = output_handler()
+                end
+                AsyncLLM-->>AsyncLLM: add_request()
+                activate AsyncLLM
+                    loop Child request in Requests
+                        AsyncLLM-->>AsyncLLM:_add_request(idx)
+                        activate AsyncLLM
+                            %% Add the request to OutputProcessor (this process).
+                            AsyncLLM->>OputputProcessor: add_request()
+                            %% Add the EngineCoreRequest to EngineCore (separate process).
+                            AsyncLLM->>AsyncMPClient: add_request_async()
 
-    Client-->>AsyncLLMEngine: generate()
-    activate AsyncLLMEngine
-    AsyncLLMEngine->>AsyncLLMEngine: add_request()
-    activate AsyncLLMEngine
-    AsyncLLMEngine->>AsyncLLMEngine: start_background_loop()
- 
-    AsyncLLMEngine->>+RequestTracker:
-    AsyncLLMEngine->>AsyncLLMEngine: self._request_tracker = RequestTracker()
-    AsyncLLMEngine->>AsyncLLMEngine: self._background_loop_unshielded = <br>asncio.get_event_loop(run_engine_loop())
-    AsyncLLMEngine->>AsyncLLMEngine: self.background_loop = <br>asncio.shield(self._background_loop_unshielded)
+                        deactivate AsyncLLM
+                    end
+                AsyncLLM->>AsyncLLM: return RequestOutputCollector<br>q = RequestOutputCollector
+                deactivate AsyncLLM
+                         
+                loop Request Queue processing finishing
+                    AsyncLLM->>RequestOutputCollector: get()
+                end           
+            
+            AsyncLLM->>OpenAIServingCompletion: return AsyncGenerator<br>generator = AsyncGenerator
+            deactivate AsyncLLM
+        end
+        
+    OpenAIServingCompletion->>Client: return Union[AsyncGenerator[str, None],<br>CompletionResponse, ErrorResponse]<br>generator = Union[AsyncGenerator[str, None],<br>CompletionResponse, ErrorResponse]
+    deactivate OpenAIServingCompletion
 
-    AsyncLLMEngine->>RequestTracker: add_request()
-    RequestTracker->>AsyncLLMEngine: return AsyncStream()
-    AsyncLLMEngine->>AsyncLLMEngine: stream = AsyncStream
-    AsyncLLMEngine-->>+AsyncStream: generator()
-    AsyncLLMEngine-->>Client: return AsyncGenerator[RequestOutput, None]
-    deactivate AsyncLLMEngine
-    deactivate AsyncLLMEngine
-    deactivate RequestTracker
-    deactivate AsyncStream
+    note right of Client: Finish OpenAI Completions Request
+
+    %% Pair: Client->>+OpenAIServingCompletion: completion() -> OpenAIServingCompletion<br>handler = OpenAIServingCompletion
+    deactivate OpenAIServingCompletion
+
+    %% Pair: vllm.v1.utils->>+CoreEngineActorManager: __init()__
+    deactivate CoreEngineActorManager
+    
+    %% Pair: AsyncLLM->>+EngineCoreClient: make_async_mp_client(vllm_config, executor_class)
+    deactivate EngineCoreClient
+
+    %% Pair: AsyncLLM->>+OputputProcessor:__init()__
+    deactivate OputputProcessor
+
+    %% Pair: AsyncLLM->>+Processor:__init()__
+    deactivate Processor
+
+    %% Pair: AsyncLLM->>+TokenizerGroup: init_tokenizer_from_configs()
+    deactivate TokenizerGroup
+    
+    %% Pair: AsyncLLM->>+Executor: get_class(engine_args)
+    deactivate Executor
+    
+    %% Pair: AsyncEngineArgs->>+EngineArgs: __post_init__()
+    deactivate EngineArgs
+
+    %% Pair: Client->>+AsyncEngineArgs: from_cli_args()
+    deactivate AsyncEngineArgs
+    
