@@ -26,17 +26,47 @@ sequenceDiagram
             OputputProcessor->>AsyncLLM: return OputputProcessor<br>self.output_processor = OputputProcessor
             AsyncLLM->>+EngineCoreClient: make_async_mp_client(vllm_config, executor_class)
             activate EngineCoreClient
-                EngineCoreClient->>MPClient: __init()__
+                EngineCoreClient->>MPClient: __init(vllm_config, executor_class)__
                 activate MPClient
                     MPClient->>MsgpackEncoder: __init()__
                     MsgpackEncoder->>MPClient: return MsgpackEncoder<br>self.encoder = MsgpackEncoder
                     MPClient->>MsgpackDecoder: __init()__
                     MsgpackDecoder->>MPClient: return MsgpackDecoder<br>self.decoder = MsgpackDecoder
 
-                    MPClient->>vllm.v1.utils: launch_core_engines()
+                    MPClient->>vllm.v1.utils: launch_core_engines(vllm_config, executor_class)
                     activate vllm.v1.utils
-                        vllm.v1.utils->>+CoreEngineActorManager: __init()__
+                        %% Start LLM Engine on Node and GPU - v1/core/engine/util.py
+                        vllm.v1.utils->>+CoreEngineActorManager: __init(vllm_config, executor_class)__
+                        activate CoreEngineActorManager
+                            CoreEngineActorManager->>CoreEngineActorManager: create_dp_placement_groups()
+                            CoreEngineActorManager->>CoreEngineActorManager: return tuple[list["PlacementGroup"], list[int]]<br> placement_groups, local_dp_ranks =<br> tuple[list["PlacementGroup"], list[int]]
+                            CoreEngineActorManager->>DPEngineCoreActor: __init(vllm_config, executor_class)__
+                                DPEngineCoreActor->>DPEngineCoreProc: __init(vllm_config, executor_class)__
+                                    %% ZMQ-wrapper running, 상세 분석 필요 - v1/core/engine/core.py
+                                    DPEngineCoreProc->>EngineCoreProc: __init(vllm_config, executor_class)__
+                                        EngineCoreProc->>EngineCoreProc:_perform_handshakes(vllm_config)
+                                        EngineCoreProc->>EngineCoreProc:_perform_handshakes(vllm_config)
+                                        EngineCoreProc->>vllm.ray.utils: make_zmq_socket()
+                                        vllm.ray.utils->>EngineCoreProc: reeturn Union[zmq.Socket, zmq.asyncio.Socket]
+                                        EngineCoreProc->>VllmConfig: __post_init__()
+                                        VllmConfig->>EngineCoreProc:
+                                        %% Inner loop of vLLM's Engine.
+                                        EngineCoreProc->>EngineCore: __init(vllm_config, executor_class)__
+                                            EngineCore->>EngineCore: _initialize_kv_caches()
+                                            EngineCore->>EngineCore: return tuple[int, int, KVCacheConfig]<br>num_gpu_blocks, num_cpu_blocks, kv_cache_config = tuple[int, int, KVCacheConfig]
+                                            EngineCore->>EngineCore: collective_rpc()
+                                                EngineCore->>Executor: collective_rpc()
+                                            Executor->>EngineCore:
+                                            EngineCore->>Scheduler: __init(vllm_config, kv_cache_config)__
+                                                Scheduler->>KVCacheManager: __init(kv_cache_config)__
+                                                KVCacheManager->>Scheduler:
+                                            Scheduler->>EngineCore:
+                                        EngineCore->>EngineCoreProc:
+                                    EngineCoreProc->>DPEngineCoreProc:
+                                DPEngineCoreProc->>DPEngineCoreActor:
+                            DPEngineCoreActor->>CoreEngineActorManager:
                         CoreEngineActorManager->>vllm.v1.utils: return CoreEngineActorManager<br>engine_actor_manager = CoreEngineActorManager
+                        deactivate CoreEngineActorManager
                     deactivate vllm.v1.utils
                     vllm.v1.utils->>MPClient: return Union[CoreEngineProcManager, CoreEngineActorManager],<br>DPCoordinator, EngineZmqAddresses<br>self.resources.coordinator = coordinator<br>self.resources.engine_manager = engine_manager
                     %% engine_manager:
@@ -48,7 +78,9 @@ sequenceDiagram
                     %% addresses:
                     %% 엔진과 클라이언트 간 통신에 필요한 소켓 주소 정보
                     %% 예: input/output/stats 소켓 주소 등
-                
+                    MPClient->>vllm.ray.utils: make_zmq_socket()
+                    vllm.ray.utils->>MPClient: reeturn Union[zmq.Socket, zmq.asyncio.Socket]
+                                        
                     MPClient->>AsyncMPClient:__init__()
                     activate AsyncMPClient
                         AsyncMPClient->>asyncio.Queue:

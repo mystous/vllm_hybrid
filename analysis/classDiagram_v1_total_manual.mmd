@@ -1,6 +1,30 @@
 classDiagram
 dirction TB
 
+
+
+class EngineCore{
+    - model_executor: Executor
+    - scheduler: SchedulerInterface
+}
+
+EngineCore o-- Executor: model_executor
+EngineCore o-- SchedulerInterface: scheduler
+
+class CoreEngineActorManager{
+    - executor_class : Executor
+    - created_placement_groups: list
+    - run_refs[] : DPEngineCoreActor
+}
+
+%% rank와 client의 주소를 저장하고 관리 하는 클래스
+class MPClient{
+    - resource : BackgroundResources
+    - encoder : MsgpackEncoder
+    - decoder : MsgpackDecoder
+    - input_socket : zmq
+}
+
 %% ZeroMQ
 class zmq 
 class AsyncEngineArgs
@@ -12,18 +36,6 @@ class AsyncLLM{
     - engine_core : MPClient
     
     + from_engine_args(AsyncEngineArgs)
-}
-
-class CoreEngineActorManager{
-    - executor_class : Executor
-}
-
-%% rank와 client의 주소를 저장하고 관리 하는 클래스
-class MPClient{
-    - resource : BackgroundResources
-    - encoder : MsgpackEncoder
-    - decoder : MsgpackDecoder
-    - input_socket : zmq
 }
 
 MPClient o-- MsgpackEncoder: encoder
@@ -46,6 +58,14 @@ class OpenAIServingCompletion{
     + engine_client : EngineClient
 }
 
+class Scheduler{
+    - vllm_config: VllmConfig,
+    - kv_cache_config: KVCacheConfig,
+}
+class SchedulerInterface
+
+Scheduler--|>SchedulerInterface
+
 OpenAIServingCompletion--|>OpenAIServing
 OpenAIServingCompletion o-- EngineClient: engine_client
 
@@ -59,8 +79,6 @@ EngineCoreClient<|--MPClient
 DPAsyncMPClient--|>AsyncMPClient
 DPAsyncMPClient<|--DPLBAsyncMPClient
 
-Executor o-- CoreEngineActorManager
-
 MPClient<|--AsyncMPClient
 MPClient o-- BackgroundResources
 
@@ -70,7 +88,14 @@ EngineArgs <|--AsyncEngineArgs
 AsyncLLM-->AsyncEngineArgs
 EngineClient <|--AsyncLLM
 
-BackgroundResources o-- DPCoordinator
-BackgroundResources o-- CoreEngineProcManager
-BackgroundResources o-- CoreEngineActorManager
-BackgroundResources o-- zmq
+BackgroundResources o-- DPCoordinator : coordination
+BackgroundResources o-- CoreEngineProcManager: engine_manager
+BackgroundResources o-- CoreEngineActorManager: engine_manager
+BackgroundResources o-- zmq: output_socket
+
+CoreEngineActorManager o-- Executor: executor_class
+CoreEngineActorManager o-- DPEngineCoreActor: run_refs
+
+DPEngineCoreActor--|>DPEngineCoreProc
+DPEngineCoreProc--|>EngineCoreProc
+EngineCoreProc--|>EngineCore
