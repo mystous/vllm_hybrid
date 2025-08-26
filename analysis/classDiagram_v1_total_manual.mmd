@@ -2,69 +2,239 @@ classDiagram
 dirction TB
 
 
+%% ZeroMQ
+class zmq
 
-class EngineCore{
-    - model_executor: Executor
-    - scheduler: SchedulerInterface
+namespace multiprocessing{
+    class BaseProcess{
+        + target() : Callable
+    }
+    class BaseContext
 }
+
+namespace vllm{
+    
+    class VllmConfig{
+        + model_config: ModelConfig
+        + cache_config: CacheConfig
+        + parallel_config: ParallelConfig
+        + scheduler_config: SchedulerConfig
+        + device_config: DeviceConfig
+        + load_config: LoadConfig
+        + lora_config: LoRAConfig
+        + speculative_config: SpeculativeConfig
+        + decoding_config: DecodingConfig
+        + observability_config: ObservabilityConfig
+        + quant_config: QuantizationConfig
+        + compilation_config: CompilationConfig
+        + kv_transfer_config: KVTransferConfig
+        + kv_events_config: KVEventsConfig
+        + additional_config: Union[dict, SupportsHash]
+    }
+    class ModelConfig
+    class CacheConfig
+    class ParallelConfig
+    class SchedulerConfig
+    class DeviceConfig
+    class LoadConfig
+    class LoRAConfig
+    class SpeculativeConfig
+    class DecodingConfig
+    class ObservabilityConfig
+    class QuantizationConfig
+    class CompilationConfig
+    class KVTransferConfig
+    class KVEventsConfig
+    class SupportsHash
+}
+
+namespace vllm.executor{
+    class ExecutorBase
+}
+
+ExecutorBase <|--Executor
+ExecutorBase --|> ABS
+
+namespace vllm.entrypoints.openai{
+    class OpenAIServingCompletion{
+        + engine_client : EngineClient
+    }
+    class OpenAIServing
+}
+
+namespace vllm.platforms {
+    class Platforms
+    class CudaPlatform
+    class RocmPlatform
+    class CpuPlatform
+    class TpuPlatform
+    class XPUPlatform
+    class NeuronPlatform
+}
+
+namespace vllm.engine{
+    class EngineArgs{
+        + create_engine_config() -> VllmConfig
+    }
+    class AsyncEngineArgs
+    class EngineClient
+}
+
+namespace vllm.transformers_utils{
+    class TokenizerGroup
+}
+
+
+namespace vllm.inputs{
+    class InputPreprocessor{
+        - tockernizer: TokenizerGroup
+    }
+}
+
+namespace vllm.v1{
+    class MsgpackEncoder
+    class MsgpackDecoder
+}
+
+namespace vllm.v1.core.sched{
+    class Scheduler{
+        - vllm_config: VllmConfig,
+        - kv_cache_config: KVCacheConfig,
+    }
+    class AsyncScheduler
+    class SchedulerInterface
+}
+
+SchedulerInterface--|>ABC
+
+namespace vllm.v1.executor{
+    class Executor{
+        + get_class(VllmConfig) -> Executor$
+    }
+    class MultiprocExecutor
+    class UniProcExecutor
+    class RayDistributedExecutor
+    class ExecutorWithExternalLauncher
+}
+
+Executor<|--MultiprocExecutor
+Executor<|--UniProcExecutor
+Executor<|--RayDistributedExecutor
+Executor<|--ExecutorWithExternalLauncher
+
+namespace vllm.v1.engine{
+    class CoreEngineProcManager{
+        - processes[]: BaseProcess
+    }
+    class CoreEngineActorManager{
+        - executor_class : Executor
+        - created_placement_groups: list
+        - run_refs[] : DPEngineCoreActor
+    }
+    class AsyncLLM{
+        - vllm_config : VllmConfig
+        - tokenizer : TokenizerGroup
+        - processor : Processor
+        - output_processor : OutputProcessor
+        - engine_core : MPClient
+        
+        + from_engine_args(AsyncEngineArgs)
+    }
+    class AsyncMPClient{
+        - outputs_queue[] : EngineCoreOutputs
+        - engine_core: MPClient
+        - output_processor: OutputProcessor
+        - add_request_async(EngineCoreRequest)
+    }
+    %% rank와 client의 주소를 저장하고 관리 하는 클래스
+    class MPClient{
+        - resource : BackgroundResources
+        - encoder : MsgpackEncoder
+        - decoder : MsgpackDecoder
+        - input_socket : zmq
+        %% Global scope의 core_engine과 동일한 Rank 번호를가지고 있어서 zmq로 해당 rank로 요청을 보낸다.
+        - core_engine : EngineIdentity : byte
+    }
+    class EngineCore{
+        - model_executor: Executor
+        - scheduler: SchedulerInterface
+    }
+    class EngineCoreProc{
+        + run_engine_core()$ : Callable
+        - step_fn: lambda
+    }
+    class BackgroundResources{
+        + engine_manager : Union[CoreEngineProcManager,CoreEngineActorManager]
+        + coordinator : DPCoordinator
+        + output_socket : zmq
+    }
+    class Processor{
+        - tockernizer: TokenizerGroup
+        - input_preprocessor: InputPreprocessor
+    }
+    class DPAsyncMPClient
+    class DPLBAsyncMPClient
+    class DPCoordinator
+    class OutputProcessor
+    class EngineCoreClient
+    class EngineCoreOutputs
+    class DPEngineCoreActor
+    class DPEngineCoreProc
+}
+
+namespace vllm.v1.executor{
+    class Executor
+}
+
+CoreEngineProcManager o-- BaseProcess: processes[]
+
+EngineArgs-->Platforms
+EngineArgs .. VllmConfig
+
+CudaPlatform --|> Platforms
+RocmPlatform --|> Platforms
+CpuPlatform --|> Platforms
+TpuPlatform --|> Platforms
+XPUPlatform --|> Platforms
+NeuronPlatform --|> Platforms
 
 EngineCore o-- Executor: model_executor
 EngineCore o-- SchedulerInterface: scheduler
 
-class CoreEngineActorManager{
-    - executor_class : Executor
-    - created_placement_groups: list
-    - run_refs[] : DPEngineCoreActor
-}
+CoreEngineActorManager ..BaseContext
 
-%% rank와 client의 주소를 저장하고 관리 하는 클래스
-class MPClient{
-    - resource : BackgroundResources
-    - encoder : MsgpackEncoder
-    - decoder : MsgpackDecoder
-    - input_socket : zmq
-}
 
-%% ZeroMQ
-class zmq 
-class AsyncEngineArgs
-class AsyncLLM{
-    - vllm_config : VllmConfig
-    - tokenizer : TokenizerGroup
-    - processor : Processor
-    - output_processor : OputputProcessor
-    - engine_core : MPClient
-    
-    + from_engine_args(AsyncEngineArgs)
-}
+BaseProcess .. EngineCoreProc: run_engine_core()
+
+
+InputPreprocessor o-- TokenizerGroup: tockernizer 
+
+Processor o-- InputPreprocessor: input_preprocessor 
+Processor o-- TokenizerGroup: tockernizer 
 
 MPClient o-- MsgpackEncoder: encoder
 MPClient o-- MsgpackDecoder: decoder
 MPClient o-- zmq
 
-class AsyncMPClient{
-    - outputs_queue[] : EngineCoreOutputs
-}
-
 AsyncMPClient o-- EngineCoreOutputs : 
-
-class BackgroundResources{
-    + engine_manager : Union[CoreEngineProcManager,CoreEngineActorManager]
-    + coordinator : DPCoordinator
-    + output_socket : zmq
-}
-
-class OpenAIServingCompletion{
-    + engine_client : EngineClient
-}
-
-class Scheduler{
-    - vllm_config: VllmConfig,
-    - kv_cache_config: KVCacheConfig,
-}
-class SchedulerInterface
+VllmConfig o-- ModelConfig: model_config
+VllmConfig o-- CacheConfig : cache_config
+VllmConfig o-- ParallelConfig : parallel_config
+VllmConfig o-- SchedulerConfig : scheduler_config
+VllmConfig o-- DeviceConfig : device_config
+VllmConfig o-- LoadConfig : load_config
+VllmConfig o-- LoRAConfig : lora_config
+VllmConfig o-- SpeculativeConfig : speculative_config
+VllmConfig o-- DecodingConfig : decoding_config
+VllmConfig o-- ObservabilityConfig : observability_config
+VllmConfig o-- QuantizationConfig : quant_config
+VllmConfig o-- CompilationConfig : compilation_config
+VllmConfig o-- KVTransferConfig : kv_transfer_config
+VllmConfig o-- KVEventsConfig : kv_events_config
+VllmConfig o-- SupportsHash : additional_config
 
 Scheduler--|>SchedulerInterface
+Scheduler<|--AsyncScheduler
 
 OpenAIServingCompletion--|>OpenAIServing
 OpenAIServingCompletion o-- EngineClient: engine_client
@@ -72,7 +242,7 @@ OpenAIServingCompletion o-- EngineClient: engine_client
 AsyncLLM o-- VllmConfig : vllm_config
 AsyncLLM o-- TokenizerGroup: tokenizer
 AsyncLLM o-- Processor: processor
-AsyncLLM o-- OputputProcessor: output_processor
+AsyncLLM o-- OutputProcessor: output_processor
 AsyncLLM o-- MPClient: engine_core
 
 EngineCoreClient<|--MPClient

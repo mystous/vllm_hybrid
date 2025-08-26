@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant Global
+
+        Global->>vllm.env: set environment_variables
+        vllm.env->>Global:
+        Global->>vllm.config:
+            vllm.config->>vllm.platforms: set builtin_platform_plugins
+            note right of vllm.platforms: Setting Plugins pakcage string
+            vllm.platforms->>vllm.config:
+            vllm.config->>vllm.config: Setting Literal for<br>DistributedExecutorBackend,<br>PreemptionMode,<br>SchedulerPolicy,<br>Device,<br>KVProducer, KVConsumer, KVRole
+
+        vllm.config->>Global:
