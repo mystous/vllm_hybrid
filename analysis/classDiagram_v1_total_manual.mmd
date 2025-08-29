@@ -53,13 +53,16 @@ namespace vllm.executor{
 }
 
 ExecutorBase <|--Executor
-ExecutorBase --|> ABS
+ExecutorBase --|> ABC
 
 namespace vllm.entrypoints.openai{
     class OpenAIServingCompletion{
-        + engine_client : EngineClient
+        * generators : AsyncGenerator[]
     }
-    class OpenAIServing
+    class OpenAIServing{
+        - engine_client : EngineClient
+        
+    }
 }
 
 namespace vllm.platforms {
@@ -96,26 +99,53 @@ namespace vllm.v1{
     class MsgpackDecoder
 }
 
+namespace vllm.v1.core{
+    class KVCacheManager{
+        - coordinator: KVCacheCoordinator 
+    }
+    class KVCacheCoordinator{
+        - block_pool : BlockPool
+    }
+    class KVCacheCoordinatorNoPrefixCache
+    class UnitaryKVCacheCoordinator
+    class HybridKVCacheCoordinator
+    class BlockPool{
+        - blocks[] : KVCacheBlock
+    }
+    class KVCacheBlock
+}
+
+BlockPool o-- KVCacheBlock: blocks[]
+KVCacheCoordinator o-- BlockPool: block_pool
+KVCacheManager o-- KVCacheCoordinator: coordinator
+
+KVCacheCoordinatorNoPrefixCache--|>KVCacheCoordinator
+UnitaryKVCacheCoordinator--|>KVCacheCoordinator
+HybridKVCacheCoordinator--|>KVCacheCoordinator
+
+KVCacheCoordinator--|>ABC
+
 namespace vllm.v1.core.sched{
     class Scheduler{
         - vllm_config: VllmConfig,
-        - kv_cache_config: KVCacheConfig,
+        - kv_cache_config: KVCacheConfig
+        - waiting: RequestQueue
+        - kv_cache_manager : KVCacheManager
     }
     class AsyncScheduler
     class SchedulerInterface
+    class RequestQueue
+    class FCFSRequestQueue
+    class PriorityRequestQueue
 }
 
+Scheduler o-- KVCacheManager : kv_cache_manager
+Scheduler o-- RequestQueue: waiting
+FCFSRequestQueue --|> RequestQueue
+PriorityRequestQueue --|> RequestQueue
 SchedulerInterface--|>ABC
 
-namespace vllm.v1.executor{
-    class Executor{
-        + get_class(VllmConfig) -> Executor$
-    }
-    class MultiprocExecutor
-    class UniProcExecutor
-    class RayDistributedExecutor
-    class ExecutorWithExternalLauncher
-}
+
 
 Executor<|--MultiprocExecutor
 Executor<|--UniProcExecutor
@@ -127,7 +157,7 @@ namespace vllm.v1.engine{
         - processes[]: BaseProcess
     }
     class CoreEngineActorManager{
-        - executor_class : Executor
+        - executor_class : type["Executor"]
         - created_placement_groups: list
         - run_refs[] : DPEngineCoreActor
     }
@@ -144,6 +174,7 @@ namespace vllm.v1.engine{
         - outputs_queue[] : EngineCoreOutputs
         - engine_core: MPClient
         - output_processor: OutputProcessor
+        - _ensure_output_queue_task()
         - add_request_async(EngineCoreRequest)
     }
     %% rank와 client의 주소를 저장하고 관리 하는 클래스
@@ -175,16 +206,28 @@ namespace vllm.v1.engine{
     class DPAsyncMPClient
     class DPLBAsyncMPClient
     class DPCoordinator
-    class OutputProcessor
+    class OutputProcessor{
+        - lora_states : LoRARequestStates
+    }
     class EngineCoreClient
     class EngineCoreOutputs
     class DPEngineCoreActor
     class DPEngineCoreProc
+    class LoRARequestStates
 }
 
 namespace vllm.v1.executor{
-    class Executor
+    class Executor{
+        + get_class(VllmConfig) -> Executor$
+    }
+    class MultiprocExecutor
+    class UniProcExecutor
+    class RayDistributedExecutor
+    class ExecutorWithExternalLauncher
 }
+
+
+OutputProcessor o--LoRARequestStates: lora_states
 
 CoreEngineProcManager o-- BaseProcess: processes[]
 
@@ -237,7 +280,7 @@ Scheduler--|>SchedulerInterface
 Scheduler<|--AsyncScheduler
 
 OpenAIServingCompletion--|>OpenAIServing
-OpenAIServingCompletion o-- EngineClient: engine_client
+OpenAIServing o-- EngineClient: engine_client
 
 AsyncLLM o-- VllmConfig : vllm_config
 AsyncLLM o-- TokenizerGroup: tokenizer
