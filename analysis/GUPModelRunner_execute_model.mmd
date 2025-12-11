@@ -1,0 +1,53 @@
+sequenceDiagram
+    participant GM as GPUModelRunner.execute_model
+    participant MM as MultiModal Processor<br/>(_execute_mm_encoder)
+    participant IP as Input Preparation<br/>(_prepare_model_input)
+    participant Prep as Metadata Builder<br/>(_prepare_inputs)
+    participant Ctx as Context Manager<br/>(set_forward_context)
+    participant Model as Model Forward<br/>(self.model)
+    participant Logits as Logits Computation<br/>(compute_logits)
+    participant Sample as Sampler & Processors<br/>(LogitsProcessor / Sampler)
+    participant Post as Post-Processing<br/>(Draft / Update / Output)
+
+    GM ->> GM: _update_states(scheduler_output)<br/>Early Exit Check (KV-only)
+    
+    %% 1. MM & Input Prep must happen BEFORE Metadata
+    GM ->> MM: (If Multimodal) Run Encoder & Gather Embeddings
+    MM -->> GM: Image/Video Embeddings (Aligned to Batch)
+    
+    GM ->> IP: Combine input_ids & Embeddings<br/>Handle DP Padding & Positions
+    IP -->> GM: Finalized Input Tensors
+    
+    GM ->> Prep: Build attn_metadata, logits_indices, spec_meta<br/>(Based on finalized inputs)
+    Prep -->> GM: attn_metadata, cuda_graph flags
+
+    %% 2. Execution
+    GM ->> Ctx: set_forward_context()<br/>maybe_get_kv_connector_output()
+    Ctx ->> Model: forward(inputs, positions, kv_caches, ...)
+    
+    alt PP (Pipeline Parallel) Mid Stage
+        Model -->> GM: IntermediateTensors object
+        Note right of Model: Actual Data sent via NCCL to next GPU
+        GM -->> return: IntermediateTensors (to next stage)
+    else Last PP Stage
+        Model -->> Logits: hidden_states
+        Logits -->> GM: raw_logits
+        
+        %% 3. Sampling (Grammar belongs here)
+        GM ->> Sample: Apply LogitsProcessors (Grammar/Penalty)<br/>& Run Sampler
+        Sample -->> GM: sampled_token_ids, logprobs
+        
+        %% 4. Post Processing
+        opt Prompt Logprobs
+            GM ->> Post: _get_prompt_logprobs_dict()
+        end
+        
+        GM ->> Post: Update Token Caches & CPU State<br/>Discard Partial Prefill Samples
+        
+        opt Speculative Decoding
+            GM ->> Post: propose_draft_token_ids (ngram/medusa/eagle)
+        end
+        
+        Post -->> GM: Final Results
+        GM -->> return: ModelRunnerOutput
+    end

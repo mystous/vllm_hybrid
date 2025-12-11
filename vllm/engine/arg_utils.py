@@ -295,6 +295,7 @@ class EngineArgs:
     max_model_len: Optional[int] = ModelConfig.max_model_len
     cuda_graph_sizes: list[int] = get_field(SchedulerConfig,
                                             "cuda_graph_sizes")
+    device: str = "auto"  # "auto", "cuda", "cpu", "neuron", "tpu", "heterogeneous"
     # Note: Specifying a custom executor backend by passing a class
     # is intended for expert use only. The API may change without
     # notice.
@@ -846,6 +847,12 @@ class EngineArgs:
                                 **vllm_kwargs["compilation_config"])
         vllm_group.add_argument("--additional-config",
                                 **vllm_kwargs["additional_config"])
+        
+        vllm_group.add_argument("--device",
+                                type=str,
+                                default=EngineArgs.device,
+                                choices=["auto", "cuda", "neuron", "cpu", "openvino", "tpu", "xpu", "heterogeneous"],
+                                help='Device type for vLLM execution.')
 
         # Other arguments
         parser.add_argument('--disable-log-stats',
@@ -1043,6 +1050,10 @@ class EngineArgs:
         If VLLM_USE_V1 is specified by the user but the VllmConfig
         is incompatible, we raise an error.
         """
+        if self.device == "heterogeneous":
+             import os
+             os.environ["VLLM_HETEROGENEOUS_PLATFORM"] = "1"
+        
         current_platform.pre_register_and_update()
 
         device_config = DeviceConfig(

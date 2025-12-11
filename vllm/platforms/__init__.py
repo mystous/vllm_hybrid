@@ -193,6 +193,14 @@ def neuron_platform_plugin() -> Optional[str]:
     return "vllm.platforms.neuron.NeuronPlatform" if is_neuron else None
 
 
+def heterogeneous_platform_plugin() -> Optional[str]:
+    import os
+    if os.environ.get("VLLM_HETEROGENEOUS_PLATFORM", "0") == "1":
+        logger.debug("Confirmed Heterogeneous platform is available via env var.")
+        return "vllm.platforms.heterogeneous.HeterogeneousPlatform"
+    return None
+
+
 builtin_platform_plugins = {
     'tpu': tpu_platform_plugin,
     'cuda': cuda_platform_plugin,
@@ -200,6 +208,7 @@ builtin_platform_plugins = {
     'xpu': xpu_platform_plugin,
     'cpu': cpu_platform_plugin,
     'neuron': neuron_platform_plugin,
+    'heterogeneous': heterogeneous_platform_plugin,
 }
 
 
