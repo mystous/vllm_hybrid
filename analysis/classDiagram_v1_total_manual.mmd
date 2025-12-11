@@ -1,19 +1,35 @@
 classDiagram
 dirction TB
 
+class global_func{
+    + build_async_engine_client()
+    + build_async_engine_client_from_engine_args()
+    + build_async_engine_client_from_engine_args(engine_args)
+}
 
-%% ZeroMQ
-class zmq
+
+
+namespace asyncio{
+    class asyncio.Queue{
+        + put_nowait()
+        + get()
+    }
+}
 
 namespace multiprocessing{
     class BaseProcess{
         + target() : Callable
+        + engine_core : EngineCoreProc | DPEngineCoreProc 
     }
     class BaseContext
 }
 
+namespace threading{
+    class threading.Thread{
+        + start()
+    }
+}
 namespace vllm{
-    
     class VllmConfig{
         + model_config: ModelConfig
         + cache_config: CacheConfig
@@ -30,6 +46,8 @@ namespace vllm{
         + kv_transfer_config: KVTransferConfig
         + kv_events_config: KVEventsConfig
         + additional_config: Union[dict, SupportsHash]
+
+        + \_\_post_init\_\_()
     }
     class ModelConfig
     class CacheConfig
@@ -48,45 +66,56 @@ namespace vllm{
     class SupportsHash
 }
 
-namespace vllm.executor{
-    class ExecutorBase
-}
-
-ExecutorBase <|--Executor
-ExecutorBase --|> ABC
-
-namespace vllm.entrypoints.openai{
-    class OpenAIServingCompletion{
-        * generators : AsyncGenerator[]
-    }
-    class OpenAIServing{
-        - engine_client : EngineClient
-        
+namespace vllm.distributed.kv_transfer.kv_connector{
+    class KVOutputAggregator{
+        + aggregate()
     }
 }
 
-namespace vllm.platforms {
-    class Platforms
-    class CudaPlatform
-    class RocmPlatform
-    class CpuPlatform
-    class TpuPlatform
-    class XPUPlatform
-    class NeuronPlatform
+namespace vllm.distributed.device_communications{
+    class MessageQueue{
+        - buffer : ShmRingBuffer
+        - local_socket : zmq
+    }
+
+    class ShmRingBuffer
 }
 
 namespace vllm.engine{
     class EngineArgs{
+        + \_\_post_init\_\_()
         + create_engine_config() -> VllmConfig
+        + create_model_config()
     }
-    class AsyncEngineArgs
+    class AsyncEngineArgs{
+        + create_engine_config()
+    }
     class EngineClient
 }
 
-namespace vllm.transformers_utils{
-    class TokenizerGroup
+namespace vllm.entrypoints.openai{
+    class OpenAIServingCompletion{
+        + _base_request_id()
+        + _preprocess_completion()
+
+        * generators : AsyncGenerator[]
+        + completion()
+        + create_completion()
+    }
+    class OpenAIServing{
+        - engine_client : EngineClient
+        - model_config: ModelConfig
+        - models: OpenAIServingModels
+        - tokenizer_executor : ThreadPoolExecutor
+
+        + _maybe_get_adapters()
+    }
+    class OpenAIServingModels
 }
 
+namespace vllm.executor{
+    class ExecutorBase
+}
 
 namespace vllm.inputs{
     class InputPreprocessor{
@@ -94,14 +123,65 @@ namespace vllm.inputs{
     }
 }
 
+namespace vllm.plugins{
+    class vllm.plugins.func{
+        + load_general_plugins()
+        + load_plugins_by_group()
+    }
+}
+namespace vllm.platforms {
+    class vllm.platforms.func{
+        + \_\_getattr\_\_()
+    }
+    class Platform
+    class CudaPlatformBase
+    class RocmPlatform
+    class CpuPlatform
+    class TpuPlatform
+    class XPUPlatform
+    class NeuronPlatform
+}
+
+namespace queue{
+    class queue.Queue{
+        + put_nowait()
+}
+}
+
+
+namespace vllm.ray.utils{
+    class vllm.ray.utils.func{
+        + make_zmq_socket()
+    }
+}
+
+namespace vllm.transformers_utils{
+    class TokenizerGroup{
+        + get_lora_tokenizer()
+    }
+}
+
+namespace vllm.utils{
+    class vllm.utils.func{
+        + get_mp_context()
+        + merge_async_iterators()
+    }
+}
+
 namespace vllm.v1{
     class MsgpackEncoder
-    class MsgpackDecoder
+    class MsgpackDecoder{
+        + decode()
+    }
 }
 
 namespace vllm.v1.core{
+    class vllm.v1.core.func{
+        + get_kv_cache_coordinator()
+    }
     class KVCacheManager{
         - coordinator: KVCacheCoordinator 
+        + allocate_slots()
     }
     class KVCacheCoordinator{
         - block_pool : BlockPool
@@ -112,18 +192,11 @@ namespace vllm.v1.core{
     class BlockPool{
         - blocks[] : KVCacheBlock
     }
-    class KVCacheBlock
+    class KVCacheBlock{
+        + get_block_ids()
+    }
 }
 
-BlockPool o-- KVCacheBlock: blocks[]
-KVCacheCoordinator o-- BlockPool: block_pool
-KVCacheManager o-- KVCacheCoordinator: coordinator
-
-KVCacheCoordinatorNoPrefixCache--|>KVCacheCoordinator
-UnitaryKVCacheCoordinator--|>KVCacheCoordinator
-HybridKVCacheCoordinator--|>KVCacheCoordinator
-
-KVCacheCoordinator--|>ABC
 
 namespace vllm.v1.core.sched{
     class Scheduler{
@@ -131,28 +204,24 @@ namespace vllm.v1.core.sched{
         - kv_cache_config: KVCacheConfig
         - waiting: RequestQueue
         - kv_cache_manager : KVCacheManager
+        + _try_schedule_encoder_inputs()
+        + add_requst()
+        + schedule()
     }
     class AsyncScheduler
     class SchedulerInterface
-    class RequestQueue
+    class RequestQueue{
+        + add_request()
+    }
     class FCFSRequestQueue
     class PriorityRequestQueue
 }
 
-Scheduler o-- KVCacheManager : kv_cache_manager
-Scheduler o-- RequestQueue: waiting
-FCFSRequestQueue --|> RequestQueue
-PriorityRequestQueue --|> RequestQueue
-SchedulerInterface--|>ABC
-
-
-
-Executor<|--MultiprocExecutor
-Executor<|--UniProcExecutor
-Executor<|--RayDistributedExecutor
-Executor<|--ExecutorWithExternalLauncher
 
 namespace vllm.v1.engine{
+    class vllm.v1.engine.func{
+        + launch_core_engines()
+    }
     class CoreEngineProcManager{
         - processes[]: BaseProcess
     }
@@ -167,15 +236,26 @@ namespace vllm.v1.engine{
         - processor : Processor
         - output_processor : OutputProcessor
         - engine_core : MPClient
-        
+
+        + _run_output_handler()
+        + _run_output_handler() 
+        + _add_request()       
         + from_engine_args(AsyncEngineArgs)
+        + from_vllm_config(EngineArgs)
+        + create_task()
+        + get_tokenizer()
+        + generate()
+        + add_request()
     }
     class AsyncMPClient{
         - outputs_queue[] : EngineCoreOutputs
-        - engine_core: MPClient
-        - output_processor: OutputProcessor
-        - _ensure_output_queue_task()
-        - add_request_async(EngineCoreRequest)
+     
+        + _ensure_output_queue_task()
+        + _send_input()
+        + _ensure_output_queue_task()
+        + add_request_async(EngineCoreRequest)
+        + process_outputs_socket()
+        + get_output_async()
     }
     %% rank와 client의 주소를 저장하고 관리 하는 클래스
     class MPClient{
@@ -189,9 +269,20 @@ namespace vllm.v1.engine{
     class EngineCore{
         - model_executor: Executor
         - scheduler: SchedulerInterface
+        + _initialize_kv_caches()
+        + collective_rpc()
+        + step_with_batch_queue()
     }
     class EngineCoreProc{
         + run_engine_core()$ : Callable
+        + _perform_handshakes(VllmConfig)
+        + _perform_handshakes(Conext, VllmConfig)
+        + _process_engine_step()
+        + _process_input_queue()
+        + _handle_client_request()
+        + add_request()
+        + process_input_sockets()
+        + run_busy_loop()
         - step_fn: lambda
     }
     class BackgroundResources{
@@ -208,25 +299,144 @@ namespace vllm.v1.engine{
     class DPCoordinator
     class OutputProcessor{
         - lora_states : LoRARequestStates
+        + add_request()
     }
-    class EngineCoreClient
+    class EngineCoreClient{
+        + make_async_mp_client(VllmConfig, Executor)$
+    }
     class EngineCoreOutputs
     class DPEngineCoreActor
-    class DPEngineCoreProc
-    class LoRARequestStates
+    class DPEngineCoreProc{
+        + run_busy_loop()
+    }
+    class LoRARequestStates{
+        + get_stats()
+    }
+    class RequestState{
+        + from_new_request()
+    }
 }
 
 namespace vllm.v1.executor{
     class Executor{
         + get_class(VllmConfig) -> Executor$
     }
-    class MultiprocExecutor
+    class MultiprocExecutor{
+        - workers : WorkerProc
+        - rpc_broadcast_mq : MessageQueue
+        - kv_output_aggregator : KVOutputAggregator
+        - io_thread_pool: ThreadPoolExecutor
+        
+        + _init_executor()
+        + execute_model()
+        + collective_rpc()
+    }
+    class WorkerProc{
+        - worker : WorkerWrapperBase
+        - rpc_broadcast_mq : MessageQueue
+        - worker_response_mq : MessageQueue
+
+        + make_worker_process()$
+        + wait_for_ready()$
+        + worker_busy_loop()
+    }
     class UniProcExecutor
     class RayDistributedExecutor
     class ExecutorWithExternalLauncher
 }
 
+namespace vllm.worker{
+    class WorkerWrapperBase{
+        - worker : WorkerBase
+    }
 
+    class WorkerBase{
+        - current_platform: Platforms
+    }
+    class LocalOrDistributedWorkerBase
+    class Worker{
+        - model_runner: GPUModelRunnerBase
+        + init_device()
+        + load_model()
+    }
+    class GPUModelRunnerBase{
+        - model : nn.Module
+        - graph_runners : CUDAGraphRunner
+    }
+    class CUDAGraphRunner{
+        - model : nn.Module
+    }
+    class ModelRunnerBase{
+        + generators: Dict[str, torch.Generator]
+    }
+    class ModelInputForGPU
+    class EncoderDecoderModelRunner
+    class PoolingModelRunner
+}
+
+ModelRunnerBase o-- torch.Generator
+ModelRunnerBase--|>ABC
+ModelRunnerBase--|>ModelInputForGPU
+ModelInputForGPU--|>ModelRunnerInputBase
+ModelRunnerBase<|--GPUModelRunnerBase
+EncoderDecoderModelRunner --|> GPUModelRunnerBase
+PoolingModelRunner --|> GPUModelRunnerBase
+
+LocalOrDistributedWorkerBase--|>WorkerBase
+CUDAGraphRunner o-- nn.Module : model
+GPUModelRunnerBase o-- nn.Module : model
+GPUModelRunnerBase o-- CUDAGraphRunner: graph_runners
+Worker o-- GPUModelRunnerBase : graph_runners
+Worker o-- nn.Module: model
+Worker o-- GPUModelRunnerBase : model_runner
+Worker --|>WorkerBase
+
+namespace zeromq{
+    class zmq{
+        + recv_multipart()
+    }
+}
+
+
+
+MessageQueue o-- ShmRingBuffer : buffer
+MessageQueue o-- zmq : local_socket
+
+ExecutorBase <|--Executor
+ExecutorBase --|> ABC
+OpenAIServing o-- ThreadPoolExecutor
+OpenAIServing o-- EngineClient
+OpenAIServing o-- ModelConfig
+OpenAIServing o-- OpenAIServingModels
+WorkerBase o-- Platform
+
+WorkerWrapperBase o-- WorkerBase: worker
+BlockPool o-- KVCacheBlock: blocks[]
+KVCacheCoordinator o-- BlockPool: block_pool
+KVCacheManager o-- KVCacheCoordinator: coordinator
+
+KVCacheCoordinatorNoPrefixCache--|>KVCacheCoordinator
+UnitaryKVCacheCoordinator--|>KVCacheCoordinator
+HybridKVCacheCoordinator--|>KVCacheCoordinator
+
+KVCacheCoordinator--|>ABC
+Scheduler o-- KVCacheManager : kv_cache_manager
+Scheduler o-- RequestQueue: waiting
+FCFSRequestQueue --|> RequestQueue
+PriorityRequestQueue --|> RequestQueue
+SchedulerInterface--|>ABC
+
+Executor<|--MultiprocExecutor
+Executor<|--UniProcExecutor
+Executor<|--RayDistributedExecutor
+Executor<|--ExecutorWithExternalLauncher
+WorkerProc o-- WorkerWrapperBase: worker
+WorkerProc o-- MessageQueue : rpc_broadcast_mq, worker_response_mq 
+
+MultiprocExecutor o-- ThreadPoolExecutor
+MultiprocExecutor o-- KVOutputAggregator: kv_output_aggregator 
+MultiprocExecutor o-- MessageQueue: rpc_broadcast_mq
+MultiprocExecutor o-- WorkerProc: workers
 OutputProcessor o--LoRARequestStates: lora_states
 
 CoreEngineProcManager o-- BaseProcess: processes[]
@@ -234,21 +444,21 @@ CoreEngineProcManager o-- BaseProcess: processes[]
 EngineArgs-->Platforms
 EngineArgs .. VllmConfig
 
-CudaPlatform --|> Platforms
-RocmPlatform --|> Platforms
-CpuPlatform --|> Platforms
-TpuPlatform --|> Platforms
-XPUPlatform --|> Platforms
-NeuronPlatform --|> Platforms
+CudaPlatformBase --|> Platform
+RocmPlatform --|> Platform
+CpuPlatform --|> Platform
+TpuPlatform --|> Platform
+XPUPlatform --|> Platform
+NeuronPlatform --|> Platform
 
 EngineCore o-- Executor: model_executor
 EngineCore o-- SchedulerInterface: scheduler
 
 CoreEngineActorManager ..BaseContext
 
-
 BaseProcess .. EngineCoreProc: run_engine_core()
-
+BaseProcess o-- EngineCoreProc: engine_core
+BaseProcess o-- DPEngineCoreProc: engine_core
 
 InputPreprocessor o-- TokenizerGroup: tockernizer 
 
@@ -312,3 +522,66 @@ CoreEngineActorManager o-- DPEngineCoreActor: run_refs
 DPEngineCoreActor--|>DPEngineCoreProc
 DPEngineCoreProc--|>EngineCoreProc
 EngineCoreProc--|>EngineCore
+
+
+
+%% global_func --> AsyncEngineArgs : from_cli_args()
+%% global_func --> EngineArgs : create_engine_config()
+%% AsyncEngineArgs --> EngineArgs : \_\_post_init\_\_()
+%% EngineArgs-->vllm.platforms.func: \_\_getattr\_\_('current_platform')
+%% EngineArgs-->vllm.plugins.func: load_general_plugins()
+%% global_func --> EngineArgs: create_engine_config()
+%% vllm.platforms.func --> vllm.plugins.func: load_plugins_by_group('vllm.platform_plugins')
+%% global_func --> AsyncLLM: from_vllm_config(engine_args)
+%% AsyncLLM --> AsyncEngineArgs: create_engine_config()
+%% AsyncLLM --> Executor: get_class(engine_args)
+%% ExecutorBase --> MultiprocExecutor: _init_executor()
+%% MultiprocExecutor-->WorkerProc: make_worker_process()
+%% MultiprocExecutor-->WorkerProc: wait_for_ready(unready_workers)
+%% AsyncLLM-->TokenizerGroup: init_tokenizer_from_configs()
+%% AsyncLLM-->EngineCoreClient: make_async_mp_client(vllm_config, executor_class)
+%% MPClient-->vllm.v1.engine.func: launch_core_engines(vllm_config, executor_class)
+%% CoreEngineProcManager-->vllm.utils.func: get_mp_context()
+%% CoreEngineProcManager-->BaseProcess: append(context.Process())
+%% CoreEngineProcManager-->BaseProcess: start()
+%% BaseProcess-->EngineCoreProc: run_engine_core()
+%% EngineCoreProc-->EngineCoreProc:_perform_handshakes(vllm_config)
+%% EngineCoreProc-->EngineCoreProc:_perform_handshakes(zmq.context, vllm_config)
+%% EngineCoreProc-->vllm.ray.utils.func: make_zmq_socket()
+%% EngineCoreProc-->VllmConfig: \_\_post_init\_\_()
+%% EngineCore-->vllm.plugins.func: load_general_plugins()
+%% vllm.plugins.func-->vllm.plugins.func: load_plugins_by_group()
+%% EngineCore-->Executor: collective_rpc()
+%% KVCacheManager-->vllm.v1.core.func: get_kv_cache_coordinator()
+%% threading.Thread-->EngineCoreProc: process_input_sockets()
+%% EngineCoreProc-->zmq: recv_multipart()
+%% EngineCoreProc-->DPEngineCoreProc: run_busy_loop()
+%% DPEngineCoreProc-->EngineCoreProc: _process_input_queue()
+%% EngineCoreProc-->Scheduler: add_requst(request)
+%% Scheduler-->RequestQueue: add_request()
+%% DPEngineCoreProc-->EngineCoreProc: _process_engine_step()
+%% EngineCoreProc-->EngineCore: step_with_batch_queue()
+%% EngineCore-->Scheduler: schedule()
+%% Scheduler-->KVCacheManager: allocate_slots()
+%% Scheduler-->KVCacheBlocks: get_block_ids()
+%% EngineCore-->MultiprocExecutor: execute_model(scheduler_output)
+%% MultiprocExecutor-->KVOutputAggregator: aggregate()
+%% EngineCore-->queue.Queue: put_nowait(future, scheduler_output)
+%% MPClient-->vllm.ray.utils.func: make_zmq_socket()
+%% AsyncMPClient-->zmq: recv_multipart()
+%% AsyncMPClient-->MsgpackDecoder: decode(frames)
+%% AsyncMPClient-->asyncio.Queue: put_nowait(outputs)
+%% AsyncLLM-->AsyncMPClient: get_output_async()
+%% AsyncMPClient-->asyncio.Queue: get()
+%% Client-->OpenAIServingCompletion: completion()
+%% Client-->OpenAIServingCompletion: create_completion(request)
+%% OpenAIServingCompletion-->OpenAIServing: _maybe_get_adapters(request)
+%% OpenAIServingCompletion-->AsyncLLM: get_tokenizer()
+%% OpenAIServingCompletion-->AsyncLLM: generate(reqeust_id_time, lora_request)
+%% AsyncLLM-->Processor: process_inputs()
+%% AsyncLLM-->OutputProcessor: add_request(request,prompt,parent_req, index,queue)
+%% OutputProcessor-->TokenizerGroup: get_lora_tokenizer()
+%% OutputProcessor-->RequestState: from_new_request()
+%% AsyncLLM-->AsyncMPClient: add_request_async()
+%% AsyncLLM-->RequestOutputCollector: get()
+%% OpenAIServingCompletion-->vllm.utils.func: merge_async_iterators()

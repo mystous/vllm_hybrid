@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Set, Tuple, Type, Union
 
 import torch
 import torch.distributed
+import psutil
 
 import vllm.envs as envs
 from vllm.attention.layer import Attention
@@ -85,6 +86,28 @@ class Worker(LocalOrDistributedWorkerBase):
             ModelRunnerClass = PoolingModelRunner
         elif self.model_config.is_encoder_decoder:
             ModelRunnerClass = EncoderDecoderModelRunner
+        elif self.vllm_config.device_config.device.type == "heterogeneous":
+            # In heterogeneous mode, check if we are a CPU worker
+            # Note: We duplicate the logic from init_device here because ModelRunner is initialized in __init__
+            if local_rank >= torch.cuda.device_count():
+                try:
+                    from vllm.v1.worker.cpu_model_runner import CPUModelRunner
+                    
+                    # Adapter to match Worker's expected signature for ModelRunner
+                    class CPUModelRunnerAdapter(CPUModelRunner):
+                        def __init__(self, vllm_config, kv_cache_dtype, is_driver_worker=False, **kwargs):
+                            # CPUModelRunner only takes (config, device)
+                            # We hardcode device to cpu
+                            # We ignore kv_cache_dtype, is_driver_worker, and kwargs as CPU runner might not support them yet
+                            super().__init__(vllm_config, torch.device("cpu"))
+
+                    ModelRunnerClass = CPUModelRunnerAdapter
+                    logger.info("Initializing CPUModelRunner for heterogeneous CPU worker (Rank %d)", rank)
+                except ImportError:
+                    logger.error("Failed to import CPUModelRunner for heterogeneous CPU worker!")
+                    # Fallback or crash? Crash is better than silent failure.
+                    raise
+        
         self.model_runner: GPUModelRunnerBase = ModelRunnerClass(
             vllm_config=self.vllm_config,
             kv_cache_dtype=self.cache_config.cache_dtype,
@@ -167,6 +190,48 @@ class Worker(LocalOrDistributedWorkerBase):
                     buffer.data.copy_(self._sleep_saved_buffers[name].data)
             self._sleep_saved_buffers = {}
 
+    def _bind_to_numa_node(self, node_id: int) -> None:
+        """Bind the current process to a specific NUMA node using sysfs."""
+        if not hasattr(os, "sched_setaffinity"):
+            logger.warning("os.sched_setaffinity not available, skipping NUMA binding.")
+            return
+
+        cpulist_path = f"/sys/devices/system/node/node{node_id}/cpulist"
+        cpus = []
+        
+        try:
+            if os.path.exists(cpulist_path):
+                with open(cpulist_path, "r") as f:
+                    content = f.read().strip()
+                
+                # Parse cpulist format (e.g., "0-7,16-23")
+                for part in content.split(','):
+                    if '-' in part:
+                        start, end = map(int, part.split('-'))
+                        cpus.extend(range(start, end + 1))
+                    else:
+                        cpus.append(int(part))
+            else:
+                 # Fallback heuristic if sysfs is missing (e.g. non-NUMA or container)
+                logger.warning(f"NUMA topology file {cpulist_path} not found. Falling back to simple interlaced heuristic.")
+                total_cpus = os.cpu_count() or 1
+                # Assuming 2 nodes, even/odd split or half split might be wrong, but simple half split is common for sockets
+                # But interleaved is also common. Let's stick to half split as fallback.
+                half = total_cpus // 2
+                if node_id == 0:
+                    cpus = list(range(0, half))
+                else:
+                    cpus = list(range(half, total_cpus))
+
+            if cpus:
+                os.sched_setaffinity(0, cpus)
+                logger.info(f"Process bound to NUMA node {node_id} (CPUs: {len(cpus)} allocated)")
+            else:
+                logger.warning(f"No CPUs found for NUMA node {node_id}")
+
+        except Exception as e:
+            logger.warning(f"Failed to bind to NUMA node {node_id}: {e}")
+
     def init_device(self) -> None:
         if self.device_config.device.type == "cuda":
             # torch.distributed.all_reduce does not free the input tensor until
@@ -187,6 +252,42 @@ class Worker(LocalOrDistributedWorkerBase):
             torch.cuda.empty_cache()
             torch.cuda.reset_peak_memory_stats()
             self.baseline_snapshot = MemorySnapshot()
+        elif self.device_config.device.type == "cpu":
+            self.device = torch.device("cpu")
+            self.baseline_snapshot = None # No snapshot for CPU yet?
+        elif self.device_config.device.type == "heterogeneous":
+             # Heterogeneous initialization logic
+             if self.local_rank < torch.cuda.device_count():
+                 # Assign to CUDA
+                 os.environ["TORCH_NCCL_AVOID_RECORD_STREAMS"] = "1"
+                 os.environ.pop("NCCL_ASYNC_ERROR_HANDLING", None)
+                 self.device = torch.device(f"cuda:{self.local_rank}")
+                 torch.cuda.set_device(self.device)
+                 _check_if_gpu_supports_dtype(self.model_config.dtype)
+                 gc.collect()
+                 torch.cuda.empty_cache()
+                 torch.cuda.reset_peak_memory_stats()
+                 self.baseline_snapshot = MemorySnapshot()
+             else:
+             else:
+                 # Assign to CPU with NUMA pinning
+                 self.device = torch.device("cpu")
+                 self.baseline_snapshot = None
+                 
+                 gpu_count = torch.cuda.device_count()
+                 cpu_rank_index = self.local_rank - gpu_count
+                 
+                 # Rank gpu_count -> Node 0
+                 # Rank gpu_count + 1 -> Node 1
+                 if cpu_rank_index == 0:
+                     self._bind_to_numa_node(0)
+                 elif cpu_rank_index == 1:
+                     self._bind_to_numa_node(1)
+                 else:
+                     logger.warning(f"Extra CPU rank {self.local_rank} not pinned to specific NUMA node.")
+
+                 # Load CPU platform specific env vars if needed?
+                 # Assuming implicit CPU config is fine for now
         else:
             raise RuntimeError(
                 f"Not support device type: {self.device_config.device}")
@@ -246,15 +347,35 @@ class Worker(LocalOrDistributedWorkerBase):
         # cache blocks that can be allocated with the remaining free memory.
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
+        
+        # Heterogeneous optimization:
+        # If we are a CPU worker (in heterogeneous mode), we don't need GPU blocks.
+        # We also shouldn't profile GPU memory as it might be used by other GPU workers.
+        is_cpu_worker = (self.vllm_config.device_config.device.type == "heterogeneous" 
+                         and self.local_rank >= torch.cuda.device_count())
 
-        free_memory_pre_profile, total_gpu_memory = torch.cuda.mem_get_info()
+        if is_cpu_worker:
+            free_memory_pre_profile = 0 # No GPU memory for us
+            total_gpu_memory = 0
+            
+            # For CPU worker, we skip GPU profiling.
+            # But we still need profile_run for CPU memory? 
+            # CPUModelRunner usually doesn't need "profiling" for allocation like GPU does.
+            # We just need to ensure result.non_kv_cache_memory is meaningful or 0.
+            # Let's mock the result to avoid GPU calls.
+            class MockProfileResult:
+                non_kv_cache_memory = 0
+            result = MockProfileResult()
 
-        # Execute a forward pass with dummy inputs to profile the memory usage
-        # of the model.
-        with memory_profiling(
-                self.baseline_snapshot,
-                weights_memory=self.model_runner.model_memory_usage) as result:
-            self.model_runner.profile_run()
+        else:
+            free_memory_pre_profile, total_gpu_memory = torch.cuda.mem_get_info()
+
+            # Execute a forward pass with dummy inputs to profile the memory usage
+            # of the model.
+            with memory_profiling(
+                    self.baseline_snapshot,
+                    weights_memory=self.model_runner.model_memory_usage) as result:
+                self.model_runner.profile_run()
 
         self._assert_memory_footprint_increased_during_profiling()
 
@@ -301,6 +422,12 @@ class Worker(LocalOrDistributedWorkerBase):
     def _assert_memory_footprint_increased_during_profiling(self):
         # NOTE(woosuk): Here we assume that the other processes using the same
         # GPU did not change their memory usage during the profiling.
+        
+        # Skip for heterogeneous CPU worker as we skipped profiling
+        if (self.vllm_config.device_config.device.type == "heterogeneous" 
+            and self.local_rank >= torch.cuda.device_count()):
+            return
+
         free_gpu_memory, total = torch.cuda.mem_get_info()
         cuda_memory = total - free_gpu_memory
         assert self.baseline_snapshot.cuda_memory < cuda_memory, (
