@@ -191,7 +191,7 @@ class MultiprocExecutor(Executor):
                 outputs, self.output_rank)
         return self.kv_output_aggregator.aggregate(outputs, self.output_rank)
 
-    def collective_rpc(self,
+    def collective_rpc(self,    
                        method: Union[str, Callable],
                        timeout: Optional[float] = None,
                        args: tuple = (),
