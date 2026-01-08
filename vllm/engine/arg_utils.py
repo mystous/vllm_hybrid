@@ -1053,6 +1053,9 @@ class EngineArgs:
         if self.device == "heterogeneous":
              import os
              os.environ["VLLM_HETEROGENEOUS_PLATFORM"] = "1"
+             if self.distributed_executor_backend is None:
+                 self.distributed_executor_backend = "mp"
+                 logger.info("Forcing distributed_executor_backend='mp' for heterogeneous device.")
         
         current_platform.pre_register_and_update()
 

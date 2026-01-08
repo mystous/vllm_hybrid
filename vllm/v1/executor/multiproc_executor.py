@@ -36,6 +36,10 @@ from vllm.v1.executor.abstract import Executor, FailureCallback
 from vllm.v1.outputs import ModelRunnerOutput
 from vllm.worker.worker_base import WorkerWrapperBase
 
+print(f"DEBUG: multiproc_executor loaded from {__file__}")
+import vllm.worker.worker_base
+print(f"DEBUG: vllm.worker.worker_base loaded from {vllm.worker.worker_base.__file__}")
+
 logger = init_logger(__name__)
 
 
@@ -410,6 +414,9 @@ class WorkerProc:
             input_shm_handle,  # Receive SchedulerOutput
     ) -> UnreadyWorkerProcHandle:
         context = get_mp_context()
+        if vllm_config.device_config.device_type == "heterogeneous":
+            import multiprocessing
+            context = multiprocessing.get_context("spawn")
         # (reader, writer)
         reader, writer = context.Pipe(duplex=False)
 

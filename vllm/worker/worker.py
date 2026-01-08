@@ -54,6 +54,9 @@ class Worker(LocalOrDistributedWorkerBase):
         is_driver_worker: bool = False,
         model_runner_cls: Optional[Type[GPUModelRunnerBase]] = None,
     ) -> None:
+        import os, sys
+        print(f"DEBUG_WORKER_INIT: Start. Rank={rank} LocalRank={local_rank} PID={os.getpid()}")
+        sys.stdout.flush()
         WorkerBase.__init__(self, vllm_config)
         self.parallel_config.rank = rank
         self.local_rank = local_rank
@@ -81,35 +84,34 @@ class Worker(LocalOrDistributedWorkerBase):
                         "mimo_mtp")) \
                     else {"return_hidden_states": True}
 
+        runner_vllm_config = self.vllm_config
+
         ModelRunnerClass: Type[GPUModelRunnerBase] = ModelRunner
         if model_config.runner_type == "pooling":
             ModelRunnerClass = PoolingModelRunner
         elif self.model_config.is_encoder_decoder:
             ModelRunnerClass = EncoderDecoderModelRunner
         elif self.vllm_config.device_config.device.type == "heterogeneous":
-            # In heterogeneous mode, check if we are a CPU worker
-            # Note: We duplicate the logic from init_device here because ModelRunner is initialized in __init__
+            # For heterogeneous, we decide based on local rank and available GPUs
             if local_rank >= torch.cuda.device_count():
-                try:
-                    from vllm.v1.worker.cpu_model_runner import CPUModelRunner
-                    
-                    # Adapter to match Worker's expected signature for ModelRunner
-                    class CPUModelRunnerAdapter(CPUModelRunner):
-                        def __init__(self, vllm_config, kv_cache_dtype, is_driver_worker=False, **kwargs):
-                            # CPUModelRunner only takes (config, device)
-                            # We hardcode device to cpu
-                            # We ignore kv_cache_dtype, is_driver_worker, and kwargs as CPU runner might not support them yet
-                            super().__init__(vllm_config, torch.device("cpu"))
+                # This is a CPU worker
+                
+                # Set ENV var so that Platform knows this process is running as a CPU worker
+                os.environ["VLLM_HETEROGENEOUS_DEVICE"] = "cpu"
+                logger.info("Initializing CPU worker (Rank %d) with V0 ModelRunner on CPU", rank)
 
-                    ModelRunnerClass = CPUModelRunnerAdapter
-                    logger.info("Initializing CPUModelRunner for heterogeneous CPU worker (Rank %d)", rank)
-                except ImportError:
-                    logger.error("Failed to import CPUModelRunner for heterogeneous CPU worker!")
-                    # Fallback or crash? Crash is better than silent failure.
-                    raise
-        
+                # Clone config and force device to CPU for this worker
+                import copy
+                runner_vllm_config = copy.deepcopy(self.vllm_config)
+                # We need to manually update the device in device_config
+                runner_vllm_config.device_config.device = torch.device("cpu")
+                
+                # ModelRunnerClass remains ModelRunner (V0)
+        else:
+             logger.info(f"Worker initialized on device type: {self.vllm_config.device_config.device.type}")
+
         self.model_runner: GPUModelRunnerBase = ModelRunnerClass(
-            vllm_config=self.vllm_config,
+            vllm_config=runner_vllm_config,
             kv_cache_dtype=self.cache_config.cache_dtype,
             is_driver_worker=is_driver_worker,
             **speculative_args,
@@ -233,7 +235,7 @@ class Worker(LocalOrDistributedWorkerBase):
             logger.warning(f"Failed to bind to NUMA node {node_id}: {e}")
 
     def init_device(self) -> None:
-        if self.device_config.device.type == "cuda":
+        if self.device_config.device.type == "cuda" and self.device_config.device_type != "heterogeneous":
             # torch.distributed.all_reduce does not free the input tensor until
             # the synchronization point. This causes the memory usage to grow
             # as the number of all_reduce calls increases. This env var disables
@@ -245,6 +247,7 @@ class Worker(LocalOrDistributedWorkerBase):
             # This env var set by Ray causes exceptions with graph building.
             os.environ.pop("NCCL_ASYNC_ERROR_HANDLING", None)
             self.device = torch.device(f"cuda:{self.local_rank}")
+        if self.device_config.device.type == "cuda" and self.device_config.device_type != "heterogeneous":
             torch.cuda.set_device(self.device)
 
             _check_if_gpu_supports_dtype(self.model_config.dtype)
@@ -255,7 +258,7 @@ class Worker(LocalOrDistributedWorkerBase):
         elif self.device_config.device.type == "cpu":
             self.device = torch.device("cpu")
             self.baseline_snapshot = None # No snapshot for CPU yet?
-        elif self.device_config.device.type == "heterogeneous":
+        elif self.device_config.device_type == "heterogeneous":
              # Heterogeneous initialization logic
              if self.local_rank < torch.cuda.device_count():
                  # Assign to CUDA
@@ -269,7 +272,7 @@ class Worker(LocalOrDistributedWorkerBase):
                  torch.cuda.reset_peak_memory_stats()
                  self.baseline_snapshot = MemorySnapshot()
              else:
-             else:
+
                  # Assign to CPU with NUMA pinning
                  self.device = torch.device("cpu")
                  self.baseline_snapshot = None
@@ -663,11 +666,17 @@ def init_worker_distributed_environment(
 ) -> None:
     """Initialize the distributed environment."""
     parallel_config = vllm_config.parallel_config
+    if os.environ.get("VLLM_HETEROGENEOUS_PLATFORM"):
+        parallel_config.disable_custom_all_reduce = True
     set_custom_all_reduce(not parallel_config.disable_custom_all_reduce)
 
+    backend = current_platform.dist_backend
+    if os.environ.get("VLLM_HETEROGENEOUS_PLATFORM"):
+        backend = "gloo"
+        
     init_distributed_environment(parallel_config.world_size, rank,
                                  distributed_init_method, local_rank,
-                                 current_platform.dist_backend)
+                                 backend)
     ensure_model_parallel_initialized(parallel_config.tensor_parallel_size,
                                       parallel_config.pipeline_parallel_size)
 

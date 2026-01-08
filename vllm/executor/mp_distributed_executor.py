@@ -38,12 +38,15 @@ class MultiprocessingDistributedExecutor(DistributedExecutorBase):
 
         cuda_device_count = cuda_device_count_stateless()
         # Use confusing message for more common TP-only case.
-        if tensor_parallel_size > cuda_device_count:
+        from vllm.platforms import current_platform
+        is_heterogeneous = current_platform.device_type == "heterogeneous"
+
+        if tensor_parallel_size > cuda_device_count and not is_heterogeneous:
             raise RuntimeError(
                 f"please set tensor_parallel_size ({tensor_parallel_size}) "
                 f"to less than max local gpu count ({cuda_device_count})")
 
-        if world_size > cuda_device_count:
+        if world_size > cuda_device_count and not is_heterogeneous:
             raise RuntimeError(
                 f"please ensure that world_size ({world_size}) "
                 f"is less than than max local gpu count ({cuda_device_count})")
@@ -55,7 +58,9 @@ class MultiprocessingDistributedExecutor(DistributedExecutorBase):
             })
 
     def _init_executor(self) -> None:
-
+        # Force spawn method for heterogeneous stability
+        os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
+        
         from vllm.platforms import current_platform
         if current_platform.is_cuda_alike():
             self._check_cuda()
@@ -106,9 +111,38 @@ class MultiprocessingDistributedExecutor(DistributedExecutorBase):
 
         self.driver_worker = WorkerWrapperBase(self.vllm_config, 0)
 
+        # HETEROGENEOUS SUPPORT: Manually set/override env vars per rank
+        from vllm.platforms import current_platform
+        if current_platform.device_type == "heterogeneous":
+            envs_list = []
+            for i in range(world_size):
+                envs = {}
+                if i == 0:
+                     # Rank 0: GPU
+                     envs["CUDA_VISIBLE_DEVICES"] = "0"
+                else:
+                     # Rank 1+: CPU
+                     envs["CUDA_VISIBLE_DEVICES"] = ""
+                     envs["VLLM_HETEROGENEOUS_DEVICE"] = "cpu"
+                     # Give CPU worker more threads since it's doing compute
+                     envs["OMP_NUM_THREADS"] = "8" 
+                envs_list.append(envs)
+            
+            # Update envs on workers (and driver)
+            self._run_workers("update_environment_variables", envs_list)
+            # Driver worker (self.driver_worker) is usually rank 0 in MP executor (it's not remote)
+            # But in MPExecutor driver_worker is separate instance? 
+            # Yes, self.driver_worker is local.
+            # We should update its env too if it's acting as a worker?
+            # self.driver_worker.update_environment_variables(envs_list) 
+            # Actually _run_workers handles driver_worker if we look at its implementation:
+            # "driver_worker_output = run_method(self.driver_worker, ...)"
+            # So _run_workers covers driver_worker. 
+
+
         all_kwargs = []
-        distributed_init_method = get_distributed_init_method(
-            get_ip(), get_open_port())
+        import uuid
+        distributed_init_method = f"file:///tmp/vllm_dist_init_{uuid.uuid4()}"
         for i in range(world_size):
             local_rank = i
             rank = i

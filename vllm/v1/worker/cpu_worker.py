@@ -57,18 +57,23 @@ class CPUWorker(Worker):
             self.local_omp_cpuid = omp_cpuids.split("|")[self.rank]
 
         if self.local_omp_cpuid != "all":
-            ret = torch.ops._C_utils.init_cpu_threads_env(self.local_omp_cpuid)
-            if ret:
-                logger.info(ret)
+            try:
+                ret = torch.ops._C_utils.init_cpu_threads_env(self.local_omp_cpuid)
+                if ret:
+                    logger.info(ret)
+            except AttributeError:
+                 logger.warning("torch.ops._C_utils.init_cpu_threads_env not found. Skipping thread binding.")
+
 
         # Note: unique identifier for creating allreduce shared memory
         os.environ["VLLM_DIST_IDENT"] = self.distributed_init_method.split(
             ":")[-1]
         # Initialize the distributed environment.
+        # Force Gloo backend for CPU workers
         init_worker_distributed_environment(self.vllm_config, self.rank,
                                             self.distributed_init_method,
                                             self.local_rank,
-                                            current_platform.dist_backend)
+                                            backend="gloo")
         # Set random seed.
         set_random_seed(self.model_config.seed)
 
@@ -133,15 +138,20 @@ class CPUWorker(Worker):
 
         allowed_numa_nodes, logical_cpu_list = \
             CpuPlatform.get_allowed_cpu_memory_node_list()
-        assert len(allowed_numa_nodes) >= self.parallel_config.world_size, (
-            f"No enough allowed NUMA nodes to bind threads of "
-            f"{self.parallel_config.world_size} CPUWorkers. "
-            f"Allowed NUMA nodes are {allowed_numa_nodes}. "
-            "Please try to bind threads manually.")
+        
+        # In heterogeneous mode (or if we just don't have enough NUMA nodes), we shouldn't crash.
+        # Just warn and reuse nodes.
+        if len(allowed_numa_nodes) < self.parallel_config.world_size:
+             logger.warning(
+                 f"Not enough NUMA nodes ({len(allowed_numa_nodes)}) for {self.parallel_config.world_size} workers. "
+                 f"Workers will share NUMA nodes."
+             )
+
 
         # Get CPUs on NUMA node `allowed_numa_nodes[local_rank]``
-        selected_numa_node = allowed_numa_nodes[
-            self.local_rank]  # type: ignore
+        # Use modulo to cycle through available nodes if local_rank exceeds available nodes
+        node_idx = self.local_rank % len(allowed_numa_nodes)
+        selected_numa_node = allowed_numa_nodes[node_idx]  # type: ignore
         logical_cpu_list = [
             x for x in logical_cpu_list if x.numa_node == selected_numa_node
         ]

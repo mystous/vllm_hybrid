@@ -191,7 +191,7 @@ class Worker(WorkerBase):
         init_worker_distributed_environment(self.vllm_config, self.rank,
                                             self.distributed_init_method,
                                             self.local_rank,
-                                            current_platform.dist_backend)
+                                            "gloo" if self.vllm_config.device_config.device_type == "heterogeneous" else current_platform.dist_backend)
         # Set random seed.
         set_random_seed(self.model_config.seed)
 

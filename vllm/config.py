@@ -2785,6 +2785,10 @@ class DeviceConfig:
             self.device = torch.device("cpu")
         elif self.device_type in ["tpu"]:
             self.device = None
+        elif self.device_type == "heterogeneous":
+            # For heterogeneous execution, we default to CUDA for the main process
+            # (which usually runs the model runner or controller)
+            self.device = torch.device("cuda")
         else:
             # Set device with device type
             self.device = torch.device(self.device_type)
