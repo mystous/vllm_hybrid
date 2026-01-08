@@ -229,6 +229,10 @@ def resolve_current_platform_cls_qualname() -> str:
 
     activated_builtin_plugins = list(
         set(activated_plugins) & set(builtin_platform_plugins.keys()))
+
+    if 'heterogeneous' in activated_builtin_plugins:
+        activated_builtin_plugins = ['heterogeneous']
+
     activated_oot_plugins = list(
         set(activated_plugins) & set(platform_plugins.keys()))
 

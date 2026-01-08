@@ -543,14 +543,38 @@ class WorkerWrapperBase:
         Here we inject some common logic before initializing the worker.
         Arguments are passed to the worker class constructor.
         """
+        import sys
+        
         kwargs = all_kwargs[self.rpc_rank]
+
         self.vllm_config = kwargs.get("vllm_config", None)
         assert self.vllm_config is not None, (
             "vllm_config is required to initialize the worker")
+        
+        with open("/home/mystous/projects/debug_worker.log", "a") as f:
+            f.write(f"DEBUG: vllm_config device_type={self.vllm_config.device_config.device_type}\n")
+
         enable_trace_function_call_for_thread(self.vllm_config)
 
         from vllm.plugins import load_general_plugins
         load_general_plugins()
+
+        # Prepare worker class selection
+        # If device_type is heterogeneous, or if we have more ranks than GPUs (implying hybrid/heterogeneous),
+        # we assign CPUWorker to excessive ranks.
+        import torch
+        num_gpus = torch.cuda.device_count()
+        
+        # Note: device_type sometimes reports as "cuda" even in heterogeneous mode due to internal aliasing.
+        # So we rely on rank vs num_gpus check.
+        passed_heterogeneous_check = (self.vllm_config.device_config.device_type == "heterogeneous")
+        
+        if self.rpc_rank >= num_gpus:
+            # Check if we should switch to CPU worker
+            # We enable this if device is explicitly heterogeneous OR if we are overflowed on CUDA
+            if passed_heterogeneous_check or self.vllm_config.device_config.device_type == "cuda":
+                 logger.info(f"Rank {self.rpc_rank} is assigned to CPU (available GPUs: {num_gpus}). Switching to CPUWorker.")
+                 self.vllm_config.parallel_config.worker_cls = "vllm.v1.worker.cpu_worker.CPUWorker"
 
         if isinstance(self.vllm_config.parallel_config.worker_cls, str):
             worker_class = resolve_obj_by_qualname(

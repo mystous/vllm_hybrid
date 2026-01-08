@@ -199,10 +199,18 @@ class RayDistributedExecutor(DistributedExecutorBase):
             )
 
             if current_platform.ray_device_key == "GPU":
+                # Check if the specific bundle has GPU resources
+                # In heterogeneous mode, some bundles might be CPU-only
+                bundle_spec = placement_group.bundle_specs[bundle_id]
+                worker_num_gpus = num_gpus
+                if bundle_spec.get("GPU", 0) == 0:
+                    worker_num_gpus = 0
+
                 # NV+AMD GPUs, and Intel XPUs
                 worker = ray.remote(
                     num_cpus=0,
-                    num_gpus=num_gpus,
+                    num_gpus=worker_num_gpus,
+
                     scheduling_strategy=scheduling_strategy,
                     **ray_remote_kwargs,
                 )(RayWorkerWrapper).remote(vllm_config=self.vllm_config,

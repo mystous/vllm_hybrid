@@ -11,7 +11,7 @@ from vllm.platforms.interface import (DeviceCapability, Platform, PlatformEnum,
                                       _Backend)
 
 if TYPE_CHECKING:
-    from vllm.config import ModelConfig, VllmConfig
+    from vllm.config import ModelConfig, VllmConfig, ParallelConfig
 
 logger = init_logger(__name__)
 
@@ -20,7 +20,13 @@ class HeterogeneousPlatform(Platform):
     _enum = PlatformEnum.CUDA  # Default to CUDA to pass initial checks, but dynamic dispatch is key
     device_name: str = "heterogeneous"
     device_type: str = "heterogeneous"
+    device_type: str = "heterogeneous"
     dispatch_key: str = "CUDA" # Default to CUDA dispatch key for now
+    ray_device_key: str = "GPU"
+    dist_backend: str = "gloo" # Force Gloo for heterogeneous (CPU/GPU) coordination
+    additional_env_vars: List[str] = ["VLLM_HETEROGENEOUS_PLATFORM"] # Ensure platform detection propagates
+
+
 
     # We need to maintain instances of sub-platforms
     _cuda_platform = CudaPlatform()
@@ -77,8 +83,7 @@ class HeterogeneousPlatform(Platform):
 
     @classmethod
     def get_device_communicator_cls(cls) -> str:
-        # Return generic base, or CUDA one? 
-        return cls._cuda_platform.get_device_communicator_cls()
+        return "vllm.platforms.heterogeneous.HeterogeneousDeviceCommunicator"
 
     # Proxy other methods dynamically if possible, but they are class methods.
     # We have to implement them explicitly.
@@ -99,3 +104,174 @@ class HeterogeneousPlatform(Platform):
     def device_count(cls) -> int:
         # Return CUDA count + 2 to allow for two CPU workers (one per NUMA node)
         return torch.cuda.device_count() + 2
+
+    @classmethod
+    def get_ray_placement_group_bundles(
+            cls, parallel_config: "ParallelConfig") -> List[dict]:
+        num_gpus = torch.cuda.device_count()
+        bundles = []
+        for i in range(parallel_config.world_size):
+            if i < num_gpus:
+                bundles.append({"GPU": 1.0})
+            else:
+                bundles.append({"CPU": 1.0})
+        return bundles
+
+    @classmethod
+    def set_device(cls, device: torch.device) -> None:
+        if device.type == "cuda":
+            cls._cuda_platform.set_device(device)
+        elif device.type == "cpu":
+            cls._cpu_platform.set_device(device)
+        else:
+            # Fallback or error
+            logger.warning(f"Unknown device type for set_device: {device.type}. Defaulting to CUDA platform.")
+            cls._cuda_platform.set_device(device)
+
+    @classmethod
+    def get_attn_backend_cls(cls, selected_backend, head_size, dtype,
+                             kv_cache_dtype, block_size, use_v1, use_mla):
+        # Default to CUDA platform backend as Heterogeneous is primarily CUDA + CPU offload
+        # BUT check if we are in a CPU worker process context
+        device_env = os.environ.get("VLLM_HETEROGENEOUS_DEVICE")
+        logger.info(f"HeterogeneousPlatform.get_attn_backend_cls called. VLLM_HETEROGENEOUS_DEVICE={device_env}")
+        
+        if device_env == "cpu":
+             logger.info("Delegating to CPU Platform for Attention Backend.")
+             return cls._cpu_platform.get_attn_backend_cls(
+                selected_backend, head_size, dtype, kv_cache_dtype, block_size,
+                use_v1, use_mla)
+        
+        logger.info("Delegating to CUDA Platform for Attention Backend.")
+        return cls._cuda_platform.get_attn_backend_cls(
+            selected_backend, head_size, dtype, kv_cache_dtype, block_size,
+            use_v1, use_mla)
+
+
+from vllm.distributed.device_communicators.base_device_communicator import DeviceCommunicatorBase
+from vllm.distributed.device_communicators.cpu_communicator import _CPUSHMDistributed
+from vllm.logger import init_logger
+import os
+
+logger = init_logger(__name__)
+
+class HeterogeneousDeviceCommunicator(DeviceCommunicatorBase):
+    def __init__(self, cpu_group, device=None, device_group=None, unique_name=""):
+        # We force the use of the base class which relies on standard torch.distributed
+        # commands (falling back to Gloo).
+        
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            
+        super().__init__(cpu_group, device, device_group, unique_name)
+        
+        # Try to initialize Shared Memory distributed backend for performance
+        # This is much faster than Gloo for intra-node communication
+        self.shm_dist = None
+        if os.environ.get("VLLM_DIST_IDENT"):
+            try:
+                # _CPUSHMDistributed is compatible with our interface
+                self.shm_dist = _CPUSHMDistributed(self)
+                logger.info("Initialized Shared Memory communication for Heterogeneous Platform.")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Shared Memory backend: {e}. Falling back to standard Gloo.")
+
+    def all_reduce(self, input_: torch.Tensor) -> torch.Tensor:
+        if self.shm_dist:
+            # Use SHM
+            if input_.is_cuda:
+                # Copy to CPU, op, Copy back
+                # Optimizable with pinned memory ideally, but .cpu() is safe baseline
+                input_cpu = input_.cpu()
+                self.shm_dist.all_reduce(input_cpu)
+                return input_cpu.to(input_.device)
+            else:
+                self.shm_dist.all_reduce(input_)
+                return input_
+        else:
+            # Fallback to Gloo (CPU Offload)
+            orig_device = input_.device
+            input_cpu = input_.cpu()
+            res_cpu = super().all_reduce(input_cpu)
+            return res_cpu.to(orig_device)
+
+    def all_gather(self, input_: torch.Tensor, dim: int = -1) -> torch.Tensor:
+         # SHM implementation for all_gather (via all_gather_into_tensor logic mostly)
+         # _CPUSHMDistributed has all_gather_into_tensor.
+         # DeviceCommunicatorBase.all_gather uses all_gather_into_tensor.
+         
+         if self.shm_dist:
+            orig_device = input_.device
+            input_cpu = input_.cpu()
+            
+            input_size = input_cpu.size()
+            output_size = (input_size[0] * self.world_size, ) + input_size[1:]
+            output_tensor = torch.empty(output_size, dtype=input_cpu.dtype, device="cpu")
+            
+            self.shm_dist.all_gather_into_tensor(output_tensor, input_cpu)
+            
+            # Reshape logic matches base class
+            output_tensor = output_tensor.reshape((self.world_size, ) + input_size)
+            output_tensor = output_tensor.movedim(0, dim)
+            output_tensor = output_tensor.reshape(input_size[:dim] +
+                                                  (self.world_size *
+                                                   input_size[dim], ) +
+                                                  input_size[dim + 1:])
+            
+            return output_tensor.to(orig_device)
+         else:
+            orig_device = input_.device
+            input_cpu = input_.cpu()
+            res_cpu = super().all_gather(input_cpu, dim)
+            return res_cpu.to(orig_device)
+
+    def reduce_scatter(self, input_: torch.Tensor, dim: int = -1) -> torch.Tensor:
+        # _CPUSHMDistributed does NOT implement reduce_scatter!
+        # cpu_communicator.py only shows all_reduce, gather, all_gather_into_tensor, send, recv.
+        # No reduce_scatter in the snippet I viewed (lines 113-202).
+        # So we MUST fallback to standard Gloo for this, or emulate it via all_reduce (slow) or gather/reduce.
+        # DeviceCommunicatorBase implements reduce_scatter using torch.distributed.reduce_scatter_tensor.
+        # So we fallback to super().reduce_scatter(cpu) which uses Gloo.
+        
+        orig_device = input_.device
+        input_cpu = input_.cpu()
+        res_cpu = super().reduce_scatter(input_cpu, dim)
+        return res_cpu.to(orig_device)
+
+    def broadcast(self, input_: torch.Tensor, src: int = 0) -> torch.Tensor:
+        # _CPUSHMDistributed doesn't explicitly implement broadcast?
+        # Check snippet: it has send, recv, gather, all_gather. No broadcast.
+        # So fallback to Gloo.
+        
+        orig_device = input_.device
+        input_cpu = input_.cpu()
+        torch.distributed.broadcast(input_cpu, src=src, group=self.device_group)
+        return input_cpu.to(orig_device)
+        
+    def send(self, tensor: torch.Tensor, dst: Optional[int] = None) -> None:
+        if self.shm_dist:
+             # _CPUSHMDistributed doesn't have simple 'send'? 
+             # Snippet shows send_tensor_dict but not simple send?
+             # Wait, looking at snippet line 162: send_tensor_dict.
+             # Ah, typical CPUSHM might not expose raw send/recv for single tensors easily?
+             # Wait, CpuCommunicator.send (line 104 in snippet) calls self.dist_module.send_tensor_dict??
+             # No, CpuCommunicator.send in snippet Line 221 (inherited) uses torch.distributed.send!
+             # CpuCommunicator snippet ONLY overrides send_tensor_dict.
+             # So CpuCommunicator uses Gloo for P2P send/recv!
+             # Only TP/PP (allreduce/gather) use SHM.
+             pass
+        
+        tensor_cpu = tensor.cpu()
+        super().send(tensor_cpu, dst)
+
+    def recv(self, size: torch.Size, dtype: torch.dtype, src: Optional[int] = None) -> torch.Tensor:
+        if src is None:
+            src = (self.rank_in_group - 1) % self.world_size
+        tensor = torch.empty(size, dtype=dtype, device="cpu")
+        torch.distributed.recv(tensor, self.ranks[src], self.device_group)
+        return tensor.to(self.device)
+
+
+
+
+

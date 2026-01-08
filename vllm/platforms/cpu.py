@@ -99,7 +99,7 @@ class CpuPlatform(Platform):
             raise NotImplementedError("MLA is not supported on CPU.")
         logger.info("Using Torch SDPA backend.")
         if not use_v1:
-            raise ValueError("CPU backend only supports V1.")
+            return "vllm.attention.backends.cpu_stubs.CpuSdpaBackend"
         return "vllm.v1.attention.backends.cpu_attn.TorchSDPABackend"
 
     @classmethod

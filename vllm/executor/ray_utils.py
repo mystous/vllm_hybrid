@@ -57,11 +57,14 @@ try:
         def get_node_and_gpu_ids(self) -> Tuple[str, List[int]]:
             node_id = ray.get_runtime_context().get_node_id()
             device_key = vllm.platforms.current_platform.ray_device_key
+            logger.info(f"RayWorkerWrapper: get_node_and_gpu_ids. device_key={device_key}")
             if not device_key:
                 raise RuntimeError("current platform %s does not support ray.",
                                    vllm.platforms.current_platform.device_name)
             gpu_ids = ray.get_runtime_context().get_accelerator_ids(
-            )[device_key]
+            ).get(device_key, []) # Use .get with default output to prevent KeyError
+            logger.info(f"RayWorkerWrapper: Got gpu_ids={gpu_ids}")
+
             return node_id, gpu_ids
 
         def execute_model_spmd(
@@ -348,9 +351,13 @@ def initialize_ray_cluster(
                 "number of available %ss in the placement group.", device_str,
                 device_str)
         # Create a new placement group
-        placement_group_specs: List[Dict[str, float]] = ([{
-            device_str: 1.0
-        } for _ in range(parallel_config.world_size)])
+        get_bundles_method = getattr(current_platform, "get_ray_placement_group_bundles", None)
+        if callable(get_bundles_method):
+            placement_group_specs = get_bundles_method(parallel_config)
+        else:
+            placement_group_specs = ([{
+                device_str: 1.0
+            } for _ in range(parallel_config.world_size)])
 
         # vLLM engine is also a worker to execute model with an accelerator,
         # so it requires to have the device in a current node. Check if
