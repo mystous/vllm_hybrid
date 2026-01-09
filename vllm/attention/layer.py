@@ -181,8 +181,10 @@ class Attention(nn.Module):
         # torch.compile works by registering the attention as one giant
         # opaque custom op. For other platforms, we directly call them
         # and let torch.compile handle them.
-        self.use_direct_call = not current_platform.is_cuda_alike(
-        ) and not current_platform.is_cpu()
+        # AG: For CPU, we force direct call to avoid NotImplementedError on custom op
+        # We must access current_platform dynamically to see the CPUWorker override
+        import vllm.platforms
+        self.use_direct_call = not vllm.platforms.current_platform.is_cuda_alike()
 
         self.use_output = self.attn_backend.accept_output_buffer
         compilation_config = get_current_vllm_config().compilation_config

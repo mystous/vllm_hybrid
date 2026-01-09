@@ -2,6 +2,8 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import multiprocessing
 import os
+
+print(f"DEBUG_AG: Process {os.getpid()} importing vllm.v1.executor.multiproc_executor", flush=True)
 import pickle
 import signal
 import threading
@@ -380,7 +382,14 @@ class WorkerProc:
             "distributed_init_method": distributed_init_method,
             "is_driver_worker": is_driver_worker,
         }
+        print(f"DEBUG_AG: WorkerProc all_kwargs type: {type(all_kwargs)}", flush=True)
+        print(f"DEBUG_AG: WorkerProc all_kwargs content: {all_kwargs}", flush=True)
+        print(f"DEBUG_AG: WorkerProc rank={rank} local_rank={local_rank}", flush=True)
+        print(f"DEBUG_AG: Wrapper rpc_rank={wrapper.rpc_rank}", flush=True)
         wrapper.init_worker(all_kwargs)
+        if isinstance(all_kwargs, list) and len(all_kwargs) > wrapper.rpc_rank:
+             print(f"DEBUG_AG: Wrapper selected kwargs: {all_kwargs[wrapper.rpc_rank]}", flush=True)
+        
         self.worker = wrapper
 
         pp_size = vllm_config.parallel_config.pipeline_parallel_size
@@ -395,8 +404,10 @@ class WorkerProc:
         decorate_logs(process_name)
 
         # Initialize MessageQueue for receiving SchedulerOutput
+        input_rank = self.worker.rank
+        print(f"DEBUG_AG: WorkerProc rank arg={rank}, wrapper.rank={input_rank}", flush=True)
         self.rpc_broadcast_mq = MessageQueue.create_from_handle(
-            input_shm_handle, self.worker.rank)
+            input_shm_handle, input_rank)
 
         # Initializes a message queue for sending the model output
         self.worker_response_mq = MessageQueue(1, 1)
@@ -433,7 +444,7 @@ class WorkerProc:
             "death_pipe": death_reader,
         }
         # Run EngineCore busy loop in background process.
-        proc = context.Process(target=WorkerProc.worker_main,
+        proc = context.Process(target=_run_worker_process,
                                kwargs=process_kwargs,
                                name=f"VllmWorker-{rank}",
                                daemon=True)
@@ -494,6 +505,8 @@ class WorkerProc:
     def worker_main(*args, **kwargs):
         """ Worker initialization and execution loops.
         This runs a background process """
+        import os
+        print(f"DEBUG_AG: WorkerProc main started. PID={os.getpid()} rank={kwargs.get('rank', 'unknown')}", flush=True)
 
         # Signal handler used for graceful termination.
         # SystemExit exception is only raised once to allow this and worker
@@ -508,7 +521,10 @@ class WorkerProc:
 
         # Either SIGTERM or SIGINT will terminate the worker
         signal.signal(signal.SIGTERM, signal_handler)
-        signal.signal(signal.SIGINT, signal_handler)
+        # Set the signal handler to ignore SIGINT (Ctrl+C).
+        # PRO TIP: we don't want the workers to crash on Ctrl+C.
+        # Instead, we want the engine core to handle it and cleanup.
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         worker = None
         # tuple[Connection, Connection]
@@ -611,3 +627,11 @@ class WorkerProc:
             if output_rank is None or self.rank == output_rank:
                 self.worker_response_mq.enqueue(
                     (WorkerProc.ResponseStatus.SUCCESS, output))
+
+def _run_worker_process(*args, **kwargs):
+    try:
+        WorkerProc.worker_main(*args, **kwargs)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        raise

@@ -5,6 +5,9 @@
 # Adapted from
 # https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/core/parallel_state.py
 # Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+import os
+print(f"DEBUG_AG: Process {os.getpid()} importing vllm.distributed.parallel_state", flush=True)
+
 """vLLM distributed state.
 It takes over the control of the distributed environment from PyTorch.
 The typical workflow is:
@@ -44,6 +47,10 @@ from vllm.distributed.utils import StatelessProcessGroup
 from vllm.logger import init_logger
 from vllm.utils import (direct_register_custom_op, get_distributed_init_method,
                         resolve_obj_by_qualname, supports_custom_op)
+
+print(f"DEBUG_AG: Process {os.getpid()} finished importing vllm.distributed.parallel_state", flush=True)
+
+logger = init_logger(__name__)
 
 
 @dataclass
@@ -93,6 +100,13 @@ def _get_unique_name(name: str) -> str:
     newname = f"{name}:{_group_name_counter[name]}"
     _group_name_counter[name] += 1
     return newname
+
+
+_IS_HETEROGENEOUS_MODE: bool = False
+
+def _is_heterogeneous_environment() -> bool:
+    global _IS_HETEROGENEOUS_MODE
+    return _IS_HETEROGENEOUS_MODE
 
 
 _groups: dict[str, Callable[[], Optional["GroupCoordinator"]]] = {}
@@ -222,7 +236,7 @@ class GroupCoordinator:
         self.cpu_group = None
 
         from vllm.platforms import current_platform
-        if current_platform.device_type == "heterogeneous":
+        if _is_heterogeneous_environment():
             # Force Gloo backend for heterogeneous groups to allow CPU-GPU communication
             # and prevent deadlocks (NCCL vs Gloo mismatch).
             torch_distributed_backend = "gloo"
@@ -232,15 +246,23 @@ class GroupCoordinator:
             # 1. device_group (NCCL): Only for GPU ranks.
             # 2. cpu_group (Gloo): For all ranks.
             from vllm.platforms import current_platform
-            if current_platform.device_type == "heterogeneous":
+            if _is_heterogeneous_environment():
                 # Assume standard linear mapping for now: Rank < GPU_Count = GPU
+                # WARNING: This logic uses LOCAL device count which is likely wrong in distributed/isolated envs.
+                # But for debugging 1 GPU 1 CPU case, we trace it.
                 num_gpus = torch.cuda.device_count()
                 gpu_ranks = [r for r in ranks if r < num_gpus]
                 
                 # Device group only includes GPU ranks
+                # INFO: torch.distributed.new_group is a collective and must be called by ALL ranks in the default group
+                # even if they are not part of the new group.
+                if gpu_ranks:
+                     tmp_device_group = torch.distributed.new_group(gpu_ranks, backend="nccl")
+                else:
+                     tmp_device_group = None
+
                 if self.rank in gpu_ranks:
-                    device_group = torch.distributed.new_group(
-                        gpu_ranks, backend="nccl")
+                    device_group = tmp_device_group
                 else:
                     device_group = None
                 
@@ -256,23 +278,38 @@ class GroupCoordinator:
                 self.ranks = ranks
                 self.world_size = len(ranks)
                 self.rank_in_group = ranks.index(self.rank)
-                self.device_group = device_group
-                self.cpu_group = cpu_group
+                if device_group:
+                    self.device_group = device_group
+                if cpu_group:
+                    self.cpu_group = cpu_group
+                # Used for send/recv communication
+                self.cpu_group_ranks = ranks
 
+        # Verify groups are initialized
         assert self.cpu_group is not None
-        if current_platform.device_type != "heterogeneous" or self.device.type != "cpu":
-             # Only assert device_group existence if we are NOT a CPU worker in heterogeneous mode
+        
+        expect_device_group = True
+        if _is_heterogeneous_environment():
+             # In heterogeneous mode, CPU workers don't have a device group (NCCL)
+             num_gpus = torch.cuda.device_count()
+             if local_rank >= num_gpus:
+                 expect_device_group = False
+        
+        if expect_device_group:
              assert self.device_group is not None
 
         from vllm.platforms import current_platform
 
-        if current_platform.device_type == "heterogeneous":
+        if _is_heterogeneous_environment():
              if local_rank < torch.cuda.device_count():
                  self.device = torch.device(f"cuda:{local_rank}")
              else:
                  self.device = torch.device("cpu")
         elif current_platform.is_cuda_alike():
-            self.device = torch.device(f"cuda:{local_rank}")
+            if local_rank < torch.cuda.device_count():
+                self.device = torch.device(f"cuda:{local_rank}")
+            else:
+                self.device = torch.device("cpu")
         elif current_platform.is_xpu():
             self.device = torch.device(f"xpu:{local_rank}")
         elif current_platform.is_out_of_tree():
@@ -289,12 +326,13 @@ class GroupCoordinator:
             # If we are on CPU (in heterogeneous mode), we fall back to CPU group (Gloo) which doesn't need CudaCommunicator.
             # However, for heterogeneous to work safely with AllReduce, we must enforce CPU communication for everyone
             # or impelment a bridge. For now, forcing Gloo backend + CPU communicator is safest.
-            if current_platform.device_type == "heterogeneous":
+            if _is_heterogeneous_environment():
+                 print(f"DEBUG: GroupCoordinator rank={self.rank} local_rank={self.local_rank} device={self.device} type={self.device.type} device_count={torch.cuda.device_count()}")
                  # We force None here so falling back to torch.distributed.all_reduce (Gloo)
                  # But we need to ensure inputs are on CPU. VLLM's existing CPU communicator handles this?
                  # Let's check CpuCommunicator.
                  self.device_communicator = None
-            elif self.device.type != "cpu" or current_platform.device_type != "heterogeneous": 
+            elif self.device.type != "cpu":
                 device_comm_cls = resolve_obj_by_qualname(
                     current_platform.get_device_communicator_cls())
                 self.device_communicator = device_comm_cls(
@@ -312,8 +350,9 @@ class GroupCoordinator:
                 self.cpu_group, 1 << 22, 6)
 
         from vllm.platforms import current_platform
-        self.use_custom_op_call = (current_platform.is_cuda_alike()
-                                   or current_platform.is_tpu())
+        self.use_custom_op_call = (
+            (current_platform.is_cuda_alike() or current_platform.is_tpu())
+            and not _is_heterogeneous_environment())
 
         self.use_cpu_custom_send_recv = (current_platform.is_cpu() and hasattr(
             torch.ops._C, "init_shm_manager"))
@@ -381,6 +420,47 @@ class GroupCoordinator:
         with torch.cuda.stream(stream), maybe_ca_context:
             yield graph_capture_context
 
+
+    def _all_reduce_out_place(self, input_: torch.Tensor) -> torch.Tensor:
+        from vllm.platforms import current_platform
+        # Heterogeneous fallback
+        # Heterogeneous fallback
+        from vllm.distributed.parallel_state import _is_heterogeneous_environment
+
+        if _is_heterogeneous_environment():
+            if input_.is_cuda:
+                # Step 1: GPU Group Reduction (NCCL)
+                if self.device_group is not None:
+                    torch.distributed.all_reduce(input_, group=self.device_group)
+
+                # Step 2: Bridge to CPU
+
+                cpu_input = input_.cpu()
+
+                is_gpu_leader = (self.rank == self.ranks[0])
+                if not is_gpu_leader:
+                    cpu_input.zero_()
+
+                # Step 3: Global CPU AllReduce (Gloo)
+                torch.distributed.all_reduce(cpu_input, group=self.cpu_group)
+
+                # Step 4: Result back to GPU
+                return cpu_input.to(input_.device)
+            else:
+                # CPU Workers
+                if self.cpu_group is not None:
+                    torch.distributed.all_reduce(input_, group=self.cpu_group)
+                else:
+                     torch.distributed.all_reduce(input_)
+                return input_
+
+        if self.device_communicator is not None:
+            return self.device_communicator.all_reduce(input_)
+            
+        if self.device_group is not None:
+             torch.distributed.all_reduce(input_, group=self.device_group)
+        return input_
+
     def all_reduce(self, input_: torch.Tensor) -> torch.Tensor:
         """
         User-facing all-reduce function before we actually call the
@@ -406,57 +486,6 @@ class GroupCoordinator:
         else:
             return self._all_reduce_out_place(input_)
 
-    def _all_reduce_out_place(self, input_: torch.Tensor) -> torch.Tensor:
-        from vllm.platforms import current_platform
-        if current_platform.device_type == "heterogeneous":
-             # Hybrid Communication Strategy:
-             # 1. GPU-side Reduce (NCCL)
-             # 2. CPU-side AllReduce (Gloo) - Mixing GPU results and CPU results
-             # 3. GPU-side Broadcast (NCCL) - Distributing mixed result back to GPUs
-             
-             if input_.is_cuda:
-                 # Step 1: GPU Group Reduction (NCCL)
-                 # We use 'reduce' to rank 0 of the GPU group if possible, or all_reduce which implies everyone gets sum.
-                 # Using all_reduce on GPU group is easier: G0=Sum(G), G1=Sum(G).
-                 # This is slightly redundant but robust.
-                 if self.device_group is not None:
-                     torch.distributed.all_reduce(input_, group=self.device_group)
-                 
-                 # Step 2: Bridge to CPU
-                 cpu_input = input_.cpu()
-                 
-                 # Masking: Only ONE GPU rank should contribute the Sum(G) to the Global Gloo AllReduce.
-                 # Otherwise we double count (G0 contributes Sum(G), G1 contributes Sum(G) -> Total includes 2*Sum(G)).
-                 # Let's say the lowest rank in GPU group contributes.
-                 # In simple single-node: Rank 0.
-                 # We need to know if we are the "leader" of the GPU group.
-                 # self.rank is global rank.
-                 # We assume Rank 0 is always the leader.
-                 is_gpu_leader = (self.rank == self.ranks[0]) # Assumes ranks are sorted and start with GPUs
-                 
-                 if not is_gpu_leader:
-                     cpu_input.zero_()
-                 
-                 # Step 3: Global CPU AllReduce (Gloo)
-                 torch.distributed.all_reduce(cpu_input, group=self.cpu_group)
-                 
-                 # Step 4: Result back to GPU
-                 # Now cpu_input has Total Sum.
-                 return cpu_input.to(input_.device)
-
-             else:
-                 # CPU Workers (Rank 2, 3...)
-                 # Just participate in Global CPU AllReduce.
-                 torch.distributed.all_reduce(input_, group=self.cpu_group)
-                 return input_
-
-        if self.device_communicator is not None:
-            return self.device_communicator.all_reduce(input_)
-            
-        if self.device_group is not None:
-             torch.distributed.all_reduce(input_, group=self.device_group)
-        return input_
-
     def all_gather(self, input_: torch.Tensor, dim: int = -1) -> torch.Tensor:
         world_size = self.world_size
         # Bypass the function if we are using only 1 GPU.
@@ -477,7 +506,7 @@ class GroupCoordinator:
                               dim: int) -> torch.Tensor:
         # Heterogeneous fallback for all_gather
         from vllm.platforms import current_platform
-        if current_platform.device_type == "heterogeneous":
+        if _is_heterogeneous_environment():
             if input_.is_cuda:
                 cpu_input = input_.cpu()
                 # all_gather on CPU group
@@ -565,7 +594,7 @@ class GroupCoordinator:
         # Broadcast.
         # Broadcast.
         from vllm.platforms import current_platform
-        if current_platform.device_type == "heterogeneous":
+        if _is_heterogeneous_environment():
             # If src is GPU, it must move to CPU first?
             # Src rank is relative. self.ranks[src] is global rank.
             global_src = self.ranks[src]
@@ -1016,7 +1045,7 @@ def init_model_parallel_group(
         group_ranks=group_ranks,
         local_rank=local_rank,
         torch_distributed_backend=backend,
-        use_device_communicator=True,
+        use_device_communicator=(backend != "gloo"),
         use_message_queue_broadcaster=use_message_queue_broadcaster,
         group_name=group_name,
     )
@@ -1105,6 +1134,11 @@ def init_distributed_environment(
         distributed_init_method, backend)
     from vllm.config import get_current_vllm_config
     config = get_current_vllm_config()
+    global _IS_HETEROGENEOUS_MODE
+    if config is not None:
+        if config.device_config.device_type == "heterogeneous":
+            _IS_HETEROGENEOUS_MODE = True
+        
     if config is not None and config.parallel_config.data_parallel_size > 1:
         parallel_config = config.parallel_config
         # adjust to take into account data parallelism
@@ -1130,11 +1164,13 @@ def init_distributed_environment(
                 "Fallback Gloo backend is not available.")
             backend = "gloo"
         # this backend is used for WORLD
+        print(f"DEBUG_AG: Initializing process group rank={rank} world_size={world_size} backend={backend} init_method={distributed_init_method}", flush=True)
         torch.distributed.init_process_group(
             backend=backend,
             init_method=distributed_init_method,
             world_size=world_size,
             rank=rank)
+        print(f"DEBUG_AG: Finished init_process_group rank={rank}", flush=True)
     # set the local rank
     # local_rank is not available in torch ProcessGroup,
     # see https://github.com/pytorch/pytorch/issues/122816
@@ -1148,13 +1184,17 @@ def init_distributed_environment(
     global _WORLD, _NODE_COUNT
     if _WORLD is None:
         ranks = list(range(torch.distributed.get_world_size()))
+        print(f"DEBUG_AG: Calling init_world_group rank={rank}", flush=True)
         _WORLD = init_world_group(ranks, local_rank, backend)
+        print(f"DEBUG_AG: Calling _node_count rank={rank}", flush=True)
         _NODE_COUNT = _node_count(_WORLD.cpu_group)
+        print(f"DEBUG_AG: Finished _node_count rank={rank}", flush=True)
         logger.debug("Detected %d nodes in the distributed environment",
                      _NODE_COUNT)
     else:
         assert _WORLD.world_size == torch.distributed.get_world_size(), (
             "world group already initialized with a different world size")
+    print(f"DEBUG_AG: init_distributed_environment end rank={rank}", flush=True)
 
 
 def initialize_model_parallel(
@@ -1211,7 +1251,8 @@ def initialize_model_parallel(
         -1, data_parallel_size, pipeline_model_parallel_size,
         tensor_model_parallel_size)  # noqa
 
-    # Build the tensor model-parallel groups.
+    # Create the model parallel group.
+    print(f"DEBUG_AG: init_model_parallel_group start", flush=True)
     global _TP
     assert _TP is None, ("tensor model parallel group is already initialized")
     group_ranks = all_ranks.view(-1, tensor_model_parallel_size).unbind(0)
@@ -1262,6 +1303,7 @@ def initialize_model_parallel(
         "DP rank %s, PP rank %s, TP rank %s, EP rank %s", rank, world_size,
         _DP.rank_in_group, _PP.rank_in_group, _TP.rank_in_group,
         _EP.rank_in_group)
+    print(f"DEBUG_AG: init_model_parallel_group end", flush=True)
 
 
 def ensure_model_parallel_initialized(

@@ -62,6 +62,9 @@ else:
         if name in MODULE_ATTRS:
             module_name, attr_name = MODULE_ATTRS[name].split(":")
             module = import_module(module_name, __package__)
+            # The following lines were added by the user's instruction.
+            # Note: 'logger' and 'platform_name' are not defined in this scope
+            # and would cause a NameError if executed.
             return getattr(module, attr_name)
         else:
             raise AttributeError(

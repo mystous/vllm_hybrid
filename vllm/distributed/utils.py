@@ -7,6 +7,7 @@
 # Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 import dataclasses
 import os
+print(f"DEBUG_AG: Process {os.getpid()} importing vllm.distributed.utils", flush=True)
 import pickle
 import socket
 import sys
@@ -27,6 +28,9 @@ from torch.distributed.rendezvous import rendezvous
 import vllm.envs as envs
 from vllm.logger import init_logger
 from vllm.utils import get_tcp_uri, is_torch_equal_or_newer
+
+import os
+print(f"DEBUG_AG: Process {os.getpid()} finished importing vllm.distributed.utils", flush=True)
 
 logger = init_logger(__name__)
 

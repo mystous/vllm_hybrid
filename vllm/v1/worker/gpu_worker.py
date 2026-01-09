@@ -49,12 +49,17 @@ class Worker(WorkerBase):
         distributed_init_method: str,
         is_driver_worker: bool = False,
     ):
+        
+        super().__init__(
+            vllm_config=vllm_config,
+            local_rank=local_rank,
+            rank=rank,
+            distributed_init_method=distributed_init_method,
+            is_driver_worker=is_driver_worker,
+        )
+        
+        # Code removed from here
 
-        super().__init__(vllm_config=vllm_config,
-                         local_rank=local_rank,
-                         rank=rank,
-                         distributed_init_method=distributed_init_method,
-                         is_driver_worker=is_driver_worker)
 
         if self.model_config.trust_remote_code:
             # note: lazy import to avoid importing torch before initializing
@@ -194,6 +199,22 @@ class Worker(WorkerBase):
                                             "gloo" if self.vllm_config.device_config.device_type == "heterogeneous" else current_platform.dist_backend)
         # Set random seed.
         set_random_seed(self.model_config.seed)
+
+        # PROACTIVE FIX: Check heterogeneous environment AFTER distributed init
+        from vllm.distributed.parallel_state import _is_heterogeneous_environment
+        if _is_heterogeneous_environment():
+             logger.info("Detected Heterogeneous Environment. Forcing enforce_eager=True and NO_COMPILATION.")
+             self.model_config.enforce_eager = True
+             self.vllm_config.model_config.enforce_eager = True
+             
+             # Explicitly disable compilation
+             from vllm.config import CompilationLevel
+             self.vllm_config.compilation_config.level = CompilationLevel.NO_COMPILATION
+
+             # Disable cascade attention to match CPU worker behavior (avoids collective mismatch)
+             logger.info("Heterogeneous: Disabling Cascade Attention to prevent collective deadlock.")
+             self.model_config.disable_cascade_attn = True
+             self.vllm_config.model_config.disable_cascade_attn = True
 
         # Construct the model runner
         self.model_runner: GPUModelRunner = GPUModelRunner(

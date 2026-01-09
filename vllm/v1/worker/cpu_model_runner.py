@@ -29,7 +29,7 @@ class CPUModelRunner(GPUModelRunner):
         self.use_cuda_graph = False
         self.cascade_attn_enabled = False
 
-        self._postprocess_tenosrs()
+        self._postprocess_tensors()
 
     def _may_reorder_batch(self, scheduler_output: "SchedulerOutput") -> None:
         """
@@ -59,7 +59,7 @@ class CPUModelRunner(GPUModelRunner):
         self.attn_groups[0][0].metadata_builder.reorder_batch(
             self.input_batch, scheduler_output)
 
-    def _postprocess_tenosrs(self) -> None:
+    def _postprocess_tensors(self) -> None:
         # Note: replace device tensors with cpu tensors
         def replace_tensor(obj: Any, cpu_attr_name: str,
                            device_attr_name) -> None:
@@ -83,9 +83,18 @@ class CPUModelRunner(GPUModelRunner):
                 if k.endswith("_cpu") and isinstance(v, torch.Tensor):
                     replace_tensor(block_table, k, k[:-4])
 
-    def load_model(self, eep_scale_up: bool = False) -> None:
-        logger.info("Starting to load model %s...", self.model_config.model)
-        self.model = get_model(vllm_config=self.vllm_config)
+    def load_model(self, **kwargs) -> None:
+        print(f"DEBUG_AG: CPUModelRunner.load_model start", flush=True)
+        # Override device in config to ensure model loads on CPU
+        original_device = self.vllm_config.device_config.device
+        self.vllm_config.device_config.device = self.device
+        try:
+            self.model = get_model(vllm_config=self.vllm_config)
+        finally:
+            self.vllm_config.device_config.device = original_device
+
+        self.model.to(self.device)
+        print(f"DEBUG_AG: CPUModelRunner.load_model end", flush=True)
 
         if self.lora_config:
             self.model = self.load_lora_model(self.model, self.model_config,

@@ -5,6 +5,7 @@ pynvml. However, it should not initialize cuda context.
 """
 
 import os
+print(f"DEBUG_AG: Process {os.getpid()} importing vllm.platforms.cuda", flush=True)
 from datetime import timedelta
 from functools import cache, wraps
 from typing import TYPE_CHECKING, Callable, Optional, TypeVar, Union
@@ -651,3 +652,5 @@ finally:
 CudaPlatform = NvmlCudaPlatform if nvml_available else NonNvmlCudaPlatform
 
 CudaPlatform.log_warnings()
+
+print(f"DEBUG_AG: Process {os.getpid()} finished importing vllm.platforms.cuda", flush=True)

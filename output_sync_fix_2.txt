@@ -1,0 +1,785 @@
+DEBUG_AG: Process 348117 importing vllm.config
+DEBUG_AG: Process 348117 importing vllm.distributed
+DEBUG_AG: Process 348117 importing vllm.distributed.communication_op
+DEBUG_AG: Process 348117 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 348117 importing vllm.distributed.utils
+DEBUG_AG: Process 348117 finished importing vllm.distributed.utils
+DEBUG_AG: Process 348117 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 348117 importing vllm.platforms
+DEBUG_AG: Process 348117 vllm.platforms import step 1 (torch)
+DEBUG 01-09 09:02:01 [__init__.py:30] No plugins for group vllm.platform_plugins found.
+DEBUG_AG: Process 348117 checking plugin tpu
+DEBUG 01-09 09:02:01 [__init__.py:44] Checking if TPU platform is available.
+DEBUG 01-09 09:02:01 [__init__.py:62] TPU platform is not available because: No module named 'libtpu'
+DEBUG_AG: Process 348117 checking plugin cuda
+DEBUG 01-09 09:02:01 [__init__.py:68] Checking if CUDA platform is available.
+DEBUG 01-09 09:02:01 [__init__.py:88] Confirmed CUDA platform is available.
+DEBUG_AG: Process 348117 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 348117 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 348117 importing vllm.platforms.cuda
+DEBUG_AG: Process 348117 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 348117 finished importing vllm.distributed
+DEBUG_AG: Process 348117 finished importing vllm.config
+DEBUG_AG: Process 348117 importing vllm.worker.worker_base
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+DEBUG_AG: vllm imported from /home/mystous/projects/vllm_hybrid/vllm/__init__.py
+Starting reproduction script...
+INFO 01-09 09:02:07 [config.py:735] Resolved architecture: OPTForCausalLM
+`torch_dtype` is deprecated! Use `dtype` instead!
+INFO 01-09 09:02:07 [config.py:1807] Using max model len 2048
+Config created. Device type: heterogeneous
+Initializing AsyncLLM...
+DEBUG_AG: Process 348117 importing vllm.v1.executor.multiproc_executor
+DEBUG: multiproc_executor loaded from /home/mystous/projects/vllm_hybrid/vllm/v1/executor/multiproc_executor.py
+DEBUG: vllm.worker.worker_base loaded from /home/mystous/projects/vllm_hybrid/vllm/worker/worker_base.py
+[1;36m(EngineCore_0 pid=348372)[0;0m INFO 01-09 09:02:08 [core.py:618] Waiting for init message from front-end.
+DEBUG 01-09 09:02:08 [utils.py:831] HELLO from local core engine process 0.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:02:08 [core.py:626] Received init message: EngineHandshakeMetadata(addresses=EngineZmqAddresses(inputs=['ipc:///tmp/dcf2a336-f039-4c97-831c-df0314ef9423'], outputs=['ipc:///tmp/3d906d5b-1f7d-43f2-ab1b-d09d17e39d52'], coordinator_input=None, coordinator_output=None, frontend_stats_publish_address=None), parallel_config={'data_parallel_master_ip': '127.0.0.1', 'data_parallel_master_port': 0, 'data_parallel_size': 1})
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:02:08 [core.py:463] Has DP Coordinator: False, stats publish address: None
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:02:08 [__init__.py:38] Available plugins for group vllm.general_plugins:
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:02:08 [__init__.py:40] - lora_filesystem_resolver -> vllm.plugins.lora_resolvers.filesystem_resolver:register_filesystem_resolver
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:02:08 [__init__.py:43] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+[1;36m(EngineCore_0 pid=348372)[0;0m INFO 01-09 09:02:08 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8390+g6ab77b8fe.d20251222) with config: model='facebook/opt-125m', speculative_config=None, tokenizer='facebook/opt-125m', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=True, dtype=torch.float16, max_seq_len=2048, download_dir=None, load_format=auto, tensor_parallel_size=2, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=facebook/opt-125m, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=None, chunked_prefill_enabled=None, use_async_output_proc=True, pooler_config=None, compilation_config={"level":3,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":["vllm.unified_attention","vllm.unified_attention_with_output","vllm.mamba_mixer2"],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":1,"cudagraph_capture_sizes":[512,504,496,488,480,472,464,456,448,440,432,424,416,408,400,392,384,376,368,360,352,344,336,328,320,312,304,296,288,280,272,264,256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":512,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=348372)[0;0m WARNING 01-09 09:02:08 [multiproc_worker_utils.py:273] Reducing Torch parallelism from 16 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:02:08 [shm_broadcast.py:243] Binding to ipc:///tmp/0f4f4ec4-6464-4497-8086-771ba5c00d60
+[1;36m(EngineCore_0 pid=348372)[0;0m INFO 01-09 09:02:08 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0, 1], buffer_handle=(2, 16777216, 10, 'psm_f5935a31'), local_subscribe_addr='ipc:///tmp/0f4f4ec4-6464-4497-8086-771ba5c00d60', remote_subscribe_addr=None, remote_addr_ipv6=False)
+DEBUG_AG: Process 348379 importing vllm.config
+DEBUG_AG: Process 348378 importing vllm.config
+DEBUG_AG: Process 348379 importing vllm.distributed
+DEBUG_AG: Process 348379 importing vllm.distributed.communication_op
+DEBUG_AG: Process 348379 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 348379 importing vllm.distributed.utils
+DEBUG_AG: Process 348379 finished importing vllm.distributed.utils
+DEBUG_AG: Process 348379 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 348379 importing vllm.platforms
+DEBUG_AG: Process 348379 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 348378 importing vllm.distributed
+DEBUG_AG: Process 348378 importing vllm.distributed.communication_op
+DEBUG_AG: Process 348378 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 348378 importing vllm.distributed.utils
+DEBUG_AG: Process 348378 finished importing vllm.distributed.utils
+DEBUG_AG: Process 348378 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 348378 importing vllm.platforms
+DEBUG_AG: Process 348378 vllm.platforms import step 1 (torch)
+DEBUG 01-09 09:02:09 [__init__.py:30] No plugins for group vllm.platform_plugins found.
+DEBUG_AG: Process 348379 checking plugin tpu
+DEBUG 01-09 09:02:09 [__init__.py:44] Checking if TPU platform is available.
+DEBUG 01-09 09:02:09 [__init__.py:62] TPU platform is not available because: No module named 'libtpu'
+DEBUG_AG: Process 348379 checking plugin cuda
+DEBUG 01-09 09:02:09 [__init__.py:68] Checking if CUDA platform is available.
+DEBUG 01-09 09:02:09 [__init__.py:30] No plugins for group vllm.platform_plugins found.
+DEBUG_AG: Process 348378 checking plugin tpu
+DEBUG 01-09 09:02:09 [__init__.py:44] Checking if TPU platform is available.
+DEBUG 01-09 09:02:09 [__init__.py:62] TPU platform is not available because: No module named 'libtpu'
+DEBUG_AG: Process 348378 checking plugin cuda
+DEBUG 01-09 09:02:09 [__init__.py:68] Checking if CUDA platform is available.
+DEBUG 01-09 09:02:09 [__init__.py:88] Confirmed CUDA platform is available.
+DEBUG 01-09 09:02:09 [__init__.py:88] Confirmed CUDA platform is available.
+DEBUG_AG: Process 348379 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 348379 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 348379 importing vllm.platforms.cuda
+DEBUG_AG: Process 348378 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 348378 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 348378 importing vllm.platforms.cuda
+DEBUG_AG: Process 348379 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 348378 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 348379 finished importing vllm.distributed
+DEBUG_AG: Process 348378 finished importing vllm.distributed
+DEBUG_AG: Process 348379 finished importing vllm.config
+DEBUG_AG: Process 348378 finished importing vllm.config
+DEBUG_AG: Process 348379 importing vllm.worker.worker_base
+DEBUG_AG: vllm imported from /home/mystous/projects/vllm_hybrid/vllm/__init__.py
+DEBUG_AG: Process 348379 importing vllm.v1.executor.multiproc_executor
+DEBUG_AG: Process 348378 importing vllm.worker.worker_base
+DEBUG: multiproc_executor loaded from /home/mystous/projects/vllm_hybrid/vllm/v1/executor/multiproc_executor.py
+DEBUG: vllm.worker.worker_base loaded from /home/mystous/projects/vllm_hybrid/vllm/worker/worker_base.py
+DEBUG_AG: _run_worker_process started PID=348379
+DEBUG_AG: WorkerProc main started. PID=348379 rank=1
+DEBUG 01-09 09:02:10 [__init__.py:38] Available plugins for group vllm.general_plugins:
+DEBUG 01-09 09:02:10 [__init__.py:40] - lora_filesystem_resolver -> vllm.plugins.lora_resolvers.filesystem_resolver:register_filesystem_resolver
+DEBUG 01-09 09:02:10 [__init__.py:43] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+DEBUG_AG: vllm imported from /home/mystous/projects/vllm_hybrid/vllm/__init__.py
+DEBUG_AG: Process 348378 importing vllm.v1.executor.multiproc_executor
+DEBUG: multiproc_executor loaded from /home/mystous/projects/vllm_hybrid/vllm/v1/executor/multiproc_executor.py
+DEBUG: vllm.worker.worker_base loaded from /home/mystous/projects/vllm_hybrid/vllm/worker/worker_base.py
+DEBUG_AG: _run_worker_process started PID=348378
+DEBUG_AG: WorkerProc main started. PID=348378 rank=0
+INFO 01-09 09:02:10 [worker_base.py:588] Rank 1 is assigned to CPU (available GPUs: 1). Switching to CPUWorker.
+DEBUG 01-09 09:02:10 [__init__.py:38] Available plugins for group vllm.general_plugins:
+DEBUG 01-09 09:02:10 [__init__.py:40] - lora_filesystem_resolver -> vllm.plugins.lora_resolvers.filesystem_resolver:register_filesystem_resolver
+DEBUG 01-09 09:02:10 [__init__.py:43] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+DEBUG 01-09 09:02:11 [decorators.py:139] Inferred dynamic dimensions for forward method of <class 'vllm.model_executor.models.llama.LlamaModel'>: ['input_ids', 'positions', 'intermediate_tensors', 'inputs_embeds']
+DEBUG 01-09 09:02:11 [decorators.py:139] Inferred dynamic dimensions for forward method of <class 'vllm.model_executor.models.llama_eagle3.LlamaModel'>: ['input_ids', 'positions', 'hidden_states']
+DEBUG 01-09 09:02:11 [decorators.py:139] Inferred dynamic dimensions for forward method of <class 'vllm.model_executor.models.llama.LlamaModel'>: ['input_ids', 'positions', 'intermediate_tensors', 'inputs_embeds']
+DEBUG 01-09 09:02:11 [decorators.py:139] Inferred dynamic dimensions for forward method of <class 'vllm.model_executor.models.llama_eagle3.LlamaModel'>: ['input_ids', 'positions', 'hidden_states']
+WARNING 01-09 09:02:11 [rocm.py:29] Failed to import from amdsmi with ModuleNotFoundError("No module named 'amdsmi'")
+WARNING 01-09 09:02:11 [rocm.py:40] Failed to import from vllm._rocm_C with ModuleNotFoundError("No module named 'vllm._rocm_C'")
+WARNING 01-09 09:02:11 [rocm.py:29] Failed to import from amdsmi with ModuleNotFoundError("No module named 'amdsmi'")
+WARNING 01-09 09:02:11 [rocm.py:40] Failed to import from vllm._rocm_C with ModuleNotFoundError("No module named 'vllm._rocm_C'")
+DEBUG 01-09 09:02:11 [__init__.py:3014] Methods determine_num_available_blocks,device_config,get_cache_block_size_bytes not implemented in <vllm.v1.worker.cpu_worker.CPUWorker object at 0x755de733c950>
+DEBUG 01-09 09:02:11 [config.py:5155] enabled custom ops: Counter()
+DEBUG 01-09 09:02:11 [config.py:5157] disabled custom ops: Counter()
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:11 [shm_broadcast.py:313] Connecting to ipc:///tmp/0f4f4ec4-6464-4497-8086-771ba5c00d60
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:11 [shm_broadcast.py:243] Binding to ipc:///tmp/a63bbd4b-3669-437a-8909-5280ffeb1c7c
+[1;36m(VllmWorker TP1 pid=348379)[0;0m INFO 01-09 09:02:11 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_278cfcdd'), local_subscribe_addr='ipc:///tmp/a63bbd4b-3669-437a-8909-5280ffeb1c7c', remote_subscribe_addr=None, remote_addr_ipv6=False)
+DEBUG 01-09 09:02:11 [__init__.py:3014] Methods determine_num_available_blocks,device_config,get_cache_block_size_bytes not implemented in <vllm.v1.worker.gpu_worker.Worker object at 0x7b03c247c1a0>
+DEBUG 01-09 09:02:11 [config.py:5155] enabled custom ops: Counter()
+DEBUG 01-09 09:02:11 [config.py:5157] disabled custom ops: Counter()
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:11 [shm_broadcast.py:313] Connecting to ipc:///tmp/0f4f4ec4-6464-4497-8086-771ba5c00d60
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:11 [shm_broadcast.py:243] Binding to ipc:///tmp/363bd72b-69e8-46a3-9a0f-7d7fab0e65b8
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:11 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_7b54f616'), local_subscribe_addr='ipc:///tmp/363bd72b-69e8-46a3-9a0f-7d7fab0e65b8', remote_subscribe_addr=None, remote_addr_ipv6=False)
+[1;36m(VllmWorker TP1 pid=348379)[0;0m WARNING 01-09 09:02:11 [cpu_worker.py:187] Not enough NUMA nodes (1) for 2 workers. Workers will share NUMA nodes.
+[1;36m(VllmWorker TP1 pid=348379)[0;0m INFO 01-09 09:02:11 [cpu_worker.py:223] auto thread-binding list (id, physical core): [(1, 0), (3, 1), (5, 2), (7, 3), (9, 4), (11, 5), (13, 6), (15, 7), (16, 8), (17, 9), (18, 10), (19, 11), (20, 12), (21, 13), (22, 14)]
+[1;36m(VllmWorker TP1 pid=348379)[0;0m WARNING 01-09 09:02:11 [cpu_worker.py:65] torch.ops._C_utils.init_cpu_threads_env not found. Skipping thread binding.
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:11 [parallel_state.py:1113] world_size=2 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:54859 backend=gloo
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG_AG: Initializing process group rank=1 world_size=2 backend=gloo init_method=tcp://127.0.0.1:54859
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:11 [parallel_state.py:1113] world_size=2 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:54859 backend=gloo
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=2 backend=gloo init_method=tcp://127.0.0.1:54859
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:11 [parallel_state.py:1165] Detected 1 nodes in the distributed environment
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:11 [parallel_state.py:1165] Detected 1 nodes in the distributed environment
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:11 [shm_broadcast.py:243] Binding to ipc:///tmp/e6afcefa-a2ac-4370-b2e7-ebc176981321
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:12 [shm_broadcast.py:289] vLLM message queue communication handle: Handle(local_reader_ranks=[1], buffer_handle=(1, 4194304, 6, 'psm_83cee51b'), local_subscribe_addr='ipc:///tmp/e6afcefa-a2ac-4370-b2e7-ebc176981321', remote_subscribe_addr=None, remote_addr_ipv6=False)
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:12 [shm_broadcast.py:313] Connecting to ipc:///tmp/e6afcefa-a2ac-4370-b2e7-ebc176981321
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:12 [parallel_state.py:1272] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(VllmWorker TP1 pid=348379)[0;0m INFO 01-09 09:02:12 [parallel_state.py:1272] rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 1, EP rank 1
+[1;36m(VllmWorker TP1 pid=348379)[0;0m WARNING 01-09 09:02:12 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(VllmWorker TP0 pid=348378)[0;0m WARNING 01-09 09:02:12 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:12 [decorators.py:139] Inferred dynamic dimensions for forward method of <class 'vllm.model_executor.models.opt.OPTModel'>: ['input_ids', 'positions', 'intermediate_tensors', 'inputs_embeds']
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:12 [config.py:5155] enabled custom ops: Counter()
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:12 [config.py:5157] disabled custom ops: Counter()
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:12 [gpu_model_runner.py:1885] Starting to load model facebook/opt-125m...
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:12 [config.py:5155] enabled custom ops: Counter()
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:12 [config.py:5157] disabled custom ops: Counter()
+[1;36m(VllmWorker TP1 pid=348379)[0;0m INFO 01-09 09:02:12 [cpu_model_runner.py:87] Starting to load model facebook/opt-125m...
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:12 [decorators.py:139] Inferred dynamic dimensions for forward method of <class 'vllm.model_executor.models.opt.OPTModel'>: ['input_ids', 'positions', 'intermediate_tensors', 'inputs_embeds']
+[1;36m(VllmWorker TP1 pid=348379)[0;0m INFO 01-09 09:02:12 [cuda.py:328] Using Flash Attention backend on V1 engine.
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:12 [backends.py:39] Using InductorAdaptor
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:12 [gpu_model_runner.py:1917] Loading model from scratch...
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:12 [cuda.py:328] Using Flash Attention backend on V1 engine.
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:12 [config.py:5155] enabled custom ops: Counter()
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:12 [config.py:5157] disabled custom ops: Counter()
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:02:12 [base_loader.py:47] Loading weights on cuda ...
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:12 [backends.py:39] Using InductorAdaptor
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:12 [config.py:5155] enabled custom ops: Counter()
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:12 [config.py:5157] disabled custom ops: Counter()
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:12 [base_loader.py:47] Loading weights on cuda ...
+[1;36m(VllmWorker TP1 pid=348379)[0;0m INFO 01-09 09:02:12 [weight_utils.py:296] Using model weights format ['*.bin']
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:12 [weight_utils.py:296] Using model weights format ['*.bin']
+[1;36m(VllmWorker TP1 pid=348379)[0;0m INFO 01-09 09:02:12 [default_loader.py:262] Loading weights took 0.10 seconds
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:02:12 [shm_broadcast.py:313] Connecting to ipc:///tmp/a63bbd4b-3669-437a-8909-5280ffeb1c7c
+[1;36m(VllmWorker TP0 pid=348378)[0;0m Loading pt checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+[1;36m(VllmWorker TP0 pid=348378)[0;0m Loading pt checkpoint shards: 100% Completed | 1/1 [00:00<00:00, 10.01it/s]
+[1;36m(VllmWorker TP0 pid=348378)[0;0m 
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:13 [default_loader.py:262] Loading weights took 0.10 seconds
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:13 [gpu_model_runner.py:1934] Model loading took 0.1182 GiB and 1.010770 seconds
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:02:13 [shm_broadcast.py:313] Connecting to ipc:///tmp/363bd72b-69e8-46a3-9a0f-7d7fab0e65b8
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:13 [decorators.py:237] Start compiling function <code object forward at 0x7b03903143f0, file "/home/mystous/projects/vllm_hybrid/vllm/model_executor/models/opt.py", line 305>
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] Traced files (to be considered for compilation cache):
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_dev_prj/lib/python3.12/site-packages/torch/_dynamo/polyfills/__init__.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_dev_prj/lib/python3.12/site-packages/torch/nn/modules/activation.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_dev_prj/lib/python3.12/site-packages/torch/nn/modules/container.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_dev_prj/lib/python3.12/site-packages/torch/nn/modules/module.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_dev_prj/lib/python3.12/site-packages/torch/nn/modules/normalization.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_dev_prj/lib/python3.12/site-packages/torch/nn/modules/sparse.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_hybrid/vllm/attention/layer.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_hybrid/vllm/distributed/communication_op.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_hybrid/vllm/distributed/parallel_state.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_hybrid/vllm/model_executor/layers/linear.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_hybrid/vllm/model_executor/layers/utils.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_hybrid/vllm/model_executor/layers/vocab_parallel_embedding.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_hybrid/vllm/model_executor/models/opt.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:483] /home/mystous/projects/vllm_hybrid/vllm/platforms/interface.py
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:14 [backends.py:530] Using cache directory: /home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/backbone for vLLM's torch.compile
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:14 [backends.py:541] Dynamo bytecode transform time: 1.00 s
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:14 [backends.py:194] Cache the graph for dynamic shape for later use
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:200] Store the 0-th graph for dynamic shape from inductor via handle ('f3jmrgwcdavlxxnk5o54gd4zy7ye2iwagxzxivezy4n6ldpv4x4e', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/fz/cfz57cxyosgyvv72qwphyg5ajanyf6hutebqkja2wapx3lqxjj26.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:14 [backends.py:200] Store the 1-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:15 [backends.py:200] Store the 2-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:15 [backends.py:200] Store the 3-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:15 [backends.py:200] Store the 4-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:15 [backends.py:200] Store the 5-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:15 [backends.py:200] Store the 6-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:15 [backends.py:200] Store the 7-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:16 [backends.py:200] Store the 8-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:16 [backends.py:200] Store the 9-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:16 [backends.py:200] Store the 10-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:16 [backends.py:200] Store the 11-th graph for dynamic shape from inductor via handle ('fkjdynt3zv4c2ipshhx67hwcwuwydhi6jfeciidd57gy4lpvudk3', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/of/cofcdlb6xqtf5qenbkmm6etff6hvexrguuu3zzcznicfygztsqnw.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m DEBUG 01-09 09:02:16 [backends.py:200] Store the 12-th graph for dynamic shape from inductor via handle ('fc4xn656uxm67hjngpsnyge5fc47ef24koczh7lfxp3a7qkurrqw', '/home/mystous/.cache/vllm/torch_compile_cache/0b4d55e02e/rank_0_0/inductor_cache/3q/c3qmzdyutqyv2ro6syfxmenk4kc4c5omxeww2dtzadz2ncz7vtpd.py')
+[1;36m(VllmWorker TP0 pid=348378)[0;0m INFO 01-09 09:02:16 [backends.py:215] Compiling a graph for dynamic shape takes 2.26 s
+DEBUG 01-09 09:02:18 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:02:28 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:02:38 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:02:48 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:02:58 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:03:08 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+DEBUG 01-09 09:03:18 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:03:28 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:03:38 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:03:48 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:03:58 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:04:08 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+DEBUG 01-09 09:04:18 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:04:28 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:04:38 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:04:48 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:04:58 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:05:08 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(VllmWorker TP1 pid=348379)[0;0m DEBUG 01-09 09:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+DEBUG 01-09 09:05:18 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:05:28 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:05:38 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:05:48 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+DEBUG 01-09 09:05:58 [utils.py:750] Waiting for 1 local, 0 remote core engine proc(s) to start.
+[rank0]:[E109 09:05:59.338960815 ProcessGroupGloo.cpp:3027] [Rank 0]: Rank 1 failed to pass monitoredBarrier in 1800000 ms
+[rank0]:[E109 09:05:59.338986857 ProcessGroupGloo.cpp:145] [Rank 0]: Ranks 1 failed to pass monitoredBarrier in 1800000 ms
+[1;36m(EngineCore_0 pid=348372)[0;0m ERROR 01-09 09:06:01 [multiproc_executor.py:152] Worker proc VllmWorker-1 died unexpectedly, shutting down executor.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 09:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 10:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 11:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 12:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 13:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 14:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 15:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 16:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:11:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:12:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:13:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:14:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:15:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:16:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:17:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:18:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:19:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:20:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:21:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:22:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:23:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:24:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:25:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:26:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:27:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:28:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:29:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:30:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:31:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:32:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:33:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:34:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:35:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:36:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:37:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:38:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:39:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:40:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:41:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:42:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:43:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:44:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:45:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:46:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:47:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:48:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:49:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:50:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:51:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:52:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:53:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:54:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:55:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:56:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:57:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:58:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 17:59:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:00:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:01:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:02:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:03:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:04:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:05:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:06:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:07:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:08:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:09:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.
+[1;36m(EngineCore_0 pid=348372)[0;0m DEBUG 01-09 18:10:13 [shm_broadcast.py:456] No available shared memory broadcast block found in 60 second.

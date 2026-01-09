@@ -2,6 +2,9 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
 import ast
+import os
+print(f"DEBUG_AG: Process {os.getpid()} importing vllm.config", flush=True)
+
 import copy
 import enum
 import hashlib
@@ -2338,8 +2341,10 @@ class ParallelConfig:
         else:
             if self.num_redundant_experts != 0:
                 raise ValueError(
-                    "num_redundant_experts should be used with EPLB."
+                    "num_redundant_experts must be 0 for single-device "
+                    "execution, but got "
                     f"{self.num_redundant_experts}.")
+        
         if self.distributed_executor_backend is None and self.world_size > 1:
             # We use multiprocessing by default if world_size fits on the
             # current node and we aren't in a ray placement group.
@@ -5183,11 +5188,13 @@ def get_current_vllm_config() -> VllmConfig:
         # we don't set the vllm config. In that case, we set a default
         # config.
         logger.warning("Current vLLM config is not set.")
-        from vllm.config import VllmConfig
+        # from vllm.config import VllmConfig
         return VllmConfig()
     return _current_vllm_config
 
 
+import os
+print(f"DEBUG_AG: Process {os.getpid()} finished importing vllm.config", flush=True)
 def get_current_model_prefix() -> str:
     """
     Get the prefix of the model that's currently being initialized.
