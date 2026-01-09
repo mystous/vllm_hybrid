@@ -1,67 +1,226 @@
-# vLLM 이종(Heterogeneous) 실행 모드 수정 사항 요약
+# vLLM 이종 하드웨어(Heterogeneous) 실행을 위한 코드 수정 명세서
 
-본 문서는 vLLM의 Multiprocessing (MP) 백엔드에서 GPU와 CPU를 혼합하여 사용하는 **이종(Heterogeneous) 실행 모드**를 활성화하기 위해 수행된 코드 수정 사항과 그 의도를 정리합니다.
+이 문서는 vLLM에서 GPU와 CPU 워커가 공존하는 Heterogeneous 환경을 안정적으로 구동하기 위해 수행된 **코드 수정 내역, 수정 이유, 그리고 최종 아키텍처**를 상세히 설명합니다.
 
-## 1. 초기화 행(Hang) 및 순환 참조 해결
+---
 
-가장 먼저 발생한 문제는 작업자 프로세스(Worker Process)들이 초기화 단계에서 멈추는(Hang) 현상이었습니다. 이는 모듈 간의 순환 참조(Circular Import)로 인한 데드락이 원인이었습니다.
+## 1. 아키텍처 및 설계 (Architecture & Design)
 
-### `vllm/platforms/interface.py`
+이종 하드웨어 실행의 핵심은 **동기화(Synchronization)**와 **호환성(Compatibility)**입니다. GPU(속도 위주, CudaGraph 사용)와 CPU(호환성 위주, Eager Mode)가 하나의 분산 그룹(Distributed Group) 내에서 협업해야 하므로, 통신 프로토콜과 실행 흐름을 일치시키는 것이 설계의 주안점입니다.
 
-- **수정 내용**: `from vllm.inputs import ...` 구문을 `TYPE_CHECKING` 블록 내부로 이동하고 `from __future__ import annotations`를 추가했습니다.
-- **수정 의도**: `vllm.config` -> `vllm.platforms` -> `vllm.platforms.interface` -> `vllm.inputs` -> `vllm.config`로 이어지는 참조 고리를 끊어, 초기화 시 데드락을 방지했습니다.
+### 1.1 시스템 컴포넌트 다이어그램 (System Components)
 
-### `vllm/platforms/__init__.py`
+```mermaid
+graph TD
+    User[User / API Server] -->|Request| AsyncLLM
+    AsyncLLM -->|Manage| EngineCore
+    
+    subgraph "Heterogeneous Executor Protocol"
+        EngineCore -->|RPC / IPC| GPUWorker[GPU Worker (TP0)]
+        EngineCore -->|RPC / IPC| CPUWorker[CPU Worker (TP1)]
+        
+        GPUWorker <-->|Hybrid AllReduce (Gloo)| CPUWorker
+    end
 
-- **수정 내용**: 잘못된 임포트 경로(`vllm.utils.load_plugins_by_group`) 등을 수정했습니다.
-- **수정 의도**: 플랫폼 플러그인 로딩 과정에서 발생하는 `ImportError`를 해결하여 정상적인 플랫폼 감지가 이루어지도록 했습니다.
+    subgraph "Modifications"
+        Modification1[Enforce Eager Mode]
+        Modification2[Hybrid AllReduce Bridge]
+        Modification3[CPU Platform Force]
+    end
 
-## 2. 분산 환경 초기화 및 통신 (Distributed Environment)
+    GPUWorker --- Modification1
+    GPUWorker --- Modification2
+    CPUWorker --- Modification3
+```
 
-GPU와 CPU가 공존하는 환경에서는 통신 백엔드와 그룹 초기화 로직이 기존의 GPU 전용 로직과 달라야 했습니다.
+### 1.2 클래스 구조 (Class Structure)
 
-### `vllm/distributed/parallel_state.py`
+`CPUWorker`는 `Worker`를 상속받지만, 초기화 시점에 플랫폼을 강제로 오버라이드하여 GPU 전용 로직을 우회합니다.
 
-- **수정 내용**:
-    1. **`_is_heterogeneous_environment` 헬퍼 추가 및 캐싱**: 현재 설정이 이종 모드인지 확인하는 함수를 추가했습니다. 특히, `TorchDynamo` 컴파일 중 로깅 부작용(Logger side-effect)으로 인한 충돌을 방지하기 위해, `init_distributed_environment` 호출 시 이종 모드 여부를 전역 변수 `_IS_HETEROGENEOUS_MODE`에 캐싱하도록 수정했습니다.
-    2. **`Config` 캐싱**: `get_current_vllm_config` 호출 시 경고 로그가 발생하는 문제를 피하기 위해 초기화 시점에 상태를 확정했습니다.
-    3. **Gloo 백엔드 강제**: 이종 환경에서는 `nccl` 대신 `gloo` 백엔드를 사용하도록 강제했습니다 (NCCL은 P2P 통신에서 GPU-CPU 혼합을 직접 지원하지 않음).
-    4. **`GroupCoordinator` 수정**: CPU 워커에서는 `device_communicator`(NCCL 기반)를 생성하지 않도록 예외 처리했습니다.
-    5. **`init_model_parallel_group` 수정**: CPU 워커가 NCCL 그룹 생성(new_group)에 참여할 때 `gpu_ranks`가 비어있어 발생하는 `TypeError`를 수정하기 위해, 빈 리스트가 전달될 경우 `new_group`을 호출하지 않거나 예외 처리를 하도록 변경했습니다.
+```mermaid
+classDiagram
+    class Worker {
+        +init_device()
+        +load_model()
+        +execute_model()
+    }
 
-## 3. CPU 워커 (CPU Worker)
+    class GPUWorker {
+        +init_device() : Enforce Eager
+        +_check_heterogeneous()
+    }
 
-GPU 워커와 달리 CPU 워커는 CUDA Graph를 사용하지 않으며, 특정 라이브러리(NUMA 등) 의존성 문제가 있었습니다. 하지만 분산 처리 시 동기화를 위해 GPU 워커와 동일한 횟수의 통신(Collective op)을 수행해야 합니다.
+    class CPUWorker {
+        +__init__() : Force CpuPlatform
+        +init_device()
+        +compile_or_warm_up_model() : Shadowing GPU
+    }
 
-### `vllm/v1/worker/cpu_worker.py`
+    class Platform {
+        <<Interface>>
+        +is_cuda_alike()
+        +check_and_update_config()
+    }
 
-- **수정 내용**:
-    1. **`compile_or_warm_up_model` 재작성**: GPU 워커는 웜업 및 CUDA Graph 캡처를 위해 수십 번의 더미 실행(Dummy run)을 수행합니다. CPU 워커가 단 한 번만 실행하고 대기하면 **Deadlock**이 발생하므로, CPU 워커도 GPU 워커의 실행 횟수와 패턴(Warmup sizes + Capture sizes)을 그대로 따라하며 빈 실행(`skip_eplb=True`)을 하도록 로직을 동기화했습니다.
-    2. **NUMA 초기화 예외 처리**: `torch.ops._C_utils.init_cpu_threads_env` 호출 실패 시 프로세스가 죽지 않고 로그만 남기도록 `try-except` 블록을 추가했습니다.
-    3. **블록 수 계산 구현**: `determine_num_available_blocks` 메서드가 구현되어 있지 않아 추가했습니다.
+    class CpuPlatform {
+        +is_cuda_alike() : False
+        +check_and_update_config() : Disable Piecewise Compile
+    }
 
-### `vllm/v1/worker/cpu_model_runner.py`
+    Worker <|-- GPUWorker
+    Worker <|-- CPUWorker
+    Platform <|-- CpuPlatform
+```
 
-- **수정 내용**:
-    1. **`load_model` 시그니처 수정**: `GPUWorker`에서 상속받은 호출 규약(`**kwargs`)을 따르도록 수정하여 `TypeError`를 방지했습니다.
-    2. **모델 로딩 장치 수정**: `get_model` 함수가 `vllm_config.device_config.device`를 참조하여 무조건 CUDA로 로딩하려던 문제를 해결하기 위해, `load_model` 메서드 내에서 임시로 `vllm_config`의 디바이스를 `cpu`로 오버라이딩(Override)하고 모델을 로드한 뒤 복구하도록 수정했습니다.
+### 1.3 실행 시퀀스: 웜업 동기화 (Execution Sequence: Warmup Sync)
 
-## 4. 워커 할당 및 실행 (Worker Setup & Execution)
+가장 중요한 수정 사항 중 하나는 **Execution Hang**을 방지하는 것입니다. GPU는 기본적으로 여러 번의 Warmup과 CudaGraph Capture를 수행하지만, CPU는 이를 수행하지 않아 `AllReduce` 횟수 불일치로 데드락이 발생했습니다. 이를 해결하기 위해 `CPUWorker`가 GPU의 행동을 흉내내는 **Shadowing** 패턴을 도입했습니다.
 
-### `vllm/worker/worker_base.py`
+```mermaid
+sequenceDiagram
+    participant E as EngineCore
+    participant G as GPUWorker (TP0)
+    participant C as CPUWorker (TP1)
 
-- **수정 내용**: **`init_worker`** 메서드에 이종 모드 감지 로직을 추가했습니다. 할당된 `rank`가 시스템의 물리적 GPU 개수보다 크거나, `device_type`이 `heterogeneous`인 경우, 해당 랭크의 워커 클래스를 강제로 `vllm.v1.worker.cpu_worker.CPUWorker`로 전환하도록 수정했습니다.
+    Note over E, C: Initialization Phase
+    E->>G: compile_or_warm_up_model()
+    E->>C: compile_or_warm_up_model()
 
-### `vllm/v1/executor/multiproc_executor.py`
+    loop Warmup Sizes
+        G->>G: _dummy_run()
+        C->>C: _dummy_run() (Shadowing)
+        G->>C: AllReduce Sync
+        C->>G: AllReduce Sync
+    end
 
-- **수정 내용**:
-    1. **Spawn 방식 강제**: 리눅스에서 기본 `fork` 방식을 사용하면 CUDA 컨텍스트 복제 등의 문제로 교착 상태에 빠질 수 있어, 모든 프로세스 생성 방식을 `spawn`으로 명시했습니다.
-    2. **이종 환경 감지**: Executor 초기화 시에도 이종 환경 설정을 감지하여 적절한 환경 변수 설정을 돕도록 했습니다.
+    Note right of G: CudaGraph Capture Phase
+    loop Capture Sizes
+        G->>G: Capture Graph
+        C->>C: _dummy_run() (Shadowing Capture)
+        rect rgb(255, 200, 200)
+            Note over G, C: Critical Sync Point
+            G->>C: AllReduce
+            C->>G: AllReduce
+        end
+    end
+```
 
-## 5. 요약
+---
 
-이 수정들의 핵심 목표는 **"GPU 중심의 기존 vLLM 구조에 CPU 워커를 억지로 끼워 맞추는 것"**이었습니다.
+## 2. 상세 수정 내역 및 이유 (Detailed Modifications & Rationale)
 
-1. **초기화 단계**: 순환 참조를 끊고 올바른 클래스(`CPUWorker`)를 로드하게 함.
-2. **통신 단계**: `NCCL` 대신 `Gloo`를 쓰게 하고, 불필요한 CUDA 통신 그룹 생성을 막음.
-3. **실행 단계**: GPU 워커가 수행하는 수많은 웜업/캡처 루프에 CPU 워커가 보조를 맞추도록 하여(`dummy_run` 반복), 분산 통신 장벽(Barrier)에서 멈추지 않게 함.
+각 수정 내역은 문제의 원인(Why)과 해결 방법(How)을 포함합니다.
+
+### 2.1 초기화 순환 참조 해결 (Fix Circular Import)
+
+* **문제**: 이종 환경 초기화 시 `vllm.config` -> `vllm.platforms` -> `vllm.platforms.interface` -> `vllm.inputs` -> `vllm.config`로 이어지는 순환 참조(Circular Dependency)로 인해 프로세스가 데드락에 빠짐.
+* **파일**: `vllm/platforms/interface.py`
+* **수정 코드**:
+
+    ```python
+    from __future__ import annotations
+    if TYPE_CHECKING:
+        from vllm.inputs import ProcessorInputs  # 런타임 임포트 제외
+    ```
+
+* **이유**: 타입 힌팅을 위한 임포트를 런타임에서 제외하여 모듈 로딩 시 락(Lock) 경합을 제거.
+
+### 2.2 CPU 플랫폼 인식 강제 (Force CPU Platform)
+
+* **문제**: NVML 라이브러리가 설치된 환경에서는 `CPUWorker` 프로세스에서도 GPU가 감지되어, vLLM이 자동으로 `CudaPlatform`을 선택함. 이로 인해 CPU에서 실행 불가능한 CUDA 커널(`unified_attention_with_output` 등)을 호출하여 `NotImplementedError` 발생.
+* **파일**: `vllm/v1/worker/cpu_worker.py`
+* **수정 코드**:
+
+    ```python
+    class CPUWorker(Worker):
+        def __init__(self, ...):
+            # ...
+            # 1. Force CPU Platform
+            from vllm.platforms.cpu import CpuPlatform
+            import vllm.platforms
+            vllm.platforms._current_platform = CpuPlatform()
+            
+            # 2. Reset Attention Backend Cache
+            from vllm.attention.selector import _cached_get_attn_backend
+            _cached_get_attn_backend.cache_clear()
+    ```
+
+* **이유**: 워커 초기화 시점에 명시적으로 플랫폼을 CPU로 고정하여, 이후 로딩되는 모든 모듈이 CPU 전용 경로를 타도록 강제함.
+
+### 2.3 컴파일 설정 다운그레이드 (Downgrade Compilation for CPU)
+
+* **문제**: GPU용 기본 설정(`CompilationLevel.PIECEWISE`)이 CPU 워커에도 전달됨. 이는 `VllmBackend` 초기화 시 CUDA 전용 리소스(Graph Pool)를 요구하여 크래시 발생.
+* **파일**: `vllm/v1/worker/cpu_worker.py`
+* **수정 코드**:
+
+    ```python
+    # Ensure config is compatible with CPU
+    from vllm.platforms.cpu import CpuPlatform
+    CpuPlatform.check_and_update_config(vllm_config) # 레벨을 DYNAMO_ONCE로 하향
+    ```
+
+### 2.4 Eager Mode 강제 및 CudaGraph 비활성화 (Enforce Eager & Disable CudaGraph)
+
+* **문제**: **Heterogeneous Hang의 주원인**.
+    1. GPU는 성능을 위해 CudaGraph를 캡처하려 함.
+    2. CPU 통신을 담당하는 `Gloo` 백엔드는 CudaGraph 캡처 내에서 동작 불가능 (CPU 동기화 필요).
+    3. 이로 인해 `_dummy_run` 도중 GPU는 캡처 대기, CPU는 통신 대기 상태로 데드락 발생.
+* **파일**: `vllm/v1/worker/gpu_worker.py`
+* **수정 코드**:
+
+    ```python
+    def init_device(self):
+        # ...
+        from vllm.distributed.parallel_state import _is_heterogeneous_environment
+        if _is_heterogeneous_environment():
+             # 이종 환경 감지 시 즉시 Eager Mode 전환
+             self.model_config.enforce_eager = True
+             self.vllm_config.compilation_config.level = CompilationLevel.NO_COMPILATION
+    ```
+
+* **이유**: 안정성을 최우선으로 하여, 호환성 문제가 발생하는 CudaGraph 기능을 이종 환경에서만 선택적으로 비활성화.
+
+### 2.5 하이브리드 AllReduce 구현 (Enable Hybrid AllReduce)
+
+* **문제**: `torch.distributed.all_reduce` 호출 시, GPU에 있는 텐서를 `group=cpu_group` (Gloo)으로 보내면 에러가 발생하거나 멈춤. Gloo는 CPU 텐서를 요구함.
+* **파일**: `vllm/distributed/parallel_state.py`
+* **수정 코드**:
+
+    ```python
+    def _all_reduce_out_place(tensor, group):
+        # GPU 텐서인 경우 CPU로 이동
+        if tensor.is_cuda and group == cpu_group:
+            tensor_cpu = tensor.cpu()
+            dist.all_reduce(tensor_cpu, group=group)
+            return tensor_cpu.cuda() # 다시 GPU로 복귀
+        return dist.all_reduce(tensor, group=group)
+    ```
+
+* **이유**: 서로 다른 디바이스(GPU, CPU) 간의 집합 통신을 위해 데이터를 호스트 메모리(CPU)로 내리는 브릿지 역할 수행.
+
+### 2.6 어텐션 백엔드 동적 선택 (Dynamic Attention Backend)
+
+* **문제**: `vllm.attention.layer` 모듈이 import 될 때 플랫폼을 확인하여 커스텀 Op 사용 여부(`use_direct_call`)를 결정함. CPU 워커가 플랫폼을 `CpuPlatform`으로 바꾸기 전에 모듈이 import 되면, 이미 `True`(CUDA)로 설정되어 되돌릴 수 없음.
+* **파일**: `vllm/attention/layer.py`
+* **수정 코드**:
+
+    ```python
+    def __init__(self, ...):
+        # 모듈 전역 변수가 아닌, 인스턴스 생성 시점의 플랫폼 확인
+        import vllm.platforms
+        self.use_direct_call = not vllm.platforms.current_platform.is_cuda_alike()
+    ```
+
+* **이유**: 모듈 로딩 순서에 의존하지 않고, 실제 객체 생성 시점의 정확한 플랫폼 상태를 반영.
+
+---
+
+## 3. 요약 (Summary)
+
+위의 수정 사항들은 다음의 원칙에 따라 수행되었습니다:
+
+1. **Correctness First**: 성능 최적화(CudaGraph, Custom Ops)보다 실행 안정성을 우선시하여, 충돌이 나는 기능은 과감히 비활성화(`enforce_eager`)했습니다.
+2. **Platform Isolation**: CPU 워커가 GPU 환경 설정에 오염되지 않도록 초기화 단계에서 강력하게 샌드박싱(`Force CpuPlatform`)했습니다.
+3. **Synchronization Symmetry**: 분산 환경에서 GPU와 CPU의 실행 경로(Step)를 강제로 일치(`Shadowing`)시켜 데드락을 원천 차단했습니다.
+
+이 명세서를 통해 개발자는 vLLM의 이종 하드웨어 지원 로직을 이해하고, 향후 최적화(예: CPU Custom Op 도입, CudaGraph 부분 적용)를 위한 기반을 다질 수 있습니다.
