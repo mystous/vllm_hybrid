@@ -1536,17 +1536,21 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                 skip_cuda_graphs=skip_cuda_graphs,
         ), self.maybe_get_kv_connector_output(
                 scheduler_output) as kv_connector_output:
-
-            model_output = self.model(
-                input_ids=input_ids,
-                positions=positions,
+            with self.set_model_input(
+                input_ids,
+                positions,
                 intermediate_tensors=intermediate_tensors,
-                inputs_embeds=inputs_embeds,
-                **MultiModalKwargs.as_kwargs(
-                    model_mm_kwargs,
-                    device=self.device,
-                ),
-            )
+            ):
+                model_output = self.model(
+                    input_ids=input_ids,
+                    positions=positions,
+                    intermediate_tensors=intermediate_tensors,
+                    inputs_embeds=inputs_embeds,
+                    **MultiModalKwargs.as_kwargs(
+                        model_mm_kwargs,
+                        device=self.device,
+                    ),
+                )
 
         if self.use_aux_hidden_state_outputs:
             hidden_states, aux_hidden_states = model_output
@@ -1878,6 +1882,7 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
             setattr(self, config_name, new_config)
 
     def load_model(self, eep_scale_up: bool = False) -> None:
+        print(f"DEBUG_AG: GPUModelRunner.load_model start", flush=True)
         """
         Args:
             eep_scale_up: the model loading is for elastic EP scale up.
@@ -1931,6 +1936,7 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                     self.model.get_eagle3_aux_hidden_state_layers())
             time_after_load = time.perf_counter()
         self.model_memory_usage = m.consumed_memory
+        print(f"DEBUG_AG: GPUModelRunner.load_model end", flush=True)
         logger.info("Model loading took %.4f GiB and %.6f seconds",
                     self.model_memory_usage / GiB_bytes,
                     time_after_load - time_before_load)
@@ -2157,6 +2163,10 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
         # Padding for DP
         num_pad, num_tokens_across_dp = self.get_dp_padding(num_tokens)
         num_tokens += num_pad
+        
+        from vllm.distributed.parallel_state import get_tensor_model_parallel_world_size
+        tp_size = get_tensor_model_parallel_world_size()
+        logger.info(f"DEBUG_AG: _dummy_run start. device={self.device} num_tokens={num_tokens} tp_size={tp_size}")
 
         # Set num_scheduled_tokens based on num_tokens and max_num_seqs
         # for dummy run with LoRA so that the num_reqs collectively
@@ -2251,6 +2261,7 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                         device=self.device,
                     ),
                 )
+            logger.info(f"DEBUG_AG: _dummy_run model execution finished. device={self.device}")
 
             if self.use_aux_hidden_state_outputs:
                 hidden_states, _ = outputs
@@ -2464,8 +2475,10 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                     enumerate(dummy_encoder_outputs))
 
         # Add `is_profile` here to pre-allocate communication buffers
+        logger.info(f"DEBUG_AG: profile_run start. device={self.device}")
         hidden_states, last_hidden_states \
             = self._dummy_run(self.max_num_tokens, is_profile=True)
+        logger.info(f"DEBUG_AG: profile_run dummy_run finished. device={self.device}")
         if get_pp_group().is_last_rank:
             if self.is_pooling_model:
                 output = self._dummy_pooler_run(hidden_states)

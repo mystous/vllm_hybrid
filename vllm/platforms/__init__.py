@@ -1,18 +1,28 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import logging
+import sys
+from typing import Optional
+
+import os
+print(f"DEBUG_AG: Process {os.getpid()} importing vllm.platforms", flush=True)
+
+import torch
+print(f"DEBUG_AG: Process {os.getpid()} vllm.platforms import step 1 (torch)", flush=True)
+
 import traceback
 from itertools import chain
+
 from typing import TYPE_CHECKING, Optional
 
 from vllm import envs
-from vllm.plugins import load_plugins_by_group
+from vllm.logger import init_logger
 from vllm.utils import resolve_obj_by_qualname, supports_xccl
+
+from vllm.plugins import load_plugins_by_group
 
 from .interface import _Backend  # noqa: F401
 from .interface import CpuArchEnum, Platform, PlatformEnum
 
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 
 def vllm_version_matches_substr(substr: str) -> bool:
@@ -78,6 +88,8 @@ def cuda_platform_plugin() -> Optional[str]:
                 logger.debug("Confirmed CUDA platform is available.")
         finally:
             pynvml.nvmlShutdown()
+            import os
+            print(f"DEBUG_AG: Process {os.getpid()} finished nvmlShutdown in cuda_platform_plugin", flush=True)
     except Exception as e:
         logger.debug("Exception happens when checking CUDA platform: %s",
                      str(e))
@@ -220,10 +232,13 @@ def resolve_current_platform_cls_qualname() -> str:
     for name, func in chain(builtin_platform_plugins.items(),
                             platform_plugins.items()):
         try:
+            import os
+            print(f"DEBUG_AG: Process {os.getpid()} checking plugin {name}", flush=True)
             assert callable(func)
             platform_cls_qualname = func()
             if platform_cls_qualname is not None:
-                activated_plugins.append(name)
+                print(f"DEBUG_AG: Process {os.getpid()} selected platform {platform_cls_qualname}", flush=True)
+                return platform_cls_qualname
         except Exception:
             pass
 
@@ -249,14 +264,17 @@ def resolve_current_platform_cls_qualname() -> str:
             "Only one platform plugin can be activated, but got: "
             f"{activated_builtin_plugins}")
     elif len(activated_builtin_plugins) == 1:
+        platform_name = activated_builtin_plugins[0]
         platform_cls_qualname = builtin_platform_plugins[
-            activated_builtin_plugins[0]]()
+            platform_name]()
         logger.info("Automatically detected platform %s.",
-                    activated_builtin_plugins[0])
+                    platform_name)
     else:
         platform_cls_qualname = "vllm.platforms.interface.UnspecifiedPlatform"
         logger.info(
             "No platform detected, vLLM is running on UnspecifiedPlatform")
+    import os
+    print(f"DEBUG_AG: Process {os.getpid()} finished platform detection. Platform: {platform_name}", flush=True)
     return platform_cls_qualname
 
 

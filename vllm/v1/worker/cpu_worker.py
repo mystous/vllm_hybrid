@@ -31,6 +31,40 @@ class CPUWorker(Worker):
                  rank: int,
                  distributed_init_method: str,
                  is_driver_worker: bool = False):
+        # Force CPU Platform for this worker to ensure correct backend selection (e.g. Attention)
+        try:
+            from vllm.platforms.cpu import CpuPlatform
+            import vllm.platforms
+            vllm.platforms._current_platform = CpuPlatform()
+            # Also clear the cached backend function to ensure re-resolution
+            from vllm.attention.selector import _cached_get_attn_backend
+            _cached_get_attn_backend.cache_clear()
+            logger.info("Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.")
+        except Exception as e:
+            logger.error(f"Failed to force CpuPlatform: {e}")
+
+        # Ensure the config is compatible with CPU (e.g. downgrades compilation level)
+        try:
+            from vllm.platforms.cpu import CpuPlatform
+            CpuPlatform.check_and_update_config(vllm_config)
+            logger.info("Updated vllm_config for CPU platform via check_and_update_config.")
+        except Exception as e:
+             logger.error(f"Failed to update config for CPU: {str(e)}")
+        
+        # Force eager execution to bypass compilation on CPU (Dynamo/Inductor on CPU is unstable in this context)
+        # Force eager execution to bypass compilation on CPU (Dynamo/Inductor on CPU is unstable in this context)
+        vllm_config.model_config.enforce_eager = True
+        
+        # Explicitly disable compilation in compilation_config as well, since decorators check this directly
+        from vllm.config import CompilationLevel
+        vllm_config.compilation_config.level = CompilationLevel.NO_COMPILATION
+
+
+        # Reduce logging noise from PyTorch Dynamo/Inductor
+        import logging
+        logging.getLogger("torch._dynamo").setLevel(logging.ERROR)
+        logging.getLogger("torch._inductor").setLevel(logging.ERROR)
+
         super().__init__(vllm_config,
                          local_rank,
                          rank,
@@ -90,13 +124,88 @@ class CPUWorker(Worker):
         pass
 
     def determine_available_memory(self) -> int:
+        # Sync with GPU worker's profile_run to avoid deadlock
+        logger.info("DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.")
+        self.model_runner.profile_run()
+        logger.info("DEBUG_AG: CPUWorker determine_available_memory profile_run done.")
+
         return self.cache_config.cpu_kvcache_space_bytes  # type: ignore
 
+    def determine_num_available_blocks(self) -> tuple[int, int]:
+        logger.info("DEBUG_AG: CPUWorker determine_num_available_blocks start")
+        
+        # For CPU worker, we don't calculate blocks dynamically based on GPU mem.
+        # We rely on the config or default 0.
+        # Executor aggregates results.
+        # We return (0, 0) or whatever is appropriate. 
+        # Actually V1 Logic:
+        # GPUWorker returns (num_gpu, num_cpu).
+        # We should return (0, available_cpu_blocks).
+        
+        # Calculate available CPU blocks
+        num_cpu_blocks = self.vllm_config.cache_config.num_cpu_blocks
+        if num_cpu_blocks is None:
+             # If not set, use default or calculate from swap space
+             # For now return 0 to avoid breaking logic if unmitigated
+             num_cpu_blocks = 0
+             
+        logger.info(f"DEBUG_AG: CPUWorker determine_num_available_blocks done. returning 0, {num_cpu_blocks}")
+        return 0, num_cpu_blocks
+
     def compile_or_warm_up_model(self) -> None:
+        logger.info("CPUWorker: Entering compile_or_warm_up_model")
         # Reset the seed to ensure that the random state is not affected by
         # the model initialization and profiling.
+        try:
+            set_random_seed(self.model_config.seed)
+            logger.info("CPUWorker: set_random_seed completed")
+        except Exception as e:
+            logger.error(f"CPUWorker: set_random_seed failed: {e}")
+        
+        # 1. Standard Warmup (Mirror GPUWorker)
+        warmup_sizes = self.vllm_config.compilation_config.compile_sizes.copy()
+        if not self.model_config.enforce_eager:
+            warmup_sizes = [
+                x for x in warmup_sizes if x not in
+                self.vllm_config.compilation_config.cudagraph_capture_sizes
+            ]
+        for size in sorted(warmup_sizes, reverse=True):
+            logger.info("CPUWorker: Shadowing warmup for size %d", size)
+            self.model_runner._dummy_run(size, skip_eplb=True)
+
+        # 2. Shadow CUDAGraph Capture (Mirror GPUWorker)
+        if not self.model_config.enforce_eager:
+            # GPUWorker iterates over compilation_cases which is reversed(reversed(config)) = config order effectively
+            # GPUWorker: compilation_cases = reversed(self.cudagraph_batch_sizes)
+            # where self.cudagraph_batch_sizes = reversed(config.cudagraph_capture_sizes)
+            # So compilation_cases = config.cudagraph_capture_sizes
+            capture_sizes = self.vllm_config.compilation_config.cudagraph_capture_sizes
+            num_warmups = self.vllm_config.compilation_config.cudagraph_num_of_warmups
+            
+            for size in capture_sizes:
+                # Shadow warmups
+                for i in range(num_warmups):
+                     logger.info("CPUWorker: Shadowing capture warmup %d for size %d", i, size)
+                     self.model_runner._dummy_run(size, skip_eplb=True)
+                # Shadow capture
+                logger.info("CPUWorker: Shadowing capture run for size %d", size)
+                self.model_runner._dummy_run(size, skip_eplb=True)
+
+        # 3. Final Sampler Warmup (Mirror GPUWorker)
+        if get_pp_group().is_last_rank:
+            max_num_reqs = min(self.scheduler_config.max_num_seqs,
+                               self.scheduler_config.max_num_batched_tokens)
+            # CPUModelRunner inherits from GPUModelRunner, so it has _dummy_run
+            # We assume it returns the same tuple structure
+            hidden_states, last_hidden_states = self.model_runner._dummy_run(
+                    num_tokens=max_num_reqs, skip_eplb=True)
+            
+            if self.model_runner.is_pooling_model:
+                self.model_runner._dummy_pooler_run(hidden_states)
+            else:
+                self.model_runner._dummy_sampler_run(hidden_states=last_hidden_states)
+
         set_random_seed(self.model_config.seed)
-        self.model_runner.warming_up_model()
 
     @torch.inference_mode()
     def execute_model(

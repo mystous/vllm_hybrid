@@ -438,6 +438,10 @@ class MessageQueue:
             with self.buffer.get_metadata(self.current_idx) as metadata_buffer:
                 read_flag = metadata_buffer[self.local_reader_rank + 1]
                 written_flag = metadata_buffer[0]
+                # DEBUG_AG instrumentation
+                if n_warning == 1 and (not written_flag or read_flag):
+                     # Log only on first check or periodically to avoid spam, but we want to see immediate state
+                     pass
                 if not written_flag or read_flag:
                     # this block is either
                     # (1) not written
@@ -453,10 +457,12 @@ class MessageQueue:
                     # if we wait for a long time, log a message
                     if (time.monotonic() - start_time
                             > VLLM_RINGBUFFER_WARNING_INTERVAL * n_warning):
+                        import os
                         logger.debug(
                             ("No available shared memory broadcast block found"
-                             " in %s second."),
+                             " in %s second. pid=%s, reader_rank=%s, idx=%s, written=%s, read=%s"),
                             VLLM_RINGBUFFER_WARNING_INTERVAL,
+                            os.getpid(), self.local_reader_rank, self.current_idx, written_flag, read_flag
                         )
                         n_warning += 1
 

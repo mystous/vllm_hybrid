@@ -5,11 +5,14 @@ import dataclasses
 import os
 import time
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
 import cloudpickle
 import torch
+import torch
 import torch.nn as nn
+import os
+print(f"DEBUG_AG: Process {os.getpid()} importing vllm.worker.worker_base", flush=True)
 
 from vllm.config import (ObservabilityConfig, VllmConfig,
                          set_current_vllm_config)
@@ -146,6 +149,12 @@ class DelegateWorkerBase(WorkerBase):
         vllm_config: VllmConfig = kwargs.get("vllm_config")
         cls = resolve_obj_by_qualname(vllm_config.parallel_config.worker_cls)
         self.worker = cls(*args, **kwargs)
+
+    def init_worker(self, worker_init_fn: Callable[[], None]) -> None:
+        print(f"DEBUG_AG: WorkerWrapperBase.init_worker called. rank={self.rank}", flush=True)
+        self.worker_init_fn = worker_init_fn
+        if self.worker is not None:
+            self.worker.init_worker(worker_init_fn)
 
     def init_device(self) -> None:
         self.worker.init_device()
@@ -551,9 +560,6 @@ class WorkerWrapperBase:
         assert self.vllm_config is not None, (
             "vllm_config is required to initialize the worker")
         
-        with open("/home/mystous/projects/debug_worker.log", "a") as f:
-            f.write(f"DEBUG: vllm_config device_type={self.vllm_config.device_config.device_type}\n")
-
         enable_trace_function_call_for_thread(self.vllm_config)
 
         from vllm.plugins import load_general_plugins
@@ -564,6 +570,12 @@ class WorkerWrapperBase:
         # we assign CPUWorker to excessive ranks.
         import torch
         num_gpus = torch.cuda.device_count()
+        world_size = self.vllm_config.parallel_config.world_size
+
+        # Heuristic: If we have more ranks than physical GPUs, we are in heterogeneous mode.
+        # We must enforce this on the config so that GPUWorker (Rank 0) knows to use Gloo.
+        if world_size > num_gpus:
+             self.vllm_config.device_config.device_type = "heterogeneous"
         
         # Note: device_type sometimes reports as "cuda" even in heterogeneous mode due to internal aliasing.
         # So we rely on rank vs num_gpus check.
@@ -622,9 +634,11 @@ class WorkerWrapperBase:
             self.worker.initialize_from_config(kv_cache_config)  # type: ignore
 
     def init_device(self):
+        print(f"DEBUG_AG: WorkerWrapperBase.init_device start rank={self.rpc_rank}", flush=True)
         with set_current_vllm_config(self.vllm_config):
             # To make vLLM config available during device initialization
             self.worker.init_device()  # type: ignore
+        print(f"DEBUG_AG: WorkerWrapperBase.init_device end rank={self.rpc_rank}", flush=True)
 
     def execute_method(self, method: Union[str, bytes], *args, **kwargs):
         try:

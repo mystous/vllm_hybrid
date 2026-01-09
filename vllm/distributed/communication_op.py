@@ -3,6 +3,9 @@
 
 from typing import Any, Optional, Union
 
+import os
+print(f"DEBUG_AG: Process {os.getpid()} importing vllm.distributed.communication_op", flush=True)
+
 import torch
 import torch.distributed
 
