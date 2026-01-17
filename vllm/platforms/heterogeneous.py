@@ -192,8 +192,9 @@ class HeterogeneousDeviceCommunicator(DeviceCommunicatorBase):
             # Fallback to Gloo (CPU Offload)
             orig_device = input_.device
             input_cpu = input_.cpu()
-            res_cpu = super().all_reduce(input_cpu)
-            return res_cpu.to(orig_device)
+            # Use cpu_group for global communication
+            torch.distributed.all_reduce(input_cpu, group=self.cpu_group)
+            return input_cpu.to(orig_device)
 
     def all_gather(self, input_: torch.Tensor, dim: int = -1) -> torch.Tensor:
          # SHM implementation for all_gather (via all_gather_into_tensor logic mostly)
@@ -222,8 +223,16 @@ class HeterogeneousDeviceCommunicator(DeviceCommunicatorBase):
          else:
             orig_device = input_.device
             input_cpu = input_.cpu()
-            res_cpu = super().all_gather(input_cpu, dim)
-            return res_cpu.to(orig_device)
+            # Use cpu_group for global communication
+            # We can't use super().all_gather because it uses device_group
+            # Implement simple all_gather using torch.distributed.all_gather
+            
+            world_size = torch.distributed.get_world_size(group=self.cpu_group)
+            output_tensors = [torch.empty_like(input_cpu) for _ in range(world_size)]
+            torch.distributed.all_gather(output_tensors, input_cpu, group=self.cpu_group)
+            
+            output_tensor = torch.cat(output_tensors, dim=dim)
+            return output_tensor.to(orig_device)
 
     def reduce_scatter(self, input_: torch.Tensor, dim: int = -1) -> torch.Tensor:
         # _CPUSHMDistributed does NOT implement reduce_scatter!
@@ -235,8 +244,28 @@ class HeterogeneousDeviceCommunicator(DeviceCommunicatorBase):
         
         orig_device = input_.device
         input_cpu = input_.cpu()
-        res_cpu = super().reduce_scatter(input_cpu, dim)
-        return res_cpu.to(orig_device)
+        
+        # Check if reduce_scatter_tensor is available/supported by Gloo
+        # It usually is.
+        # But DeviceCommunicatorBase implementation is complex.
+        # Let's try to use torch.distributed.reduce_scatter_tensor directly on cpu_group
+        
+        output_size = list(input_cpu.size())
+        output_size[dim] //= self.world_size
+        output_tensor = torch.empty(output_size, dtype=input_cpu.dtype, device="cpu")
+        
+        try:
+            torch.distributed.reduce_scatter_tensor(output_tensor, input_cpu, group=self.cpu_group)
+        except (AttributeError, RuntimeError):
+             # Fallback if reduce_scatter_tensor not supported (e.g. older Gloo?)
+             # Naive implementation: AllReduce -> Slice
+             torch.distributed.all_reduce(input_cpu, group=self.cpu_group)
+             # Slice the part for this rank
+             rank = torch.distributed.get_rank(group=self.cpu_group)
+             slices = torch.chunk(input_cpu, self.world_size, dim=dim)
+             output_tensor.copy_(slices[rank])
+
+        return output_tensor.to(orig_device)
 
     def broadcast(self, input_: torch.Tensor, src: int = 0) -> torch.Tensor:
         # _CPUSHMDistributed doesn't explicitly implement broadcast?
@@ -245,30 +274,23 @@ class HeterogeneousDeviceCommunicator(DeviceCommunicatorBase):
         
         orig_device = input_.device
         input_cpu = input_.cpu()
-        torch.distributed.broadcast(input_cpu, src=src, group=self.device_group)
+        torch.distributed.broadcast(input_cpu, src=src, group=self.cpu_group)
         return input_cpu.to(orig_device)
         
     def send(self, tensor: torch.Tensor, dst: Optional[int] = None) -> None:
         if self.shm_dist:
-             # _CPUSHMDistributed doesn't have simple 'send'? 
-             # Snippet shows send_tensor_dict but not simple send?
-             # Wait, looking at snippet line 162: send_tensor_dict.
-             # Ah, typical CPUSHM might not expose raw send/recv for single tensors easily?
-             # Wait, CpuCommunicator.send (line 104 in snippet) calls self.dist_module.send_tensor_dict??
-             # No, CpuCommunicator.send in snippet Line 221 (inherited) uses torch.distributed.send!
-             # CpuCommunicator snippet ONLY overrides send_tensor_dict.
-             # So CpuCommunicator uses Gloo for P2P send/recv!
-             # Only TP/PP (allreduce/gather) use SHM.
+             # SHM send optimization if available, else Gloo
              pass
         
         tensor_cpu = tensor.cpu()
-        super().send(tensor_cpu, dst)
+        torch.distributed.send(tensor_cpu, dst, group=self.cpu_group)
 
     def recv(self, size: torch.Size, dtype: torch.dtype, src: Optional[int] = None) -> torch.Tensor:
         if src is None:
             src = (self.rank_in_group - 1) % self.world_size
         tensor = torch.empty(size, dtype=dtype, device="cpu")
-        torch.distributed.recv(tensor, self.ranks[src], self.device_group)
+        # Use cpu_group
+        torch.distributed.recv(tensor, self.ranks[src], self.cpu_group)
         return tensor.to(self.device)
 
 
