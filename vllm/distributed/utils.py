@@ -120,17 +120,52 @@ def get_pp_indices(num_hidden_layers: int, pp_rank: int,
             raise ValueError(
                 f"{sum(partitions)=} does not match {num_hidden_layers=}.")
     else:
-        layers_per_partition = num_hidden_layers // pp_size
-        partitions = [layers_per_partition for _ in range(pp_size)]
+        # Check for heterogeneous environment to apply automated asymmetric partitioning
+        is_hetero = False
+        try:
+            from vllm.config import get_current_vllm_config
+            config = get_current_vllm_config()
+            # Check if device_config exists and is heterogeneous
+            if config and hasattr(config, "device_config") and config.device_config.device_type == "heterogeneous":
+                is_hetero = True
+        except ImportError:
+            pass
 
-        if remaining_layers := num_hidden_layers % pp_size:
-            for i in range(2, remaining_layers + 2):
-                partitions[-i] += 1
+        if is_hetero and pp_size > 1:
+            # Asymmetric Partitioning for Heterogeneous (GPU + CPU)
+            # Strategy: Assign minimal load (1 layer) to the last partition (CPU) 
+            # and the rest to the previous partitions (GPUs).
+            cpu_layers = 1
+            gpu_layers = num_hidden_layers - cpu_layers
+            
+            partitions = [0] * pp_size
+            # Last rank (CPU) gets 1 layer
+            partitions[-1] = cpu_layers
+            
+            # Distribute remaining layers across GPU ranks
+            num_gpu_ranks = pp_size - 1
+            base = gpu_layers // num_gpu_ranks
+            rem = gpu_layers % num_gpu_ranks
+            
+            for i in range(num_gpu_ranks):
+                partitions[i] = base + (1 if i < rem else 0)
+                
             logger.info(
-                "Hidden layers were unevenly partitioned: [%s]. "
-                "This can be manually overridden using the "
-                "VLLM_PP_LAYER_PARTITION environment variable",
-                ",".join(str(p) for p in partitions))
+                "Heterogeneous Environment Detected: Automatically applying asymmetric PP partitioning: %s. "
+                "Last rank (likely CPU) assigned %d layer(s).",
+                str(partitions), cpu_layers)
+        else:
+            layers_per_partition = num_hidden_layers // pp_size
+            partitions = [layers_per_partition for _ in range(pp_size)]
+
+            if remaining_layers := num_hidden_layers % pp_size:
+                for i in range(2, remaining_layers + 2):
+                    partitions[-i] += 1
+                logger.info(
+                    "Hidden layers were unevenly partitioned: [%s]. "
+                    "This can be manually overridden using the "
+                    "VLLM_PP_LAYER_PARTITION environment variable",
+                    ",".join(str(p) for p in partitions))
 
     start_layer = sum(partitions[:pp_rank])
     end_layer = start_layer + partitions[pp_rank]

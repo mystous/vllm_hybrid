@@ -832,6 +832,19 @@ class GroupCoordinator:
         if not torch.distributed.is_initialized() or self.world_size == 1:
             return tensor_dict
 
+        # AG FIX: In Heterogeneous mode, we must force communication via CPU (Gloo) 
+        # because GPU ranks have a private device_group that CPU ranks are not part of.
+        # Sending a GPU tensor uses device_group by default, which crashes.
+        # We assume _IS_HETEROGENEOUS_MODE is available globally.
+        if _IS_HETEROGENEOUS_MODE:
+             new_tensor_dict = {}
+             for k, v in tensor_dict.items():
+                 if isinstance(v, torch.Tensor) and v.is_cuda:
+                      new_tensor_dict[k] = v.cpu()
+                 else:
+                      new_tensor_dict[k] = v
+             tensor_dict = new_tensor_dict
+
         all_gather_size = (1 if all_gather_group is None else
                            all_gather_group.world_size)
         all_gather_rank = (0 if all_gather_group is None else
@@ -948,6 +961,11 @@ class GroupCoordinator:
                     tensor = all_gather_group.all_gather(  # type: ignore
                         tensor, dim=0)
                     tensor = tensor.reshape(orig_shape)
+                
+                # AG FIX: Move received tensor to local device if in heterogeneous mode
+                # This handles checking if we received a CPU tensor (via Gloo) but need it on GPU
+                if _IS_HETEROGENEOUS_MODE and self.device.type != 'cpu' and tensor.is_cpu:
+                     tensor = tensor.to(self.device)
 
                 tensor_dict[key] = tensor
             else:
