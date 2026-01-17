@@ -573,7 +573,7 @@ class TorchSDPABackendImpl(AttentionImpl[TorchSDPAMetadata]):
 
         output = torch.empty_like(query)
         if prefill_meta := attn_metadata.prefill_metadata:
-            if not prefill_meta.prefill_metadata.chunked_prefill:  # type: ignore
+            if not prefill_meta.prefill_metadata.chunked_prefill or not _use_ipex:  # type: ignore
                 assert attn_metadata.seq_lens is not None
                 self._run_sdpa_forward(output,
                                        query,
@@ -777,16 +777,84 @@ class _PagedAttention:
         v_scale: torch.Tensor,
         *args,
     ) -> None:
-        ops.reshape_and_cache(
-            key,
-            value,
-            key_cache,
-            value_cache,
-            slot_mapping.flatten(),
-            kv_cache_dtype,
-            k_scale,
-            v_scale,
-        )
+        # Pure PyTorch implementation for CPU
+        # key: [num_tokens, num_heads, head_size]
+        # value: [num_tokens, num_heads, head_size]
+        # key_cache: [num_blocks, num_heads, head_size/x, block_size, x] (x=16/element_size) - WAIT, let's look at split_kv_cache
+        # split_kv_cache view: 
+        #   key_cache = key_cache.view(num_blocks, num_kv_heads, head_size // x, -1, x)
+        #   value_cache = value_cache.view(num_blocks, num_kv_heads, head_size, -1)
+        # BUT key_cache passed here comes from model_runner which might be raw. 
+        # CPU V1 cache setup in `cpu_worker`?
+        
+        # Let's rely on the shape provided in arguments if possible, or use the flat slot mapping.
+        # slot_mapping: [num_tokens] -> absolute index into flattened block_size dimension if we view it right?
+        
+        # CPU cache shape default: [2, num_blocks, block_size, num_kv_heads, head_size]
+        # But `split_kv_cache` reshapes it? 
+        # The `write_to_paged_cache` wrapper in `cpu_attn.py` takes `key_cache` and `value_cache`.
+        # Let's inspect `write_to_paged_cache` arguments again in previous context.
+        pass
+
+
+
+    @staticmethod
+    def write_to_paged_cache(
+        key: torch.Tensor,
+        value: torch.Tensor,
+        key_cache: torch.Tensor,
+        value_cache: torch.Tensor,
+        slot_mapping: torch.Tensor,
+        kv_cache_dtype: str,
+        k_scale: torch.Tensor,
+        v_scale: torch.Tensor,
+        *args,
+    ) -> None:
+        
+        # Unpack dimensions from key_cache to be sure
+        # key_cache from split: [num_blocks, num_kv_heads, head_size // x, block_size, x]
+        
+        num_kv_heads = key.shape[1]
+        head_size = key.shape[2]
+        
+        # Basic check
+        if key_cache.device.type == "cpu":
+            block_size = key_cache.shape[-2]
+            x = key_cache.shape[-1]
+            
+            # Map slots to block indices and offsets
+            block_indices = torch.div(slot_mapping, block_size, rounding_mode='floor')
+            block_offsets = slot_mapping % block_size
+            
+            # Key Cache Update
+            # key: [num_tokens, H, D]
+            # key_cache target: [num_blocks, H, D//x, block_size, x]
+            # We construct a matching source tensor
+            
+            # Reshape key to [num_tokens, H, D//x, x]
+            key_reshaped = key.reshape(key.shape[0], num_kv_heads, head_size // x, x)
+            
+            # Assign
+            key_cache[block_indices, :, :, block_offsets, :] = key_reshaped
+            
+            # Value Cache Update
+            # value: [num_tokens, H, D]
+            # value_cache from split: [num_blocks, num_kv_heads, head_size, block_size]
+            
+            # We assign value to [block_indices, :, :, block_offsets]
+            value_cache[block_indices, :, :, block_offsets] = value
+            
+        else:
+            ops.reshape_and_cache(
+                key,
+                value,
+                key_cache,
+                value_cache,
+                slot_mapping.flatten(),
+                kv_cache_dtype,
+                k_scale,
+                v_scale,
+            )
 
     @staticmethod
     def forward_decode(
@@ -812,27 +880,128 @@ class _PagedAttention:
         blocksparse_head_sliding_step: int = 0
         block_size = value_cache.shape[3]
 
-        ops.paged_attention_v1(
-            output,
-            query,
-            key_cache,
-            value_cache,
-            num_kv_heads,
-            scale,
-            block_tables,
-            context_lens,
-            block_size,
-            max_context_len,
-            alibi_slopes,
-            kv_cache_dtype,
-            k_scale,
-            v_scale,
-            tp_rank,
-            blocksparse_local_blocks,
-            blocksparse_vert_stride,
-            blocksparse_block_size,
-            blocksparse_head_sliding_step,
-        )
+        if key_cache.device.type == "cpu":
+            # Vectorized implementation to utilize more CPU cores
+            # Loop overhead was killing performance and serializing execution.
+            
+            num_seqs = query.shape[0]
+            num_heads = query.shape[1]
+            head_size = query.shape[2]
+            block_size = key_cache.shape[-2]
+            
+            # Determine maximum context length in this batch for padding
+            # context_lens is [num_seqs]
+            max_ctx = context_lens.max().item()
+            
+            # Prepare batched Query, Key, Value
+            # Query: [num_seqs, num_heads, 1, head_size]
+            batched_query = query.unsqueeze(2) # Insert seq_len=1 dim
+            
+            # We need to gather Keys and Values into contiguous tensors for batched SDPA
+            # Shape: [num_seqs, num_kv_heads, max_ctx, head_size]
+            # This gathering is still seemingly iterating, but we can do it faster?
+            # Or we accept the gather cost but gain on the massive matmul.
+            
+            batched_key = torch.zeros(num_seqs, num_kv_heads, max_ctx, head_size, dtype=key_cache.dtype, device=key_cache.device)
+            batched_value = torch.zeros(num_seqs, num_kv_heads, max_ctx, head_size, dtype=value_cache.dtype, device=value_cache.device)
+            
+            # Create attention mask for variable lengths
+            # Mask shape: [num_seqs, 1, 1, max_ctx] (broadcasts over heads and query len)
+            # 0 for keep, -inf for discard? SDPA expects boolean or float mask.
+            # SDPA attn_mask: generic mask or is_causal.
+            # We want to mask out padding positions > context_len.
+            
+            # Create mask: [num_seqs, max_ctx]
+            indices = torch.arange(max_ctx, device=key_cache.device).unsqueeze(0).expand(num_seqs, -1)
+            # valid if index < context_len
+            mask = indices < context_lens.unsqueeze(1) # [num_seqs, max_ctx] boolean
+            
+            # To use in SDPA, we need to handle the logical masking. 
+            # SDPA `attn_mask` usage:
+            # If boolean, True = keep? No, check doc. 
+            # "If a boolean mask is provided, True indicates that the element Should take part in attention." -> Yes.
+            # Shape requirements: [Batch, Heads, Q_len, KV_len] or broadcastable.
+            # Here [Batch, 1, 1, Max_KV_len] works.
+            attn_mask = mask.view(num_seqs, 1, 1, max_ctx)
+            
+            
+            # Gathering Loop - optimize later if still slow, but better than loop-of-SDPA
+            # We can theoretically vectorize this using gather if we construct huge indices, 
+            # but simple filling might be acceptably fast in C-level tensor setitem if optimal.
+            
+            # Let's try to minimize Python overhead in gathering.
+            for i in range(num_seqs):
+                ctx_len = context_lens[i].item()
+                seq_blocks = block_tables[i]
+                
+                # How many blocks needed?
+                num_blocks = (ctx_len + block_size - 1) // block_size
+                valid_ids = seq_blocks[:num_blocks]
+                
+                # Copy from cache
+                # k_blocks: [NB, H, D//x, B, x]
+                # v_blocks: [NB, H, D, B]
+                
+                # Slicing is fast reference.
+                sub_k = key_cache[valid_ids]
+                sub_v = value_cache[valid_ids]
+                
+                # Process shapes
+                # K: [NB, H, D//x, B, x] -> ... -> [Total_Len_Padded, H, D]
+                # V: [NB, H, D, B] -> ... -> [Total_Len_Padded, H, D]
+                
+                # We can optimize these permutes out of the loop? 
+                # No, variable length.
+                
+                _k = sub_k.permute(0, 3, 1, 2, 4).reshape(-1, num_kv_heads, head_size)[:ctx_len]
+                _v = sub_v.permute(0, 3, 1, 2).reshape(-1, num_kv_heads, head_size)[:ctx_len]
+                
+                batched_key[i, :, :ctx_len, :] = _k.permute(1, 0, 2) # [H, L, D]
+                batched_value[i, :, :ctx_len, :] = _v.permute(1, 0, 2)
+            
+            # Handle GQA/MQA by repeating KV heads
+            if num_kv_heads != num_heads:
+                # [Batch, KV_Heads, L, D] -> [Batch, Heads, L, D]
+                batched_key = batched_key.repeat_interleave(num_heads // num_kv_heads, dim=1)
+                batched_value = batched_value.repeat_interleave(num_heads // num_kv_heads, dim=1)
+            
+            
+            # Permute for SDPA: [Batch, Heads, Length, Dim]
+            # batched_query: [B, H, 1, D] - Ready
+            # batched_key: [B, H, L, D] - Ready
+            # batched_value: [B, H, L, D] - Ready
+            
+            # Perform single batched attention
+            output_tensor = torch.nn.functional.scaled_dot_product_attention(
+                batched_query, batched_key, batched_value, attn_mask=attn_mask
+            ) # Output: [B, H, 1, D]
+            
+            # Flatten to [B, H, D] and copy to output
+            # output is [num_seqs, num_heads, head_size]
+            output[:] = output_tensor.squeeze(2)
+
+        else:
+             ops.paged_attention_v1(
+                output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                context_lens,
+                block_size,
+                max_context_len,
+                alibi_slopes,
+                kv_cache_dtype,
+                k_scale,
+                v_scale,
+                tp_rank,
+                blocksparse_local_blocks,
+                blocksparse_vert_stride,
+                blocksparse_block_size,
+                blocksparse_head_sliding_step,
+            )
 
     @staticmethod
     def copy_blocks(

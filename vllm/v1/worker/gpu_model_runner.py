@@ -1434,6 +1434,15 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
             kv_connector_output=kv_connector_output,
         )
 
+    @contextmanager
+    def set_model_input(
+        self,
+        input_ids: torch.Tensor,
+        positions: torch.Tensor,
+        intermediate_tensors: Optional[IntermediateTensors] = None,
+    ):
+        yield
+
     @torch.inference_mode()
     def execute_model(
         self,
