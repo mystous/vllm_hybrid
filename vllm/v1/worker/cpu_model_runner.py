@@ -11,6 +11,9 @@ from vllm.logger import init_logger
 from vllm.model_executor.model_loader import get_model
 from vllm.v1.attention.backends.cpu_attn import TorchSDPAMetadataBuilderV1
 from vllm.v1.worker.gpu_model_runner import GPUModelRunner
+from vllm.platforms.cpu import CpuPlatform
+import vllm.attention.selector
+
 
 if TYPE_CHECKING:
     from vllm.v1.core.sched.output import SchedulerOutput
@@ -41,6 +44,8 @@ class CPUModelRunner(GPUModelRunner):
         Args:
             scheduler_output: The scheduler output.
         """
+
+
         # Attention free models have zero kv_cache_goups, however models
         # like Mamba are also attention free but use the kv_cache for
         # keeping its internal state. This is why we check the number
@@ -53,8 +58,8 @@ class CPUModelRunner(GPUModelRunner):
             raise ValueError("Multiple KVCacheGroups is not"
                              "currently supported with CPU model runner.")
 
-        assert type(self.attn_groups[0]
-                    [0].metadata_builder) is TorchSDPAMetadataBuilderV1
+        assert isinstance(self.attn_groups[0]
+                    [0].metadata_builder, TorchSDPAMetadataBuilderV1)
 
         self.attn_groups[0][0].metadata_builder.reorder_batch(
             self.input_batch, scheduler_output)
@@ -84,17 +89,24 @@ class CPUModelRunner(GPUModelRunner):
                     replace_tensor(block_table, k, k[:-4])
 
     def load_model(self, **kwargs) -> None:
-        print(f"DEBUG_AG: CPUModelRunner.load_model start", flush=True)
         # Override device in config to ensure model loads on CPU
         original_device = self.vllm_config.device_config.device
         self.vllm_config.device_config.device = self.device
+
+        # Patch current_platform in selector to force correct backend
+        original_platform = vllm.attention.selector.current_platform
+        vllm.attention.selector.current_platform = CpuPlatform
+        vllm.attention.selector._cached_get_attn_backend.cache_clear()
+
         try:
             self.model = get_model(vllm_config=self.vllm_config)
         finally:
             self.vllm_config.device_config.device = original_device
+            # Restore original platform and clear cache again
+            vllm.attention.selector.current_platform = original_platform
+            vllm.attention.selector._cached_get_attn_backend.cache_clear()
 
         self.model.to(self.device)
-        print(f"DEBUG_AG: CPUModelRunner.load_model end", flush=True)
 
         if self.lora_config:
             self.model = self.load_lora_model(self.model, self.model_config,

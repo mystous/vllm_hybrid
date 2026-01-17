@@ -73,6 +73,21 @@ class CPUWorker(Worker):
 
         self.parallel_config.disable_custom_all_reduce = True
 
+        # Override the default 1-thread limit set by multiproc_worker_utils
+        # This is critical for CPUWorker performance in heterogeneous setups.
+        current_threads = torch.get_num_threads()
+        if current_threads < 4:
+            import multiprocessing
+            try:
+                # Heuristic: use physical cores if possible, or substantial fraction of logical
+                target_threads = max(8, multiprocessing.cpu_count() - 2)
+            except Exception:
+                target_threads = 8
+            
+            torch.set_num_threads(target_threads)
+            logger.info(f"CPUWorker: Overrode low thread count ({current_threads}) to {target_threads} for performance.")
+
+
     def init_device(self):
         # Setup OpenMP threads affinity.
         omp_cpuids = envs.VLLM_CPU_OMP_THREADS_BIND
