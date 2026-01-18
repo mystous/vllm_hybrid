@@ -21,7 +21,7 @@ GPU 메모리가 부족한 상황에서도 CPU의 방대한 RAM을 활용하여 
 
 ## Architecture (아키텍처)
 
-vLLM Hybrid는 기존 GPU 클러스터 구조에 유연한 **CPU 워커**를 통합하였습니다.
+vLLM Hybrid는 기존 GPU 클러스터 구조에 유연한 **CPU 워커**를 통합하였습니다. 자세한 내용은 **[System Overview](./analysis/overview.md)** 문서를 참고하세요.
 
 ```mermaid
 graph TD
