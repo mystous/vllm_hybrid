@@ -137,11 +137,9 @@ cmake --build --preset release --target install
 ```bash
 # Example: 1 GPU + 1 CPU Worker (Pipeline Parallelism = 2)
 export VLLM_HETEROGENEOUS_PLATFORM=1
+export OMP_NUM_THREADS=20
 
-python -m vllm.entrypoints.openai.api_server \
-    --model <YOUR_MODEL> \
-    --pipeline-parallel-size 2 \
-    --device-type heterogeneous
+python -m vllm.entrypoints.openai.api_server --model <YOUR_MODEL> --device heterogeneous --tensor-parallel-size 1 --pipeline-parallel-size 2 --trust-remote-code
 ```
 
 ### Benchmarking
@@ -149,15 +147,7 @@ python -m vllm.entrypoints.openai.api_server \
 서버가 실행 중인 상태에서 다음 명령어로 추론 성능을 측정할 수 있습니다.
 
 ```bash
-python benchmarks/benchmark_serving.py \
-    --backend openai \
-    --base-url http://localhost:8000 \
-    --model <YOUR_MODEL> \
-    --dataset-name random \
-    --num-prompts 500 \
-    --random-input-len 128 \
-    --random-output-len 128 \
-    --no-stream
+python benchmarks/benchmark_serving.py --backend openai --base-url http://localhost:8000 --model <YOUR_MODEL> --dataset-name random --num-prompts 500 --random-input-len 128 --random-output-len 128 --no-stream
 ```
 
 ## Limitations & Known Issues
