@@ -216,7 +216,7 @@ cmake --build --preset release --target install
 텍스트 생성 테스트
 
 ```bash
-python examples/offline_inference.py
+python examples/offline_inference/basic/basic.py
 ```
 
 ## 요약 프로세스
