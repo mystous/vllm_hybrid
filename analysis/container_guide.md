@@ -219,6 +219,61 @@ cmake --build --preset release --target install
 python examples/offline_inference/basic/basic.py
 ```
 
+## 6. 컨테이너 이미지 저장 (Commit)
+
+모든 테스트가 완료되면 현재 컨테이너 상태를 새로운 이미지로 저장하여, 나중에 다시 빌드할 필요 없이 바로 사용할 수 있습니다.
+
+**호스트 머신**에서 다음 명령어를 실행합니다.
+
+실행 중인 컨테이너 확인 (ID 또는 이름)
+
+```bash
+sudo docker ps
+```
+
+컨테이너 상태를 이미지로 커밋
+사용법: sudo docker commit <컨테이너이름_또는_ID> <새로운_이미지_이름>:<태그>
+
+```bash
+sudo docker commit vllm_container vllm_hybrid:v1.0
+```
+
+이제 `vllm_hybrid:v1.0` 이미지를 사용하여 언제든지 테스트 환경을 다시 실행할 수 있습니다.
+
+## 7. 커밋된 이미지 검증 (Verification)
+
+저장된 이미지가 정상적으로 동작하는지 확인합니다.
+
+새로운 컨테이너 실행:
+
+```bash
+sudo docker run -it \
+    --gpus all \
+    --shm-size=16g \
+    --name vllm_test_v1 \
+    vllm_hybrid:v1.0
+```
+
+컨테이너 내부에서 테스트 실행 (이미 모든 빌드가 완료된 상태임):
+
+가상 환경 활성화
+
+```bash
+source vllm_dev_prj/bin/activate
+```
+
+프로젝트 디렉토리 이동
+
+```bash
+cd vllm_hybrid
+```
+
+테스트 실행
+
+```bash
+python examples/offline_inference/basic/basic.py
+```
+
 ## 요약 프로세스
 
 1. **호스트**: `docker build ...` & `docker run ...`
@@ -229,3 +284,5 @@ python examples/offline_inference/basic/basic.py
 6. **컨테이너**: `python tools/generate_cmake_presets.py`
 7. **컨테이너**: `cmake --preset release`
 8. **컨테이너**: `cmake --build --preset release --target install`
+9. **호스트**: `docker commit ...` (상태 저장)
+10. **호스트**: `docker run vllm_hybrid:v1.0` (검증)
