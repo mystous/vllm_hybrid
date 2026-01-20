@@ -98,7 +98,9 @@ sudo docker run -it \
 ```bash
 # 가상 환경 생성 (Python 3.12)
 uv venv vllm_dev_prj --python 3.12 --seed
+```
 
+```bash
 # 가상 환경 활성화
 source vllm_dev_prj/bin/activate
 ```
@@ -108,7 +110,9 @@ source vllm_dev_prj/bin/activate
 ```bash
 # GitHub에서 소스 클론
 git clone https://github.com/mystous/vllm_hybrid.git
+```
 
+```bash
 # 프로젝트 디렉토리로 이동
 cd vllm_hybrid
 ```
@@ -120,7 +124,9 @@ cd vllm_hybrid
 ```bash
 # 기본 의존성 및 torch 설치 (Precompiled 사용)
 VLLM_USE_PRECOMPILED=1 uv pip install -U -e . --torch-backend=auto
+```
 
+```bash
 # 빌드 의존성 추가 설치
 uv pip install -r requirements/build.txt --torch-backend=auto
 ```
@@ -174,13 +180,19 @@ uv pip install -r requirements/build.txt --torch-backend=auto
 ```bash
 # CMake Preset 생성
 python tools/generate_cmake_presets.py
+```
 
+```bash
 # (선택 사항) 생성된 Preset 확인 또는 수정
 vi CMakeUserPresets.json
+```
 
+```bash
 # Release 프리셋으로 CMake 구성
 cmake --preset release
+```
 
+```bash
 # 빌드 및 설치 실행
 cmake --build --preset release --target install
 ```
