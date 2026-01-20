@@ -95,25 +95,29 @@ sudo docker run -it \
 
 `uv`를 사용하여 독립적인 가상 환경을 생성합니다.
 
+가상 환경 생성 (Python 3.12)
+
 ```bash
-# 가상 환경 생성 (Python 3.12)
 uv venv vllm_dev_prj --python 3.12 --seed
 ```
 
+가상 환경 활성화
+
 ```bash
-# 가상 환경 활성화
 source vllm_dev_prj/bin/activate
 ```
 
 ### 5.2. 소스 코드 다운로드
 
+GitHub에서 소스 클론
+
 ```bash
-# GitHub에서 소스 클론
 git clone https://github.com/mystous/vllm_hybrid.git
 ```
 
+프로젝트 디렉토리로 이동
+
 ```bash
-# 프로젝트 디렉토리로 이동
 cd vllm_hybrid
 ```
 
@@ -121,13 +125,15 @@ cd vllm_hybrid
 
 빌드 시간 단축을 위해 `VLLM_USE_PRECOMPILED=1` 옵션을 사용하고, 의존성을 설치합니다.
 
+기본 의존성 및 torch 설치 (Precompiled 사용)
+
 ```bash
-# 기본 의존성 및 torch 설치 (Precompiled 사용)
 VLLM_USE_PRECOMPILED=1 uv pip install -U -e . --torch-backend=auto
 ```
 
+빌드 의존성 추가 설치
+
 ```bash
-# 빌드 의존성 추가 설치
 uv pip install -r requirements/build.txt --torch-backend=auto
 ```
 
@@ -177,23 +183,27 @@ uv pip install -r requirements/build.txt --torch-backend=auto
 
 이제 수동으로 CMake를 구성하고 빌드합니다.
 
+CMake Preset 생성
+
 ```bash
-# CMake Preset 생성
 python tools/generate_cmake_presets.py
 ```
 
+(선택 사항) 생성된 Preset 확인 또는 수정
+
 ```bash
-# (선택 사항) 생성된 Preset 확인 또는 수정
 vi CMakeUserPresets.json
 ```
 
+Release 프리셋으로 CMake 구성
+
 ```bash
-# Release 프리셋으로 CMake 구성
 cmake --preset release
 ```
 
+빌드 및 설치 실행
+
 ```bash
-# 빌드 및 설치 실행
 cmake --build --preset release --target install
 ```
 
@@ -203,8 +213,9 @@ cmake --build --preset release --target install
 
 빌드 완료 후 정상 동작을 확인합니다.
 
+텍스트 생성 테스트
+
 ```bash
-# 텍스트 생성 테스트
 python examples/offline_inference.py
 ```
 
