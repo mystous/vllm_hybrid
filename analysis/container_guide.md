@@ -55,8 +55,8 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTH
     update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION} && \
     update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1
 
-# pip 업그레이드 및 uv 설치
-RUN python3 -m pip install --upgrade pip && \
+# pip 및 빌드 도구 설치 (get-pip.py 사용)
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3 && \
     python3 -m pip install packaging setuptools wheel uv
 
 # 작업 디렉토리 설정
