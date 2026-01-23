@@ -26,7 +26,7 @@ from vllm.platforms import current_platform
 from vllm.sequence import (ExecuteModelRequest, IntermediateTensors,
                            SequenceGroupMetadata, SequenceGroupMetadataDelta)
 from vllm.utils import (GiB_bytes, MemorySnapshot, bind_kv_cache,
-                        memory_profiling)
+                        get_cpu_memory, memory_profiling)
 from vllm.worker.cache_engine import CacheEngine
 from vllm.worker.enc_dec_model_runner import EncoderDecoderModelRunner
 from vllm.worker.model_runner import GPUModelRunnerBase, ModelRunner
@@ -398,6 +398,21 @@ class Worker(LocalOrDistributedWorkerBase):
         if cache_block_size == 0:
             num_gpu_blocks = 0
             num_cpu_blocks = 0
+        elif is_cpu_worker:
+            # For CPU worker, we use a significant portion of system RAM as KVCache.
+            # We divide the total budget by the number of CPU workers.
+            gpu_count = torch.cuda.device_count()
+            cpu_worker_count = self.vllm_config.parallel_config.world_size - gpu_count
+            total_cpu_memory = get_cpu_memory()
+            
+            # Use 80% of total RAM for KVCache budget
+            cpu_kv_budget = (total_cpu_memory * self.cache_config.gpu_memory_utilization) / cpu_worker_count
+            
+            num_gpu_blocks = int(cpu_kv_budget // cache_block_size)
+            num_cpu_blocks = 0 # No need for additional swap since it's already in RAM
+            
+            logger.info(f"CPU Worker (Rank {self.rank}) detected. Allocating {num_gpu_blocks} blocks "
+                        f"({(num_gpu_blocks * cache_block_size / GiB_bytes):.2f} GiB) for KVCache from system RAM.")
         else:
             num_gpu_blocks = int(available_kv_cache_memory // cache_block_size)
             num_cpu_blocks = int(self.cache_config.swap_space_bytes //
