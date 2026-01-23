@@ -198,7 +198,12 @@ class Worker(LocalOrDistributedWorkerBase):
             logger.warning("os.sched_setaffinity not available, skipping NUMA binding.")
             return
 
-        cpulist_path = f"/sys/devices/system/node/node{node_id}/cpulist"
+        node_base_path = "/sys/devices/system/node"
+        if not os.path.exists(node_base_path):
+            logger.warning(f"NUMA directory {node_base_path} not found. Skipping pinning.")
+            return
+
+        cpulist_path = f"{node_base_path}/node{node_id}/cpulist"
         cpus = []
         
         try:
@@ -213,23 +218,14 @@ class Worker(LocalOrDistributedWorkerBase):
                         cpus.extend(range(start, end + 1))
                     else:
                         cpus.append(int(part))
-            else:
-                 # Fallback heuristic if sysfs is missing (e.g. non-NUMA or container)
-                logger.warning(f"NUMA topology file {cpulist_path} not found. Falling back to simple interlaced heuristic.")
-                total_cpus = os.cpu_count() or 1
-                # Assuming 2 nodes, even/odd split or half split might be wrong, but simple half split is common for sockets
-                # But interleaved is also common. Let's stick to half split as fallback.
-                half = total_cpus // 2
-                if node_id == 0:
-                    cpus = list(range(0, half))
+                
+                if cpus:
+                    os.sched_setaffinity(0, cpus)
+                    logger.info(f"Process bound to NUMA node {node_id} (CPUs: {len(cpus)} allocated)")
                 else:
-                    cpus = list(range(half, total_cpus))
-
-            if cpus:
-                os.sched_setaffinity(0, cpus)
-                logger.info(f"Process bound to NUMA node {node_id} (CPUs: {len(cpus)} allocated)")
+                    logger.warning(f"No CPUs found for NUMA node {node_id}")
             else:
-                logger.warning(f"No CPUs found for NUMA node {node_id}")
+                logger.warning(f"NUMA node file {cpulist_path} not found. Skipping pinning for node {node_id}.")
 
         except Exception as e:
             logger.warning(f"Failed to bind to NUMA node {node_id}: {e}")
@@ -260,7 +256,8 @@ class Worker(LocalOrDistributedWorkerBase):
             self.baseline_snapshot = None # No snapshot for CPU yet?
         elif self.device_config.device_type == "heterogeneous":
              # Heterogeneous initialization logic
-             if self.local_rank < torch.cuda.device_count():
+             gpu_count = torch.cuda.device_count()
+             if self.local_rank < gpu_count:
                  # Assign to CUDA
                  os.environ["TORCH_NCCL_AVOID_RECORD_STREAMS"] = "1"
                  os.environ.pop("NCCL_ASYNC_ERROR_HANDLING", None)
@@ -272,22 +269,30 @@ class Worker(LocalOrDistributedWorkerBase):
                  torch.cuda.reset_peak_memory_stats()
                  self.baseline_snapshot = MemorySnapshot()
              else:
-
                  # Assign to CPU with NUMA pinning
                  self.device = torch.device("cpu")
                  self.baseline_snapshot = None
                  
-                 gpu_count = torch.cuda.device_count()
                  cpu_rank_index = self.local_rank - gpu_count
                  
-                 # Rank gpu_count -> Node 0
-                 # Rank gpu_count + 1 -> Node 1
+                 # 1. Environment Detection (Desktop vs Server)
+                 node1_path = "/sys/devices/system/node/node1"
+                 is_server = os.path.exists(node1_path)
+                 
+                 # 2. Validation
+                 if is_server:
+                     if cpu_rank_index >= 2:
+                         raise ValueError(f"Server mode supports a maximum of 2 CPU workers. Found {cpu_rank_index + 1}.")
+                 else:
+                     if cpu_rank_index >= 1:
+                         raise ValueError(f"Desktop mode supports a maximum of 1 CPU worker. Found {cpu_rank_index + 1}.")
+
+                 # 3. Pinning
                  if cpu_rank_index == 0:
                      self._bind_to_numa_node(0)
                  elif cpu_rank_index == 1:
+                     # Guaranteed to be server mode due to validation above
                      self._bind_to_numa_node(1)
-                 else:
-                     logger.warning(f"Extra CPU rank {self.local_rank} not pinned to specific NUMA node.")
 
                  # Load CPU platform specific env vars if needed?
                  # Assuming implicit CPU config is fine for now
