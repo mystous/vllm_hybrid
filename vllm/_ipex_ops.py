@@ -11,9 +11,18 @@ logger = init_logger(__name__)
 
 try:
     import intel_extension_for_pytorch as ipex
-except (ImportError, AttributeError, Exception) as e:
+except ImportError:
     ipex = None
-    logger.warning("IPEX import failed: %s", str(e))
+    # IPEX not installed - this is normal for non-Intel systems
+except (AttributeError, Exception) as e:
+    ipex = None
+    # Known IPEX bugs: "module 'os' has no attribute 'exit'" or version mismatch
+    # These are expected on systems where IPEX is incompatible with PyTorch version
+    error_str = str(e)
+    if "os" in error_str or "exit" in error_str or "version" in error_str.lower():
+        logger.debug("IPEX unavailable due to compatibility issue: %s", error_str)
+    else:
+        logger.debug("IPEX import failed: %s", error_str)
 
 
 class ipex_ops:
