@@ -84,24 +84,41 @@ VLLM_USE_PRECOMPILED=1 uv pip install -U -e . --torch-backend=auto
 uv pip install -r requirements/build.txt --torch-backend=auto
 ```
 
-#### 2-1. Intel IPEX 설치 (선택적, CPU 최적화용)
+#### 2-1. 버전 호환성 (중요!)
+
+PyTorch, torchvision, IPEX는 반드시 버전을 맞춰야 합니다.
+
+| PyTorch | torchvision | IPEX | CUDA |
+|---------|-------------|------|------|
+| **2.8.0** | **0.23.0** | **2.8.0** | 12.1/12.4 |
+| 2.7.x | 0.22.x | 2.7.x | 12.1/12.4 |
+| 2.6.x | 0.21.x | 2.6.x | 12.1 |
+
+```bash
+# 버전 불일치 시 오류 예시:
+# - RuntimeError: operator torchvision::nms does not exist
+# - AttributeError: module 'os' has no attribute 'exit'
+```
+
+#### 2-2. Intel IPEX 설치 (선택적, CPU 최적화용)
 
 Intel Xeon 서버에서 CPU 워커 성능을 최적화하려면 Intel Extension for PyTorch (IPEX)를 설치합니다.
 
 ```bash
-# PyTorch 버전에 맞는 IPEX 설치
-pip install intel-extension-for-pytorch
-
-# 또는 특정 버전 지정 (PyTorch 2.3 기준)
-pip install intel-extension-for-pytorch==2.3.0
+# PyTorch 2.8.0 + CUDA 12.1 기준 (버전 매칭 필수!)
+pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu121
+pip install torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu121
+pip install intel-extension-for-pytorch==2.8.0
 
 # 설치 확인
-python -c "import intel_extension_for_pytorch as ipex; print(f'IPEX version: {ipex.__version__}')"
+python -c "import torch; print(f'PyTorch: {torch.__version__}')"
+python -c "import torchvision; print(f'torchvision: {torchvision.__version__}')"
+python -c "import intel_extension_for_pytorch as ipex; print(f'IPEX: {ipex.__version__}')"
 ```
 
 > **Note**: IPEX는 선택적 의존성입니다. 미설치 시 표준 PyTorch로 자동 fallback됩니다.
 
-#### 2-2. NUMA 지원 (멀티소켓 서버용)
+#### 2-3. NUMA 지원 (멀티소켓 서버용)
 
 멀티소켓 Intel Xeon 서버에서 NUMA 최적화를 활성화하려면:
 

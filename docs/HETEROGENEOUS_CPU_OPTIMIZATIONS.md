@@ -771,7 +771,44 @@ mamba_layers = get_layers_from_vllm_config(self.vllm_config, MambaBase) \
 
 ---
 
-## 11. 테스트 방법
+## 11. 의존성 버전 호환성
+
+### PyTorch / torchvision / IPEX 버전 매칭
+
+| PyTorch | torchvision | IPEX | CUDA |
+|---------|-------------|------|------|
+| **2.8.0** | **0.23.0** | **2.8.0** | 12.1/12.4 |
+| 2.7.x | 0.22.x | 2.7.x | 12.1/12.4 |
+| 2.6.x | 0.21.x | 2.6.x | 12.1 |
+| 2.5.x | 0.20.x | 2.5.x | 12.1 |
+
+### 설치 명령어 (PyTorch 2.8.0 + CUDA 12.1 기준)
+
+```bash
+# PyTorch + torchvision (버전 매칭 필수)
+pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu121
+pip install torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu121
+
+# IPEX (선택적, Intel CPU 최적화용)
+pip install intel-extension-for-pytorch==2.8.0
+```
+
+### 버전 불일치 오류 예시
+
+```
+# torchvision 버전 불일치
+RuntimeError: operator torchvision::nms does not exist
+
+# IPEX 버전 불일치
+ERROR! Intel® Extension for PyTorch* needs to work with PyTorch 2.8.*
+AttributeError: module 'os' has no attribute 'exit'
+```
+
+**해결**: 위 버전 매칭 표에 따라 재설치
+
+---
+
+## 12. 테스트 방법
 
 ### 서버 실행
 ```bash
@@ -811,6 +848,7 @@ print(f'NUMA: {features.num_sockets} sockets')
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-02-03 | 문서에 PyTorch/torchvision/IPEX 버전 호환성 표 추가 |
 | 2026-02-03 | `platforms/__init__.py`: heterogeneous 플랫폼 우선순위 조정 |
 | 2026-02-03 | `_ipex_ops.py`: IPEX import 예외 처리 강화 |
 | 2026-02-03 | `attention/layer.py`: CPU 텐서 런타임 디바이스 체크 추가 |
