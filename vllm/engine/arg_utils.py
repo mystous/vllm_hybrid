@@ -404,6 +404,20 @@ class EngineArgs:
 
     speculative_config: Optional[Dict[str, Any]] = None
 
+    # Hybrid CPU+GPU execution
+    hybrid_mode: str = "none"
+    """Hybrid execution mode: 'none', 'parallel-batch', 'moe-hybrid'."""
+    hybrid_cpu_ratio: Optional[float] = None
+    """CPU batch ratio for parallel-batch mode (None for auto-profiling)."""
+    hybrid_cpu_threads: int = 48
+    """Number of CPU threads for hybrid execution."""
+
+    hybrid_numa_aware: bool = True
+    """Enable NUMA-aware memory allocation and thread binding."""
+
+    hybrid_numa_node: Optional[int] = None
+    """Bind to specific NUMA node (None for auto-select)."""
+
     show_hidden_metrics_for_version: Optional[str] = \
         ObservabilityConfig.show_hidden_metrics_for_version
     otlp_traces_endpoint: Optional[str] = \
@@ -864,6 +878,54 @@ class EngineArgs:
                             help='[DEPRECATED] Prompt adapter has been '
                             'removed. Setting this flag to True or False'
                             ' has no effect on vLLM behavior.')
+
+        # Hybrid CPU+GPU execution arguments
+        hybrid_group = parser.add_argument_group(
+            title="Hybrid Execution Options",
+            description="Options for CPU+GPU hybrid execution."
+        )
+        hybrid_group.add_argument(
+            '--hybrid-mode',
+            type=str,
+            default="none",
+            choices=["none", "parallel-batch", "moe-hybrid"],
+            help="Hybrid execution mode: "
+                 "'none' (default), "
+                 "'parallel-batch' (CPU/GPU process different batches), "
+                 "'moe-hybrid' (MoE expert offload, not yet implemented)."
+        )
+        hybrid_group.add_argument(
+            '--hybrid-cpu-ratio',
+            type=float,
+            default=None,
+            help="CPU batch ratio for parallel-batch mode (0.0-1.0). "
+                 "If not set, auto-profiling is used."
+        )
+        hybrid_group.add_argument(
+            '--hybrid-cpu-threads',
+            type=int,
+            default=48,
+            help="Number of CPU threads for hybrid execution."
+        )
+        hybrid_group.add_argument(
+            '--hybrid-numa-aware',
+            action='store_true',
+            default=True,
+            help="Enable NUMA-aware memory allocation and thread binding. "
+                 "(default: True)"
+        )
+        hybrid_group.add_argument(
+            '--no-hybrid-numa-aware',
+            action='store_false',
+            dest='hybrid_numa_aware',
+            help="Disable NUMA-aware optimization."
+        )
+        hybrid_group.add_argument(
+            '--hybrid-numa-node',
+            type=int,
+            default=None,
+            help="Bind to specific NUMA node (default: auto-select based on rank)."
+        )
 
         return parser
 
@@ -1357,6 +1419,16 @@ class EngineArgs:
             collect_detailed_traces=self.collect_detailed_traces,
         )
 
+        # Create HybridConfig
+        from vllm.config import HybridConfig
+        hybrid_config = HybridConfig(
+            mode=self.hybrid_mode,
+            cpu_ratio=self.hybrid_cpu_ratio,
+            cpu_num_threads=self.hybrid_cpu_threads,
+            numa_aware=self.hybrid_numa_aware,
+            numa_bind_node=self.hybrid_numa_node,
+        )
+
         config = VllmConfig(
             model_config=model_config,
             cache_config=cache_config,
@@ -1371,6 +1443,7 @@ class EngineArgs:
             compilation_config=self.compilation_config,
             kv_transfer_config=self.kv_transfer_config,
             kv_events_config=self.kv_events_config,
+            hybrid_config=hybrid_config,
             additional_config=self.additional_config,
         )
 

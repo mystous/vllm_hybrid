@@ -4578,6 +4578,79 @@ class CompilationConfig:
             ]
 
 
+# =============================================================================
+# Hybrid Execution Configuration (CPU+GPU)
+# =============================================================================
+
+HybridMode = Literal["none", "parallel-batch", "moe-hybrid"]
+
+
+@config
+@dataclass
+class HybridConfig:
+    """CPU+GPU 하이브리드 실행 설정.
+
+    - none: 하이브리드 비활성화 (기본값)
+    - parallel-batch: CPU/GPU가 독립적으로 배치 처리 (APEX 방식)
+    - moe-hybrid: MoE Expert Offload + N-gram (추후 구현)
+    """
+
+    mode: HybridMode = "none"
+    """하이브리드 실행 모드."""
+
+    # parallel-batch (APEX) 설정
+    cpu_ratio: Optional[float] = None
+    """CPU 배치 비율 (None이면 자동 프로파일링)."""
+
+    cpu_num_threads: int = 48
+    """CPU 워커 스레드 수."""
+
+    cpu_dtype: str = "bfloat16"
+    """CPU 모델 데이터 타입 (bfloat16, float16, int8)."""
+
+    auto_profile: bool = True
+    """자동 프로파일링으로 최적 CPU/GPU 비율 결정."""
+
+    profile_num_batches: int = 5
+    """프로파일링 배치 수."""
+
+    # moe-hybrid 설정 (추후 구현)
+    # NUMA 최적화 설정
+    numa_aware: bool = True
+    """NUMA-aware 메모리 할당 및 스레드 바인딩 활성화."""
+
+    numa_bind_node: Optional[int] = None
+    """특정 NUMA 노드에 바인딩 (None이면 자동 선택)."""
+
+    # moe-hybrid 설정 (추후 구현)
+    moe_num_gpu_experts: int = 8
+    """GPU에 상주할 MoE expert 수."""
+
+    ngram_enabled: bool = False
+    """N-gram speculative decoding 활성화."""
+
+    ngram_n: int = 3
+    """N-gram 크기."""
+
+    ngram_num_speculative_tokens: int = 5
+    """추측할 토큰 수."""
+
+    def __post_init__(self):
+        if self.mode == "parallel-batch":
+            if self.cpu_ratio is not None:
+                if not 0.0 < self.cpu_ratio < 1.0:
+                    raise ValueError(
+                        f"cpu_ratio must be between 0 and 1, got {self.cpu_ratio}"
+                    )
+                self.auto_profile = False
+        elif self.mode == "moe-hybrid":
+            logger.warning("moe-hybrid mode is not yet implemented, using dummy")
+
+    def is_enabled(self) -> bool:
+        """하이브리드 모드가 활성화되어 있는지 확인."""
+        return self.mode != "none"
+
+
 @config
 @dataclass(config=ConfigDict(arbitrary_types_allowed=True))
 class VllmConfig:
@@ -4629,6 +4702,8 @@ class VllmConfig:
     """The configurations for distributed KV cache transfer."""
     kv_events_config: Optional[KVEventsConfig] = None
     """The configurations for event publishing."""
+    hybrid_config: HybridConfig = field(default_factory=HybridConfig)
+    """Hybrid CPU+GPU execution configuration."""
     # some opaque config, only used to provide additional information
     # for the hash computation, mainly used for testing, debugging or out of
     # tree config registration.
