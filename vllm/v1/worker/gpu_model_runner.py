@@ -31,7 +31,13 @@ from vllm.distributed.parallel_state import (
     prepare_communication_buffer_for_model)
 from vllm.forward_context import DPMetadata, set_forward_context
 from vllm.logger import init_logger
-from vllm.model_executor.layers.mamba.mamba_mixer2 import MambaBase
+# Lazy import MambaBase to avoid Triton initialization on CPU-only workers
+try:
+    from vllm.model_executor.layers.mamba.mamba_mixer2 import MambaBase
+    _MAMBA_AVAILABLE = True
+except (ImportError, RuntimeError):
+    MambaBase = None  # type: ignore
+    _MAMBA_AVAILABLE = False
 from vllm.model_executor.layers.rotary_embedding import MRotaryEmbedding
 from vllm.model_executor.model_loader import TensorizerLoader, get_model_loader
 from vllm.model_executor.models.interfaces import (is_mixture_of_experts,
@@ -49,7 +55,11 @@ from vllm.tasks import GenerationTask, PoolingTask, SupportedTask
 from vllm.utils import (STR_DTYPE_TO_TORCH_DTYPE, DeviceMemoryProfiler,
                         GiB_bytes, LazyLoader, check_use_alibi, get_dtype_size,
                         is_pin_memory_available, round_up, supports_dynamo)
-from vllm.v1.attention.backends.mamba_selectors import get_mamba_attn_backend
+# Lazy import Mamba selectors to avoid Triton initialization on CPU-only workers
+try:
+    from vllm.v1.attention.backends.mamba_selectors import get_mamba_attn_backend
+except (ImportError, RuntimeError):
+    get_mamba_attn_backend = None  # type: ignore
 from vllm.v1.attention.backends.utils import (
     AttentionCGSupport, AttentionMetadataBuilder, CommonAttentionMetadata,
     make_kv_sharing_fast_prefill_attention_metadata,
@@ -2632,6 +2642,8 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
             # TODO(lucas): move `get_mamba_attn_backend` into the mamba
             # layers like above
             elif isinstance(kv_cache_spec, MambaSpec):
+                if get_mamba_attn_backend is None:
+                    raise RuntimeError("Mamba backend not available (Triton/CUDA required)")
                 attn_backends = {
                     get_mamba_attn_backend(kv_cache_spec.mamba_type):
                     kv_cache_group_spec.layer_names
@@ -3013,7 +3025,7 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                 raise ValueError(
                     f"Unknown attention type: {attn_module.attn_type}")
 
-        mamba_layers = get_layers_from_vllm_config(self.vllm_config, MambaBase)
+        mamba_layers = get_layers_from_vllm_config(self.vllm_config, MambaBase) if _MAMBA_AVAILABLE and MambaBase is not None else []
         if len(mamba_layers) > 0:
             if self.vllm_config.speculative_config is not None:
                 raise NotImplementedError(

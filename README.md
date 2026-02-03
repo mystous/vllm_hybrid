@@ -84,6 +84,35 @@ VLLM_USE_PRECOMPILED=1 uv pip install -U -e . --torch-backend=auto
 uv pip install -r requirements/build.txt --torch-backend=auto
 ```
 
+#### 2-1. Intel IPEX 설치 (선택적, CPU 최적화용)
+
+Intel Xeon 서버에서 CPU 워커 성능을 최적화하려면 Intel Extension for PyTorch (IPEX)를 설치합니다.
+
+```bash
+# PyTorch 버전에 맞는 IPEX 설치
+pip install intel-extension-for-pytorch
+
+# 또는 특정 버전 지정 (PyTorch 2.3 기준)
+pip install intel-extension-for-pytorch==2.3.0
+
+# 설치 확인
+python -c "import intel_extension_for_pytorch as ipex; print(f'IPEX version: {ipex.__version__}')"
+```
+
+> **Note**: IPEX는 선택적 의존성입니다. 미설치 시 표준 PyTorch로 자동 fallback됩니다.
+
+#### 2-2. NUMA 지원 (멀티소켓 서버용)
+
+멀티소켓 Intel Xeon 서버에서 NUMA 최적화를 활성화하려면:
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y numactl libnuma-dev
+
+# NUMA 토폴로지 확인
+numactl --hardware
+```
+
 #### 3. Build Configuration (CMake Fix)
 
 Build Configuration을 생성하고, 최신 CUDA Toolkit과의 호환성 문제(NVTX 헤더)를 해결하기 위해 `CMakeLists.txt`를 수정해야 합니다.
@@ -130,6 +159,64 @@ cmake --preset release
 cmake --build --preset release --target install
 ```
 
+#### 5. Quick Test (빠른 테스트)
+
+설치가 완료되면 CPU 최적화 모듈이 올바르게 작동하는지 테스트합니다.
+
+```bash
+# CPU 기능 감지 테스트
+python -c "
+from vllm.platforms.intel_cpu_utils import detect_intel_cpu_features, setup_intel_cpu_environment
+
+print('=== CPU Feature Detection ===')
+features = detect_intel_cpu_features()
+print(f'CPU: {features.model_name}')
+print(f'AVX2: {features.avx2}, AVX-512: {features.avx512f}')
+print(f'Topology: {features.num_sockets}S x {features.cores_per_socket}C x {features.threads_per_core}T')
+
+print()
+print('=== Environment Setup ===')
+config = setup_intel_cpu_environment(rank=0, world_size=1)
+print(f'NUMA enabled: {config[\"numa_enabled\"]}')
+print(f'AVX-512: {config[\"avx512_enabled\"]}, AVX2: {config[\"avx2_enabled\"]}')
+print(f'IPEX: {config[\"ipex_enabled\"]}')
+print()
+print('Test passed!')
+"
+```
+
+**예상 출력 (Intel Xeon Platinum 8480+)**:
+```
+=== CPU Feature Detection ===
+CPU: Intel(R) Xeon(R) Platinum 8480+
+AVX2: True, AVX-512: True
+Topology: 2S x 56C x 2T
+
+=== Environment Setup ===
+NUMA enabled: True
+AVX-512: True, AVX2: True
+IPEX: True
+
+Test passed!
+```
+
+**예상 출력 (일반 데스크톱 CPU)**:
+```
+=== CPU Feature Detection ===
+CPU: 12th Gen Intel(R) Core(TM) i9-12900KF
+AVX2: True, AVX-512: False
+Topology: 1S x 16C x 2T
+
+=== Environment Setup ===
+NUMA enabled: False
+AVX-512: False, AVX2: True
+IPEX: False
+
+Test passed!
+```
+
+> **Note**: AVX-512, NUMA, IPEX가 없어도 코드는 자동으로 fallback하여 정상 동작합니다.
+
 ### Usage
 
 하이브리드 모드를 활성화하려면 `VLLM_HETEROGENEOUS_PLATFORM=1` 환경 변수를 설정하고 실행해야 합니다.
@@ -154,7 +241,17 @@ python benchmarks/benchmark_serving.py --backend openai --base-url http://localh
 
 - **P2P Communication**: 현재 파이프라인 간 텐서 전송(P2P)은 안전성을 위해 `Gloo` 백엔드(TCP)로 폴백(Fallback)되어 동작합니다. 추후 SHM 적용 예정입니다.
 - **CPU Performance**: CPU 추론은 GPU에 비해 현저히 느리며, 메모리 대역폭에 민감합니다. NUMA 설정이 올바르지 않으면 성능 저하가 발생할 수 있습니다.
-- **Torch Compile**: CPU 워커에서는 `torch.compile`이 비활성화(Eager Mode)됩니다.
+- **Torch Compile**: CPU 워커에서는 `torch.compile`이 `DYNAMO_ONCE` 모드로 활성화되며, AVX-512(Xeon) 또는 AVX2(일반 CPU) 최적화가 자동 적용됩니다.
+
+## CPU Optimization Features
+
+| Feature | Intel Xeon (AVX-512) | Desktop CPU (AVX2) |
+| :--- | :---: | :---: |
+| **SIMD Vectorization** | 512-bit (simdlen=16) | 256-bit (simdlen=8) |
+| **NUMA-aware KVCache** | Multi-node binding | Single-node |
+| **Intel IPEX** | Supported | Supported |
+| **AMX (BF16)** | Sapphire Rapids+ | Not available |
+| **PyTorch Inductor** | Enabled | Enabled |
 
 ## License
 

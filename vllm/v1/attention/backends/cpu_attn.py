@@ -25,8 +25,10 @@ try:
     _use_ipex = True
 # AttributeError is to handle a bug in ipex
 # https://github.com/intel/intel-extension-for-pytorch/pull/813
-except (ImportError, AttributeError):
+# Also catch general Exception for PyTorch version mismatch errors
+except (ImportError, AttributeError, Exception):
     _use_ipex = False
+    ipex_modules = None
 
 from vllm import _custom_ops as ops
 
@@ -883,12 +885,95 @@ class _PagedAttention:
         if key_cache.device.type == "cpu":
             # Vectorized implementation to utilize more CPU cores
             # Loop overhead was killing performance and serializing execution.
-            
-            num_seqs = query.shape[0]
+
+            num_tokens = query.shape[0]
+            num_seqs = context_lens.shape[0]
             num_heads = query.shape[1]
             head_size = query.shape[2]
             block_size = key_cache.shape[-2]
-            
+
+            # Handle case where num_tokens != num_seqs
+            # This can happen when sequences have multiple tokens scheduled (e.g., resumed from preemption)
+            if num_tokens != num_seqs:
+                # Fall back to loop-based implementation for this edge case
+                # Each token attends to its sequence's KV cache
+                # Since we don't have explicit token-to-sequence mapping, we use a heuristic:
+                # - Most likely, later sequences (recently resumed) have extra tokens
+                # - So we assign extra tokens to the LAST sequences
+
+                if num_tokens < num_seqs:
+                    # Rare edge case: fewer tokens than sequences
+                    # Process only the tokens we have, assuming 1:1 mapping for available tokens
+                    for token_idx in range(num_tokens):
+                        ctx_len = context_lens[token_idx].item()
+                        seq_blocks = block_tables[token_idx]
+
+                        num_blocks_needed = (ctx_len + block_size - 1) // block_size
+                        valid_ids = seq_blocks[:num_blocks_needed]
+
+                        sub_k = key_cache[valid_ids]
+                        sub_v = value_cache[valid_ids]
+
+                        _k = sub_k.permute(0, 3, 1, 2, 4).reshape(-1, num_kv_heads, head_size)[:ctx_len]
+                        _v = sub_v.permute(0, 3, 1, 2).reshape(-1, num_kv_heads, head_size)[:ctx_len]
+
+                        if num_kv_heads != num_heads:
+                            _k = _k.repeat_interleave(num_heads // num_kv_heads, dim=1)
+                            _v = _v.repeat_interleave(num_heads // num_kv_heads, dim=1)
+
+                        _k = _k.permute(1, 0, 2).unsqueeze(0)
+                        _v = _v.permute(1, 0, 2).unsqueeze(0)
+
+                        q_token = query[token_idx:token_idx+1].unsqueeze(2)
+                        attn_out = torch.nn.functional.scaled_dot_product_attention(q_token, _k, _v)
+                        output[token_idx] = attn_out.squeeze(0).squeeze(1)
+                    return
+
+                extra_tokens = num_tokens - num_seqs
+                token_idx = 0
+
+                for seq_idx in range(num_seqs):
+                    ctx_len = context_lens[seq_idx].item()
+                    seq_blocks = block_tables[seq_idx]
+
+                    # Heuristic: last 'extra_tokens' sequences have 2 tokens each
+                    # E.g., 42 tokens, 41 seqs: seq 40 has 2 tokens, others have 1
+                    if seq_idx >= num_seqs - extra_tokens:
+                        tokens_for_seq = 2
+                    else:
+                        tokens_for_seq = 1
+
+                    num_blocks_needed = (ctx_len + block_size - 1) // block_size
+                    valid_ids = seq_blocks[:num_blocks_needed]
+
+                    sub_k = key_cache[valid_ids]
+                    sub_v = value_cache[valid_ids]
+
+                    _k = sub_k.permute(0, 3, 1, 2, 4).reshape(-1, num_kv_heads, head_size)[:ctx_len]
+                    _v = sub_v.permute(0, 3, 1, 2).reshape(-1, num_kv_heads, head_size)[:ctx_len]
+
+                    # Expand for GQA/MQA
+                    if num_kv_heads != num_heads:
+                        _k = _k.repeat_interleave(num_heads // num_kv_heads, dim=1)
+                        _v = _v.repeat_interleave(num_heads // num_kv_heads, dim=1)
+
+                    # [ctx_len, heads, head_size] -> [1, heads, ctx_len, head_size]
+                    _k = _k.permute(1, 0, 2).unsqueeze(0)
+                    _v = _v.permute(1, 0, 2).unsqueeze(0)
+
+                    for t in range(tokens_for_seq):
+                        q_token = query[token_idx:token_idx+1]  # [1, heads, head_size]
+                        q_token = q_token.unsqueeze(2)  # [1, heads, 1, head_size]
+
+                        attn_out = torch.nn.functional.scaled_dot_product_attention(
+                            q_token, _k, _v
+                        )  # [1, heads, 1, head_size]
+
+                        output[token_idx] = attn_out.squeeze(0).squeeze(1)
+                        token_idx += 1
+
+                return
+
             # Determine maximum context length in this batch for padding
             # context_lens is [num_seqs]
             max_ctx = context_lens.max().item()

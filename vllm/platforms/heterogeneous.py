@@ -16,99 +16,196 @@ if TYPE_CHECKING:
 logger = init_logger(__name__)
 
 
+# Check CUDA availability at module level (lazy, safe)
+def _is_cuda_available() -> bool:
+    """Check if CUDA is available without triggering full initialization."""
+    try:
+        return torch.cuda.is_available() and torch.cuda.device_count() > 0
+    except Exception:
+        return False
+
+
 class HeterogeneousPlatform(Platform):
     _enum = PlatformEnum.CUDA  # Default to CUDA to pass initial checks, but dynamic dispatch is key
     device_name: str = "heterogeneous"
     device_type: str = "heterogeneous"
-    device_type: str = "heterogeneous"
-    dispatch_key: str = "CUDA" # Default to CUDA dispatch key for now
+    dispatch_key: str = "CUDA"  # Default to CUDA dispatch key for now
     ray_device_key: str = "GPU"
-    dist_backend: str = "gloo" # Force Gloo for heterogeneous (CPU/GPU) coordination
-    additional_env_vars: List[str] = ["VLLM_HETEROGENEOUS_PLATFORM"] # Ensure platform detection propagates
+    dist_backend: str = "gloo"  # Force Gloo for heterogeneous (CPU/GPU) coordination
+    additional_env_vars: List[str] = ["VLLM_HETEROGENEOUS_PLATFORM"]
 
+    # Lazy-initialized sub-platforms (avoid early CUDA initialization)
+    _cuda_platform_instance: Optional[CudaPlatform] = None
+    _cpu_platform_instance: Optional[CpuPlatform] = None
+    _cuda_available: Optional[bool] = None
 
+    @classmethod
+    def _get_cuda_platform(cls) -> Optional[CudaPlatform]:
+        """Lazy initialization of CUDA platform."""
+        if cls._cuda_platform_instance is None:
+            if cls._check_cuda_available():
+                cls._cuda_platform_instance = CudaPlatform()
+            else:
+                logger.warning("CUDA not available, heterogeneous mode will use CPU-only features")
+        return cls._cuda_platform_instance
 
-    # We need to maintain instances of sub-platforms
-    _cuda_platform = CudaPlatform()
-    _cpu_platform = CpuPlatform()
-    
-    # Context to know which platform is currently active for the calling thread/worker
-    # This is tricky because Platform methods are classmethods. 
-    # We might need to rely on the device_type passed in or global worker state.
-    # For now, we will default to CUDA for global queries and try to be smart about specific ones.
+    @classmethod
+    def _get_cpu_platform(cls) -> CpuPlatform:
+        """Lazy initialization of CPU platform."""
+        if cls._cpu_platform_instance is None:
+            cls._cpu_platform_instance = CpuPlatform()
+        return cls._cpu_platform_instance
+
+    @classmethod
+    def _check_cuda_available(cls) -> bool:
+        """Check CUDA availability (cached)."""
+        if cls._cuda_available is None:
+            cls._cuda_available = _is_cuda_available()
+        return cls._cuda_available
 
     @classmethod
     def _get_platform(cls, device: Optional[Union[str, torch.device]] = None):
-        # Semi-hack: Use device string to decide
+        """Get appropriate platform based on device type."""
         if device is not None:
             d = torch.device(device)
             if d.type == "cpu":
-                return cls._cpu_platform
+                return cls._get_cpu_platform()
             if d.type == "cuda":
-                return cls._cuda_platform
-        return cls._cuda_platform # Default
+                cuda_platform = cls._get_cuda_platform()
+                if cuda_platform is not None:
+                    return cuda_platform
+                # Fallback to CPU if CUDA not available
+                logger.warning("CUDA requested but not available, falling back to CPU")
+                return cls._get_cpu_platform()
+
+        # Default: prefer CUDA if available, else CPU
+        if cls._check_cuda_available():
+            return cls._get_cuda_platform()
+        return cls._get_cpu_platform()
 
     @property
     def supported_dtypes(self) -> List[torch.dtype]:
-        return self._cuda_platform.supported_dtypes
+        """Get supported dtypes from the best available platform."""
+        if self._check_cuda_available():
+            cuda_platform = self._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.supported_dtypes
+        return self._get_cpu_platform().supported_dtypes
 
     @classmethod
     def get_device_name(cls, device_id: int = 0) -> str:
-        # This is ambiguous in heterogeneous. Assuming GPU 0 for now if asked globally.
-        return cls._cuda_platform.get_device_name(device_id)
+        """Get device name, with fallback to CPU if CUDA unavailable."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.get_device_name(device_id)
+        return cls._get_cpu_platform().get_device_name(device_id)
 
     @classmethod
     def get_device_total_memory(cls, device_id: int = 0) -> int:
-        return cls._cuda_platform.get_device_total_memory(device_id)
+        """Get device memory, with fallback to CPU if CUDA unavailable."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.get_device_total_memory(device_id)
+        return cls._get_cpu_platform().get_device_total_memory(device_id)
 
     @classmethod
     def is_async_output_supported(cls, enforce_eager: Optional[bool]) -> bool:
-        # If any part of the heterogeneous setup is CPU, we might need to be careful.
-        # But usually async output is per-worker.
-        return cls._cuda_platform.is_async_output_supported(enforce_eager)
+        """Check async output support."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.is_async_output_supported(enforce_eager)
+        return cls._get_cpu_platform().is_async_output_supported(enforce_eager)
 
     @classmethod
     def check_and_update_config(cls, vllm_config: "VllmConfig") -> None:
-        # We run checks for both? Or just CUDA for now since it's stricter?
-        cls._cuda_platform.check_and_update_config(vllm_config)
-        # cls._cpu_platform.check_and_update_config(vllm_config) # CPU config might conflict
+        """Update config based on available platforms."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                cuda_platform.check_and_update_config(vllm_config)
+                return
+        # Fallback to CPU config
+        cls._get_cpu_platform().check_and_update_config(vllm_config)
 
     @classmethod
     def verify_model_arch(cls, model_arch: str) -> None:
-        cls._cuda_platform.verify_model_arch(model_arch)
+        """Verify model architecture."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                cuda_platform.verify_model_arch(model_arch)
+                return
+        # CPU platform doesn't typically verify arch, so pass
 
     @classmethod
     def verify_quantization(cls, quant: str) -> None:
-        cls._cuda_platform.verify_quantization(quant)
+        """Verify quantization support."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                cuda_platform.verify_quantization(quant)
+                return
+        # CPU platform handles quantization differently
 
     @classmethod
     def get_device_communicator_cls(cls) -> str:
         return "vllm.platforms.heterogeneous.HeterogeneousDeviceCommunicator"
 
-    # Proxy other methods dynamically if possible, but they are class methods.
-    # We have to implement them explicitly.
-
     @classmethod
     def is_cuda(cls) -> bool:
-        return True # Pretend to be CUDA for compatibility
+        """Check if CUDA is available (for compatibility checks)."""
+        return cls._check_cuda_available()
 
     @classmethod
     def is_cpu(cls) -> bool:
-        return False 
-        
+        """Check if running in CPU-only mode."""
+        return not cls._check_cuda_available()
+
     @classmethod
     def has_device_capability(cls, capability: Union[tuple[int, int], int], device_id: int = 0) -> bool:
-        return cls._cuda_platform.has_device_capability(capability, device_id)
+        """Check device capability, returns False if CUDA unavailable."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.has_device_capability(capability, device_id)
+        return False  # CPU doesn't have CUDA capabilities
+
+    @classmethod
+    def get_device_capability(cls, device_id: int = 0):
+        """Get device capability, delegating to CUDA platform."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.get_device_capability(device_id)
+        return None  # CPU doesn't have CUDA capabilities
 
     @classmethod
     def device_count(cls) -> int:
-        # Return CUDA count + 2 to allow for two CPU workers (one per NUMA node)
-        return torch.cuda.device_count() + 2
+        """Return total device count (GPUs + CPU workers)."""
+        gpu_count = 0
+        if cls._check_cuda_available():
+            try:
+                gpu_count = torch.cuda.device_count()
+            except Exception:
+                gpu_count = 0
+        # Add CPU workers (at least 1 for CPU-only mode)
+        cpu_workers = 2 if gpu_count > 0 else 1
+        return gpu_count + cpu_workers
 
     @classmethod
     def get_ray_placement_group_bundles(
             cls, parallel_config: "ParallelConfig") -> List[dict]:
-        num_gpus = torch.cuda.device_count()
+        """Get Ray placement bundles for heterogeneous setup."""
+        num_gpus = 0
+        if cls._check_cuda_available():
+            try:
+                num_gpus = torch.cuda.device_count()
+            except Exception:
+                num_gpus = 0
+
         bundles = []
         for i in range(parallel_config.world_size):
             if i < num_gpus:
@@ -119,33 +216,78 @@ class HeterogeneousPlatform(Platform):
 
     @classmethod
     def set_device(cls, device: torch.device) -> None:
+        """Set the current device."""
         if device.type == "cuda":
-            cls._cuda_platform.set_device(device)
+            if cls._check_cuda_available():
+                cuda_platform = cls._get_cuda_platform()
+                if cuda_platform is not None:
+                    cuda_platform.set_device(device)
+                    return
+            logger.warning("CUDA not available, cannot set CUDA device")
         elif device.type == "cpu":
-            cls._cpu_platform.set_device(device)
+            cls._get_cpu_platform().set_device(device)
         else:
-            # Fallback or error
-            logger.warning(f"Unknown device type for set_device: {device.type}. Defaulting to CUDA platform.")
-            cls._cuda_platform.set_device(device)
+            logger.warning(f"Unknown device type for set_device: {device.type}")
 
     @classmethod
     def get_attn_backend_cls(cls, selected_backend, head_size, dtype,
                              kv_cache_dtype, block_size, use_v1, use_mla):
-        # Default to CUDA platform backend as Heterogeneous is primarily CUDA + CPU offload
-        # BUT check if we are in a CPU worker process context
+        """Get attention backend class based on device context."""
+        import os
         device_env = os.environ.get("VLLM_HETEROGENEOUS_DEVICE")
         logger.info(f"HeterogeneousPlatform.get_attn_backend_cls called. VLLM_HETEROGENEOUS_DEVICE={device_env}")
-        
+
+        # Check if explicitly set to CPU
         if device_env == "cpu":
-             logger.info("Delegating to CPU Platform for Attention Backend.")
-             return cls._cpu_platform.get_attn_backend_cls(
+            logger.info("Delegating to CPU Platform for Attention Backend.")
+            return cls._get_cpu_platform().get_attn_backend_cls(
                 selected_backend, head_size, dtype, kv_cache_dtype, block_size,
                 use_v1, use_mla)
-        
-        logger.info("Delegating to CUDA Platform for Attention Backend.")
-        return cls._cuda_platform.get_attn_backend_cls(
+
+        # Try CUDA if available
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                logger.info("Delegating to CUDA Platform for Attention Backend.")
+                return cuda_platform.get_attn_backend_cls(
+                    selected_backend, head_size, dtype, kv_cache_dtype, block_size,
+                    use_v1, use_mla)
+
+        # Fallback to CPU
+        logger.info("CUDA not available, using CPU Platform for Attention Backend.")
+        return cls._get_cpu_platform().get_attn_backend_cls(
             selected_backend, head_size, dtype, kv_cache_dtype, block_size,
             use_v1, use_mla)
+
+    @classmethod
+    def supports_v1(cls, model_config: "ModelConfig") -> bool:
+        """Heterogeneous platform supports V1 engine."""
+        # Delegate to CUDA platform if available
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.supports_v1(model_config)
+        return True  # Enable V1 for heterogeneous mode
+
+    @classmethod
+    def default_v1(cls, model_config: "ModelConfig") -> bool:
+        """Enable V1 by default for heterogeneous platform."""
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.default_v1(model_config)
+        return True
+
+    @classmethod
+    def get_current_memory_usage(cls, device: Optional[torch.device] = None) -> float:
+        """Return memory usage in bytes, delegating to appropriate platform."""
+        if device is not None and device.type == "cpu":
+            return cls._get_cpu_platform().get_current_memory_usage(device)
+        if cls._check_cuda_available():
+            cuda_platform = cls._get_cuda_platform()
+            if cuda_platform is not None:
+                return cuda_platform.get_current_memory_usage(device)
+        return cls._get_cpu_platform().get_current_memory_usage(device)
 
 
 from vllm.distributed.device_communicators.base_device_communicator import DeviceCommunicatorBase

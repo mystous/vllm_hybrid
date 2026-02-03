@@ -177,14 +177,13 @@ class Attention(nn.Module):
         self.backend = backend_name_to_enum(self.attn_backend.get_name())
         self.dtype = dtype
 
-        # For cuda-alike (CUDA and ROCM) and cpu platforms, we control how
+        # For cuda-alike (CUDA and ROCM) platforms, we control how
         # torch.compile works by registering the attention as one giant
-        # opaque custom op. For other platforms, we directly call them
-        # and let torch.compile handle them.
-        # AG: For CPU, we force direct call to avoid NotImplementedError on custom op
-        # We must access current_platform dynamically to see the CPUWorker override
-        import vllm.platforms
-        self.use_direct_call = not vllm.platforms.current_platform.is_cuda_alike()
+        # opaque custom op. For CPU platforms, we use direct call to avoid
+        # the custom CUDA op (vllm::unified_attention) which doesn't support CPU.
+        # For other platforms, we directly call them and let torch.compile
+        # handle them.
+        self.use_direct_call = current_platform.is_cpu()
 
         self.use_output = self.attn_backend.accept_output_buffer
         compilation_config = get_current_vllm_config().compilation_config
@@ -257,7 +256,9 @@ class Attention(nn.Module):
                     key = key.view(-1, self.num_kv_heads, self.head_size)
                 if value is not None:
                     value = value.view(-1, self.num_kv_heads, self.head_size)
-            if self.use_direct_call:
+            # Use direct call for CPU tensors to avoid CUDA-only custom op
+            use_direct = self.use_direct_call or query.device.type == "cpu"
+            if use_direct:
                 forward_context: ForwardContext = get_forward_context()
                 attn_metadata = forward_context.attn_metadata
                 if isinstance(attn_metadata, dict):
@@ -275,7 +276,9 @@ class Attention(nn.Module):
                     query, key, value, output, self.layer_name)
             return output.view(-1, hidden_size)
         else:
-            if self.use_direct_call:
+            # Use direct call for CPU tensors to avoid CUDA-only custom op
+            use_direct = self.use_direct_call or query.device.type == "cpu"
+            if use_direct:
                 forward_context = get_forward_context()
                 attn_metadata = forward_context.attn_metadata
                 if isinstance(attn_metadata, dict):

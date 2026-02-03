@@ -214,13 +214,14 @@ def heterogeneous_platform_plugin() -> Optional[str]:
 
 
 builtin_platform_plugins = {
+    # heterogeneous must be checked first (when env var is set) to override other platforms
+    'heterogeneous': heterogeneous_platform_plugin,
     'tpu': tpu_platform_plugin,
     'cuda': cuda_platform_plugin,
     'rocm': rocm_platform_plugin,
     'xpu': xpu_platform_plugin,
     'cpu': cpu_platform_plugin,
     'neuron': neuron_platform_plugin,
-    'heterogeneous': heterogeneous_platform_plugin,
 }
 
 
@@ -271,6 +272,7 @@ def resolve_current_platform_cls_qualname() -> str:
                     platform_name)
     else:
         platform_cls_qualname = "vllm.platforms.interface.UnspecifiedPlatform"
+        platform_name = "UnspecifiedPlatform"
         logger.info(
             "No platform detected, vLLM is running on UnspecifiedPlatform")
     import os
