@@ -542,9 +542,25 @@ def is_ipex_available() -> bool:
         _ipex_module = ipex
         _ipex_available = True
         logger.info(f"IPEX available: version {ipex.__version__}")
-    except (ImportError, AttributeError, Exception) as e:
+    except ImportError:
         _ipex_available = False
-        logger.info(f"IPEX not available: {e}. Using standard PyTorch")
+        logger.debug("IPEX not installed. Using standard PyTorch")
+    except AttributeError as e:
+        # Known IPEX bug: "module 'os' has no attribute 'exit'"
+        # This happens due to IPEX internal issues with certain PyTorch versions
+        _ipex_available = False
+        if "os" in str(e) and "exit" in str(e):
+            logger.debug("IPEX has compatibility issue with current PyTorch. Using standard PyTorch")
+        else:
+            logger.debug(f"IPEX not available (AttributeError): {e}")
+    except Exception as e:
+        _ipex_available = False
+        error_msg = str(e)
+        # Simplify common error messages
+        if "PyTorch" in error_msg and "version" in error_msg.lower():
+            logger.debug(f"IPEX/PyTorch version mismatch. Using standard PyTorch")
+        else:
+            logger.debug(f"IPEX not available: {e}")
 
     return _ipex_available
 
