@@ -189,6 +189,7 @@ print('=== CPU Feature Detection ===')
 features = detect_intel_cpu_features()
 print(f'CPU: {features.model_name}')
 print(f'AVX2: {features.avx2}, AVX-512: {features.avx512f}')
+print(f'AMX-BF16: {features.amx_bf16}, AMX-INT8: {features.amx_int8}')
 print(f'Topology: {features.num_sockets}S x {features.cores_per_socket}C x {features.threads_per_core}T')
 
 print()
@@ -196,22 +197,25 @@ print('=== Environment Setup ===')
 config = setup_intel_cpu_environment(rank=0, world_size=1)
 print(f'NUMA enabled: {config[\"numa_enabled\"]}')
 print(f'AVX-512: {config[\"avx512_enabled\"]}, AVX2: {config[\"avx2_enabled\"]}')
+print(f'AMX: {config[\"amx_enabled\"]}')
 print(f'IPEX: {config[\"ipex_enabled\"]}')
 print()
 print('Test passed!')
 "
 ```
 
-**예상 출력 (Intel Xeon Platinum 8480+)**:
+**예상 출력 (Intel Xeon Platinum 8480+ / Sapphire Rapids)**:
 ```
 === CPU Feature Detection ===
 CPU: Intel(R) Xeon(R) Platinum 8480+
 AVX2: True, AVX-512: True
+AMX-BF16: True, AMX-INT8: True
 Topology: 2S x 56C x 2T
 
 === Environment Setup ===
 NUMA enabled: True
 AVX-512: True, AVX2: True
+AMX: True
 IPEX: True
 
 Test passed!
@@ -222,17 +226,19 @@ Test passed!
 === CPU Feature Detection ===
 CPU: 12th Gen Intel(R) Core(TM) i9-12900KF
 AVX2: True, AVX-512: False
+AMX-BF16: False, AMX-INT8: False
 Topology: 1S x 16C x 2T
 
 === Environment Setup ===
 NUMA enabled: False
 AVX-512: False, AVX2: True
+AMX: False
 IPEX: False
 
 Test passed!
 ```
 
-> **Note**: AVX-512, NUMA, IPEX가 없어도 코드는 자동으로 fallback하여 정상 동작합니다.
+> **Note**: AVX-512, AMX, NUMA, IPEX가 없어도 코드는 자동으로 fallback하여 정상 동작합니다.
 
 ### Usage
 
