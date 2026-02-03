@@ -11,8 +11,9 @@ logger = init_logger(__name__)
 
 try:
     import intel_extension_for_pytorch as ipex
-except ImportError as e:
-    logger.warning("Import error msg: %s", e.msg)
+except (ImportError, AttributeError, Exception) as e:
+    ipex = None
+    logger.warning("IPEX import failed: %s", str(e))
 
 
 class ipex_ops:

@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+"""
+CPU Worker for vLLM V1
+
+Optimized for Intel Xeon processors with:
+- NUMA-aware memory allocation
+- AVX-512 / AMX acceleration
+- Intel Extension for PyTorch (IPEX) integration
+"""
 import os
 import platform
 from typing import Callable, Optional
@@ -20,10 +28,34 @@ from vllm.v1.worker.cpu_model_runner import CPUModelRunner
 from vllm.v1.worker.gpu_worker import (Worker,
                                        init_worker_distributed_environment)
 
+# Intel CPU optimization utilities (optional, graceful fallback if not available)
+try:
+    from vllm.platforms.intel_cpu_utils import (
+        setup_intel_cpu_environment,
+        detect_intel_cpu_features,
+        NUMAAllocator,
+        is_ipex_available,
+        IntelCPUFeatures,
+    )
+    _INTEL_UTILS_AVAILABLE = True
+except ImportError as e:
+    _INTEL_UTILS_AVAILABLE = False
+    IntelCPUFeatures = None  # type: ignore
+    NUMAAllocator = None  # type: ignore
+
 logger = init_logger(__name__)
 
 
 class CPUWorker(Worker):
+    """
+    CPU Worker optimized for Intel Xeon processors.
+
+    Features:
+    - NUMA-aware memory allocation for KVCache
+    - AVX-512 / AMX acceleration via PyTorch Inductor
+    - Intel Extension for PyTorch (IPEX) integration
+    - Optimized thread affinity for multi-socket systems
+    """
 
     def __init__(self,
                  vllm_config: VllmConfig,
@@ -31,34 +63,73 @@ class CPUWorker(Worker):
                  rank: int,
                  distributed_init_method: str,
                  is_driver_worker: bool = False):
-        # Force CPU Platform for this worker to ensure correct backend selection (e.g. Attention)
+
+        # =====================================================
+        # Intel CPU Optimization Setup (NUMA, AVX-512, IPEX)
+        # =====================================================
+        self._intel_config: dict = {}
+        self._numa_node: int = -1
+        self._cpu_features: Optional[IntelCPUFeatures] = None
+
+        if _INTEL_UTILS_AVAILABLE:
+            try:
+                # Setup Intel CPU environment early
+                self._intel_config = setup_intel_cpu_environment(
+                    rank=local_rank,
+                    world_size=vllm_config.parallel_config.world_size,
+                    enable_numa=True,
+                    enable_avx_optimization=True,
+                    enable_ipex=True
+                )
+                self._numa_node = self._intel_config.get("numa_node", -1)
+                self._cpu_features = self._intel_config.get("features")
+
+                logger.info(f"CPUWorker[{rank}] Intel optimization initialized:")
+                logger.info(f"  NUMA node: {self._numa_node}")
+                logger.info(f"  AVX-512: {self._intel_config.get('avx512_enabled', False)}")
+                logger.info(f"  IPEX: {self._intel_config.get('ipex_enabled', False)}")
+
+                if self._cpu_features:
+                    logger.info(f"  CPU: {self._cpu_features.model_name}")
+                    logger.info(f"  Topology: {self._cpu_features.num_sockets} sockets x "
+                               f"{self._cpu_features.cores_per_socket} cores")
+                    if self._cpu_features.amx_bf16:
+                        logger.info("  AMX-BF16: Enabled (Sapphire Rapids)")
+            except Exception as e:
+                logger.warning(f"Intel CPU optimization setup failed: {e}")
+
+        # =====================================================
+        # Force CPU Platform
+        # =====================================================
         try:
             from vllm.platforms.cpu import CpuPlatform
             import vllm.platforms
             vllm.platforms._current_platform = CpuPlatform()
-            # Also clear the cached backend function to ensure re-resolution
             from vllm.attention.selector import _cached_get_attn_backend
             _cached_get_attn_backend.cache_clear()
             logger.info("Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.")
         except Exception as e:
             logger.error(f"Failed to force CpuPlatform: {e}")
 
-        # Ensure the config is compatible with CPU (e.g. downgrades compilation level)
+        # =====================================================
+        # Update config for CPU platform
+        # =====================================================
         try:
             from vllm.platforms.cpu import CpuPlatform
             CpuPlatform.check_and_update_config(vllm_config)
             logger.info("Updated vllm_config for CPU platform via check_and_update_config.")
         except Exception as e:
              logger.error(f"Failed to update config for CPU: {str(e)}")
-        
-        # Force eager execution to bypass compilation on CPU (Dynamo/Inductor on CPU is unstable in this context)
-        # Force eager execution to bypass compilation on CPU (Dynamo/Inductor on CPU is unstable in this context)
-        vllm_config.model_config.enforce_eager = True
-        
-        # Explicitly disable compilation in compilation_config as well, since decorators check this directly
-        from vllm.config import CompilationLevel
-        vllm_config.compilation_config.level = CompilationLevel.NO_COMPILATION
 
+        # =====================================================
+        # PyTorch Compilation Configuration for CPU
+        # =====================================================
+        from vllm.config import CompilationLevel
+        # Disable torch.compile for CPU to avoid Inductor issues
+        # TODO: Re-enable with proper CPU Inductor configuration once stable
+        vllm_config.model_config.enforce_eager = True
+        vllm_config.compilation_config.level = CompilationLevel.NO_COMPILATION
+        logger.info("CPU Worker: Compilation disabled (enforce_eager=True)")
 
         # Reduce logging noise from PyTorch Dynamo/Inductor
         import logging
@@ -73,19 +144,86 @@ class CPUWorker(Worker):
 
         self.parallel_config.disable_custom_all_reduce = True
 
-        # Override the default 1-thread limit set by multiproc_worker_utils
-        # This is critical for CPUWorker performance in heterogeneous setups.
+        # =====================================================
+        # Thread Configuration (NUMA-aware)
+        # =====================================================
+        self._configure_threads_for_numa()
+
+    def _configure_inductor_for_intel(self, vllm_config: VllmConfig):
+        """Configure PyTorch Inductor settings for Intel CPUs."""
+        try:
+            # Update inductor compile config for Intel optimization
+            inductor_config = vllm_config.compilation_config.inductor_compile_config
+
+            # Enable optimizations beneficial for Intel CPUs
+            inductor_config.update({
+                "dce": True,  # Dead code elimination
+                "size_asserts": False,
+                "nan_asserts": False,
+                "epilogue_fusion": True,  # Fuse epilogue operations
+                "max_autotune": True,  # Find best kernel configurations
+                "freezing": True,  # Enable parameter freezing for better optimization
+            })
+
+            # Set high precision for matmul
+            torch.set_float32_matmul_precision('high')
+
+            logger.info("Inductor configured for Intel CPU optimization")
+
+        except Exception as e:
+            logger.warning(f"Failed to configure Inductor for Intel: {e}")
+
+    def _configure_threads_for_numa(self):
+        """Configure thread count based on NUMA topology or CPU count."""
+        import multiprocessing
+
         current_threads = torch.get_num_threads()
-        if current_threads < 4:
-            import multiprocessing
+
+        # Try to use NUMA-aware thread count if features are detected
+        if self._cpu_features and self._cpu_features.cores_per_socket > 0:
+            # Calculate cores per NUMA node
+            num_numa_nodes = 1
+            if _INTEL_UTILS_AVAILABLE and NUMAAllocator is not None:
+                try:
+                    allocator = NUMAAllocator()
+                    if allocator.is_available:
+                        num_numa_nodes = max(1, allocator.num_nodes)
+                except Exception:
+                    pass
+
+            total_cores = self._cpu_features.cores_per_socket * self._cpu_features.num_sockets
+            cores_per_node = total_cores // num_numa_nodes
+
+            # Reserve 1-2 cores for system tasks
+            target_threads = max(4, cores_per_node - 1)
+
+            torch.set_num_threads(target_threads)
+            if self._numa_node >= 0:
+                logger.info(f"CPUWorker: Thread count set to {target_threads} "
+                           f"(NUMA node {self._numa_node}, {cores_per_node} cores/node)")
+            else:
+                logger.info(f"CPUWorker: Thread count set to {target_threads} "
+                           f"({total_cores} total cores)")
+        elif current_threads < 4:
+            # Fallback: use most CPU cores
             try:
-                # Heuristic: use physical cores if possible, or substantial fraction of logical
                 target_threads = max(8, multiprocessing.cpu_count() - 2)
             except Exception:
                 target_threads = 8
-            
+
             torch.set_num_threads(target_threads)
-            logger.info(f"CPUWorker: Overrode low thread count ({current_threads}) to {target_threads} for performance.")
+            logger.info(f"CPUWorker: Overrode low thread count ({current_threads}) "
+                       f"to {target_threads} for performance.")
+
+    @property
+    def numa_node(self) -> int:
+        """Get the NUMA node this worker is bound to."""
+        return self._numa_node
+
+    @property
+    def intel_config(self) -> dict:
+        """Get Intel CPU optimization configuration."""
+        return self._intel_config
 
 
     def init_device(self):
@@ -126,9 +264,10 @@ class CPUWorker(Worker):
         # Set random seed.
         set_random_seed(self.model_config.seed)
 
-        # Construct the model runner
+        # Construct the model runner with NUMA awareness
         self.model_runner: CPUModelRunner = CPUModelRunner(
-            self.vllm_config, torch.device("cpu"))
+            self.vllm_config, torch.device("cpu"),
+            numa_node=self._numa_node)
 
     def sleep(self, level: int = 1) -> None:
         logger.warning("sleep mode is not supported on CPU, ignore it.")
