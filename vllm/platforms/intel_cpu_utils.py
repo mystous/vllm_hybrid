@@ -359,12 +359,25 @@ def detect_intel_cpu_features() -> IntelCPUFeatures:
 
     # Log detected features
     logger.info(f"CPU detected: {features.model_name}")
+
+    # AVX status
     if features.avx512f:
         logger.info("  AVX-512: Yes")
+        if features.avx512_vnni:
+            logger.info("  AVX-512 VNNI: Yes (INT8 acceleration)")
+        if features.avx512_bf16:
+            logger.info("  AVX-512 BF16: Yes")
     elif features.avx2:
         logger.info("  AVX-512: No (AVX2 available)")
-    if features.amx_bf16:
-        logger.info("  AMX-BF16: Yes (Sapphire Rapids+)")
+
+    # AMX status (Sapphire Rapids+)
+    if features.amx_bf16 or features.amx_int8:
+        if features.amx_bf16:
+            logger.info("  AMX-BF16: Yes (Sapphire Rapids+)")
+        if features.amx_int8:
+            logger.info("  AMX-INT8: Yes (Sapphire Rapids+)")
+    else:
+        logger.info("  AMX: No (requires Sapphire Rapids or newer)")
 
     return features
 
@@ -542,6 +555,14 @@ def is_ipex_available() -> bool:
         _ipex_module = ipex
         _ipex_available = True
         logger.info(f"IPEX available: version {ipex.__version__}")
+
+        # Check if IPEX can use AMX
+        try:
+            if hasattr(ipex, 'get_fp32_math_mode'):
+                # IPEX 2.0+ has AMX support detection
+                logger.info(f"  IPEX AMX optimization: Available")
+        except Exception:
+            pass
     except ImportError:
         _ipex_available = False
         logger.debug("IPEX not installed. Using standard PyTorch")
@@ -636,6 +657,7 @@ def setup_intel_cpu_environment(
         "numa_node": -1,
         "avx512_enabled": False,
         "avx2_enabled": False,
+        "amx_enabled": False,
         "ipex_enabled": False,
         "features": None
     }
@@ -646,6 +668,7 @@ def setup_intel_cpu_environment(
         config["features"] = features
         config["avx512_enabled"] = features.avx512f
         config["avx2_enabled"] = features.avx2
+        config["amx_enabled"] = features.amx_bf16 or features.amx_int8
     except Exception as e:
         logger.warning(f"Failed to detect CPU features: {e}")
         features = IntelCPUFeatures()
