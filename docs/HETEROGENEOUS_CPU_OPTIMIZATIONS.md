@@ -844,10 +844,116 @@ print(f'NUMA: {features.num_sockets} sockets')
 
 ---
 
+---
+
+## 13. Parallel Batch Executor NUMA/AMX 최적화
+
+### 파일: `vllm/executor/parallel_batch_executor.py`
+
+### 13.1 NUMA-aware CPU 워커
+
+```python
+class CPUWorkerWrapper:
+    """CPU 워커 래퍼 (IPEX + AVX-512 + NUMA 최적화)."""
+
+    def __init__(
+        self,
+        vllm_config: VllmConfig,
+        hybrid_config: HybridConfig,
+        worker_rank: int = 0,
+        num_cpu_workers: int = 1,
+    ):
+        # NUMA 관련 설정
+        self.numa_allocator: Optional[NUMAAllocator] = None
+        self.numa_node: int = -1
+        self.cpu_features: Optional[IntelCPUFeatures] = None
+
+    def _setup_cpu_environment(self):
+        """NUMA + AVX-512 + IPEX 환경 설정."""
+        # Intel CPU 환경 전체 설정
+        self.env_config = setup_intel_cpu_environment(
+            rank=self.worker_rank,
+            world_size=self.num_cpu_workers,
+            enable_numa=self.hybrid_config.numa_aware,
+            enable_avx_optimization=True,
+            enable_ipex=True,
+        )
+
+    def _configure_numa_threads(self):
+        """NUMA 토폴로지 기반 스레드 설정."""
+        # NUMA 노드의 CPU 목록 가져오기
+        node_info = self.numa_allocator.get_node_info(self.numa_node)
+        num_cpus_in_node = len(node_info.cpu_ids)
+
+        # CPU 어피니티 설정
+        cpu_list = ",".join(str(c) for c in node_info.cpu_ids[:optimal_threads])
+        os.environ["GOMP_CPU_AFFINITY"] = cpu_list
+        os.environ["KMP_AFFINITY"] = f"explicit,proclist=[{cpu_list}],granularity=fine"
+```
+
+### 13.2 AMX 자동 활성화
+
+```python
+def _apply_ipex_optimization(self, dtype_str: str):
+    """IPEX 최적화 적용 (AMX > AVX-512 VNNI > AVX2)."""
+    # AMX 사용 가능 여부 확인
+    amx_available = self.cpu_features and (
+        self.cpu_features.amx_bf16 or self.cpu_features.amx_int8
+    )
+
+    if amx_available:
+        self._enable_ipex_amx()
+
+    if dtype_str == "bfloat16":
+        # AMX-BF16 또는 AVX-512 BF16 활용
+        accel_type = "AMX-BF16" if self.cpu_features.amx_bf16 else "AVX-512 BF16"
+        self.model = ipex.optimize(
+            self.model,
+            dtype=torch.bfloat16,
+            auto_kernel_selection=True,
+            weights_prepack=True,
+        )
+
+def _enable_ipex_amx(self):
+    """IPEX에서 AMX 활성화."""
+    # FP32 연산을 BF16으로 수행 (AMX-BF16 활용)
+    ipex.set_fp32_math_mode(ipex.FP32MathMode.BF16)
+    # oneDNN graph fusion 활성화
+    ipex.enable_onednn_fusion(True)
+```
+
+### 13.3 CLI 인자
+
+```bash
+# NUMA 최적화 옵션
+--hybrid-numa-aware         # NUMA 활성화 (기본값)
+--no-hybrid-numa-aware      # NUMA 비활성화
+--hybrid-numa-node <N>      # 특정 NUMA 노드 지정
+
+# 112 코어 전체 활용 예시
+numactl --interleave=all vllm serve model \
+  --hybrid-mode parallel-batch \
+  --hybrid-cpu-threads 112 \
+  --hybrid-cpu-dtype bfloat16
+```
+
+### 13.4 AMX vs AVX-512 선택 우선순위
+
+| dtype | AMX 가능 | 사용 ISA |
+|-------|----------|----------|
+| int8 | Yes | AMX-INT8 |
+| int8 | No | AVX-512 VNNI |
+| bfloat16 | Yes | AMX-BF16 |
+| bfloat16 | No (BF16 지원) | AVX-512 BF16 |
+| float32 | Yes | AMX-BF16 (내부 변환) |
+
+---
+
 ## 변경 이력
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-02-03 | Parallel Batch Executor NUMA/AMX 최적화 추가 |
 | 2026-02-03 | 문서에 PyTorch/torchvision/IPEX 버전 호환성 표 추가 |
 | 2026-02-03 | `platforms/__init__.py`: heterogeneous 플랫폼 우선순위 조정 |
 | 2026-02-03 | `_ipex_ops.py`: IPEX import 예외 처리 강화 |

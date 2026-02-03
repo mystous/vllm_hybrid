@@ -435,6 +435,32 @@ def configure_intel_optimizations(features: Optional[IntelCPUFeatures] = None) -
         settings["MKL_ENABLE_INSTRUCTIONS"] = "AVX2"
 
     # =========================================
+    # AMX Settings (Sapphire Rapids+)
+    # =========================================
+
+    if features.amx_bf16 or features.amx_int8:
+        # Enable AMX in oneDNN/DNNL
+        os.environ.setdefault("ONEDNN_MAX_CPU_ISA", "AVX512_CORE_AMX")
+        os.environ.setdefault("DNNL_MAX_CPU_ISA", "AVX512_CORE_AMX")
+        settings["ONEDNN_MAX_CPU_ISA"] = "AVX512_CORE_AMX"
+        settings["AMX_ENABLED"] = True
+
+        # Enable AMX tiles (Linux kernel 5.16+)
+        # AMX requires explicit permission via ARCH_REQ_XCOMP_PERM
+        try:
+            _enable_amx_tiles()
+        except Exception as e:
+            logger.debug(f"AMX tile permission setup skipped: {e}")
+
+        logger.info(f"  AMX enabled: BF16={features.amx_bf16}, INT8={features.amx_int8}")
+    elif features.avx512f:
+        # AVX-512 without AMX
+        os.environ.setdefault("ONEDNN_MAX_CPU_ISA", "AVX512_CORE_VNNI")
+        os.environ.setdefault("DNNL_MAX_CPU_ISA", "AVX512_CORE_VNNI")
+        settings["ONEDNN_MAX_CPU_ISA"] = "AVX512_CORE_VNNI"
+        settings["AMX_ENABLED"] = False
+
+    # =========================================
     # Thread Settings
     # =========================================
 
@@ -459,9 +485,12 @@ def configure_intel_optimizations(features: Optional[IntelCPUFeatures] = None) -
 
     # Log configuration
     logger.info(f"CPU optimization configured: {features.model_name}")
-    if features.avx512f:
+    if features.amx_bf16 or features.amx_int8:
+        logger.info(f"  Features: AMX-BF16={features.amx_bf16}, AMX-INT8={features.amx_int8}, "
+                    f"AVX-512={features.avx512f}")
+    elif features.avx512f:
         logger.info(f"  Features: AVX-512, VNNI={features.avx512_vnni}, "
-                    f"BF16={features.avx512_bf16}, AMX={features.amx_bf16}")
+                    f"BF16={features.avx512_bf16}, AMX=No")
     else:
         logger.info(f"  Features: AVX2={features.avx2}, AVX-VNNI={features.avx_vnni}")
     logger.info(f"  Topology: {features.num_sockets} socket(s) x "
@@ -471,16 +500,52 @@ def configure_intel_optimizations(features: Optional[IntelCPUFeatures] = None) -
     return settings
 
 
+def _enable_amx_tiles():
+    """
+    Enable AMX tiles via ARCH_REQ_XCOMP_PERM syscall.
+
+    AMX requires explicit kernel permission on Linux 5.16+.
+    This is typically done automatically by IPEX/oneDNN, but we ensure it here.
+    """
+    import platform
+    if platform.system() != "Linux":
+        return
+
+    try:
+        import ctypes
+
+        # ARCH_REQ_XCOMP_PERM = 0x1023
+        # XFEATURE_XTILEDATA = 18
+        ARCH_REQ_XCOMP_PERM = 0x1023
+        XFEATURE_XTILEDATA = 18
+
+        libc = ctypes.CDLL("libc.so.6", use_errno=True)
+
+        # syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA)
+        SYS_arch_prctl = 158  # x86_64
+        result = libc.syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA)
+
+        if result == 0:
+            logger.debug("AMX tiles enabled via ARCH_REQ_XCOMP_PERM")
+        else:
+            errno = ctypes.get_errno()
+            logger.debug(f"AMX tile permission request returned {result}, errno={errno}")
+
+    except Exception as e:
+        logger.debug(f"AMX tile setup failed: {e}")
+
+
 def configure_pytorch_for_intel(features: Optional[IntelCPUFeatures] = None):
     """
     Configure PyTorch settings optimized for Intel CPUs.
 
-    Works on any CPU, with enhanced settings for AVX-512 systems.
+    Works on any CPU, with enhanced settings for AVX-512 and AMX systems.
 
     This includes:
     - Thread settings
     - Memory format preferences
     - Inductor backend settings (adaptive to CPU features)
+    - AMX acceleration (Sapphire Rapids+)
     """
     if features is None:
         features = detect_intel_cpu_features()
@@ -500,6 +565,12 @@ def configure_pytorch_for_intel(features: Optional[IntelCPUFeatures] = None):
     torch.set_float32_matmul_precision('high')
     logger.debug("Float32 matmul precision set to 'high'")
 
+    # =========================================
+    # AMX Configuration (Sapphire Rapids+)
+    # =========================================
+    if features.amx_bf16 or features.amx_int8:
+        _configure_amx_for_pytorch(features)
+
     # Configure Inductor for Intel CPUs
     try:
         import torch._inductor.config as inductor_config
@@ -517,7 +588,11 @@ def configure_pytorch_for_intel(features: Optional[IntelCPUFeatures] = None):
         inductor_config.cpp_wrapper = True
 
         # Set SIMD length based on available instruction sets
-        if features.avx512f:
+        if features.amx_bf16:
+            # AMX uses tiles, but SIMD still uses AVX-512
+            inductor_config.cpp.simdlen = 16
+            logger.info("Inductor configured for AMX + AVX-512 (simdlen=16)")
+        elif features.avx512f:
             # AVX-512: 512-bit / 32-bit = 16 floats
             inductor_config.cpp.simdlen = 16
             logger.info("Inductor configured for AVX-512 (simdlen=16)")
@@ -533,6 +608,56 @@ def configure_pytorch_for_intel(features: Optional[IntelCPUFeatures] = None):
         logger.debug(f"Some Inductor options not available: {e}")
     except Exception as e:
         logger.debug(f"Failed to configure Inductor: {e}")
+
+
+def _configure_amx_for_pytorch(features: IntelCPUFeatures):
+    """
+    Configure PyTorch for AMX acceleration.
+
+    AMX (Advanced Matrix Extensions) provides significant speedup for
+    matrix operations on Sapphire Rapids and newer processors.
+    """
+    logger.info("Configuring PyTorch for AMX acceleration...")
+
+    # 1. Enable oneDNN with AMX support
+    try:
+        # PyTorch 2.0+ uses oneDNN by default for CPU
+        # Ensure it's enabled and configured for AMX
+        if hasattr(torch.backends, 'mkldnn'):
+            torch.backends.mkldnn.enabled = True
+            logger.debug("  oneDNN/MKLDNN enabled")
+    except Exception as e:
+        logger.debug(f"  MKLDNN setup skipped: {e}")
+
+    # 2. Try to enable BF16 fast math (uses AMX-BF16)
+    try:
+        # PyTorch 2.1+ has allow_bf16_reduced_precision_reduction
+        if hasattr(torch.backends, 'cpu') and hasattr(torch.backends.cpu, 'allow_bf16_reduced_precision_reduction'):
+            torch.backends.cpu.allow_bf16_reduced_precision_reduction = True
+            logger.debug("  BF16 reduced precision enabled")
+    except Exception as e:
+        logger.debug(f"  BF16 precision setup skipped: {e}")
+
+    # 3. Configure IPEX for AMX if available
+    try:
+        import intel_extension_for_pytorch as ipex
+
+        # Set FP32 math mode to BF16 (AMX-BF16 will be used)
+        if hasattr(ipex, 'set_fp32_math_mode') and hasattr(ipex, 'FP32MathMode'):
+            ipex.set_fp32_math_mode(ipex.FP32MathMode.BF16)
+            logger.info("  IPEX FP32 math mode set to BF16 (AMX accelerated)")
+
+        # Enable oneDNN graph fusion for better AMX utilization
+        if hasattr(ipex, 'enable_onednn_fusion'):
+            ipex.enable_onednn_fusion(True)
+            logger.debug("  IPEX oneDNN fusion enabled")
+
+    except ImportError:
+        logger.debug("  IPEX not available for AMX configuration")
+    except Exception as e:
+        logger.debug(f"  IPEX AMX setup skipped: {e}")
+
+    logger.info(f"  AMX configuration complete: BF16={features.amx_bf16}, INT8={features.amx_int8}")
 
 
 # ============================================================================
