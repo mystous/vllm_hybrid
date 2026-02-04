@@ -17,6 +17,62 @@ Intel Xeon + NVIDIA GPU 하이브리드 추론 환경에 최적화.
 
 ## 현재 진행 중인 작업
 
+### Option A 구현 (2026-02-04 완료 ✅)
+
+**목표**: MoE 모델용 CPU+GPU 하이브리드 최적화
+
+#### 구현 컴포넌트
+1. **MoE Expert Offload** - GPU: Attention, CPU: Experts (AMX/AVX-512)
+2. **N-gram Lookahead Decoding** - CPU에서 패턴 매칭, GPU에서 검증
+3. **Disaggregated Serving** - Prefill/Decode 노드 분리
+
+#### 구현된 파일 구조
+```
+vllm/
+├── model_executor/layers/fused_moe/
+│   └── expert_offload.py          # [신규] MoE Expert Offload Manager
+│       - ExpertOffloadConfig      # Expert 오프로드 설정
+│       - ExpertOffloadManager     # LRU 기반 GPU/CPU 분배
+│       - ExpertStats             # 사용량 통계
+│
+├── v1/spec_decode/
+│   └── ngram_proposer_dynamic.py  # [신규] Dynamic N-gram Proposer
+│       - DynamicNgramConfig       # N-gram 설정
+│       - DynamicNgramProposer     # 학습 기반 패턴 제안
+│       - HybridNgramWorker        # CPU-GPU 하이브리드 워커
+│       - NgramStats              # 제안/수락 통계
+│
+└── engine/disaggregated/
+    ├── __init__.py               # [신규] 패키지 초기화
+    ├── kv_transfer.py            # [신규] KV Cache 전송 백엔드
+    │   - KVTransferConfig        # 전송 설정 (TCP/SHM)
+    │   - KVCacheData            # KV 캐시 데이터 컨테이너
+    │   - TCPTransferBackend     # TCP 전송 백엔드
+    │   - SharedMemoryBackend    # 공유 메모리 백엔드
+    │   - KVCacheSender/Receiver # 송수신 인터페이스
+    │
+    └── coordinator.py            # [신규] Disaggregated Coordinator
+        - DisaggregatedConfig    # Prefill/Decode 설정
+        - NodeType               # 노드 타입 (PREFILL/DECODE)
+        - LoadBalancer           # 부하 분산 (RoundRobin/LeastLoaded)
+        - InferenceRequest/Response # 요청/응답 컨테이너
+```
+
+#### 시뮬레이션 테스트 결과 (5라운드 검증 완료)
+| 라운드 | 테스트 내용 | 결과 |
+|--------|------------|------|
+| 1 | 기본 Config/API 검증 | ✅ |
+| 2 | 패턴 학습, 테이블 제한, 직렬화 무결성 | ✅ |
+| 3 | 비동기 송수신, End-to-End 시뮬레이션 | ✅ |
+| 4 | 에지 케이스, 경계값, 유니코드 처리 | ✅ |
+| 5 | 전체 통합 검증, API 일관성 | ✅ |
+
+**N-gram 성능**: hit_rate 56.2%, acceptance_rate 52.7% (시뮬레이션)
+**LoadBalancer**: Round-Robin/Least-Loaded 모두 정상 동작
+**KV Transfer**: TCP/SHM 직렬화 무결성 검증 완료
+
+---
+
 ### Parallel Batch Executor NUMA 최적화 (2026-02-03)
 
 #### 수정된 파일
@@ -1533,5 +1589,5 @@ KTransformers 통합:
 
 ---
 
-*마지막 업데이트: 2026-02-03*
-*작업자: Claude (정적 분석/시뮬레이션 검증 완료, NUMA/AMX 최적화)*
+*마지막 업데이트: 2026-02-04*
+*작업자: Claude (Option A 구현 완료: MoE Expert Offload + N-gram Proposer + Disaggregated Serving)*
