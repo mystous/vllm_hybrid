@@ -590,6 +590,35 @@ struct INT8Vec64 : public Vec<INT8Vec64> {
   // non-temporal save
   void nt_save(int8_t* ptr) { _mm512_stream_si512((__m512i*)ptr, reg); }
 };
+
+// UINT8Vec64: VNNI activation vector (u8s8 format)
+struct UINT8Vec64 : public Vec<UINT8Vec64> {
+  constexpr static int VEC_ELEM_NUM = 64;
+  union AliasReg {
+    __m512i reg;
+    uint8_t values[VEC_ELEM_NUM];
+  };
+
+  __m512i reg;
+
+  explicit UINT8Vec64(void* ptr) : reg(_mm512_loadu_epi8(ptr)) {}
+
+  explicit UINT8Vec64(__m512i data) : reg(data) {}
+
+  // Construct from INT8Vec64 by adding 128 (s8 -> u8 conversion)
+  explicit UINT8Vec64(const INT8Vec64& v) {
+    __m512i offset = _mm512_set1_epi8(static_cast<char>(-128));
+    reg = _mm512_sub_epi8(v.reg, offset);
+  }
+
+  void save(void* ptr) const { _mm512_storeu_epi8(ptr, reg); }
+
+  void save(uint8_t* ptr, const int elem_num) const {
+    constexpr uint64_t M = 0xFFFFFFFFFFFFFFFF;
+    __mmask64 mask = _cvtu64_mask64(M >> (64 - elem_num));
+    _mm512_mask_storeu_epi8(ptr, mask, reg);
+  }
+};
 #endif
 
 template <typename T>

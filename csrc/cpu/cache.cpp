@@ -3,6 +3,11 @@
 
 #include "cpu_types.hpp"
 
+// NT memcpy for large copies (defined in mem_opt.cpp)
+#ifdef __AVX512F__
+extern void nt_memcpy(void* dst, const void* src, size_t n);
+#endif
+
 #if defined(__x86_64__)
   #define DISPATCH_MACRO VLLM_DISPATCH_FLOATING_TYPES_WITH_E5M2
 #else
@@ -28,12 +33,20 @@ void copy_blocks_cpu_impl(std::vector<torch::Tensor> const& key_caches,
       scalar_t* key_cache_ptr = key_caches[layer].data_ptr<scalar_t>();
       scalar_t* source_ptr = key_cache_ptr + source_offset;
       scalar_t* target_ptr = key_cache_ptr + target_offset;
+#ifdef __AVX512F__
+      nt_memcpy(target_ptr, source_ptr, block_bytes);
+#else
       std::memcpy(target_ptr, source_ptr, block_bytes);
+#endif
 
       scalar_t* value_cache_ptr = value_caches[layer].data_ptr<scalar_t>();
       source_ptr = value_cache_ptr + source_offset;
       target_ptr = value_cache_ptr + target_offset;
+#ifdef __AVX512F__
+      nt_memcpy(target_ptr, source_ptr, block_bytes);
+#else
       std::memcpy(target_ptr, source_ptr, block_bytes);
+#endif
     }
   }
 }

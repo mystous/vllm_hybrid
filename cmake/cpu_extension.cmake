@@ -277,7 +277,17 @@ if (AVX512_FOUND AND NOT AVX512_DISABLED)
     set(VLLM_EXT_SRC
         "csrc/cpu/quant.cpp"
         "csrc/cpu/shm.cpp"
+        "csrc/cpu/decode_gemv.cpp"
+        "csrc/cpu/batch_attention.cpp"
+        "csrc/cpu/mem_opt.cpp"
         ${VLLM_EXT_SRC})
+    # VNNI-only kernels (no AVX512BF16/AMX required)
+    if (ENABLE_AVX512VNNI)
+        set(VLLM_EXT_SRC
+            "csrc/cpu/gemm_vnni.cpp"
+            "csrc/cpu/quant_q8_0.cpp"
+            ${VLLM_EXT_SRC})
+    endif()
     if (ENABLE_AVX512BF16 AND ENABLE_AVX512VNNI)
         set(VLLM_EXT_SRC
             "csrc/cpu/sgl-kernels/gemm.cpp"
