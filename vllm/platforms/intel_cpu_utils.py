@@ -275,6 +275,76 @@ class IntelCPUFeatures:
     l3_cache_mb: float = 0.0
 
 
+def _check_kernel_amx_support() -> tuple[bool, str]:
+    """
+    Check if the Linux kernel supports AMX.
+
+    AMX requires Linux kernel 5.16 or later.
+    Returns (supported, reason).
+    """
+    try:
+        result = subprocess.run(
+            ["uname", "-r"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        kernel_version = result.stdout.strip()
+
+        # Parse version (e.g., "5.19.0-42-generic" -> (5, 19))
+        parts = kernel_version.split('.')
+        if len(parts) >= 2:
+            major = int(parts[0])
+            minor = int(parts[1].split('-')[0])
+
+            if major < 5 or (major == 5 and minor < 16):
+                return False, f"Kernel {kernel_version} is too old (need 5.16+)"
+            return True, f"Kernel {kernel_version} supports AMX"
+    except Exception as e:
+        return False, f"Could not check kernel version: {e}"
+
+    return True, "Kernel version check passed"
+
+
+def _detect_amx_from_lscpu() -> tuple[bool, bool, bool]:
+    """
+    Alternative AMX detection using lscpu.
+
+    Some systems show AMX in lscpu even when cpuinfo doesn't list it.
+    Returns (amx_tile, amx_bf16, amx_int8).
+    """
+    amx_tile = False
+    amx_bf16 = False
+    amx_int8 = False
+
+    try:
+        result = subprocess.run(
+            ["lscpu"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        output = result.stdout.lower()
+
+        # lscpu shows flags in "Flags:" line
+        for line in result.stdout.split('\n'):
+            if line.strip().lower().startswith('flags:'):
+                flags_str = line.lower()
+                if 'amx_tile' in flags_str or 'amx-tile' in flags_str:
+                    amx_tile = True
+                if 'amx_bf16' in flags_str or 'amx-bf16' in flags_str:
+                    amx_bf16 = True
+                if 'amx_int8' in flags_str or 'amx-int8' in flags_str:
+                    amx_int8 = True
+                break
+
+    except Exception as e:
+        logger.debug(f"lscpu AMX detection failed: {e}")
+
+    return amx_tile, amx_bf16, amx_int8
+
+
 def detect_intel_cpu_features() -> IntelCPUFeatures:
     """
     Detect Intel CPU features for optimization.
@@ -286,6 +356,11 @@ def detect_intel_cpu_features() -> IntelCPUFeatures:
     - AMX (Advanced Matrix Extensions) - Sapphire Rapids+
 
     Works on any Linux system, gracefully handles missing features.
+
+    AMX Detection Notes:
+    - Requires Linux kernel 5.16 or later
+    - Checks both /proc/cpuinfo and lscpu for AMX flags
+    - Supports both underscore (amx_bf16) and dash (amx-bf16) formats
     """
     global _AVX512_AVAILABLE, _AMX_AVAILABLE
 
@@ -300,32 +375,42 @@ def detect_intel_cpu_features() -> IntelCPUFeatures:
         with open("/proc/cpuinfo", "r") as f:
             cpuinfo = f.read()
 
+        # Normalize: also check for dash-separated versions
+        cpuinfo_lower = cpuinfo.lower()
+
         # Check for AVX-512 features
-        if "avx512f" in cpuinfo:
+        if "avx512f" in cpuinfo_lower:
             features.avx512f = True
             _AVX512_AVAILABLE = True
-        if "avx512_vnni" in cpuinfo:
+        if "avx512_vnni" in cpuinfo_lower or "avx512-vnni" in cpuinfo_lower:
             features.avx512_vnni = True
-        if "avx512_bf16" in cpuinfo:
+        if "avx512_bf16" in cpuinfo_lower or "avx512-bf16" in cpuinfo_lower:
             features.avx512_bf16 = True
-        if "amx_bf16" in cpuinfo:
+
+        # AMX detection - check multiple formats
+        # Also check for amx_tile which is the base AMX feature
+        amx_tile_found = "amx_tile" in cpuinfo_lower or "amx-tile" in cpuinfo_lower
+        amx_bf16_found = "amx_bf16" in cpuinfo_lower or "amx-bf16" in cpuinfo_lower
+        amx_int8_found = "amx_int8" in cpuinfo_lower or "amx-int8" in cpuinfo_lower
+
+        if amx_bf16_found:
             features.amx_bf16 = True
             _AMX_AVAILABLE = True
-        if "amx_int8" in cpuinfo:
+        if amx_int8_found:
             features.amx_int8 = True
             _AMX_AVAILABLE = True
 
         # Check for AVX2 (fallback for non-AVX512 systems)
-        if "avx2" in cpuinfo:
+        if "avx2" in cpuinfo_lower:
             features.avx2 = True
 
         # Check for AVX-VNNI (available on Alder Lake without AVX-512)
-        if "avx_vnni" in cpuinfo:
+        if "avx_vnni" in cpuinfo_lower or "avx-vnni" in cpuinfo_lower:
             features.avx_vnni = True
 
         # Get model name
         for line in cpuinfo.split('\n'):
-            if "model name" in line:
+            if "model name" in line.lower():
                 features.model_name = line.split(':')[1].strip()
                 break
 
@@ -353,6 +438,32 @@ def detect_intel_cpu_features() -> IntelCPUFeatures:
                         features.l3_cache_mb = float(cache_str.replace('KiB', '').strip()) / 1024
         except Exception as e:
             logger.debug(f"lscpu not available: {e}")
+
+        # If AMX not detected from cpuinfo, try lscpu as fallback
+        if not features.amx_bf16 and not features.amx_int8:
+            lscpu_tile, lscpu_bf16, lscpu_int8 = _detect_amx_from_lscpu()
+            if lscpu_bf16:
+                features.amx_bf16 = True
+                _AMX_AVAILABLE = True
+                logger.debug("AMX-BF16 detected via lscpu (not in cpuinfo)")
+            if lscpu_int8:
+                features.amx_int8 = True
+                _AMX_AVAILABLE = True
+                logger.debug("AMX-INT8 detected via lscpu (not in cpuinfo)")
+
+        # Check kernel AMX support if CPU has AMX but we haven't detected it
+        if not _AMX_AVAILABLE and ("8480" in features.model_name or
+                                    "sapphire" in features.model_name.lower() or
+                                    "emerald" in features.model_name.lower()):
+            kernel_ok, kernel_msg = _check_kernel_amx_support()
+            if not kernel_ok:
+                logger.warning(f"CPU likely supports AMX but: {kernel_msg}")
+            else:
+                logger.warning(
+                    f"CPU ({features.model_name}) should support AMX but flags not found in cpuinfo. "
+                    f"This may be due to kernel configuration or XSTATE permissions. "
+                    f"Try: 'grep amx /proc/cpuinfo' and 'uname -r' to diagnose."
+                )
 
     except Exception as e:
         logger.debug(f"Failed to detect CPU features: {e}")

@@ -348,6 +348,53 @@ numactl --hardware
 
 ## 변경 이력
 
+### 2026-02-04: AMX 감지 로직 개선
+
+#### 문제
+Intel Xeon 8480+ (Sapphire Rapids)에서 AMX 플래그가 감지되지 않는 문제
+
+#### 원인 분석
+1. **커널 버전 문제**: AMX는 Linux 5.16 이상 필요
+2. **플래그 형식 차이**: 일부 시스템에서 `amx_bf16` 대신 `amx-bf16` 사용
+3. **lscpu 미검사**: cpuinfo에 없어도 lscpu에서 검출 가능한 경우
+4. **XSTATE 권한**: AMX 타일 권한이 프로세스에 부여되지 않은 경우
+
+#### 수정 내용 (`vllm/platforms/intel_cpu_utils.py`)
+1. `_check_kernel_amx_support()` 함수 추가
+   - 커널 버전 5.16+ 확인
+   - 실패 시 상세 이유 반환
+
+2. `_detect_amx_from_lscpu()` 함수 추가
+   - lscpu 출력에서 AMX 플래그 추출
+   - cpuinfo fallback 용도
+
+3. `detect_intel_cpu_features()` 개선
+   - 대소문자 무시 검색
+   - 밑줄(`amx_bf16`)과 대시(`amx-bf16`) 형식 모두 지원
+   - cpuinfo 실패 시 lscpu fallback
+   - Sapphire Rapids/Emerald Rapids 감지 시 경고 출력
+
+4. `scripts/check_amx.sh` v2 업데이트
+   - 커널 버전 자동 확인
+   - 두 가지 플래그 형식 검사
+   - dmesg AMX 메시지 확인
+   - vLLM 모듈 통합 테스트
+
+#### 진단 방법
+```bash
+# H100 서버에서 실행
+chmod +x scripts/check_amx.sh
+./scripts/check_amx.sh
+```
+
+#### 가능한 해결책 (서버 설정)
+1. 커널 업그레이드 (5.16 이상)
+2. BIOS에서 AMX 활성화 확인
+3. `CONFIG_X86_INTEL_AMX=y` 커널 설정 확인
+4. 컨테이너/VM 환경이라면 호스트 AMX 지원 확인
+
+---
+
 ### 2026-02-03: CPU PagedAttention 토큰-시퀀스 불일치 수정
 
 #### 문제
