@@ -73,45 +73,60 @@ vllm/
 
 ---
 
-### Parallel-Batch v1 엔진 통합 (2026-02-19 완료 ✅)
+### Parallel-Batch v1 엔진 통합 (2026-02-19 리팩토링 완료 ✅)
 
 **목표**: `--hybrid-mode parallel-batch` 옵션을 v1 엔진에 실제 연결하여 CPU가 GPU와 독립적으로 요청을 처리하도록 구현
 
 **문제**: `ParallelBatchExecutor`는 존재하지만 v1 엔진에 연결되지 않아 완전한 no-op 상태였음. `HybridConfig`는 파싱되지만 아무 엔진/실행기도 이를 읽지 않음.
 
-**접근법**: Dual-Path EngineCore
-- GPU 경로: 기존 v1 EngineCore 100% 유지 (변경 없음)
+**접근법**: Dual-Path EngineCore (Wrapper 패턴)
+- GPU 경로: 기존 v1 EngineCore 100% 유지 (**변경 없음**)
 - CPU 경로: 별도 프로세스에서 HuggingFace `AutoModelForCausalLM` + IPEX로 독립 추론
+- `HybridEngineCore`: EngineCore를 **composition으로 감싸서** CPU 경로 추가 (InprocClient용)
+- `HybridEngineCoreProc`: EngineCoreProc 인스턴스에 **메서드 바인딩으로** CPU 로직 추가 (프로세스 모드용)
 - 요청 라우팅: `preprocess_add_request()` 시점에서 `cpu_ratio` 기반 분배
 - 결과 병합: `step()` 시점에서 `EngineCoreOutputs` 병합
 
+#### 아키텍처 설계 원칙
+
+1. **EngineCore 무수정**: `core.py`의 `EngineCore`에는 hybrid 관련 코드가 없음
+2. **Wrapper 패턴**: `HybridEngineCore`가 `EngineCore`를 composition으로 감싸고, `__getattr__`로 미정의 메서드 위임
+3. **동적 메서드 바인딩**: `HybridEngineCoreProc.create()`가 `EngineCoreProc` 인스턴스를 생성한 후, hybrid 메서드를 동적으로 바인딩
+4. **_HybridMixin**: 공유 hybrid 로직 (_check_hybrid_cpu_health, _collect_hybrid_cpu_outputs 등)
+
 #### 수정/생성된 파일
 
-1. **`vllm/v1/engine/hybrid_core.py`** (신규)
+1. **`vllm/v1/engine/hybrid_core.py`** (핵심 파일)
    - `RequestRouter`: cpu_ratio 기반 라운드로빈 요청 분배기
    - `CPUInferenceProcess`: 별도 프로세스에서 CPU 추론 (HF model + IPEX + NUMA)
    - `CPUInferenceRequest/Response`: IPC 데이터 컨테이너
+   - `_HybridMixin`: 공유 hybrid 로직 (health check, output merge, routing, abort, shutdown)
+   - `_init_hybrid_cpu_process()`: CPU 프로세스 초기화 팩토리 (자동 프로파일링 포함)
+   - `_check_cpu_memory_available()`: 시스템 메모리 사전 검사
+   - `HybridEngineCore`: InprocClient용 composition wrapper
+     - `__init__`: EngineCore 생성 + CPU 프로세스 초기화
+     - `preprocess_add_request()`: CPU 라우팅 분기
+     - `step()`: GPU step + CPU 결과 merge
+     - `__getattr__`: 미정의 메서드는 gpu_engine에 위임
+   - `HybridEngineCoreProc`: 프로세스 모드용 팩토리
+     - `create()`: EngineCoreProc 인스턴스에 hybrid 메서드 동적 바인딩
+     - step/step_with_batch_queue/abort/shutdown/preprocess 등 override
+     - `_process_input_queue`: CPU pending 인식 (timeout 기반 non-blocking)
 
-2. **`vllm/v1/engine/core.py`** (수정)
-   - `EngineCore.__init__()`: hybrid 필드 초기화 (`_hybrid_enabled`, `_hybrid_cpu_process`, `_hybrid_router`)
-   - `_init_hybrid_cpu()`: CPU 프로세스 초기화 (GPU-only fallback 포함)
-   - `preprocess_add_request()`: CPU 라우팅 분기 추가 (None 반환 시 CPU로 전달됨)
-   - `_collect_hybrid_cpu_outputs()`: CPU 결과 수집 및 EngineCoreOutputs 병합
-   - `step()` / `step_with_batch_queue()`: CPU 결과 병합 통합
-   - `abort_requests()`: CPU 요청 abort 처리
-   - `shutdown()`: CPU 프로세스 종료
-   - `_process_input_queue()`: CPU pending 시 non-blocking poll
-   - `_has_hybrid_cpu_pending()`: CPU 대기 요청 확인
-   - `_handle_client_request()`: None req 스킵 처리
-   - `process_input_sockets()`: CPU 라우팅된 요청 input_queue 스킵
+2. **`vllm/v1/engine/core.py`** (최소 수정)
+   - `EngineCore`: **hybrid 관련 코드 전혀 없음** (순수 GPU 경로)
+   - `EngineCoreProc._handle_client_request()`: None req 안전 스킵 (1줄)
+   - `EngineCoreProc.process_input_sockets()`: CPU-routed None 스킵 (2줄)
+   - `EngineCoreProc.run_engine_core()`: hybrid 모드 시 `HybridEngineCoreProc.create()` 분기
 
-3. **`vllm/v1/engine/core_client.py`** (수정)
+3. **`vllm/v1/engine/core_client.py`** (최소 수정)
+   - `InprocClient.__init__()`: hybrid 모드 시 `HybridEngineCore` 생성
    - `InprocClient.add_request()`: preprocess 반환값 None 체크
 
-4. **`vllm/config.py`** (수정)
+4. **`vllm/config.py`** (이전 작업에서 완료)
    - `HybridConfig`: `cpu_kvcache_space_gb`, `cpu_max_num_seqs`, `cpu_max_num_batched_tokens` 추가
 
-5. **`vllm/engine/arg_utils.py`** (수정)
+5. **`vllm/engine/arg_utils.py`** (이전 작업에서 완료)
    - `--hybrid-cpu-kvcache-gb`, `--hybrid-cpu-max-seqs` CLI 인자 추가
 
 #### 데이터 흐름
@@ -119,34 +134,41 @@ vllm/
 ```
 Client Request
      ↓
-EngineCore.preprocess_add_request()
+HybridEngineCore.preprocess_add_request()
      ↓
 [RequestRouter] cpu_ratio 기반 분배
      ↓                    ↓
 GPU Path              CPU Path
-(return Request)      (return None → submit to CPUInferenceProcess)
+(EngineCore           (CPUInferenceProcess
+ .preprocess)          .submit_request → Queue)
      ↓                    ↓
-Scheduler.schedule()  Queue → HF model.generate()
+Scheduler.schedule()  HF model forward loop
      ↓                    ↓
-MultiprocExecutor     토큰 생성 → Queue
+MultiprocExecutor     토큰 생성 → result Queue
      ↓                    ↓
-EngineCore.step()  ←  _collect_hybrid_cpu_outputs()
-     ↓
-EngineCoreOutputs (GPU + CPU 병합)
-     ↓
-Client Response
+EngineCore.step()     collect_results()
+     ↓                    ↓
+     └─── _collect_hybrid_cpu_outputs() ───┘
+                    ↓
+          EngineCoreOutputs (GPU + CPU 병합)
+                    ↓
+             Client Response
 ```
 
-#### 시뮬레이션 테스트 결과 (10회 검증 완료 ✅)
-- 컴포넌트 import 검증
+#### 시뮬레이션 테스트 결과 (20회 검증 완료 ✅)
+- 컴포넌트 import 검증 (RequestRouter, CPUInferenceProcess, HybridEngineCore 등)
 - RequestRouter 라우팅 분배 (cpu_ratio=0.05 → GPU 95%, CPU 5%)
-- Router 엣지 케이스 (ratio=0.0, 1.0, -0.5)
+- Router 엣지 케이스 (ratio=0.0, 1.0)
 - EngineCoreOutput 생성/병합 (Empty/GPU-only/CPU-only/Mixed)
 - CPU abort 처리, tracking 정리
-- _handle_client_request None 스킵
+- _route_request_to_cpu (ratio=0.0 → GPU, ratio=1.0 → CPU)
 - _has_hybrid_cpu_pending 로직
-- GPU empty + CPU results step flow
-- process_input_sockets CPU 라우팅 skip
+- _check_hybrid_cpu_health (dead process → GPU-only fallback)
+- _shutdown_hybrid_cpu 정리
+- Abort response 필터링 (abort 응답 출력에 포함 안 됨)
+- Router 통계 (get_stats)
+- _check_cpu_memory_available (메모리 검사)
+- compute_auto_cpu_ratio (비율 계산)
 
 #### 사용법
 ```bash
@@ -1724,3 +1746,74 @@ KTransformers 통합:
 
 *마지막 업데이트: 2026-02-04*
 *작업자: Claude (Option A 구현 완료: MoE Expert Offload + N-gram Proposer + Disaggregated Serving)*
+
+---
+
+## AVX-512 VNNI C++ 커널 최적화 구현 (2026-02-19 완료 ✅)
+
+**목표**: AMX 미지원 환경(Cascade Lake, Ice Lake)에서 AVX512F+VNNI만으로 고성능 INT8 GEMM/GEMV 제공
+
+### 구현된 5 Phases
+
+#### Phase 1: AVX-512 VNNI INT8 GEMM 커널
+- **`csrc/cpu/gemm_vnni.hpp`** [신규]: 헤더 (함수 선언, 상수 정의)
+- **`csrc/cpu/gemm_vnni.cpp`** [신규]: 구현
+  - `VNNIMicroKernel 6x16`: 6개 ZMM 누적기 + dpbusd 명령어
+  - `int8_gemm_vnni()`: 3단계 캐시 블로킹 (MC=72, NC=256, KC=256)
+  - `int8_gemv_vnni()`: M=1 특화 GEMV (JIT 오버헤드 제거)
+  - `pack_weight_vnni()`: VNNI 포맷 패킹 + s8s8 보상
+  - `dequant_int32_to_output()`: INT32 → BF16/FP32 (AVX512BF16 불필요)
+- **`csrc/cpu/cpu_types_x86.hpp`** [수정]: `UINT8Vec64` 구조체 추가
+
+#### Phase 2: Q8_0 양자화 지원
+- **`csrc/cpu/quant_q8_0.cpp`** [신규]: Q8_0 C++ 커널
+  - `q8_0_gemv_vnni_impl()`: 블록별 스케일 VNNI GEMV
+  - `q8_0_linear()`: Torch 진입점 (동적 양자화 + GEMV)
+  - `q8_0_quantize_weight()`: FP32/BF16 → Q8_0 변환
+- **`vllm/.../quantization/q8_0.py`** [신규]: Python 양자화 클래스
+  - `Q8_0Config`: CPU 전용 양자화 설정
+  - `Q8_0LinearMethod`: 가중치 생성/양자화/적용
+  - Python fallback 양자화/역양자화
+
+#### Phase 3: Decode GEMV 최적화
+- **`csrc/cpu/decode_gemv.cpp`** [신규]: BF16/FP32 GEMV
+  - `bf16_decode_gemv()`: 소프트웨어 프리페치 + BF16→FP32 FMA
+  - `bf16_batch_gemv()`: 배치 GEMV (B<=32)
+  - `fp32_dot_product_avx512()`: FP32 최적화 내적
+  - 2x16 언롤링 + 다음 행 프리페치
+
+#### Phase 4: 배치 Attention 최적화
+- **`csrc/cpu/batch_attention.cpp`** [신규]: 16-시퀀스 배치 처리
+  - `batch16_paged_attention_v1()`: 16개 시퀀스 동시 처리
+  - BF16/FP32 QK 내적 + Softmax + Value 가중합
+  - OMP 병렬화 (batch*head collapse)
+
+#### Phase 5: 메모리 대역폭 최적화
+- **`csrc/cpu/numa_utils.hpp`** [신규]: NUMA 유틸리티 헤더
+- **`csrc/cpu/mem_opt.cpp`** [신규]: 메모리 최적화
+  - `nt_memcpy()`: Non-temporal 스트리밍 복사 (8 ZMM 파이프라인)
+  - `prefetch_kv_blocks()`: T0/T1/NTA 계층적 프리페치
+  - NUMA 할당: `alloc_on_node()`, `alloc_interleaved()`
+- **`csrc/cpu/cache.cpp`** [수정]: `copy_blocks` → `nt_memcpy` 사용
+
+### 공통 수정 파일
+- **`csrc/cpu/torch_bindings.cpp`**: 8개 op 등록
+  - VNNI: `vnni_int8_gemm`, `vnni_pack_weight`
+  - Q8_0: `q8_0_linear`, `q8_0_quantize_weight`
+  - GEMV: `decode_gemv`
+  - Attention: `batch16_paged_attention_v1`
+  - Memory: `nt_memcpy_tensor`, `prefetch_kv_cache_blocks`
+- **`cmake/cpu_extension.cmake`**: 5개 소스 파일 조건부 포함
+- **`vllm/.../quantization/__init__.py`**: Q8_0Config 등록
+
+### 빌드 조건
+| 커널 | 필요 ISA | cmake 조건 |
+|------|----------|------------|
+| VNNI GEMM, Q8_0 | AVX512F + VNNI | `ENABLE_AVX512VNNI` |
+| Decode GEMV, Batch Attn, Mem Opt | AVX512F | `AVX512_FOUND` |
+| SGL 커널 (기존) | AVX512F + BF16 + VNNI | `ENABLE_AVX512BF16 AND ENABLE_AVX512VNNI` |
+
+---
+
+*마지막 업데이트: 2026-02-19*
+*작업자: Claude (AVX-512 VNNI 커널 최적화 5 Phases 구현)*

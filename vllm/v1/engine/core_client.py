@@ -241,7 +241,15 @@ class InprocClient(EngineCoreClient):
     """
 
     def __init__(self, *args, **kwargs):
-        self.engine_core = EngineCore(*args, **kwargs)
+        vllm_config = kwargs.get('vllm_config') or args[0]
+        if (hasattr(vllm_config, 'hybrid_config')
+                and vllm_config.hybrid_config is not None
+                and vllm_config.hybrid_config.is_enabled()
+                and vllm_config.hybrid_config.mode == "parallel-batch"):
+            from vllm.v1.engine.hybrid_core import HybridEngineCore
+            self.engine_core = HybridEngineCore(*args, **kwargs)
+        else:
+            self.engine_core = EngineCore(*args, **kwargs)
 
     def get_output(self) -> EngineCoreOutputs:
         outputs, _ = self.engine_core.step()

@@ -17,6 +17,7 @@ import os
 import queue
 import time
 from dataclasses import dataclass
+from logging import DEBUG
 from typing import Any, Callable, Optional
 
 import torch
@@ -24,12 +25,204 @@ import torch
 from vllm.config import VllmConfig
 from vllm.logger import init_logger
 from vllm.v1.engine import (EngineCoreOutput, EngineCoreOutputs,
-                             EngineCoreRequest, FinishReason)
-from vllm.v1.engine.core import EngineCore
-from vllm.v1.executor.abstract import Executor
-from vllm.v1.request import Request
+                             EngineCoreRequest, EngineCoreRequestType,
+                             FinishReason)
 
 logger = init_logger(__name__)
+
+
+# ============================================================================
+# Auto CPU Ratio Profiling
+# ============================================================================
+
+def estimate_cpu_throughput(
+    model_name: str,
+    trust_remote_code: bool,
+    num_threads: int,
+    dtype_str: str,
+    num_warmup: int = 2,
+    num_measure: int = 5,
+    prompt_len: int = 32,
+    gen_tokens: int = 10,
+) -> float:
+    """CPU 추론 처리량을 측정하여 tok/s 반환.
+
+    더미 입력으로 짧은 추론을 실행해 CPU 속도를 측정합니다.
+    GPU 속도는 vLLM 벤치마크 기반 휴리스틱을 사용합니다.
+
+    Returns:
+        추정된 최적 cpu_ratio (0.0 ~ 1.0)
+    """
+    import torch as _torch
+
+    _torch.set_num_threads(max(1, num_threads))
+
+    try:
+        from transformers import AutoModelForCausalLM
+
+        if dtype_str == "bfloat16":
+            dtype = _torch.bfloat16
+        elif dtype_str == "float16":
+            dtype = _torch.float16
+        else:
+            dtype = _torch.float32
+
+        logger.info(
+            f"Profiling CPU throughput: model={model_name}, "
+            f"threads={num_threads}, dtype={dtype_str}"
+        )
+
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=dtype,
+            trust_remote_code=trust_remote_code,
+            low_cpu_mem_usage=True,
+        )
+        model = model.to("cpu")
+        model.eval()
+
+        # 더미 입력 생성
+        dummy_input = _torch.randint(
+            100, 10000, (1, prompt_len), dtype=_torch.long, device="cpu"
+        )
+
+        use_autocast = dtype_str == "bfloat16"
+
+        # Warmup
+        with _torch.no_grad():
+            for _ in range(num_warmup):
+                ids = dummy_input.clone()
+                for _ in range(gen_tokens):
+                    with _torch.amp.autocast("cpu", enabled=use_autocast):
+                        out = model(ids)
+                    next_tok = out.logits[:, -1, :].argmax(dim=-1, keepdim=True)
+                    ids = _torch.cat([ids, next_tok], dim=1)
+
+        # 측정
+        import time as _time
+        total_tokens = 0
+        start = _time.perf_counter()
+
+        with _torch.no_grad():
+            for _ in range(num_measure):
+                ids = dummy_input.clone()
+                for _ in range(gen_tokens):
+                    with _torch.amp.autocast("cpu", enabled=use_autocast):
+                        out = model(ids)
+                    next_tok = out.logits[:, -1, :].argmax(dim=-1, keepdim=True)
+                    ids = _torch.cat([ids, next_tok], dim=1)
+                    total_tokens += 1
+
+        elapsed = _time.perf_counter() - start
+        cpu_tok_per_sec = total_tokens / elapsed if elapsed > 0 else 0
+
+        del model
+        if hasattr(_torch, 'cuda'):
+            pass  # CPU only, no cuda cleanup needed
+
+        logger.info(
+            f"CPU profiling result: {cpu_tok_per_sec:.1f} tok/s "
+            f"({total_tokens} tokens in {elapsed:.2f}s)"
+        )
+        return cpu_tok_per_sec
+
+    except Exception as e:
+        logger.warning(f"CPU profiling failed: {e}")
+        return 0.0
+
+
+def compute_auto_cpu_ratio(
+    cpu_tok_per_sec: float,
+    gpu_tok_per_sec: float = 100.0,
+) -> float:
+    """CPU/GPU 처리량 기반 최적 cpu_ratio 계산.
+
+    R_cpu = T_cpu / (T_gpu + T_cpu)
+
+    Args:
+        cpu_tok_per_sec: CPU 처리량 (tok/s)
+        gpu_tok_per_sec: GPU 처리량 (tok/s), 기본 100 tok/s 휴리스틱
+
+    Returns:
+        cpu_ratio (0.01 ~ 0.5 범위로 클램핑)
+    """
+    if cpu_tok_per_sec <= 0:
+        return 0.0
+
+    total = gpu_tok_per_sec + cpu_tok_per_sec
+    ratio = cpu_tok_per_sec / total
+
+    # 최소 1%, 최대 50%로 클램핑
+    ratio = max(0.01, min(0.5, ratio))
+
+    logger.info(
+        f"Auto cpu_ratio: {ratio:.2%} "
+        f"(cpu={cpu_tok_per_sec:.1f}, gpu={gpu_tok_per_sec:.1f} tok/s)"
+    )
+    return ratio
+
+
+# ============================================================================
+# Utility: CPU Memory Check
+# ============================================================================
+
+def _check_cpu_memory_available(model_name: str, dtype_str: str) -> bool:
+    """CPU 추론에 충분한 시스템 메모리가 있는지 확인."""
+    try:
+        import psutil
+        mem = psutil.virtual_memory()
+        available_gb = mem.available / (1024 ** 3)
+    except ImportError:
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        available_gb = int(line.split()[1]) / (1024 ** 2)
+                        break
+                else:
+                    return True
+        except Exception:
+            return True
+
+    bytes_per_param = 2 if dtype_str == "bfloat16" else 4
+    estimated_gb = 0.0
+    model_lower = model_name.lower()
+    for marker in ["70b", "65b", "72b"]:
+        if marker in model_lower:
+            estimated_gb = 70 * bytes_per_param
+            break
+    for marker in ["13b", "14b"]:
+        if marker in model_lower:
+            estimated_gb = 14 * bytes_per_param
+            break
+    for marker in ["7b", "8b"]:
+        if marker in model_lower:
+            estimated_gb = 8 * bytes_per_param
+            break
+    for marker in ["3b", "2b", "1b", "1.5b"]:
+        if marker in model_lower:
+            estimated_gb = 3 * bytes_per_param
+            break
+
+    if estimated_gb == 0:
+        estimated_gb = 16
+
+    required_gb = estimated_gb + 4
+
+    logger.info(
+        f"CPU memory check: available={available_gb:.1f}GB, "
+        f"estimated_model={estimated_gb:.1f}GB, "
+        f"required={required_gb:.1f}GB"
+    )
+
+    if available_gb < required_gb:
+        logger.warning(
+            f"Insufficient memory for CPU inference: "
+            f"available={available_gb:.1f}GB < "
+            f"required={required_gb:.1f}GB"
+        )
+        return False
+    return True
 
 
 # ============================================================================
@@ -136,8 +329,10 @@ class CPUInferenceProcess:
 
         self.request_queue: multiprocessing.Queue = multiprocessing.Queue()
         self.result_queue: multiprocessing.Queue = multiprocessing.Queue()
+        self.abort_queue: multiprocessing.Queue = multiprocessing.Queue()
         self.process: Optional[multiprocessing.Process] = None
         self.alive = False
+        self._shutdown_event: Optional[multiprocessing.Event] = None
 
         # 추적 중인 CPU 요청
         self.pending_requests: set[str] = set()
@@ -147,6 +342,8 @@ class CPUInferenceProcess:
         ctx = multiprocessing.get_context("spawn")
         self.request_queue = ctx.Queue()
         self.result_queue = ctx.Queue()
+        self.abort_queue = ctx.Queue()
+        self._shutdown_event = ctx.Event()
         self.process = ctx.Process(
             target=self._cpu_worker_loop,
             args=(
@@ -159,8 +356,10 @@ class CPUInferenceProcess:
                 self.hybrid_config.cpu_max_num_seqs,
                 self.request_queue,
                 self.result_queue,
+                self.abort_queue,
+                self._shutdown_event,
             ),
-            daemon=True,
+            daemon=False,
             name="cpu-inference",
         )
         self.process.start()
@@ -225,7 +424,11 @@ class CPUInferenceProcess:
             # EngineCoreOutput 생성
             finish_reason = None
             if resp.finished:
-                if resp.finish_reason == "stop":
+                if resp.finish_reason == "abort":
+                    # abort된 요청 — 추적에서 제거만, 출력 안 함
+                    self.pending_requests.discard(resp.request_id)
+                    continue
+                elif resp.finish_reason == "stop":
                     finish_reason = FinishReason.STOP
                 elif resp.finish_reason == "length":
                     finish_reason = FinishReason.LENGTH
@@ -245,8 +448,12 @@ class CPUInferenceProcess:
         return outputs
 
     def abort_request(self, request_id: str):
-        """CPU 요청 취소. (현재 단순히 무시)"""
+        """CPU 요청 취소 (워커에 abort 신호 전달)."""
         self.pending_requests.discard(request_id)
+        try:
+            self.abort_queue.put_nowait(request_id)
+        except Exception:
+            pass
 
     def has_pending_requests(self) -> bool:
         return len(self.pending_requests) > 0
@@ -260,18 +467,94 @@ class CPUInferenceProcess:
         return True
 
     def shutdown(self):
-        """CPU 프로세스 종료."""
-        if self.process is not None and self.process.is_alive():
+        """CPU 프로세스 종료.
+
+        종료 순서:
+        1. shutdown_event 설정 (워커 루프가 즉시 감지)
+        2. sentinel 전송 (Queue.get() 블로킹 해제용)
+        3. result_queue drain (multiprocessing Queue 데드락 방지)
+        4. process.join() 시도
+        5. 실패 시 terminate + kill
+        6. Queue 리소스 정리
+        """
+        if self.process is None or not self.process.is_alive():
+            self.alive = False
+            return
+
+        try:
+            # Step 1: Event 시그널 (가장 빠른 종료 경로)
+            if self._shutdown_event is not None:
+                self._shutdown_event.set()
+
+            # Step 2: Sentinel 전송 (Queue.get 블로킹 해제)
             try:
-                self.request_queue.put(_SHUTDOWN_SENTINEL)
-                self.process.join(timeout=10)
-                if self.process.is_alive():
-                    self.process.terminate()
-                    self.process.join(timeout=5)
-            except Exception as e:
-                logger.warning(f"Error shutting down CPU process: {e}")
-        self.alive = False
-        logger.info("CPU inference process shut down")
+                self.request_queue.put_nowait(_SHUTDOWN_SENTINEL)
+            except Exception:
+                pass  # Queue가 full이어도 event로 종료 가능
+
+            # Step 3: result_queue drain (데드락 방지 -
+            # multiprocessing Queue는 내부 버퍼 스레드가 있어서
+            # drain하지 않으면 자식 프로세스가 join 불가)
+            self._drain_queue(self.result_queue)
+            self._drain_queue(self.abort_queue)
+
+            # Step 4: 정상 종료 대기
+            self.process.join(timeout=10)
+
+            # Step 5: 강제 종료
+            if self.process.is_alive():
+                logger.warning(
+                    "CPU process did not exit gracefully, terminating..."
+                )
+                self.process.terminate()
+                # terminate 후에도 Queue drain 필요
+                self._drain_queue(self.result_queue)
+                self.process.join(timeout=5)
+
+            if self.process.is_alive():
+                logger.warning("CPU process still alive after terminate, "
+                               "sending SIGKILL")
+                self.process.kill()
+                self.process.join(timeout=3)
+
+        except Exception as e:
+            logger.warning(f"Error shutting down CPU process: {e}")
+        finally:
+            self.alive = False
+            # Step 6: Queue 리소스 정리
+            self._cleanup_queues()
+            logger.info("CPU inference process shut down")
+
+    @staticmethod
+    def _drain_queue(q: multiprocessing.Queue):
+        """Queue의 모든 아이템을 읽어서 비움 (데드락 방지).
+
+        Note: Queue.empty()는 race condition으로 신뢰할 수 없으므로
+        get_nowait() + Empty 예외 방식으로 drain합니다.
+        """
+        try:
+            while True:
+                try:
+                    q.get_nowait()
+                except queue.Empty:
+                    break
+                except Exception:
+                    break
+        except Exception:
+            pass
+
+    def _cleanup_queues(self):
+        """Queue 리소스 안전하게 정리.
+
+        cancel_join_thread()를 먼저 호출하여 close() 후
+        feeder 스레드가 hang하는 것을 방지합니다.
+        """
+        for q in [self.request_queue, self.result_queue, self.abort_queue]:
+            try:
+                q.cancel_join_thread()
+                q.close()
+            except Exception:
+                pass
 
     @staticmethod
     def _cpu_worker_loop(
@@ -284,6 +567,8 @@ class CPUInferenceProcess:
         max_concurrent: int,
         request_queue: multiprocessing.Queue,
         result_queue: multiprocessing.Queue,
+        abort_queue: Optional[multiprocessing.Queue] = None,
+        shutdown_event: Optional[multiprocessing.Event] = None,
     ):
         """CPU 추론 워커 루프 (별도 프로세스에서 실행).
 
@@ -324,7 +609,7 @@ class CPUInferenceProcess:
 
         # 3. 모델 로드
         try:
-            from transformers import AutoModelForCausalLM, AutoTokenizer
+            from transformers import AutoModelForCausalLM
 
             if dtype_str == "bfloat16":
                 dtype = torch.bfloat16
@@ -342,11 +627,6 @@ class CPUInferenceProcess:
             )
             model = model.to("cpu")
             model.eval()
-
-            tokenizer = AutoTokenizer.from_pretrained(
-                model_name,
-                trust_remote_code=trust_remote_code,
-            )
 
             # 모델 파라미터 크기 로깅
             total_params = sum(p.numel() for p in model.parameters())
@@ -371,13 +651,48 @@ class CPUInferenceProcess:
 
         except Exception as e:
             _logger.error(f"Failed to load model: {e}")
+            # 부모 프로세스에 에러 통보 (shutdown_event 설정)
+            # 부모가 is_alive()=False로 감지하여 GPU-only 폴백
+            if shutdown_event is not None:
+                shutdown_event.set()
             return
 
-        # 5. 메인 추론 루프
+        # 5. abort 추적용 set
+        aborted_ids: set[str] = set()
+
+        def _drain_abort_queue():
+            """abort_queue에서 abort 신호를 모두 읽어 aborted_ids에 추가."""
+            if abort_queue is None:
+                return
+            while True:
+                try:
+                    rid = abort_queue.get_nowait()
+                    aborted_ids.add(rid)
+                except queue.Empty:
+                    break
+
+        # 6. 메인 추론 루프
         _logger.info("CPU inference worker ready, entering main loop")
 
-        while True:
+        _parent_pid = os.getppid()
+
+        def _should_shutdown():
+            """shutdown_event, sentinel, 또는 부모 사망 기반 종료 확인."""
+            if (shutdown_event is not None
+                    and shutdown_event.is_set()):
+                return True
+            # 부모 프로세스가 죽으면 고아가 되므로 자동 종료
+            # (ppid가 1(init) 또는 변경되면 부모 사망)
+            if os.getppid() != _parent_pid:
+                _logger.warning("Parent process died, shutting down")
+                return True
+            return False
+
+        while not _should_shutdown():
             try:
+                # abort 신호 확인
+                _drain_abort_queue()
+
                 # 요청 대기 (blocking with timeout)
                 try:
                     req = request_queue.get(timeout=0.5)
@@ -391,6 +706,22 @@ class CPUInferenceProcess:
 
                 if not isinstance(req, CPUInferenceRequest):
                     _logger.warning(f"Invalid request type: {type(req)}")
+                    continue
+
+                # 이미 abort된 요청은 즉시 스킵
+                if req.request_id in aborted_ids:
+                    aborted_ids.discard(req.request_id)
+                    _logger.debug(
+                        f"Request {req.request_id} already aborted, "
+                        f"skipping"
+                    )
+                    resp = CPUInferenceResponse(
+                        request_id=req.request_id,
+                        generated_token_ids=[],
+                        finished=True,
+                        finish_reason="abort",
+                    )
+                    result_queue.put(resp)
                     continue
 
                 # 추론 실행
@@ -409,11 +740,31 @@ class CPUInferenceProcess:
                 pending_ids: list[int] = []
                 finished = False
                 finish_reason = None
+                aborted = False
 
                 use_autocast = dtype_str == "bfloat16"
 
                 with torch.no_grad():
                     for step in range(req.max_tokens):
+                        # 매 10스텝마다 abort/shutdown 확인
+                        if step % 10 == 0:
+                            if _should_shutdown():
+                                _logger.info(
+                                    f"Shutdown during request "
+                                    f"{req.request_id} at step {step}"
+                                )
+                                aborted = True
+                                break
+                            _drain_abort_queue()
+                            if req.request_id in aborted_ids:
+                                aborted_ids.discard(req.request_id)
+                                aborted = True
+                                _logger.debug(
+                                    f"Request {req.request_id} aborted "
+                                    f"at step {step}"
+                                )
+                                break
+
                         with torch.amp.autocast(
                             "cpu", enabled=use_autocast
                         ):
@@ -468,6 +819,22 @@ class CPUInferenceProcess:
                             result_queue.put(partial_resp)
                             pending_ids = []
 
+                # abort된 요청 처리
+                if aborted:
+                    resp = CPUInferenceResponse(
+                        request_id=req.request_id,
+                        generated_token_ids=pending_ids,
+                        finished=True,
+                        finish_reason="abort",
+                    )
+                    result_queue.put(resp)
+                    elapsed = time.perf_counter() - start_time
+                    _logger.info(
+                        f"Request {req.request_id} aborted after "
+                        f"{len(all_generated_ids)} tokens in {elapsed:.2f}s"
+                    )
+                    continue
+
                 # max_tokens 도달
                 if not finished:
                     finished = True
@@ -502,289 +869,468 @@ class CPUInferenceProcess:
 
 
 # ============================================================================
-# Hybrid Engine Core
+# Hybrid CPU Init (shared logic for HybridEngineCore / HybridEngineCoreProc)
 # ============================================================================
 
-class HybridEngineCore:
-    """GPU + CPU 듀얼 추론 엔진.
+def _init_hybrid_cpu_process(
+    vllm_config: VllmConfig,
+) -> tuple[bool, Optional[RequestRouter], Optional[CPUInferenceProcess]]:
+    """Initialize CPU inference process for hybrid mode.
 
-    GPU 경로: 기존 v1 EngineCore (변경 없음)
-    CPU 경로: CPUInferenceProcess (별도 프로세스)
+    Returns:
+        (enabled, router, cpu_process)
     """
-
-    def __init__(
-        self,
-        vllm_config: VllmConfig,
-        executor_class: type[Executor],
-        log_stats: bool,
-        executor_fail_callback: Optional[Callable] = None,
-    ):
-        self.vllm_config = vllm_config
+    try:
         hybrid_config = vllm_config.hybrid_config
+        model_name = vllm_config.model_config.model
+        dtype_str = hybrid_config.cpu_dtype
 
-        logger.info("Initializing HybridEngineCore (parallel-batch mode)")
+        if not _check_cpu_memory_available(model_name, dtype_str):
+            logger.warning(
+                "Insufficient memory for CPU inference. "
+                "Falling back to GPU-only mode."
+            )
+            return False, None, None
 
-        # === GPU 경로: 기존 EngineCore 그대로 ===
-        self.gpu_engine = EngineCore(
-            vllm_config, executor_class, log_stats,
-            executor_fail_callback,
-        )
-
-        # === CPU 경로 ===
         cpu_ratio = hybrid_config.cpu_ratio
         if cpu_ratio is None:
-            # 자동 결정: 보수적으로 5%
-            cpu_ratio = 0.05
-            logger.info(f"Auto cpu_ratio: {cpu_ratio:.2%}")
+            try:
+                cpu_tps = estimate_cpu_throughput(
+                    model_name=model_name,
+                    trust_remote_code=(
+                        vllm_config.model_config.trust_remote_code),
+                    num_threads=hybrid_config.cpu_num_threads,
+                    dtype_str=dtype_str,
+                )
+                if cpu_tps > 0:
+                    cpu_ratio = compute_auto_cpu_ratio(cpu_tps)
+                else:
+                    cpu_ratio = 0.05
+                    logger.info(
+                        "CPU profiling returned 0, "
+                        f"using default cpu_ratio={cpu_ratio:.2%}")
+            except Exception as e:
+                cpu_ratio = 0.05
+                logger.warning(
+                    f"Auto cpu_ratio profiling failed: {e}. "
+                    f"Using default {cpu_ratio:.2%}"
+                )
 
-        self.router = RequestRouter(cpu_ratio)
-        self.request_to_path: dict[str, str] = {}
-        # EngineCoreRequest를 보관 (CPU 경로용)
-        self.cpu_pending_requests: dict[str, EngineCoreRequest] = {}
-
-        # CPU 추론 프로세스 시작
-        self.cpu_process: Optional[CPUInferenceProcess] = None
-        self.cpu_available = False
-        try:
-            self.cpu_process = CPUInferenceProcess(vllm_config)
-            self.cpu_process.start()
-            self.cpu_available = True
-            logger.info("CPU inference process started successfully")
-        except Exception as e:
-            logger.warning(
-                f"CPU inference process failed to start: {e}. "
-                f"Falling back to GPU-only mode."
+        # cpu_ratio가 0이면 CPU 프로세스를 시작하지 않음
+        # (불필요한 모델 로드로 수십 GB 메모리 낭비 방지)
+        if cpu_ratio <= 0:
+            logger.info(
+                "Hybrid mode: cpu_ratio=0, CPU inference disabled"
             )
-            self.router.cpu_ratio = 0.0
+            return False, None, None
+
+        router = RequestRouter(cpu_ratio)
+        cpu_process = CPUInferenceProcess(vllm_config)
+        cpu_process.start()
 
         logger.info(
-            f"HybridEngineCore initialized: "
-            f"cpu_available={self.cpu_available}, "
-            f"cpu_ratio={self.router.cpu_ratio:.2%}"
+            "Hybrid parallel-batch mode enabled: "
+            f"cpu_ratio={cpu_ratio:.2%}, "
+            f"cpu_pid={cpu_process.process.pid}"
         )
+        return True, router, cpu_process
 
-    # ------------------------------------------------------------------
-    # EngineCore 호환 인터페이스
-    # ------------------------------------------------------------------
+    except Exception as e:
+        logger.warning(
+            f"Hybrid CPU initialization failed: {e}. "
+            f"Falling back to GPU-only mode."
+        )
+        return False, None, None
 
-    def get_supported_tasks(self, *args, **kwargs):
-        return self.gpu_engine.get_supported_tasks(*args, **kwargs)
 
-    @property
-    def model_executor(self):
-        return self.gpu_engine.model_executor
+# ============================================================================
+# Hybrid Mixin: shared methods for HybridEngineCore / HybridEngineCoreProc
+# ============================================================================
 
-    @property
-    def scheduler(self):
-        return self.gpu_engine.scheduler
+class _HybridMixin:
+    """Shared hybrid CPU logic used by both HybridEngineCore and
+    HybridEngineCoreProc."""
 
-    @property
-    def mm_input_cache_server(self):
-        return self.gpu_engine.mm_input_cache_server
+    _hybrid_enabled: bool
+    _hybrid_cpu_process: Optional[CPUInferenceProcess]
+    _hybrid_router: Optional[RequestRouter]
+    _hybrid_request_to_path: dict[str, str]
 
-    @property
-    def structured_output_manager(self):
-        return self.gpu_engine.structured_output_manager
+    def _check_hybrid_cpu_health(self):
+        """CPU 프로세스 생존 여부 확인, 죽었으면 GPU-only로 자동 전환.
 
-    @property
-    def batch_queue_size(self):
-        return self.gpu_engine.batch_queue_size
+        사망한 CPU 프로세스의 pending 요청에 대해 abort 응답을 생성하여
+        클라이언트가 무한 대기하지 않도록 합니다.
+        """
+        if not self._hybrid_enabled or self._hybrid_cpu_process is None:
+            return
 
-    @property
-    def batch_queue(self):
-        return self.gpu_engine.batch_queue
-
-    @property
-    def log_stats(self):
-        return self.gpu_engine.log_stats
-
-    @property
-    def available_gpu_memory_for_kv_cache(self):
-        return self.gpu_engine.available_gpu_memory_for_kv_cache
-
-    def preprocess_add_request(self, request: EngineCoreRequest):
-        """요청 전처리 (InprocClient에서 호출)."""
-        # CPU 경로 요청인지 확인
-        path = self.router.route(request.request_id)
-        self.request_to_path[request.request_id] = path
-
-        if path == "cpu" and self.cpu_available:
-            # CPU 요청은 전처리 없이 직접 CPU 프로세스로 전송
-            self.cpu_pending_requests[request.request_id] = request
-            logger.debug(
-                f"Request {request.request_id} routed to CPU "
-                f"(prompt_len={len(request.prompt_token_ids)})"
+        if not self._hybrid_cpu_process.is_alive():
+            logger.error(
+                "CPU inference process died unexpectedly! "
+                "Switching to GPU-only mode."
             )
-            # GPU 엔진의 preprocess 형식에 맞춰 dummy 반환
-            # (실제 GPU scheduler에는 추가하지 않음)
-            return None, request.current_wave
-        else:
-            # GPU 경로: 정상 전처리
-            if path == "cpu":
-                # CPU 불가 → GPU로 fallback
-                self.request_to_path[request.request_id] = "gpu"
-            return self.gpu_engine.preprocess_add_request(request)
+            pending = list(self._hybrid_cpu_process.pending_requests)
+            # abort 응답 생성하여 _hybrid_dead_outputs에 저장
+            # → 다음 _collect_hybrid_cpu_outputs()에서 클라이언트에 전달
+            if pending:
+                abort_outputs = []
+                for req_id in pending:
+                    self._hybrid_request_to_path.pop(req_id, None)
+                    abort_outputs.append(EngineCoreOutput(
+                        request_id=req_id,
+                        new_token_ids=[],
+                        finish_reason=FinishReason.ABORT,
+                    ))
+                self._hybrid_dead_outputs = abort_outputs
+                logger.warning(
+                    f"Aborted {len(pending)} pending CPU requests: "
+                    f"{pending[:5]}{'...' if len(pending) > 5 else ''}"
+                )
 
-    def add_request(self, request: Request, request_wave: int = 0):
-        """스케줄러에 요청 추가 (GPU 경로만)."""
-        # CPU 요청은 preprocess_add_request에서 이미 처리됨
-        # 이 메서드는 GPU 요청에 대해서만 호출됨
+            self._hybrid_cpu_process = None
+            self._hybrid_enabled = False
+            self._hybrid_router = None
+
+    def _collect_hybrid_cpu_outputs(
+        self,
+        outputs: Optional[dict[int, EngineCoreOutputs]],
+    ) -> dict[int, EngineCoreOutputs]:
+        """Collect CPU inference results and merge into outputs."""
+        # 먼저 dead outputs 처리 (CPU 사망 시 abort 응답)
+        dead_outputs = getattr(self, '_hybrid_dead_outputs', None)
+        if dead_outputs:
+            self._hybrid_dead_outputs = None
+            if outputs is None:
+                outputs = {}
+            if 0 in outputs:
+                outputs[0].outputs.extend(dead_outputs)
+            else:
+                outputs[0] = EngineCoreOutputs(outputs=dead_outputs)
+
+        if not self._hybrid_enabled or self._hybrid_cpu_process is None:
+            return outputs or {}
+
+        cpu_results = self._hybrid_cpu_process.collect_results()
+        if not cpu_results:
+            return outputs or {}
+
+        if outputs is None:
+            outputs = {}
+
+        # Merge CPU results into engine_index=0 outputs.
+        if 0 in outputs:
+            outputs[0].outputs.extend(cpu_results)
+        else:
+            outputs[0] = EngineCoreOutputs(outputs=cpu_results)
+
+        # Clean up finished CPU requests from tracking.
+        for result in cpu_results:
+            if result.finish_reason is not None:
+                self._hybrid_request_to_path.pop(result.request_id, None)
+
+        return outputs
+
+    def _has_hybrid_cpu_pending(self) -> bool:
+        """Check if there are pending CPU requests."""
+        return (self._hybrid_enabled
+                and self._hybrid_cpu_process is not None
+                and self._hybrid_cpu_process.has_pending_requests())
+
+    def _route_request_to_cpu(
+        self, request: EngineCoreRequest,
+    ) -> bool:
+        """Route a request to CPU if applicable.
+
+        Returns True if routed to CPU, False if should go to GPU.
+        """
+        if not self._hybrid_enabled or self._hybrid_cpu_process is None:
+            return False
+
+        path = self._hybrid_router.route(request.request_id)
+        if path == "cpu":
+            self._hybrid_cpu_process.submit_request(request)
+            self._hybrid_request_to_path[request.request_id] = "cpu"
+            return True
+
+        self._hybrid_request_to_path[request.request_id] = "gpu"
+        return False
+
+    def _abort_hybrid_cpu_requests(self, request_ids: list[str]):
+        """Abort CPU requests in hybrid mode."""
+        if not self._hybrid_enabled or self._hybrid_cpu_process is None:
+            return
+        for rid in request_ids:
+            if self._hybrid_request_to_path.get(rid) == "cpu":
+                self._hybrid_cpu_process.abort_request(rid)
+                self._hybrid_request_to_path.pop(rid, None)
+
+    def _shutdown_hybrid_cpu(self):
+        """Shutdown the CPU inference process."""
+        if self._hybrid_cpu_process is not None:
+            self._hybrid_cpu_process.shutdown()
+            self._hybrid_cpu_process = None
+            self._hybrid_enabled = False
+
+
+# ============================================================================
+# HybridEngineCore: Composition wrapper for InprocClient
+# ============================================================================
+
+class HybridEngineCore(_HybridMixin):
+    """GPU + CPU 듀얼 추론 엔진 (InprocClient 전용 composition wrapper).
+
+    GPU 경로는 기존 EngineCore를 100% 위임.
+    CPU 경로는 별도 CPUInferenceProcess로 처리.
+    """
+
+    def __init__(self,
+                 vllm_config: VllmConfig,
+                 executor_class: Any,
+                 log_stats: bool,
+                 executor_fail_callback: Optional[Callable] = None):
+        from vllm.v1.engine.core import EngineCore
+
+        # GPU 경로: 기존 EngineCore 그대로 생성
+        self.gpu_engine = EngineCore(
+            vllm_config, executor_class, log_stats, executor_fail_callback)
+
+        # Hybrid CPU 경로 초기화
+        self._hybrid_enabled = False
+        self._hybrid_cpu_process = None
+        self._hybrid_router = None
+        self._hybrid_request_to_path: dict[str, str] = {}
+        self._hybrid_dead_outputs: Optional[list] = None
+
+        if (hasattr(vllm_config, 'hybrid_config')
+                and vllm_config.hybrid_config is not None
+                and vllm_config.hybrid_config.is_enabled()
+                and vllm_config.hybrid_config.mode == "parallel-batch"):
+            enabled, router, cpu_proc = _init_hybrid_cpu_process(vllm_config)
+            self._hybrid_enabled = enabled
+            self._hybrid_router = router
+            self._hybrid_cpu_process = cpu_proc
+
+    # -- Hybrid-aware methods --
+
+    def preprocess_add_request(
+            self,
+            request: EngineCoreRequest,
+    ) -> tuple[Optional[Any], int]:
+        """Preprocess the request, routing to CPU if applicable."""
+        if self._route_request_to_cpu(request):
+            return None, request.current_wave
+        return self.gpu_engine.preprocess_add_request(request)
+
+    def add_request(self, request: Any, request_wave: int = 0):
         self.gpu_engine.add_request(request, request_wave)
 
     def step(self) -> tuple[dict[int, EngineCoreOutputs], bool]:
-        """GPU + CPU 실행 후 결과 병합."""
-        # 1. CPU 요청 제출 (아직 보내지 않은 것들)
-        self._submit_pending_cpu_requests()
+        self._check_hybrid_cpu_health()
 
-        # 2. GPU step
-        gpu_outputs: dict[int, EngineCoreOutputs] = {}
-        gpu_executed = False
-        if self.gpu_engine.scheduler.has_requests():
-            gpu_outputs, gpu_executed = self.gpu_engine.step()
+        has_gpu = self.gpu_engine.scheduler.has_requests()
+        has_cpu = self._has_hybrid_cpu_pending()
 
-        # 3. CPU 결과 수집
-        cpu_outputs: list[EngineCoreOutput] = []
-        if self.cpu_available and self.cpu_process is not None:
-            if not self.cpu_process.is_alive():
-                logger.error("CPU process died! Disabling CPU path.")
-                self.cpu_available = False
-                self.router.cpu_ratio = 0.0
-            else:
-                cpu_outputs = self.cpu_process.collect_results()
+        if not has_gpu and not has_cpu:
+            return {}, False
 
-        # 4. 결과 병합
-        if cpu_outputs:
-            gpu_outputs = self._merge_cpu_outputs(gpu_outputs, cpu_outputs)
+        engine_core_outputs: dict[int, EngineCoreOutputs] = {}
+        model_executed = False
 
-        return gpu_outputs, gpu_executed or bool(cpu_outputs)
+        if has_gpu:
+            engine_core_outputs, model_executed = self.gpu_engine.step()
 
-    def step_with_batch_queue(self):
-        """배치 큐 모드의 step (GPU의 batch_queue + CPU 결과)."""
-        # GPU step_with_batch_queue
-        gpu_result = self.gpu_engine.step_with_batch_queue()
+        # Merge CPU results.
+        engine_core_outputs = self._collect_hybrid_cpu_outputs(
+            engine_core_outputs)
 
-        # CPU 결과 수집 및 병합
-        self._submit_pending_cpu_requests()
-
-        if self.cpu_available and self.cpu_process is not None:
-            if self.cpu_process.is_alive():
-                cpu_outputs = self.cpu_process.collect_results()
-                if cpu_outputs and gpu_result[0] is not None:
-                    gpu_result = (
-                        self._merge_cpu_outputs(gpu_result[0], cpu_outputs),
-                        gpu_result[1],
-                    )
-
-        return gpu_result
-
-    def _submit_pending_cpu_requests(self):
-        """보류 중인 CPU 요청을 프로세스에 제출."""
-        if not self.cpu_available or self.cpu_process is None:
-            return
-
-        submitted = []
-        for req_id, req in self.cpu_pending_requests.items():
-            self.cpu_process.submit_request(req)
-            submitted.append(req_id)
-
-        for req_id in submitted:
-            del self.cpu_pending_requests[req_id]
-
-    def _merge_cpu_outputs(
-        self,
-        gpu_outputs: dict[int, EngineCoreOutputs],
-        cpu_outputs: list[EngineCoreOutput],
-    ) -> dict[int, EngineCoreOutputs]:
-        """CPU 결과를 GPU 결과에 병합."""
-        if not cpu_outputs:
-            return gpu_outputs
-
-        # client_index 0에 CPU 결과 추가
-        if 0 in gpu_outputs:
-            gpu_outputs[0].outputs.extend(cpu_outputs)
-        else:
-            gpu_outputs[0] = EngineCoreOutputs(
-                outputs=cpu_outputs,
-            )
-
-        # 완료된 CPU 요청 정리
-        for output in cpu_outputs:
-            if output.finished:
-                self.request_to_path.pop(output.request_id, None)
-
-        logger.debug(
-            f"Merged {len(cpu_outputs)} CPU outputs "
-            f"({sum(1 for o in cpu_outputs if o.finished)} finished)"
-        )
-        return gpu_outputs
+        return engine_core_outputs, model_executed
 
     def abort_requests(self, request_ids: list[str]):
-        """요청 취소."""
-        gpu_aborts = []
-        for req_id in request_ids:
-            path = self.request_to_path.pop(req_id, "gpu")
-            if path == "cpu":
-                if self.cpu_process is not None:
-                    self.cpu_process.abort_request(req_id)
-                self.cpu_pending_requests.pop(req_id, None)
-            else:
-                gpu_aborts.append(req_id)
-
-        if gpu_aborts:
-            self.gpu_engine.abort_requests(gpu_aborts)
+        self._abort_hybrid_cpu_requests(request_ids)
+        self.gpu_engine.abort_requests(request_ids)
 
     def shutdown(self):
-        """엔진 종료."""
-        logger.info(
-            f"HybridEngineCore shutting down. "
-            f"Router stats: {self.router.get_stats()}"
-        )
-        if self.cpu_process is not None:
-            self.cpu_process.shutdown()
+        self._shutdown_hybrid_cpu()
         self.gpu_engine.shutdown()
 
-    def execute_model_with_error_logging(self, *args, **kwargs):
-        return self.gpu_engine.execute_model_with_error_logging(*args, **kwargs)
+    # -- Delegated methods (pass through to gpu_engine) --
 
-    def profile(self, is_start: bool = True):
-        self.gpu_engine.profile(is_start)
-
-    def reset_mm_cache(self):
-        self.gpu_engine.reset_mm_cache()
-
-    def reset_prefix_cache(self):
-        self.gpu_engine.reset_prefix_cache()
-
-    def sleep(self, level: int = 1):
-        self.gpu_engine.sleep(level)
-
-    def wake_up(self, tags=None):
-        self.gpu_engine.wake_up(tags)
-
-    def is_sleeping(self):
-        return self.gpu_engine.is_sleeping()
-
-    def execute_dummy_batch(self):
-        self.gpu_engine.execute_dummy_batch()
-
-    def add_lora(self, lora_request):
-        return self.gpu_engine.add_lora(lora_request)
-
-    def remove_lora(self, lora_id):
-        return self.gpu_engine.remove_lora(lora_id)
-
-    def list_loras(self):
-        return self.gpu_engine.list_loras()
-
-    def pin_lora(self, lora_id):
-        return self.gpu_engine.pin_lora(lora_id)
-
-    def save_sharded_state(self, *args, **kwargs):
-        return self.gpu_engine.save_sharded_state(*args, **kwargs)
-
-    def collective_rpc(self, *args, **kwargs):
-        return self.gpu_engine.collective_rpc(*args, **kwargs)
-
-    def __getattr__(self, name):
-        """알 수 없는 속성은 GPU 엔진으로 위임."""
+    def __getattr__(self, name: str):
+        """Delegate unknown attributes to the inner GPU EngineCore."""
+        # __getattr__ is only called when normal attribute lookup fails,
+        # so self.gpu_engine won't cause recursion.
         return getattr(self.gpu_engine, name)
+
+
+# ============================================================================
+# HybridEngineCoreProc: Inheritance wrapper for process mode
+# ============================================================================
+
+class HybridEngineCoreProc(_HybridMixin):
+    """GPU + CPU 듀얼 추론 엔진 (프로세스 모드).
+
+    EngineCoreProc를 상속하여 hybrid CPU 로직을 추가.
+    이 클래스는 run_engine_core()에서 EngineCoreProc 대신 생성됨.
+
+    Note: 실제 상속은 __init_subclass__ 시점이 아닌
+    _create_hybrid_proc()에서 동적으로 수행.
+    """
+
+    @staticmethod
+    def create(
+        vllm_config: VllmConfig,
+        local_client: bool,
+        handshake_address: str,
+        executor_class: Any,
+        log_stats: bool,
+        client_handshake_address: Optional[str] = None,
+        engine_index: int = 0,
+    ) -> Any:
+        """Create a HybridEngineCoreProc instance.
+
+        이 팩토리 메서드는 EngineCoreProc를 동적으로 확장하여
+        hybrid CPU 로직을 추가합니다.
+        """
+        from vllm.v1.engine.core import EngineCoreProc
+
+        # EngineCoreProc 인스턴스 생성 (GPU 경로 완전 초기화)
+        proc = EngineCoreProc(
+            vllm_config=vllm_config,
+            local_client=local_client,
+            handshake_address=handshake_address,
+            executor_class=executor_class,
+            log_stats=log_stats,
+            client_handshake_address=client_handshake_address,
+            engine_index=engine_index,
+        )
+
+        # Hybrid CPU 경로 초기화
+        proc._hybrid_enabled = False
+        proc._hybrid_cpu_process = None
+        proc._hybrid_router = None
+        proc._hybrid_request_to_path = {}
+        proc._hybrid_dead_outputs = None
+
+        enabled, router, cpu_proc = _init_hybrid_cpu_process(vllm_config)
+        proc._hybrid_enabled = enabled
+        proc._hybrid_router = router
+        proc._hybrid_cpu_process = cpu_proc
+
+        # 메서드 바인딩: proc 인스턴스의 메서드를 hybrid 버전으로 교체
+        import types
+        proc._check_hybrid_cpu_health = types.MethodType(
+            _HybridMixin._check_hybrid_cpu_health, proc)
+        proc._collect_hybrid_cpu_outputs = types.MethodType(
+            _HybridMixin._collect_hybrid_cpu_outputs, proc)
+        proc._has_hybrid_cpu_pending = types.MethodType(
+            _HybridMixin._has_hybrid_cpu_pending, proc)
+        proc._route_request_to_cpu = types.MethodType(
+            _HybridMixin._route_request_to_cpu, proc)
+        proc._abort_hybrid_cpu_requests = types.MethodType(
+            _HybridMixin._abort_hybrid_cpu_requests, proc)
+        proc._shutdown_hybrid_cpu = types.MethodType(
+            _HybridMixin._shutdown_hybrid_cpu, proc)
+
+        # Override key methods with hybrid-aware versions
+        _original_step = proc.step
+        _original_step_with_batch_queue = proc.step_with_batch_queue
+        _original_abort_requests = proc.abort_requests
+        _original_shutdown = proc.shutdown
+        _original_preprocess_add_request = proc.preprocess_add_request
+        _original_process_input_queue = proc._process_input_queue
+
+        def _hybrid_preprocess_add_request(request):
+            """Route to CPU or pass through to GPU preprocessing."""
+            if proc._route_request_to_cpu(request):
+                return None, request.current_wave
+            return _original_preprocess_add_request(request)
+
+        def _hybrid_step():
+            """GPU step + CPU results merge."""
+            proc._check_hybrid_cpu_health()
+
+            has_gpu = proc.scheduler.has_requests()
+            has_cpu = proc._has_hybrid_cpu_pending()
+
+            if not has_gpu and not has_cpu:
+                return {}, False
+
+            engine_core_outputs = {}
+            model_executed = False
+
+            if has_gpu:
+                engine_core_outputs, model_executed = _original_step()
+
+            engine_core_outputs = proc._collect_hybrid_cpu_outputs(
+                engine_core_outputs)
+
+            return engine_core_outputs, model_executed
+
+        def _hybrid_step_with_batch_queue():
+            """Batch queue step + CPU results merge."""
+            proc._check_hybrid_cpu_health()
+
+            engine_core_outputs, scheduled_batch = \
+                _original_step_with_batch_queue()
+
+            engine_core_outputs = proc._collect_hybrid_cpu_outputs(
+                engine_core_outputs)
+
+            return engine_core_outputs, scheduled_batch
+
+        def _hybrid_abort_requests(request_ids):
+            proc._abort_hybrid_cpu_requests(request_ids)
+            _original_abort_requests(request_ids)
+
+        def _hybrid_shutdown():
+            proc._shutdown_hybrid_cpu()
+            _original_shutdown()
+
+        def _hybrid_process_input_queue():
+            """Process input queue with CPU pending awareness.
+
+            항상 timeout 기반 get()을 사용하여 CPU 결과 도착 시
+            즉시 루프를 깨뜨릴 수 있도록 함. 영구 블로킹 방지.
+            """
+            waited = False
+            while (not proc.engines_running
+                   and not proc.scheduler.has_requests()
+                   and not proc._has_hybrid_cpu_pending()):
+                if logger.isEnabledFor(DEBUG) and proc.input_queue.empty():
+                    logger.debug("EngineCore waiting for work.")
+                    waited = True
+                try:
+                    req = proc.input_queue.get(timeout=0.05)
+                except queue.Empty:
+                    if proc._has_hybrid_cpu_pending():
+                        break
+                    continue
+                proc._handle_client_request(*req)
+
+            if waited:
+                logger.debug("EngineCore loop active.")
+
+            while not proc.input_queue.empty():
+                try:
+                    req = proc.input_queue.get_nowait()
+                except queue.Empty:
+                    break
+                proc._handle_client_request(*req)
+
+        # Bind hybrid methods
+        proc.preprocess_add_request = _hybrid_preprocess_add_request
+        proc.step = _hybrid_step
+        proc.step_with_batch_queue = _hybrid_step_with_batch_queue
+        proc.abort_requests = _hybrid_abort_requests
+        proc.shutdown = _hybrid_shutdown
+        proc._process_input_queue = _hybrid_process_input_queue
+
+        # Update step_fn to point to the hybrid version
+        if proc.batch_queue is None:
+            proc.step_fn = _hybrid_step
+        else:
+            proc.step_fn = _hybrid_step_with_batch_queue
+
+        logger.info("HybridEngineCoreProc initialized successfully")
+        return proc
