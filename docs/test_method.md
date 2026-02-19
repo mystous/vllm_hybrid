@@ -30,7 +30,7 @@
   export VLLM_CPU_KVCACHE_SPACE=512
   export VLLM_CPU_OMP_THREADS_BIND=auto
 
-  서버 시작 (8 GPU + 2 CPU Worker)
+  #서버 시작 (8 GPU + 2 CPU Worker)
 
   VLLM_HETEROGENEOUS_PLATFORM=1 vllm serve meta-llama/Llama-3-70B-Instruct \
     --device heterogeneous \
