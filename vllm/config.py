@@ -4635,6 +4635,16 @@ class HybridConfig:
     ngram_num_speculative_tokens: int = 5
     """추측할 토큰 수."""
 
+    # parallel-batch CPU 경로 설정
+    cpu_kvcache_space_gb: int = 64
+    """CPU KV cache에 할당할 메모리 (GB). 기본 64GB."""
+
+    cpu_max_num_seqs: int = 4
+    """CPU 경로의 최대 동시 시퀀스 수."""
+
+    cpu_max_num_batched_tokens: int = 512
+    """CPU 경로의 최대 배치 토큰 수."""
+
     def __post_init__(self):
         if self.mode == "parallel-batch":
             if self.cpu_ratio is not None:

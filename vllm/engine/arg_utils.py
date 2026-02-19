@@ -418,6 +418,12 @@ class EngineArgs:
     hybrid_numa_node: Optional[int] = None
     """Bind to specific NUMA node (None for auto-select)."""
 
+    hybrid_cpu_kvcache_gb: int = 64
+    """CPU KV cache memory in GB for parallel-batch mode."""
+
+    hybrid_cpu_max_seqs: int = 4
+    """Max concurrent sequences for CPU path in parallel-batch mode."""
+
     show_hidden_metrics_for_version: Optional[str] = \
         ObservabilityConfig.show_hidden_metrics_for_version
     otlp_traces_endpoint: Optional[str] = \
@@ -926,6 +932,20 @@ class EngineArgs:
             default=None,
             help="Bind to specific NUMA node (default: auto-select based on rank)."
         )
+        hybrid_group.add_argument(
+            '--hybrid-cpu-kvcache-gb',
+            type=int,
+            default=64,
+            help="CPU KV cache memory in GB for parallel-batch mode. "
+                 "(default: 64)"
+        )
+        hybrid_group.add_argument(
+            '--hybrid-cpu-max-seqs',
+            type=int,
+            default=4,
+            help="Max concurrent sequences for CPU path. "
+                 "(default: 4)"
+        )
 
         return parser
 
@@ -1427,6 +1447,8 @@ class EngineArgs:
             cpu_num_threads=self.hybrid_cpu_threads,
             numa_aware=self.hybrid_numa_aware,
             numa_bind_node=self.hybrid_numa_node,
+            cpu_kvcache_space_gb=self.hybrid_cpu_kvcache_gb,
+            cpu_max_num_seqs=self.hybrid_cpu_max_seqs,
         )
 
         config = VllmConfig(

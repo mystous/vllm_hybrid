@@ -73,6 +73,92 @@ vllm/
 
 ---
 
+### Parallel-Batch v1 엔진 통합 (2026-02-19 완료 ✅)
+
+**목표**: `--hybrid-mode parallel-batch` 옵션을 v1 엔진에 실제 연결하여 CPU가 GPU와 독립적으로 요청을 처리하도록 구현
+
+**문제**: `ParallelBatchExecutor`는 존재하지만 v1 엔진에 연결되지 않아 완전한 no-op 상태였음. `HybridConfig`는 파싱되지만 아무 엔진/실행기도 이를 읽지 않음.
+
+**접근법**: Dual-Path EngineCore
+- GPU 경로: 기존 v1 EngineCore 100% 유지 (변경 없음)
+- CPU 경로: 별도 프로세스에서 HuggingFace `AutoModelForCausalLM` + IPEX로 독립 추론
+- 요청 라우팅: `preprocess_add_request()` 시점에서 `cpu_ratio` 기반 분배
+- 결과 병합: `step()` 시점에서 `EngineCoreOutputs` 병합
+
+#### 수정/생성된 파일
+
+1. **`vllm/v1/engine/hybrid_core.py`** (신규)
+   - `RequestRouter`: cpu_ratio 기반 라운드로빈 요청 분배기
+   - `CPUInferenceProcess`: 별도 프로세스에서 CPU 추론 (HF model + IPEX + NUMA)
+   - `CPUInferenceRequest/Response`: IPC 데이터 컨테이너
+
+2. **`vllm/v1/engine/core.py`** (수정)
+   - `EngineCore.__init__()`: hybrid 필드 초기화 (`_hybrid_enabled`, `_hybrid_cpu_process`, `_hybrid_router`)
+   - `_init_hybrid_cpu()`: CPU 프로세스 초기화 (GPU-only fallback 포함)
+   - `preprocess_add_request()`: CPU 라우팅 분기 추가 (None 반환 시 CPU로 전달됨)
+   - `_collect_hybrid_cpu_outputs()`: CPU 결과 수집 및 EngineCoreOutputs 병합
+   - `step()` / `step_with_batch_queue()`: CPU 결과 병합 통합
+   - `abort_requests()`: CPU 요청 abort 처리
+   - `shutdown()`: CPU 프로세스 종료
+   - `_process_input_queue()`: CPU pending 시 non-blocking poll
+   - `_has_hybrid_cpu_pending()`: CPU 대기 요청 확인
+   - `_handle_client_request()`: None req 스킵 처리
+   - `process_input_sockets()`: CPU 라우팅된 요청 input_queue 스킵
+
+3. **`vllm/v1/engine/core_client.py`** (수정)
+   - `InprocClient.add_request()`: preprocess 반환값 None 체크
+
+4. **`vllm/config.py`** (수정)
+   - `HybridConfig`: `cpu_kvcache_space_gb`, `cpu_max_num_seqs`, `cpu_max_num_batched_tokens` 추가
+
+5. **`vllm/engine/arg_utils.py`** (수정)
+   - `--hybrid-cpu-kvcache-gb`, `--hybrid-cpu-max-seqs` CLI 인자 추가
+
+#### 데이터 흐름
+
+```
+Client Request
+     ↓
+EngineCore.preprocess_add_request()
+     ↓
+[RequestRouter] cpu_ratio 기반 분배
+     ↓                    ↓
+GPU Path              CPU Path
+(return Request)      (return None → submit to CPUInferenceProcess)
+     ↓                    ↓
+Scheduler.schedule()  Queue → HF model.generate()
+     ↓                    ↓
+MultiprocExecutor     토큰 생성 → Queue
+     ↓                    ↓
+EngineCore.step()  ←  _collect_hybrid_cpu_outputs()
+     ↓
+EngineCoreOutputs (GPU + CPU 병합)
+     ↓
+Client Response
+```
+
+#### 시뮬레이션 테스트 결과 (10회 검증 완료 ✅)
+- 컴포넌트 import 검증
+- RequestRouter 라우팅 분배 (cpu_ratio=0.05 → GPU 95%, CPU 5%)
+- Router 엣지 케이스 (ratio=0.0, 1.0, -0.5)
+- EngineCoreOutput 생성/병합 (Empty/GPU-only/CPU-only/Mixed)
+- CPU abort 처리, tracking 정리
+- _handle_client_request None 스킵
+- _has_hybrid_cpu_pending 로직
+- GPU empty + CPU results step flow
+- process_input_sockets CPU 라우팅 skip
+
+#### 사용법
+```bash
+vllm serve deepseek-ai/DeepSeek-R1-Distill-Llama-70B \
+  --tensor-parallel-size 8 \
+  --hybrid-mode parallel-batch \
+  --hybrid-cpu-ratio 0.05 \
+  --hybrid-cpu-threads 112
+```
+
+---
+
 ### Parallel Batch Executor NUMA 최적화 (2026-02-03)
 
 #### 수정된 파일

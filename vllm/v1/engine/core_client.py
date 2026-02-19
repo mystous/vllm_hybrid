@@ -252,6 +252,9 @@ class InprocClient(EngineCoreClient):
 
     def add_request(self, request: EngineCoreRequest) -> None:
         req, request_wave = self.engine_core.preprocess_add_request(request)
+        if req is None:
+            # Hybrid CPU 경로: preprocess에서 이미 CPU로 라우팅됨
+            return
         self.engine_core.add_request(req, request_wave)
 
     def abort_requests(self, request_ids: list[str]) -> None:

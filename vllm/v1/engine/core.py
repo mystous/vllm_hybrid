@@ -127,6 +127,18 @@ class EngineCore:
         self.mm_input_cache_server = MultiModalInputCacheServer(
             vllm_config.model_config)
 
+        # Setup hybrid CPU inference (parallel-batch mode).
+        self._hybrid_enabled = False
+        self._hybrid_cpu_process = None
+        self._hybrid_router = None
+        self._hybrid_request_to_path: dict[str, str] = {}
+        self._hybrid_cpu_pending: dict[str, Any] = {}
+        if (hasattr(vllm_config, 'hybrid_config')
+                and vllm_config.hybrid_config is not None
+                and vllm_config.hybrid_config.is_enabled()
+                and vllm_config.hybrid_config.mode == "parallel-batch"):
+            self._init_hybrid_cpu(vllm_config)
+
         # Setup batch queue for pipeline parallelism.
         # Batch queue for scheduled batches. This enables us to asynchronously
         # schedule and execute batches, and is required by pipeline parallelism
@@ -199,6 +211,35 @@ class EngineCore:
                      "warmup model) took %.2f seconds"), elapsed)
         return num_gpu_blocks, num_cpu_blocks, scheduler_kv_cache_config
 
+    def _init_hybrid_cpu(self, vllm_config: VllmConfig):
+        """Initialize hybrid CPU inference (parallel-batch mode)."""
+        try:
+            from vllm.v1.engine.hybrid_core import (
+                CPUInferenceProcess, RequestRouter)
+
+            hybrid_config = vllm_config.hybrid_config
+            cpu_ratio = hybrid_config.cpu_ratio
+            if cpu_ratio is None:
+                cpu_ratio = 0.05  # 기본 5%
+                logger.info(f"Hybrid auto cpu_ratio: {cpu_ratio:.2%}")
+
+            self._hybrid_router = RequestRouter(cpu_ratio)
+            self._hybrid_cpu_process = CPUInferenceProcess(vllm_config)
+            self._hybrid_cpu_process.start()
+            self._hybrid_enabled = True
+
+            logger.info(
+                "Hybrid parallel-batch mode enabled: "
+                f"cpu_ratio={cpu_ratio:.2%}, "
+                f"cpu_pid={self._hybrid_cpu_process.process.pid}"
+            )
+        except Exception as e:
+            logger.warning(
+                f"Hybrid CPU initialization failed: {e}. "
+                f"Falling back to GPU-only mode."
+            )
+            self._hybrid_enabled = False
+
     def get_supported_tasks(self) -> tuple[SupportedTask, ...]:
         return self.model_executor.supported_tasks
 
@@ -231,7 +272,14 @@ class EngineCore:
         self.scheduler.add_request(request)
 
     def abort_requests(self, request_ids: list[str]):
-        """Abort requests from the scheduler."""
+        """Abort requests from the scheduler and CPU process."""
+
+        # Abort CPU requests if hybrid mode is enabled.
+        if self._hybrid_enabled and self._hybrid_cpu_process is not None:
+            for rid in request_ids:
+                if self._hybrid_request_to_path.get(rid) == "cpu":
+                    self._hybrid_cpu_process.abort_request(rid)
+                    self._hybrid_request_to_path.pop(rid, None)
 
         # TODO: The scheduler doesn't really need to know the
         # specific finish reason, TBD whether we propagate that
@@ -257,6 +305,34 @@ class EngineCore:
                                   self.scheduler.make_stats())
             raise err
 
+    def _collect_hybrid_cpu_outputs(
+        self,
+        outputs: Optional[dict[int, EngineCoreOutputs]],
+    ) -> dict[int, EngineCoreOutputs]:
+        """Collect CPU inference results and merge into outputs."""
+        if not self._hybrid_enabled or self._hybrid_cpu_process is None:
+            return outputs or {}
+
+        cpu_results = self._hybrid_cpu_process.collect_results()
+        if not cpu_results:
+            return outputs or {}
+
+        if outputs is None:
+            outputs = {}
+
+        # Merge CPU results into engine_index=0 outputs.
+        if 0 in outputs:
+            outputs[0].outputs.extend(cpu_results)
+        else:
+            outputs[0] = EngineCoreOutputs(outputs=cpu_results)
+
+        # Clean up finished CPU requests from tracking.
+        for result in cpu_results:
+            if result.finish_reason is not None:
+                self._hybrid_request_to_path.pop(result.request_id, None)
+
+        return outputs
+
     def step(self) -> tuple[dict[int, EngineCoreOutputs], bool]:
         """Schedule, execute, and make output.
 
@@ -266,17 +342,31 @@ class EngineCore:
 
         # Check for any requests remaining in the scheduler - unfinished,
         # or finished and not yet removed from the batch.
-        if not self.scheduler.has_requests():
-            return {}, False
-        scheduler_output = self.scheduler.schedule()
-        model_output = self.execute_model_with_error_logging(
-            self.model_executor.execute_model,  # type: ignore
-            scheduler_output)
-        engine_core_outputs = self.scheduler.update_from_output(
-            scheduler_output, model_output)  # type: ignore
+        has_gpu_requests = self.scheduler.has_requests()
+        has_cpu_requests = (self._hybrid_enabled
+                           and self._hybrid_cpu_process is not None
+                           and self._hybrid_cpu_process.has_pending_requests())
 
-        return (engine_core_outputs,
-                scheduler_output.total_num_scheduled_tokens > 0)
+        if not has_gpu_requests and not has_cpu_requests:
+            return {}, False
+
+        engine_core_outputs: Optional[dict[int, EngineCoreOutputs]] = None
+        scheduled_tokens = 0
+
+        if has_gpu_requests:
+            scheduler_output = self.scheduler.schedule()
+            model_output = self.execute_model_with_error_logging(
+                self.model_executor.execute_model,  # type: ignore
+                scheduler_output)
+            engine_core_outputs = self.scheduler.update_from_output(
+                scheduler_output, model_output)  # type: ignore
+            scheduled_tokens = scheduler_output.total_num_scheduled_tokens
+
+        # Merge CPU inference results.
+        engine_core_outputs = self._collect_hybrid_cpu_outputs(
+            engine_core_outputs)
+
+        return (engine_core_outputs, scheduled_tokens > 0)
 
     def step_with_batch_queue(
             self) -> tuple[Optional[dict[int, EngineCoreOutputs]], bool]:
@@ -327,9 +417,19 @@ class EngineCore:
             engine_core_outputs = (self.scheduler.update_from_output(
                 scheduler_output, model_output))
 
+        # Merge CPU inference results.
+        engine_core_outputs = self._collect_hybrid_cpu_outputs(
+            engine_core_outputs)
+
         return engine_core_outputs, scheduled_batch
 
     def shutdown(self):
+        # Shutdown hybrid CPU process first.
+        if self._hybrid_cpu_process is not None:
+            self._hybrid_cpu_process.shutdown()
+            self._hybrid_cpu_process = None
+            self._hybrid_enabled = False
+
         self.structured_output_manager.clear_backend()
         if self.model_executor:
             self.model_executor.shutdown()
@@ -401,12 +501,25 @@ class EngineCore:
             tensorizer_config=tensorizer_config, )
 
     def preprocess_add_request(
-            self, request: EngineCoreRequest) -> tuple[Request, int]:
+            self,
+            request: EngineCoreRequest,
+    ) -> tuple[Optional[Request], int]:
         """Preprocess the request.
-        
+
         This function could be directly used in input processing thread to allow
-        request initialization running in parallel with Model forward
+        request initialization running in parallel with Model forward.
+
+        Returns (None, wave) if the request was routed to CPU in hybrid mode.
         """
+        # Hybrid CPU routing: check before GPU preprocessing.
+        if self._hybrid_enabled and self._hybrid_cpu_process is not None:
+            path = self._hybrid_router.route(request.request_id)
+            if path == "cpu":
+                self._hybrid_cpu_process.submit_request(request)
+                self._hybrid_request_to_path[request.request_id] = "cpu"
+                return None, request.current_wave
+            self._hybrid_request_to_path[request.request_id] = "gpu"
+
         if request.mm_hashes is not None:
             assert request.mm_inputs is not None
             # Note on thread safety: no race condition.
@@ -701,15 +814,34 @@ class EngineCoreProc(EngineCore):
             # 2) Step the engine core and return the outputs.
             self._process_engine_step()
 
+    def _has_hybrid_cpu_pending(self) -> bool:
+        """Check if there are pending CPU requests in hybrid mode."""
+        return (self._hybrid_enabled
+                and self._hybrid_cpu_process is not None
+                and self._hybrid_cpu_process.has_pending_requests())
+
     def _process_input_queue(self):
         """Exits when an engine step needs to be performed."""
 
         waited = False
-        while not self.engines_running and not self.scheduler.has_requests():
+        while (not self.engines_running
+               and not self.scheduler.has_requests()
+               and not self._has_hybrid_cpu_pending()):
             if logger.isEnabledFor(DEBUG) and self.input_queue.empty():
                 logger.debug("EngineCore waiting for work.")
                 waited = True
-            req = self.input_queue.get()
+            # Use timeout to avoid blocking indefinitely when CPU
+            # results may arrive while GPU has no requests.
+            if self._hybrid_enabled:
+                try:
+                    req = self.input_queue.get(timeout=0.01)
+                except queue.Empty:
+                    # Check again if CPU has pending results.
+                    if self._has_hybrid_cpu_pending():
+                        break
+                    continue
+            else:
+                req = self.input_queue.get()
             self._handle_client_request(*req)
 
         if waited:
@@ -737,6 +869,9 @@ class EngineCoreProc(EngineCore):
 
         if request_type == EngineCoreRequestType.ADD:
             req, request_wave = request
+            if req is None:
+                # Hybrid CPU 경로: already routed in preprocess.
+                return
             self.add_request(req, request_wave)
         elif request_type == EngineCoreRequestType.ABORT:
             self.abort_requests(request)
@@ -844,6 +979,10 @@ class EngineCoreProc(EngineCore):
                     if request_type == EngineCoreRequestType.ADD:
                         request = add_request_decoder.decode(data_frames)
                         request = self.preprocess_add_request(request)
+                        # In hybrid mode, CPU-routed requests return
+                        # (None, wave). Skip adding them to the GPU queue.
+                        if request[0] is None:
+                            continue
                     else:
                         request = generic_decoder.decode(data_frames)
 
