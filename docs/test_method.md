@@ -238,3 +238,24 @@
 
   # GPU 상태 모니터링 (별도 터미널)
   watch -n 1 nvidia-smi
+
+
+```
+python3 -m vllm.entrypoints.openai.api_server \
+    --model facebook/opt-1.3b \
+    --dtype float16 \
+    --port 8000 \
+    --hybrid-mode parallel-batch \
+    --hybrid-cpu-ratio 0.1 \
+    --hybrid-cpu-threads 8
+
+
+python3 benchmarks/benchmark_serving.py \
+    --backend vllm \
+    --model facebook/opt-1.3b \
+    --dataset-name random \
+    --num-prompts 100 \
+    --request-rate 10 \
+    --random-input-len 128 \
+    --random-output-len 64
+```
