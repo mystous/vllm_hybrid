@@ -810,6 +810,13 @@ define_gpu_extension_target(
 target_compile_definitions(_C PRIVATE CUTLASS_ENABLE_DIRECT_CUDA_DRIVER_CALL=1)
 
 #
+# _C_cpu_ops extension (Phase 1-5 CPU kernels for hybrid inference)
+#
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/cpu_hybrid_extension.cmake)
+endif()
+
+#
 # _moe_C extension
 #
 

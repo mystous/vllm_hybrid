@@ -119,9 +119,10 @@ class Q8_0LinearMethod(QuantizeMethodBase):
                 )
 
                 try:
-                    from vllm import _C
+                    from vllm._custom_ops import cpu_ops
 
-                    _C.ops.q8_0_quantize_weight(qweight, weight)
+                    ops = cpu_ops()
+                    ops.q8_0_quantize_weight(qweight, weight)
                 except (ImportError, AttributeError):
                     # Fallback: Python quantization
                     _quantize_q8_0_python(weight, qweight, N, K)
@@ -151,9 +152,10 @@ class Q8_0LinearMethod(QuantizeMethodBase):
         output = torch.empty(M, N, dtype=x.dtype, device=x.device)
 
         try:
-            from vllm import _C
+            from vllm._custom_ops import cpu_ops
 
-            _C.ops.q8_0_linear(output, x, qweight, bias)
+            ops = cpu_ops()
+            ops.q8_0_linear(output, x, qweight, bias)
         except (ImportError, AttributeError):
             # Fallback: dequantize and use torch.mm
             K = x.shape[1]

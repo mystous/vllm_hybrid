@@ -24,6 +24,23 @@ with contextlib.suppress(ImportError):
     import vllm._moe_C  # noqa: F401
     supports_moe_ops = True
 
+# CPU hybrid ops (Phase 1-5 kernels for CUDA+CPU hybrid inference)
+HAS_CPU_OPS = False
+with contextlib.suppress(ImportError):
+    import vllm._C_cpu_ops  # noqa: F401
+    HAS_CPU_OPS = True
+
+
+def cpu_ops():
+    """Return the CPU ops namespace.
+
+    In hybrid builds (CUDA+CPU), returns torch.ops._C_cpu_ops.
+    In CPU-only builds, returns torch.ops._C.
+    """
+    if HAS_CPU_OPS:
+        return torch.ops._C_cpu_ops
+    return torch.ops._C
+
 if TYPE_CHECKING:
 
     def register_fake(fn):

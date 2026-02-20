@@ -631,6 +631,11 @@ if _is_cuda():
 if _build_custom_ops():
     ext_modules.append(CMakeExtension(name="vllm._C"))
 
+# CPU hybrid kernels (Phase 1-5) for CUDA+CPU hybrid inference (x86_64 only)
+import platform
+if (_is_cuda() or _is_hip()) and platform.machine() == "x86_64":
+    ext_modules.append(CMakeExtension(name="vllm._C_cpu_ops", optional=True))
+
 package_data = {
     "vllm": [
         "py.typed",

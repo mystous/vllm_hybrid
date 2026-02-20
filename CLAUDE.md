@@ -1817,3 +1817,94 @@ KTransformers 통합:
 
 *마지막 업데이트: 2026-02-19*
 *작업자: Claude (AVX-512 VNNI 커널 최적화 5 Phases 구현)*
+
+---
+
+## CUDA + CPU 확장 동시 빌드 구현 (2026-02-20 완료 ✅)
+
+**목표**: CUDA 빌드 시 Phase 1-5 CPU 커널도 함께 빌드하여 하이브리드 추론에서 사용 가능하게 함
+
+**근본 원인**: `CMakeLists.txt`에서 CUDA/ROCm이면 `cpu_extension.cmake`를 건너뛰고, CPU이면 CUDA 빌드를 건너뜀. 두 경로가 상호 배타적.
+
+**접근 방식**: 별도 `_C_cpu_ops` CMake 타겟으로 Phase 1-5 CPU 커널만 빌드
+- 기존 `_C` (CUDA ops), `_moe_C` (MoE ops)와 동일한 패턴
+- oneDNN/SHM 등 복잡한 의존성 제거, raw AVX-512 intrinsics만 사용
+
+### 빌드 구조
+
+```
+CUDA 빌드 시:
+  _C          → vllm/_C.abi3.so        (CUDA ops, 기존 그대로)
+  _moe_C      → vllm/_moe_C.abi3.so    (MoE ops, 기존 그대로)
+  _C_cpu_ops  → vllm/_C_cpu_ops.abi3.so (Phase 1-5 CPU 커널, 신규)
+```
+
+### Python 접근 방식
+
+```python
+# CUDA ops (기존)
+torch.ops._C.paged_attention_v1(...)
+
+# CPU ops (하이브리드 빌드)
+torch.ops._C_cpu_ops.vnni_int8_gemm(...)      # Phase 1
+torch.ops._C_cpu_ops.q8_0_linear(...)          # Phase 2
+torch.ops._C_cpu_ops.decode_gemv(...)          # Phase 3
+torch.ops._C_cpu_ops_cpu.batch16_paged_attention_v1(...)  # Phase 4
+torch.ops._C_cpu_ops.nt_memcpy_tensor(...)     # Phase 5
+
+# cpu_ops() 헬퍼 (CPU 단독/하이브리드 양쪽에서 투명하게 동작)
+from vllm._custom_ops import cpu_ops
+ops = cpu_ops()  # _C_cpu_ops 또는 _C 자동 선택
+```
+
+### 생성/수정된 파일
+
+| 파일 | 작업 | 설명 |
+|------|------|------|
+| `cmake/cpu_hybrid_extension.cmake` | **신규** | ISA 감지, Phase 1-5 소스 목록, `_C_cpu_ops` 타겟 정의 |
+| `csrc/cpu/torch_bindings_hybrid.cpp` | **신규** | Phase 1-5 ops만 등록 (최소 의존성) |
+| `CMakeLists.txt` | **수정** | `_C` 타겟 후 cpu_hybrid_extension include (7줄 추가) |
+| `setup.py` | **수정** | `CMakeExtension("vllm._C_cpu_ops", optional=True)` (4줄 추가) |
+| `vllm/_custom_ops.py` | **수정** | `_C_cpu_ops` import + `cpu_ops()` 헬퍼 (15줄 추가) |
+| `vllm/.../q8_0.py` | **수정** | `cpu_ops()` 헬퍼 사용 (4줄 변경) |
+
+### 미수정 파일 (회귀 방지)
+
+| 파일 | 상태 |
+|------|------|
+| `cmake/cpu_extension.cmake` | **변경 없음** - CPU 단독 빌드 유지 |
+| `csrc/cpu/torch_bindings.cpp` | **변경 없음** - CPU 단독 빌드 유지 |
+| `csrc/cpu/*.cpp` (Phase 1-5) | **변경 없음** - 기존 커널 재사용 |
+
+### 핵심 설계 결정
+
+| 결정 | 이유 |
+|------|------|
+| Phase 1-5 ops만 포함 | oneDNN/SHM 의존성 제거, 빌드 시간 최소화 |
+| `torch_bindings_hybrid.cpp` 신규 | 기존 파일 재사용 시 미사용 함수 링크 에러 |
+| `LANGUAGE CXX` | CPU 코드는 g++로 컴파일 (NVCC 불필요) |
+| `optional=True` | AVX-512 미지원 환경에서도 CUDA 빌드 성공 보장 |
+| `cpu_ops()` 헬퍼 | CPU 단독/하이브리드 양쪽에서 투명하게 동작 |
+
+### 검증
+
+```bash
+# CUDA + CPU 하이브리드 빌드
+pip install -e . --config-settings="cmake.args=-DVLLM_TARGET_DEVICE=cuda"
+
+# 두 모듈 동시 로딩 확인
+python -c "
+import vllm._C          # CUDA ops
+import vllm._C_cpu_ops  # CPU ops
+print('CUDA ops:', hasattr(torch.ops, '_C'))
+print('CPU ops:', hasattr(torch.ops, '_C_cpu_ops'))
+"
+
+# CPU 단독 빌드 regression 확인
+VLLM_TARGET_DEVICE=cpu pip install -e .
+```
+
+---
+
+*마지막 업데이트: 2026-02-20*
+*작업자: Claude (CUDA + CPU 확장 동시 빌드 구현)*
