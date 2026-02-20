@@ -5,6 +5,10 @@
 //
 // Unlike torch_bindings.cpp (which includes ops.h, cache.h, shm.h, etc.),
 // this file has minimal dependencies - only the Phase 1-5 kernel headers.
+//
+// NOTE: PyTorch dispatch requires int64_t/double in C++ signatures when
+// the schema uses int/float. Wrapper functions bridge the gap between
+// the actual kernel implementations (int/float) and PyTorch's requirements.
 
 #include <torch/all.h>
 #include <torch/library.h>
@@ -29,7 +33,7 @@ void decode_gemv(torch::Tensor& output, const torch::Tensor& input,
                  const torch::Tensor& weight,
                  const std::optional<torch::Tensor>& bias);
 
-// Phase 4: Batch-16 paged attention
+// Phase 4: Batch-16 paged attention (actual impl uses int/float)
 void batch16_paged_attention_v1(
     torch::Tensor& output, const torch::Tensor& query,
     const torch::Tensor& key_cache, const torch::Tensor& value_cache,
@@ -37,11 +41,33 @@ void batch16_paged_attention_v1(
     int num_heads, int head_size, int block_size, int max_blocks_per_seq,
     float scale, int num_kv_heads);
 
+// Wrapper: int64_t/double for PyTorch dispatch
+static void batch16_paged_attention_v1_dispatch(
+    torch::Tensor& output, const torch::Tensor& query,
+    const torch::Tensor& key_cache, const torch::Tensor& value_cache,
+    const torch::Tensor& block_tables, const torch::Tensor& context_lens,
+    int64_t num_heads, int64_t head_size, int64_t block_size,
+    int64_t max_blocks_per_seq, double scale, int64_t num_kv_heads) {
+  batch16_paged_attention_v1(
+      output, query, key_cache, value_cache, block_tables, context_lens,
+      static_cast<int>(num_heads), static_cast<int>(head_size),
+      static_cast<int>(block_size), static_cast<int>(max_blocks_per_seq),
+      static_cast<float>(scale), static_cast<int>(num_kv_heads));
+}
+
 // Phase 5: Memory bandwidth optimization
 void nt_memcpy_tensor(torch::Tensor& dst, const torch::Tensor& src);
 void prefetch_kv_cache_blocks(const torch::Tensor& kv_cache,
                               const torch::Tensor& block_table,
                               int num_blocks);
+
+// Wrapper: int64_t for PyTorch dispatch
+static void prefetch_kv_cache_blocks_dispatch(
+    const torch::Tensor& kv_cache, const torch::Tensor& block_table,
+    int64_t num_blocks) {
+  prefetch_kv_cache_blocks(kv_cache, block_table,
+                           static_cast<int>(num_blocks));
+}
 #endif
 
 TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
@@ -59,7 +85,7 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
       "prefetch_kv_cache_blocks(Tensor kv_cache, Tensor block_table, "
       "int num_blocks) -> ()");
   ops.impl("prefetch_kv_cache_blocks", torch::kCPU,
-           &prefetch_kv_cache_blocks);
+           &prefetch_kv_cache_blocks_dispatch);
 #endif
 
   // AVX-512 VNNI kernels (no AVX512BF16/AMX required)
@@ -96,7 +122,7 @@ TORCH_LIBRARY_EXPAND(CONCAT(TORCH_EXTENSION_NAME, _cpu), cpu_ops) {
       "   int num_heads, int head_size, int block_size,"
       "   int max_blocks_per_seq, float scale, int num_kv_heads) -> ()");
   cpu_ops.impl("batch16_paged_attention_v1", torch::kCPU,
-               &batch16_paged_attention_v1);
+               &batch16_paged_attention_v1_dispatch);
 #endif
 }
 
