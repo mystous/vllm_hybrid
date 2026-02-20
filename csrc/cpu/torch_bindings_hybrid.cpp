@@ -6,6 +6,7 @@
 // Unlike torch_bindings.cpp (which includes ops.h, cache.h, shm.h, etc.),
 // this file has minimal dependencies - only the Phase 1-5 kernel headers.
 
+#include <torch/all.h>
 #include <torch/library.h>
 
 #include "core/registration.h"
