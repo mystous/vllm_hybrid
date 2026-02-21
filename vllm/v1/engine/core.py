@@ -670,14 +670,6 @@ class EngineCoreProc(EngineCore):
                 parallel_config.data_parallel_rank = dp_rank
                 parallel_config.data_parallel_rank_local = local_dp_rank
                 engine_core = DPEngineCoreProc(*args, **kwargs)
-            elif (hasattr(vllm_config, 'hybrid_config')
-                    and vllm_config.hybrid_config is not None
-                    and vllm_config.hybrid_config.is_enabled()
-                    and vllm_config.hybrid_config.mode == "parallel-batch"):
-                from vllm.v1.engine.hybrid_core import HybridEngineCoreProc
-                set_process_title("HybridEngineCore")
-                decorate_logs()
-                engine_core = HybridEngineCoreProc.create(*args, **kwargs)
             else:
                 set_process_title("EngineCore")
                 decorate_logs()
@@ -749,9 +741,6 @@ class EngineCoreProc(EngineCore):
 
         if request_type == EngineCoreRequestType.ADD:
             req, request_wave = request
-            if req is None:
-                # Hybrid CPU 경로: routed in preprocess, skip GPU path.
-                return
             self.add_request(req, request_wave)
         elif request_type == EngineCoreRequestType.ABORT:
             self.abort_requests(request)
@@ -859,10 +848,6 @@ class EngineCoreProc(EngineCore):
                     if request_type == EngineCoreRequestType.ADD:
                         request = add_request_decoder.decode(data_frames)
                         request = self.preprocess_add_request(request)
-                        # In hybrid mode, CPU-routed requests return
-                        # (None, wave). Skip adding them to the GPU queue.
-                        if request[0] is None:
-                            continue
                     else:
                         request = generic_decoder.decode(data_frames)
 

@@ -71,9 +71,17 @@ class CPUWorker(Worker):
         self._numa_node: int = -1
         self._cpu_features: Optional[IntelCPUFeatures] = None
 
-        if _INTEL_UTILS_AVAILABLE:
+        # Detect hybrid mode: _setup_cpu_process_env() already configured
+        # Intel optimizations, NUMA binding, IPEX, AMX, etc.
+        # CUDA_VISIBLE_DEVICES="" is set by run_cpu_engine_core()
+        self._is_hybrid_cpu_process = (
+            os.environ.get("CUDA_VISIBLE_DEVICES") == ""
+            and os.environ.get("VLLM_CPU_KVCACHE_SPACE") is not None
+        )
+
+        if _INTEL_UTILS_AVAILABLE and not self._is_hybrid_cpu_process:
+            # Non-hybrid (CPU-only) mode: full Intel environment setup
             try:
-                # Setup Intel CPU environment early
                 self._intel_config = setup_intel_cpu_environment(
                     rank=local_rank,
                     world_size=vllm_config.parallel_config.world_size,
@@ -97,6 +105,44 @@ class CPUWorker(Worker):
                         logger.info("  AMX-BF16: Enabled (Sapphire Rapids)")
             except Exception as e:
                 logger.warning(f"Intel CPU optimization setup failed: {e}")
+        elif _INTEL_UTILS_AVAILABLE and self._is_hybrid_cpu_process:
+            # Hybrid mode: env already configured by _setup_cpu_process_env()
+            # Just detect features for logging/downstream use
+            try:
+                self._cpu_features = detect_intel_cpu_features()
+                logger.info(
+                    "CPUWorker[%d] running in hybrid mode "
+                    "(env pre-configured by _setup_cpu_process_env). "
+                    "OMP_THREADS=%s, KVCACHE=%sGB",
+                    rank,
+                    os.environ.get("OMP_NUM_THREADS", "?"),
+                    os.environ.get("VLLM_CPU_KVCACHE_SPACE", "?"),
+                )
+                if self._cpu_features:
+                    logger.info(
+                        "  CPU: %s, %d sockets x %d cores, "
+                        "AVX512=%s, AMX=%s, VNNI=%s",
+                        self._cpu_features.model_name,
+                        self._cpu_features.num_sockets,
+                        self._cpu_features.cores_per_socket,
+                        self._cpu_features.avx512f,
+                        self._cpu_features.amx_bf16,
+                        self._cpu_features.avx512_vnni,
+                    )
+            except Exception as e:
+                logger.warning(f"CPU feature detection failed: {e}")
+
+            # IPEX availability warning
+            try:
+                if not is_ipex_available():
+                    logger.warning(
+                        "IPEX not available! CPU decode performance will be "
+                        "significantly degraded (Python loop fallback for "
+                        "PagedAttention). Install intel-extension-for-pytorch "
+                        "for optimal hybrid inference performance."
+                    )
+            except Exception:
+                pass
 
         # =====================================================
         # Force CPU Platform
@@ -119,7 +165,7 @@ class CPUWorker(Worker):
             CpuPlatform.check_and_update_config(vllm_config)
             logger.info("Updated vllm_config for CPU platform via check_and_update_config.")
         except Exception as e:
-             logger.error(f"Failed to update config for CPU: {str(e)}")
+            logger.error(f"Failed to update config for CPU: {str(e)}")
 
         # =====================================================
         # PyTorch Compilation Configuration for CPU
@@ -175,8 +221,30 @@ class CPUWorker(Worker):
             logger.warning(f"Failed to configure Inductor for Intel: {e}")
 
     def _configure_threads_for_numa(self):
-        """Configure thread count based on NUMA topology or CPU count."""
+        """Configure thread count based on NUMA topology or CPU count.
+
+        In hybrid mode, respects the OMP_NUM_THREADS set by
+        _setup_cpu_process_env() to avoid overriding the optimized value.
+
+        In CPU-only mode, uses all physical cores on the bound NUMA node
+        (or all cores if no NUMA binding).
+        """
         import multiprocessing
+
+        # In hybrid mode, respect the pre-configured OMP_NUM_THREADS
+        # from _setup_cpu_process_env() — don't override it
+        if self._is_hybrid_cpu_process:
+            omp_threads_str = os.environ.get("OMP_NUM_THREADS")
+            if omp_threads_str:
+                try:
+                    target = int(omp_threads_str)
+                    torch.set_num_threads(target)
+                    logger.info(
+                        "CPUWorker: Using hybrid-configured thread count: %d "
+                        "(from OMP_NUM_THREADS)", target)
+                    return
+                except ValueError:
+                    pass
 
         current_threads = torch.get_num_threads()
 
@@ -192,29 +260,40 @@ class CPUWorker(Worker):
                 except Exception:
                     pass
 
-            total_cores = self._cpu_features.cores_per_socket * self._cpu_features.num_sockets
-            cores_per_node = total_cores // num_numa_nodes
+            total_cores = (self._cpu_features.cores_per_socket
+                           * self._cpu_features.num_sockets)
 
-            # Reserve 1-2 cores for system tasks
-            target_threads = max(4, cores_per_node - 1)
+            # If bound to a NUMA node, use ALL cores on that node
+            # If not bound, use ALL physical cores
+            if self._numa_node >= 0 and num_numa_nodes > 1:
+                # Bound to specific NUMA node — use all its cores
+                target_threads = max(4, total_cores // num_numa_nodes)
+            else:
+                # Not bound — use all physical cores
+                target_threads = max(4, total_cores)
 
             torch.set_num_threads(target_threads)
             if self._numa_node >= 0:
-                logger.info(f"CPUWorker: Thread count set to {target_threads} "
-                           f"(NUMA node {self._numa_node}, {cores_per_node} cores/node)")
+                logger.info(
+                    "CPUWorker: Thread count set to %d "
+                    "(NUMA node %d, %d total cores, %d nodes)",
+                    target_threads, self._numa_node,
+                    total_cores, num_numa_nodes)
             else:
-                logger.info(f"CPUWorker: Thread count set to {target_threads} "
-                           f"({total_cores} total cores)")
+                logger.info(
+                    "CPUWorker: Thread count set to %d "
+                    "(%d total cores)", target_threads, total_cores)
         elif current_threads < 4:
-            # Fallback: use most CPU cores
+            # Fallback: use all CPU cores
             try:
-                target_threads = max(8, multiprocessing.cpu_count() - 2)
+                target_threads = max(8, multiprocessing.cpu_count())
             except Exception:
                 target_threads = 8
 
             torch.set_num_threads(target_threads)
-            logger.info(f"CPUWorker: Overrode low thread count ({current_threads}) "
-                       f"to {target_threads} for performance.")
+            logger.info(
+                "CPUWorker: Overrode low thread count (%d) "
+                "to %d for performance.", current_threads, target_threads)
 
     @property
     def numa_node(self) -> int:
@@ -250,7 +329,11 @@ class CPUWorker(Worker):
                 if ret:
                     logger.info(ret)
             except AttributeError:
-                 logger.warning("torch.ops._C_utils.init_cpu_threads_env not found. Skipping thread binding.")
+                logger.warning(
+                    "torch.ops._C_utils.init_cpu_threads_env not found. "
+                    "Thread affinity binding skipped. This may reduce "
+                    "performance due to thread migration across cores. "
+                    "Consider building vLLM with CPU extension support.")
 
 
         # Note: unique identifier for creating allreduce shared memory
@@ -300,10 +383,10 @@ class CPUWorker(Worker):
         # Calculate available CPU blocks
         num_cpu_blocks = self.vllm_config.cache_config.num_cpu_blocks
         if num_cpu_blocks is None:
-             # If not set, use default or calculate from swap space
-             # For now return 0 to avoid breaking logic if unmitigated
-             num_cpu_blocks = 0
-             
+            # If not set, use default or calculate from swap space
+            # For now return 0 to avoid breaking logic if unmitigated
+            num_cpu_blocks = 0
+
         logger.info(f"DEBUG_AG: CPUWorker determine_num_available_blocks done. returning 0, {num_cpu_blocks}")
         return 0, num_cpu_blocks
 

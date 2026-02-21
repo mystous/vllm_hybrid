@@ -62,6 +62,9 @@ set(CPU_HYB_FLAGS
     -mavx512bw
     -mavx512dq
     -mf16c
+    -O3
+    -funroll-loops
+    -ffast-math
     -DVLLM_CPU_EXTENSION)
 
 if(HYB_AVX512VNNI_FOUND)

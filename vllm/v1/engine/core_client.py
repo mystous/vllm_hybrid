@@ -64,6 +64,7 @@ class EngineCoreClient(ABC):
         executor_class: type[Executor],
         log_stats: bool,
     ) -> "EngineCoreClient":
+        from vllm.v1.engine.hybrid_core import is_hybrid_mode
 
         # TODO: support this for debugging purposes.
         if asyncio_mode and not multiprocess_mode:
@@ -72,10 +73,16 @@ class EngineCoreClient(ABC):
                 "is not currently supported.")
 
         if multiprocess_mode and asyncio_mode:
+            if is_hybrid_mode(vllm_config):
+                return HybridAsyncMPClient(
+                    vllm_config, executor_class, log_stats)
             return EngineCoreClient.make_async_mp_client(
                 vllm_config, executor_class, log_stats)
 
         if multiprocess_mode and not asyncio_mode:
+            if is_hybrid_mode(vllm_config):
+                return HybridSyncMPClient(
+                    vllm_config, executor_class, log_stats)
             return SyncMPClient(vllm_config, executor_class, log_stats)
 
         return InprocClient(vllm_config, executor_class, log_stats)
@@ -241,15 +248,7 @@ class InprocClient(EngineCoreClient):
     """
 
     def __init__(self, *args, **kwargs):
-        vllm_config = kwargs.get('vllm_config') or args[0]
-        if (hasattr(vllm_config, 'hybrid_config')
-                and vllm_config.hybrid_config is not None
-                and vllm_config.hybrid_config.is_enabled()
-                and vllm_config.hybrid_config.mode == "parallel-batch"):
-            from vllm.v1.engine.hybrid_core import HybridEngineCore
-            self.engine_core = HybridEngineCore(*args, **kwargs)
-        else:
-            self.engine_core = EngineCore(*args, **kwargs)
+        self.engine_core = EngineCore(*args, **kwargs)
 
     def get_output(self) -> EngineCoreOutputs:
         outputs, _ = self.engine_core.step()
@@ -260,9 +259,6 @@ class InprocClient(EngineCoreClient):
 
     def add_request(self, request: EngineCoreRequest) -> None:
         req, request_wave = self.engine_core.preprocess_add_request(request)
-        if req is None:
-            # Hybrid CPU 경로: preprocess에서 이미 CPU로 라우팅됨
-            return
         self.engine_core.add_request(req, request_wave)
 
     def abort_requests(self, request_ids: list[str]) -> None:
@@ -429,10 +425,9 @@ class MPClient(EngineCoreClient):
                     "stats_update_address")
             else:
                 # Engines are managed by this client.
-                with launch_core_engines(vllm_config, executor_class,
-                                         log_stats) as (engine_manager,
-                                                        coordinator,
-                                                        addresses):
+                launcher = self._create_engine_launcher(
+                    vllm_config, executor_class, log_stats)
+                with launcher as (engine_manager, coordinator, addresses):
                     self.resources.coordinator = coordinator
                     self.resources.engine_manager = engine_manager
 
@@ -450,27 +445,9 @@ class MPClient(EngineCoreClient):
             self.resources.output_socket = make_zmq_socket(
                 self.ctx, output_address, zmq.PULL)
 
-            parallel_config = vllm_config.parallel_config
-            dp_size = parallel_config.data_parallel_size
-            dp_rank = parallel_config.data_parallel_rank
-            dp_local_size = parallel_config.data_parallel_size_local
-            offline_mode = parallel_config.data_parallel_rank_local is not None
-            # Client manages local+remote EngineCores in pure internal LB case.
-            # Client manages local EngineCores in hybrid and external LB case.
-            local_engines_only = (parallel_config.data_parallel_hybrid_lb
-                                  or parallel_config.data_parallel_external_lb)
-
-            num_ranks = dp_local_size if local_engines_only else dp_size
-            self.engine_ranks_managed = [dp_rank] if offline_mode else list(
-                range(dp_rank, dp_rank + num_ranks))
-            assert parallel_config.data_parallel_size_local <= len(
-                self.engine_ranks_managed)
-
-            # ZMQ identity of each engine that this client will talk to.
-            self.core_engines: list[EngineIdentity] = [
-                rank.to_bytes(2, "little")
-                for rank in self.engine_ranks_managed
-            ]
+            # Compute engine identities.
+            self.core_engines, self.engine_ranks_managed = (
+                self._compute_core_engines(vllm_config))
 
             # Wait for ready messages from each engine on the input socket.
             identities = set(self.core_engines)
@@ -497,6 +474,42 @@ class MPClient(EngineCoreClient):
         finally:
             if not success:
                 self._finalizer()
+
+    def _create_engine_launcher(self, vllm_config, executor_class, log_stats):
+        """Create the engine launcher context manager.
+
+        Override in subclasses to customize engine launching (e.g., hybrid).
+        """
+        return launch_core_engines(vllm_config, executor_class, log_stats)
+
+    def _compute_core_engines(
+        self, vllm_config: VllmConfig,
+    ) -> tuple[list[EngineIdentity], list[int]]:
+        """Compute engine identities and managed ranks.
+
+        Override in subclasses to customize engine identity setup (e.g., hybrid).
+        """
+        parallel_config = vllm_config.parallel_config
+        dp_size = parallel_config.data_parallel_size
+        dp_rank = parallel_config.data_parallel_rank
+        dp_local_size = parallel_config.data_parallel_size_local
+        offline_mode = parallel_config.data_parallel_rank_local is not None
+        # Client manages local+remote EngineCores in pure internal LB case.
+        # Client manages local EngineCores in hybrid and external LB case.
+        local_engines_only = (parallel_config.data_parallel_hybrid_lb
+                              or parallel_config.data_parallel_external_lb)
+
+        num_ranks = dp_local_size if local_engines_only else dp_size
+        engine_ranks_managed = [dp_rank] if offline_mode else list(
+            range(dp_rank, dp_rank + num_ranks))
+        assert parallel_config.data_parallel_size_local <= len(
+            engine_ranks_managed)
+
+        core_engines: list[EngineIdentity] = [
+            rank.to_bytes(2, "little")
+            for rank in engine_ranks_managed
+        ]
+        return core_engines, engine_ranks_managed
 
     def shutdown(self):
         # Terminate background resources.
@@ -1316,3 +1329,203 @@ class DPLBAsyncMPClient(DPAsyncMPClient):
         logger.info(
             "[Elastic EP] Scale down completed, new data parallel size: %s",
             new_data_parallel_size)
+
+
+# ============================================================================
+# Hybrid GPU+CPU 병렬 추론 클라이언트
+# ============================================================================
+
+class _HybridEngineLauncherMixin:
+    """Hybrid MP 클라이언트의 공통 엔진 시작/identity 로직.
+
+    MPClient._create_engine_launcher()와 _compute_core_engines()를
+    hybrid 버전으로 오버라이드합니다.
+    """
+
+    def _create_engine_launcher(self, vllm_config, executor_class, log_stats):
+        from vllm.v1.engine.hybrid_core import launch_hybrid_engines
+        return launch_hybrid_engines(vllm_config, executor_class, log_stats)
+
+    def _compute_core_engines(
+        self, vllm_config: VllmConfig,
+    ) -> tuple[list[EngineIdentity], list[int]]:
+        # GPU: engine_index=0, CPU: engine_index=1
+        engine_ranks = [0, 1]
+        core_engines = [
+            rank.to_bytes(2, "little") for rank in engine_ranks
+        ]
+        return core_engines, engine_ranks
+
+
+class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
+    """GPU+CPU 이기종 병렬 추론 비동기 클라이언트.
+
+    GPU EngineCoreProc + CPU EngineCoreProc 2개를 별도 프로세스로 스폰하고,
+    RequestRouter.route()에 따라 요청을 분배합니다.
+
+    ZMQ 토폴로지:
+    - input (ROUTER bind) → GPU(identity=0), CPU(identity=1)
+    - output (PULL) ← GPU(PUSH), CPU(PUSH) 비동기 수신
+
+    결과 수집은 ZMQ PUSH/PULL로 자동 interleaved 수신되므로
+    별도 병합 로직이 불필요합니다.
+    """
+
+    def __init__(self,
+                 vllm_config: VllmConfig,
+                 executor_class: type[Executor],
+                 log_stats: bool,
+                 client_addresses: Optional[dict[str, str]] = None,
+                 client_count: int = 1,
+                 client_index: int = 0):
+        from vllm.v1.engine.hybrid_core import (CapacityAwareRouter,
+                                                 _resolve_cpu_params)
+
+        # CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
+        hybrid_config = vllm_config.hybrid_config
+        resolved = _resolve_cpu_params(hybrid_config)
+        self._hybrid_router = CapacityAwareRouter(resolved.cpu_max_num_seqs)
+        self._hybrid_reqs_in_flight: dict[str, EngineIdentity] = {}
+
+        # 부모 초기화 (_HybridEngineLauncherMixin이 MRO에서
+        # _create_engine_launcher, _compute_core_engines를 제공)
+        super().__init__(vllm_config, executor_class, log_stats,
+                         client_addresses, client_count, client_index)
+
+    @property
+    def _gpu_engine(self) -> EngineIdentity:
+        return self.core_engines[0]  # engine_index=0
+
+    @property
+    def _cpu_engine(self) -> EngineIdentity:
+        return self.core_engines[1]  # engine_index=1
+
+    async def add_request_async(self, request: EngineCoreRequest) -> None:
+        request.client_index = self.client_index
+
+        path = self._hybrid_router.route(request.request_id)
+        if path == "cpu":
+            engine = self._cpu_engine
+        else:
+            engine = self._gpu_engine
+
+        self._hybrid_reqs_in_flight[request.request_id] = engine
+        await self._send_input(EngineCoreRequestType.ADD, request, engine)
+        self._ensure_output_queue_task()
+
+    async def abort_requests_async(self, request_ids: list[str]) -> None:
+        if not request_ids or self.resources.engine_dead:
+            return
+
+        by_engine = defaultdict[EngineIdentity, list[str]](list)
+        for req_id in request_ids:
+            engine = self._hybrid_reqs_in_flight.get(req_id, self._gpu_engine)
+            by_engine[engine].append(req_id)
+
+        for engine, req_ids in by_engine.items():
+            await self._send_input(
+                EngineCoreRequestType.ABORT, req_ids, engine)
+
+    @staticmethod
+    async def process_engine_outputs(self: "HybridAsyncMPClient",
+                                     outputs: EngineCoreOutputs):
+        """완료된 요청을 reqs_in_flight에서 제거하고 라우터에 알림."""
+        if outputs.finished_requests and self._hybrid_reqs_in_flight:
+            for req_id in outputs.finished_requests:
+                engine = self._hybrid_reqs_in_flight.pop(req_id, None)
+                if engine is not None:
+                    was_cpu = (engine == self._cpu_engine)
+                    self._hybrid_router.on_request_finished(
+                        req_id, was_cpu)
+
+    async def call_utility_async(self, method: str, *args) -> Any:
+        # Utility 호출은 GPU 엔진에만 전송
+        return await self._call_utility_async(
+            method, *args, engine=self._gpu_engine)
+
+
+class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
+    """GPU+CPU 이기종 병렬 추론 동기 클라이언트.
+
+    SyncMPClient와 동일하지만 launch_hybrid_engines()로
+    GPU+CPU 프로세스를 스폰합니다.
+    """
+
+    def __init__(self, vllm_config: VllmConfig, executor_class: type[Executor],
+                 log_stats: bool):
+        from vllm.v1.engine.hybrid_core import (CapacityAwareRouter,
+                                                 _resolve_cpu_params)
+
+        # CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
+        hybrid_config = vllm_config.hybrid_config
+        resolved = _resolve_cpu_params(hybrid_config)
+        self._hybrid_router = CapacityAwareRouter(resolved.cpu_max_num_seqs)
+        self._hybrid_reqs_in_flight: dict[str, EngineIdentity] = {}
+
+        super().__init__(vllm_config, executor_class, log_stats)
+
+    @property
+    def _gpu_engine(self) -> EngineIdentity:
+        return self.core_engines[0]
+
+    @property
+    def _cpu_engine(self) -> EngineIdentity:
+        return self.core_engines[1]
+
+    def _send_input(self, request_type: EngineCoreRequestType, request: Any,
+                    engine: Optional[EngineIdentity] = None):
+        if engine is None:
+            engine = self._gpu_engine
+        self.ensure_alive()
+        self.free_pending_messages()
+        msg = (engine, request_type.value, *self.encoder.encode(request))
+
+        if len(msg) <= 3:
+            self.input_socket.send_multipart(msg, copy=False)
+            return
+
+        tracker = self.input_socket.send_multipart(msg, copy=False, track=True)
+        self.add_pending_message(tracker, request)
+
+    def get_output(self) -> EngineCoreOutputs:
+        outputs = super().get_output()
+        # 완료된 요청의 CPU 슬롯 반환
+        if outputs.finished_requests and self._hybrid_reqs_in_flight:
+            for req_id in outputs.finished_requests:
+                engine = self._hybrid_reqs_in_flight.pop(req_id, None)
+                if engine is not None:
+                    was_cpu = (engine == self._cpu_engine)
+                    self._hybrid_router.on_request_finished(
+                        req_id, was_cpu)
+        return outputs
+
+    def add_request(self, request: EngineCoreRequest) -> None:
+        path = self._hybrid_router.route(request.request_id)
+        if path == "cpu":
+            engine = self._cpu_engine
+        else:
+            engine = self._gpu_engine
+        self._hybrid_reqs_in_flight[request.request_id] = engine
+        self._send_input(EngineCoreRequestType.ADD, request, engine)
+
+    def abort_requests(self, request_ids: list[str]) -> None:
+        if not request_ids or self.resources.engine_dead:
+            return
+
+        by_engine = defaultdict[EngineIdentity, list[str]](list)
+        for req_id in request_ids:
+            engine = self._hybrid_reqs_in_flight.get(
+                req_id, self._gpu_engine)
+            by_engine[engine].append(req_id)
+
+        for engine, req_ids in by_engine.items():
+            self._send_input(EngineCoreRequestType.ABORT, req_ids, engine)
+
+    def call_utility(self, method: str, *args) -> Any:
+        # Utility 호출은 GPU 엔진에만 전송
+        call_id = uuid.uuid1().int >> 64
+        future: Future[Any] = Future()
+        self.utility_results[call_id] = future
+        self._send_input(EngineCoreRequestType.UTILITY,
+                         (0, call_id, method, args), self._gpu_engine)
+        return future.result()

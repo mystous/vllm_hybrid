@@ -661,11 +661,23 @@ def configure_pytorch_for_intel(features: Optional[IntelCPUFeatures] = None):
     if features is None:
         features = detect_intel_cpu_features()
 
-    # Set thread count to physical cores
+    # Set thread count to physical cores, but respect OMP_NUM_THREADS
+    # if already set (e.g., by hybrid mode's _setup_cpu_process_env())
     total_physical_cores = features.num_sockets * features.cores_per_socket
     if total_physical_cores > 0:
-        torch.set_num_threads(total_physical_cores)
-        logger.info(f"PyTorch threads set to {total_physical_cores} (physical cores)")
+        omp_env = os.environ.get("OMP_NUM_THREADS")
+        if omp_env:
+            try:
+                target_threads = int(omp_env)
+                torch.set_num_threads(target_threads)
+                logger.info(f"PyTorch threads set to {target_threads} "
+                           f"(from OMP_NUM_THREADS, physical={total_physical_cores})")
+            except ValueError:
+                torch.set_num_threads(total_physical_cores)
+                logger.info(f"PyTorch threads set to {total_physical_cores} (physical cores)")
+        else:
+            torch.set_num_threads(total_physical_cores)
+            logger.info(f"PyTorch threads set to {total_physical_cores} (physical cores)")
 
     # Set interop threads for parallel regions
     interop_threads = max(1, features.num_sockets)

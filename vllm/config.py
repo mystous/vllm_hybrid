@@ -4602,8 +4602,8 @@ class HybridConfig:
     cpu_ratio: Optional[float] = None
     """CPU 배치 비율 (None이면 자동 프로파일링)."""
 
-    cpu_num_threads: int = 48
-    """CPU 워커 스레드 수."""
+    cpu_num_threads: int = 0
+    """CPU 워커 스레드 수. 0이면 물리 코어 수 기반 자동 감지."""
 
     cpu_dtype: str = "bfloat16"
     """CPU 모델 데이터 타입 (bfloat16, float16, int8)."""
@@ -4636,14 +4636,14 @@ class HybridConfig:
     """추측할 토큰 수."""
 
     # parallel-batch CPU 경로 설정
-    cpu_kvcache_space_gb: int = 64
-    """CPU KV cache에 할당할 메모리 (GB). 기본 64GB."""
+    cpu_kvcache_space_gb: int = 0
+    """CPU KV cache에 할당할 메모리 (GB). 0이면 시스템 메모리 기반 자동 감지."""
 
-    cpu_max_num_seqs: int = 4
-    """CPU 경로의 최대 동시 시퀀스 수."""
+    cpu_max_num_seqs: int = 0
+    """CPU 경로의 최대 동시 시퀀스 수. 0이면 CPU 코어 수 기반 자동 감지."""
 
-    cpu_max_num_batched_tokens: int = 512
-    """CPU 경로의 최대 배치 토큰 수."""
+    cpu_max_num_batched_tokens: int = 0
+    """CPU 경로의 최대 배치 토큰 수. 0이면 cpu_max_num_seqs * 256."""
 
     def __post_init__(self):
         if self.mode == "parallel-batch":

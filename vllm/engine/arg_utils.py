@@ -409,8 +409,8 @@ class EngineArgs:
     """Hybrid execution mode: 'none', 'parallel-batch', 'moe-hybrid'."""
     hybrid_cpu_ratio: Optional[float] = None
     """CPU batch ratio for parallel-batch mode (None for auto-profiling)."""
-    hybrid_cpu_threads: int = 48
-    """Number of CPU threads for hybrid execution."""
+    hybrid_cpu_threads: int = 0
+    """Number of CPU threads for hybrid execution (0=auto-detect)."""
 
     hybrid_numa_aware: bool = True
     """Enable NUMA-aware memory allocation and thread binding."""
@@ -418,11 +418,14 @@ class EngineArgs:
     hybrid_numa_node: Optional[int] = None
     """Bind to specific NUMA node (None for auto-select)."""
 
-    hybrid_cpu_kvcache_gb: int = 64
-    """CPU KV cache memory in GB for parallel-batch mode."""
+    hybrid_cpu_kvcache_gb: int = 0
+    """CPU KV cache memory in GB for parallel-batch mode (0=auto-detect)."""
 
-    hybrid_cpu_max_seqs: int = 4
-    """Max concurrent sequences for CPU path in parallel-batch mode."""
+    hybrid_cpu_max_seqs: int = 0
+    """Max concurrent sequences for CPU path (0=auto-detect)."""
+
+    hybrid_cpu_max_batched_tokens: int = 0
+    """Max batched tokens for CPU path (0=auto-detect)."""
 
     show_hidden_metrics_for_version: Optional[str] = \
         ObservabilityConfig.show_hidden_metrics_for_version
@@ -910,8 +913,9 @@ class EngineArgs:
         hybrid_group.add_argument(
             '--hybrid-cpu-threads',
             type=int,
-            default=48,
-            help="Number of CPU threads for hybrid execution."
+            default=0,
+            help="Number of CPU threads for hybrid execution. "
+                 "0 means auto-detect from physical core count. (default: 0)"
         )
         hybrid_group.add_argument(
             '--hybrid-numa-aware',
@@ -935,16 +939,23 @@ class EngineArgs:
         hybrid_group.add_argument(
             '--hybrid-cpu-kvcache-gb',
             type=int,
-            default=64,
+            default=0,
             help="CPU KV cache memory in GB for parallel-batch mode. "
-                 "(default: 64)"
+                 "0 means auto-detect (40%% of system memory). (default: 0)"
         )
         hybrid_group.add_argument(
             '--hybrid-cpu-max-seqs',
             type=int,
-            default=4,
+            default=0,
             help="Max concurrent sequences for CPU path. "
-                 "(default: 4)"
+                 "0 means auto-detect from core count. (default: 0)"
+        )
+        hybrid_group.add_argument(
+            '--hybrid-cpu-max-batched-tokens',
+            type=int,
+            default=0,
+            help="Max batched tokens for CPU path. "
+                 "0 means auto-detect (cpu_max_seqs * 256). (default: 0)"
         )
 
         return parser
@@ -1449,6 +1460,7 @@ class EngineArgs:
             numa_bind_node=self.hybrid_numa_node,
             cpu_kvcache_space_gb=self.hybrid_cpu_kvcache_gb,
             cpu_max_num_seqs=self.hybrid_cpu_max_seqs,
+            cpu_max_num_batched_tokens=self.hybrid_cpu_max_batched_tokens,
         )
 
         config = VllmConfig(
