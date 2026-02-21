@@ -1,261 +1,208 @@
-● 8 GPU + CPU 하이브리드 서버 실행 가이드
+# vLLM Hybrid 테스트 가이드
 
-  ---
-  동작 원리
+> 최종 업데이트: 2026-02-21
 
-  world_size = tensor_parallel_size (예: 10)
+---
 
-  rank 0~7  → GPUWorker (H100 × 8)
-  rank 8~9  → CPUWorker (Xeon 112코어)
+## 1. 실행 모드
 
-  판단 기준: rank >= torch.cuda.device_count() 이면 자동으로 CPUWorker 할당
+### 모드 A: Parallel-Batch (Dual-Process, 권장)
 
-  vllm/worker/worker_base.py에서 자동 판별:
-  if self.rpc_rank >= num_gpus:  # rank >= 8이면
-      worker_cls = "vllm.v1.worker.cpu_worker.CPUWorker"
+GPU와 CPU가 별도 프로세스에서 완전 병렬 실행:
 
-  ---
-  1. 서버 실행
-
-  환경 변수 설정
 ```
-  # 필수
-  export VLLM_HETEROGENEOUS_PLATFORM=1
-
-  # Intel CPU 최적화
-  export OMP_NUM_THREADS=112
-  export KMP_AFFINITY=granularity=fine,compact,1,0
-  export KMP_BLOCKTIME=1
-  export MKL_ENABLE_INSTRUCTIONS=AVX512
-  export VLLM_CPU_KVCACHE_SPACE=512
-  export VLLM_CPU_OMP_THREADS_BIND=auto
-
-  #서버 시작 (8 GPU + 2 CPU Worker)
-
-  VLLM_HETEROGENEOUS_PLATFORM=1 vllm serve meta-llama/Llama-3-70B-Instruct \
-    --device heterogeneous \
-    --tensor-parallel-size 10 \
-    --dtype bfloat16 \
-    --hybrid-mode parallel-batch \
-    --hybrid-cpu-threads 112 \
-    --hybrid-numa-aware \
-    --host 0.0.0.0 \
-    --port 8000 \
-    --trust-remote-code
-
-  ┌────────────────────────┬────────────────┬───────────────────────────┐
-  │          인자          │       값       │           설명            │
-  ├────────────────────────┼────────────────┼───────────────────────────┤
-  │ --device               │ heterogeneous  │ CPU+GPU 이기종 모드       │
-  ├────────────────────────┼────────────────┼───────────────────────────┤
-  │ --tensor-parallel-size │ 10             │ 8 GPU + 2 CPU 워커        │
-  ├────────────────────────┼────────────────┼───────────────────────────┤
-  │ --dtype                │ bfloat16       │ AVX-512 BF16 최적화       │
-  ├────────────────────────┼────────────────┼───────────────────────────┤
-  │ --hybrid-mode          │ parallel-batch │ CPU/GPU 배치 분리         │
-  ├────────────────────────┼────────────────┼───────────────────────────┤
-  │ --hybrid-cpu-threads   │ 112            │ Xeon 전체 코어 활용       │
-  ├────────────────────────┼────────────────┼───────────────────────────┤
-  │ --hybrid-numa-aware    │ -              │ NUMA 메모리/스레드 최적화 │
-  └────────────────────────┴────────────────┴───────────────────────────┘
+GPU EngineCoreProc (PID A) ← TP=8, 8x H100
+CPU EngineCoreProc (PID B) ← UniProcExecutor, CPUWorker
 ```
 
-  Pipeline Parallel 방식 (대안)
+```bash
+# 자동 감지 (권장)
+vllm serve meta-llama/Llama-3-70B-Instruct \
+  --tensor-parallel-size 8 \
+  --hybrid-mode parallel-batch \
+  --dtype bfloat16 \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --trust-remote-code
 
-  # GPU 8개로 텐서 병렬, 2 파이프라인 스테이지
-  VLLM_HETEROGENEOUS_PLATFORM=1 vllm serve meta-llama/Llama-3-70B-Instruct \
-    --device heterogeneous \
-    --tensor-parallel-size 8 \
-    --pipeline-parallel-size 2 \
-    --dtype bfloat16 \
-    --host 0.0.0.0 \
-    --port 8000
+# 수동 설정
+vllm serve meta-llama/Llama-3-70B-Instruct \
+  --tensor-parallel-size 8 \
+  --hybrid-mode parallel-batch \
+  --hybrid-cpu-max-seqs 28 \
+  --hybrid-cpu-kvcache-gb 800 \
+  --hybrid-cpu-threads 112 \
+  --dtype bfloat16 \
+  --host 0.0.0.0 \
+  --port 8000
+```
 
-  ---
-  2. 클라이언트 실행
+### 모드 B: Heterogeneous Pipeline (레거시)
 
-  2-1. curl (가장 간단)
+GPU와 CPU가 같은 텐서 병렬 그룹에서 파이프라인 실행:
 
-  # Chat Completion
-  curl http://localhost:8000/v1/chat/completions \
-    -H "Content-Type: application/json" \
-    -d '{
-      "model": "meta-llama/Llama-3-70B-Instruct",
-      "messages": [
+```bash
+VLLM_HETEROGENEOUS_PLATFORM=1 vllm serve meta-llama/Llama-3-70B-Instruct \
+  --device heterogeneous \
+  --tensor-parallel-size 8 \
+  --pipeline-parallel-size 2 \
+  --dtype bfloat16 \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+---
+
+## 2. 클라이언트 테스트
+
+### 2.1 curl
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Chat Completion
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "meta-llama/Llama-3-70B-Instruct",
+    "messages": [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "한국의 수도는 어디인가요?"}
+    ],
+    "max_tokens": 256,
+    "temperature": 0.7
+  }'
+
+# 스트리밍
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "meta-llama/Llama-3-70B-Instruct",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "max_tokens": 100,
+    "stream": true
+  }'
+```
+
+### 2.2 Python (OpenAI SDK)
+
+```python
+from openai import OpenAI
+
+client = OpenAI(api_key="EMPTY", base_url="http://localhost:8000/v1")
+
+response = client.chat.completions.create(
+    model="meta-llama/Llama-3-70B-Instruct",
+    messages=[
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "한국의 수도는 어디인가요?"}
-      ],
-      "max_tokens": 256,
-      "temperature": 0.7
-    }'
-
-  # 스트리밍 모드
-  curl http://localhost:8000/v1/chat/completions \
-    -H "Content-Type: application/json" \
-    -d '{
-      "model": "meta-llama/Llama-3-70B-Instruct",
-      "messages": [{"role": "user", "content": "Hello!"}],
-      "max_tokens": 100,
-      "stream": true
-    }'
-
-  # Completions API
-  curl http://localhost:8000/v1/completions \
-    -H "Content-Type: application/json" \
-    -d '{
-      "model": "meta-llama/Llama-3-70B-Instruct",
-      "prompt": "The capital of France is",
-      "max_tokens": 50
-    }'
-
-  2-2. Python (OpenAI SDK)
-
-  pip install openai
-
-  from openai import OpenAI
-
-  client = OpenAI(
-      api_key="EMPTY",
-      base_url="http://localhost:8000/v1",
-  )
-
-  # 모델 목록 확인
-  models = client.models.list()
-  print("Available models:", [m.id for m in models.data])
-
-  # Chat Completion
-  response = client.chat.completions.create(
-      model="meta-llama/Llama-3-70B-Instruct",
-      messages=[
-          {"role": "system", "content": "You are a helpful assistant."},
-          {"role": "user", "content": "CPU와 GPU의 차이점을 설명해주세요."},
-      ],
-      max_tokens=512,
-      temperature=0.7,
-  )
-
-  print(response.choices[0].message.content)
-
-  # 스트리밍
-  stream = client.chat.completions.create(
-      model="meta-llama/Llama-3-70B-Instruct",
-      messages=[{"role": "user", "content": "안녕하세요!"}],
-      max_tokens=256,
-      stream=True,
-  )
-
-  for chunk in stream:
-      if chunk.choices[0].delta.content:
-          print(chunk.choices[0].delta.content, end="", flush=True)
-  print()
-
-  2-3. 벤치마크 클라이언트
-
-  # 처리량 벤치마크 (서버 불필요 - 직접 엔진 실행)
-  VLLM_HETEROGENEOUS_PLATFORM=1 python benchmarks/benchmark_throughput.py \
-    --model meta-llama/Llama-3-70B-Instruct \
-    --tensor-parallel-size 10 \
-    --num-prompts 200 \
-    --input-len 256 \
-    --output-len 128 \
-    --dtype bfloat16
-
-  # 서빙 벤치마크 (서버 실행 후)
-  python benchmarks/benchmark_serving.py \
-    --backend openai \
-    --base-url http://localhost:8000 \
-    --model meta-llama/Llama-3-70B-Instruct \
-    --dataset-name random \
-    --num-prompts 500 \
-    --random-input-len 256 \
-    --random-output-len 128 \
-    --request-rate inf
-
-  # 지연시간 벤치마크
-  VLLM_HETEROGENEOUS_PLATFORM=1 python benchmarks/benchmark_latency.py \
-    --model meta-llama/Llama-3-70B-Instruct \
-    --tensor-parallel-size 10 \
-    --input-len 256 \
-    --output-len 128 \
-    --num-iters 20
-
-  ---
-  3. GPU-only vs 하이브리드 비교 테스트
-
-  #!/bin/bash
-  MODEL="meta-llama/Llama-3-70B-Instruct"
-
-  echo "===== GPU-only (8x H100) ====="
-  python benchmarks/benchmark_throughput.py \
-    --model $MODEL \
-    --tensor-parallel-size 8 \
-    --num-prompts 200 \
-    --input-len 256 \
-    --output-len 128 \
-    --dtype bfloat16
-
-  echo ""
-  echo "===== Hybrid (8 GPU + 2 CPU) ====="
-  VLLM_HETEROGENEOUS_PLATFORM=1 python benchmarks/benchmark_throughput.py \
-    --model $MODEL \
-    --tensor-parallel-size 10 \
-    --num-prompts 200 \
-    --input-len 256 \
-    --output-len 128 \
-    --dtype bfloat16
-
-  ---
-  4. 워커 할당 구조
-```
-  ┌──────────────────────────────────────────────┐
-  │              vLLM Server                      │
-  │  tensor_parallel_size = 10                    │
-  ├──────────────────────────────────────────────┤
-  │                                               │
-  │  rank 0 ──→ GPUWorker (H100 #0)             │
-  │  rank 1 ──→ GPUWorker (H100 #1)             │
-  │  rank 2 ──→ GPUWorker (H100 #2)             │
-  │  rank 3 ──→ GPUWorker (H100 #3)             │
-  │  rank 4 ──→ GPUWorker (H100 #4)             │
-  │  rank 5 ──→ GPUWorker (H100 #5)             │
-  │  rank 6 ──→ GPUWorker (H100 #6)             │
-  │  rank 7 ──→ GPUWorker (H100 #7)             │
-  │  rank 8 ──→ CPUWorker (Xeon, NUMA node 0)   │
-  │  rank 9 ──→ CPUWorker (Xeon, NUMA node 1)   │
-  │                                               │
-  │  통신: Gloo backend (CPU↔GPU)                │
-  └──────────────────────────────────────────────┘
+        {"role": "user", "content": "CPU와 GPU의 차이점을 설명해주세요."},
+    ],
+    max_tokens=512,
+    temperature=0.7,
+)
+print(response.choices[0].message.content)
 ```
 
-  ---
-  5. 서버 상태 확인
+---
 
-  # 서버 health check
-  curl http://localhost:8000/health
+## 3. 벤치마크
 
-  # 모델 목록
-  curl http://localhost:8000/v1/models
+### 3.1 서빙 벤치마크 (서버 실행 후)
 
-  # GPU 상태 모니터링 (별도 터미널)
-  watch -n 1 nvidia-smi
-
-
+```bash
+python benchmarks/benchmark_serving.py \
+  --backend openai \
+  --base-url http://localhost:8000 \
+  --model meta-llama/Llama-3-70B-Instruct \
+  --dataset-name random \
+  --num-prompts 500 \
+  --random-input-len 128 \
+  --random-output-len 128 \
+  --request-rate 10
 ```
+
+### 3.2 GPU-only vs Hybrid 비교
+
+```bash
+#!/bin/bash
+MODEL="meta-llama/Llama-3-70B-Instruct"
+BENCH="python benchmarks/benchmark_serving.py --backend openai --model $MODEL --dataset-name random --num-prompts 500 --random-input-len 128 --random-output-len 128"
+
+echo "===== GPU-only (8x H100) ====="
+# 먼저 GPU-only 서버 시작 후
+$BENCH --base-url http://localhost:8000
+
+echo ""
+echo "===== Hybrid (GPU + CPU) ====="
+# Hybrid 서버 시작 후
+$BENCH --base-url http://localhost:8000
+```
+
+### 3.3 소규모 테스트 (개발 머신)
+
+```bash
 python3 -m vllm.entrypoints.openai.api_server \
     --model facebook/opt-1.3b \
     --dtype float16 \
     --port 8000 \
-    --hybrid-mode parallel-batch \
-    --hybrid-cpu-ratio 0.1 \
-    --hybrid-cpu-threads 8
-
+    --hybrid-mode parallel-batch
 
 python3 benchmarks/benchmark_serving.py \
-    --backend vllm \
+    --backend openai \
+    --base-url http://localhost:8000 \
     --model facebook/opt-1.3b \
     --dataset-name random \
     --num-prompts 100 \
     --request-rate 10 \
     --random-input-len 128 \
     --random-output-len 64
+```
+
+---
+
+## 4. 상태 확인
+
+```bash
+# 프로세스 확인
+ps aux | grep -E "GPU_EngineCore|CPU_EngineCore"
+
+# GPU 모니터링
+watch -n 1 nvidia-smi
+
+# 서버 모델 목록
+curl http://localhost:8000/v1/models
+
+# NUMA 메모리 확인 (CPU 프로세스 PID 필요)
+numastat -p <PID>
+```
+
+---
+
+## 5. 모듈 단위 테스트
+
+```bash
+# CPU 기능 감지
+python -c "
+from vllm.platforms.intel_cpu_utils import detect_intel_cpu_features
+f = detect_intel_cpu_features()
+print(f'{f.model_name}: {f.num_sockets}S x {f.cores_per_socket}C x {f.threads_per_core}T')
+print(f'AVX-512={f.avx512f}, VNNI={f.avx512_vnni}, AMX={f.amx_bf16}')
+"
+
+# Hybrid 모듈 import 확인
+python -c "
+from vllm.v1.engine.hybrid_core import is_hybrid_mode, CapacityAwareRouter
+from vllm.v1.engine.core_client import HybridAsyncMPClient
+print('All imports OK')
+"
+
+# CPU ops 빌드 확인
+python -c "
+try:
+    import vllm._C_cpu_ops
+    print('_C_cpu_ops: available')
+except ImportError:
+    print('_C_cpu_ops: not built')
+"
 ```

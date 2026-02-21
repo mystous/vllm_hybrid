@@ -1,270 +1,154 @@
-# vLLM Hybrid: Heterogeneous Pipeline Parallelism
+# vLLM Hybrid: CPU+GPU Parallel-Batch Inference
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status: Experimental](https://img.shields.io/badge/Status-Experimental-orange.svg)]()
 
-**vLLM Hybrid**는 고성능 LLM 추론 엔진인 [vLLM](https://github.com/vllm-project/vllm)을 확장하여, GPU와 CPU를 결합한 **이형(Heterogeneous) 파이프라인 병렬 처리**를 지원하는 프로젝트입니다.
+**vLLM Hybrid**는 [vLLM](https://github.com/vllm-project/vllm)을 확장하여, GPU와 CPU를 **별도 프로세스**에서 동시 실행하는 하이브리드 추론 엔진입니다.
 
-GPU 메모리가 부족한 상황에서도 CPU의 방대한 RAM을 활용하여 거대 언어 모델을 로드하고 추론할 수 있도록 설계되었습니다.
-
-## 문서 (Documentation)
-
-이 프로젝트는 복잡한 하이브리드 아키텍처를 이해하기 위해 상세한 분석 문서를 제공합니다.
-
-- **[System Overview (아키텍처 개요)](./analysis/overview.md)**: 전체 시스템의 구조와 동작 원리를 설명합니다.
-- **[Heterogeneous Platform (플랫폼)](./analysis/platform.md)**: 동적 위임과 하이브리드 리소스 할당의 핵심 구현을 다룹니다.
-- **[CPU Worker (CPU 워커)](./analysis/worker.md)**: CPU 상에서의 추론을 위한 스레드 바인딩과 최적화 기법을 분석합니다.
-- **[Communication (통신 레이어)](./analysis/communication.md)**: GPU-CPU 간의 데이터 교환 및 통신 프로토콜을 설명합니다.
+`total_throughput = GPU_throughput + CPU_throughput`
 
 ---
 
-## Architecture (아키텍처)
+## Architecture
 
-vLLM Hybrid는 기존 GPU 클러스터 구조에 유연한 **CPU 워커**를 통합하였습니다. 자세한 내용은 **[System Overview](./analysis/overview.md)** 문서를 참고하세요.
+GPU와 CPU가 각각 독립된 `EngineCoreProc` 프로세스로 실행됩니다. 클라이언트 레이어의 `CapacityAwareRouter`가 CPU 용량 기반으로 요청을 분배합니다.
 
-```mermaid
-graph TD
-    User[User Request] --> Driver["Driver (vLLM Engine)"]
-    
-    subgraph "Heterogeneous Device Cluster"
-        Driver -- "Control (RPC)" --> GPU_Group
-        Driver -- "Control (RPC)" --> CPU_Group
-        
-        subgraph "GPU Workers (High Performance)"
-            G0[GPU 0]
-            G1[GPU 1]
-        end
-        
-        subgraph "CPU Workers (High Capacity)"
-            C0["CPU 0 (NUMA Node 0)"]
-            C1["CPU 1 (NUMA Node 1)"]
-        end
-        
-        G0 <==> G1
-        G1 <==> |"Hybrid Comm (Gloo/SHM)"| C0
-        C0 <==> |"SHM (Intra-node)"| C1
-    end
+```
+                      ┌─────────────────────────────┐
+                      │  HybridAsyncMPClient         │
+                      │  (CapacityAwareRouter)       │
+                      └─────┬───────────┬────────────┘
+                    ZMQ ROUTER      ZMQ PULL
+                   ┌────┘   └────┐       │
+                   ▼              ▼       │
+      ┌────────────────┐  ┌────────────────┐
+      │ GPU EngineCore │  │ CPU EngineCore │
+      │ (Process A)    │  │ (Process B)    │
+      │                │  │                │
+      │ MultiprocExec  │  │ UniProcExec    │
+      │ 8x H100 (TP=8)│  │ CPUWorker      │
+      │ KV: GPU VRAM   │  │ KV: DRAM+NUMA  │
+      └────────────────┘  └────────────────┘
+            │                     │
+            └──── ZMQ PUSH ───────┘
+                      │
+              Async Output Merge
 ```
 
-### 핵심 기능 (Key Features)
+### Key Features
 
 | Feature | Description |
 | :--- | :--- |
-| **Dynamic Delegation** | `HeterogeneousPlatform`을 통해 요청의 종류와 대상에 따라 CUDA 또는 CPU 백엔드로 로직을 동적으로 위임합니다. |
-| **Hybrid Pipeline** | GPU 전용 레이어와 CPU 오프로드 레이어를 하나의 파이프라인으로 구성하여 추론을 수행합니다. |
-| **Optimized Backend** | GPU는 `FlashAttention`, CPU는 `Torch SDPA` 등 각 하드웨어에 최적화된 커널을 자동으로 선택합니다. |
-| **Shared Memory** | 동일 노드 내 CPU 간 통신 시 `Shared Memory (SHM)`를 사용하여 오버헤드를 최소화합니다. |
+| **Dual-Process** | GPU/CPU가 별도 프로세스에서 완전 병렬 실행 (별도 PID, GIL, busy loop) |
+| **CapacityAwareRouter** | CPU 슬롯 여유시 CPU로, 가득차면 GPU로 라우팅 → CPU 활용률 100% |
+| **Auto-Detection** | CPU 코어수, 메모리, NUMA 토폴로지 자동 감지 (기본값 0=auto) |
+| **Intel Optimized** | AVX-512 VNNI, AMX-BF16/INT8, IPEX, NUMA-aware KV Cache |
+| **Zero GPU Impact** | core.py 무수정 — hybrid 코드는 hybrid_core.py/core_client.py에만 존재 |
 
-## Getting Started
+---
+
+## Quick Start
 
 ### Prerequisites
 
 - NVIDIA GPU (CUDA 12.1+)
-- Linux OS (with NUMA support recommended)
+- Linux OS (NUMA 지원 권장)
 - Python 3.10+
 
-### Installation (Developer Mode)
-
-본 프로젝트는 `uv`를 사용한 빌드 및 설치를 권장합니다. 아래 절차를 따라 개발 환경을 구축하세요.
-
-#### 1. Clone & Environment Setup
+### Installation
 
 ```bash
 git clone git@github.com:mystous/vllm_hybrid.git
+cd vllm_hybrid
+
+# 가상환경
 uv venv vllm_dev_prj --python 3.12 --seed
 source vllm_dev_prj/bin/activate
-cd vllm_hybrid
-```
 
-#### 2. Install Dependencies
-
-```bash
+# 의존성 설치
 VLLM_USE_PRECOMPILED=1 uv pip install -U -e . --torch-backend=auto
 uv pip install -r requirements/build.txt --torch-backend=auto
+
+# (선택) IPEX 설치 (CPU 성능 최적화)
+pip install intel-extension-for-pytorch==2.8.0
+
+# (선택) NUMA 지원
+sudo apt install -y numactl libnuma-dev
 ```
 
-#### 2-1. 버전 호환성 (중요!)
-
-PyTorch, torchvision, IPEX는 반드시 버전을 맞춰야 합니다.
+#### Version Compatibility
 
 | PyTorch | torchvision | IPEX | CUDA |
 |---------|-------------|------|------|
 | **2.8.0** | **0.23.0** | **2.8.0** | 12.1/12.4 |
-| 2.7.x | 0.22.x | 2.7.x | 12.1/12.4 |
-| 2.6.x | 0.21.x | 2.6.x | 12.1 |
 
-```bash
-# 버전 불일치 시 오류 예시:
-# - RuntimeError: operator torchvision::nms does not exist
-# - AttributeError: module 'os' has no attribute 'exit'
-```
-
-#### 2-2. Intel IPEX 설치 (선택적, CPU 최적화용)
-
-Intel Xeon 서버에서 CPU 워커 성능을 최적화하려면 Intel Extension for PyTorch (IPEX)를 설치합니다.
-
-```bash
-# PyTorch 2.8.0 + CUDA 12.1 기준 (버전 매칭 필수!)
-pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu121
-pip install torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu121
-pip install intel-extension-for-pytorch==2.8.0
-
-# 설치 확인
-python -c "import torch; print(f'PyTorch: {torch.__version__}')"
-python -c "import torchvision; print(f'torchvision: {torchvision.__version__}')"
-python -c "import intel_extension_for_pytorch as ipex; print(f'IPEX: {ipex.__version__}')"
-```
-
-> **Note**: IPEX는 선택적 의존성입니다. 미설치 시 표준 PyTorch로 자동 fallback됩니다.
-
-#### 2-3. NUMA 지원 (멀티소켓 서버용)
-
-멀티소켓 Intel Xeon 서버에서 NUMA 최적화를 활성화하려면:
-
-```bash
-# Ubuntu/Debian
-sudo apt install -y numactl libnuma-dev
-
-# NUMA 토폴로지 확인
-numactl --hardware
-```
-
-#### 3. Build Configuration (CMake Fix)
-
-Build Configuration을 생성하고, 최신 CUDA Toolkit과의 호환성 문제(NVTX 헤더)를 해결하기 위해 `CMakeLists.txt`를 수정해야 합니다.
+### Build (from source)
 
 ```bash
 python tools/generate_cmake_presets.py
-```
-
-`CMakeLists.txt` 파일의 약 73번째 줄(주석 `Import torch cmake configuration` 근처)에 다음 코드를 추가합니다.
-
-```cmake
-# Workaround for PyTorch NVTX headers issue with newer CUDA Toolkits
-# Assumes find_package(CUDAToolkit) was already done
-message(STATUS "Applying custom PyTorch NVTX headers workaround...")
-if(NOT TARGET CUDA::nvToolsExt)    
-    message(STATUS "--> nvToolsExt Not found, looking for nvtx3.")
-    if (NOT TARGET CUDA::nvtx3)
-        message(STATUS "--> nvtx3 not found, adding library.")
-        add_library(CUDA::nvtx3 INTERFACE IMPORTED)
-        target_include_directories(CUDA::nvtx3 SYSTEM INTERFACE "${CUDAToolkit_INCLUDE_DIRS}")
-        target_link_libraries(CUDA::nvtx3 INTERFACE ${CMAKE_DL_LIBS})
-    endif()
-    if (TARGET CUDA::nvtx3)
-     add_library(CUDA::nvToolsExt INTERFACE IMPORTED)
-     target_compile_definitions(
-         CUDA::nvToolsExt INTERFACE
-         TORCH_CUDA_USE_NVTX3
-     )
-     target_link_libraries(CUDA::nvToolsExt INTERFACE CUDA::nvtx3)
-     message(STATUS "--> Workaround applied. Created CUDA::nvToolsExt target linked to CUDA::nvtx3.")
-    else()
-     message(STATUS "--> nvtx3 not found.")
-    endif()
-else()
-    message(STATUS "--> Workaround not needed or conditions not met.")
-endif()
-```
-
-#### 4. Build & Install
-
-```bash
 cmake --preset release
-# (Optional) Verify presets in CMakeUserPresets.json if needed
 cmake --build --preset release --target install
 ```
 
-#### 5. Quick Test (빠른 테스트)
+> CMakeLists.txt NVTX 헤더 패치 필요 시 [Deployment.md](Deployment.md) 참조
 
-설치가 완료되면 CPU 최적화 모듈이 올바르게 작동하는지 테스트합니다.
+### Run
 
 ```bash
-# CPU 기능 감지 테스트
+# 자동 감지 모드 (권장)
+vllm serve <model> \
+  --tensor-parallel-size 8 \
+  --hybrid-mode parallel-batch
+
+# 수동 설정
+vllm serve <model> \
+  --tensor-parallel-size 8 \
+  --hybrid-mode parallel-batch \
+  --hybrid-cpu-max-seqs 28 \
+  --hybrid-cpu-kvcache-gb 800 \
+  --hybrid-cpu-threads 112
+```
+
+### Verify
+
+```bash
+# CPU 기능 감지 확인
 python -c "
-from vllm.platforms.intel_cpu_utils import detect_intel_cpu_features, setup_intel_cpu_environment
-
-print('=== CPU Feature Detection ===')
-features = detect_intel_cpu_features()
-print(f'CPU: {features.model_name}')
-print(f'AVX2: {features.avx2}, AVX-512: {features.avx512f}')
-print(f'AMX-BF16: {features.amx_bf16}, AMX-INT8: {features.amx_int8}')
-print(f'Topology: {features.num_sockets}S x {features.cores_per_socket}C x {features.threads_per_core}T')
-
-print()
-print('=== Environment Setup ===')
-config = setup_intel_cpu_environment(rank=0, world_size=1)
-print(f'NUMA enabled: {config[\"numa_enabled\"]}')
-print(f'AVX-512: {config[\"avx512_enabled\"]}, AVX2: {config[\"avx2_enabled\"]}')
-print(f'AMX: {config[\"amx_enabled\"]}')
-print(f'IPEX: {config[\"ipex_enabled\"]}')
-print()
-print('Test passed!')
+from vllm.platforms.intel_cpu_utils import detect_intel_cpu_features
+f = detect_intel_cpu_features()
+print(f'{f.model_name}: {f.num_sockets}S x {f.cores_per_socket}C')
+print(f'AVX-512={f.avx512f}, AMX={f.amx_bf16}, VNNI={f.avx512_vnni}')
 "
-```
 
-**예상 출력 (Intel Xeon Platinum 8480+ / Sapphire Rapids)**:
-```
-=== CPU Feature Detection ===
-CPU: Intel(R) Xeon(R) Platinum 8480+
-AVX2: True, AVX-512: True
-AMX-BF16: True, AMX-INT8: True
-Topology: 2S x 56C x 2T
-
-=== Environment Setup ===
-NUMA enabled: True
-AVX-512: True, AVX2: True
-AMX: True
-IPEX: True
-
-Test passed!
-```
-
-**예상 출력 (일반 데스크톱 CPU)**:
-```
-=== CPU Feature Detection ===
-CPU: 12th Gen Intel(R) Core(TM) i9-12900KF
-AVX2: True, AVX-512: False
-AMX-BF16: False, AMX-INT8: False
-Topology: 1S x 16C x 2T
-
-=== Environment Setup ===
-NUMA enabled: False
-AVX-512: False, AVX2: True
-AMX: False
-IPEX: False
-
-Test passed!
-```
-
-> **Note**: AVX-512, AMX, NUMA, IPEX가 없어도 코드는 자동으로 fallback하여 정상 동작합니다.
-
-### Usage
-
-하이브리드 모드를 활성화하려면 `VLLM_HETEROGENEOUS_PLATFORM=1` 환경 변수를 설정하고 실행해야 합니다.
-
-```bash
-# Example: 1 GPU + 1 CPU Worker (Pipeline Parallelism = 2)
-export VLLM_HETEROGENEOUS_PLATFORM=1
-export OMP_NUM_THREADS=20
-
-python -m vllm.entrypoints.openai.api_server --model <YOUR_MODEL> --device heterogeneous --tensor-parallel-size 1 --pipeline-parallel-size 2 --trust-remote-code
+# 프로세스 확인
+ps aux | grep -E "GPU_EngineCore|CPU_EngineCore"
 ```
 
 ### Benchmarking
 
-서버가 실행 중인 상태에서 다음 명령어로 추론 성능을 측정할 수 있습니다.
-
 ```bash
-python benchmarks/benchmark_serving.py --backend openai --base-url http://localhost:8000 --model <YOUR_MODEL> --dataset-name random --num-prompts 500 --random-input-len 128 --random-output-len 128 --no-stream
+python benchmarks/benchmark_serving.py \
+  --backend openai --base-url http://localhost:8000 \
+  --model <model> --dataset-name random \
+  --num-prompts 500 --random-input-len 128 --random-output-len 128
 ```
 
-## Limitations & Known Issues
+---
 
-- **P2P Communication**: 현재 파이프라인 간 텐서 전송(P2P)은 안전성을 위해 `Gloo` 백엔드(TCP)로 폴백(Fallback)되어 동작합니다. 추후 SHM 적용 예정입니다.
-- **CPU Performance**: CPU 추론은 GPU에 비해 현저히 느리며, 메모리 대역폭에 민감합니다. NUMA 설정이 올바르지 않으면 성능 저하가 발생할 수 있습니다.
-- **Torch Compile**: CPU 워커에서는 `torch.compile`이 `DYNAMO_ONCE` 모드로 활성화되며, AVX-512(Xeon) 또는 AVX2(일반 CPU) 최적화가 자동 적용됩니다.
+## CLI Options
+
+| Option | Default | Description |
+| :--- | :--- | :--- |
+| `--hybrid-mode` | none | `parallel-batch` / `moe-hybrid` / `none` |
+| `--hybrid-cpu-max-seqs` | 0 (auto) | CPU 최대 동시 시퀀스 (auto: 물리코어/4) |
+| `--hybrid-cpu-kvcache-gb` | 0 (auto) | CPU KV cache GB (auto: 총메모리*0.4) |
+| `--hybrid-cpu-threads` | 0 (auto) | CPU 스레드 수 (auto: NUMA 노드 물리코어) |
+| `--hybrid-cpu-max-batched-tokens` | 0 (auto) | CPU 배치 토큰 수 (auto: seqs*256) |
+| `--hybrid-numa-aware` | True | NUMA 최적화 활성화 |
+| `--hybrid-numa-node` | auto | 특정 NUMA 노드 바인딩 |
+
+---
 
 ## CPU Optimization Features
 
@@ -273,8 +157,31 @@ python benchmarks/benchmark_serving.py --backend openai --base-url http://localh
 | **SIMD Vectorization** | 512-bit (simdlen=16) | 256-bit (simdlen=8) |
 | **NUMA-aware KVCache** | Multi-node binding | Single-node |
 | **Intel IPEX** | Supported | Supported |
-| **AMX (BF16)** | Sapphire Rapids+ | Not available |
+| **AMX (BF16/INT8)** | Sapphire Rapids+ | Not available |
+| **AVX-512 VNNI** | INT8 acceleration | Not available |
 | **PyTorch Inductor** | Enabled | Enabled |
+
+---
+
+## Documentation
+
+| Document | Description |
+| :--- | :--- |
+| **[Deployment.md](Deployment.md)** | 상세 배포 가이드 (빌드/설치/실행/트러블슈팅) |
+| **[CLAUDE.md](CLAUDE.md)** | 프로젝트 컨텍스트 (AI 어시스턴트용) |
+| **[docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md](docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md)** | 하이브리드 옵션 상세 설계 |
+| **[docs/HETEROGENEOUS_CPU_OPTIMIZATIONS.md](docs/HETEROGENEOUS_CPU_OPTIMIZATIONS.md)** | CPU 최적화 상세 |
+| **[docs/AVX512_OPTIMIZATION_IMPLEMENTATION_PLAN.md](docs/AVX512_OPTIMIZATION_IMPLEMENTATION_PLAN.md)** | AVX-512 커널 구현 |
+| **[analysis/overview.md](analysis/overview.md)** | 시스템 아키텍처 분석 |
+
+---
+
+## Limitations & Known Issues
+
+- **CPU Performance**: CPU 추론은 GPU 대비 느림. NUMA 미설정 시 성능 저하 가능.
+- **IPEX Dependency**: IPEX 미설치 시 CPU decode가 Python loop fallback (성능 저하).
+- **moe-hybrid mode**: 아직 미구현 (parallel-batch만 사용 가능).
+- **Torch Compile**: CPU 워커에서 `DYNAMO_ONCE` 모드로 자동 활성화.
 
 ## License
 
