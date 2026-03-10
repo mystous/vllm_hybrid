@@ -96,6 +96,13 @@ class EngineCoreClient(ABC):
         client_count: int = 1,
         client_index: int = 0,
     ) -> "MPClient":
+        from vllm.v1.engine.hybrid_core import is_hybrid_mode
+
+        if is_hybrid_mode(vllm_config):
+            return HybridAsyncMPClient(
+                vllm_config, executor_class, log_stats,
+                client_addresses, client_count, client_index)
+
         parallel_config = vllm_config.parallel_config
         client_args = (vllm_config, executor_class, log_stats,
                        client_addresses, client_count, client_index)
@@ -1384,8 +1391,15 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
         # CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
         hybrid_config = vllm_config.hybrid_config
         resolved = _resolve_cpu_params(hybrid_config)
-        self._hybrid_router = CapacityAwareRouter(resolved.cpu_max_num_seqs)
+        self._hybrid_router = CapacityAwareRouter(
+            resolved.cpu_max_num_seqs,
+            routing_strategy=hybrid_config.routing_strategy,
+            cpu_prefill_threshold=hybrid_config.cpu_prefill_threshold,
+            warmup_requests=hybrid_config.warmup_requests,
+            stats_log_interval=hybrid_config.stats_log_interval,
+        )
         self._hybrid_reqs_in_flight: dict[str, EngineIdentity] = {}
+        self._hybrid_req_token_counts: dict[str, int] = {}
 
         # 부모 초기화 (_HybridEngineLauncherMixin이 MRO에서
         # _create_engine_launcher, _compute_core_engines를 제공)
@@ -1403,7 +1417,11 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
     async def add_request_async(self, request: EngineCoreRequest) -> None:
         request.client_index = self.client_index
 
-        path = self._hybrid_router.route(request.request_id)
+        prompt_len = (len(request.prompt_token_ids)
+                      if hasattr(request, 'prompt_token_ids')
+                      and request.prompt_token_ids else 0)
+        path = self._hybrid_router.route(request.request_id,
+                                         prompt_len=prompt_len)
         if path == "cpu":
             engine = self._cpu_engine
         else:
@@ -1429,14 +1447,28 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
     @staticmethod
     async def process_engine_outputs(self: "HybridAsyncMPClient",
                                      outputs: EngineCoreOutputs):
-        """완료된 요청을 reqs_in_flight에서 제거하고 라우터에 알림."""
+        """완료된 요청을 reqs_in_flight에서 제거하고 라우터에 알림.
+
+        매 iteration마다 생성된 토큰 수를 누적 추적하여,
+        요청 완료 시 총 생성 토큰 수를 라우터에 전달합니다.
+        """
+        # 매 출력마다 토큰 수 누적
+        for output in outputs.outputs:
+            req_id = output.request_id
+            num_new = len(output.new_token_ids)
+            if num_new > 0:
+                self._hybrid_req_token_counts[req_id] = (
+                    self._hybrid_req_token_counts.get(req_id, 0) + num_new)
+
+        # 완료된 요청 처리
         if outputs.finished_requests and self._hybrid_reqs_in_flight:
             for req_id in outputs.finished_requests:
                 engine = self._hybrid_reqs_in_flight.pop(req_id, None)
+                num_tokens = self._hybrid_req_token_counts.pop(req_id, 0)
                 if engine is not None:
                     was_cpu = (engine == self._cpu_engine)
                     self._hybrid_router.on_request_finished(
-                        req_id, was_cpu)
+                        req_id, was_cpu, num_tokens=num_tokens)
 
     async def call_utility_async(self, method: str, *args) -> Any:
         # Utility 호출은 GPU 엔진에만 전송
@@ -1459,8 +1491,15 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
         # CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
         hybrid_config = vllm_config.hybrid_config
         resolved = _resolve_cpu_params(hybrid_config)
-        self._hybrid_router = CapacityAwareRouter(resolved.cpu_max_num_seqs)
+        self._hybrid_router = CapacityAwareRouter(
+            resolved.cpu_max_num_seqs,
+            routing_strategy=hybrid_config.routing_strategy,
+            cpu_prefill_threshold=hybrid_config.cpu_prefill_threshold,
+            warmup_requests=hybrid_config.warmup_requests,
+            stats_log_interval=hybrid_config.stats_log_interval,
+        )
         self._hybrid_reqs_in_flight: dict[str, EngineIdentity] = {}
+        self._hybrid_req_token_counts: dict[str, int] = {}
 
         super().__init__(vllm_config, executor_class, log_stats)
 
@@ -1489,18 +1528,32 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
 
     def get_output(self) -> EngineCoreOutputs:
         outputs = super().get_output()
-        # 완료된 요청의 CPU 슬롯 반환
+
+        # 매 출력마다 토큰 수 누적
+        for output in outputs.outputs:
+            req_id = output.request_id
+            num_new = len(output.new_token_ids)
+            if num_new > 0:
+                self._hybrid_req_token_counts[req_id] = (
+                    self._hybrid_req_token_counts.get(req_id, 0) + num_new)
+
+        # 완료된 요청의 CPU 슬롯 반환 및 처리량 업데이트
         if outputs.finished_requests and self._hybrid_reqs_in_flight:
             for req_id in outputs.finished_requests:
                 engine = self._hybrid_reqs_in_flight.pop(req_id, None)
+                num_tokens = self._hybrid_req_token_counts.pop(req_id, 0)
                 if engine is not None:
                     was_cpu = (engine == self._cpu_engine)
                     self._hybrid_router.on_request_finished(
-                        req_id, was_cpu)
+                        req_id, was_cpu, num_tokens=num_tokens)
         return outputs
 
     def add_request(self, request: EngineCoreRequest) -> None:
-        path = self._hybrid_router.route(request.request_id)
+        prompt_len = (len(request.prompt_token_ids)
+                      if hasattr(request, 'prompt_token_ids')
+                      and request.prompt_token_ids else 0)
+        path = self._hybrid_router.route(request.request_id,
+                                         prompt_len=prompt_len)
         if path == "cpu":
             engine = self._cpu_engine
         else:

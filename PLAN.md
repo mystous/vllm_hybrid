@@ -31,17 +31,18 @@
 - N-gram Proposer (ngram_proposer_dynamic.py)
 - Disaggregated Serving (coordinator.py, kv_transfer.py)
 
+### 6. CPU 스케줄링 고도화 + KV Cache 인라인 프리페치 (2026-02-26) ✅
+- CapacityAwareRouter에 3가지 라우팅 전략: capacity / length-aware / throughput-adaptive
+- CLI 옵션: --hybrid-routing-strategy, --hybrid-cpu-prefill-threshold
+- EMA 처리량 기반 동적 CPU 슬롯 조정
+- batch_attention.cpp 6개 블록 루프에 _mm_prefetch 인라인 프리페치 (K/V → L2)
+
+### 7. GPU 처리량 실제 프로파일링 (2026-02-26) ✅
+- 워밍업 프로파일링: 첫 N개 요청으로 GPU/CPU 실측 처리량 수집
+- throughput-adaptive 전략의 EMA 초기화
+- 주기적 통계 로깅 (N 요청마다 처리량/라우팅 통계)
+- CLI 옵션: --hybrid-warmup-requests, --hybrid-stats-log-interval
+
 ---
 
-## 미구현 (향후 작업)
-
-### Option A (moe-hybrid) 엔진 통합
-- HybridConfig에 MoE 세부 설정 추가
-- CLI 인자 추가 (--moe-cpu-offload 등)
-- moe-hybrid 엔진 코어 통합
-- 상세 내용: `docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md`
-
-### 성능 최적화
-- GPU 처리량 실제 프로파일링 (현재 휴리스틱 100 tok/s)
-- CPU 스케줄링 고도화
-- KV cache 비동기 프리페치
+*모든 계획 항목 완료. 향후 작업은 `FUTURE_PLAN.md` 참조.*

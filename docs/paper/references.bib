@@ -1,0 +1,440 @@
+% ============================================================================
+% vLLM Hybrid — References
+% ============================================================================
+
+% --- 1. LLM Serving Systems ---
+
+@inproceedings{kwon2023vllm,
+  author    = {Woosuk Kwon and Zhuohan Li and Siyuan Zhuang and Ying Sheng and Lianmin Zheng and Cody Hao Yu and Joseph Gonzalez and Hao Zhang and Ion Stoica},
+  title     = {Efficient Memory Management for Large Language Model Serving with {PagedAttention}},
+  booktitle = {Proc. 29th ACM Symposium on Operating Systems Principles (SOSP)},
+  pages     = {611--626},
+  year      = {2023},
+}
+
+@inproceedings{yu2022orca,
+  author    = {Gyeong-In Yu and Joo Seong Jeong and Geon-Woo Kim and Soojeong Kim and Byung-Gon Chun},
+  title     = {Orca: A Distributed Serving System for Transformer-Based Generative Models},
+  booktitle = {Proc. 16th USENIX Symposium on Operating Systems Design and Implementation (OSDI)},
+  year      = {2022},
+}
+
+@inproceedings{zheng2024sglang,
+  author    = {Lianmin Zheng and Liangsheng Yin and Zhiqiang Xie and Jeff Huang and Chuyue Sun and Cody Hao Yu and Shiyi Cao and Christos Kozyrakis and Ion Stoica and Joseph E. Gonzalez and Clark Barrett and Ying Sheng},
+  title     = {{SGLang}: Efficient Execution of Structured Language Model Programs},
+  booktitle = {Proc. NeurIPS},
+  year      = {2024},
+}
+
+@article{agrawal2023sarathi,
+  author  = {Amey Agrawal and Ashish Panwar and Jayashree Mohan and Nipun Kwatra and Bhargav S. Gulavani and Ramachandran Ramjee},
+  title   = {{SARATHI}: Efficient {LLM} Inference by Piggybacking Decodes with Chunked Prefills},
+  journal = {arXiv preprint arXiv:2308.16369},
+  year    = {2023},
+}
+
+@inproceedings{agrawal2024sarathiserve,
+  author    = {Amey Agrawal and Nitin Kedia and Ashish Panwar and Jayashree Mohan and Nipun Kwatra and Bhargav Gulavani and Alexey Tumanov and Ramachandran Ramjee},
+  title     = {Taming Throughput-Latency Tradeoff in {LLM} Inference with {Sarathi-Serve}},
+  booktitle = {Proc. USENIX OSDI},
+  year      = {2024},
+}
+
+% --- 2. CPU-GPU Heterogeneous Inference ---
+
+@inproceedings{chen2025ktransformers,
+  author    = {Hongtao Chen and Weiyu Xie and Boxin Zhang and Jingqi Tang and Jiahao Wang and Jianwei Dong and Shaoyuan Chen and Ziwei Yuan and Chen Lin and Chengyu Qiu and Yuening Zhu and Qingliang Ou and Jiaqi Liao and Xianglin Chen and Zhiyuan Ai and Yongwei Wu and Mingxing Zhang},
+  title     = {{KTransformers}: Unleashing the Full Potential of {CPU/GPU} Hybrid Inference for {MoE} Models},
+  booktitle = {Proc. 31st ACM SOSP},
+  year      = {2025},
+}
+
+@inproceedings{song2024powerinfer,
+  author    = {Yixin Song and Zeyu Mi and Haotong Xie and Haibo Chen},
+  title     = {{PowerInfer}: Fast Large Language Model Serving with a Consumer-grade {GPU}},
+  booktitle = {Proc. 30th ACM SOSP},
+  year      = {2024},
+}
+
+@article{xue2024powerinfer2,
+  author  = {Zhenliang Xue and Yixin Song and others},
+  title   = {{PowerInfer-2}: Fast Large Language Model Inference on a Smartphone},
+  journal = {arXiv preprint arXiv:2406.06282},
+  year    = {2024},
+}
+
+@inproceedings{zhao2024hetegen,
+  author    = {Xuanlei Zhao and Bin Jia and Haotian Zhou and Ziming Liu and Shenggan Cheng and Yang You},
+  title     = {{HeteGen}: Efficient Heterogeneous Parallel Inference for Large Language Models on Resource-Constrained Devices},
+  booktitle = {Proc. MLSys},
+  year      = {2024},
+}
+
+% --- 3. CPU-Optimized LLM Inference ---
+
+@article{he2024xfastertransformer,
+  author  = {Pujiang He and Shan Zhou and Wenhuan Huang and Changqing Li and Duyi Wang and Bin Guo and Chen Meng},
+  title   = {Inference Performance Optimization for Large Language Models on {CPUs}},
+  journal = {arXiv preprint arXiv:2407.07304},
+  year    = {2024},
+}
+
+@inproceedings{na2024cpullm,
+  author    = {Seonjin Na and Geonhwa Jeong and Byung Hoon Ahn and Jeffrey Young and Tushar Krishna and Hyesoon Kim},
+  title     = {Understanding Performance Implications of {LLM} Inference on {CPUs}},
+  booktitle = {Proc. IEEE International Symposium on Workload Characterization (IISWC)},
+  year      = {2024},
+}
+
+% --- 4. AVX-512 / AMX ---
+
+@misc{intel2022amx,
+  author       = {{Intel}},
+  title        = {Accelerate {PyTorch} Training and Inference using {Intel AMX}},
+  howpublished = {Intel Technical Article},
+  year         = {2022},
+  url          = {https://www.intel.com/content/www/us/en/developer/articles/technical/accelerate-pytorch-training-inference-on-amx.html},
+}
+
+% --- 5. Speculative Decoding ---
+
+@inproceedings{leviathan2023speculative,
+  author    = {Yaniv Leviathan and Matan Kalman and Yossi Matias},
+  title     = {Fast Inference from Transformers via Speculative Decoding},
+  booktitle = {Proc. 40th International Conference on Machine Learning (ICML)},
+  year      = {2023},
+}
+
+@article{chen2023speculative,
+  author  = {Charlie Chen and Sebastian Borgeaud and Geoffrey Irving and Jean-Baptiste Lespiau and Laurent Sifre and John Jumper},
+  title   = {Accelerating Large Language Model Decoding with Speculative Sampling},
+  journal = {arXiv preprint arXiv:2302.01318},
+  year    = {2023},
+}
+
+% --- 6. MoE Expert Offloading ---
+
+@inproceedings{rajbhandari2022deepspeedmoe,
+  author    = {Samyam Rajbhandari and Conglong Li and Zhewei Yao and Minjia Zhang and Reza Yazdani Aminabadi and Ammar Ahmad Awan and Jeff Rasley and Yuxiong He},
+  title     = {{DeepSpeed-MoE}: Advancing Mixture-of-Experts Inference and Training to Power Next-Generation {AI} Scale},
+  booktitle = {Proc. ICML},
+  year      = {2022},
+}
+
+% --- 7. Disaggregated Serving ---
+
+@inproceedings{zhong2024distserve,
+  author    = {Yinmin Zhong and others},
+  title     = {{DistServe}: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving},
+  booktitle = {Proc. 18th USENIX Symposium on Operating Systems Design and Implementation (OSDI)},
+  year      = {2024},
+}
+
+@inproceedings{patel2024splitwise,
+  author    = {Pratyush Patel and Esha Choukse and Chaojie Zhang and Aashaka Shah and Inigo Goiri and Saeed Maleki and Ricardo Bianchini},
+  title     = {Splitwise: Efficient Generative {LLM} Inference Using Phase Splitting},
+  booktitle = {Proc. 51st IEEE/ACM International Symposium on Computer Architecture (ISCA)},
+  year      = {2024},
+  note      = {Best Paper Nominee},
+}
+
+% --- 8. FlexGen ---
+
+@inproceedings{sheng2023flexgen,
+  author    = {Ying Sheng and Lianmin Zheng and Binhang Yuan and Zhuohan Li and Max Ryabinin and Daniel Y. Fu and Zhiqiang Xie and Beidi Chen and Clark Barrett and Joseph E. Gonzalez and Percy Liang and Christopher Re and Ion Stoica and Ce Zhang},
+  title     = {{FlexGen}: High-Throughput Generative Inference of Large Language Models with a Single {GPU}},
+  booktitle = {Proc. ICML (Oral)},
+  year      = {2023},
+}
+
+% --- 9. Energy Efficiency & Data Centers ---
+
+@article{barroso2007energy,
+  author  = {Luiz Andr{\'e} Barroso and Urs H{\"o}lzle},
+  title   = {The Case for Energy-Proportional Computing},
+  journal = {IEEE Computer},
+  volume  = {40},
+  number  = {12},
+  pages   = {33--37},
+  year    = {2007},
+}
+
+@techreport{lbnl2024datacenter,
+  author      = {{Lawrence Berkeley National Laboratory}},
+  title       = {2024 {United States} Data Center Energy Usage Report},
+  institution = {LBNL / U.S. Department of Energy},
+  year        = {2024},
+  url         = {https://eta.lbl.gov/publications/2024-lbnl-data-center-energy-usage-report},
+}
+
+@article{specpower2024,
+  author  = {Hannes Tr{\"o}pgen and Robert Sch{\"o}ne and Thomas Ilsche and Daniel Hackenberg},
+  title   = {16 Years of {SPEC Power}: An Analysis of x86 Energy Efficiency Trends},
+  journal = {arXiv preprint arXiv:2411.07062},
+  year    = {2024},
+}
+
+% --- 10. CPU-GPU Hybrid LLM Inference (Recent) ---
+
+@inproceedings{neo2025,
+  author    = {Xuanlin Jiang and Yang Zhou and Shiyi Cao and Ion Stoica and Minlan Yu},
+  title     = {{NEO}: Saving {GPU} Memory Crisis with {CPU} Offloading for Online {LLM} Inference},
+  booktitle = {Proc. MLSys},
+  year      = {2025},
+}
+
+@article{apex2025,
+  author  = {Jiakun Fan and Yanglin Zhang and Xiangchen Li and Dimitrios S. Nikolopoulos},
+  title   = {{APEX}: Asynchronous Parallel {CPU-GPU} Execution for Online {LLM} Inference on Constrained {GPU}s},
+  journal = {arXiv preprint arXiv:2506.03296},
+  year    = {2025},
+}
+
+@article{dovetail2024,
+  author  = {Libo Zhang and Zhaoning Zhang and Baizhou Xu and Rui Li and Zhiliang Tian and Songzhu Mei and Dongsheng Li},
+  title   = {Dovetail: A {CPU/GPU} Heterogeneous Speculative Decoding for {LLM} Inference},
+  journal = {arXiv preprint arXiv:2412.18934},
+  year    = {2024},
+}
+
+% --- 11. DeepSpeed Inference ---
+
+@inproceedings{aminabadi2022deepspeed,
+  author    = {Reza Yazdani Aminabadi and Samyam Rajbhandari and Ammar Ahmad Awan and Cheng Li and Du Li and Elton Zheng and Olatunji Ruwase and Shaden Smith and Minjia Zhang and Jeff Rasley and Yuxiong He},
+  title     = {{DeepSpeed-Inference}: Enabling Efficient Inference of Transformer Models at Unprecedented Scale},
+  booktitle = {Proc. SC: International Conference for High Performance Computing, Networking, Storage and Analysis},
+  year      = {2022},
+}
+
+@article{holmes2024deepspeedfastgen,
+  author  = {Connor Holmes and Masahiro Tanaka and Michael Wyatt and Ammar Ahmad Awan and Jeff Rasley and Samyam Rajbhandari and Reza Yazdani Aminabadi and Heyang Qin and Arash Bakhtiari and Lev Kurilenko and Yuxiong He},
+  title   = {{DeepSpeed-FastGen}: High-throughput Text Generation for {LLMs} via {MII} and {DeepSpeed-Inference}},
+  journal = {arXiv preprint arXiv:2401.08671},
+  year    = {2024},
+}
+
+% --- 12. LLM in a Flash ---
+
+@inproceedings{alizadeh2024flash,
+  author    = {Keivan Alizadeh and Seyed Iman Mirzadeh and Dmitry Belenko and S. Karen Khatamifard and Minsik Cho and Carlo C. Del Mundo and Mohammad Rastegari and Mehrdad Farajtabar},
+  title     = {{LLM} in a Flash: Efficient Large Language Model Inference with Limited Memory},
+  booktitle = {Proc. 62nd Annual Meeting of the Association for Computational Linguistics (ACL)},
+  pages     = {12562--12584},
+  year      = {2024},
+}
+
+% --- 13. Speculative Decoding (modern) ---
+
+@inproceedings{cai2024medusa,
+  author    = {Tianle Cai and Yuhong Li and Zhengyang Geng and Hongwu Peng and Jason D. Lee and Deming Chen and Tri Dao},
+  title     = {{Medusa}: Simple {LLM} Inference Acceleration Framework with Multiple Decoding Heads},
+  booktitle = {Proc. 41st International Conference on Machine Learning (ICML)},
+  pages     = {5209--5235},
+  year      = {2024},
+}
+
+@inproceedings{li2024eagle,
+  author    = {Yuhui Li and Fangyun Wei and Chao Zhang and Hongyang Zhang},
+  title     = {{EAGLE}: Speculative Sampling Requires Rethinking Feature Uncertainty},
+  booktitle = {Proc. 41st International Conference on Machine Learning (ICML)},
+  pages     = {28935--28948},
+  year      = {2024},
+}
+
+% --- 14. Disaggregated Serving (additional) ---
+
+@inproceedings{qin2025mooncake,
+  author    = {Ruoyu Qin and Zheming Li and Weiran He and Jialei Cui and Feng Ren and Mingxing Zhang and Yongwei Wu and Weimin Zheng and Xinran Xu},
+  title     = {Mooncake: Trading More Storage for Less Computation --- A {KVCache}-centric Architecture for Serving {LLM} Chatbot},
+  booktitle = {Proc. 23rd USENIX Conference on File and Storage Technologies (FAST)},
+  pages     = {155--170},
+  year      = {2025},
+  note      = {Best Paper Award},
+}
+
+% --- 15. Green AI / Energy Efficiency ---
+
+@article{patterson2021carbon,
+  author  = {David Patterson and Joseph Gonzalez and Quoc Le and Chen Liang and Lluis-Miquel Munguia and Daniel Rothchild and David So and Maud Texier and Jeff Dean},
+  title   = {Carbon Emissions and Large Neural Network Training},
+  journal = {arXiv preprint arXiv:2104.10350},
+  year    = {2021},
+}
+
+@inproceedings{strubell2019energy,
+  author    = {Emma Strubell and Ananya Ganesh and Andrew McCallum},
+  title     = {Energy and Policy Considerations for Deep Learning in {NLP}},
+  booktitle = {Proc. 57th Annual Meeting of the Association for Computational Linguistics (ACL)},
+  pages     = {3645--3650},
+  year      = {2019},
+}
+
+@inproceedings{wu2022sustainable,
+  author    = {Carole-Jean Wu and Ramya Raghavendra and Udit Gupta and Bilge Acun and Newsha Ardalani and Kiwan Maeng and Gloria Chang and Fiona Aga and Jinshi Huang and Charles Bai and Michael Gschwind and Anurag Gupta and Myle Ott and Anastasia Melnikov and Salvatore Candido and David Brooks and Geeta Chauhan and Benjamin Lee and Hsien-Hsin Lee and Bugra Akyildiz and Maximilian Balandat and Joe Spisak and Ravi Jain and Mike Rabbat and Kim Hazelwood},
+  title     = {Sustainable {AI}: Environmental Implications, Challenges and Opportunities},
+  booktitle = {Proc. Machine Learning and Systems (MLSys)},
+  volume    = {4},
+  year      = {2022},
+}
+
+% --- 16. Model Parallelism ---
+
+@article{shoeybi2019megatron,
+  author  = {Mohammad Shoeybi and Mostofa Patwary and Raul Puri and Patrick LeGresley and Jared Casper and Bryan Catanzaro},
+  title   = {{Megatron-LM}: Training Multi-Billion Parameter Language Models Using Model Parallelism},
+  journal = {arXiv preprint arXiv:1909.08053},
+  year    = {2019},
+}
+
+% --- 17. CPU Computation / Offloading (additional) ---
+
+@inproceedings{na2025flexinfer,
+  author    = {Seonjin Na and Geonhwa Jeong and Byung Hoon Ahn and Aaron Jezghani and Jeffrey Young and Christopher J. Hughes and Tushar Krishna and Hyesoon Kim},
+  title     = {{FlexInfer}: Flexible {LLM} Inference with {CPU} Computations},
+  booktitle = {Proc. Machine Learning and Systems (MLSys)},
+  year      = {2025},
+}
+
+@inproceedings{kamahori2025fiddler,
+  author    = {Keisuke Kamahori and Tian Tang and Yile Gu and Kan Zhu and Baris Kasikci},
+  title     = {{Fiddler}: {CPU-GPU} Orchestration for Fast Inference of Mixture-of-Experts Models},
+  booktitle = {Proc. International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+}
+
+@inproceedings{hwang2024pregated,
+  author    = {Ranggi Hwang and Jianyu Wei and Shijie Cao and Changho Hwang and Xiaohu Tang and Ting Cao and Mao Yang},
+  title     = {Pre-gated {MoE}: An Algorithm-System Co-Design for Fast and Scalable Mixture-of-Expert Inference},
+  booktitle = {Proc. 51st IEEE/ACM International Symposium on Computer Architecture (ISCA)},
+  year      = {2024},
+}
+
+@inproceedings{cao2025moelightning,
+  author    = {Shiyi Cao and Shu Liu and Tyler Griggs and Peter Schafhalter and Xiaoxuan Liu and Ying Sheng and Joseph E. Gonzalez and Matei Zaharia and Ion Stoica},
+  title     = {{MoE-Lightning}: High-Throughput {MoE} Inference on Memory-constrained {GPU}s},
+  booktitle = {Proc. 30th ACM International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  year      = {2025},
+}
+
+% --- 18. ZeroMQ ---
+
+@book{hintjens2013zeromq,
+  author    = {Pieter Hintjens},
+  title     = {{ZeroMQ}: Messaging for Many Applications},
+  publisher = {O'Reilly Media},
+  year      = {2013},
+}
+
+% --- 19. HPC Foundations ---
+
+@article{valiant1990bsp,
+  author  = {Leslie G. Valiant},
+  title   = {A Bridging Model for Parallel Computation},
+  journal = {Communications of the ACM},
+  volume  = {33},
+  number  = {8},
+  pages   = {103--111},
+  year    = {1990},
+}
+
+@article{williams2009roofline,
+  author  = {Samuel Williams and Andrew Waterman and David Patterson},
+  title   = {Roofline: An Insightful Visual Performance Model for Multicore Architectures},
+  journal = {Communications of the ACM},
+  volume  = {52},
+  number  = {4},
+  pages   = {65--76},
+  year    = {2009},
+}
+
+@article{blumofe1999workstealing,
+  author  = {Robert D. Blumofe and Charles E. Leiserson},
+  title   = {Scheduling Multithreaded Computations by Work Stealing},
+  journal = {Journal of the ACM},
+  volume  = {46},
+  number  = {5},
+  pages   = {720--748},
+  year    = {1999},
+}
+
+@article{topcuoglu2002heft,
+  author  = {Haluk Topcuoglu and Salim Hariri and Min-You Wu},
+  title   = {Performance-Effective and Low-Complexity Task Scheduling for Heterogeneous Computing},
+  journal = {IEEE Transactions on Parallel and Distributed Systems},
+  volume  = {13},
+  number  = {3},
+  pages   = {260--274},
+  year    = {2002},
+}
+
+@article{augonnet2011starpu,
+  author  = {C\'{e}dric Augonnet and Samuel Thibault and Raymond Namyst and Pierre-Andr\'{e} Wacrenier},
+  title   = {{StarPU}: A Unified Platform for Task Scheduling on Heterogeneous Multicore Architectures},
+  journal = {Concurrency and Computation: Practice and Experience},
+  volume  = {23},
+  number  = {2},
+  pages   = {187--198},
+  year    = {2011},
+}
+
+@inproceedings{culler1993logp,
+  author    = {David Culler and Richard Karp and David Patterson and Abhijit Sahay and Klaus Erik Schauser and Eunice Santos and Ramesh Subramonian and Thorsten von Eicken},
+  title     = {{LogP}: Towards a Realistic Model of Parallel Computation},
+  booktitle = {Proc. 4th ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP)},
+  pages     = {1--12},
+  year      = {1993},
+}
+
+@inproceedings{alexandrov1995loggp,
+  author    = {Albert Alexandrov and Mihai F. Ionescu and Klaus Erik Schauser and Chris Scheiman},
+  title     = {{LogGP}: Incorporating Long Messages into the {LogP} Model for Parallel Computation},
+  booktitle = {Proc. 7th Annual ACM Symposium on Parallel Algorithms and Architectures (SPAA)},
+  pages     = {95--105},
+  year      = {1995},
+}
+
+@inproceedings{broquedis2010hwloc,
+  author    = {Fran\c{c}ois Broquedis and J\'{e}r\^{o}me Clet-Ortega and Stephanie Moreaud and Nathalie Furmento and Brice Goglin and Guillaume Mercier and Samuel Thibault and Raymond Namyst},
+  title     = {hwloc: A Generic Framework for Managing Hardware Affinities in {HPC} Applications},
+  booktitle = {Proc. 18th Euromicro Conference on Parallel, Distributed and Network-based Processing (PDP)},
+  pages     = {180--186},
+  year      = {2010},
+}
+
+% --- 20. Additional HPC / Systems References ---
+
+@article{lameter2013numa,
+  author  = {Christoph Lameter},
+  title   = {{NUMA} (Non-Uniform Memory Access): An Overview},
+  journal = {ACM Queue},
+  volume  = {11},
+  number  = {7},
+  pages   = {40--51},
+  year    = {2013},
+}
+
+@inproceedings{eyerman2010smt,
+  author    = {Stijn Eyerman and Lieven Eeckhout},
+  title     = {Probabilistic Job Symbiosis Modeling for {SMT} Processor Scheduling},
+  booktitle = {Proc. 15th International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  pages     = {91--102},
+  year      = {2010},
+}
+
+@inproceedings{vaswani2017attention,
+  author    = {Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and Llion Jones and Aidan N. Gomez and {\L}ukasz Kaiser and Illia Polosukhin},
+  title     = {Attention Is All You Need},
+  booktitle = {Advances in Neural Information Processing Systems 30 (NeurIPS)},
+  pages     = {5998--6008},
+  year      = {2017},
+}
+
+@article{hunter1986ema,
+  author  = {J. Stuart Hunter},
+  title   = {The Exponentially Weighted Moving Average},
+  journal = {Journal of Quality Technology},
+  volume  = {18},
+  number  = {4},
+  pages   = {203--210},
+  year    = {1986},
+}

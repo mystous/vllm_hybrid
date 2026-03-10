@@ -1,16 +1,28 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-Parallel Batch Executor (APEX 방식)
+Parallel Batch Executor (DEPRECATED — V0 Legacy)
 
-CPU와 GPU가 독립적으로 서로 다른 배치를 동시에 처리하여
-전체 처리량을 향상시킵니다.
+.. deprecated::
+    This module is a V0-era prototype for CPU-GPU parallel batch execution.
+    It is NOT used by the current V1 hybrid architecture, which uses
+    ``hybrid_core.py`` + ``core_client.py`` (dual-process via EngineCoreProc).
 
-사용법:
-    vllm serve model --hybrid-mode parallel-batch
+    This file is retained for reference only. The active hybrid inference path:
+      - ``vllm/v1/engine/hybrid_core.py``  — CapacityAwareRouter, CPU process launch
+      - ``vllm/v1/engine/core_client.py``  — HybridAsyncMPClient / HybridSyncMPClient
 
-IPEX (Intel Extension for PyTorch)를 활용하여 AVX-512 최적화를 적용합니다.
-NUMA-aware 메모리 할당 및 스레드 바인딩으로 멀티소켓 시스템 최적화.
+Original design: CPU와 GPU가 독립적으로 서로 다른 배치를 동시에 처리하여
+전체 처리량을 향상시킵니다. Uses ThreadPoolExecutor + Transformers AutoModel
+(bypasses vLLM model loader).
 """
+
+import warnings
+warnings.warn(
+    "parallel_batch_executor is deprecated V0 legacy code. "
+    "Use vllm/v1/engine/hybrid_core.py for the active hybrid path.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 import asyncio
 import os
@@ -118,18 +130,71 @@ class ParallelBatchProfiler:
         return self.profile_result
 
     def _measure_gpu_throughput(self, num_batches: int) -> float:
-        """GPU 처리량 측정."""
-        # GPU executor가 없으면 0 반환
+        """GPU 처리량 측정 (실제 forward pass 기반).
+
+        더미 입력으로 GPU forward pass 시간을 측정하여 실측 처리량을 반환합니다.
+        GPU executor가 없거나 측정 실패 시 0.0을 반환합니다.
+        """
         if self.gpu_worker is None:
             return 0.0
 
-        # 실제 측정은 GPU executor에 위임
-        # 여기서는 추정값 사용 (실제 구현에서는 측정)
-        # H100 기준 대략적인 추정
-        estimated_gpu_throughput = 100.0  # tok/s per sequence
+        try:
+            # GPU 모델 접근 — executor에서 모델 가져오기
+            model = None
+            if hasattr(self.gpu_worker, 'model'):
+                model = self.gpu_worker.model
+            elif hasattr(self.gpu_worker, 'model_runner'):
+                model = getattr(self.gpu_worker.model_runner, 'model', None)
 
-        logger.info(f"GPU throughput (estimated): {estimated_gpu_throughput:.2f} tok/s")
-        return estimated_gpu_throughput
+            if model is None:
+                logger.warning(
+                    "GPU model not accessible for profiling, "
+                    "skipping GPU throughput measurement")
+                return 0.0
+
+            device = next(model.parameters()).device
+
+            # 더미 입력 생성
+            dummy_input = torch.randint(
+                0, 32000,
+                (self.profile_batch_size, self.profile_seq_len),
+                device=device,
+            )
+
+            # 워밍업
+            logger.info("GPU profiling warmup...")
+            for _ in range(2):
+                with torch.no_grad():
+                    _ = model(dummy_input)
+            if device.type == 'cuda':
+                torch.cuda.synchronize(device)
+
+            # 측정
+            logger.info("GPU profiling (%d batches)...", num_batches)
+            if device.type == 'cuda':
+                torch.cuda.synchronize(device)
+            start = time.perf_counter()
+            total_tokens = 0
+
+            for _ in range(num_batches):
+                with torch.no_grad():
+                    _ = model(dummy_input)
+                total_tokens += self.profile_seq_len * self.profile_batch_size
+
+            if device.type == 'cuda':
+                torch.cuda.synchronize(device)
+            elapsed = time.perf_counter() - start
+
+            throughput = total_tokens / elapsed if elapsed > 0 else 0.0
+            logger.info(
+                "GPU throughput (measured): %.2f tok/s "
+                "(%.0f tokens in %.3fs)",
+                throughput, total_tokens, elapsed)
+            return throughput
+
+        except Exception as e:
+            logger.warning("GPU profiling failed: %s", e)
+            return 0.0
 
     def _measure_cpu_throughput(self, num_batches: int) -> float:
         """CPU 처리량 측정 (실제 측정)."""

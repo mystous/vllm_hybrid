@@ -4645,7 +4645,36 @@ class HybridConfig:
     cpu_max_num_batched_tokens: int = 0
     """CPU 경로의 최대 배치 토큰 수. 0이면 cpu_max_num_seqs * 256."""
 
+    # 라우팅 전략 설정
+    routing_strategy: str = "capacity"
+    """라우팅 전략: 'capacity' (기본, 슬롯 기반), 'length-aware' (프롬프트 길이 고려),
+    'throughput-adaptive' (EMA 처리량 기반 동적 조정)."""
+
+    cpu_prefill_threshold: int = 512
+    """length-aware/throughput-adaptive 전략에서 CPU로 보낼 최대 프롬프트 토큰 수.
+    이 값을 초과하는 프롬프트는 GPU로 라우팅."""
+
+    # 워밍업 프로파일링 설정
+    warmup_requests: int = 10
+    """워밍업 페이즈에서 처리할 최소 요청 수 (GPU+CPU 각각).
+    각 디바이스에서 이 수만큼 요청이 완료되면 워밍업 종료. 0이면 비활성화."""
+
+    stats_log_interval: int = 50
+    """라우터 통계를 로깅할 완료 요청 간격. 0이면 비활성화."""
+
     def __post_init__(self):
+        valid_strategies = ("capacity", "length-aware", "throughput-adaptive")
+        if self.routing_strategy not in valid_strategies:
+            raise ValueError(
+                f"routing_strategy must be one of {valid_strategies}, "
+                f"got '{self.routing_strategy}'"
+            )
+        if self.cpu_prefill_threshold < 1:
+            raise ValueError(
+                f"cpu_prefill_threshold must be >= 1, "
+                f"got {self.cpu_prefill_threshold}"
+            )
+
         if self.mode == "parallel-batch":
             if self.cpu_ratio is not None:
                 if not 0.0 < self.cpu_ratio < 1.0:

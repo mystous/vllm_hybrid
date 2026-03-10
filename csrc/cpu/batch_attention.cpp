@@ -1,12 +1,14 @@
 // Batch Attention Optimization for AVX-512
 //
-// Processes multiple sequences (up to 16) simultaneously using AVX-512
-// interleaving. Each lane of a ZMM register handles a different sequence's
-// attention score, enabling SIMD parallelism across sequences.
+// Groups up to 16 sequences per batch for improved cache locality.
+// Within each batch, sequences are iterated sequentially; AVX-512's
+// 16-wide SIMD lanes are applied to the head-dimension vector
+// operations (Q*K dot product, V weighted sum) within each sequence.
 //
-// Key optimization: Instead of the standard approach of iterating over
-// sequences one by one, we batch 16 sequences and compute Q*K scores
-// for all of them in parallel using AVX-512 lane interleaving.
+// Key optimizations:
+// - OpenMP parallel across (batch_idx, head_idx) pairs for multi-core
+// - AVX-512 FMA for head-dimension dot products (16 floats at a time)
+// - KV cache L2 prefetching via _MM_HINT_T1 for next-block lookahead
 
 #include <immintrin.h>
 #include <torch/all.h>
@@ -38,37 +40,6 @@ inline __m256i fp32x16_to_bf16(__m512 fp32_vals) {
   fi = _mm512_add_epi32(fi, round_bias);
   __m512i shifted = _mm512_srli_epi32(fi, 16);
   return _mm512_cvtepi32_epi16(shifted);
-}
-
-// ============================================================================
-// Compute Q*K score for a single head element across 16 sequences
-// Returns a vector where lane i = partial dot product for sequence i
-// ============================================================================
-inline __m512 compute_qk_batch16(
-    const c10::BFloat16* const* query_ptrs,  // [16] pointers to query vectors
-    const c10::BFloat16* k_block_ptr,        // K cache block
-    int head_elem_offset, int head_size, int block_size, int x,
-    int token_in_block) {
-  // For each sequence, compute q[head_elem] * k[head_elem] for one token
-  // This is called in a loop over head elements and accumulated
-
-  // Since each sequence has its own query but shares the computation pattern,
-  // we load q values from each sequence into different lanes
-
-  alignas(64) float q_vals[BATCH16];
-  alignas(64) float k_vals[BATCH16];
-
-  // For simplicity, treat as scalar loads per sequence
-  // In practice, the main parallelism is across sequences
-  (void)query_ptrs;
-  (void)k_block_ptr;
-  (void)head_elem_offset;
-  (void)head_size;
-  (void)block_size;
-  (void)x;
-  (void)token_in_block;
-
-  return _mm512_loadu_ps(q_vals);
 }
 
 }  // anonymous namespace
@@ -162,6 +133,17 @@ void batch16_paged_attention_v1(
               k_ptr + physical_block * kv_block_stride +
               kv_head_idx * kv_head_stride;
 
+          // Prefetch next block's K data to L2
+          if (bi + 1 < block_num) {
+            const char* next_k = reinterpret_cast<const char*>(
+                k_ptr + seq_block_table[bi + 1] * kv_block_stride +
+                kv_head_idx * kv_head_stride);
+            _mm_prefetch(next_k, _MM_HINT_T1);
+            _mm_prefetch(next_k + 64, _MM_HINT_T1);
+            _mm_prefetch(next_k + 128, _MM_HINT_T1);
+            _mm_prefetch(next_k + 192, _MM_HINT_T1);
+          }
+
           const int tokens_in_block =
               (bi == block_num - 1) ? last_block_tokens : block_size;
 
@@ -185,7 +167,7 @@ void batch16_paged_attention_v1(
               // This is complex due to the blocked layout
 
               // Gather K values for 16 consecutive head dimensions
-              alignas(64) float k_vals[16];
+              alignas(64) float k_vals[16] = {0.0f};
               for (int dd = 0; dd < 16 && (d + dd) < head_size; ++dd) {
                 const int d_idx = d + dd;
                 const int d_outer = d_idx / x;
@@ -242,6 +224,17 @@ void batch16_paged_attention_v1(
                 v_ptr + physical_block * kv_block_stride +
                 kv_head_idx * kv_head_stride;
 
+            // Prefetch next block's V data to L2
+            if (bi + 1 < block_num) {
+              const char* next_v = reinterpret_cast<const char*>(
+                  v_ptr + seq_block_table[bi + 1] * kv_block_stride +
+                  kv_head_idx * kv_head_stride);
+              _mm_prefetch(next_v, _MM_HINT_T1);
+              _mm_prefetch(next_v + 64, _MM_HINT_T1);
+              _mm_prefetch(next_v + 128, _MM_HINT_T1);
+              _mm_prefetch(next_v + 192, _MM_HINT_T1);
+            }
+
             const int tokens_in_block =
                 (bi == block_num - 1) ? last_block_tokens : block_size;
 
@@ -284,6 +277,18 @@ void batch16_paged_attention_v1(
           const c10::BFloat16* k_block =
               k_ptr + physical_block * kv_block_stride +
               kv_head_idx * kv_head_stride;
+
+          // Prefetch next block's K data to L2
+          if (bi + 1 < block_num) {
+            const char* next_k = reinterpret_cast<const char*>(
+                k_ptr + seq_block_table[bi + 1] * kv_block_stride +
+                kv_head_idx * kv_head_stride);
+            _mm_prefetch(next_k, _MM_HINT_T1);
+            _mm_prefetch(next_k + 64, _MM_HINT_T1);
+            _mm_prefetch(next_k + 128, _MM_HINT_T1);
+            _mm_prefetch(next_k + 192, _MM_HINT_T1);
+          }
+
           const int tokens_in_block =
               (bi == block_num - 1) ? last_block_tokens : block_size;
 
@@ -294,7 +299,7 @@ void batch16_paged_attention_v1(
                   reinterpret_cast<const __m256i*>(q_vec + d));
               __m512 fq = bf16x16_to_fp32_attn(vq);
 
-              alignas(64) float k_vals[16];
+              alignas(64) float k_vals[16] = {0.0f};
               for (int dd = 0; dd < 16 && (d + dd) < head_size; ++dd) {
                 const int d_idx = d + dd;
                 const int d_outer = d_idx / x;
@@ -338,6 +343,18 @@ void batch16_paged_attention_v1(
             const c10::BFloat16* v_block =
                 v_ptr + physical_block * kv_block_stride +
                 kv_head_idx * kv_head_stride;
+
+            // Prefetch next block's V data to L2
+            if (bi + 1 < block_num) {
+              const char* next_v = reinterpret_cast<const char*>(
+                  v_ptr + seq_block_table[bi + 1] * kv_block_stride +
+                  kv_head_idx * kv_head_stride);
+              _mm_prefetch(next_v, _MM_HINT_T1);
+              _mm_prefetch(next_v + 64, _MM_HINT_T1);
+              _mm_prefetch(next_v + 128, _MM_HINT_T1);
+              _mm_prefetch(next_v + 192, _MM_HINT_T1);
+            }
+
             const int tokens_in_block =
                 (bi == block_num - 1) ? last_block_tokens : block_size;
             for (int t = 0; t < tokens_in_block; ++t) {
@@ -391,13 +408,25 @@ void batch16_paged_attention_v1(
           const float* k_block =
               k_ptr + physical_block * kv_block_stride +
               kv_head_idx * kv_head_stride;
+
+          // Prefetch next block's K data to L2
+          if (bi + 1 < block_num) {
+            const char* next_k = reinterpret_cast<const char*>(
+                k_ptr + seq_block_table[bi + 1] * kv_block_stride +
+                kv_head_idx * kv_head_stride);
+            _mm_prefetch(next_k, _MM_HINT_T1);
+            _mm_prefetch(next_k + 64, _MM_HINT_T1);
+            _mm_prefetch(next_k + 128, _MM_HINT_T1);
+            _mm_prefetch(next_k + 192, _MM_HINT_T1);
+          }
+
           const int tokens = (bi == block_num - 1) ? last_block_tokens : block_size;
 
           for (int t = 0; t < tokens; ++t) {
             __m512 acc = _mm512_setzero_ps();
             for (int d = 0; d < head_size; d += 16) {
               __m512 vq = _mm512_loadu_ps(q_vec + d);
-              alignas(64) float k_vals[16];
+              alignas(64) float k_vals[16] = {0.0f};
               for (int dd = 0; dd < 16 && (d + dd) < head_size; ++dd) {
                 const int d_idx = d + dd;
                 const int d_outer = d_idx / x;
@@ -440,6 +469,18 @@ void batch16_paged_attention_v1(
             const float* v_block =
                 v_ptr + physical_block * kv_block_stride +
                 kv_head_idx * kv_head_stride;
+
+            // Prefetch next block's V data to L2
+            if (bi + 1 < block_num) {
+              const char* next_v = reinterpret_cast<const char*>(
+                  v_ptr + seq_block_table[bi + 1] * kv_block_stride +
+                  kv_head_idx * kv_head_stride);
+              _mm_prefetch(next_v, _MM_HINT_T1);
+              _mm_prefetch(next_v + 64, _MM_HINT_T1);
+              _mm_prefetch(next_v + 128, _MM_HINT_T1);
+              _mm_prefetch(next_v + 192, _MM_HINT_T1);
+            }
+
             const int tokens = (bi == block_num - 1) ? last_block_tokens : block_size;
             for (int t = 0; t < tokens; ++t) {
               val_acc += seq_logits[bi * block_size + t] *

@@ -31,8 +31,13 @@ except (ImportError, AttributeError, Exception):
     ipex_modules = None
 
 from vllm import _custom_ops as ops
+from vllm._custom_ops import HAS_CPU_OPS, cpu_ops
 
 logger = init_logger(__name__)
+
+# Whether to use the custom AVX-512 batch16 paged attention kernel
+# when available (requires _C_cpu_ops extension built with AVX-512F)
+_USE_CUSTOM_CPU_ATTN = HAS_CPU_OPS
 
 
 class TorchSDPABackend(AttentionBackend):
@@ -883,15 +888,41 @@ class _PagedAttention:
         block_size = value_cache.shape[3]
 
         if key_cache.device.type == "cpu":
-            # Vectorized implementation to utilize more CPU cores
-            # Loop overhead was killing performance and serializing execution.
-
             num_tokens = query.shape[0]
             num_seqs = context_lens.shape[0]
             num_heads = query.shape[1]
             head_size = query.shape[2]
             block_size = key_cache.shape[-2]
 
+            # Use custom AVX-512 batch16 paged attention when available
+            # Requirements: num_tokens == num_seqs (standard decode),
+            #               BF16 or FP32 dtype, _C_cpu_ops extension built
+            if (_USE_CUSTOM_CPU_ATTN
+                    and num_tokens == num_seqs
+                    and query.dtype in (torch.bfloat16, torch.float32)):
+                max_blocks_per_seq = block_tables.shape[1]
+                try:
+                    cpu_ops().batch16_paged_attention_v1(
+                        output,
+                        query,
+                        key_cache,
+                        value_cache,
+                        block_tables.to(torch.int32).contiguous(),
+                        context_lens.to(torch.int32).contiguous(),
+                        num_heads,
+                        head_size,
+                        block_size,
+                        max_blocks_per_seq,
+                        scale,
+                        num_kv_heads,
+                    )
+                    return
+                except Exception as e:
+                    logger.warning_once(
+                        "Custom CPU attention kernel failed (%s), "
+                        "falling back to PyTorch SDPA.", e)
+
+            # Fallback: PyTorch SDPA-based CPU attention
             # Handle case where num_tokens != num_seqs
             # This can happen when sequences have multiple tokens scheduled (e.g., resumed from preemption)
             if num_tokens != num_seqs:

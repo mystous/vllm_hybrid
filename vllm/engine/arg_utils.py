@@ -427,6 +427,18 @@ class EngineArgs:
     hybrid_cpu_max_batched_tokens: int = 0
     """Max batched tokens for CPU path (0=auto-detect)."""
 
+    hybrid_routing_strategy: str = "capacity"
+    """Routing strategy: 'capacity', 'length-aware', 'throughput-adaptive'."""
+
+    hybrid_cpu_prefill_threshold: int = 512
+    """Max prompt tokens for CPU in length-aware/throughput-adaptive mode."""
+
+    hybrid_warmup_requests: int = 10
+    """Requests per device for warmup throughput profiling (0=disable)."""
+
+    hybrid_stats_log_interval: int = 50
+    """Log router statistics every N finished requests (0=disable)."""
+
     show_hidden_metrics_for_version: Optional[str] = \
         ObservabilityConfig.show_hidden_metrics_for_version
     otlp_traces_endpoint: Optional[str] = \
@@ -957,6 +969,39 @@ class EngineArgs:
             help="Max batched tokens for CPU path. "
                  "0 means auto-detect (cpu_max_seqs * 256). (default: 0)"
         )
+        hybrid_group.add_argument(
+            '--hybrid-routing-strategy',
+            type=str,
+            default="capacity",
+            choices=["capacity", "length-aware", "throughput-adaptive"],
+            help="Routing strategy: 'capacity' (slot-based), "
+                 "'length-aware' (filter long prompts to GPU), "
+                 "'throughput-adaptive' (EMA-based dynamic adjustment). "
+                 "(default: capacity)"
+        )
+        hybrid_group.add_argument(
+            '--hybrid-cpu-prefill-threshold',
+            type=int,
+            default=512,
+            help="Max prompt tokens for CPU in length-aware/"
+                 "throughput-adaptive mode. Prompts longer than this "
+                 "are routed to GPU. (default: 512)"
+        )
+        hybrid_group.add_argument(
+            '--hybrid-warmup-requests',
+            type=int,
+            default=10,
+            help="Number of requests per device (GPU/CPU) to collect "
+                 "during warmup phase for throughput profiling. "
+                 "0 disables warmup. (default: 10)"
+        )
+        hybrid_group.add_argument(
+            '--hybrid-stats-log-interval',
+            type=int,
+            default=50,
+            help="Log router throughput statistics every N finished "
+                 "requests. 0 disables periodic logging. (default: 50)"
+        )
 
         return parser
 
@@ -1461,6 +1506,10 @@ class EngineArgs:
             cpu_kvcache_space_gb=self.hybrid_cpu_kvcache_gb,
             cpu_max_num_seqs=self.hybrid_cpu_max_seqs,
             cpu_max_num_batched_tokens=self.hybrid_cpu_max_batched_tokens,
+            routing_strategy=self.hybrid_routing_strategy,
+            cpu_prefill_threshold=self.hybrid_cpu_prefill_threshold,
+            warmup_requests=self.hybrid_warmup_requests,
+            stats_log_interval=self.hybrid_stats_log_interval,
         )
 
         config = VllmConfig(

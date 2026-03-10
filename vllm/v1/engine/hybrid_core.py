@@ -19,6 +19,7 @@ import contextlib
 import copy
 import os
 import signal
+import time
 import weakref
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
@@ -27,8 +28,7 @@ from typing import Optional
 from vllm.config import HybridConfig, VllmConfig
 from vllm.logger import init_logger
 from vllm.utils import get_mp_context, get_open_zmq_ipc_path
-from vllm.v1.engine.utils import (CoreEngine, CoreEngineProcManager,
-                                   EngineZmqAddresses,
+from vllm.v1.engine.utils import (CoreEngine, EngineZmqAddresses,
                                    wait_for_engine_startup)
 from vllm.v1.executor.abstract import Executor
 from vllm.v1.utils import get_engine_client_zmq_addr, shutdown
@@ -54,20 +54,20 @@ def is_hybrid_mode(vllm_config: VllmConfig) -> bool:
 
 def compute_auto_cpu_ratio(
     cpu_tok_per_sec: float,
-    gpu_tok_per_sec: float = 100.0,
+    gpu_tok_per_sec: float,
 ) -> float:
     """CPU/GPU 처리량 기반 최적 cpu_ratio 계산.
 
     R_cpu = T_cpu / (T_gpu + T_cpu)
 
     Args:
-        cpu_tok_per_sec: CPU 처리량 (tok/s)
-        gpu_tok_per_sec: GPU 처리량 (tok/s), 기본 100 tok/s 휴리스틱
+        cpu_tok_per_sec: CPU 처리량 (tok/s), 실측값 사용 권장
+        gpu_tok_per_sec: GPU 처리량 (tok/s), 실측값 사용 권장
 
     Returns:
         cpu_ratio (0.01 ~ 0.5 범위로 클램핑)
     """
-    if cpu_tok_per_sec <= 0:
+    if cpu_tok_per_sec <= 0 or gpu_tok_per_sec <= 0:
         return 0.0
 
     total = gpu_tok_per_sec + cpu_tok_per_sec
@@ -147,24 +147,86 @@ class CapacityAwareRouter:
 
     CPU에 여유가 있으면 항상 CPU로 라우팅하여 CPU 활용률 100% 유지.
     CPU가 가득 차면 GPU로 라우팅.
+
+    라우팅 전략:
+    - capacity: 단순 슬롯 기반 (기본값, 기존 동작)
+    - length-aware: 프롬프트 길이 고려 — 긴 프롬프트는 GPU, 짧은 것만 CPU
+    - throughput-adaptive: EMA 처리량 기반 동적 CPU 슬롯 조정
+
+    실시간 처리량 모니터링: 요청 시작/완료 시간과 생성 토큰 수를 추적하여
+    GPU/CPU 각각의 실측 처리량(tok/s)을 계산합니다.
     """
 
-    def __init__(self, cpu_max_num_seqs: int):
+    def __init__(self, cpu_max_num_seqs: int,
+                 routing_strategy: str = "capacity",
+                 cpu_prefill_threshold: int = 512,
+                 warmup_requests: int = 10,
+                 stats_log_interval: int = 50):
         self.cpu_max_num_seqs = cpu_max_num_seqs
+        self.routing_strategy = routing_strategy
+        self.cpu_prefill_threshold = cpu_prefill_threshold
         self.cpu_in_flight: int = 0
         self.gpu_count: int = 0
         self.cpu_count: int = 0
 
-        logger.info(
-            "CapacityAwareRouter initialized: cpu_max_num_seqs=%d",
-            self.cpu_max_num_seqs,
-        )
+        # 실시간 처리량 모니터링
+        self._request_start_times: dict[str, float] = {}
+        self._gpu_total_tokens: int = 0
+        self._cpu_total_tokens: int = 0
+        self._gpu_total_elapsed: float = 0.0
+        self._cpu_total_elapsed: float = 0.0
 
-    def route(self, request_id: str) -> str:
+        # throughput-adaptive 전략용 EMA 필드
+        self._gpu_ema_throughput: float = 0.0
+        self._cpu_ema_throughput: float = 0.0
+        self._ema_alpha: float = 0.3
+        self._adaptive_cpu_max_seqs: int = cpu_max_num_seqs
+
+        # 워밍업 프로파일링
+        self._warmup_requests = warmup_requests
+        self._warmup_complete: bool = (warmup_requests <= 0)
+        self._warmup_gpu_finished: int = 0
+        self._warmup_cpu_finished: int = 0
+        self._warmup_gpu_tokens: int = 0
+        self._warmup_cpu_tokens: int = 0
+        self._warmup_gpu_elapsed: float = 0.0
+        self._warmup_cpu_elapsed: float = 0.0
+
+        # 주기적 로깅
+        self._stats_log_interval = stats_log_interval
+        self._total_finished: int = 0
+
+        logger.info(
+            "CapacityAwareRouter initialized: cpu_max_num_seqs=%d, "
+            "strategy=%s, prefill_threshold=%d, "
+            "warmup=%d, stats_interval=%d",
+            self.cpu_max_num_seqs, self.routing_strategy,
+            self.cpu_prefill_threshold,
+            self._warmup_requests, self._stats_log_interval,
+        )
+        if not self._warmup_complete:
+            logger.info(
+                "Warmup profiling enabled: collecting data from "
+                "first %d requests per device", warmup_requests)
+
+    def route(self, request_id: str, prompt_len: int = 0) -> str:
         """요청을 GPU 또는 CPU로 라우팅.
 
-        CPU에 여유 슬롯이 있으면 CPU로, 없으면 GPU로.
+        Args:
+            request_id: 요청 ID.
+            prompt_len: 프롬프트 토큰 수 (length-aware/throughput-adaptive용).
         """
+        self._request_start_times[request_id] = time.monotonic()
+
+        if self.routing_strategy == "length-aware":
+            return self._route_length_aware(request_id, prompt_len)
+        elif self.routing_strategy == "throughput-adaptive":
+            return self._route_throughput_adaptive(request_id, prompt_len)
+        else:  # "capacity" (기본)
+            return self._route_capacity(request_id)
+
+    def _route_capacity(self, request_id: str) -> str:
+        """기존 슬롯 기반 로직 (현재 동작 유지)."""
         if self.cpu_in_flight < self.cpu_max_num_seqs:
             self.cpu_in_flight += 1
             self.cpu_count += 1
@@ -172,22 +234,195 @@ class CapacityAwareRouter:
         self.gpu_count += 1
         return "gpu"
 
-    def on_request_finished(self, request_id: str, was_cpu: bool):
-        """요청 완료 시 호출. CPU 슬롯 반환."""
+    def _route_length_aware(self, request_id: str,
+                            prompt_len: int) -> str:
+        """프롬프트 길이 고려: 긴 프롬프트는 GPU, 짧은 것만 CPU."""
+        if (self.cpu_in_flight < self.cpu_max_num_seqs
+                and prompt_len <= self.cpu_prefill_threshold):
+            self.cpu_in_flight += 1
+            self.cpu_count += 1
+            return "cpu"
+        self.gpu_count += 1
+        return "gpu"
+
+    def _route_throughput_adaptive(self, request_id: str,
+                                   prompt_len: int) -> str:
+        """EMA 처리량 기반 동적 슬롯 조정."""
+        effective_max = self._adaptive_cpu_max_seqs
+        if (self.cpu_in_flight < effective_max
+                and prompt_len <= self.cpu_prefill_threshold):
+            self.cpu_in_flight += 1
+            self.cpu_count += 1
+            return "cpu"
+        self.gpu_count += 1
+        return "gpu"
+
+    def on_request_finished(self, request_id: str, was_cpu: bool,
+                            num_tokens: int = 0):
+        """요청 완료 시 호출. CPU 슬롯 반환 및 처리량 업데이트."""
         if was_cpu:
             self.cpu_in_flight = max(0, self.cpu_in_flight - 1)
 
+        # 처리량 측정: 시작 시간이 있고 토큰이 생성된 경우에만
+        start = self._request_start_times.pop(request_id, None)
+        if start is not None and num_tokens > 0:
+            elapsed = time.monotonic() - start
+            if elapsed > 0:
+                if was_cpu:
+                    self._cpu_total_tokens += num_tokens
+                    self._cpu_total_elapsed += elapsed
+                else:
+                    self._gpu_total_tokens += num_tokens
+                    self._gpu_total_elapsed += elapsed
+
+                # 워밍업 프로파일링 데이터 수집
+                if not self._warmup_complete:
+                    self._collect_warmup_data(
+                        was_cpu, num_tokens, elapsed)
+
+                # throughput-adaptive: EMA 업데이트 및 동적 슬롯 조정
+                if self.routing_strategy == "throughput-adaptive":
+                    instant_tps = num_tokens / elapsed
+                    alpha = self._ema_alpha
+                    if was_cpu:
+                        self._cpu_ema_throughput = (
+                            alpha * instant_tps
+                            + (1 - alpha) * self._cpu_ema_throughput)
+                    else:
+                        self._gpu_ema_throughput = (
+                            alpha * instant_tps
+                            + (1 - alpha) * self._gpu_ema_throughput)
+                    self._update_adaptive_slots()
+
+        # 주기적 통계 로깅
+        self._total_finished += 1
+        if (self._stats_log_interval > 0
+                and self._total_finished % self._stats_log_interval == 0):
+            self._log_periodic_stats()
+
+    def _update_adaptive_slots(self):
+        """CPU/GPU 처리량 비율 기반 동적 슬롯 수 조정."""
+        if self._cpu_ema_throughput > 0 and self._gpu_ema_throughput > 0:
+            ratio = self._cpu_ema_throughput / self._gpu_ema_throughput
+            # CPU 처리량이 높을수록 더 많은 슬롯 할당 (최소 2, 최대 2배)
+            new_max = max(2, min(self.cpu_max_num_seqs * 2,
+                                int(self.cpu_max_num_seqs * (1 + ratio))))
+            self._adaptive_cpu_max_seqs = new_max
+
+    def _collect_warmup_data(self, was_cpu: bool,
+                             num_tokens: int, elapsed: float):
+        """워밍업 페이즈 데이터 수집 및 완료 판정."""
+        if was_cpu:
+            self._warmup_cpu_finished += 1
+            self._warmup_cpu_tokens += num_tokens
+            self._warmup_cpu_elapsed += elapsed
+        else:
+            self._warmup_gpu_finished += 1
+            self._warmup_gpu_tokens += num_tokens
+            self._warmup_gpu_elapsed += elapsed
+
+        gpu_ready = (self._warmup_gpu_finished
+                     >= self._warmup_requests)
+        cpu_ready = (self._warmup_cpu_finished
+                     >= self._warmup_requests)
+
+        if gpu_ready and cpu_ready:
+            self._finalize_warmup()
+        elif (gpu_ready
+              and self._warmup_cpu_finished >= 1
+              and self._warmup_gpu_finished
+              >= self._warmup_requests * 2):
+            # GPU가 2배 넘게 완료, CPU가 1개 이상 → 강제 완료
+            self._finalize_warmup()
+
+    def _finalize_warmup(self):
+        """워밍업 완료: 측정된 처리량으로 EMA 초기화."""
+        self._warmup_complete = True
+
+        gpu_avg_tps = (self._warmup_gpu_tokens
+                       / self._warmup_gpu_elapsed
+                       if self._warmup_gpu_elapsed > 0 else 0.0)
+        cpu_avg_tps = (self._warmup_cpu_tokens
+                       / self._warmup_cpu_elapsed
+                       if self._warmup_cpu_elapsed > 0 else 0.0)
+
+        # throughput-adaptive: EMA 초기화 → 즉시 슬롯 조정
+        if self.routing_strategy == "throughput-adaptive":
+            self._gpu_ema_throughput = gpu_avg_tps
+            self._cpu_ema_throughput = cpu_avg_tps
+            self._update_adaptive_slots()
+
+        logger.info(
+            "=== Warmup profiling complete ===")
+        logger.info(
+            "  GPU: %.1f tok/s (avg over %d reqs, %d tokens)",
+            gpu_avg_tps, self._warmup_gpu_finished,
+            self._warmup_gpu_tokens)
+        logger.info(
+            "  CPU: %.1f tok/s (avg over %d reqs, %d tokens)",
+            cpu_avg_tps, self._warmup_cpu_finished,
+            self._warmup_cpu_tokens)
+        if self.routing_strategy == "throughput-adaptive":
+            logger.info(
+                "  EMA initialized → adaptive_slots=%d (base=%d)",
+                self._adaptive_cpu_max_seqs,
+                self.cpu_max_num_seqs)
+
+    def _log_periodic_stats(self):
+        """주기적 처리량/라우팅 통계 로깅."""
+        stats = self.get_stats()
+        extra = ""
+        if self.routing_strategy == "throughput-adaptive":
+            extra = (f", adaptive_slots="
+                     f"{stats.get('adaptive_cpu_max_seqs', 'N/A')}")
+        logger.info(
+            "Router stats [%d reqs]: "
+            "GPU=%.1f tok/s (%d reqs), "
+            "CPU=%.1f tok/s (%d reqs), "
+            "cpu_ratio=%.1f%%, in_flight=%d/%d%s",
+            stats["total_requests"],
+            stats["gpu_throughput_tok_s"], stats["gpu_requests"],
+            stats["cpu_throughput_tok_s"], stats["cpu_requests"],
+            stats["actual_cpu_ratio"] * 100,
+            stats["cpu_in_flight"], stats["cpu_max_num_seqs"],
+            extra)
+
+    @property
+    def gpu_throughput(self) -> float:
+        """GPU 실측 처리량 (tok/s). 데이터 없으면 0.0."""
+        if self._gpu_total_elapsed > 0:
+            return self._gpu_total_tokens / self._gpu_total_elapsed
+        return 0.0
+
+    @property
+    def cpu_throughput(self) -> float:
+        """CPU 실측 처리량 (tok/s). 데이터 없으면 0.0."""
+        if self._cpu_total_elapsed > 0:
+            return self._cpu_total_tokens / self._cpu_total_elapsed
+        return 0.0
+
     def get_stats(self) -> dict:
         total = self.gpu_count + self.cpu_count
-        return {
+        stats = {
             "gpu_requests": self.gpu_count,
             "cpu_requests": self.cpu_count,
             "total_requests": total,
             "cpu_in_flight": self.cpu_in_flight,
             "cpu_max_num_seqs": self.cpu_max_num_seqs,
+            "routing_strategy": self.routing_strategy,
             "actual_cpu_ratio": (
                 self.cpu_count / total if total > 0 else 0.0),
+            "gpu_throughput_tok_s": self.gpu_throughput,
+            "cpu_throughput_tok_s": self.cpu_throughput,
+            "gpu_total_tokens": self._gpu_total_tokens,
+            "cpu_total_tokens": self._cpu_total_tokens,
+            "warmup_complete": self._warmup_complete,
         }
+        if self.routing_strategy == "throughput-adaptive":
+            stats["gpu_ema_throughput"] = self._gpu_ema_throughput
+            stats["cpu_ema_throughput"] = self._cpu_ema_throughput
+            stats["adaptive_cpu_max_seqs"] = self._adaptive_cpu_max_seqs
+        return stats
 
 
 # ============================================================================
