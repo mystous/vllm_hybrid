@@ -1,0 +1,48 @@
+graph TB
+    subgraph MainProcess["메인 프로세스 (PID 0)"]
+        ALE["AsyncLLMEngine"]
+        subgraph HAMC["HybridAsyncMPClient"]
+            ZMQ_R["ZMQ ROUTER<br/>(input socket)"]
+            ZMQ_P["ZMQ PULL<br/>(output socket)"]
+        end
+        subgraph Router["CapacityAwareRouter"]
+            S1["capacity (기본)"]
+            S2["length-aware"]
+            S3["throughput-adaptive"]
+        end
+        ALE --> HAMC
+        HAMC --> Router
+    end
+
+    subgraph GPUProcess["GPU 프로세스 (PID 1)"]
+        GPU_ECP["EngineCoreProc"]
+        GPU_EC["EngineCore"]
+        GPU_EX["MultiprocExecutor"]
+        GPU_W["8x GPUWorker (H100)"]
+        GPU_KV["HBM3 KV Cache"]
+        GPU_ZD["ZMQ DEALER + PUSH"]
+        GPU_ID["identity: b'\\x00\\x00'"]
+        GPU_ECP --> GPU_EC --> GPU_EX --> GPU_W --> GPU_KV
+    end
+
+    subgraph CPUProcess["CPU 프로세스 (PID 2)"]
+        CPU_ECP["EngineCoreProc"]
+        CPU_EC["EngineCore"]
+        CPU_EX["UniProcExecutor"]
+        CPU_W["CPUWorker"]
+        CPU_NUMA["NUMA 바인딩 (Node 0)"]
+        CPU_AVX["AVX-512 커널"]
+        CPU_KV["DDR5 KV Cache (400GB)"]
+        CPU_ZD["ZMQ DEALER + PUSH"]
+        CPU_ID["identity: b'\\x01\\x00'"]
+        CPU_ENV["CUDA_VISIBLE_DEVICES=''<br/>OMP_NUM_THREADS=56<br/>ONEDNN_MAX_CPU_ISA=AVX512_CORE_AMX"]
+        CPU_ECP --> CPU_EC --> CPU_EX --> CPU_W
+        CPU_W --> CPU_NUMA
+        CPU_W --> CPU_AVX
+        CPU_W --> CPU_KV
+    end
+
+    ZMQ_R -- "ZMQ IPC" --> GPU_ZD
+    ZMQ_R -- "ZMQ IPC" --> CPU_ZD
+    GPU_ZD -- "ZMQ PUSH" --> ZMQ_P
+    CPU_ZD -- "ZMQ PUSH" --> ZMQ_P

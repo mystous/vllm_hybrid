@@ -1,0 +1,83 @@
+classDiagram
+    class VllmConfig {
+        <<기존 vLLM 설정>>
+        +model_config
+        +parallel_config
+        +scheduler_config
+        +hybrid_config: HybridConfig
+    }
+
+    class HybridConfig {
+        <<dataclass>>
+        +mode: str = "none"
+        +routing_strategy: str = "capacity"
+        +cpu_max_num_seqs: int = 0
+        +cpu_kvcache_space_gb: int = 0
+        +cpu_num_threads: int = 0
+        +numa_aware: bool = True
+        +warmup_requests: int = 10
+        +cpu_prefill_threshold: int = 512
+    }
+
+    class _HybridEngineLauncherMixin {
+        <<Mixin>>
+        +_start_hybrid_engines()
+        +_build_cpu_config()
+    }
+
+    class HybridAsyncMPClient {
+        +add_request_async()
+        +abort_requests_async()
+        +process_engine_outputs()
+    }
+
+    class HybridSyncMPClient {
+        +add_request()
+        +get_output()
+        +abort_requests()
+    }
+
+    class CapacityAwareRouter {
+        -_strategy: str
+        -_cpu_in_flight: int
+        -_cpu_max_seqs: int
+        -_ema_gpu_tps: float
+        -_ema_cpu_tps: float
+        -_adaptive_slots: int
+        +route(request_id, prompt_len) int
+        +on_request_finished()
+    }
+
+    class IntelCPUFeatures {
+        <<dataclass>>
+        +model_name: str
+        +num_sockets: int
+        +cores_per_socket: int
+        +avx512f: bool
+        +avx512_vnni: bool
+        +amx_bf16: bool
+        +amx_int8: bool
+    }
+
+    class NUMAAllocator {
+        <<Singleton>>
+        +bind_to_node(node_id)
+        +allocate_on_node(size, node_id)
+        +get_node_memory(node_id)
+    }
+
+    class ResolvedCpuParams {
+        <<dataclass>>
+        +cpu_num_threads: int
+        +cpu_max_num_seqs: int
+        +cpu_kvcache_gb: int
+        +cpu_max_batched_tokens: int
+    }
+
+    VllmConfig *-- HybridConfig : has-a
+    _HybridEngineLauncherMixin <|-- HybridAsyncMPClient : extends
+    _HybridEngineLauncherMixin <|-- HybridSyncMPClient : extends
+    HybridAsyncMPClient --> CapacityAwareRouter : routes via
+    HybridAsyncMPClient ..> ResolvedCpuParams : uses
+    ResolvedCpuParams ..> IntelCPUFeatures : derived from
+    ResolvedCpuParams ..> NUMAAllocator : queries

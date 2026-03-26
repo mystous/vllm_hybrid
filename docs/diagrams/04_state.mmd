@@ -1,0 +1,57 @@
+stateDiagram-v2
+    [*] --> Warmup: 서버 시작
+
+    state Warmup {
+        [*] --> Profiling
+        Profiling: 워밍업 프로파일링
+        Profiling: GPU N + CPU N 요청 완료 대기
+        Profiling: 또는 GPU 2N + CPU 1 강제 완료
+    }
+
+    Warmup --> ActiveRouting: 워밍업 완료\n(EMA 초기화)
+
+    state ActiveRouting {
+        state strategy_choice <<choice>>
+        [*] --> strategy_choice
+
+        strategy_choice --> Capacity: strategy = "capacity"
+        strategy_choice --> LengthAware: strategy = "length-aware"
+        strategy_choice --> ThroughputAdaptive: strategy = "throughput-adaptive"
+
+        state Capacity {
+            [*] --> CheckSlot_C
+            CheckSlot_C: C < N ?
+            CheckSlot_C --> RouteCPU_C: Yes → CPU
+            CheckSlot_C --> RouteGPU_C: No → GPU
+        }
+
+        state LengthAware {
+            [*] --> CheckLen
+            CheckLen: prompt_len ≤ τ(512)?
+            CheckLen --> CheckSlot_L: Yes
+            CheckLen --> RouteGPU_L: No → GPU
+            CheckSlot_L: C < N?
+            CheckSlot_L --> RouteCPU_L: Yes → CPU
+            CheckSlot_L --> RouteGPU_L2: No → GPU
+        }
+
+        state ThroughputAdaptive {
+            [*] --> CheckLen_T
+            CheckLen_T: prompt_len ≤ τ?
+            CheckLen_T --> CheckAdaptiveSlot: Yes
+            CheckLen_T --> RouteGPU_T: No → GPU
+            CheckAdaptiveSlot: C < N_adaptive?
+            CheckAdaptiveSlot --> RouteCPU_T: Yes → CPU
+            CheckAdaptiveSlot --> RouteGPU_T2: No → GPU
+        }
+    }
+
+    state OnFinish {
+        [*] --> SlotReturn: CPU 슬롯 반환 (C -= 1)
+        SlotReturn --> EMAUpdate: EMA 처리량 업데이트\nγ=0.3
+        EMAUpdate --> AdaptiveAdjust: 동적 슬롯 조정\nN = clamp(N_base × ratio, 2, 2N_base)
+        AdaptiveAdjust --> StatsLog: 주기적 통계 로깅
+    }
+
+    ActiveRouting --> OnFinish: on_request_finished()
+    OnFinish --> ActiveRouting: 다음 요청 대기

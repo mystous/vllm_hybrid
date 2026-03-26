@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant C as Client
+    participant A as AsyncLLMEngine
+    participant H as HybridAsyncMPClient
+    participant R as CapacityAwareRouter
+    participant CPU as CPU_Engine<br/>(별도 PID)
+
+    C->>A: HTTP request
+    A->>H: add_request_async(request)
+    H->>R: route(request_id, prompt_len)
+    R-->>R: CPU 슬롯 확인 (C < N?)
+    R-->>H: engine_idx = 1 (CPU)
+
+    H->>CPU: ZMQ ROUTER send(b'\x01\x00', request)
+
+    Note over CPU: LLM 추론 실행<br/>(독립 프로세스)
+
+    CPU-->>H: ZMQ PULL recv(output)
+
+    H->>R: on_request_finished(req_id, engine=1, tokens, elapsed)
+    R-->>R: CPU 슬롯 반환 (C -= 1)
+    R-->>R: EMA 처리량 업데이트
+    R-->>R: 통계 로깅 (주기적)
+
+    H-->>A: output
+    A-->>C: HTTP response

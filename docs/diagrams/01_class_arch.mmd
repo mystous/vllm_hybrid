@@ -1,0 +1,57 @@
+classDiagram
+    class AsyncLLMEngine {
+        <<vLLM 상위 엔진>>
+        +generate()
+        +add_request()
+    }
+
+    class HybridAsyncMPClient {
+        <<extends AsyncMPClient>>
+        -router: CapacityAwareRouter
+        -_hybrid_reqs_in_flight: Dict~str, int~
+        -_hybrid_req_token_counts: Dict~str, int~
+        +add_request_async(request)
+        +abort_requests_async(request_ids)
+        +process_engine_outputs()
+    }
+
+    class CapacityAwareRouter {
+        -_strategy: str
+        -_cpu_in_flight: int
+        -_cpu_max_seqs: int
+        -_ema_gpu_tps: float
+        -_ema_cpu_tps: float
+        -_adaptive_slots: int
+        +route(request_id, prompt_len) int
+        +on_request_finished(request_id, engine_idx, num_tokens, elapsed)
+    }
+
+    class HybridEngineProcManager {
+        -gpu_proc: EngineCoreProc
+        -cpu_proc: EngineCoreProc
+        +close()
+        +sentinels()
+        +finished_procs()
+    }
+
+    class GPU_EngineCoreProc {
+        <<별도 PID>>
+        engine_idx = 0
+        MultiprocExecutor
+        8x H100 GPUWorker
+        HBM3 KV Cache
+    }
+
+    class CPU_EngineCoreProc {
+        <<별도 PID>>
+        engine_idx = 1
+        UniProcExecutor
+        CPUWorker
+        DDR5 KV Cache
+    }
+
+    AsyncLLMEngine --> HybridAsyncMPClient : uses
+    HybridAsyncMPClient --> CapacityAwareRouter : routes
+    HybridAsyncMPClient --> HybridEngineProcManager : manages
+    HybridEngineProcManager --> GPU_EngineCoreProc : spawns
+    HybridEngineProcManager --> CPU_EngineCoreProc : spawns
