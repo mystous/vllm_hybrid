@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # =============================================================================
-# run_eval.sh — GPU-only / Hybrid 풀 평가 파이프라인
+# run_eval.sh — GPU-only / Hybrid full evaluation pipeline
 #
-# 실행 순서:
-#   1. GPU-only 서버 시작
-#   2. 모니터 시작 (GPU/CPU utilization)
-#   3. 서버 준비 대기
-#   4. 벤치마크 실행
-#   5. 모니터 종료, 서버 종료
-#   6. Hybrid 서버 시작
-#   7. 모니터 시작
-#   8. 서버 준비 대기
-#   9. 벤치마크 실행
-#  10. 모니터 종료, 서버 종료
-#  11. 비교 리포트 생성
+# Execution order:
+#   1. Start GPU-only server
+#   2. Start monitor (GPU/CPU utilization)
+#   3. Wait for server to be ready
+#   4. Run benchmark
+#   5. Stop monitor, stop server
+#   6. Start Hybrid server
+#   7. Start monitor
+#   8. Wait for server to be ready
+#   9. Run benchmark
+#  10. Stop monitor, stop server
+#  11. Generate comparison report
 #
-# 사용법:
-#   ./run_eval.sh              # GPU-only + Hybrid 모두 실행
-#   ./run_eval.sh gpu_only     # GPU-only만 실행
-#   ./run_eval.sh hybrid       # Hybrid만 실행
-#   ./run_eval.sh compare      # 기존 결과로 비교만 실행
+# Usage:
+#   ./run_eval.sh              # Run both GPU-only and Hybrid
+#   ./run_eval.sh gpu_only     # Run GPU-only only
+#   ./run_eval.sh hybrid       # Run Hybrid only
+#   ./run_eval.sh compare      # Run comparison only on existing results
 # =============================================================================
 set -euo pipefail
 
@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/.env"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-    echo "[ERROR] .env 파일을 찾을 수 없습니다: $ENV_FILE" >&2
+    echo "[ERROR] .env file not found: $ENV_FILE" >&2
     exit 1
 fi
 
@@ -37,7 +37,7 @@ source "$ENV_FILE"
 RESULTS_BASE="${SCRIPT_DIR}/${RESULTS_DIR:-results}"
 
 # Run timestamp — all outputs go into results/<RUN_TS>/
-RUN_TS="${RUN_TS:-$(date '+%Y%m%d_%H%M%S')}"
+RUN_TS="${RUN_TS:-$(TZ=Asia/Seoul date '+%Y%m%d_%H%M%S')}"
 RESULTS_DIR="${RESULTS_BASE}/${RUN_TS}"
 export EVAL_RUN_DIR="${RESULTS_DIR}"
 mkdir -p "$RESULTS_DIR"
@@ -51,10 +51,10 @@ SERVER_PID=""
 MONITOR_PID=""
 
 # ---------------------------------------------------------------------------
-# 유틸리티 함수
+# Utility functions
 # ---------------------------------------------------------------------------
 
-log() { echo "[$(date '+%H:%M:%S')] $*"; }
+log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
 
 wait_for_server() {
     local url="http://localhost:${PORT}/health"
@@ -62,36 +62,36 @@ wait_for_server() {
     local poll="${SERVER_READY_POLL:-3}"
     local elapsed=0
 
-    log "서버 준비 대기 중... (최대 ${timeout}초)"
+    log "Waiting for server to be ready... (up to ${timeout}s)"
     while ! curl -sf "$url" > /dev/null 2>&1; do
         if [[ $elapsed -ge $timeout ]]; then
-            log "[ERROR] 서버 시작 타임아웃 (${timeout}초 초과)"
+            log "[ERROR] Server startup timed out (exceeded ${timeout}s)"
             return 1
         fi
         sleep "$poll"
         elapsed=$((elapsed + poll))
-        log "  대기 중... ${elapsed}/${timeout}초"
+        log "  Waiting... ${elapsed}/${timeout}s"
     done
-    log "서버 준비 완료 (${elapsed}초 소요)"
+    log "Server ready (took ${elapsed}s)"
 }
 
 start_server() {
     local server_mode="$1"
-    log "=== 서버 시작: MODE=${server_mode} ==="
+    log "=== Starting server: MODE=${server_mode} ==="
     bash "${SCRIPT_DIR}/serve.sh" "$server_mode" \
         > "${RESULTS_DIR}/${server_mode}_serve.log" 2>&1 &
     SERVER_PID=$!
-    log "서버 PID: ${SERVER_PID}"
+    log "Server PID: ${SERVER_PID}"
 }
 
 stop_server() {
     if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
-        log "서버 종료 (PID=${SERVER_PID})"
+        log "Stopping server (PID=${SERVER_PID})"
         kill "$SERVER_PID" 2>/dev/null || true
         wait "$SERVER_PID" 2>/dev/null || true
         SERVER_PID=""
     fi
-    # 혹시 남은 vLLM 프로세스 정리
+    # Clean up any remaining vLLM processes
     pkill -f "vllm.entrypoints.openai.api_server" 2>/dev/null || true
     sleep 3
 }
@@ -99,16 +99,16 @@ stop_server() {
 start_monitor() {
     local prefix="$1"
     local interval="${MONITOR_INTERVAL:-1}"
-    log "모니터 시작: prefix=${prefix}"
+    log "Starting monitor: prefix=${prefix}"
     python3 "${SCRIPT_DIR}/monitor.py" "$prefix" --interval "$interval" \
         > "${RESULTS_DIR}/monitor_${prefix##*/}.log" 2>&1 &
     MONITOR_PID=$!
-    log "모니터 PID: ${MONITOR_PID}"
+    log "Monitor PID: ${MONITOR_PID}"
 }
 
 stop_monitor() {
     if [[ -n "$MONITOR_PID" ]] && kill -0 "$MONITOR_PID" 2>/dev/null; then
-        log "모니터 종료 (PID=${MONITOR_PID})"
+        log "Stopping monitor (PID=${MONITOR_PID})"
         kill "$MONITOR_PID" 2>/dev/null || true
         wait "$MONITOR_PID" 2>/dev/null || true
         MONITOR_PID=""
@@ -116,44 +116,44 @@ stop_monitor() {
 }
 
 cleanup() {
-    log "정리 중..."
+    log "Cleaning up..."
     stop_monitor
     stop_server
 }
 trap cleanup EXIT INT TERM
 
 # ---------------------------------------------------------------------------
-# GPU-only 평가
+# GPU-only evaluation
 # ---------------------------------------------------------------------------
 
 run_gpu_only() {
     log "=========================================="
-    log " [1/2] GPU-only 평가 시작"
+    log " [1/2] Starting GPU-only evaluation"
     log "=========================================="
 
-    stop_server   # 혹시 남은 서버 정리
+    stop_server   # Clean up any leftover server
 
     start_server "gpu_only"
     start_monitor "${RESULTS_DIR}/gpu_only_monitor"
 
     wait_for_server
 
-    log "--- GPU-only 벤치마크 실행 ---"
+    log "--- Running GPU-only benchmark ---"
     bash "${SCRIPT_DIR}/benchmark.sh" "gpu_only"
 
     stop_monitor
     stop_server
 
-    log "GPU-only 평가 완료."
+    log "GPU-only evaluation complete."
 }
 
 # ---------------------------------------------------------------------------
-# Hybrid 평가
+# Hybrid evaluation
 # ---------------------------------------------------------------------------
 
 run_hybrid() {
     log "=========================================="
-    log " [2/2] Hybrid 평가 시작"
+    log " [2/2] Starting Hybrid evaluation"
     log "=========================================="
 
     stop_server
@@ -163,22 +163,22 @@ run_hybrid() {
 
     wait_for_server
 
-    log "--- Hybrid 벤치마크 실행 ---"
+    log "--- Running Hybrid benchmark ---"
     bash "${SCRIPT_DIR}/benchmark.sh" "hybrid"
 
     stop_monitor
     stop_server
 
-    log "Hybrid 평가 완료."
+    log "Hybrid evaluation complete."
 }
 
 # ---------------------------------------------------------------------------
-# 비교 리포트
+# Comparison report
 # ---------------------------------------------------------------------------
 
 run_compare() {
     log "=========================================="
-    log " 비교 리포트 생성"
+    log " Generating comparison report"
     log "=========================================="
     python3 "${SCRIPT_DIR}/compare.py" \
         --results-dir "${RESULTS_DIR}" \
@@ -187,13 +187,13 @@ run_compare() {
 }
 
 # ---------------------------------------------------------------------------
-# 메인
+# Main
 # ---------------------------------------------------------------------------
 
-log "eval 시작: MODE=${MODE}"
+log "Eval starting: MODE=${MODE}"
 log "RUN_TS: ${RUN_TS}"
-log "결과 경로: ${RESULTS_DIR}"
-log "모델: ${MODEL}"
+log "Results path: ${RESULTS_DIR}"
+log "Model: ${MODEL}"
 
 case "$MODE" in
     all)
@@ -216,4 +216,4 @@ case "$MODE" in
         ;;
 esac
 
-log "완료."
+log "Done."

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-monitor.py — GPU/CPU 활용률 실시간 모니터링 및 CSV 저장
+monitor.py — Real-time GPU/CPU utilization monitoring and CSV export
 
-사용법:
+Usage:
     python monitor.py <output_prefix> [--interval 1.0]
 
-출력:
-    <output_prefix>_gpu.csv  — GPU 카드별 + 종합 평균
-    <output_prefix>_cpu.csv  — 물리 코어별 + 종합 평균
+Output:
+    <output_prefix>_gpu.csv  — Per-GPU card + overall average
+    <output_prefix>_cpu.csv  — Per-physical-core + overall average
 
-종료:
-    SIGTERM 또는 SIGINT (Ctrl+C)
+Exit:
+    SIGTERM or SIGINT (Ctrl+C)
 """
 import argparse
 import csv
@@ -19,17 +19,19 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+KST = timezone(timedelta(hours=9))
 from pathlib import Path
 
 import psutil
 
 # ---------------------------------------------------------------------------
-# GPU 샘플링 (nvidia-smi 기반)
+# GPU sampling (nvidia-smi based)
 # ---------------------------------------------------------------------------
 
 def _query_nvidia_smi() -> list[dict]:
-    """nvidia-smi로 GPU 카드별 메트릭 수집."""
+    """Collect per-GPU metrics via nvidia-smi."""
     try:
         result = subprocess.run(
             [
@@ -74,31 +76,31 @@ def _get_gpu_count() -> int:
 
 
 # ---------------------------------------------------------------------------
-# CPU 샘플링 (psutil 기반)
+# CPU sampling (psutil based)
 # ---------------------------------------------------------------------------
 
 def _get_cpu_topology() -> tuple[int, int, int]:
-    """(physical_cores, logical_cores, threads_per_core) 반환.
+    """Return (physical_cores, logical_cores, threads_per_core).
 
-    i9-12900KF 같은 하이브리드(P+E) 아키텍처는 logical/physical이
-    정수로 나누어지지 않을 수 있으므로, logical 기준으로 헤더를 만들고
-    /proc/cpuinfo 기반으로 physical→logical 매핑을 시도한다.
+    Hybrid (P+E) architectures like i9-12900KF may not have logical/physical
+    as an exact integer ratio, so we build headers based on logical count
+    and attempt a physical->logical mapping via /proc/cpuinfo.
     """
     logical = psutil.cpu_count(logical=True) or 1
     physical = psutil.cpu_count(logical=False) or logical
-    # 안전하게: logical이 physical의 배수가 아니면 tpc=1로 처리
+    # Safe fallback: if logical is not a multiple of physical, use tpc=1
     if logical % physical == 0:
         tpc = logical // physical
     else:
-        tpc = 1  # 하이브리드 아키텍처 — 논리 코어를 물리 코어로 취급
+        tpc = 1  # Hybrid architecture — treat logical cores as physical cores
     return physical, logical, tpc
 
 
 def _sample_cpu_per_physical(logical_percents: list[float], tpc: int) -> list[float]:
-    """논리 코어 목록을 HT 쌍으로 묶어 물리 코어별 평균 반환.
+    """Group logical cores into HT pairs and return per-physical-core averages.
 
-    tpc=1 이면 논리 코어 = 물리 코어로 그대로 반환.
-    하이브리드 아키텍처(P+E)에서는 실제 논리 코어 수를 그대로 사용.
+    If tpc=1, logical cores are treated as physical cores and returned as-is.
+    For hybrid (P+E) architectures, the actual logical core count is used directly.
     """
     if tpc == 1:
         return list(logical_percents)
@@ -110,7 +112,7 @@ def _sample_cpu_per_physical(logical_percents: list[float], tpc: int) -> list[fl
 
 
 # ---------------------------------------------------------------------------
-# CSV 헤더 생성
+# CSV header construction
 # ---------------------------------------------------------------------------
 
 def _build_gpu_header(gpu_count: int) -> list[str]:
@@ -128,7 +130,7 @@ def _build_gpu_header(gpu_count: int) -> list[str]:
 
 
 def _build_cpu_header(num_cpu_cols: int) -> list[str]:
-    """num_cpu_cols: _sample_cpu_per_physical 이 반환하는 실제 컬럼 수."""
+    """num_cpu_cols: actual column count returned by _sample_cpu_per_physical."""
     base = ["timestamp", "elapsed_s"]
     for i in range(num_cpu_cols):
         base.append(f"core{i}_util_pct")
@@ -137,7 +139,7 @@ def _build_cpu_header(num_cpu_cols: int) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 메인 모니터 루프
+# Main monitor loop
 # ---------------------------------------------------------------------------
 
 def monitor(output_prefix: str, interval: float):
@@ -150,7 +152,7 @@ def monitor(output_prefix: str, interval: float):
     gpu_csv_path = f"{output_prefix}_gpu.csv"
     cpu_csv_path = f"{output_prefix}_cpu.csv"
 
-    # 헤더 컬럼 수를 실제 샘플에서 결정 (하이브리드 아키텍처 대응)
+    # Determine header column count from actual sample (handles hybrid architectures)
     _first_logical = psutil.cpu_percent(percpu=True)
     time.sleep(0.1)
     _first_logical = psutil.cpu_percent(percpu=True)
@@ -168,7 +170,7 @@ def monitor(output_prefix: str, interval: float):
     print(f"[monitor] interval={interval}s")
     print(f"[monitor] GPU CSV → {gpu_csv_path}")
     print(f"[monitor] CPU CSV → {cpu_csv_path}")
-    print("[monitor] SIGINT/SIGTERM으로 종료")
+    print("[monitor] Send SIGINT/SIGTERM to stop")
 
     start_time = time.monotonic()
     running = True
@@ -176,12 +178,12 @@ def monitor(output_prefix: str, interval: float):
     def _stop(signum, frame):
         nonlocal running
         running = False
-        print("\n[monitor] 종료 신호 수신, 파일 닫는 중...")
+        print("\n[monitor] Stop signal received, closing files...")
 
     signal.signal(signal.SIGINT, _stop)
     signal.signal(signal.SIGTERM, _stop)
 
-    time.sleep(max(0, interval - 0.1))  # 위에서 이미 초기 샘플 수집함
+    time.sleep(max(0, interval - 0.1))  # Initial sample already collected above
 
     with open(gpu_csv_path, "w", newline="") as gpu_f, \
          open(cpu_csv_path, "w", newline="") as cpu_f:
@@ -192,7 +194,7 @@ def monitor(output_prefix: str, interval: float):
         cpu_writer.writeheader()
 
         while running:
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            ts = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
             elapsed = round(time.monotonic() - start_time, 3)
 
             # --- GPU ---
@@ -213,7 +215,7 @@ def monitor(output_prefix: str, interval: float):
 
             gpu_row["gpu_avg_util_pct"] = round(sum(util_list) / len(util_list), 2) if util_list else 0.0
             gpu_row["gpu_avg_mem_util_pct"] = round(sum(mem_util_list) / len(mem_util_list), 2) if mem_util_list else 0.0
-            gpu_row["gpu_avg_power_w"] = round(sum(power_list), 2)  # 전체 합계
+            gpu_row["gpu_avg_power_w"] = round(sum(power_list), 2)  # Total sum
 
             gpu_writer.writerow(gpu_row)
             gpu_f.flush()
@@ -236,7 +238,7 @@ def monitor(output_prefix: str, interval: float):
 
             time.sleep(interval)
 
-    print(f"[monitor] 저장 완료: {gpu_csv_path}, {cpu_csv_path}")
+    print(f"[monitor] Saved: {gpu_csv_path}, {cpu_csv_path}")
 
 
 # ---------------------------------------------------------------------------

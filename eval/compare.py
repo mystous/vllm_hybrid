@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
 """
-compare.py — GPU-only vs Hybrid 벤치마크 비교 리포트 생성
+compare.py — GPU-only vs Hybrid benchmark comparison report generator
 
-사용법:
+Usage:
     python compare.py [--results-dir results] [--gpu-label gpu_only] [--hybrid-label hybrid]
 
-출력:
-    results/comparison.txt  — 텍스트 리포트
-    results/comparison.json — JSON 요약
-    (콘솔에도 출력)
+Output:
+    results/comparison.txt  — Text report
+    results/comparison.json — JSON summary
+    (also printed to console)
 """
 import argparse
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+KST = timezone(timedelta(hours=9))
 from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
-# 벤치마크 JSON 로드
+# Benchmark JSON loader
 # ---------------------------------------------------------------------------
 
 BENCH_KEYS = {
@@ -41,18 +43,18 @@ BENCH_KEYS = {
 
 def load_bench(path: Path) -> dict:
     if not path.exists():
-        print(f"[ERROR] 파일 없음: {path}", file=sys.stderr)
+        print(f"[ERROR] File not found: {path}", file=sys.stderr)
         sys.exit(1)
     with open(path) as f:
         return json.load(f)
 
 
 # ---------------------------------------------------------------------------
-# 모니터링 CSV 요약 통계
+# Monitor CSV summary statistics
 # ---------------------------------------------------------------------------
 
 def summarize_monitor_csv(csv_path: Path) -> dict | None:
-    """GPU 또는 CPU CSV를 읽어 평균/최대 요약 반환."""
+    """Read GPU or CPU CSV and return mean/max summary."""
     if not csv_path.exists():
         return None
     try:
@@ -81,12 +83,12 @@ def summarize_monitor_csv(csv_path: Path) -> dict | None:
         summary["duration_s"] = round(float(rows[-1]["elapsed_s"]) - float(rows[0]["elapsed_s"]), 1) if len(rows) > 1 else 0.0
         return summary
     except Exception as e:
-        print(f"[WARN] CSV 분석 실패 ({csv_path.name}): {e}")
+        print(f"[WARN] CSV analysis failed ({csv_path.name}): {e}")
         return None
 
 
 # ---------------------------------------------------------------------------
-# 비교 리포트 생성
+# Comparison report builder
 # ---------------------------------------------------------------------------
 
 def build_report(gpu_data: dict, hyb_data: dict,
@@ -96,7 +98,7 @@ def build_report(gpu_data: dict, hyb_data: dict,
 
     lines = []
     result_json = {
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": datetime.now(KST).isoformat(),
         "gpu_only": {},
         "hybrid": {},
         "comparison": {},
@@ -104,14 +106,14 @@ def build_report(gpu_data: dict, hyb_data: dict,
         "cpu_utilization": {},
     }
 
-    # --- 헤더 ---
+    # --- Header ---
     lines.append("=" * 70)
     lines.append("  vLLM Hybrid Benchmark Comparison Report")
-    lines.append(f"  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"  Generated: {datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S KST')}")
     lines.append("=" * 70)
     lines.append("")
 
-    # --- 환경 정보 ---
+    # --- Environment info ---
     def _env(data: dict) -> str:
         parts = []
         if "model_id" in data:
@@ -124,9 +126,9 @@ def build_report(gpu_data: dict, hyb_data: dict,
     lines.append(f"  Hybrid    : {_env(hyb_data)}")
     lines.append("")
 
-    # --- 메트릭 비교 테이블 ---
+    # --- Metrics comparison table ---
     lines.append("-" * 70)
-    lines.append(f"  {'지표':<40} {'GPU Only':>10} {'Hybrid':>10} {'차이':>8}")
+    lines.append(f"  {'Metric':<40} {'GPU Only':>10} {'Hybrid':>10} {'Diff':>8}")
     lines.append("-" * 70)
 
     for key, (label, direction) in BENCH_KEYS.items():
@@ -141,7 +143,7 @@ def build_report(gpu_data: dict, hyb_data: dict,
         else:
             marker = "▼" if diff_pct > 1 else ("▲" if diff_pct < -1 else "~")
 
-        # 단위별 포맷
+        # Format by unit (width handled outside f-string for alignment)
         if "throughput" in key:
             fmt = ".1f"
         elif "duration" in key:
@@ -149,8 +151,10 @@ def build_report(gpu_data: dict, hyb_data: dict,
         else:
             fmt = ".2f"
 
+        g_str = format(g_val, fmt)
+        h_str = format(h_val, fmt)
         lines.append(
-            f"  {label:<40} {g_val:{fmt}>10} {h_val:{fmt}>10} {diff_pct:+.1f}% {marker}"
+            f"  {label:<40} {g_str:>10} {h_str:>10} {diff_pct:+.1f}% {marker}"
         )
 
         result_json["gpu_only"][key] = g_val
@@ -160,7 +164,7 @@ def build_report(gpu_data: dict, hyb_data: dict,
     lines.append("-" * 70)
     lines.append("")
 
-    # --- 핵심 요약 ---
+    # --- Key summary ---
     req_g = gpu_data.get("request_throughput", 0)
     req_h = hyb_data.get("request_throughput", 0)
     tok_g = gpu_data.get("output_throughput", 0)
@@ -172,7 +176,7 @@ def build_report(gpu_data: dict, hyb_data: dict,
     tok_speedup = tok_h / tok_g if tok_g > 0 else 0
     ttft_gain = (1 - ttft_h / ttft_g) * 100 if ttft_g > 0 else 0
 
-    lines.append("  [핵심 요약]")
+    lines.append("  [Key Summary]")
     lines.append(f"  Request throughput: {req_g:.2f} → {req_h:.2f} req/s  ({speedup:.1%})")
     lines.append(f"  Output tok/s:       {tok_g:.0f} → {tok_h:.0f} tok/s  ({tok_speedup:.1%})")
     lines.append(f"  Mean TTFT gain:     {ttft_gain:+.1f}%")
@@ -182,10 +186,10 @@ def build_report(gpu_data: dict, hyb_data: dict,
     result_json["comparison"]["output_tok_speedup"] = round(tok_speedup, 4)
     result_json["comparison"]["ttft_gain_pct"] = round(ttft_gain, 2)
 
-    # --- GPU/CPU 활용률 요약 ---
+    # --- GPU/CPU utilization summary ---
     def _format_mon(label: str, mon: dict | None, lines: list, key: str):
         if not mon:
-            lines.append(f"  {label}: 데이터 없음 (monitor CSV 미존재)")
+            lines.append(f"  {label}: No data (monitor CSV not found)")
             return
         lines.append(f"  {label} ({mon.get('sample_count', 0)} samples, {mon.get('duration_s', 0)}s):")
         util_avg_keys = [k for k in mon if k.endswith("_util_pct") and "avg" in k]
@@ -203,14 +207,14 @@ def build_report(gpu_data: dict, hyb_data: dict,
             lines.append(f"    {k:<30} avg={v['mean']:6.1f}W  max={v['max']:6.1f}W")
 
     lines.append("-" * 70)
-    lines.append("  [GPU 활용률]")
+    lines.append("  [GPU Utilization]")
     _format_mon("GPU-only", gpu_mon_gpu, lines, "gpu_only")
     lines.append("")
     _format_mon("Hybrid  ", hyb_mon_gpu, lines, "hybrid")
     lines.append("")
 
     lines.append("-" * 70)
-    lines.append("  [CPU 활용률]")
+    lines.append("  [CPU Utilization]")
     _format_mon("GPU-only", gpu_mon_cpu, lines, "gpu_only")
     lines.append("")
     _format_mon("Hybrid  ", hyb_mon_cpu, lines, "hybrid")
@@ -267,9 +271,9 @@ def main():
     with open(json_path, "w") as f:
         json.dump(report_json, f, indent=2, ensure_ascii=False)
 
-    print(f"\n[compare] 저장 완료:")
-    print(f"  텍스트 → {txt_path}")
-    print(f"  JSON   → {json_path}")
+    print(f"\n[compare] Saved:")
+    print(f"  Text → {txt_path}")
+    print(f"  JSON → {json_path}")
 
 
 if __name__ == "__main__":

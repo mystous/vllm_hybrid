@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# serve.sh — vLLM 서버 시작 스크립트
-# 사용법:
-#   ./serve.sh gpu_only → GPU-only 서버
-#   ./serve.sh hybrid   → Hybrid (GPU+CPU) 서버
+# serve.sh — vLLM server startup script
+# Usage:
+#   ./serve.sh gpu_only → GPU-only server
+#   ./serve.sh hybrid   → Hybrid (GPU+CPU) server
 # =============================================================================
 set -euo pipefail
 
@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/.env"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-    echo "[ERROR] .env 파일을 찾을 수 없습니다: $ENV_FILE" >&2
+    echo "[ERROR] .env file not found: $ENV_FILE" >&2
     exit 1
 fi
 
@@ -24,12 +24,12 @@ if [[ "$MODE" != "gpu_only" && "$MODE" != "hybrid" ]]; then
     exit 1
 fi
 
-# 환경변수 설정
+# Set environment variables
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
 
 echo "============================================================"
-echo " vLLM 서버 시작: MODE=${MODE}"
+echo " vLLM server starting: MODE=${MODE}"
 echo " MODEL=${MODEL}"
 echo " PORT=${PORT}"
 echo "============================================================"
@@ -55,7 +55,7 @@ elif [[ "$MODE" == "hybrid" ]]; then
         NUMA_FLAG="--no-hybrid-numa-aware"
     fi
 
-    # 0이면 auto (--hybrid-cpu-* 0은 _resolve_cpu_params가 자동 감지)
+    # If 0, use auto (--hybrid-cpu-* 0 lets _resolve_cpu_params auto-detect)
     CPU_MAX_SEQS_ARG=""
     CPU_KVCACHE_ARG=""
     CPU_THREADS_ARG=""

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# benchmark.sh — vLLM 벤치마크 실행 스크립트
-# 사용법:
+# benchmark.sh — vLLM benchmark execution script
+# Usage:
 #   ./benchmark.sh <label>
-#   label: gpu_only | hybrid  (결과 파일명 prefix로 사용)
+#   label: gpu_only | hybrid  (used as result filename prefix)
 # =============================================================================
 set -euo pipefail
 
@@ -12,7 +12,7 @@ ENV_FILE="${SCRIPT_DIR}/.env"
 VLLM_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-    echo "[ERROR] .env 파일을 찾을 수 없습니다: $ENV_FILE" >&2
+    echo "[ERROR] .env file not found: $ENV_FILE" >&2
     exit 1
 fi
 
@@ -34,7 +34,7 @@ RESULT_FILE="${RESULTS_DIR}/${LABEL}.json"
 LOG_FILE="${RESULTS_DIR}/${LABEL}_bench.log"
 
 echo "============================================================"
-echo " 벤치마크 시작: LABEL=${LABEL}"
+echo " Benchmark starting: LABEL=${LABEL}"
 echo " MODEL=${MODEL}, NUM_PROMPTS=${NUM_PROMPTS}"
 echo " INPUT_LEN=${INPUT_LEN}, OUTPUT_LEN=${OUTPUT_LEN}"
 echo " RESULT → ${RESULT_FILE}"
@@ -53,4 +53,4 @@ python "${VLLM_ROOT}/benchmarks/benchmark_serving.py" \
     --result-filename "${RESULT_FILE}" \
     2>&1 | tee "${LOG_FILE}"
 
-echo "[benchmark.sh] 완료: ${RESULT_FILE}"
+echo "[benchmark.sh] Done: ${RESULT_FILE}"
