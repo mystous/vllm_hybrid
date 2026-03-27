@@ -439,6 +439,9 @@ class EngineArgs:
     hybrid_stats_log_interval: int = 50
     """Log router statistics every N finished requests (0=disable)."""
 
+    hybrid_num_cpu_engines: int = 1
+    """Number of CPU engine processes. 1=single (default), 2=per-NUMA-node."""
+
     show_hidden_metrics_for_version: Optional[str] = \
         ObservabilityConfig.show_hidden_metrics_for_version
     otlp_traces_endpoint: Optional[str] = \
@@ -1002,6 +1005,13 @@ class EngineArgs:
             help="Log router throughput statistics every N finished "
                  "requests. 0 disables periodic logging. (default: 50)"
         )
+        hybrid_group.add_argument(
+            '--hybrid-num-cpu-engines',
+            type=int,
+            default=1,
+            help="Number of CPU engine processes. 1=single CPU engine (default), "
+                 "2=one CPU engine per NUMA node (for dual-socket Xeon). (default: 1)"
+        )
 
         return parser
 
@@ -1510,6 +1520,7 @@ class EngineArgs:
             cpu_prefill_threshold=self.hybrid_cpu_prefill_threshold,
             warmup_requests=self.hybrid_warmup_requests,
             stats_log_interval=self.hybrid_stats_log_interval,
+            num_cpu_engines=self.hybrid_num_cpu_engines,
         )
 
         config = VllmConfig(

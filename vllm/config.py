@@ -4662,6 +4662,10 @@ class HybridConfig:
     stats_log_interval: int = 50
     """라우터 통계를 로깅할 완료 요청 간격. 0이면 비활성화."""
 
+    num_cpu_engines: int = 1
+    """CPU 엔진 프로세스 수. 1이면 단일 CPU 엔진 (기존 동작).
+    2이면 NUMA 노드별 CPU 엔진 2개 (예: Xeon 듀얼소켓)."""
+
     def __post_init__(self):
         valid_strategies = ("capacity", "length-aware", "throughput-adaptive")
         if self.routing_strategy not in valid_strategies:

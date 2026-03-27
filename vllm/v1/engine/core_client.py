@@ -1356,8 +1356,9 @@ class _HybridEngineLauncherMixin:
     def _compute_core_engines(
         self, vllm_config: VllmConfig,
     ) -> tuple[list[EngineIdentity], list[int]]:
-        # GPU: engine_index=0, CPU: engine_index=1
-        engine_ranks = [0, 1]
+        # GPU: engine_index=0, CPU_i: engine_index=i+1
+        num_cpu = max(1, vllm_config.hybrid_config.num_cpu_engines)
+        engine_ranks = list(range(1 + num_cpu))  # [0, 1, ..., num_cpu]
         core_engines = [
             rank.to_bytes(2, "little") for rank in engine_ranks
         ]
@@ -1395,12 +1396,14 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
         self._hybrid_router = CapacityAwareRouter(
             resolved.cpu_max_num_seqs,
             gpu_max_num_seqs=gpu_max_num_seqs,
+            num_cpu_engines=hybrid_config.num_cpu_engines,
             routing_strategy=hybrid_config.routing_strategy,
             cpu_prefill_threshold=hybrid_config.cpu_prefill_threshold,
             warmup_requests=hybrid_config.warmup_requests,
             stats_log_interval=hybrid_config.stats_log_interval,
         )
-        self._hybrid_reqs_in_flight: dict[str, EngineIdentity] = {}
+        # (engine_identity, engine_path) 튜플 저장
+        self._hybrid_reqs_in_flight: dict[str, tuple[EngineIdentity, str]] = {}
         self._hybrid_req_token_counts: dict[str, int] = {}
 
         # 부모 초기화 (_HybridEngineLauncherMixin이 MRO에서
@@ -1414,7 +1417,17 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
 
     @property
     def _cpu_engine(self) -> EngineIdentity:
+        """단일 CPU 엔진 (backward compat). 첫 번째 CPU 엔진 반환."""
         return self.core_engines[1]  # engine_index=1
+
+    @property
+    def _cpu_engines(self) -> list[EngineIdentity]:
+        """모든 CPU 엔진 목록 (core_engines[1:])."""
+        return self.core_engines[1:]
+
+    @property
+    def _cpu_engines_set(self) -> set:
+        return set(self.core_engines[1:])
 
     async def add_request_async(self, request: EngineCoreRequest) -> None:
         request.client_index = self.client_index
@@ -1424,12 +1437,17 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
                       and request.prompt_token_ids else 0)
         path = self._hybrid_router.route(request.request_id,
                                          prompt_len=prompt_len)
-        if path == "cpu":
-            engine = self._cpu_engine
+        if path.startswith("cpu"):
+            try:
+                cpu_idx = int(path.split(":")[1])
+            except (IndexError, ValueError):
+                cpu_idx = 0
+            engine = self._cpu_engines[cpu_idx] if cpu_idx < len(self._cpu_engines) \
+                else self._cpu_engine
         else:
             engine = self._gpu_engine
 
-        self._hybrid_reqs_in_flight[request.request_id] = engine
+        self._hybrid_reqs_in_flight[request.request_id] = (engine, path)
         await self._send_input(EngineCoreRequestType.ADD, request, engine)
         self._ensure_output_queue_task()
 
@@ -1439,7 +1457,8 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
 
         by_engine = defaultdict[EngineIdentity, list[str]](list)
         for req_id in request_ids:
-            engine = self._hybrid_reqs_in_flight.get(req_id, self._gpu_engine)
+            entry = self._hybrid_reqs_in_flight.get(req_id)
+            engine = entry[0] if entry is not None else self._gpu_engine
             by_engine[engine].append(req_id)
 
         for engine, req_ids in by_engine.items():
@@ -1465,12 +1484,12 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
         # 완료된 요청 처리
         if outputs.finished_requests and self._hybrid_reqs_in_flight:
             for req_id in outputs.finished_requests:
-                engine = self._hybrid_reqs_in_flight.pop(req_id, None)
+                entry = self._hybrid_reqs_in_flight.pop(req_id, None)
                 num_tokens = self._hybrid_req_token_counts.pop(req_id, 0)
-                if engine is not None:
-                    was_cpu = (engine == self._cpu_engine)
+                if entry is not None:
+                    _engine, engine_path = entry
                     self._hybrid_router.on_request_finished(
-                        req_id, was_cpu, num_tokens=num_tokens)
+                        req_id, engine_path, num_tokens=num_tokens)
 
     async def call_utility_async(self, method: str, *args) -> Any:
         # Utility 호출은 GPU 엔진에만 전송
@@ -1497,12 +1516,14 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
         self._hybrid_router = CapacityAwareRouter(
             resolved.cpu_max_num_seqs,
             gpu_max_num_seqs=gpu_max_num_seqs,
+            num_cpu_engines=hybrid_config.num_cpu_engines,
             routing_strategy=hybrid_config.routing_strategy,
             cpu_prefill_threshold=hybrid_config.cpu_prefill_threshold,
             warmup_requests=hybrid_config.warmup_requests,
             stats_log_interval=hybrid_config.stats_log_interval,
         )
-        self._hybrid_reqs_in_flight: dict[str, EngineIdentity] = {}
+        # (engine_identity, engine_path) 튜플 저장
+        self._hybrid_reqs_in_flight: dict[str, tuple[EngineIdentity, str]] = {}
         self._hybrid_req_token_counts: dict[str, int] = {}
 
         super().__init__(vllm_config, executor_class, log_stats)
@@ -1513,7 +1534,17 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
 
     @property
     def _cpu_engine(self) -> EngineIdentity:
+        """단일 CPU 엔진 (backward compat). 첫 번째 CPU 엔진 반환."""
         return self.core_engines[1]
+
+    @property
+    def _cpu_engines(self) -> list[EngineIdentity]:
+        """모든 CPU 엔진 목록 (core_engines[1:])."""
+        return self.core_engines[1:]
+
+    @property
+    def _cpu_engines_set(self) -> set:
+        return set(self.core_engines[1:])
 
     def _send_input(self, request_type: EngineCoreRequestType, request: Any,
                     engine: Optional[EngineIdentity] = None):
@@ -1544,12 +1575,12 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
         # 완료된 요청의 CPU 슬롯 반환 및 처리량 업데이트
         if outputs.finished_requests and self._hybrid_reqs_in_flight:
             for req_id in outputs.finished_requests:
-                engine = self._hybrid_reqs_in_flight.pop(req_id, None)
+                entry = self._hybrid_reqs_in_flight.pop(req_id, None)
                 num_tokens = self._hybrid_req_token_counts.pop(req_id, 0)
-                if engine is not None:
-                    was_cpu = (engine == self._cpu_engine)
+                if entry is not None:
+                    _engine, engine_path = entry
                     self._hybrid_router.on_request_finished(
-                        req_id, was_cpu, num_tokens=num_tokens)
+                        req_id, engine_path, num_tokens=num_tokens)
         return outputs
 
     def add_request(self, request: EngineCoreRequest) -> None:
@@ -1558,11 +1589,16 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
                       and request.prompt_token_ids else 0)
         path = self._hybrid_router.route(request.request_id,
                                          prompt_len=prompt_len)
-        if path == "cpu":
-            engine = self._cpu_engine
+        if path.startswith("cpu"):
+            try:
+                cpu_idx = int(path.split(":")[1])
+            except (IndexError, ValueError):
+                cpu_idx = 0
+            engine = self._cpu_engines[cpu_idx] if cpu_idx < len(self._cpu_engines) \
+                else self._cpu_engine
         else:
             engine = self._gpu_engine
-        self._hybrid_reqs_in_flight[request.request_id] = engine
+        self._hybrid_reqs_in_flight[request.request_id] = (engine, path)
         self._send_input(EngineCoreRequestType.ADD, request, engine)
 
     def abort_requests(self, request_ids: list[str]) -> None:
@@ -1571,8 +1607,8 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
 
         by_engine = defaultdict[EngineIdentity, list[str]](list)
         for req_id in request_ids:
-            engine = self._hybrid_reqs_in_flight.get(
-                req_id, self._gpu_engine)
+            entry = self._hybrid_reqs_in_flight.get(req_id)
+            engine = entry[0] if entry is not None else self._gpu_engine
             by_engine[engine].append(req_id)
 
         for engine, req_ids in by_engine.items():

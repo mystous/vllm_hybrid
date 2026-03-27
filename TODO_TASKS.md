@@ -1,7 +1,7 @@
 # vLLM Hybrid - Code Tasks
 
 > 논문/문서 작업 제외, 코드 관련 완료 항목 및 할 일 정리
-> 마지막 업데이트: 2026-03-27
+> 마지막 업데이트: 2026-03-27 (세션 7)
 
 ---
 
@@ -105,6 +105,11 @@
 | I4 | CPU 워커에서 Mamba/Triton 초기화 방지 (lazy import) | `gpu_model_runner.py` | 2026-02-20 |
 | I5 | `compute_qk_batch16` 미사용 스텁 함수 제거 | `batch_attention.cpp` | 2026-03-10 |
 | I6 | ParallelBatchExecutor deprecated 표시 | `parallel_batch_executor.py` | 2026-03-10 |
+| I7 | **IPEX 버전 불일치 수정** (2.8→2.7, PyTorch 2.7 호환) | 환경 | 2026-03-27 |
+| I8 | **CPU-first → GPU-first 라우팅 수정** (`gpu_in_flight` 카운터 추가, GPU 포화 시에만 CPU overflow) | `hybrid_core.py`, `core_client.py` | 2026-03-27 |
+| I9 | **IPEX BF16 fallback** (FP16 weight prepack 실패 시 `weights_prepack=False` 재시도) | `intel_cpu_utils.py` | 2026-03-27 |
+| I10 | **`_use_ipex` lazy 평가** (`lru_cache` 기반, fork 시 부모 임포트 타이밍 영향 차단) | `cpu_attn.py` | 2026-03-27 |
+| I11 | **명시적 `model.to(dtype)` 제거** (IPEX에 dtype 변환 위임, `model_config.dtype` 불일치 해소) | `cpu_model_runner.py` | 2026-03-27 |
 
 ---
 
@@ -114,8 +119,8 @@
 
 | # | 작업 | 상세 | 관련 파일 |
 |---|------|------|-----------|
-| T1 | **실제 H100 환경 벤치마크** | GPU/CPU throughput 실측, Roofline 검증, 논문 Table 값 실증 | 벤치마크 스크립트 필요 |
-| T2 | **GPU throughput 프로파일링 개선** | 현재 워밍업 기반 측정 부정확 → GPU executor 직접 측정 필요 (`HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md` 912-920줄 TODO) | `hybrid_core.py` |
+| T1 | **H100 환경 벤치마크** ⚡ | 개발환경(i9) 실측 완료. H100+Xeon 8480+ 환경에서 GPU-only vs Hybrid 실측 필요, 논문 Table 값 실증 | `BENCHMARK_RESULTS.md` |
+| T2 | **GPU throughput 프로파일링 개선** | 현재 워밍업 기반 측정 부정확 → GPU executor 직접 측정 필요 | `hybrid_core.py` |
 | T3 | **통합 테스트 확대** | 현재 30개 단위 테스트 → E2E 테스트 (실제 모델 로딩, 추론, 결과 검증) 필요 | `tests/` |
 | T4 | **디버그 print 문 정리** | `DEBUG_AG` prefix print 다수 존재 → logger 전환 또는 제거 | `multiproc_executor.py`, `parallel_state.py`, `gpu_model_runner.py`, `worker.py` |
 
@@ -153,6 +158,8 @@
 | K5 | 모델 가중치 이중 로딩 (~70GB, startup 2배) | 논문에 명시 | T12에서 최적화 계획 |
 | K6 | DGX H100 single-socket NUMA에서 DDR5 경합 가능 | 논문에 caveat 추가 | 멀티소켓 환경 권장 |
 | K7 | p99 TTFT 바운딩 어려움 (CPU/GPU 혼합) | 논문에 명시 | SLO 민감 워크로드 주의 |
+| K8 | AVX2-only CPU(i9-12900KF)에서 IPEX weight prepack 불가 | `weights_prepack=False` fallback으로 동작 | Xeon 8480+에서 정상 |
+| K9 | 개발환경(i9)에서 Hybrid가 GPU-only 대비 -4% (CPU 기여 미미) | `cpu_max_num_seqs=4`, AVX2만 지원 | H100 서버에서 재측정 필요 |
 
 ---
 

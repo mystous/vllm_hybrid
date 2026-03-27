@@ -159,18 +159,30 @@ class CapacityAwareRouter:
 
     def __init__(self, cpu_max_num_seqs: int,
                  gpu_max_num_seqs: int = 256,
+                 num_cpu_engines: int = 1,
                  routing_strategy: str = "capacity",
                  cpu_prefill_threshold: int = 512,
                  warmup_requests: int = 10,
                  stats_log_interval: int = 50):
-        self.cpu_max_num_seqs = cpu_max_num_seqs
+        self.cpu_max_num_seqs = cpu_max_num_seqs  # per-engine
         self.gpu_max_num_seqs = gpu_max_num_seqs
+        self.num_cpu_engines = max(1, num_cpu_engines)
         self.routing_strategy = routing_strategy
         self.cpu_prefill_threshold = cpu_prefill_threshold
+
+        # Per-CPU-engine 상태 (in_flight, count)
+        # 엔진 경로는 "cpu:0", "cpu:1", ... 형식
+        self._cpu_states: list[dict] = [
+            {"in_flight": 0, "count": 0,
+             "total_tokens": 0, "total_elapsed": 0.0, "ema_throughput": 0.0}
+            for _ in range(self.num_cpu_engines)
+        ]
+
+        # Aggregate (backward compat용 + 통계 로깅)
         self.cpu_in_flight: int = 0
+        self.cpu_count: int = 0
         self.gpu_in_flight: int = 0
         self.gpu_count: int = 0
-        self.cpu_count: int = 0
 
         # 실시간 처리량 모니터링
         self._request_start_times: dict[str, float] = {}
@@ -201,10 +213,11 @@ class CapacityAwareRouter:
 
         logger.info(
             "CapacityAwareRouter initialized: gpu_max_num_seqs=%d, "
-            "cpu_max_num_seqs=%d, strategy=%s, prefill_threshold=%d, "
-            "warmup=%d, stats_interval=%d",
+            "cpu_max_num_seqs=%d (per-engine), num_cpu_engines=%d, "
+            "strategy=%s, prefill_threshold=%d, warmup=%d, stats_interval=%d",
             self.gpu_max_num_seqs, self.cpu_max_num_seqs,
-            self.routing_strategy, self.cpu_prefill_threshold,
+            self.num_cpu_engines, self.routing_strategy,
+            self.cpu_prefill_threshold,
             self._warmup_requests, self._stats_log_interval,
         )
         if not self._warmup_complete:
@@ -228,28 +241,52 @@ class CapacityAwareRouter:
         else:  # "capacity" (기본)
             return self._route_capacity(request_id)
 
+    def _find_available_cpu(self) -> int:
+        """여유 슬롯이 가장 많은 CPU 엔진 인덱스 반환. 없으면 -1."""
+        best_idx = -1
+        best_free = 0
+        for i, state in enumerate(self._cpu_states):
+            free = self.cpu_max_num_seqs - state["in_flight"]
+            if free > best_free:
+                best_free = free
+                best_idx = i
+        return best_idx
+
     def _route_capacity(self, request_id: str) -> str:
-        """GPU-first: GPU가 포화 상태일 때만 CPU로 overflow."""
-        if (self.gpu_in_flight < self.gpu_max_num_seqs
-                or self.cpu_in_flight >= self.cpu_max_num_seqs):
-            # GPU에 여유 있거나, CPU도 꽉 찼으면 → GPU
+        """GPU-first: GPU가 포화 상태일 때만 CPU로 overflow.
+
+        다중 CPU 엔진일 경우 여유 슬롯이 가장 많은 CPU 엔진으로 라우팅.
+        반환값: "gpu" | "cpu:0" | "cpu:1" | ...
+        """
+        if self.gpu_in_flight < self.gpu_max_num_seqs:
             self.gpu_in_flight += 1
             self.gpu_count += 1
             return "gpu"
-        # GPU 포화 + CPU 여유 → CPU로 overflow
-        self.cpu_in_flight += 1
-        self.cpu_count += 1
-        return "cpu"
+        # GPU 포화 → 여유 있는 CPU 엔진 탐색
+        best = self._find_available_cpu()
+        if best >= 0:
+            self._cpu_states[best]["in_flight"] += 1
+            self._cpu_states[best]["count"] += 1
+            self.cpu_in_flight += 1
+            self.cpu_count += 1
+            return f"cpu:{best}"
+        # 모든 CPU도 포화 → GPU로 overflow
+        self.gpu_in_flight += 1
+        self.gpu_count += 1
+        return "gpu"
 
     def _route_length_aware(self, request_id: str,
                             prompt_len: int) -> str:
         """GPU-first + 길이 조건: GPU 포화 AND 짧은 프롬프트일 때만 CPU."""
         if (self.gpu_in_flight >= self.gpu_max_num_seqs
-                and self.cpu_in_flight < self.cpu_max_num_seqs
                 and prompt_len <= self.cpu_prefill_threshold):
-            self.cpu_in_flight += 1
-            self.cpu_count += 1
-            return "cpu"
+            best = self._find_available_cpu()
+            if best >= 0:
+                self._cpu_states[best]["in_flight"] += 1
+                self._cpu_states[best]["count"] += 1
+                self.cpu_in_flight += 1
+                self.cpu_count += 1
+                return f"cpu:{best}"
         self.gpu_in_flight += 1
         self.gpu_count += 1
         return "gpu"
@@ -259,19 +296,35 @@ class CapacityAwareRouter:
         """GPU-first + EMA 처리량 기반 동적 CPU 슬롯 조정."""
         effective_max = self._adaptive_cpu_max_seqs
         if (self.gpu_in_flight >= self.gpu_max_num_seqs
-                and self.cpu_in_flight < effective_max
-                and prompt_len <= self.cpu_prefill_threshold):
-            self.cpu_in_flight += 1
-            self.cpu_count += 1
-            return "cpu"
+                and prompt_len <= self.cpu_prefill_threshold
+                and self.cpu_in_flight < effective_max * self.num_cpu_engines):
+            best = self._find_available_cpu()
+            if best >= 0:
+                self._cpu_states[best]["in_flight"] += 1
+                self._cpu_states[best]["count"] += 1
+                self.cpu_in_flight += 1
+                self.cpu_count += 1
+                return f"cpu:{best}"
         self.gpu_in_flight += 1
         self.gpu_count += 1
         return "gpu"
 
-    def on_request_finished(self, request_id: str, was_cpu: bool,
+    def on_request_finished(self, request_id: str, engine_path: str,
                             num_tokens: int = 0):
-        """요청 완료 시 호출. 슬롯 반환 및 처리량 업데이트."""
+        """요청 완료 시 호출. 슬롯 반환 및 처리량 업데이트.
+
+        Args:
+            engine_path: "gpu" | "cpu:0" | "cpu:1" | ...
+        """
+        was_cpu = engine_path.startswith("cpu")
         if was_cpu:
+            try:
+                cpu_idx = int(engine_path.split(":")[1])
+            except (IndexError, ValueError):
+                cpu_idx = 0
+            if 0 <= cpu_idx < len(self._cpu_states):
+                self._cpu_states[cpu_idx]["in_flight"] = max(
+                    0, self._cpu_states[cpu_idx]["in_flight"] - 1)
             self.cpu_in_flight = max(0, self.cpu_in_flight - 1)
         else:
             self.gpu_in_flight = max(0, self.gpu_in_flight - 1)
@@ -851,9 +904,16 @@ def run_cpu_engine_core(*args,
         set_process_title("CPU_EngineCore")
         decorate_logs()
 
+        # numa_node가 kwargs로 전달되면 hybrid_config를 일시적으로 오버라이드
+        hybrid_cfg = vllm_config.hybrid_config
+        numa_node_override = kwargs.get("numa_node", None)
+        if numa_node_override is not None and numa_node_override >= 0:
+            import copy as _copy
+            hybrid_cfg = _copy.replace(hybrid_cfg, numa_bind_node=numa_node_override)
+
         # CPU 파라미터 자동 감지 및 환경 설정 (NUMA/AMX/IPEX 포함)
-        resolved = _resolve_cpu_params(vllm_config.hybrid_config)
-        _setup_cpu_process_env(resolved, vllm_config.hybrid_config)
+        resolved = _resolve_cpu_params(hybrid_cfg)
+        _setup_cpu_process_env(resolved, hybrid_cfg)
 
         # GPU config에서 CPU config 파생 (자동 감지값 사용)
         cpu_config = _create_cpu_vllm_config(vllm_config, resolved)
@@ -866,11 +926,13 @@ def run_cpu_engine_core(*args,
             os.getpid(), cpu_executor_class.__name__,
         )
 
-        # EngineCoreProc 생성 (CPU config 사용, engine_index=1)
+        # EngineCoreProc 생성 (CPU config 사용)
+        # engine_index: 호출자가 kwargs로 전달 (기본값 1)
         cpu_kwargs = dict(kwargs)
         cpu_kwargs["vllm_config"] = cpu_config
         cpu_kwargs["executor_class"] = cpu_executor_class
-        cpu_kwargs["engine_index"] = 1  # CPU는 항상 index 1
+        cpu_kwargs["engine_index"] = kwargs.get("engine_index", 1)
+        # numa_node는 _resolve_cpu_params/_setup_cpu_process_env에서 이미 처리됨
 
         engine_core = EngineCoreProc(**cpu_kwargs)
         engine_core.run_busy_loop()
@@ -970,18 +1032,56 @@ def launch_hybrid_engines(
             kwargs=common_kwargs,
         )
 
-        # CPU 프로세스 스폰 (engine_index=1, CPU 전용 진입점)
-        cpu_proc = context.Process(
-            target=run_cpu_engine_core,
-            name="CPU_EngineCore_1",
-            kwargs=common_kwargs,
-        )
+        # CPU 엔진 수 결정 (기본 1)
+        num_cpu_engines = max(1, vllm_config.hybrid_config.num_cpu_engines)
 
-        manager = HybridEngineProcManager([gpu_proc, cpu_proc])
+        # NUMA 노드 할당 (num_cpu_engines > 1이면 NUMA 노드별로 분배)
+        cpu_numa_nodes: list[int] = []
+        if num_cpu_engines > 1:
+            try:
+                from vllm.platforms.intel_cpu_utils import NUMAAllocator
+                alloc = NUMAAllocator()
+                if alloc.is_available and alloc.num_nodes >= num_cpu_engines:
+                    cpu_numa_nodes = list(range(num_cpu_engines))
+                    logger.info(
+                        "Multi-CPU engines: assigning NUMA nodes %s",
+                        cpu_numa_nodes)
+                else:
+                    cpu_numa_nodes = [-1] * num_cpu_engines
+                    logger.warning(
+                        "NUMA nodes (%d) < num_cpu_engines (%d), "
+                        "disabling per-engine NUMA binding",
+                        alloc.num_nodes if alloc.is_available else 0,
+                        num_cpu_engines)
+            except Exception as e:
+                cpu_numa_nodes = [-1] * num_cpu_engines
+                logger.debug("NUMA detection failed: %s", e)
+        else:
+            cpu_numa_nodes = [-1]  # single CPU engine: use hybrid_config.numa_bind_node
+
+        # CPU 프로세스 스폰 (engine_index=1,2,..., 각 NUMA 노드)
+        cpu_procs = []
+        for i in range(num_cpu_engines):
+            engine_index = i + 1
+            numa_node = cpu_numa_nodes[i] if i < len(cpu_numa_nodes) else -1
+            cpu_proc_kwargs = dict(common_kwargs)
+            cpu_proc_kwargs["engine_index"] = engine_index
+            if numa_node >= 0:
+                cpu_proc_kwargs["numa_node"] = numa_node
+            cpu_proc = context.Process(
+                target=run_cpu_engine_core,
+                name=f"CPU_EngineCore_{engine_index}",
+                kwargs=cpu_proc_kwargs,
+            )
+            cpu_procs.append(cpu_proc)
+
+        all_procs = [gpu_proc] + cpu_procs
+        manager = HybridEngineProcManager(all_procs)
 
         try:
             gpu_proc.start()
-            cpu_proc.start()
+            for cpu_proc in cpu_procs:
+                cpu_proc.start()
         except Exception:
             manager.close()
             raise
@@ -995,16 +1095,14 @@ def launch_hybrid_engines(
 
         yield manager, None, addresses
 
-        # 핸드셰이크 대기 (GPU + CPU = 2개 엔진, 둘 다 local)
+        # 핸드셰이크 대기 (GPU 1 + CPU N = N+1 엔진)
+        total_engines = 1 + num_cpu_engines
         engines_to_handshake = [
-            CoreEngine(index=0, local=True),  # GPU
-            CoreEngine(index=1, local=True),  # CPU
+            CoreEngine(index=i, local=True) for i in range(total_engines)
         ]
 
-        # wait_for_engine_startup는 data_parallel_size_local로 local/remote를
-        # 구분하므로, hybrid 모드에서는 2로 설정하여 두 엔진 모두 local로 처리
         hybrid_parallel = copy.copy(vllm_config.parallel_config)
-        hybrid_parallel.data_parallel_size_local = 2
+        hybrid_parallel.data_parallel_size_local = total_engines
 
         wait_for_engine_startup(
             handshake_socket,
