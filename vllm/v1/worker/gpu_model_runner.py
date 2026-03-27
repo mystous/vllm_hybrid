@@ -75,10 +75,30 @@ from vllm.v1.pool.metadata import PoolingMetadata
 from vllm.v1.sample.metadata import SamplingMetadata
 from vllm.v1.sample.rejection_sampler import RejectionSampler
 from vllm.v1.sample.sampler import Sampler
-from vllm.v1.spec_decode.eagle import EagleProposer
-from vllm.v1.spec_decode.medusa import MedusaProposer
+# Lazy imports for spec_decode modules to avoid triggering CUDA
+# initialization when this module is imported by CPU-only workers.
+# The chain: eagle -> flash_attn -> get_flash_attn_version() calls
+# torch.cuda.get_device_capability() at class definition time,
+# which fails when CUDA_VISIBLE_DEVICES="" in hybrid CPU processes.
 from vllm.v1.spec_decode.metadata import SpecDecodeMetadata
-from vllm.v1.spec_decode.ngram_proposer import NgramProposer
+
+EagleProposer = None
+MedusaProposer = None
+NgramProposer = None
+
+
+def _ensure_spec_decode_imports():
+    global EagleProposer, MedusaProposer, NgramProposer
+    if EagleProposer is None:
+        from vllm.v1.spec_decode.eagle import \
+            EagleProposer as _EagleProposer
+        from vllm.v1.spec_decode.medusa import \
+            MedusaProposer as _MedusaProposer
+        from vllm.v1.spec_decode.ngram_proposer import \
+            NgramProposer as _NgramProposer
+        EagleProposer = _EagleProposer
+        MedusaProposer = _MedusaProposer
+        NgramProposer = _NgramProposer
 from vllm.v1.worker.gpu_input_batch import CachedRequestState, InputBatch
 from vllm.v1.worker.kv_connector_model_runner_mixin import (
     KVConnectorModelRunnerMixin, KVConnectorOutput)
@@ -187,6 +207,7 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
         # the last PP rank. This is not ideal if there are many
         # layers in the draft model.
         if self.speculative_config and get_pp_group().is_last_rank:
+            _ensure_spec_decode_imports()
             if self.speculative_config.method == "ngram":
                 self.drafter = NgramProposer(self.vllm_config)
             elif self.speculative_config.use_eagle():

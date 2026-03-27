@@ -743,10 +743,14 @@ def _create_cpu_vllm_config(
     # 5. ModelConfig: deepcopy (config_updated 플래그 리셋)
     cpu_model = copy.deepcopy(gpu_config.model_config)
     cpu_model.config_updated = False  # CPU용 재검증 허용
+    cpu_model.enforce_eager = True  # CPU에서는 torch.compile 비활성화
 
-    # 6. CompilationConfig: CUDA graph 비활성화 (CpuPlatform이 재설정)
+    # 6. CompilationConfig: CUDA graph 비활성화, 커스텀 ops 비활성화
+    # vLLM 커스텀 ops (rms_norm, silu_and_mul 등)는 CUDA 전용이므로
+    # CPU에서는 PyTorch 네이티브 구현을 사용해야 함
     cpu_compilation = copy.deepcopy(gpu_config.compilation_config)
-    cpu_compilation.level = None  # CpuPlatform이 DYNAMO_ONCE로 재설정
+    cpu_compilation.level = 0  # NO_COMPILATION — 커스텀 ops 우회
+    cpu_compilation.custom_ops = ["none"]  # 모든 커스텀 ops 비활성화
 
     # 7. LoadConfig: CPU 호환 로드
     cpu_load = copy.deepcopy(gpu_config.load_config)

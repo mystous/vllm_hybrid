@@ -98,7 +98,13 @@ class EngineCoreClient(ABC):
     ) -> "MPClient":
         from vllm.v1.engine.hybrid_core import is_hybrid_mode
 
-        if is_hybrid_mode(vllm_config):
+        _is_hybrid = is_hybrid_mode(vllm_config)
+        logger.info("make_async_mp_client: is_hybrid_mode=%s, "
+                     "hybrid_config=%s", _is_hybrid,
+                     getattr(vllm_config, 'hybrid_config', None))
+
+        if _is_hybrid:
+            logger.info("Creating HybridAsyncMPClient for parallel-batch mode")
             return HybridAsyncMPClient(
                 vllm_config, executor_class, log_stats,
                 client_addresses, client_count, client_index)
