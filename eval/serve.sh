@@ -2,24 +2,41 @@
 # =============================================================================
 # serve.sh — vLLM server startup script
 # Usage:
-#   ./serve.sh gpu_only → GPU-only server
-#   ./serve.sh hybrid   → Hybrid (GPU+CPU) server
+#   ./serve.sh <mode> [env_file]
+#   mode    : gpu_only | hybrid
+#   env_file: path to .env config (optional if EVAL_ENV_FILE is set)
+#
+# Examples:
+#   EVAL_ENV_FILE=env/h100x8.env ./serve.sh hybrid
+#   ./serve.sh gpu_only env/dev_rtx3090.env
 # =============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/.env"
 
-if [[ ! -f "$ENV_FILE" ]]; then
-    echo "[ERROR] .env file not found: $ENV_FILE" >&2
+# Resolve env file: arg > EVAL_ENV_FILE env var > default .env
+if [[ -n "${2:-}" ]]; then
+    ENV_ARG="$2"
+    if [[ ! "${ENV_ARG}" = /* ]]; then
+        ENV_ARG="${SCRIPT_DIR}/${ENV_ARG}"
+    fi
+    ENV_FILE="${ENV_ARG}"
+elif [[ -n "${EVAL_ENV_FILE:-}" ]]; then
+    ENV_FILE="${EVAL_ENV_FILE}"
+else
+    ENV_FILE="${SCRIPT_DIR}/.env"
+fi
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+    echo "[ERROR] env file not found: ${ENV_FILE}" >&2
     exit 1
 fi
 
 # shellcheck disable=SC1090
-source "$ENV_FILE"
+source "${ENV_FILE}"
 
 MODE="${1:-gpu_only}"
-if [[ "$MODE" != "gpu_only" && "$MODE" != "hybrid" ]]; then
+if [[ "${MODE}" != "gpu_only" && "${MODE}" != "hybrid" ]]; then
     echo "[ERROR] MODE must be 'gpu_only' or 'hybrid'." >&2
     exit 1
 fi
@@ -32,15 +49,16 @@ echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"
 echo " MODEL=${MODEL}"
 echo " PORT=${PORT}"
+echo " ENV_FILE=${ENV_FILE}"
 echo "============================================================"
 
 TP="${TENSOR_PARALLEL_SIZE:-1}"
 TP_ARGS=""
-if [[ "$TP" -gt 1 ]]; then
+if [[ "${TP}" -gt 1 ]]; then
     TP_ARGS="--tensor-parallel-size ${TP}"
 fi
 
-if [[ "$MODE" == "gpu_only" ]]; then
+if [[ "${MODE}" == "gpu_only" ]]; then
     # shellcheck disable=SC2086
     exec python -m vllm.entrypoints.openai.api_server \
         --model "${MODEL}" \
@@ -49,7 +67,7 @@ if [[ "$MODE" == "gpu_only" ]]; then
         ${TP_ARGS} \
         --disable-log-requests
 
-elif [[ "$MODE" == "hybrid" ]]; then
+elif [[ "${MODE}" == "hybrid" ]]; then
     NUMA_FLAG="--hybrid-numa-aware"
     if [[ "${HYBRID_NUMA_AWARE,,}" == "false" ]]; then
         NUMA_FLAG="--no-hybrid-numa-aware"

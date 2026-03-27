@@ -2,22 +2,39 @@
 # =============================================================================
 # benchmark.sh — vLLM benchmark execution script
 # Usage:
-#   ./benchmark.sh <label>
-#   label: gpu_only | hybrid  (used as result filename prefix)
+#   ./benchmark.sh <label> [env_file]
+#   label   : gpu_only | hybrid  (used as result filename prefix)
+#   env_file: path to .env config (optional if EVAL_ENV_FILE is set)
+#
+# Examples:
+#   EVAL_ENV_FILE=env/h100x8.env ./benchmark.sh gpu_only
+#   ./benchmark.sh hybrid env/dev_rtx3090.env
 # =============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/.env"
 VLLM_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-if [[ ! -f "$ENV_FILE" ]]; then
-    echo "[ERROR] .env file not found: $ENV_FILE" >&2
+# Resolve env file: arg > EVAL_ENV_FILE env var > default .env
+if [[ -n "${2:-}" ]]; then
+    ENV_ARG="$2"
+    if [[ ! "${ENV_ARG}" = /* ]]; then
+        ENV_ARG="${SCRIPT_DIR}/${ENV_ARG}"
+    fi
+    ENV_FILE="${ENV_ARG}"
+elif [[ -n "${EVAL_ENV_FILE:-}" ]]; then
+    ENV_FILE="${EVAL_ENV_FILE}"
+else
+    ENV_FILE="${SCRIPT_DIR}/.env"
+fi
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+    echo "[ERROR] env file not found: ${ENV_FILE}" >&2
     exit 1
 fi
 
 # shellcheck disable=SC1090
-source "$ENV_FILE"
+source "${ENV_FILE}"
 
 LABEL="${1:-benchmark}"
 # EVAL_RUN_DIR is set by run_eval.sh (timestamped subdir).
@@ -25,10 +42,10 @@ LABEL="${1:-benchmark}"
 if [[ -n "${EVAL_RUN_DIR:-}" ]]; then
     RESULTS_DIR="${EVAL_RUN_DIR}"
 else
-    RUN_TS="$(date '+%Y%m%d_%H%M%S')"
+    RUN_TS="$(TZ=Asia/Seoul date '+%Y%m%d_%H%M%S')"
     RESULTS_DIR="${SCRIPT_DIR}/${RESULTS_DIR:-results}/${RUN_TS}"
 fi
-mkdir -p "$RESULTS_DIR"
+mkdir -p "${RESULTS_DIR}"
 
 RESULT_FILE="${RESULTS_DIR}/${LABEL}.json"
 LOG_FILE="${RESULTS_DIR}/${LABEL}_bench.log"
@@ -37,6 +54,7 @@ echo "============================================================"
 echo " Benchmark starting: LABEL=${LABEL}"
 echo " MODEL=${MODEL}, NUM_PROMPTS=${NUM_PROMPTS}"
 echo " INPUT_LEN=${INPUT_LEN}, OUTPUT_LEN=${OUTPUT_LEN}"
+echo " ENV_FILE=${ENV_FILE}"
 echo " RESULT → ${RESULT_FILE}"
 echo "============================================================"
 
