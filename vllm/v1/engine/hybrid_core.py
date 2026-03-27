@@ -158,14 +158,17 @@ class CapacityAwareRouter:
     """
 
     def __init__(self, cpu_max_num_seqs: int,
+                 gpu_max_num_seqs: int = 256,
                  routing_strategy: str = "capacity",
                  cpu_prefill_threshold: int = 512,
                  warmup_requests: int = 10,
                  stats_log_interval: int = 50):
         self.cpu_max_num_seqs = cpu_max_num_seqs
+        self.gpu_max_num_seqs = gpu_max_num_seqs
         self.routing_strategy = routing_strategy
         self.cpu_prefill_threshold = cpu_prefill_threshold
         self.cpu_in_flight: int = 0
+        self.gpu_in_flight: int = 0
         self.gpu_count: int = 0
         self.cpu_count: int = 0
 
@@ -197,11 +200,11 @@ class CapacityAwareRouter:
         self._total_finished: int = 0
 
         logger.info(
-            "CapacityAwareRouter initialized: cpu_max_num_seqs=%d, "
-            "strategy=%s, prefill_threshold=%d, "
+            "CapacityAwareRouter initialized: gpu_max_num_seqs=%d, "
+            "cpu_max_num_seqs=%d, strategy=%s, prefill_threshold=%d, "
             "warmup=%d, stats_interval=%d",
-            self.cpu_max_num_seqs, self.routing_strategy,
-            self.cpu_prefill_threshold,
+            self.gpu_max_num_seqs, self.cpu_max_num_seqs,
+            self.routing_strategy, self.cpu_prefill_threshold,
             self._warmup_requests, self._stats_log_interval,
         )
         if not self._warmup_complete:
@@ -226,42 +229,52 @@ class CapacityAwareRouter:
             return self._route_capacity(request_id)
 
     def _route_capacity(self, request_id: str) -> str:
-        """기존 슬롯 기반 로직 (현재 동작 유지)."""
-        if self.cpu_in_flight < self.cpu_max_num_seqs:
-            self.cpu_in_flight += 1
-            self.cpu_count += 1
-            return "cpu"
-        self.gpu_count += 1
-        return "gpu"
+        """GPU-first: GPU가 포화 상태일 때만 CPU로 overflow."""
+        if (self.gpu_in_flight < self.gpu_max_num_seqs
+                or self.cpu_in_flight >= self.cpu_max_num_seqs):
+            # GPU에 여유 있거나, CPU도 꽉 찼으면 → GPU
+            self.gpu_in_flight += 1
+            self.gpu_count += 1
+            return "gpu"
+        # GPU 포화 + CPU 여유 → CPU로 overflow
+        self.cpu_in_flight += 1
+        self.cpu_count += 1
+        return "cpu"
 
     def _route_length_aware(self, request_id: str,
                             prompt_len: int) -> str:
-        """프롬프트 길이 고려: 긴 프롬프트는 GPU, 짧은 것만 CPU."""
-        if (self.cpu_in_flight < self.cpu_max_num_seqs
+        """GPU-first + 길이 조건: GPU 포화 AND 짧은 프롬프트일 때만 CPU."""
+        if (self.gpu_in_flight >= self.gpu_max_num_seqs
+                and self.cpu_in_flight < self.cpu_max_num_seqs
                 and prompt_len <= self.cpu_prefill_threshold):
             self.cpu_in_flight += 1
             self.cpu_count += 1
             return "cpu"
+        self.gpu_in_flight += 1
         self.gpu_count += 1
         return "gpu"
 
     def _route_throughput_adaptive(self, request_id: str,
                                    prompt_len: int) -> str:
-        """EMA 처리량 기반 동적 슬롯 조정."""
+        """GPU-first + EMA 처리량 기반 동적 CPU 슬롯 조정."""
         effective_max = self._adaptive_cpu_max_seqs
-        if (self.cpu_in_flight < effective_max
+        if (self.gpu_in_flight >= self.gpu_max_num_seqs
+                and self.cpu_in_flight < effective_max
                 and prompt_len <= self.cpu_prefill_threshold):
             self.cpu_in_flight += 1
             self.cpu_count += 1
             return "cpu"
+        self.gpu_in_flight += 1
         self.gpu_count += 1
         return "gpu"
 
     def on_request_finished(self, request_id: str, was_cpu: bool,
                             num_tokens: int = 0):
-        """요청 완료 시 호출. CPU 슬롯 반환 및 처리량 업데이트."""
+        """요청 완료 시 호출. 슬롯 반환 및 처리량 업데이트."""
         if was_cpu:
             self.cpu_in_flight = max(0, self.cpu_in_flight - 1)
+        else:
+            self.gpu_in_flight = max(0, self.gpu_in_flight - 1)
 
         # 처리량 측정: 시작 시간이 있고 토큰이 생성된 경우에만
         start = self._request_start_times.pop(request_id, None)

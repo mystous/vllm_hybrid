@@ -1391,8 +1391,10 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
         # CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
         hybrid_config = vllm_config.hybrid_config
         resolved = _resolve_cpu_params(hybrid_config)
+        gpu_max_num_seqs = vllm_config.scheduler_config.max_num_seqs
         self._hybrid_router = CapacityAwareRouter(
             resolved.cpu_max_num_seqs,
+            gpu_max_num_seqs=gpu_max_num_seqs,
             routing_strategy=hybrid_config.routing_strategy,
             cpu_prefill_threshold=hybrid_config.cpu_prefill_threshold,
             warmup_requests=hybrid_config.warmup_requests,
@@ -1491,8 +1493,10 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
         # CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
         hybrid_config = vllm_config.hybrid_config
         resolved = _resolve_cpu_params(hybrid_config)
+        gpu_max_num_seqs = vllm_config.scheduler_config.max_num_seqs
         self._hybrid_router = CapacityAwareRouter(
             resolved.cpu_max_num_seqs,
+            gpu_max_num_seqs=gpu_max_num_seqs,
             routing_strategy=hybrid_config.routing_strategy,
             cpu_prefill_threshold=hybrid_config.cpu_prefill_threshold,
             warmup_requests=hybrid_config.warmup_requests,

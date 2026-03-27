@@ -868,7 +868,19 @@ def optimize_model_with_ipex(model: torch.nn.Module, dtype: torch.dtype = torch.
         )
         logger.info(f"Model optimized with IPEX (dtype={dtype})")
     except Exception as e:
-        logger.warning(f"IPEX optimization failed: {e}")
+        logger.warning(f"IPEX optimization failed: {e}, "
+                       f"retrying with weights_prepack=False")
+        try:
+            model = ipex.optimize(
+                model,
+                dtype=dtype,
+                inplace=True,
+                weights_prepack=False,
+            )
+            logger.info(f"Model optimized with IPEX (dtype={dtype}, "
+                        f"weights_prepack=False)")
+        except Exception as e2:
+            logger.warning(f"IPEX optimization fallback also failed: {e2}")
 
     return model
 

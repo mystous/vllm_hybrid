@@ -203,11 +203,19 @@ class CPUModelRunner(GPUModelRunner):
         # Apply IPEX optimization if available
         if _INTEL_UTILS_AVAILABLE and is_ipex_available():
             try:
-                # Use bfloat16 for Sapphire Rapids with AMX
+                # Determine optimal dtype for CPU inference
                 dtype = self.model_config.dtype
-                if dtype == torch.float32:
+                if dtype == torch.float16:
+                    # FP16 weight prepack requires avx_ne_convert or
+                    # avx512_core_fp16. Fall back to BF16 (AMX/AVX-512)
+                    # or FP32 (AVX2) for broader CPU compatibility.
+                    dtype = torch.bfloat16
+                    self.model = self.model.to(dtype)
+                    logger.info("Converted FP16 model to BF16 for CPU")
+                elif dtype == torch.float32:
                     # bfloat16 is more efficient on Sapphire Rapids
                     dtype = torch.bfloat16
+                    self.model = self.model.to(dtype)
                 self.model = optimize_model_with_ipex(self.model, dtype=dtype)
                 logger.info(f"Model optimized with IPEX (dtype={dtype})")
             except Exception as e:
