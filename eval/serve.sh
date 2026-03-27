@@ -2,7 +2,7 @@
 # =============================================================================
 # serve.sh — vLLM 서버 시작 스크립트
 # 사용법:
-#   ./serve.sh gpu      → GPU-only 서버
+#   ./serve.sh gpu_only → GPU-only 서버
 #   ./serve.sh hybrid   → Hybrid (GPU+CPU) 서버
 # =============================================================================
 set -euo pipefail
@@ -18,9 +18,9 @@ fi
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
-MODE="${1:-gpu}"
-if [[ "$MODE" != "gpu" && "$MODE" != "hybrid" ]]; then
-    echo "[ERROR] MODE는 'gpu' 또는 'hybrid'이어야 합니다." >&2
+MODE="${1:-gpu_only}"
+if [[ "$MODE" != "gpu_only" && "$MODE" != "hybrid" ]]; then
+    echo "[ERROR] MODE must be 'gpu_only' or 'hybrid'." >&2
     exit 1
 fi
 
@@ -40,7 +40,7 @@ if [[ "$TP" -gt 1 ]]; then
     TP_ARGS="--tensor-parallel-size ${TP}"
 fi
 
-if [[ "$MODE" == "gpu" ]]; then
+if [[ "$MODE" == "gpu_only" ]]; then
     # shellcheck disable=SC2086
     exec python -m vllm.entrypoints.openai.api_server \
         --model "${MODEL}" \

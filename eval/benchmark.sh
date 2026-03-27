@@ -20,7 +20,14 @@ fi
 source "$ENV_FILE"
 
 LABEL="${1:-benchmark}"
-RESULTS_DIR="${SCRIPT_DIR}/${RESULTS_DIR:-results}"
+# EVAL_RUN_DIR is set by run_eval.sh (timestamped subdir).
+# When running benchmark.sh standalone, fall back to .env RESULTS_DIR.
+if [[ -n "${EVAL_RUN_DIR:-}" ]]; then
+    RESULTS_DIR="${EVAL_RUN_DIR}"
+else
+    RUN_TS="$(date '+%Y%m%d_%H%M%S')"
+    RESULTS_DIR="${SCRIPT_DIR}/${RESULTS_DIR:-results}/${RUN_TS}"
+fi
 mkdir -p "$RESULTS_DIR"
 
 RESULT_FILE="${RESULTS_DIR}/${LABEL}.json"

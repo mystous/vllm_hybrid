@@ -234,10 +234,11 @@ def build_report(gpu_data: dict, hyb_data: dict,
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="GPU-only vs Hybrid 비교 리포트")
-    parser.add_argument("--results-dir", default="results", help="결과 디렉토리")
-    parser.add_argument("--gpu-label", default="gpu_only", help="GPU-only 결과 label")
-    parser.add_argument("--hybrid-label", default="hybrid", help="Hybrid 결과 label")
+    parser = argparse.ArgumentParser(description="GPU-only vs Hybrid comparison report")
+    default_rd = os.environ.get("EVAL_RUN_DIR", "results")
+    parser.add_argument("--results-dir", default=default_rd, help="Results directory (default: EVAL_RUN_DIR or 'results')")
+    parser.add_argument("--gpu-label", default="gpu_only", help="GPU-only result label")
+    parser.add_argument("--hybrid-label", default="hybrid", help="Hybrid result label")
     args = parser.parse_args()
 
     rd = Path(args.results_dir)

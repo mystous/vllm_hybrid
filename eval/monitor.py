@@ -245,8 +245,14 @@ def monitor(output_prefix: str, interval: float):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GPU/CPU utilization monitor")
-    parser.add_argument("output_prefix", help="출력 CSV prefix (예: results/gpu_only)")
-    parser.add_argument("--interval", type=float, default=1.0, help="샘플링 간격(초), 기본값 1.0")
+    parser.add_argument("output_prefix", help="Output CSV prefix (e.g. results/20260327_120000/gpu_only)")
+    parser.add_argument("--interval", type=float, default=1.0, help="Sampling interval in seconds (default: 1.0)")
     args = parser.parse_args()
 
-    monitor(args.output_prefix, args.interval)
+    # EVAL_RUN_DIR override: if set and prefix is relative, prepend it
+    run_dir = os.environ.get("EVAL_RUN_DIR", "")
+    prefix = args.output_prefix
+    if run_dir and not os.path.isabs(prefix):
+        prefix = os.path.join(run_dir, os.path.basename(prefix))
+
+    monitor(prefix, args.interval)

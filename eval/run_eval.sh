@@ -17,7 +17,7 @@
 #
 # 사용법:
 #   ./run_eval.sh              # GPU-only + Hybrid 모두 실행
-#   ./run_eval.sh gpu          # GPU-only만 실행
+#   ./run_eval.sh gpu_only     # GPU-only만 실행
 #   ./run_eval.sh hybrid       # Hybrid만 실행
 #   ./run_eval.sh compare      # 기존 결과로 비교만 실행
 # =============================================================================
@@ -34,10 +34,18 @@ fi
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
-RESULTS_DIR="${SCRIPT_DIR}/${RESULTS_DIR:-results}"
+RESULTS_BASE="${SCRIPT_DIR}/${RESULTS_DIR:-results}"
+
+# Run timestamp — all outputs go into results/<RUN_TS>/
+RUN_TS="${RUN_TS:-$(date '+%Y%m%d_%H%M%S')}"
+RESULTS_DIR="${RESULTS_BASE}/${RUN_TS}"
+export EVAL_RUN_DIR="${RESULTS_DIR}"
 mkdir -p "$RESULTS_DIR"
 
-MODE="${1:-all}"  # all / gpu / hybrid / compare
+# Keep a symlink results/latest → most recent run
+ln -sfn "${RUN_TS}" "${RESULTS_BASE}/latest"
+
+MODE="${1:-all}"  # all / gpu_only / hybrid / compare
 
 SERVER_PID=""
 MONITOR_PID=""
@@ -125,7 +133,7 @@ run_gpu_only() {
 
     stop_server   # 혹시 남은 서버 정리
 
-    start_server "gpu"
+    start_server "gpu_only"
     start_monitor "${RESULTS_DIR}/gpu_only_monitor"
 
     wait_for_server
@@ -183,6 +191,7 @@ run_compare() {
 # ---------------------------------------------------------------------------
 
 log "eval 시작: MODE=${MODE}"
+log "RUN_TS: ${RUN_TS}"
 log "결과 경로: ${RESULTS_DIR}"
 log "모델: ${MODEL}"
 
@@ -192,7 +201,7 @@ case "$MODE" in
         run_hybrid
         run_compare
         ;;
-    gpu)
+    gpu_only)
         run_gpu_only
         ;;
     hybrid)
@@ -202,7 +211,7 @@ case "$MODE" in
         run_compare
         ;;
     *)
-        echo "Usage: $0 [all|gpu|hybrid|compare]" >&2
+        echo "Usage: $0 [all|gpu_only|hybrid|compare]" >&2
         exit 1
         ;;
 esac

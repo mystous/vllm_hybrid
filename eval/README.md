@@ -30,9 +30,10 @@ vi .env
 
 # 2. 전체 평가 실행 (GPU-only → Hybrid → 비교)
 ./run_eval.sh
+# 결과는 results/20260327_120000/ 형태의 타임스탬프 디렉토리에 저장됨
 
-# 결과 확인
-cat results/comparison.txt
+# 결과 확인 (latest 심볼릭 링크 사용)
+cat results/latest/comparison.txt
 ```
 
 ---
@@ -143,7 +144,7 @@ OUTPUT_LEN=512
 ./run_eval.sh
 
 # GPU-only만 실행
-./run_eval.sh gpu
+./run_eval.sh gpu_only
 
 # Hybrid만 실행
 ./run_eval.sh hybrid
@@ -173,7 +174,7 @@ OUTPUT_LEN=512
 
 ```bash
 # GPU-only 서버
-./serve.sh gpu
+./serve.sh gpu_only
 
 # Hybrid 서버 (HYBRID_NUM_CPU_ENGINES=2이면 CPU 엔진 2개 스폰)
 ./serve.sh hybrid
@@ -187,9 +188,12 @@ OUTPUT_LEN=512
 
 ```bash
 # 서버가 이미 실행 중일 때 사용
-./benchmark.sh gpu_only    # results/gpu_only.json 저장
-./benchmark.sh hybrid      # results/hybrid.json 저장
-./benchmark.sh my_test     # results/my_test.json 저장 (임의 label)
+# 단독 실행 시 results/<YYYYMMDD_HHMMSS>/ 에 자동 저장
+./benchmark.sh gpu_only    # results/20260327_120000/gpu_only.json
+./benchmark.sh hybrid      # results/20260327_120000/hybrid.json
+
+# run_eval.sh 가 호출할 때는 EVAL_RUN_DIR 환경변수로 디렉토리 공유
+# (별도 조작 불필요)
 ```
 
 ---
@@ -226,20 +230,39 @@ python compare.py --results-dir /path/to/results \
 
 ## 결과 파일 구조
 
+`run_eval.sh` 실행 시 `results/<YYYYMMDD_HHMMSS>/` 하위 디렉토리에 모든 결과를 저장한다.
+`results/latest` 심볼릭 링크가 가장 최근 실행을 가리킨다.
+
 ```
 results/
-├── gpu_only.json               # GPU-only 벤치마크 원본 (benchmark_serving.py 출력)
-├── hybrid.json                 # Hybrid 벤치마크 원본
-├── gpu_only_monitor_gpu.csv    # GPU 활용률 시계열 (GPU-only 실행 중)
-├── gpu_only_monitor_cpu.csv    # CPU 활용률 시계열 (GPU-only 실행 중)
-├── hybrid_monitor_gpu.csv      # GPU 활용률 시계열 (Hybrid 실행 중)
-├── hybrid_monitor_cpu.csv      # CPU 활용률 시계열 (Hybrid 실행 중)
-├── gpu_only_serve.log          # GPU-only 서버 로그
-├── hybrid_serve.log            # Hybrid 서버 로그
-├── gpu_only_bench.log          # GPU-only 벤치마크 터미널 출력
-├── hybrid_bench.log            # Hybrid 벤치마크 터미널 출력
-├── comparison.txt              # 텍스트 비교 리포트
-└── comparison.json             # JSON 비교 요약 (그래프 생성용)
+├── latest -> 20260327_120000/      # 가장 최근 실행 심볼릭 링크
+├── 20260327_120000/                # 1차 실행
+│   ├── gpu_only.json
+│   ├── hybrid.json
+│   ├── gpu_only_monitor_gpu.csv
+│   ├── gpu_only_monitor_cpu.csv
+│   ├── hybrid_monitor_gpu.csv
+│   ├── hybrid_monitor_cpu.csv
+│   ├── gpu_only_serve.log
+│   ├── hybrid_serve.log
+│   ├── gpu_only_bench.log
+│   ├── hybrid_bench.log
+│   ├── comparison.txt
+│   └── comparison.json
+└── 20260327_150000/                # 2차 실행 (파라미터 변경 후 재실행 등)
+    └── ...
+```
+
+최신 결과 확인:
+```bash
+cat results/latest/comparison.txt
+ls results/latest/
+```
+
+특정 실행 비교:
+```bash
+# RUN_TS를 직접 지정하여 재실행 없이 비교만
+RUN_TS=20260327_120000 ./run_eval.sh compare
 ```
 
 ### GPU CSV 컬럼 (gpu_only_monitor_gpu.csv)
@@ -303,9 +326,11 @@ results/
 import pandas as pd
 import matplotlib.pyplot as plt
 
+RUN = "results/latest"   # 또는 "results/20260327_120000"
+
 # GPU 활용률 시계열 비교
-gpu_df = pd.read_csv("results/gpu_only_monitor_gpu.csv")
-hyb_df = pd.read_csv("results/hybrid_monitor_gpu.csv")
+gpu_df = pd.read_csv(f"{RUN}/gpu_only_monitor_gpu.csv")
+hyb_df = pd.read_csv(f"{RUN}/hybrid_monitor_gpu.csv")
 
 fig, axes = plt.subplots(3, 1, figsize=(12, 10))
 
@@ -322,8 +347,8 @@ axes[1].set_ylabel("GPU Power (W)")
 axes[1].legend()
 
 # 3. CPU 활용률 비교 (Hybrid에서 CPU가 얼마나 쓰이는지)
-cpu_g = pd.read_csv("results/gpu_only_monitor_cpu.csv")
-cpu_h = pd.read_csv("results/hybrid_monitor_cpu.csv")
+cpu_g = pd.read_csv(f"{RUN}/gpu_only_monitor_cpu.csv")
+cpu_h = pd.read_csv(f"{RUN}/hybrid_monitor_cpu.csv")
 axes[2].plot(cpu_g["elapsed_s"], cpu_g["cpu_avg_util_pct"], label="GPU-only")
 axes[2].plot(cpu_h["elapsed_s"], cpu_h["cpu_avg_util_pct"], label="Hybrid")
 axes[2].set_ylabel("CPU Util (%)")
@@ -331,7 +356,7 @@ axes[2].set_xlabel("Time (s)")
 axes[2].legend()
 
 plt.tight_layout()
-plt.savefig("results/utilization_comparison.png", dpi=150)
+plt.savefig(f"{RUN}/utilization_comparison.png", dpi=150)
 ```
 
 ---
