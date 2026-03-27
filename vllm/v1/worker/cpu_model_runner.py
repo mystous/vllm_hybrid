@@ -200,22 +200,18 @@ class CPUModelRunner(GPUModelRunner):
 
         self.model.to(self.device)
 
-        # Apply IPEX optimization if available
+        # Apply IPEX optimization if available.
+        # dtype conversion is delegated to ipex.optimize() to keep
+        # model_config.dtype consistent with the rest of the engine.
         if _INTEL_UTILS_AVAILABLE and is_ipex_available():
             try:
-                # Determine optimal dtype for CPU inference
                 dtype = self.model_config.dtype
                 if dtype == torch.float16:
                     # FP16 weight prepack requires avx_ne_convert or
-                    # avx512_core_fp16. Fall back to BF16 (AMX/AVX-512)
-                    # or FP32 (AVX2) for broader CPU compatibility.
+                    # avx512_core_fp16. Use BF16 which is supported by
+                    # AVX-512BW/VL/DQ (Sapphire Rapids) and falls back
+                    # to weights_prepack=False on AVX2-only machines.
                     dtype = torch.bfloat16
-                    self.model = self.model.to(dtype)
-                    logger.info("Converted FP16 model to BF16 for CPU")
-                elif dtype == torch.float32:
-                    # bfloat16 is more efficient on Sapphire Rapids
-                    dtype = torch.bfloat16
-                    self.model = self.model.to(dtype)
                 self.model = optimize_model_with_ipex(self.model, dtype=dtype)
                 logger.info(f"Model optimized with IPEX (dtype={dtype})")
             except Exception as e:

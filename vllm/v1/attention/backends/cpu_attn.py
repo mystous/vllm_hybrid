@@ -20,15 +20,38 @@ from vllm.v1.core.sched.output import SchedulerOutput
 from vllm.v1.kv_cache_interface import AttentionSpec
 from vllm.v1.worker.gpu_input_batch import InputBatch
 
-try:
-    import intel_extension_for_pytorch.llm.modules as ipex_modules
-    _use_ipex = True
-# AttributeError is to handle a bug in ipex
-# https://github.com/intel/intel-extension-for-pytorch/pull/813
-# Also catch general Exception for PyTorch version mismatch errors
-except (ImportError, AttributeError, Exception):
-    _use_ipex = False
-    ipex_modules = None
+# _use_ipex is evaluated lazily via _is_ipex_available() to avoid
+# the case where the parent process imports this module before IPEX
+# is fully initialized, causing fork()ed CPU subprocesses to
+# permanently inherit _use_ipex=False.
+import functools
+
+ipex_modules = None
+
+@functools.lru_cache(maxsize=None)
+def _is_ipex_available() -> bool:
+    """Lazy, cached IPEX availability check.
+
+    Evaluated on first call (not at module import time) so that CPU
+    subprocesses spawned after IPEX setup see the correct result.
+    """
+    global ipex_modules
+    try:
+        import intel_extension_for_pytorch.llm.modules as _ipex_mod
+        ipex_modules = _ipex_mod
+        return True
+    # AttributeError: bug in older ipex versions (intel/intel-extension-for-pytorch#813)
+    # Exception: PyTorch version mismatch or other init errors
+    except (ImportError, AttributeError, Exception):
+        return False
+
+# Backwards-compatible alias evaluated lazily
+def _get_use_ipex() -> bool:
+    return _is_ipex_available()
+
+# Module-level flag retained for code paths that check it directly;
+# populated on first call to _is_ipex_available().
+_use_ipex: bool = False  # will be updated on first lazy check
 
 from vllm import _custom_ops as ops
 from vllm._custom_ops import HAS_CPU_OPS, cpu_ops
@@ -474,7 +497,7 @@ class TorchSDPABackendImpl(AttentionImpl[TorchSDPAMetadata]):
         self.need_mask = (self.alibi_slopes is not None
                           or self.sliding_window is not None)
 
-        if is_quantized_kv_cache(kv_cache_dtype) and not _use_ipex:
+        if is_quantized_kv_cache(kv_cache_dtype) and not _is_ipex_available():
             raise NotImplementedError(
                 "Torch SDPA backend FP8 KV cache requires "
                 "intel_extension_for_pytorch support.")
@@ -580,7 +603,7 @@ class TorchSDPABackendImpl(AttentionImpl[TorchSDPAMetadata]):
 
         output = torch.empty_like(query)
         if prefill_meta := attn_metadata.prefill_metadata:
-            if not prefill_meta.prefill_metadata.chunked_prefill or not _use_ipex:  # type: ignore
+            if not prefill_meta.prefill_metadata.chunked_prefill or not _is_ipex_available():  # type: ignore
                 assert attn_metadata.seq_lens is not None
                 self._run_sdpa_forward(output,
                                        query,
@@ -1199,7 +1222,7 @@ class _IPEXPagedAttention(_PagedAttention):
 
 
 def _get_paged_attn_impl():
-    if _use_ipex:
+    if _is_ipex_available():
         return _IPEXPagedAttention
     else:
         return _PagedAttention
