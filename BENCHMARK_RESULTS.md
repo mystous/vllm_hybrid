@@ -143,12 +143,12 @@ python -c "
 import json
 h = json.load(open('hybrid_qwen_saturated.json'))
 g = json.load(open('gpu_only_qwen_saturated.json'))
-print('')
+print("")
 print(f\"GPU-only:  {g['request_throughput']:.2f} req/s, {g['output_throughput']:.0f} tok/s\")
 print(f\"Hybrid:    {h['request_throughput']:.2f} req/s, {h['output_throughput']:.0f} tok/s\")
 print(f\"Speedup:   {h['request_throughput']/g['request_throughput']:.1%}\")
 print(f\"TTFT gain: {(1-h['mean_ttft_ms']/g['mean_ttft_ms']):.1%}\")
-print('')
+print("")
 "
 ```
 
