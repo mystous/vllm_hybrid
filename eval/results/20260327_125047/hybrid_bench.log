@@ -1,0 +1,48 @@
+DEBUG_AG: Process 51102 importing vllm.config
+DEBUG_AG: Process 51102 importing vllm.distributed
+DEBUG_AG: Process 51102 importing vllm.distributed.communication_op
+DEBUG_AG: Process 51102 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 51102 importing vllm.distributed.utils
+DEBUG_AG: Process 51102 finished importing vllm.distributed.utils
+DEBUG_AG: Process 51102 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 51102 importing vllm.platforms
+DEBUG_AG: Process 51102 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 51102 checking plugin heterogeneous
+DEBUG_AG: Process 51102 checking plugin tpu
+DEBUG_AG: Process 51102 checking plugin cuda
+DEBUG_AG: Process 51102 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 51102 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 51102 importing vllm.platforms.cuda
+DEBUG_AG: Process 51102 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 51102 finished importing vllm.distributed
+DEBUG_AG: Process 51102 finished importing vllm.config
+/workspace/vllm_hybrid/benchmarks/benchmark_serving.py:1298: DeprecationWarning: benchmark_serving.py is deprecated and will be removed in a future version. Please use 'vllm bench serve' instead.
+  main(args)
+Namespace(backend='vllm', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='random', dataset_path=None, no_stream=False, max_concurrency=None, model='Qwen/Qwen2.5-1.5B', tokenizer=None, use_beam_search=False, num_prompts=2000, logprobs=None, request_rate=inf, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/workspace/vllm_hybrid/eval/./results/20260327_125047/hybrid.json', ignore_eos=False, percentile_metrics='ttft,tpot,itl', metric_percentiles='99', goodput=None, custom_output_len=256, custom_skip_chat_template=False, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=128, random_output_len=512, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None)
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: inf RPS.
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+  0%|          | 0/2000 [00:00<?, ?it/s]  0%|          | 1/2000 [00:00<24:14,  1.37it/s] 50%|████▉     | 995/2000 [00:01<00:01, 980.70it/s] 56%|█████▌    | 1111/2000 [00:15<00:16, 54.84it/s] 56%|█████▌    | 1113/2000 [00:15<00:16, 54.43it/s] 59%|█████▉    | 1177/2000 [00:15<00:13, 59.40it/s] 61%|██████    | 1222/2000 [00:16<00:12, 63.75it/s] 63%|██████▎   | 1256/2000 [00:16<00:10, 68.46it/s] 64%|██████▍   | 1284/2000 [00:29<00:50, 14.28it/s] 65%|██████▍   | 1296/2000 [00:29<00:46, 15.16it/s] 66%|██████▌   | 1318/2000 [00:30<00:38, 17.61it/s] 67%|██████▋   | 1339/2000 [00:30<00:32, 20.39it/s] 68%|██████▊   | 1356/2000 [00:30<00:27, 23.74it/s] 69%|██████▊   | 1372/2000 [00:30<00:22, 27.93it/s] 69%|██████▉   | 1387/2000 [00:30<00:18, 32.96it/s] 70%|███████   | 1402/2000 [00:30<00:15, 39.34it/s] 71%|███████   | 1416/2000 [00:30<00:12, 46.50it/s] 72%|███████▏  | 1430/2000 [00:30<00:10, 54.69it/s] 72%|███████▏  | 1443/2000 [00:31<00:08, 62.66it/s] 73%|███████▎  | 1456/2000 [00:31<00:07, 71.14it/s] 73%|███████▎  | 1469/2000 [00:31<00:06, 79.12it/s] 74%|███████▍  | 1481/2000 [00:31<00:06, 84.97it/s] 75%|███████▍  | 1494/2000 [00:31<00:05, 92.46it/s] 75%|███████▌  | 1508/2000 [00:31<00:04, 101.52it/s] 76%|███████▌  | 1521/2000 [00:32<00:08, 54.53it/s]  77%|███████▋  | 1531/2000 [00:44<02:29,  3.13it/s] 77%|███████▋  | 1538/2000 [00:44<02:00,  3.83it/s] 78%|███████▊  | 1552/2000 [00:45<01:16,  5.86it/s] 78%|███████▊  | 1566/2000 [00:45<00:50,  8.62it/s] 79%|███████▉  | 1580/2000 [00:45<00:34, 12.32it/s] 80%|███████▉  | 1595/2000 [00:45<00:23, 17.56it/s] 80%|████████  | 1609/2000 [00:45<00:16, 23.80it/s] 81%|████████  | 1623/2000 [00:45<00:12, 31.41it/s] 82%|████████▏ | 1639/2000 [00:45<00:08, 42.07it/s] 83%|████████▎ | 1653/2000 [00:45<00:06, 51.83it/s] 83%|████████▎ | 1667/2000 [00:46<00:05, 62.34it/s] 84%|████████▍ | 1681/2000 [00:46<00:04, 72.81it/s] 85%|████████▍ | 1696/2000 [00:46<00:03, 84.30it/s] 86%|████████▌ | 1710/2000 [00:46<00:03, 92.88it/s] 86%|████████▌ | 1724/2000 [00:46<00:02, 100.20it/s] 87%|████████▋ | 1738/2000 [00:46<00:02, 106.63it/s] 89%|████████▉ | 1777/2000 [00:46<00:01, 173.13it/s] 90%|████████▉ | 1797/2000 [00:58<00:35,  5.70it/s]  93%|█████████▎| 1854/2000 [00:58<00:12, 12.15it/s] 98%|█████████▊| 1963/2000 [00:58<00:01, 29.43it/s]100%|██████████| 2000/2000 [00:59<00:00, 33.82it/s]
+============ Serving Benchmark Result ============
+Successful requests:                     1006      
+Benchmark duration (s):                  59.15     
+Total input tokens:                      128289    
+Total generated tokens:                  504366    
+Request throughput (req/s):              17.01     
+Output token throughput (tok/s):         8527.56   
+Total Token throughput (tok/s):          10696.61  
+---------------Time to First Token----------------
+Mean TTFT (ms):                          22301.14  
+Median TTFT (ms):                        16528.84  
+P99 TTFT (ms):                           46550.32  
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          29.47     
+Median TPOT (ms):                        29.21     
+P99 TPOT (ms):                           102.11    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           28.25     
+Median ITL (ms):                         25.56     
+P99 ITL (ms):                            119.11    
+==================================================
