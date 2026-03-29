@@ -93,6 +93,40 @@ cmake --build --preset release --target install
 
 > CMakeLists.txt NVTX 헤더 패치 필요 시 [Deployment.md](Deployment.md) 참조
 
+### Docker
+
+사전 구성된 Docker 이미지로 빠르게 시작할 수 있습니다. 환경 설정이 완료되어 있으므로 컨테이너 진입 후 빌드부터 진행하면 됩니다.
+
+```bash
+docker run -it \
+  --gpus all \
+  --privileged \
+  --network host \
+  --ipc host \
+  --pid host \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  -v ~/.claude:/root/.claude \
+  -v ~/.config/claude:/root/.config/claude \
+  mystous/vllm_hybrid:v1.4 \
+  /bin/bash
+```
+
+컨테이너 진입 후:
+
+```bash
+# 빌드
+python tools/generate_cmake_presets.py
+cmake --preset release
+cmake --build --preset release --target install
+
+# 서빙 실행
+vllm serve <model> \
+  --tensor-parallel-size 8 \
+  --hybrid-mode parallel-batch
+```
+
+> 상세 옵션 및 트러블슈팅은 **[Docker Guide](docs/DOCKER_GUIDE.md)** 참조
+
 ### Run
 
 ```bash
@@ -168,6 +202,7 @@ python benchmarks/benchmark_serving.py \
 | Document | Description |
 | :--- | :--- |
 | **[Deployment.md](Deployment.md)** | 상세 배포 가이드 (빌드/설치/실행/트러블슈팅) |
+| **[docs/DOCKER_GUIDE.md](docs/DOCKER_GUIDE.md)** | Docker 실행 가이드 |
 | **[CLAUDE.md](CLAUDE.md)** | 프로젝트 컨텍스트 (AI 어시스턴트용) |
 | **[docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md](docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md)** | 하이브리드 옵션 상세 설계 |
 | **[docs/HETEROGENEOUS_CPU_OPTIMIZATIONS.md](docs/HETEROGENEOUS_CPU_OPTIMIZATIONS.md)** | CPU 최적화 상세 |
