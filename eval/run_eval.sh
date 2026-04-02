@@ -64,8 +64,20 @@ source "${ENV_FILE}"
 
 RESULTS_BASE="${SCRIPT_DIR}/${RESULTS_DIR:-results}"
 
-# Run timestamp — all outputs go into results/<RUN_TS>/
-RUN_TS="${RUN_TS:-$(TZ=Asia/Seoul date '+%Y%m%d_%H%M%S')}"
+# Run timestamp + hardware/model tag
+# Format: YYYYMMDD_HHMMSS_<gputype>_x<gpucount>_<modelname>
+_TS="$(TZ=Asia/Seoul date '+%Y%m%d_%H%M%S')"
+_GPU_TYPE=""
+_GPU_COUNT="0"
+if command -v nvidia-smi &>/dev/null; then
+    _GPU_TYPE=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1 \
+        | sed 's/NVIDIA //;s/ /_/g')
+    _GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+fi
+_GPU_TYPE="${_GPU_TYPE:-unknown}"
+_MODEL_SHORT="${MODEL##*/}"  # "Qwen/Qwen2.5-72B-Instruct" → "Qwen2.5-72B-Instruct"
+
+RUN_TS="${RUN_TS:-${_TS}_${_GPU_TYPE}_x${_GPU_COUNT}_${_MODEL_SHORT}}"
 RESULTS_DIR="${RESULTS_BASE}/${RUN_TS}"
 export EVAL_RUN_DIR="${RESULTS_DIR}"
 mkdir -p "${RESULTS_DIR}"
