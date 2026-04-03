@@ -1,0 +1,50 @@
+DEBUG_AG: Process 87536 importing vllm.config
+DEBUG_AG: Process 87536 importing vllm.distributed
+DEBUG_AG: Process 87536 importing vllm.distributed.communication_op
+DEBUG_AG: Process 87536 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 87536 importing vllm.distributed.utils
+DEBUG_AG: Process 87536 finished importing vllm.distributed.utils
+DEBUG_AG: Process 87536 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 87536 importing vllm.platforms
+DEBUG_AG: Process 87536 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 87536 checking plugin heterogeneous
+DEBUG_AG: Process 87536 checking plugin tpu
+DEBUG_AG: Process 87536 checking plugin cuda
+DEBUG_AG: Process 87536 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 87536 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 87536 importing vllm.platforms.cuda
+DEBUG_AG: Process 87536 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 87536 finished importing vllm.distributed
+DEBUG_AG: Process 87536 finished importing vllm.config
+/workspace/vllm_hybrid/benchmarks/benchmark_serving.py:1298: DeprecationWarning: benchmark_serving.py is deprecated and will be removed in a future version. Please use 'vllm bench serve' instead.
+  main(args)
+/workspace/vllm_hybrid/benchmarks/benchmark_serving.py:642: FutureWarning: It is strongly recommended to run mistral models with `--tokenizer-mode "mistral"` to ensure correct encoding and decoding.
+  tokenizer = get_tokenizer(
+Namespace(backend='vllm', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='random', dataset_path=None, no_stream=False, max_concurrency=None, model='mistralai/Mistral-7B-Instruct-v0.3', tokenizer=None, use_beam_search=False, num_prompts=2000, logprobs=None, request_rate=inf, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/workspace/vllm_hybrid/eval/results/20260403_150336_H100_80GB_HBM3_x4_Mistral-7B-Instruct-v0.3/hybrid.json', ignore_eos=False, percentile_metrics='ttft,tpot,itl', metric_percentiles='99', goodput=None, custom_output_len=256, custom_skip_chat_template=False, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=512, random_output_len=512, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None)
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: inf RPS.
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+  0%|          | 0/2000 [00:00<?, ?it/s]  0%|          | 1/2000 [00:01<41:24,  1.24s/it] 50%|█████     | 1006/2000 [00:01<00:01, 857.12it/s] 60%|██████    | 1201/2000 [00:03<00:02, 294.72it/s] 66%|██████▌   | 1311/2000 [00:05<00:03, 210.59it/s] 69%|██████▉   | 1381/2000 [00:06<00:03, 173.91it/s] 71%|███████▏  | 1429/2000 [00:06<00:03, 169.64it/s]100%|██████████| 2000/2000 [00:06<00:00, 311.40it/s]
+============ Serving Benchmark Result ============
+Successful requests:                     916       
+Benchmark duration (s):                  6.42      
+Total input tokens:                      467845    
+Total generated tokens:                  16540     
+Request throughput (req/s):              142.62    
+Output token throughput (tok/s):         2575.24   
+Total Token throughput (tok/s):          75417.54  
+---------------Time to First Token----------------
+Mean TTFT (ms):                          3760.80   
+Median TTFT (ms):                        3640.54   
+P99 TTFT (ms):                           6127.37   
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          82.88     
+Median TPOT (ms):                        83.22     
+P99 TPOT (ms):                           113.14    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           84.01     
+Median ITL (ms):                         81.62     
+P99 ITL (ms):                            237.91    
+==================================================
