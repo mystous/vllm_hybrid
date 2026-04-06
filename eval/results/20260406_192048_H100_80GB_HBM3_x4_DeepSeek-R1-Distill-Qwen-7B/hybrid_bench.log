@@ -1,0 +1,48 @@
+DEBUG_AG: Process 49681 importing vllm.config
+DEBUG_AG: Process 49681 importing vllm.distributed
+DEBUG_AG: Process 49681 importing vllm.distributed.communication_op
+DEBUG_AG: Process 49681 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 49681 importing vllm.distributed.utils
+DEBUG_AG: Process 49681 finished importing vllm.distributed.utils
+DEBUG_AG: Process 49681 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 49681 importing vllm.platforms
+DEBUG_AG: Process 49681 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 49681 checking plugin heterogeneous
+DEBUG_AG: Process 49681 checking plugin tpu
+DEBUG_AG: Process 49681 checking plugin cuda
+DEBUG_AG: Process 49681 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 49681 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 49681 importing vllm.platforms.cuda
+DEBUG_AG: Process 49681 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 49681 finished importing vllm.distributed
+DEBUG_AG: Process 49681 finished importing vllm.config
+/workspace/vllm_hybrid/benchmarks/benchmark_serving.py:1298: DeprecationWarning: benchmark_serving.py is deprecated and will be removed in a future version. Please use 'vllm bench serve' instead.
+  main(args)
+Namespace(backend='vllm', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='random', dataset_path=None, no_stream=False, max_concurrency=None, model='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', tokenizer=None, use_beam_search=False, num_prompts=2000, logprobs=None, request_rate=inf, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/workspace/vllm_hybrid/eval/results/20260406_192048_H100_80GB_HBM3_x4_DeepSeek-R1-Distill-Qwen-7B/hybrid.json', ignore_eos=False, percentile_metrics='ttft,tpot,itl', metric_percentiles='99', goodput=None, custom_output_len=256, custom_skip_chat_template=False, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=512, random_output_len=512, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None)
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: inf RPS.
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+  0%|          | 0/2000 [00:00<?, ?it/s]  0%|          | 1/2000 [00:02<1:07:11,  2.02s/it] 50%|█████     | 1006/2000 [00:05<00:04, 217.43it/s] 51%|█████▏    | 1025/2000 [00:08<00:08, 112.91it/s] 52%|█████▏    | 1036/2000 [00:09<00:10, 90.56it/s]  52%|█████▏    | 1043/2000 [00:09<00:11, 85.23it/s] 52%|█████▏    | 1048/2000 [00:11<00:14, 63.84it/s] 53%|█████▎    | 1052/2000 [00:12<00:19, 48.51it/s] 53%|█████▎    | 1055/2000 [00:12<00:20, 45.55it/s] 53%|█████▎    | 1058/2000 [00:12<00:22, 42.40it/s] 53%|█████▎    | 1060/2000 [00:12<00:24, 38.47it/s] 53%|█████▎    | 1062/2000 [00:13<00:29, 31.37it/s] 53%|█████▎    | 1064/2000 [00:13<00:36, 25.84it/s] 53%|█████▎    | 1066/2000 [00:13<00:43, 21.28it/s] 53%|█████▎    | 1067/2000 [00:13<00:51, 18.27it/s] 53%|█████▎    | 1068/2000 [00:14<00:56, 16.37it/s] 54%|█████▎    | 1071/2000 [00:14<00:53, 17.41it/s] 54%|█████▎    | 1073/2000 [00:14<01:13, 12.66it/s] 54%|█████▍    | 1075/2000 [00:14<01:17, 11.99it/s] 54%|█████▍    | 1076/2000 [00:14<01:24, 10.90it/s] 54%|█████▍    | 1079/2000 [00:15<01:24, 10.84it/s] 54%|█████▍    | 1081/2000 [00:15<02:23,  6.41it/s] 54%|█████▍    | 1082/2000 [00:16<02:23,  6.38it/s] 54%|█████▍    | 1083/2000 [00:16<02:25,  6.29it/s] 54%|█████▍    | 1085/2000 [00:16<02:06,  7.25it/s] 54%|█████▍    | 1086/2000 [00:16<03:09,  4.81it/s] 54%|█████▍    | 1089/2000 [00:17<02:02,  7.42it/s] 55%|█████▍    | 1091/2000 [00:18<04:44,  3.19it/s] 55%|█████▍    | 1092/2000 [00:18<04:32,  3.34it/s] 55%|█████▍    | 1093/2000 [00:20<07:29,  2.02it/s] 55%|█████▍    | 1095/2000 [00:21<08:45,  1.72it/s] 55%|█████▍    | 1096/2000 [00:21<07:41,  1.96it/s] 55%|█████▍    | 1097/2000 [00:21<06:20,  2.37it/s] 55%|█████▍    | 1098/2000 [00:22<05:29,  2.74it/s] 55%|█████▍    | 1099/2000 [00:22<06:12,  2.42it/s] 55%|█████▌    | 1101/2000 [00:25<13:03,  1.15it/s] 55%|█████▌    | 1102/2000 [00:29<22:34,  1.51s/it] 55%|█████▌    | 1104/2000 [00:29<15:16,  1.02s/it] 55%|█████▌    | 1105/2000 [00:29<12:34,  1.19it/s] 55%|█████▌    | 1106/2000 [00:30<11:39,  1.28it/s] 55%|█████▌    | 1107/2000 [00:32<14:49,  1.00it/s] 55%|█████▌    | 1109/2000 [00:32<09:11,  1.61it/s] 56%|█████▌    | 1111/2000 [00:32<06:11,  2.39it/s] 56%|█████▋    | 1129/2000 [00:32<01:07, 12.88it/s] 58%|█████▊    | 1157/2000 [00:32<00:25, 32.90it/s] 59%|█████▉    | 1187/2000 [00:32<00:14, 57.43it/s] 61%|██████    | 1215/2000 [00:33<00:09, 80.68it/s] 62%|██████▏   | 1243/2000 [00:33<00:07, 102.95it/s] 64%|██████▎   | 1272/2000 [00:33<00:05, 128.84it/s] 65%|██████▌   | 1300/2000 [00:33<00:04, 147.55it/s] 66%|██████▋   | 1328/2000 [00:33<00:04, 158.72it/s] 68%|██████▊   | 1358/2000 [00:33<00:03, 185.68it/s] 69%|██████▉   | 1386/2000 [00:33<00:03, 192.89it/s] 71%|███████   | 1412/2000 [00:33<00:02, 202.57it/s] 72%|███████▏  | 1440/2000 [00:34<00:02, 207.05it/s] 73%|███████▎  | 1469/2000 [00:34<00:02, 213.56it/s] 75%|███████▍  | 1496/2000 [00:34<00:02, 225.79it/s] 77%|███████▋  | 1549/2000 [00:34<00:01, 303.96it/s] 81%|████████  | 1620/2000 [00:34<00:00, 395.81it/s] 85%|████████▌ | 1702/2000 [00:34<00:00, 495.21it/s] 89%|████████▉ | 1783/2000 [00:34<00:00, 569.73it/s] 93%|█████████▎| 1869/2000 [00:34<00:00, 636.83it/s] 98%|█████████▊| 1970/2000 [00:34<00:00, 721.96it/s]100%|██████████| 2000/2000 [00:35<00:00, 57.12it/s] 
+============ Serving Benchmark Result ============
+Successful requests:                     995       
+Benchmark duration (s):                  35.01     
+Total input tokens:                      507161    
+Total generated tokens:                  469717    
+Request throughput (req/s):              28.42     
+Output token throughput (tok/s):         13415.76  
+Total Token throughput (tok/s):          27900.98  
+---------------Time to First Token----------------
+Mean TTFT (ms):                          4987.11   
+Median TTFT (ms):                        4867.81   
+P99 TTFT (ms):                           7898.31   
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          58.82     
+Median TPOT (ms):                        58.12     
+P99 TPOT (ms):                           89.70     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           57.19     
+Median ITL (ms):                         48.93     
+P99 ITL (ms):                            106.68    
+==================================================
