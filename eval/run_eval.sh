@@ -62,6 +62,40 @@ export EVAL_ENV_FILE="${ENV_FILE}"
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
 
+# ---------------------------------------------------------------------------
+# Pre-flight: check model is downloaded
+# ---------------------------------------------------------------------------
+_model_check() {
+    python3 - "${MODEL}" <<'PYEOF'
+import sys
+try:
+    from huggingface_hub import try_to_load_from_cache, scan_cache_dir
+    model_id = sys.argv[1]
+    # Check if config.json exists in cache (reliable indicator)
+    result = try_to_load_from_cache(model_id, "config.json")
+    if result is None or isinstance(result, type(None)):
+        sys.exit(1)
+except Exception:
+    sys.exit(1)
+PYEOF
+}
+
+if ! _model_check 2>/dev/null; then
+    echo "" >&2
+    echo "[ERROR] Model not found in local cache: ${MODEL}" >&2
+    echo "" >&2
+    echo "  Please download the model first:" >&2
+    echo "" >&2
+    echo "    huggingface-cli download ${MODEL}" >&2
+    echo "" >&2
+    echo "  Or in Python:" >&2
+    echo "" >&2
+    echo "    from huggingface_hub import snapshot_download" >&2
+    echo "    snapshot_download(\"${MODEL}\")" >&2
+    echo "" >&2
+    exit 1
+fi
+
 RESULTS_BASE="${SCRIPT_DIR}/${RESULTS_DIR:-results}"
 
 # Run timestamp + hardware/model tag
@@ -388,14 +422,14 @@ run_gpu_only() {
     stop_server   # Clean up any leftover server
 
     start_server "gpu_only"
-    start_monitor "${RESULTS_DIR}/gpu_only_monitor"
 
     wait_for_server
 
+    start_monitor "${RESULTS_DIR}/gpu_only_monitor"
     log "--- Running GPU-only benchmark ---"
     bash "${SCRIPT_DIR}/benchmark.sh" "gpu_only"
-
     stop_monitor
+
     stop_server
 
     log "GPU-only evaluation complete."
@@ -413,14 +447,14 @@ run_hybrid() {
     stop_server
 
     start_server "hybrid"
-    start_monitor "${RESULTS_DIR}/hybrid_monitor"
 
     wait_for_server
 
+    start_monitor "${RESULTS_DIR}/hybrid_monitor"
     log "--- Running Hybrid benchmark ---"
     bash "${SCRIPT_DIR}/benchmark.sh" "hybrid"
-
     stop_monitor
+
     stop_server
 
     log "Hybrid evaluation complete."
