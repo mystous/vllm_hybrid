@@ -1,0 +1,50 @@
+DEBUG_AG: Process 25160 importing vllm.config
+DEBUG_AG: Process 25160 importing vllm.distributed
+DEBUG_AG: Process 25160 importing vllm.distributed.communication_op
+DEBUG_AG: Process 25160 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 25160 importing vllm.distributed.utils
+DEBUG_AG: Process 25160 finished importing vllm.distributed.utils
+DEBUG_AG: Process 25160 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 25160 importing vllm.platforms
+DEBUG_AG: Process 25160 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 25160 checking plugin heterogeneous
+DEBUG_AG: Process 25160 checking plugin tpu
+DEBUG_AG: Process 25160 checking plugin cuda
+DEBUG_AG: Process 25160 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 25160 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 25160 importing vllm.platforms.cuda
+DEBUG_AG: Process 25160 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 25160 finished importing vllm.distributed
+DEBUG_AG: Process 25160 finished importing vllm.config
+/workspace/vllm_hybrid/benchmarks/benchmark_serving.py:1298: DeprecationWarning: benchmark_serving.py is deprecated and will be removed in a future version. Please use 'vllm bench serve' instead.
+  main(args)
+'(ReadTimeoutError("HTTPSConnectionPool(host='huggingface.co', port=443): Read timed out. (read timeout=10)"), '(Request ID: 3a21edf1-e0c0-44f9-815c-7a9b7cda86f0)')' thrown while requesting HEAD https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B/resolve/main/tokenizer_config.json
+Retrying in 1s [Retry 1/5].
+Namespace(backend='vllm', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='random', dataset_path=None, no_stream=False, max_concurrency=None, model='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', tokenizer=None, use_beam_search=False, num_prompts=500, logprobs=None, request_rate=inf, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/workspace/vllm_hybrid/eval/results/20260407_155523_H100_80GB_HBM3_x4_DeepSeek-R1-Distill-Qwen-7B/gpu_only.json', ignore_eos=False, percentile_metrics='ttft,tpot,itl', metric_percentiles='99', goodput=None, custom_output_len=256, custom_skip_chat_template=False, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=512, random_output_len=512, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None)
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: inf RPS.
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+  0%|          | 0/500 [00:00<?, ?it/s]  0%|          | 1/500 [00:02<24:06,  2.90s/it]  1%|          | 3/500 [00:03<07:17,  1.14it/s]  1%|          | 4/500 [00:03<05:24,  1.53it/s]  1%|          | 5/500 [00:03<03:54,  2.11it/s]  1%|▏         | 7/500 [00:03<02:22,  3.47it/s]  2%|▏         | 10/500 [00:03<01:18,  6.21it/s]  2%|▏         | 12/500 [00:03<01:01,  7.99it/s]  3%|▎         | 14/500 [00:04<00:52,  9.23it/s]  3%|▎         | 16/500 [00:04<00:55,  8.69it/s]  4%|▍         | 20/500 [00:04<00:41, 11.55it/s]  4%|▍         | 22/500 [00:05<01:02,  7.70it/s]  5%|▍         | 24/500 [00:05<00:56,  8.49it/s]  5%|▌         | 26/500 [00:06<01:44,  4.52it/s]  5%|▌         | 27/500 [00:06<02:04,  3.79it/s]  6%|▌         | 28/500 [00:06<01:58,  3.98it/s]  6%|▌         | 29/500 [00:07<02:02,  3.85it/s]  6%|▌         | 30/500 [00:07<01:45,  4.45it/s]  6%|▌         | 31/500 [00:07<01:37,  4.82it/s]  6%|▋         | 32/500 [00:08<02:28,  3.16it/s]  7%|▋         | 33/500 [00:08<02:11,  3.55it/s]  7%|▋         | 34/500 [00:08<02:25,  3.20it/s]  7%|▋         | 35/500 [00:09<03:06,  2.50it/s]  7%|▋         | 36/500 [00:09<02:46,  2.78it/s]  7%|▋         | 37/500 [00:09<02:13,  3.46it/s]  8%|▊         | 38/500 [00:09<01:50,  4.17it/s]  8%|▊         | 39/500 [00:12<06:29,  1.18it/s]  8%|▊         | 40/500 [00:13<07:23,  1.04it/s]  8%|▊         | 42/500 [00:13<04:11,  1.82it/s]  9%|▊         | 43/500 [00:14<04:58,  1.53it/s]  9%|▉         | 44/500 [00:14<04:30,  1.69it/s]  9%|▉         | 45/500 [00:15<03:55,  1.94it/s]  9%|▉         | 46/500 [00:16<04:41,  1.61it/s]  9%|▉         | 47/500 [00:19<10:00,  1.32s/it] 10%|▉         | 48/500 [00:19<07:57,  1.06s/it] 10%|▉         | 49/500 [00:20<06:44,  1.12it/s] 17%|█▋        | 83/500 [00:20<00:25, 16.14it/s] 25%|██▍       | 123/500 [00:20<00:09, 38.94it/s] 36%|███▌      | 180/500 [00:20<00:04, 79.17it/s] 47%|████▋     | 234/500 [00:20<00:02, 124.28it/s] 61%|██████▏   | 307/500 [00:20<00:00, 196.64it/s] 76%|███████▌  | 378/500 [00:20<00:00, 267.10it/s]100%|██████████| 500/500 [00:20<00:00, 24.10it/s] 
+============ Serving Benchmark Result ============
+Successful requests:                     500       
+Benchmark duration (s):                  20.74     
+Total input tokens:                      254670    
+Total generated tokens:                  238202    
+Request throughput (req/s):              24.10     
+Output token throughput (tok/s):         11482.93  
+Total Token throughput (tok/s):          23759.73  
+---------------Time to First Token----------------
+Mean TTFT (ms):                          1859.87   
+Median TTFT (ms):                        1835.54   
+P99 TTFT (ms):                           3065.07   
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          37.42     
+Median TPOT (ms):                        36.64     
+P99 TPOT (ms):                           60.54     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           36.60     
+Median ITL (ms):                         34.76     
+P99 ITL (ms):                            80.70     
+==================================================
