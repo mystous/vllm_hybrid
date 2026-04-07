@@ -4647,8 +4647,12 @@ class HybridConfig:
 
     # 라우팅 전략 설정
     routing_strategy: str = "capacity"
-    """라우팅 전략: 'capacity' (기본, 슬롯 기반), 'length-aware' (프롬프트 길이 고려),
-    'throughput-adaptive' (EMA 처리량 기반 동적 조정)."""
+    """라우팅 전략: 'capacity' (슬롯 기반), 'length-aware' (프롬프트 길이 고려),
+    'throughput-adaptive' (EMA 처리량 기반 동적 조정), 'round-robin' (교대 분배)."""
+
+    routing_priority: str = "gpu-first"
+    """라우팅 우선순위: 'gpu-first' (기본, GPU 우선) 또는 'cpu-first' (CPU 우선).
+    round-robin 전략에서는 무시됨."""
 
     cpu_prefill_threshold: int = 512
     """length-aware/throughput-adaptive 전략에서 CPU로 보낼 최대 프롬프트 토큰 수.
@@ -4667,11 +4671,18 @@ class HybridConfig:
     2이면 NUMA 노드별 CPU 엔진 2개 (예: Xeon 듀얼소켓)."""
 
     def __post_init__(self):
-        valid_strategies = ("capacity", "length-aware", "throughput-adaptive")
+        valid_strategies = ("capacity", "length-aware", "throughput-adaptive",
+                            "round-robin")
         if self.routing_strategy not in valid_strategies:
             raise ValueError(
                 f"routing_strategy must be one of {valid_strategies}, "
                 f"got '{self.routing_strategy}'"
+            )
+        valid_priorities = ("gpu-first", "cpu-first")
+        if self.routing_priority not in valid_priorities:
+            raise ValueError(
+                f"routing_priority must be one of {valid_priorities}, "
+                f"got '{self.routing_priority}'"
             )
         if self.cpu_prefill_threshold < 1:
             raise ValueError(

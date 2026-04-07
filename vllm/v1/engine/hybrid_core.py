@@ -161,6 +161,7 @@ class CapacityAwareRouter:
                  gpu_max_num_seqs: int = 256,
                  num_cpu_engines: int = 1,
                  routing_strategy: str = "capacity",
+                 routing_priority: str = "gpu-first",
                  cpu_prefill_threshold: int = 512,
                  warmup_requests: int = 10,
                  stats_log_interval: int = 50):
@@ -168,7 +169,15 @@ class CapacityAwareRouter:
         self.gpu_max_num_seqs = gpu_max_num_seqs
         self.num_cpu_engines = max(1, num_cpu_engines)
         self.routing_strategy = routing_strategy
+        # round-robin이면 priority 무시
+        self.routing_priority = (
+            "gpu-first" if routing_strategy == "round-robin"
+            else routing_priority)
+        self.cpu_first = (self.routing_priority == "cpu-first")
         self.cpu_prefill_threshold = cpu_prefill_threshold
+
+        # round-robin 카운터
+        self._rr_counter: int = 0
 
         # Per-CPU-engine 상태 (in_flight, count)
         # 엔진 경로는 "cpu:0", "cpu:1", ... 형식
@@ -214,10 +223,11 @@ class CapacityAwareRouter:
         logger.info(
             "CapacityAwareRouter initialized: gpu_max_num_seqs=%d, "
             "cpu_max_num_seqs=%d (per-engine), num_cpu_engines=%d, "
-            "strategy=%s, prefill_threshold=%d, warmup=%d, stats_interval=%d",
+            "strategy=%s, priority=%s, prefill_threshold=%d, "
+            "warmup=%d, stats_interval=%d",
             self.gpu_max_num_seqs, self.cpu_max_num_seqs,
             self.num_cpu_engines, self.routing_strategy,
-            self.cpu_prefill_threshold,
+            self.routing_priority, self.cpu_prefill_threshold,
             self._warmup_requests, self._stats_log_interval,
         )
         if not self._warmup_complete:
@@ -234,7 +244,9 @@ class CapacityAwareRouter:
         """
         self._request_start_times[request_id] = time.monotonic()
 
-        if self.routing_strategy == "length-aware":
+        if self.routing_strategy == "round-robin":
+            return self._route_round_robin(request_id)
+        elif self.routing_strategy == "length-aware":
             return self._route_length_aware(request_id, prompt_len)
         elif self.routing_strategy == "throughput-adaptive":
             return self._route_throughput_adaptive(request_id, prompt_len)
@@ -252,17 +264,14 @@ class CapacityAwareRouter:
                 best_idx = i
         return best_idx
 
-    def _route_capacity(self, request_id: str) -> str:
-        """GPU-first: GPU가 포화 상태일 때만 CPU로 overflow.
+    def _to_gpu(self) -> str:
+        """GPU로 라우팅."""
+        self.gpu_in_flight += 1
+        self.gpu_count += 1
+        return "gpu"
 
-        다중 CPU 엔진일 경우 여유 슬롯이 가장 많은 CPU 엔진으로 라우팅.
-        반환값: "gpu" | "cpu:0" | "cpu:1" | ...
-        """
-        if self.gpu_in_flight < self.gpu_max_num_seqs:
-            self.gpu_in_flight += 1
-            self.gpu_count += 1
-            return "gpu"
-        # GPU 포화 → 여유 있는 CPU 엔진 탐색
+    def _to_cpu(self) -> Optional[str]:
+        """여유 있는 CPU 엔진으로 라우팅. 없으면 None."""
         best = self._find_available_cpu()
         if best >= 0:
             self._cpu_states[best]["in_flight"] += 1
@@ -270,44 +279,86 @@ class CapacityAwareRouter:
             self.cpu_in_flight += 1
             self.cpu_count += 1
             return f"cpu:{best}"
-        # 모든 CPU도 포화 → GPU로 overflow
-        self.gpu_in_flight += 1
-        self.gpu_count += 1
-        return "gpu"
+        return None
+
+    def _route_capacity(self, request_id: str) -> str:
+        """슬롯 기반 라우팅. priority에 따라 primary/secondary 결정.
+
+        반환값: "gpu" | "cpu:0" | "cpu:1" | ...
+        """
+        if self.cpu_first:
+            # CPU-first: CPU 슬롯 여유 시 CPU, 가득차면 GPU
+            result = self._to_cpu()
+            if result is not None:
+                return result
+            return self._to_gpu()
+        else:
+            # GPU-first (기본): GPU 포화 시에만 CPU
+            if self.gpu_in_flight < self.gpu_max_num_seqs:
+                return self._to_gpu()
+            result = self._to_cpu()
+            if result is not None:
+                return result
+            return self._to_gpu()
+
+    def _route_round_robin(self, request_id: str) -> str:
+        """교대로 GPU/CPU 분배. CPU가 가득차면 GPU, 그 반대도 마찬가지."""
+        self._rr_counter += 1
+        if self._rr_counter % 2 == 0:
+            # GPU 차례
+            if self.gpu_in_flight < self.gpu_max_num_seqs:
+                return self._to_gpu()
+            result = self._to_cpu()
+            return result if result is not None else self._to_gpu()
+        else:
+            # CPU 차례
+            result = self._to_cpu()
+            if result is not None:
+                return result
+            return self._to_gpu()
 
     def _route_length_aware(self, request_id: str,
                             prompt_len: int) -> str:
-        """GPU-first + 길이 조건: GPU 포화 AND 짧은 프롬프트일 때만 CPU."""
-        if (self.gpu_in_flight >= self.gpu_max_num_seqs
-                and prompt_len <= self.cpu_prefill_threshold):
-            best = self._find_available_cpu()
-            if best >= 0:
-                self._cpu_states[best]["in_flight"] += 1
-                self._cpu_states[best]["count"] += 1
-                self.cpu_in_flight += 1
-                self.cpu_count += 1
-                return f"cpu:{best}"
-        self.gpu_in_flight += 1
-        self.gpu_count += 1
-        return "gpu"
+        """priority 기반 + 길이 조건: 짧은 프롬프트만 CPU 허용."""
+        if self.cpu_first:
+            # CPU-first: 짧으면 CPU 우선, 길면 GPU
+            if prompt_len <= self.cpu_prefill_threshold:
+                result = self._to_cpu()
+                if result is not None:
+                    return result
+            return self._to_gpu()
+        else:
+            # GPU-first: GPU 포화 AND 짧은 프롬프트일 때만 CPU
+            if (self.gpu_in_flight >= self.gpu_max_num_seqs
+                    and prompt_len <= self.cpu_prefill_threshold):
+                result = self._to_cpu()
+                if result is not None:
+                    return result
+            return self._to_gpu()
 
     def _route_throughput_adaptive(self, request_id: str,
                                    prompt_len: int) -> str:
-        """GPU-first + EMA 처리량 기반 동적 CPU 슬롯 조정."""
+        """priority 기반 + EMA 처리량 기반 동적 CPU 슬롯 조정."""
         effective_max = self._adaptive_cpu_max_seqs
-        if (self.gpu_in_flight >= self.gpu_max_num_seqs
-                and prompt_len <= self.cpu_prefill_threshold
-                and self.cpu_in_flight < effective_max * self.num_cpu_engines):
-            best = self._find_available_cpu()
-            if best >= 0:
-                self._cpu_states[best]["in_flight"] += 1
-                self._cpu_states[best]["count"] += 1
-                self.cpu_in_flight += 1
-                self.cpu_count += 1
-                return f"cpu:{best}"
-        self.gpu_in_flight += 1
-        self.gpu_count += 1
-        return "gpu"
+        if self.cpu_first:
+            # CPU-first: 짧으면 CPU 우선 (adaptive 슬롯 범위 내)
+            if (prompt_len <= self.cpu_prefill_threshold
+                    and self.cpu_in_flight
+                    < effective_max * self.num_cpu_engines):
+                result = self._to_cpu()
+                if result is not None:
+                    return result
+            return self._to_gpu()
+        else:
+            # GPU-first: GPU 포화 시에만 CPU
+            if (self.gpu_in_flight >= self.gpu_max_num_seqs
+                    and prompt_len <= self.cpu_prefill_threshold
+                    and self.cpu_in_flight
+                    < effective_max * self.num_cpu_engines):
+                result = self._to_cpu()
+                if result is not None:
+                    return result
+            return self._to_gpu()
 
     def on_request_finished(self, request_id: str, engine_path: str,
                             num_tokens: int = 0):
@@ -476,6 +527,7 @@ class CapacityAwareRouter:
             "cpu_in_flight": self.cpu_in_flight,
             "cpu_max_num_seqs": self.cpu_max_num_seqs,
             "routing_strategy": self.routing_strategy,
+            "routing_priority": self.routing_priority,
             "actual_cpu_ratio": (
                 self.cpu_count / total if total > 0 else 0.0),
             "gpu_throughput_tok_s": self.gpu_throughput,

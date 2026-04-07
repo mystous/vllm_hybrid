@@ -82,6 +82,7 @@ elif [[ "${MODE}" == "hybrid" ]]; then
     CPU_MAX_BATCHED_TOKENS_ARG=""
     CPU_PREFILL_THRESHOLD_ARG=""
     WARMUP_REQUESTS_ARG=""
+    ROUTING_PRIORITY_ARG=""
     if [[ "${HYBRID_CPU_MAX_SEQS:-0}" -gt 0 ]]; then
         CPU_MAX_SEQS_ARG="--hybrid-cpu-max-seqs ${HYBRID_CPU_MAX_SEQS}"
     fi
@@ -103,6 +104,9 @@ elif [[ "${MODE}" == "hybrid" ]]; then
     if [[ "${HYBRID_WARMUP_REQUESTS:-0}" -gt 0 ]]; then
         WARMUP_REQUESTS_ARG="--hybrid-warmup-requests ${HYBRID_WARMUP_REQUESTS}"
     fi
+    if [[ -n "${HYBRID_ROUTING_PRIORITY:-}" && "${HYBRID_ROUTING_PRIORITY}" != "gpu-first" ]]; then
+        ROUTING_PRIORITY_ARG="--hybrid-routing-priority ${HYBRID_ROUTING_PRIORITY}"
+    fi
 
     # shellcheck disable=SC2086
     exec python -m vllm.entrypoints.openai.api_server \
@@ -118,6 +122,7 @@ elif [[ "${MODE}" == "hybrid" ]]; then
         ${CPU_MAX_BATCHED_TOKENS_ARG} \
         ${CPU_PREFILL_THRESHOLD_ARG} \
         ${WARMUP_REQUESTS_ARG} \
+        ${ROUTING_PRIORITY_ARG} \
         --hybrid-routing-strategy "${HYBRID_ROUTING_STRATEGY}" \
         --hybrid-stats-log-interval "${HYBRID_STATS_LOG_INTERVAL}" \
         ${NUMA_FLAG} \

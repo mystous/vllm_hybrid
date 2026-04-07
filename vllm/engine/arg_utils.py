@@ -428,7 +428,10 @@ class EngineArgs:
     """Max batched tokens for CPU path (0=auto-detect)."""
 
     hybrid_routing_strategy: str = "capacity"
-    """Routing strategy: 'capacity', 'length-aware', 'throughput-adaptive'."""
+    """Routing strategy: 'capacity', 'length-aware', 'throughput-adaptive', 'round-robin'."""
+
+    hybrid_routing_priority: str = "gpu-first"
+    """Routing priority: 'gpu-first' or 'cpu-first'. Ignored when round-robin."""
 
     hybrid_cpu_prefill_threshold: int = 512
     """Max prompt tokens for CPU in length-aware/throughput-adaptive mode."""
@@ -976,11 +979,25 @@ class EngineArgs:
             '--hybrid-routing-strategy',
             type=str,
             default="capacity",
-            choices=["capacity", "length-aware", "throughput-adaptive"],
+            choices=["capacity", "length-aware", "throughput-adaptive",
+                     "round-robin"],
             help="Routing strategy: 'capacity' (slot-based), "
                  "'length-aware' (filter long prompts to GPU), "
-                 "'throughput-adaptive' (EMA-based dynamic adjustment). "
+                 "'throughput-adaptive' (EMA-based dynamic adjustment), "
+                 "'round-robin' (alternate GPU/CPU). "
                  "(default: capacity)"
+        )
+        hybrid_group.add_argument(
+            '--hybrid-routing-priority',
+            type=str,
+            default="gpu-first",
+            choices=["gpu-first", "cpu-first"],
+            help="Routing priority for capacity/length-aware/"
+                 "throughput-adaptive strategies. "
+                 "'gpu-first' fills GPU first, overflow to CPU. "
+                 "'cpu-first' fills CPU first, overflow to GPU. "
+                 "Ignored when strategy is 'round-robin'. "
+                 "(default: gpu-first)"
         )
         hybrid_group.add_argument(
             '--hybrid-cpu-prefill-threshold',
@@ -1517,6 +1534,7 @@ class EngineArgs:
             cpu_max_num_seqs=self.hybrid_cpu_max_seqs,
             cpu_max_num_batched_tokens=self.hybrid_cpu_max_batched_tokens,
             routing_strategy=self.hybrid_routing_strategy,
+            routing_priority=self.hybrid_routing_priority,
             cpu_prefill_threshold=self.hybrid_cpu_prefill_threshold,
             warmup_requests=self.hybrid_warmup_requests,
             stats_log_interval=self.hybrid_stats_log_interval,

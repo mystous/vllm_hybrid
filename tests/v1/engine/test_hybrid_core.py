@@ -24,103 +24,171 @@ from vllm.v1.engine.hybrid_core import (
 class TestCapacityAwareRouterCapacityStrategy:
     """Test the default 'capacity' routing strategy."""
 
-    def test_cpu_first_when_slots_available(self):
+    def test_gpu_first_by_default(self):
+        """Default: GPU-first, GPU 슬롯 여유 시 GPU로."""
         router = CapacityAwareRouter(
             cpu_max_num_seqs=4, warmup_requests=0)
         result = router.route("req-1", prompt_len=100)
-        assert result == "cpu"
+        assert result == "gpu"
+        assert router.gpu_in_flight == 1
+
+    def test_cpu_first_when_priority_set(self):
+        """CPU-first: CPU 슬롯 여유 시 CPU로."""
+        router = CapacityAwareRouter(
+            cpu_max_num_seqs=4, routing_priority="cpu-first",
+            warmup_requests=0)
+        result = router.route("req-1", prompt_len=100)
+        assert result.startswith("cpu")
         assert router.cpu_in_flight == 1
 
-    def test_gpu_when_cpu_full(self):
+    def test_gpu_first_overflow_to_cpu(self):
+        """GPU-first: GPU 포화 시 CPU로 overflow."""
         router = CapacityAwareRouter(
-            cpu_max_num_seqs=2, warmup_requests=0)
-        router.route("req-1")
-        router.route("req-2")
+            cpu_max_num_seqs=4, gpu_max_num_seqs=2, warmup_requests=0)
+        router.route("req-1")  # gpu
+        router.route("req-2")  # gpu (full)
+        result = router.route("req-3")
+        assert result.startswith("cpu")
+        assert router.gpu_in_flight == 2
+
+    def test_cpu_first_overflow_to_gpu(self):
+        """CPU-first: CPU 포화 시 GPU로 overflow."""
+        router = CapacityAwareRouter(
+            cpu_max_num_seqs=2, routing_priority="cpu-first",
+            warmup_requests=0)
+        router.route("req-1")  # cpu
+        router.route("req-2")  # cpu (full)
         result = router.route("req-3")
         assert result == "gpu"
         assert router.cpu_in_flight == 2
 
     def test_slot_release_on_finish(self):
         router = CapacityAwareRouter(
-            cpu_max_num_seqs=1, warmup_requests=0)
-        router.route("req-1")
-        assert router.cpu_in_flight == 1
-        # Fill up → GPU
+            cpu_max_num_seqs=1, gpu_max_num_seqs=1, warmup_requests=0)
+        router.route("req-1")  # gpu
+        assert router.gpu_in_flight == 1
+        # GPU full → CPU
         result = router.route("req-2")
-        assert result == "gpu"
+        assert result.startswith("cpu")
         # Release CPU slot
-        router.on_request_finished("req-1", was_cpu=True, num_tokens=10)
+        router.on_request_finished("req-2", engine_path="cpu:0", num_tokens=10)
         assert router.cpu_in_flight == 0
-        # Now CPU should be available again
-        result = router.route("req-3")
-        assert result == "cpu"
 
-    def test_all_slots_fill_then_overflow_to_gpu(self):
-        N = 8
+    def test_all_gpu_slots_fill_then_overflow_to_cpu(self):
+        N_gpu = 4
         router = CapacityAwareRouter(
-            cpu_max_num_seqs=N, warmup_requests=0)
-        for i in range(N):
+            cpu_max_num_seqs=8, gpu_max_num_seqs=N_gpu, warmup_requests=0)
+        for i in range(N_gpu):
             result = router.route(f"req-{i}")
-            assert result == "cpu"
-        assert router.cpu_in_flight == N
-        # Next should go to GPU
-        for i in range(5):
-            result = router.route(f"overflow-{i}")
             assert result == "gpu"
-        assert router.cpu_count == N
-        assert router.gpu_count == 5
+        assert router.gpu_in_flight == N_gpu
+        # Next should go to CPU
+        for i in range(3):
+            result = router.route(f"overflow-{i}")
+            assert result.startswith("cpu")
+        assert router.gpu_count == N_gpu
+        assert router.cpu_count == 3
 
     def test_gpu_finish_doesnt_change_cpu_slots(self):
         router = CapacityAwareRouter(
-            cpu_max_num_seqs=2, warmup_requests=0)
+            cpu_max_num_seqs=2, gpu_max_num_seqs=1,
+            routing_priority="cpu-first", warmup_requests=0)
         router.route("req-1")  # cpu
         router.route("req-2")  # cpu
-        router.route("req-3")  # gpu
-        router.on_request_finished("req-3", was_cpu=False, num_tokens=5)
+        router.route("req-3")  # gpu (cpu full)
+        router.on_request_finished("req-3", engine_path="gpu", num_tokens=5)
         assert router.cpu_in_flight == 2  # unchanged
 
     def test_cpu_in_flight_never_negative(self):
         router = CapacityAwareRouter(
             cpu_max_num_seqs=2, warmup_requests=0)
         # Finish without prior route (edge case)
-        router.on_request_finished("phantom", was_cpu=True, num_tokens=0)
+        router.on_request_finished("phantom", engine_path="cpu:0", num_tokens=0)
         assert router.cpu_in_flight == 0  # clamped to 0
+
+
+class TestCapacityAwareRouterRoundRobin:
+    """Test the 'round-robin' routing strategy."""
+
+    def test_alternates_cpu_gpu(self):
+        router = CapacityAwareRouter(
+            cpu_max_num_seqs=4, gpu_max_num_seqs=4,
+            routing_strategy="round-robin", warmup_requests=0)
+        results = [router.route(f"r{i}") for i in range(4)]
+        # odd=CPU, even=GPU
+        assert results[0].startswith("cpu")
+        assert results[1] == "gpu"
+        assert results[2].startswith("cpu")
+        assert results[3] == "gpu"
+
+    def test_cpu_full_falls_back_to_gpu(self):
+        router = CapacityAwareRouter(
+            cpu_max_num_seqs=1, gpu_max_num_seqs=10,
+            routing_strategy="round-robin", warmup_requests=0)
+        router.route("r0")  # cpu (fills up)
+        router.route("r1")  # gpu
+        result = router.route("r2")  # cpu turn but full → gpu
+        assert result == "gpu"
+
+    def test_gpu_full_falls_back_to_cpu(self):
+        router = CapacityAwareRouter(
+            cpu_max_num_seqs=10, gpu_max_num_seqs=1,
+            routing_strategy="round-robin", warmup_requests=0)
+        router.route("r0")  # cpu
+        router.route("r1")  # gpu (fills up)
+        router.route("r2")  # cpu
+        result = router.route("r3")  # gpu turn but full → cpu
+        assert result.startswith("cpu")
+
+    def test_ignores_priority_setting(self):
+        router = CapacityAwareRouter(
+            cpu_max_num_seqs=4,
+            routing_strategy="round-robin",
+            routing_priority="cpu-first",
+            warmup_requests=0)
+        assert router.routing_priority == "gpu-first"
 
 
 class TestCapacityAwareRouterLengthAware:
     """Test the 'length-aware' routing strategy."""
 
-    def test_short_prompt_goes_to_cpu(self):
+    def test_gpu_first_short_prompt_stays_gpu(self):
+        """GPU-first: GPU 여유 있으면 짧은 프롬프트도 GPU."""
         router = CapacityAwareRouter(
             cpu_max_num_seqs=4,
             routing_strategy="length-aware",
             cpu_prefill_threshold=512,
             warmup_requests=0)
         result = router.route("req-1", prompt_len=100)
-        assert result == "cpu"
+        assert result == "gpu"
 
-    def test_long_prompt_goes_to_gpu(self):
+    def test_cpu_first_short_prompt_goes_to_cpu(self):
+        """CPU-first: 짧은 프롬프트는 CPU 우선."""
         router = CapacityAwareRouter(
             cpu_max_num_seqs=4,
             routing_strategy="length-aware",
+            routing_priority="cpu-first",
+            cpu_prefill_threshold=512,
+            warmup_requests=0)
+        result = router.route("req-1", prompt_len=100)
+        assert result.startswith("cpu")
+
+    def test_cpu_first_long_prompt_goes_to_gpu(self):
+        """CPU-first여도 긴 프롬프트는 GPU로."""
+        router = CapacityAwareRouter(
+            cpu_max_num_seqs=4,
+            routing_strategy="length-aware",
+            routing_priority="cpu-first",
             cpu_prefill_threshold=512,
             warmup_requests=0)
         result = router.route("req-1", prompt_len=1000)
         assert result == "gpu"
 
-    def test_exact_threshold_goes_to_cpu(self):
-        router = CapacityAwareRouter(
-            cpu_max_num_seqs=4,
-            routing_strategy="length-aware",
-            cpu_prefill_threshold=512,
-            warmup_requests=0)
-        result = router.route("req-1", prompt_len=512)
-        assert result == "cpu"
-
     def test_above_threshold_goes_to_gpu(self):
         router = CapacityAwareRouter(
             cpu_max_num_seqs=4,
             routing_strategy="length-aware",
+            routing_priority="cpu-first",
             cpu_prefill_threshold=512,
             warmup_requests=0)
         result = router.route("req-1", prompt_len=513)
@@ -130,6 +198,7 @@ class TestCapacityAwareRouterLengthAware:
         router = CapacityAwareRouter(
             cpu_max_num_seqs=1,
             routing_strategy="length-aware",
+            routing_priority="cpu-first",
             cpu_prefill_threshold=512,
             warmup_requests=0)
         router.route("req-1", prompt_len=100)  # cpu
@@ -140,19 +209,31 @@ class TestCapacityAwareRouterLengthAware:
 class TestCapacityAwareRouterThroughputAdaptive:
     """Test the 'throughput-adaptive' routing strategy."""
 
-    def test_initial_routing_uses_base_max(self):
+    def test_gpu_first_initial_routing(self):
+        """GPU-first: 초기 요청은 GPU로."""
         router = CapacityAwareRouter(
             cpu_max_num_seqs=4,
             routing_strategy="throughput-adaptive",
             warmup_requests=0)
         result = router.route("req-1", prompt_len=100)
-        assert result == "cpu"
+        assert result == "gpu"
+
+    def test_cpu_first_initial_routing(self):
+        """CPU-first: 초기 요청은 CPU로."""
+        router = CapacityAwareRouter(
+            cpu_max_num_seqs=4,
+            routing_strategy="throughput-adaptive",
+            routing_priority="cpu-first",
+            warmup_requests=0)
+        result = router.route("req-1", prompt_len=100)
+        assert result.startswith("cpu")
 
     def test_length_threshold_applies(self):
         """throughput-adaptive also checks prompt_len <= threshold."""
         router = CapacityAwareRouter(
             cpu_max_num_seqs=4,
             routing_strategy="throughput-adaptive",
+            routing_priority="cpu-first",
             cpu_prefill_threshold=256,
             warmup_requests=0)
         result = router.route("req-1", prompt_len=500)
@@ -201,7 +282,7 @@ class TestCapacityAwareRouterThroughputAdaptive:
         router.route("req-1", prompt_len=100)
         # Simulate passage of time
         router._request_start_times["req-1"] = time.monotonic() - 1.0
-        router.on_request_finished("req-1", was_cpu=True, num_tokens=10)
+        router.on_request_finished("req-1", engine_path="cpu:0", num_tokens=10)
         assert router._cpu_ema_throughput > 0
 
 
@@ -222,12 +303,12 @@ class TestCapacityAwareRouterWarmup:
         for i in range(2):
             router.route(f"gpu-{i}")
             router._request_start_times[f"gpu-{i}"] = time.monotonic() - 0.1
-            router.on_request_finished(f"gpu-{i}", was_cpu=False,
+            router.on_request_finished(f"gpu-{i}", engine_path="gpu",
                                        num_tokens=10)
         for i in range(2):
             router.route(f"cpu-{i}")
             router._request_start_times[f"cpu-{i}"] = time.monotonic() - 0.1
-            router.on_request_finished(f"cpu-{i}", was_cpu=True,
+            router.on_request_finished(f"cpu-{i}", engine_path="cpu:0",
                                        num_tokens=10)
         assert router._warmup_complete is True
 
@@ -241,12 +322,12 @@ class TestCapacityAwareRouterWarmup:
         for i in range(10):
             router.route(f"gpu-{i}")
             router._request_start_times[f"gpu-{i}"] = time.monotonic() - 0.1
-            router.on_request_finished(f"gpu-{i}", was_cpu=False,
+            router.on_request_finished(f"gpu-{i}", engine_path="gpu",
                                        num_tokens=5)
         # 1 CPU request
         router.route("cpu-0")
         router._request_start_times["cpu-0"] = time.monotonic() - 0.1
-        router.on_request_finished("cpu-0", was_cpu=True, num_tokens=5)
+        router.on_request_finished("cpu-0", engine_path="cpu:0", num_tokens=5)
 
         assert router._warmup_complete is True
 
@@ -255,9 +336,10 @@ class TestCapacityAwareRouterFaultTolerance:
     """Test fault tolerance edge cases."""
 
     def test_crash_when_cpu_full(self):
-        """When C=N at crash time, all new requests go to GPU."""
+        """When C=N at crash time, all new requests go to GPU (cpu-first)."""
         router = CapacityAwareRouter(
-            cpu_max_num_seqs=2, warmup_requests=0)
+            cpu_max_num_seqs=2, routing_priority="cpu-first",
+            warmup_requests=0)
         router.route("req-1")  # cpu, C=1
         router.route("req-2")  # cpu, C=2=N
         # Simulate crash: no on_request_finished calls
@@ -269,12 +351,13 @@ class TestCapacityAwareRouterFaultTolerance:
     def test_crash_when_cpu_not_full(self):
         """When C<N at crash time, new requests still go to dead CPU."""
         router = CapacityAwareRouter(
-            cpu_max_num_seqs=4, warmup_requests=0)
+            cpu_max_num_seqs=4, routing_priority="cpu-first",
+            warmup_requests=0)
         router.route("req-1")  # cpu, C=1
         # Simulate crash with C=1 < N=4
         # Without a watchdog, new requests go to CPU (known limitation)
         result = router.route("post-crash-1")
-        assert result == "cpu"  # Known: no health check
+        assert result.startswith("cpu")  # Known: no health check
 
 
 # ============================================================================
