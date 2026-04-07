@@ -400,6 +400,18 @@ env_file = os.environ.get("EVAL_ENV_FILE", "")
 if env_file and Path(env_file).exists():
     info["eval_env"] = Path(env_file).read_text()
 
+# --- Hybrid config (structured) ---
+info["hybrid_config"] = {
+    "routing_strategy": os.environ.get("HYBRID_ROUTING_STRATEGY", "capacity"),
+    "routing_priority": os.environ.get("HYBRID_ROUTING_PRIORITY", "gpu-first"),
+    "cpu_max_seqs": os.environ.get("HYBRID_CPU_MAX_SEQS", "0"),
+    "cpu_kvcache_gb": os.environ.get("HYBRID_CPU_KVCACHE_GB", "0"),
+    "cpu_threads": os.environ.get("HYBRID_CPU_THREADS", "0"),
+    "numa_aware": os.environ.get("HYBRID_NUMA_AWARE", "true"),
+    "num_cpu_engines": os.environ.get("HYBRID_NUM_CPU_ENGINES", "1"),
+    "stats_log_interval": os.environ.get("HYBRID_STATS_LOG_INTERVAL", "50"),
+}
+
 # Write JSON
 outfile = sys.argv[1]
 with open(outfile, "w") as f:
@@ -420,10 +432,10 @@ run_gpu_only() {
     stop_server   # Clean up any leftover server
 
     start_server "gpu_only"
+    start_monitor "${RESULTS_DIR}/gpu_only_monitor"
 
     wait_for_server
 
-    start_monitor "${RESULTS_DIR}/gpu_only_monitor"
     log "--- Running GPU-only benchmark ---"
     bash "${SCRIPT_DIR}/benchmark.sh" "gpu_only"
     stop_monitor
@@ -445,10 +457,10 @@ run_hybrid() {
     stop_server
 
     start_server "hybrid"
+    start_monitor "${RESULTS_DIR}/hybrid_monitor"
 
     wait_for_server
 
-    start_monitor "${RESULTS_DIR}/hybrid_monitor"
     log "--- Running Hybrid benchmark ---"
     bash "${SCRIPT_DIR}/benchmark.sh" "hybrid"
     stop_monitor
@@ -491,7 +503,7 @@ log "  Output len     : ${OUTPUT_LEN}"
 log "  Request rate   : ${REQUEST_RATE}"
 log "  CPU engines    : ${HYBRID_NUM_CPU_ENGINES:-1}"
 log "  NUMA aware     : ${HYBRID_NUMA_AWARE:-true}"
-log "  Routing        : ${HYBRID_ROUTING_STRATEGY:-capacity}"
+log "  Routing        : ${HYBRID_ROUTING_STRATEGY:-capacity} (${HYBRID_ROUTING_PRIORITY:-gpu-first})"
 log "  CPU max seqs   : ${HYBRID_CPU_MAX_SEQS:-0 (auto)}"
 log "  CPU kvcache GB : ${HYBRID_CPU_KVCACHE_GB:-0 (auto)}"
 log "  CPU threads    : ${HYBRID_CPU_THREADS:-0 (auto)}"

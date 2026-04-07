@@ -94,11 +94,13 @@ def summarize_monitor_csv(csv_path: Path) -> dict | None:
 def build_report(gpu_data: dict, hyb_data: dict,
                  gpu_mon_gpu: dict | None, gpu_mon_cpu: dict | None,
                  hyb_mon_gpu: dict | None, hyb_mon_cpu: dict | None,
-                 args) -> tuple[str, dict]:
+                 args,
+                 hyb_config: dict | None = None) -> tuple[str, dict]:
 
     lines = []
     result_json = {
         "generated_at": datetime.now(KST).isoformat(),
+        "hybrid_config": hyb_config or {},
         "gpu_only": {},
         "hybrid": {},
         "comparison": {},
@@ -124,6 +126,15 @@ def build_report(gpu_data: dict, hyb_data: dict,
 
     lines.append(f"  GPU-only  : {_env(gpu_data)}")
     lines.append(f"  Hybrid    : {_env(hyb_data)}")
+
+    # --- Hybrid routing config ---
+    if hyb_config:
+        strategy = hyb_config.get("routing_strategy", "?")
+        priority = hyb_config.get("routing_priority", "?")
+        if strategy == "round-robin":
+            lines.append(f"  Routing   : {strategy}")
+        else:
+            lines.append(f"  Routing   : {strategy} ({priority})")
     lines.append("")
 
     # --- Metrics comparison table ---
@@ -255,11 +266,23 @@ def main():
     hyb_mon_gpu = summarize_monitor_csv(rd / f"{args.hybrid_label}_monitor_gpu.csv")
     hyb_mon_cpu = summarize_monitor_csv(rd / f"{args.hybrid_label}_monitor_cpu.csv")
 
+    # Load hybrid config from system_info.json
+    hyb_config = None
+    sysinfo_path = rd / "system_info.json"
+    if sysinfo_path.exists():
+        try:
+            with open(sysinfo_path) as f:
+                sysinfo = json.load(f)
+            hyb_config = sysinfo.get("hybrid_config")
+        except Exception:
+            pass
+
     report_txt, report_json = build_report(
         gpu_bench, hyb_bench,
         gpu_mon_gpu, gpu_mon_cpu,
         hyb_mon_gpu, hyb_mon_cpu,
         args,
+        hyb_config=hyb_config,
     )
 
     print(report_txt)
