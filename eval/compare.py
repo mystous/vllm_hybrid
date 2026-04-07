@@ -296,6 +296,32 @@ def build_report(runs: list[dict]) -> tuple[str, dict]:
             f"  ({mon.get('sample_count', 0)} samples, {mon.get('duration_s', 0):.0f}s)"
         )
     lines.append("")
+
+    # Power efficiency
+    lines.append("  [Power Efficiency]")
+    for i, r in enumerate(runs):
+        tag = labels[i][0]
+        mon = r.get("monitor_gpu")
+        tok = r["bench"].get("output_throughput", 0)
+        if not mon or not tok:
+            lines.append(f"  {tag} N/A")
+            continue
+        avg_power = mon.get("gpu_avg_power_w", {}).get("mean", 0)
+        if avg_power > 0:
+            tok_per_w = tok / avg_power
+            dur = r["bench"].get("duration", 0)
+            total_energy_wh = avg_power * dur / 3600
+            total_tokens = r["bench"].get("total_output_tokens", 0)
+            tok_per_wh = total_tokens / total_energy_wh if total_energy_wh > 0 else 0
+            lines.append(
+                f"  {tag} {avg_power:.0f}W avg"
+                f"  |  {tok_per_w:.1f} tok/s/W"
+                f"  |  {total_energy_wh:.1f} Wh consumed"
+                f"  |  {tok_per_wh:.0f} tok/Wh"
+            )
+        else:
+            lines.append(f"  {tag} No power data")
+    lines.append("")
     lines.append("=" * 100)
 
     return "\n".join(lines), result_json
