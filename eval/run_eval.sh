@@ -116,8 +116,6 @@ RESULTS_DIR="${RESULTS_BASE}/${RUN_TS}"
 export EVAL_RUN_DIR="${RESULTS_DIR}"
 mkdir -p "${RESULTS_DIR}"
 
-# Keep a symlink results/latest → most recent run
-ln -sfn "${RUN_TS}" "${RESULTS_BASE}/latest"
 
 MODE="${2:-all}"  # all / gpu_only / hybrid / compare
 
