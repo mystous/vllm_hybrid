@@ -60,7 +60,9 @@ fi
 export EVAL_ENV_FILE="${ENV_FILE}"
 
 # shellcheck disable=SC1090
+set -a          # auto-export all variables from env file
 source "${ENV_FILE}"
+set +a
 
 # ---------------------------------------------------------------------------
 # Pre-flight: check model is downloaded
@@ -434,11 +436,22 @@ run_gpu_only() {
     start_server "gpu_only"
     start_monitor "${RESULTS_DIR}/gpu_only_monitor"
 
+    # Stream key events to console
+    local serve_log="${RESULTS_DIR}/gpu_only_serve.log"
+    tail -f "${serve_log}" 2>/dev/null | grep --line-buffered -E \
+        "Initializing.*engine|Loading model|loaded model|CUDA graphs|ERROR|FATAL|Traceback" | \
+        while IFS= read -r line; do
+            log "[gpu] ${line##*] }"
+        done &
+    TAIL_PID=$!
+
     wait_for_server
 
     log "--- Running GPU-only benchmark ---"
     bash "${SCRIPT_DIR}/benchmark.sh" "gpu_only"
     stop_monitor
+
+    kill "${TAIL_PID}" 2>/dev/null; wait "${TAIL_PID}" 2>/dev/null || true
 
     stop_server
 
@@ -459,11 +472,23 @@ run_hybrid() {
     start_server "hybrid"
     start_monitor "${RESULTS_DIR}/hybrid_monitor"
 
+    # Stream key hybrid events to console in background
+    local serve_log="${RESULTS_DIR}/hybrid_serve.log"
+    tail -f "${serve_log}" 2>/dev/null | grep --line-buffered -E \
+        "CapacityAwareRouter init|Warmup profiling|Router stats|CPU_EngineCore.*Starting|CPU_EngineCore.*Resolved|GPU_EngineCore.*Initializing|Loading model|loaded model|CUDA graphs|cpu_max_num_seqs|ERROR|FATAL|Traceback" | \
+        while IFS= read -r line; do
+            log "[hybrid] ${line##*] }"
+        done &
+    TAIL_PID=$!
+
     wait_for_server
 
     log "--- Running Hybrid benchmark ---"
     bash "${SCRIPT_DIR}/benchmark.sh" "hybrid"
     stop_monitor
+
+    # Stop log tail
+    kill "${TAIL_PID}" 2>/dev/null; wait "${TAIL_PID}" 2>/dev/null || true
 
     stop_server
 

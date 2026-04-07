@@ -1,75 +1,97 @@
 #!/usr/bin/env python3
 """
-compare.py — GPU-only vs Hybrid benchmark comparison report generator
+compare.py — N개 벤치마크 결과 비교
 
 Usage:
-    python compare.py [--results-dir results] [--gpu-label gpu_only] [--hybrid-label hybrid]
+    python compare.py <result_dir1> <result_dir2> [result_dir3 ...]
+    python compare.py results/20260407_*  (glob)
 
 Output:
-    results/comparison.txt  — Text report
-    results/comparison.json — JSON summary
-    (also printed to console)
+    Console에 비교 테이블 출력
+    첫 번째 결과 디렉토리에 comparison.txt / comparison.json 저장
+
+Examples:
+    python compare.py results/20260407_175241_* results/20260407_180242_*
+    python compare.py results/20260407_1[5-8]*
 """
 import argparse
+import csv
 import json
 import os
 import sys
 from datetime import datetime, timezone, timedelta
-
-KST = timezone(timedelta(hours=9))
 from pathlib import Path
 
+KST = timezone(timedelta(hours=9))
 
 # ---------------------------------------------------------------------------
-# Benchmark JSON loader
+# Benchmark metrics
 # ---------------------------------------------------------------------------
 
 BENCH_KEYS = {
-    "request_throughput":    ("Request throughput (req/s)", "higher_better"),
-    "output_throughput":     ("Output token throughput (tok/s)", "higher_better"),
-    "total_token_throughput":("Total token throughput (tok/s)", "higher_better"),
-    "duration":              ("Benchmark duration (s)", "lower_better"),
-    "mean_ttft_ms":          ("Mean TTFT (ms)", "lower_better"),
-    "median_ttft_ms":        ("Median TTFT (ms)", "lower_better"),
-    "p99_ttft_ms":           ("P99 TTFT (ms)", "lower_better"),
-    "mean_tpot_ms":          ("Mean TPOT (ms)", "lower_better"),
-    "median_tpot_ms":        ("Median TPOT (ms)", "lower_better"),
-    "p99_tpot_ms":           ("P99 TPOT (ms)", "lower_better"),
-    "mean_itl_ms":           ("Mean ITL (ms)", "lower_better"),
-    "median_itl_ms":         ("Median ITL (ms)", "lower_better"),
-    "p99_itl_ms":            ("P99 ITL (ms)", "lower_better"),
+    "wall_time_s":            ("Wall Time (s)", "lower_better", ".1f"),
+    "request_throughput":     ("Req TP (req/s)", "higher_better", ".2f"),
+    "output_throughput":      ("Out TP (tok/s)", "higher_better", ".0f"),
+    "total_token_throughput": ("Total TP (tok/s)", "higher_better", ".0f"),
+    "duration":               ("Duration (s)", "lower_better", ".1f"),
+    "mean_ttft_ms":           ("Mean TTFT (ms)", "lower_better", ".1f"),
+    "median_ttft_ms":         ("Median TTFT (ms)", "lower_better", ".1f"),
+    "p99_ttft_ms":            ("P99 TTFT (ms)", "lower_better", ".1f"),
+    "mean_tpot_ms":           ("Mean TPOT (ms)", "lower_better", ".2f"),
+    "median_tpot_ms":         ("Median TPOT (ms)", "lower_better", ".2f"),
+    "p99_tpot_ms":            ("P99 TPOT (ms)", "lower_better", ".2f"),
+    "mean_itl_ms":            ("Mean ITL (ms)", "lower_better", ".2f"),
+    "median_itl_ms":          ("Median ITL (ms)", "lower_better", ".2f"),
+    "p99_itl_ms":             ("P99 ITL (ms)", "lower_better", ".2f"),
 }
 
 
-def load_bench(path: Path) -> dict:
-    if not path.exists():
-        print(f"[ERROR] File not found: {path}", file=sys.stderr)
-        sys.exit(1)
-    with open(path) as f:
-        return json.load(f)
-
-
 # ---------------------------------------------------------------------------
-# Monitor CSV summary statistics
+# Loaders
 # ---------------------------------------------------------------------------
 
-def summarize_monitor_csv(csv_path: Path) -> dict | None:
-    """Read GPU or CPU CSV and return mean/max summary."""
+def load_run(run_dir: Path) -> dict | None:
+    """Load a single run directory. Auto-detect gpu_only.json or hybrid.json."""
+    run = {"dir": run_dir, "name": run_dir.name}
+
+    # Load benchmark JSON (prefer hybrid, fallback to gpu_only)
+    for mode in ("hybrid", "gpu_only"):
+        jf = run_dir / f"{mode}.json"
+        if jf.exists():
+            with open(jf) as f:
+                run["bench"] = json.load(f)
+            run["mode"] = mode
+            break
+
+    if "bench" not in run:
+        return None
+
+    # Load system_info
+    si_path = run_dir / "system_info.json"
+    if si_path.exists():
+        with open(si_path) as f:
+            run["system_info"] = json.load(f)
+    else:
+        run["system_info"] = {}
+
+    # Load monitor CSVs
+    mode = run["mode"]
+    for mtype in ("gpu", "cpu"):
+        csv_path = run_dir / f"{mode}_monitor_{mtype}.csv"
+        run[f"monitor_{mtype}"] = _summarize_csv(csv_path)
+
+    return run
+
+
+def _summarize_csv(csv_path: Path) -> dict | None:
     if not csv_path.exists():
         return None
     try:
-        import csv
-        rows = []
-        with open(csv_path) as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                rows.append(row)
+        rows = list(csv.DictReader(open(csv_path)))
         if not rows:
             return None
-
         headers = list(rows[0].keys())
         util_cols = [h for h in headers if h.endswith("_util_pct") or h.endswith("_power_w")]
-
         summary = {}
         for col in util_cols:
             vals = [float(r[col]) for r in rows if r.get(col, "") not in ("", "N/A")]
@@ -80,166 +102,201 @@ def summarize_monitor_csv(csv_path: Path) -> dict | None:
                     "min": round(min(vals), 2),
                 }
         summary["sample_count"] = len(rows)
-        summary["duration_s"] = round(float(rows[-1]["elapsed_s"]) - float(rows[0]["elapsed_s"]), 1) if len(rows) > 1 else 0.0
+        summary["duration_s"] = round(
+            float(rows[-1]["elapsed_s"]) - float(rows[0]["elapsed_s"]), 1
+        ) if len(rows) > 1 else 0.0
         return summary
     except Exception as e:
-        print(f"[WARN] CSV analysis failed ({csv_path.name}): {e}")
+        print(f"[WARN] CSV parse failed ({csv_path.name}): {e}", file=sys.stderr)
         return None
 
 
 # ---------------------------------------------------------------------------
-# Comparison report builder
+# Label generation
 # ---------------------------------------------------------------------------
 
-def build_report(gpu_data: dict, hyb_data: dict,
-                 gpu_mon_gpu: dict | None, gpu_mon_cpu: dict | None,
-                 hyb_mon_gpu: dict | None, hyb_mon_cpu: dict | None,
-                 args,
-                 hyb_config: dict | None = None) -> tuple[str, dict]:
+def make_label(run: dict) -> str:
+    """Short label for a run: mode + routing + model."""
+    si = run.get("system_info", {})
+    hc = si.get("hybrid_config", {})
+    bench = run.get("bench", {})
 
+    mode = run.get("mode", "?")
+    model = bench.get("model_id", "?").split("/")[-1]
+
+    if mode == "gpu_only":
+        return f"gpu_only | {model}"
+
+    strategy = hc.get("routing_strategy", "?")
+    priority = hc.get("routing_priority", "?")
+    seqs = hc.get("cpu_max_seqs", "?")
+
+    if strategy == "round-robin":
+        routing = "RR"
+    else:
+        routing = f"{strategy}({priority})"
+
+    return f"{mode} {routing} seqs={seqs} | {model}"
+
+
+# ---------------------------------------------------------------------------
+# Report builder
+# ---------------------------------------------------------------------------
+
+def build_report(runs: list[dict]) -> tuple[str, dict]:
     lines = []
     result_json = {
         "generated_at": datetime.now(KST).isoformat(),
-        "hybrid_config": hyb_config or {},
-        "gpu_only": {},
-        "hybrid": {},
-        "comparison": {},
-        "gpu_utilization": {},
-        "cpu_utilization": {},
+        "runs": [],
     }
 
-    # --- Header ---
-    lines.append("=" * 70)
-    lines.append("  vLLM Hybrid Benchmark Comparison Report")
+    # Header
+    lines.append("=" * 100)
+    lines.append("  vLLM Benchmark Comparison Report")
     lines.append(f"  Generated: {datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S KST')}")
-    lines.append("=" * 70)
+    lines.append(f"  Comparing {len(runs)} runs")
+    lines.append("=" * 100)
     lines.append("")
 
-    # --- Environment info ---
-    def _env(data: dict) -> str:
-        parts = []
-        if "model_id" in data:
-            parts.append(f"model={data['model_id']}")
-        if "num_prompts" in data:
-            parts.append(f"prompts={data['num_prompts']}")
-        return ", ".join(parts) if parts else "N/A"
+    # Run info table
+    labels = []
+    for i, r in enumerate(runs):
+        label = make_label(r)
+        tag = f"[{i}]"
+        labels.append((tag, label))
 
-    lines.append(f"  GPU-only  : {_env(gpu_data)}")
-    lines.append(f"  Hybrid    : {_env(hyb_data)}")
+        bench = r.get("bench", {})
+        completed = bench.get("completed", "?")
+        prompts = bench.get("num_prompts", "?")
+        lines.append(f"  {tag} {label}")
+        lines.append(f"       Dir: {r['name']}  |  {completed}/{prompts} completed")
 
-    # --- Hybrid routing config ---
-    if hyb_config:
-        strategy = hyb_config.get("routing_strategy", "?")
-        priority = hyb_config.get("routing_priority", "?")
-        if strategy == "round-robin":
-            lines.append(f"  Routing   : {strategy}")
-        else:
-            lines.append(f"  Routing   : {strategy} ({priority})")
+        # Save to JSON
+        si = r.get("system_info", {})
+        gpu_devs = si.get("gpu", {}).get("devices", [{}])
+        gpu_name = gpu_devs[0].get("name", "-") if gpu_devs else "-"
+        result_json["runs"].append({
+            "index": i,
+            "label": label,
+            "dir": r["name"],
+            "mode": r.get("mode", "?"),
+            "hybrid_config": si.get("hybrid_config", {}),
+            "gpu": gpu_name,
+            "cpu": si.get("cpu", {}).get("model_name", "-"),
+        })
+
     lines.append("")
 
-    # --- Metrics comparison table ---
-    lines.append("-" * 70)
-    lines.append(f"  {'Metric':<40} {'GPU Only':>10} {'Hybrid':>10} {'Diff':>8}")
-    lines.append("-" * 70)
+    # Metrics table — values
+    n = len(runs)
+    col_w = 14
 
-    for key, (label, direction) in BENCH_KEYS.items():
-        g_val = gpu_data.get(key)
-        h_val = hyb_data.get(key)
-        if g_val is None or h_val is None:
+    lines.append("-" * 100)
+    hdr = f"  {'Metric':<24}"
+    for tag, _ in labels:
+        hdr += f" {tag:>{col_w}}"
+    lines.append(hdr)
+    lines.append("-" * 100)
+
+    result_json["metrics"] = {}
+
+    for key, (label, direction, fmt) in BENCH_KEYS.items():
+        vals = [r["bench"].get(key) for r in runs]
+        if all(v is None for v in vals):
             continue
 
-        diff_pct = (h_val - g_val) / abs(g_val) * 100 if g_val != 0 else 0.0
-        if direction == "higher_better":
-            marker = "▲" if diff_pct > 1 else ("▼" if diff_pct < -1 else "~")
-        else:
-            marker = "▼" if diff_pct > 1 else ("▲" if diff_pct < -1 else "~")
+        row = f"  {label:<24}"
+        for v in vals:
+            row += f" {format(v, fmt):>{col_w}}" if v is not None else f" {'N/A':>{col_w}}"
+        lines.append(row)
 
-        # Format by unit (width handled outside f-string for alignment)
-        if "throughput" in key:
-            fmt = ".1f"
-        elif "duration" in key:
-            fmt = ".2f"
-        else:
-            fmt = ".2f"
+        result_json["metrics"][key] = {
+            "label": label, "direction": direction,
+            "values": [{"run": i, "value": v} for i, v in enumerate(vals)],
+        }
 
-        g_str = format(g_val, fmt)
-        h_str = format(h_val, fmt)
-        lines.append(
-            f"  {label:<40} {g_str:>10} {h_str:>10} {diff_pct:+.1f}% {marker}"
-        )
-
-        result_json["gpu_only"][key] = g_val
-        result_json["hybrid"][key] = h_val
-        result_json["comparison"][key] = {"diff_pct": round(diff_pct, 2), "direction": direction}
-
-    lines.append("-" * 70)
+    lines.append("-" * 100)
     lines.append("")
 
-    # --- Key summary ---
-    req_g = gpu_data.get("request_throughput", 0)
-    req_h = hyb_data.get("request_throughput", 0)
-    tok_g = gpu_data.get("output_throughput", 0)
-    tok_h = hyb_data.get("output_throughput", 0)
-    ttft_g = gpu_data.get("mean_ttft_ms", 0)
-    ttft_h = hyb_data.get("mean_ttft_ms", 0)
+    # Diff vs [0] — each run on its own row
+    if n >= 2:
+        lines.append("  [vs [0] Comparison]")
+        base = runs[0]["bench"]
 
-    speedup = req_h / req_g if req_g > 0 else 0
-    tok_speedup = tok_h / tok_g if tok_g > 0 else 0
-    ttft_gain = (1 - ttft_h / ttft_g) * 100 if ttft_g > 0 else 0
+        for i in range(1, n):
+            tag = labels[i][0]
+            lines.append(f"  {tag} {labels[i][1]}")
+            comp = runs[i]["bench"]
 
+            for key, (label, direction, fmt) in BENCH_KEYS.items():
+                bv = base.get(key)
+                cv = comp.get(key)
+                if bv is None or cv is None:
+                    continue
+                if bv == 0:
+                    continue
+                diff_pct = (cv - bv) / abs(bv) * 100
+                if direction == "higher_better":
+                    marker = "▲" if diff_pct > 1 else ("▼" if diff_pct < -1 else "~")
+                else:
+                    marker = "▼" if diff_pct > 1 else ("▲" if diff_pct < -1 else "~")
+                lines.append(
+                    f"    {label:<24} {format(bv, fmt):>10} → {format(cv, fmt):>10}"
+                    f"  {diff_pct:+6.1f}% {marker}"
+                )
+            lines.append("")
+        lines.append("-" * 100)
+        lines.append("")
+
+    # Key summary
     lines.append("  [Key Summary]")
-    lines.append(f"  Request throughput: {req_g:.2f} → {req_h:.2f} req/s  ({speedup:.1%})")
-    lines.append(f"  Output tok/s:       {tok_g:.0f} → {tok_h:.0f} tok/s  ({tok_speedup:.1%})")
-    lines.append(f"  Mean TTFT gain:     {ttft_gain:+.1f}%")
+    for i, r in enumerate(runs):
+        b = r["bench"]
+        tag = labels[i][0]
+        req = b.get("request_throughput", 0)
+        tok = b.get("output_throughput", 0)
+        ttft = b.get("mean_ttft_ms", 0)
+        wall = b.get("wall_time_s")
+        wall_str = f"  |  wall {wall:.1f}s" if wall else ""
+        lines.append(f"  {tag} {req:.2f} req/s  |  {tok:.0f} tok/s  |  TTFT {ttft:.0f}ms{wall_str}")
     lines.append("")
 
-    result_json["comparison"]["request_throughput_speedup"] = round(speedup, 4)
-    result_json["comparison"]["output_tok_speedup"] = round(tok_speedup, 4)
-    result_json["comparison"]["ttft_gain_pct"] = round(ttft_gain, 2)
-
-    # --- GPU/CPU utilization summary ---
-    def _format_mon(label: str, mon: dict | None, lines: list, key: str):
-        if not mon:
-            lines.append(f"  {label}: No data (monitor CSV not found)")
-            return
-        lines.append(f"  {label} ({mon.get('sample_count', 0)} samples, {mon.get('duration_s', 0)}s):")
-        util_avg_keys = [k for k in mon if k.endswith("_util_pct") and "avg" in k]
-        util_card_keys = sorted([k for k in mon if k.endswith("_util_pct") and "avg" not in k])
-        power_keys = [k for k in mon if k.endswith("_power_w")]
-
-        for k in util_avg_keys:
-            v = mon[k]
-            lines.append(f"    {k:<30} avg={v['mean']:5.1f}%  max={v['max']:5.1f}%  min={v['min']:5.1f}%")
-        for k in util_card_keys:
-            v = mon[k]
-            lines.append(f"    {k:<30} avg={v['mean']:5.1f}%  max={v['max']:5.1f}%")
-        for k in power_keys:
-            v = mon[k]
-            lines.append(f"    {k:<30} avg={v['mean']:6.1f}W  max={v['max']:6.1f}W")
-
-    lines.append("-" * 70)
+    # GPU utilization summary
+    lines.append("-" * 100)
     lines.append("  [GPU Utilization]")
-    _format_mon("GPU-only", gpu_mon_gpu, lines, "gpu_only")
-    lines.append("")
-    _format_mon("Hybrid  ", hyb_mon_gpu, lines, "hybrid")
+    for i, r in enumerate(runs):
+        tag = labels[i][0]
+        mon = r.get("monitor_gpu")
+        if not mon:
+            lines.append(f"  {tag} No GPU monitor data")
+            continue
+        avg_util = mon.get("gpu_avg_util_pct", {})
+        avg_power = mon.get("gpu_avg_power_w", {})
+        util_str = f"avg={avg_util.get('mean', 0):.1f}%" if avg_util else "N/A"
+        power_str = f"avg={avg_power.get('mean', 0):.0f}W" if avg_power else "N/A"
+        lines.append(
+            f"  {tag} {util_str}  max={avg_util.get('max', 0):.0f}%"
+            f"  |  Power {power_str}"
+            f"  ({mon.get('sample_count', 0)} samples, {mon.get('duration_s', 0):.0f}s)"
+        )
     lines.append("")
 
-    lines.append("-" * 70)
+    # CPU utilization summary
     lines.append("  [CPU Utilization]")
-    _format_mon("GPU-only", gpu_mon_cpu, lines, "gpu_only")
+    for i, r in enumerate(runs):
+        tag = labels[i][0]
+        mon = r.get("monitor_cpu")
+        if not mon:
+            lines.append(f"  {tag} No CPU monitor data")
+            continue
+        avg_util = mon.get("cpu_avg_util_pct", {})
+        util_str = f"avg={avg_util.get('mean', 0):.1f}%" if avg_util else "N/A"
+        lines.append(
+            f"  {tag} {util_str}  max={avg_util.get('max', 0):.0f}%"
+            f"  ({mon.get('sample_count', 0)} samples, {mon.get('duration_s', 0):.0f}s)"
+        )
     lines.append("")
-    _format_mon("Hybrid  ", hyb_mon_cpu, lines, "hybrid")
-    lines.append("")
-    lines.append("=" * 70)
-
-    result_json["gpu_utilization"] = {
-        "gpu_only": gpu_mon_gpu or {},
-        "hybrid": hyb_mon_gpu or {},
-    }
-    result_json["cpu_utilization"] = {
-        "gpu_only": gpu_mon_cpu or {},
-        "hybrid": hyb_mon_cpu or {},
-    }
+    lines.append("=" * 100)
 
     return "\n".join(lines), result_json
 
@@ -249,46 +306,50 @@ def build_report(gpu_data: dict, hyb_data: dict,
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="GPU-only vs Hybrid comparison report")
-    default_rd = os.environ.get("EVAL_RUN_DIR", "results")
-    parser.add_argument("--results-dir", default=default_rd, help="Results directory (default: EVAL_RUN_DIR or 'results')")
-    parser.add_argument("--gpu-label", default="gpu_only", help="GPU-only result label")
-    parser.add_argument("--hybrid-label", default="hybrid", help="Hybrid result label")
+    parser = argparse.ArgumentParser(
+        description="Compare N benchmark results",
+        usage="%(prog)s <result_dir1> <result_dir2> [...]",
+    )
+    parser.add_argument(
+        "dirs", nargs="+", metavar="RESULT_DIR",
+        help="Result directories to compare",
+    )
+    parser.add_argument(
+        "-o", "--output-dir", default=None,
+        help="Directory to save comparison files (default: first result dir)",
+    )
     args = parser.parse_args()
 
-    rd = Path(args.results_dir)
+    # Load runs
+    runs = []
+    for d in args.dirs:
+        p = Path(d)
+        if not p.is_dir():
+            print(f"[WARN] Not a directory, skipping: {d}", file=sys.stderr)
+            continue
+        run = load_run(p)
+        if run is None:
+            print(f"[WARN] No benchmark JSON found, skipping: {d}", file=sys.stderr)
+            continue
+        runs.append(run)
 
-    gpu_bench = load_bench(rd / f"{args.gpu_label}.json")
-    hyb_bench = load_bench(rd / f"{args.hybrid_label}.json")
+    if len(runs) < 1:
+        print("[ERROR] No valid result directories found.", file=sys.stderr)
+        sys.exit(1)
 
-    gpu_mon_gpu = summarize_monitor_csv(rd / f"{args.gpu_label}_monitor_gpu.csv")
-    gpu_mon_cpu = summarize_monitor_csv(rd / f"{args.gpu_label}_monitor_cpu.csv")
-    hyb_mon_gpu = summarize_monitor_csv(rd / f"{args.hybrid_label}_monitor_gpu.csv")
-    hyb_mon_cpu = summarize_monitor_csv(rd / f"{args.hybrid_label}_monitor_cpu.csv")
+    if len(runs) == 1:
+        print("[INFO] Only 1 run found. Showing summary (no comparison).")
 
-    # Load hybrid config from system_info.json
-    hyb_config = None
-    sysinfo_path = rd / "system_info.json"
-    if sysinfo_path.exists():
-        try:
-            with open(sysinfo_path) as f:
-                sysinfo = json.load(f)
-            hyb_config = sysinfo.get("hybrid_config")
-        except Exception:
-            pass
-
-    report_txt, report_json = build_report(
-        gpu_bench, hyb_bench,
-        gpu_mon_gpu, gpu_mon_cpu,
-        hyb_mon_gpu, hyb_mon_cpu,
-        args,
-        hyb_config=hyb_config,
-    )
-
+    # Build report
+    report_txt, report_json = build_report(runs)
     print(report_txt)
 
-    txt_path = rd / "comparison.txt"
-    json_path = rd / "comparison.json"
+    # Save
+    out_dir = Path(args.output_dir) if args.output_dir else runs[0]["dir"]
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    txt_path = out_dir / "comparison.txt"
+    json_path = out_dir / "comparison.json"
 
     txt_path.write_text(report_txt)
     with open(json_path, "w") as f:

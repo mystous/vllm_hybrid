@@ -1,0 +1,225 @@
+{
+  "generated_at": "2026-04-07T18:43:47.202365+09:00",
+  "runs": [
+    {
+      "index": 0,
+      "label": "gpu_only | Qwen2.5-1.5B",
+      "dir": "20260407_183911_GeForce_RTX_3090_x1_Qwen2.5-1.5B",
+      "mode": "gpu_only",
+      "hybrid_config": {
+        "routing_strategy": "capacity",
+        "routing_priority": "cpu-first",
+        "cpu_max_seqs": "1",
+        "cpu_kvcache_gb": "0",
+        "cpu_threads": "0",
+        "numa_aware": "false",
+        "num_cpu_engines": "1",
+        "stats_log_interval": "10"
+      },
+      "gpu": "NVIDIA GeForce RTX 3090",
+      "cpu": "12th Gen Intel(R) Core(TM) i9-12900KF"
+    },
+    {
+      "index": 1,
+      "label": "hybrid capacity(cpu-first) seqs=1 | Qwen2.5-1.5B",
+      "dir": "20260407_184130_GeForce_RTX_3090_x1_Qwen2.5-1.5B",
+      "mode": "hybrid",
+      "hybrid_config": {
+        "routing_strategy": "capacity",
+        "routing_priority": "cpu-first",
+        "cpu_max_seqs": "1",
+        "cpu_kvcache_gb": "0",
+        "cpu_threads": "0",
+        "numa_aware": "false",
+        "num_cpu_engines": "1",
+        "stats_log_interval": "10"
+      },
+      "gpu": "NVIDIA GeForce RTX 3090",
+      "cpu": "12th Gen Intel(R) Core(TM) i9-12900KF"
+    }
+  ],
+  "metrics": {
+    "request_throughput": {
+      "label": "Req TP (req/s)",
+      "direction": "higher_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 19.826830452539014
+        },
+        {
+          "run": 1,
+          "value": 19.883049767257987
+        }
+      ]
+    },
+    "output_throughput": {
+      "label": "Out TP (tok/s)",
+      "direction": "higher_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 9877.13212654136
+        },
+        {
+          "run": 1,
+          "value": 9902.792702682375
+        }
+      ]
+    },
+    "total_token_throughput": {
+      "label": "Total TP (tok/s)",
+      "direction": "higher_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 12403.030672533925
+        },
+        {
+          "run": 1,
+          "value": 12435.853476931507
+        }
+      ]
+    },
+    "duration": {
+      "label": "Duration (s)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 25.21835253480822
+        },
+        {
+          "run": 1,
+          "value": 25.14704765379429
+        }
+      ]
+    },
+    "mean_ttft_ms": {
+      "label": "Mean TTFT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 7082.415389947593
+        },
+        {
+          "run": 1,
+          "value": 7035.00219226256
+        }
+      ]
+    },
+    "median_ttft_ms": {
+      "label": "Median TTFT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 1926.7518264241517
+        },
+        {
+          "run": 1,
+          "value": 1874.8740856535733
+        }
+      ]
+    },
+    "p99_ttft_ms": {
+      "label": "P99 TTFT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 14687.197701185942
+        },
+        {
+          "run": 1,
+          "value": 14613.683632565662
+        }
+      ]
+    },
+    "mean_tpot_ms": {
+      "label": "Mean TPOT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 25.003711806316467
+        },
+        {
+          "run": 1,
+          "value": 25.06927212580834
+        }
+      ]
+    },
+    "median_tpot_ms": {
+      "label": "Median TPOT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 24.47768394724118
+        },
+        {
+          "run": 1,
+          "value": 24.450564289505643
+        }
+      ]
+    },
+    "p99_tpot_ms": {
+      "label": "P99 TPOT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 97.05154966097322
+        },
+        {
+          "run": 1,
+          "value": 98.31259377300738
+        }
+      ]
+    },
+    "mean_itl_ms": {
+      "label": "Mean ITL (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 23.46125494941511
+        },
+        {
+          "run": 1,
+          "value": 23.43398984498019
+        }
+      ]
+    },
+    "median_itl_ms": {
+      "label": "Median ITL (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 21.11526019871235
+        },
+        {
+          "run": 1,
+          "value": 21.12628472968936
+        }
+      ]
+    },
+    "p99_itl_ms": {
+      "label": "P99 ITL (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 111.9153331965208
+        },
+        {
+          "run": 1,
+          "value": 110.57305545546114
+        }
+      ]
+    }
+  }
+}
