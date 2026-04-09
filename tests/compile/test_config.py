@@ -9,7 +9,7 @@ from vllm.utils import _is_torch_equal_or_newer
 
 
 def test_version():
-    assert _is_torch_equal_or_newer('2.8.0.dev20250624+cu128', '2.8.0.dev')
+    assert _is_torch_equal_or_newer('2.8.0.dev20250624+cu130', '2.8.0.dev')
     assert _is_torch_equal_or_newer('2.8.0a0+gitc82a174', '2.8.0.dev')
     assert _is_torch_equal_or_newer('2.8.0', '2.8.0.dev')
     assert _is_torch_equal_or_newer('2.8.1', '2.8.0.dev')

@@ -45,7 +45,7 @@ set(HIP_SUPPORTED_ARCHS "gfx906;gfx908;gfx90a;gfx942;gfx950;gfx1030;gfx1100;gfx1
 # requirements.txt files and should be kept consistent.  The ROCm torch
 # versions are derived from docker/Dockerfile.rocm
 #
-set(TORCH_SUPPORTED_VERSION_CUDA "2.7.1")
+set(TORCH_SUPPORTED_VERSION_CUDA "2.9.0")
 set(TORCH_SUPPORTED_VERSION_ROCM "2.7.0")
 
 #
@@ -166,6 +166,15 @@ endif()
 
 
 if(VLLM_GPU_LANG STREQUAL "CUDA")
+  #
+  # CUDA 13.0+: explicit template instantiations of __global__ functions across
+  # translation units get hidden visibility by default, causing linker failures.
+  # Force default visibility so cross-TU template instantiations remain linkable.
+  #
+  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=-fvisibility=default")
+  endif()
+
   #
   # For cuda we want to be able to control which architectures we compile for on
   # a per-file basis in order to cut down on compile time. So here we extract

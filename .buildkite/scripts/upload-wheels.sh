@@ -54,7 +54,7 @@ elif [[ $normal_wheel == *"cu126"* ]]; then
     # if $normal_wheel matches cu126, do not upload the index.html
     echo "Skipping index files for cu126 wheels"
 else
-    # only upload index.html for cu128 wheels (default wheels)
+    # only upload index.html for cu130 wheels (default wheels)
     aws s3 cp index.html "s3://vllm-wheels/$BUILDKITE_COMMIT/vllm/index.html"
     aws s3 cp "s3://vllm-wheels/nightly/index.html" "s3://vllm-wheels/$BUILDKITE_COMMIT/index.html"
 fi
@@ -70,7 +70,7 @@ elif [[ $normal_wheel == *"cu126"* ]]; then
     # if $normal_wheel matches cu126, do not upload the index.html
     echo "Skipping index files for cu126 wheels"
 else
-    # only upload index.html for cu128 wheels (default wheels)
+    # only upload index.html for cu130 wheels (default wheels)
     aws s3 cp index.html "s3://vllm-wheels/nightly/vllm/index.html"
 fi
 

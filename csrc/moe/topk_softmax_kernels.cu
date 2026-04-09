@@ -25,11 +25,12 @@
     #include <cub/util_type.cuh>
     #include <cub/cub.cuh>
     #include <cuda/std/functional>
+    #include "../cuda_compat_cub.cuh"
     using AddOp = cuda::std::plus<float>;
 #else
     #include <hipcub/util_type.hpp>
     #include <hipcub/hipcub.hpp>
-    using AddOp = cub::Sum; 
+    using AddOp = cub::Sum;
 #endif
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -79,7 +80,7 @@ __launch_bounds__(TPB) __global__
         threadData = max(static_cast<float>(input[idx]), threadData);
     }
 
-    const float maxElem = BlockReduce(tmpStorage).Reduce(threadData, cub::Max());
+    const float maxElem = BlockReduce(tmpStorage).Reduce(threadData, VLLM_CUB_MAX);
     if (threadIdx.x == 0)
     {
         float_max = maxElem;

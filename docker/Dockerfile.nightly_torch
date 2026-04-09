@@ -1,13 +1,13 @@
 # The vLLM Dockerfile is used to construct vLLM image against torch nightly that can be directly used for testing
 
 # for torch nightly, cuda >=12.6 is required,
-# use 12.8 due to FlashAttention issue with cuda 12.6 (https://github.com/vllm-project/vllm/issues/15435#issuecomment-2775924628)
-ARG CUDA_VERSION=12.8.0
+# use 13.0 for CUDA 13.0 compatibility
+ARG CUDA_VERSION=13.0.0
 #
 #################### BASE BUILD IMAGE ####################
 # prepare basic build environment
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu20.04 AS base
-ARG CUDA_VERSION=12.8.0
+ARG CUDA_VERSION=13.0.0
 ARG PYTHON_VERSION=3.12
 ARG TARGETPLATFORM
 ENV DEBIAN_FRONTEND=noninteractive
@@ -68,7 +68,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     else \
       pkgs="torch torchaudio torchvision"; \
     fi && \
-    uv pip install --system $pkgs --index-url https://download.pytorch.org/whl/nightly/cu128
+    uv pip install --system $pkgs --index-url https://download.pytorch.org/whl/nightly/cu130
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --system numba==0.61.2
@@ -182,7 +182,7 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
 # Setup clean environment for vLLM and its dependencies for test and api server using ubuntu22.04 with AOT flashinfer
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04 AS vllm-base
 # prepare for environment starts
-ARG CUDA_VERSION=12.8.0
+ARG CUDA_VERSION=13.0.0
 ARG PYTHON_VERSION=3.12
 WORKDIR /vllm-workspace
 ENV DEBIAN_FRONTEND=noninteractive
@@ -226,7 +226,7 @@ RUN ldconfig /usr/local/cuda-$(echo $CUDA_VERSION | cut -d. -f1,2)/compat/
 COPY --from=base /workspace/torch_build_versions.txt ./torch_build_versions.txt
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system $(cat torch_build_versions.txt | xargs) --index-url https://download.pytorch.org/whl/nightly/cu128
+    uv pip install --system $(cat torch_build_versions.txt | xargs) --index-url https://download.pytorch.org/whl/nightly/cu130
 
 # install the vllm wheel
 RUN --mount=type=bind,from=build,src=/workspace/dist,target=/vllm-workspace/vllm-dist \

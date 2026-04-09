@@ -22,6 +22,15 @@
       bool use_fp32_reduce, int max_shared_mem
 
 namespace MARLIN_NAMESPACE_NAME {
+
+// CUDA 13.0+: explicit template instantiations of __global__ functions across
+// TUs require default visibility to be linkable.
+#if defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 13)
+  #define MARLIN_MOE_GLOBAL_VISIBLE __attribute__((visibility("default"))) __global__
+#else
+  #define MARLIN_MOE_GLOBAL_VISIBLE __global__
+#endif
+
 template <typename scalar_t,  // compute dtype, half or nv_float16
           const vllm::ScalarTypeId w_type_id,  // weight ScalarType id
           const int threads,          // number of threads in a threadblock
@@ -38,6 +47,6 @@ template <typename scalar_t,  // compute dtype, half or nv_float16
                                    // with a separate quantization scale
           const bool is_zp_float   // is zero point of float16 type?
           >
-__global__ void Marlin(MARLIN_KERNEL_PARAMS);
+MARLIN_MOE_GLOBAL_VISIBLE void Marlin(MARLIN_KERNEL_PARAMS);
 
 }

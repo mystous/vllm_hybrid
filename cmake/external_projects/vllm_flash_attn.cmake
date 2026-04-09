@@ -62,6 +62,17 @@ install(CODE "set(CMAKE_INSTALL_PREFIX \"\${CMAKE_INSTALL_PREFIX}/vllm/\")" ALL_
 FetchContent_MakeAvailable(vllm-flash-attn)
 message(STATUS "vllm-flash-attn is available at ${vllm-flash-attn_SOURCE_DIR}")
 
+# CUDA 13.0+: suppress deprecated vector type warnings (long4, double4, etc.)
+# from bundled CUTLASS headers in flash-attn
+if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+  foreach(_fa_tgt _vllm_fa2_C _vllm_fa3_C)
+    if(TARGET ${_fa_tgt})
+      target_compile_options(${_fa_tgt} PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wno-deprecated-declarations>)
+    endif()
+  endforeach()
+endif()
+
 # Restore the install prefix
 install(CODE "set(CMAKE_INSTALL_PREFIX \"\${OLD_CMAKE_INSTALL_PREFIX}\")" ALL_COMPONENTS)
 install(CODE "set(CMAKE_INSTALL_LOCAL_ONLY TRUE)" ALL_COMPONENTS)
