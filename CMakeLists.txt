@@ -395,6 +395,14 @@ if(VLLM_GPU_LANG STREQUAL "CUDA")
       SRCS "${MARLIN_TEMPLATE_KERNEL_SRC}"
       CUDA_ARCHS "${MARLIN_ARCHS}")
 
+    # CUDA 13.0+: __global__ template stubs become static by default,
+    # breaking cross-TU explicit instantiation. Enable relocatable device
+    # code so the stubs get external linkage.
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+      set_source_files_properties(${MARLIN_TEMPLATE_KERNEL_SRC}
+        PROPERTIES COMPILE_OPTIONS "-rdc=true")
+    endif()
+
     list(APPEND VLLM_EXT_SRC ${MARLIN_TEMPLATE_KERNEL_SRC})
 
     set(MARLIN_SRCS
@@ -407,6 +415,15 @@ if(VLLM_GPU_LANG STREQUAL "CUDA")
     set_gencode_flags_for_srcs(
       SRCS "${MARLIN_SRCS}"
       CUDA_ARCHS "${MARLIN_ARCHS}")
+
+    # CUDA 13.0+: gptq_marlin.cu also needs -rdc=true to resolve
+    # cross-TU __global__ template references.
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+      set_source_files_properties(
+        "csrc/quantization/gptq_marlin/gptq_marlin.cu"
+        PROPERTIES COMPILE_OPTIONS "-rdc=true")
+    endif()
+
     list(APPEND VLLM_EXT_SRC "${MARLIN_SRCS}")
     message(STATUS "Building Marlin kernels for archs: ${MARLIN_ARCHS}")
   else()
@@ -812,6 +829,14 @@ define_gpu_extension_target(
   USE_SABI 3
   WITH_SOABI)
 
+# CUDA 13.0+: marlin kernels use -rdc=true which requires device linking
+if(VLLM_GPU_LANG STREQUAL "CUDA" AND
+   CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+  set_target_properties(_C PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+endif()
+
 # If CUTLASS is compiled on NVCC >= 12.5, it by default uses
 # cudaGetDriverEntryPointByVersion as a wrapper to avoid directly calling the
 # driver API. This causes problems when linking with earlier versions of CUDA.
@@ -905,6 +930,12 @@ if(VLLM_GPU_LANG STREQUAL "CUDA")
       SRCS "${MOE_WNAA16_MARLIN_SRC}"
       CUDA_ARCHS "${MARLIN_MOE_ARCHS}")
 
+    # CUDA 13.0+: same cross-TU __global__ template fix as gptq_marlin
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+      set_source_files_properties(${MOE_WNAA16_MARLIN_SRC}
+        PROPERTIES COMPILE_OPTIONS "-rdc=true")
+    endif()
+
     list(APPEND VLLM_MOE_EXT_SRC ${MOE_WNAA16_MARLIN_SRC})
 
     message(STATUS "Building Marlin MOE kernels for archs: ${MARLIN_MOE_ARCHS}")
@@ -926,6 +957,14 @@ define_gpu_extension_target(
   INCLUDE_DIRECTORIES ${CUTLASS_TOOLS_UTIL_INCLUDE_DIR}
   USE_SABI 3
   WITH_SOABI)
+
+# CUDA 13.0+: MOE marlin kernels use -rdc=true which requires device linking
+if(VLLM_GPU_LANG STREQUAL "CUDA" AND
+   CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+  set_target_properties(_moe_C PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+endif()
 
 if(VLLM_GPU_LANG STREQUAL "HIP")
   #
