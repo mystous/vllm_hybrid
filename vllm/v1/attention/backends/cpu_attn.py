@@ -916,6 +916,14 @@ class _PagedAttention:
             num_heads = query.shape[1]
             head_size = query.shape[2]
             block_size = key_cache.shape[-2]
+            if not hasattr(_PagedAttention, '_fallback_count'):
+                _PagedAttention._fallback_count = 0
+            _PagedAttention._fallback_count += 1
+            if _PagedAttention._fallback_count <= 3:
+                logger.warning("_PagedAttention.forward_decode CPU fallback called! "
+                              "call=%d q=%s ctx=%s (IPEX should handle this)",
+                              _PagedAttention._fallback_count,
+                              list(query.shape), context_lens.tolist())
 
             # Use custom AVX-512 batch16 paged attention when available
             # Requirements: num_tokens == num_seqs (standard decode),
@@ -1215,10 +1223,21 @@ class _IPEXPagedAttention(_PagedAttention):
             dtype=torch.int32,
         ).view(num_kv_heads,
                1).repeat_interleave(query.size(1) // num_kv_heads).flatten()
+        import time as _time
+        _t0 = _time.monotonic()
         ipex_modules.PagedAttention.single_query_cached_kv_attention(
             output, query.contiguous(), key_cache, value_cache, head_mapping,
             scale, block_tables, context_lens, block_size, max_context_len,
             alibi_slopes)
+        _elapsed = _time.monotonic() - _t0
+        if not hasattr(_IPEXPagedAttention, '_decode_call_count'):
+            _IPEXPagedAttention._decode_call_count = 0
+        _IPEXPagedAttention._decode_call_count += 1
+        if _IPEXPagedAttention._decode_call_count <= 5 or _IPEXPagedAttention._decode_call_count % 100 == 0:
+            logger.info("IPEX decode: call=%d q=%s kc=%s ctx=%s elapsed=%.4fs",
+                       _IPEXPagedAttention._decode_call_count,
+                       list(query.shape), list(key_cache.shape),
+                       context_lens.tolist(), _elapsed)
 
 
 def _get_paged_attn_impl():
