@@ -22,7 +22,17 @@ from dataclasses import dataclass
 from typing import Optional, List, Tuple
 import logging
 
-import torch
+# torch is imported lazily to allow OMP environment variables
+# to be set before OpenMP runtime initialization.
+# Use _get_torch() instead of direct torch access at module level.
+_torch = None
+
+def _get_torch():
+    global _torch
+    if _torch is None:
+        import torch
+        _torch = torch
+    return _torch
 
 logger = logging.getLogger(__name__)
 
@@ -215,10 +225,10 @@ class NUMAAllocator:
 
 def create_numa_aware_tensor(
     size: int,
-    dtype: torch.dtype,
+    dtype,  # torch.dtype — lazy import
     numa_node: int,
     pin_memory: bool = False
-) -> torch.Tensor:
+):
     """
     Create a tensor with memory allocated on a specific NUMA node.
 
@@ -235,12 +245,13 @@ def create_numa_aware_tensor(
 
     if not allocator.is_available:
         # Fallback to standard allocation
-        return torch.zeros(size, dtype=torch.int8, device='cpu')
+        return _get_torch().zeros(size, dtype=_get_torch().int8, device='cpu')
 
     # Bind memory allocation to the target NUMA node
     allocator.bind_to_node(numa_node)
 
     # Allocate tensor (will use the bound NUMA node)
+    torch = _get_torch()
     tensor = torch.zeros(size, dtype=torch.int8, device='cpu')
 
     logger.debug(f"Allocated {size} bytes tensor on NUMA node {numa_node}")
@@ -652,12 +663,17 @@ def configure_pytorch_for_intel(features: Optional[IntelCPUFeatures] = None):
 
     Works on any CPU, with enhanced settings for AVX-512 and AMX systems.
 
+    NOTE: OMP env vars must be set before this call (torch import initializes OpenMP).
+
     This includes:
     - Thread settings
     - Memory format preferences
     - Inductor backend settings (adaptive to CPU features)
     - AMX acceleration (Sapphire Rapids+)
     """
+    # torch import here is intentional — OMP env vars must already be set
+    torch = _get_torch()
+
     if features is None:
         features = detect_intel_cpu_features()
 
@@ -841,7 +857,7 @@ def get_ipex_module():
     return None
 
 
-def optimize_model_with_ipex(model: torch.nn.Module, dtype: torch.dtype = torch.bfloat16) -> torch.nn.Module:
+def optimize_model_with_ipex(model, dtype=None):
     """
     Optimize a PyTorch model using IPEX.
 
@@ -852,6 +868,9 @@ def optimize_model_with_ipex(model: torch.nn.Module, dtype: torch.dtype = torch.
     Returns:
         Optimized model
     """
+    torch = _get_torch()
+    if dtype is None:
+        dtype = torch.bfloat16
     if not is_ipex_available():
         logger.warning("IPEX not available, returning original model")
         return model

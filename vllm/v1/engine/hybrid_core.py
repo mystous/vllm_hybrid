@@ -936,13 +936,32 @@ def run_cpu_engine_core(*args,
     EngineCoreProc.run_engine_core()와 동일한 패턴을 따르되,
     GPU config에서 CPU config를 파생하여 CPU EngineCore를 생성합니다.
     CUDA_VISIBLE_DEVICES="" 설정으로 CUDA 초기화를 방지합니다.
+
+    중요: OMP/KMP 환경변수는 torch import 전에 설정해야 합니다.
+    OpenMP 런타임은 첫 torch import 시 초기화되므로, 그 전에
+    환경변수가 설정되어야 스레드 바인딩이 적용됩니다.
     """
+    # ===== CRITICAL: OMP/환경변수를 torch import 전에 설정 =====
+    # torch import 시 OpenMP 런타임이 초기화되므로,
+    # 반드시 모든 OMP/KMP 환경변수를 먼저 설정해야 합니다.
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
+    vllm_config: VllmConfig = kwargs["vllm_config"]
+    hybrid_cfg = vllm_config.hybrid_config
+    numa_node_override = kwargs.get("numa_node", None)
+    if numa_node_override is not None and numa_node_override >= 0:
+        import copy as _copy
+        hybrid_cfg = _copy.replace(hybrid_cfg, numa_bind_node=numa_node_override)
+
+    # CPU 파라미터 자동 감지 및 환경 설정 (NUMA/AMX/IPEX 포함)
+    # torch import 전에 호출하여 OMP 환경변수가 반영되도록 함
+    resolved = _resolve_cpu_params(hybrid_cfg)
+    _setup_cpu_process_env(resolved, hybrid_cfg)
+
+    # ===== 이제 torch를 안전하게 import =====
     from vllm.transformers_utils.config import (
         maybe_register_config_serialize_by_value)
     from vllm.utils import decorate_logs, set_process_title
-
-    # CPU 프로세스에서 CUDA 차단
-    os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
     # Signal handler (run_engine_core 패턴 동일)
     shutdown_requested = False
@@ -962,21 +981,8 @@ def run_cpu_engine_core(*args,
 
     engine_core: Optional[EngineCoreProc] = None
     try:
-        vllm_config: VllmConfig = kwargs["vllm_config"]
-
         set_process_title("CPU_EngineCore")
         decorate_logs()
-
-        # numa_node가 kwargs로 전달되면 hybrid_config를 일시적으로 오버라이드
-        hybrid_cfg = vllm_config.hybrid_config
-        numa_node_override = kwargs.get("numa_node", None)
-        if numa_node_override is not None and numa_node_override >= 0:
-            import copy as _copy
-            hybrid_cfg = _copy.replace(hybrid_cfg, numa_bind_node=numa_node_override)
-
-        # CPU 파라미터 자동 감지 및 환경 설정 (NUMA/AMX/IPEX 포함)
-        resolved = _resolve_cpu_params(hybrid_cfg)
-        _setup_cpu_process_env(resolved, hybrid_cfg)
 
         # GPU config에서 CPU config 파생 (자동 감지값 사용)
         cpu_config = _create_cpu_vllm_config(vllm_config, resolved)
