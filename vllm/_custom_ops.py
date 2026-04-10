@@ -262,6 +262,42 @@ def convert_vertical_slash_indexes_mergehead(
 
 
 # pos encoding ops
+def _rotary_embedding_torch(
+    positions: torch.Tensor,
+    query: torch.Tensor,
+    key: Optional[torch.Tensor],
+    head_size: int,
+    cos_sin_cache: torch.Tensor,
+    is_neox: bool,
+) -> None:
+    """Pure PyTorch rotary embedding fallback for CPU."""
+    rot_dim = cos_sin_cache.shape[1]
+    cos = cos_sin_cache[positions, :rot_dim // 2]  # [num_tokens, rot_dim/2]
+    sin = cos_sin_cache[positions, rot_dim // 2:]   # [num_tokens, rot_dim/2]
+
+    def _apply_rotary(t: torch.Tensor) -> None:
+        # t shape: [num_tokens, num_heads * head_size]
+        t_view = t.view(t.shape[0], -1, head_size)
+        t_rot = t_view[..., :rot_dim]
+        half = rot_dim // 2
+        cos_exp = cos.unsqueeze(1)  # [num_tokens, 1, rot_dim/2]
+        sin_exp = sin.unsqueeze(1)
+        if is_neox:
+            x1 = t_rot[..., :half]
+            x2 = t_rot[..., half:]
+            t_rot[..., :half] = x1 * cos_exp - x2 * sin_exp
+            t_rot[..., half:] = x2 * cos_exp + x1 * sin_exp
+        else:
+            x1 = t_rot[..., 0::2]
+            x2 = t_rot[..., 1::2]
+            t_rot[..., 0::2] = x1 * cos_exp - x2 * sin_exp
+            t_rot[..., 1::2] = x2 * cos_exp + x1 * sin_exp
+
+    _apply_rotary(query)
+    if key is not None:
+        _apply_rotary(key)
+
+
 def rotary_embedding(
     positions: torch.Tensor,
     query: torch.Tensor,
@@ -270,8 +306,12 @@ def rotary_embedding(
     cos_sin_cache: torch.Tensor,
     is_neox: bool,
 ) -> None:
-    torch.ops._C.rotary_embedding(positions, query, key, head_size,
-                                  cos_sin_cache, is_neox)
+    if query.is_cuda:
+        torch.ops._C.rotary_embedding(positions, query, key, head_size,
+                                      cos_sin_cache, is_neox)
+    else:
+        _rotary_embedding_torch(positions, query, key, head_size,
+                                cos_sin_cache, is_neox)
 
 
 def batched_rotary_embedding(positions: torch.Tensor, query: torch.Tensor,
@@ -279,22 +319,52 @@ def batched_rotary_embedding(positions: torch.Tensor, query: torch.Tensor,
                              cos_sin_cache: torch.Tensor, is_neox: bool,
                              rot_dim: int,
                              cos_sin_cache_offsets: torch.Tensor) -> None:
-    torch.ops._C.batched_rotary_embedding(positions, query, key, head_size,
-                                          cos_sin_cache, is_neox, rot_dim,
-                                          cos_sin_cache_offsets)
+    if query.is_cuda:
+        torch.ops._C.batched_rotary_embedding(
+            positions, query, key, head_size,
+            cos_sin_cache, is_neox, rot_dim, cos_sin_cache_offsets)
+    else:
+        # Fallback: apply per-token with offset
+        _rotary_embedding_torch(positions + cos_sin_cache_offsets,
+                                query, key, head_size,
+                                cos_sin_cache, is_neox)
 
 
 # layer norm ops
+def _rms_norm_torch(out: torch.Tensor, input: torch.Tensor,
+                    weight: torch.Tensor, epsilon: float) -> None:
+    """Pure PyTorch RMS norm fallback for CPU."""
+    variance = input.to(torch.float32).pow(2).mean(-1, keepdim=True)
+    input_norm = input * torch.rsqrt(variance + epsilon)
+    out.copy_(input_norm * weight)
+
+
+def _fused_add_rms_norm_torch(input: torch.Tensor, residual: torch.Tensor,
+                              weight: torch.Tensor,
+                              epsilon: float) -> None:
+    """Pure PyTorch fused add + RMS norm fallback for CPU."""
+    input.add_(residual)
+    residual.copy_(input)
+    variance = input.to(torch.float32).pow(2).mean(-1, keepdim=True)
+    input_norm = input * torch.rsqrt(variance + epsilon)
+    input.copy_(input_norm * weight)
+
+
 def rms_norm(out: torch.Tensor, input: torch.Tensor, weight: torch.Tensor,
              epsilon: float) -> None:
-    # TODO: Remove this contiguous call when the kernel is updated to support non-contiguous input
-    input_contiguous = input.contiguous()
-    torch.ops._C.rms_norm(out, input_contiguous, weight, epsilon)
+    if input.is_cuda:
+        input_contiguous = input.contiguous()
+        torch.ops._C.rms_norm(out, input_contiguous, weight, epsilon)
+    else:
+        _rms_norm_torch(out, input.contiguous(), weight, epsilon)
 
 
 def fused_add_rms_norm(input: torch.Tensor, residual: torch.Tensor,
                        weight: torch.Tensor, epsilon: float) -> None:
-    torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
+    if input.is_cuda:
+        torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
+    else:
+        _fused_add_rms_norm_torch(input, residual, weight, epsilon)
 
 
 def apply_repetition_penalties_torch(
@@ -328,7 +398,7 @@ def apply_repetition_penalties(logits: torch.Tensor, prompt_mask: torch.Tensor,
         output_mask: A boolean tensor indicating which tokens appear in the output.
         repetition_penalties: The repetition penalties of shape (num_seqs, ).
     """
-    if current_platform.is_cuda() and logits.is_contiguous():
+    if logits.is_cuda and logits.is_contiguous():
         apply_repetition_penalties_cuda(logits, prompt_mask, output_mask,
                                         repetition_penalties)
     else:

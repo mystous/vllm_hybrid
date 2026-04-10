@@ -45,6 +45,13 @@ if(${CMAKE_CUDA_COMPILER_VERSION} VERSION_GREATER 12.3 AND FLASH_MLA_ARCHS)
         ${flashmla_SOURCE_DIR}/csrc/cutlass/include
         ${flashmla_SOURCE_DIR}/csrc/include)
 
+    # CUDA 13.0+: CCCL headers (cuda/std/*) moved under cccl/ subdirectory
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+      cmake_path(GET CMAKE_CUDA_COMPILER PARENT_PATH _NVCC_BIN_DIR)
+      cmake_path(GET _NVCC_BIN_DIR PARENT_PATH _CUDA_ROOT)
+      list(APPEND FlashMLA_INCLUDES ${_CUDA_ROOT}/include/cccl)
+    endif()
+
     set_gencode_flags_for_srcs(
         SRCS "${FlashMLA_SOURCES}"
         CUDA_ARCHS "${FLASH_MLA_ARCHS}")

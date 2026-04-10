@@ -171,12 +171,12 @@ class CPUWorker(Worker):
         # PyTorch Compilation Configuration for CPU
         # =====================================================
         from vllm.config import CompilationLevel
-        # Enable Inductor compilation for CPU with AVX-512 optimization
-        # DYNAMO_ONCE: compile once, stable for production use
-        vllm_config.model_config.enforce_eager = False
-        vllm_config.compilation_config.level = CompilationLevel.DYNAMO_ONCE
-        self._configure_inductor_for_intel(vllm_config)
-        logger.info("CPU Worker: Inductor compilation enabled (DYNAMO_ONCE)")
+        # torch 2.9+: CPU Dynamo/Inductor has compatibility issues.
+        # Use eager mode for stability; performance impact is minimal
+        # for CPU-bound inference.
+        vllm_config.model_config.enforce_eager = True
+        vllm_config.compilation_config.level = CompilationLevel.NO_COMPILATION
+        logger.info("CPU Worker: Using eager mode (torch.compile disabled)")
 
         # Reduce logging noise from PyTorch Dynamo/Inductor
         import logging

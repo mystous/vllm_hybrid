@@ -290,8 +290,14 @@ class CapacityAwareRouter:
             # CPU-first: CPU 슬롯 여유 시 CPU, 가득차면 GPU
             result = self._to_cpu()
             if result is not None:
+                logger.info("Route %s → %s (cpu_in_flight=%d/%d)",
+                            request_id, result, self.cpu_in_flight,
+                            self.cpu_max_num_seqs)
                 return result
-            return self._to_gpu()
+            dest = self._to_gpu()
+            logger.info("Route %s → %s (cpu full, gpu_in_flight=%d)",
+                        request_id, dest, self.gpu_in_flight)
+            return dest
         else:
             # GPU-first (기본): GPU 포화 시에만 CPU
             if self.gpu_in_flight < self.gpu_max_num_seqs:
@@ -367,6 +373,11 @@ class CapacityAwareRouter:
         Args:
             engine_path: "gpu" | "cpu:0" | "cpu:1" | ...
         """
+        logger.info("Request finished: %s on %s, tokens=%d "
+                     "(cpu_count=%d, gpu_count=%d, total=%d)",
+                     request_id, engine_path, num_tokens,
+                     self.cpu_count, self.gpu_count,
+                     self._total_finished + 1)
         was_cpu = engine_path.startswith("cpu")
         if was_cpu:
             try:

@@ -1468,12 +1468,8 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
     @staticmethod
     async def process_engine_outputs(self: "HybridAsyncMPClient",
                                      outputs: EngineCoreOutputs):
-        """완료된 요청을 reqs_in_flight에서 제거하고 라우터에 알림.
-
-        매 iteration마다 생성된 토큰 수를 누적 추적하여,
-        요청 완료 시 총 생성 토큰 수를 라우터에 전달합니다.
-        """
-        # 매 출력마다 토큰 수 누적
+        """완료된 요청을 reqs_in_flight에서 제거하고 라우터에 알림."""
+        # 매 출력마다 토큰 수 누적 + 완료 감지
         for output in outputs.outputs:
             req_id = output.request_id
             num_new = len(output.new_token_ids)
@@ -1481,7 +1477,16 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
                 self._hybrid_req_token_counts[req_id] = (
                     self._hybrid_req_token_counts.get(req_id, 0) + num_new)
 
-        # 완료된 요청 처리
+            # 개별 output의 finished 속성으로 완료 감지
+            if output.finished:
+                entry = self._hybrid_reqs_in_flight.pop(req_id, None)
+                num_tokens = self._hybrid_req_token_counts.pop(req_id, 0)
+                if entry is not None:
+                    _engine, engine_path = entry
+                    self._hybrid_router.on_request_finished(
+                        req_id, engine_path, num_tokens=num_tokens)
+
+        # finished_requests 필드도 처리 (scheduler가 설정하는 경우)
         if outputs.finished_requests and self._hybrid_reqs_in_flight:
             for req_id in outputs.finished_requests:
                 entry = self._hybrid_reqs_in_flight.pop(req_id, None)
