@@ -867,12 +867,25 @@ def _create_cpu_vllm_config(
     # 4. SchedulerConfig: CPU 처리량에 맞는 제한 (자동 감지값 사용)
     cpu_sched = copy.deepcopy(gpu_config.scheduler_config)
     cpu_sched.max_num_seqs = resolved.cpu_max_num_seqs
-    cpu_sched.max_num_batched_tokens = resolved.cpu_max_num_batched_tokens
+    # CPU에서 chunked prefill 비활성화: decode와 interleave되면
+    # 매 step마다 prefill chunk 처리로 decode가 극심하게 느려짐
+    cpu_sched.enable_chunked_prefill = False
+    cpu_sched.chunked_prefill_enabled = False
+    # chunked prefill 끄면 max_num_batched_tokens >= max_model_len 필수
+    # CPU에서는 max_model_len을 제한하여 메모리와 지연 시간 관리
+    cpu_max_model_len = min(
+        gpu_config.model_config.max_model_len,
+        resolved.cpu_max_num_batched_tokens * resolved.cpu_max_num_seqs
+    )
+    cpu_sched.max_num_batched_tokens = max(
+        resolved.cpu_max_num_batched_tokens, cpu_max_model_len)
+    cpu_sched.max_model_len = cpu_max_model_len
 
     # 5. ModelConfig: deepcopy (config_updated 플래그 리셋)
     cpu_model = copy.deepcopy(gpu_config.model_config)
     cpu_model.config_updated = False  # CPU용 재검증 허용
     cpu_model.enforce_eager = True  # CPU에서는 torch.compile 비활성화
+    cpu_model.max_model_len = cpu_max_model_len
 
     # 6. CompilationConfig: CUDA graph 비활성화, 커스텀 ops 비활성화
     # vLLM 커스텀 ops (rms_norm, silu_and_mul 등)는 CUDA 전용이므로
@@ -956,6 +969,13 @@ def run_cpu_engine_core(*args,
     # 반드시 모든 OMP/KMP 환경변수를 먼저 설정해야 합니다.
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
+    # CPU 프로세스에서 current_platform을 CpuPlatform으로 강제 설정.
+    # 부모 프로세스에서 CUDA로 캐시된 _current_platform이 spawn으로 상속되어
+    # __post_init__()에서 잘못된 platform의 check_and_update_config가 호출됨.
+    import vllm.platforms as _platforms
+    from vllm.platforms.cpu import CpuPlatform
+    _platforms._current_platform = CpuPlatform()
+
     vllm_config: VllmConfig = kwargs["vllm_config"]
     hybrid_cfg = vllm_config.hybrid_config
     numa_node_override = kwargs.get("numa_node", None)
@@ -997,8 +1017,11 @@ def run_cpu_engine_core(*args,
         # GPU config에서 CPU config 파생 (자동 감지값 사용)
         cpu_config = _create_cpu_vllm_config(vllm_config, resolved)
 
-        # CPU 전용 executor_class 결정
-        cpu_executor_class = Executor.get_class(cpu_config)
+        # CPU 전용 executor_class: UniProcExecutor 강제
+        # MultiprocExecutor는 추가 워커 프로세스를 spawn하여
+        # OMP 스레드가 분산되고 CPU 성능이 극심하게 저하됨
+        from vllm.v1.executor.abstract import UniProcExecutor
+        cpu_executor_class = UniProcExecutor
 
         logger.info(
             "Starting CPU EngineCore (PID %d) with executor %s",

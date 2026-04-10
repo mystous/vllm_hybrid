@@ -261,7 +261,11 @@ class CpuPlatform(Platform):
         if vllm_config.lora_config is not None:
             compilation_config.level = CompilationLevel.NO_COMPILATION
 
-        assert vllm_config.device_config.device_type == "cpu"
+        # Hybrid mode: CPU engine's device_type may be overwritten during
+        # handshake __post_init__. Force it to "cpu".
+        if vllm_config.device_config.device_type != "cpu":
+            vllm_config.device_config.device = "cpu"
+            vllm_config.device_config.device_type = "cpu"
 
         #
         # Environment variables for CPU executor
