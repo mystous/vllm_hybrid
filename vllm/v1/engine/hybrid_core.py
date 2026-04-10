@@ -904,19 +904,29 @@ def _create_cpu_vllm_config(
     # (GPU 프로세스 내에서 current_platform이 CUDA를 가리키므로)
     try:
         from vllm.platforms.cpu import CpuPlatform
+        # CpuPlatform.check_and_update_config()가 kv cache를
+        # 시스템 총 메모리 기반으로 덮어쓰므로 사전 저장 후 복원
+        _saved_kv_bytes = cpu_config.cache_config.cpu_kvcache_space_bytes
         CpuPlatform.check_and_update_config(cpu_config)
+        cpu_config.cache_config.cpu_kvcache_space_bytes = _saved_kv_bytes
     except Exception as e:
         logger.warning("CpuPlatform.check_and_update_config failed: %s", e)
         # fallback: 최소한의 수동 설정
-        cpu_config.parallel_config.worker_cls = (
-            "vllm.v1.worker.cpu_worker.CPUWorker")
         cpu_config.compilation_config.cudagraph_capture_sizes = []
 
+    # worker_cls 강제 설정 (CpuPlatform이 올바르게 설정하지 않을 수 있음)
+    cpu_config.parallel_config.worker_cls = (
+        "vllm.v1.worker.cpu_worker.CPUWorker")
+    # device_type 강제 설정 (heterogeneous로 덮어써지는 것 방지)
+    cpu_config.device_config = DeviceConfig(device="cpu")
+
     logger.info(
-        "CPU VllmConfig created: device=%s, TP=%d, max_seqs=%d, worker=%s",
+        "CPU VllmConfig created: device=%s, TP=%d, max_seqs=%d, "
+        "kv_cache=%.1fGB, worker=%s",
         cpu_config.device_config.device_type,
         cpu_config.parallel_config.tensor_parallel_size,
         cpu_config.scheduler_config.max_num_seqs,
+        cpu_config.cache_config.cpu_kvcache_space_bytes / (1024**3),
         cpu_config.parallel_config.worker_cls,
     )
 
