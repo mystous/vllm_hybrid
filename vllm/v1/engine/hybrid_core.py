@@ -288,15 +288,17 @@ class CapacityAwareRouter:
         """
         if self.cpu_first:
             # CPU-first: CPU 슬롯 여유 시 CPU, 가득차면 GPU
+            # per-request route log — debug only (prevents stdout serialization
+            # under burst load, paired with dispatch log in core_client.py).
             result = self._to_cpu()
             if result is not None:
-                logger.info("Route %s → %s (cpu_in_flight=%d/%d)",
-                            request_id, result, self.cpu_in_flight,
-                            self.cpu_max_num_seqs)
+                logger.debug("Route %s → %s (cpu_in_flight=%d/%d)",
+                             request_id, result, self.cpu_in_flight,
+                             self.cpu_max_num_seqs)
                 return result
             dest = self._to_gpu()
-            logger.info("Route %s → %s (cpu full, gpu_in_flight=%d)",
-                        request_id, dest, self.gpu_in_flight)
+            logger.debug("Route %s → %s (cpu full, gpu_in_flight=%d)",
+                         request_id, dest, self.gpu_in_flight)
             return dest
         else:
             # GPU-first (기본): GPU 포화 시에만 CPU
@@ -373,7 +375,10 @@ class CapacityAwareRouter:
         Args:
             engine_path: "gpu" | "cpu:0" | "cpu:1" | ...
         """
-        logger.info("Request finished: %s on %s, tokens=%d "
+        # per-request completion trace — demoted to debug to avoid stdout
+        # serialization during production serving (large bursts can otherwise
+        # block the API server main thread on the logging lock).
+        logger.debug("Request finished: %s on %s, tokens=%d "
                      "(cpu_count=%d, gpu_count=%d, total=%d)",
                      request_id, engine_path, num_tokens,
                      self.cpu_count, self.gpu_count,
@@ -503,7 +508,10 @@ class CapacityAwareRouter:
         if self.routing_strategy == "throughput-adaptive":
             extra = (f", adaptive_slots="
                      f"{stats.get('adaptive_cpu_max_seqs', 'N/A')}")
-        logger.info(
+        # Periodic router stats — demoted to debug. In steady state this fires
+        # every stats_log_interval completions and can dominate stdout I/O under
+        # burst load. Enable DEBUG level on the hybrid_core logger to inspect.
+        logger.debug(
             "Router stats [%d reqs]: "
             "GPU=%.1f tok/s (%d reqs), "
             "CPU=%.1f tok/s (%d reqs), "

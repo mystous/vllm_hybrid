@@ -62,8 +62,15 @@ logger = init_logger(__name__)
 # when available (requires _C_cpu_ops extension built with AVX-512F)
 _USE_CUSTOM_CPU_ATTN = HAS_CPU_OPS
 
-# Counters for periodic decode-path logging.
-# Set VLLM_HYBRID_TRACE=1 for per-call logs, otherwise logs every N calls.
+# Counters for periodic decode-path logging. Counters always run so get_stats
+# callers can retrieve totals. Log emission is OFF by default in production to
+# avoid stdout I/O serialization that blocks the API server main thread under
+# bursty load (observed on H100x4 smoke with TRACE=1).
+#
+# To re-enable:
+#   VLLM_HYBRID_TRACE=1            — log on every call (smoke / debugging only)
+#   VLLM_HYBRID_TRACE_EVERY=N (N>0) — log every N-th call at INFO level
+# Default (both unset or =0) is silent.
 _decode_call_count = 0
 _decode_path_counts = {"custom_avx": 0, "ipex": 0,
                        "sdpa_batched": 0, "sdpa_loop": 0}
@@ -74,7 +81,7 @@ def _trace_decode_path(path: str, num_seqs: int, num_tokens: int):
     _decode_call_count += 1
     _decode_path_counts[path] = _decode_path_counts.get(path, 0) + 1
     import os as _os
-    _every = int(_os.environ.get("VLLM_HYBRID_TRACE_EVERY", "200"))
+    _every = int(_os.environ.get("VLLM_HYBRID_TRACE_EVERY", "0"))
     if (_os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
             or (_every > 0 and _decode_call_count % _every == 0)):
         logger.info(
@@ -1259,11 +1266,16 @@ class _IPEXPagedAttention(_PagedAttention):
         if not hasattr(_IPEXPagedAttention, '_decode_call_count'):
             _IPEXPagedAttention._decode_call_count = 0
         _IPEXPagedAttention._decode_call_count += 1
+        # per-call IPEX kernel trace — demoted to debug so it does not flood
+        # stdout during serving. The first-use confirmation of the IPEX path
+        # is already provided by [HYBRID-CPU-ATTN] in _trace_decode_path (also
+        # debug/opt-in) and the boot-time [HYBRID-CPU-WORKER] markers.
         if _IPEXPagedAttention._decode_call_count <= 5 or _IPEXPagedAttention._decode_call_count % 100 == 0:
-            logger.info("IPEX decode: call=%d q=%s kc=%s ctx=%s elapsed=%.4fs",
-                       _IPEXPagedAttention._decode_call_count,
-                       list(query.shape), list(key_cache.shape),
-                       context_lens.tolist(), _elapsed)
+            logger.debug(
+                "IPEX decode: call=%d q=%s kc=%s ctx=%s elapsed=%.4fs",
+                _IPEXPagedAttention._decode_call_count,
+                list(query.shape), list(key_cache.shape),
+                context_lens.tolist(), _elapsed)
 
 
 def _get_paged_attn_impl():

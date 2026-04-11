@@ -1,0 +1,91 @@
+{
+  "experiment_id": "20260411_120746_dev_rtx3090_1.5B_silent_stdout_rerun",
+  "purpose": "Re-run 1.5B GPU-only + Hybrid benchmarks after silencing per-request/per-call stdout (hybrid_core, core_client, cpu_worker, cpu_attn, serve.sh). Compare vs previous 20260411_060412/060712 runs from the same dev host to see if the logging reduction is measurable.",
+  "host": "i9-12900KF + RTX 3090 24GB, Ubuntu 22.04, docker cu13_v0.6",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "prompts": "random in=128 out=128, request_rate=inf, num_prompts=500",
+  "git_head_at_run": "019c7121a + uncommitted silent-stdout patch (hybrid_core/core_client/cpu_worker/cpu_attn/serve.sh/env files)",
+  "runs": {
+    "gpu_only_prev_20260411_060412": {
+      "wall_time_s": 14.31, "duration": 8.269, "request_throughput": 60.47,
+      "output_throughput": 7448.67, "mean_ttft_ms": 3050.64, "median_ttft_ms": 2001.83,
+      "p99_ttft_ms": 5926.15, "mean_tpot_ms": 27.79, "median_tpot_ms": 29.99,
+      "p99_tpot_ms": 30.93, "mean_itl_ms": 27.36, "p99_itl_ms": 104.50,
+      "cpu_pinned16_avg_pct": 4.4, "gpu_util_avg_pct": 50.2, "gpu_power_avg_w": 254.2
+    },
+    "gpu_only_new_20260411_120425": {
+      "wall_time_s": 14.30, "duration": 8.128, "request_throughput": 61.51,
+      "output_throughput": 7577.13, "mean_ttft_ms": 2911.13, "median_ttft_ms": 1863.15,
+      "p99_ttft_ms": 5786.27, "mean_tpot_ms": 27.79, "median_tpot_ms": 30.04,
+      "p99_tpot_ms": 30.92, "mean_itl_ms": 27.36, "p99_itl_ms": 104.23,
+      "cpu_pinned16_avg_pct": 2.2, "gpu_util_avg_pct": 65.0, "gpu_power_avg_w": 296.0
+    },
+    "hybrid_prev_20260411_060712": {
+      "wall_time_s": 34.90, "duration": 17.067, "request_throughput": 29.30,
+      "output_throughput": 3608.67, "mean_ttft_ms": 11573.34, "median_ttft_ms": 10369.82,
+      "p99_ttft_ms": 14759.52, "mean_tpot_ms": 30.05, "median_tpot_ms": 34.19,
+      "p99_tpot_ms": 34.81, "mean_itl_ms": 29.61, "p99_itl_ms": 105.46,
+      "cpu_pinned16_avg_pct_run": 77.4, "cpu_pinned16_busy_window_avg_pct": 96.5,
+      "gpu_util_avg_pct": 21.0, "gpu_power_avg_w": 146.9
+    },
+    "hybrid_new_20260411_120549": {
+      "wall_time_s": 34.90, "duration": 17.149, "request_throughput": 29.16,
+      "output_throughput": 3591.47, "mean_ttft_ms": 11667.74, "median_ttft_ms": 10474.72,
+      "p99_ttft_ms": 14830.44, "mean_tpot_ms": 29.92, "median_tpot_ms": 33.83,
+      "p99_tpot_ms": 34.53, "mean_itl_ms": 29.45, "p99_itl_ms": 106.98,
+      "cpu_pinned16_avg_pct_run": 76.8, "cpu_pinned16_busy_window_avg_pct": 96.9,
+      "gpu_util_avg_pct": 21.3, "gpu_power_avg_w": 158.0
+    }
+  },
+  "gpu_only_delta_new_vs_prev_pct": {
+    "wall_time_s": -0.07,
+    "duration": -1.71,
+    "request_throughput": 1.72,
+    "output_throughput": 1.72,
+    "mean_ttft_ms": -4.57,
+    "median_ttft_ms": -6.93,
+    "p99_ttft_ms": -2.36,
+    "mean_tpot_ms": 0.02,
+    "p99_tpot_ms": -0.04,
+    "gpu_util_avg_pp": 14.8,
+    "gpu_power_avg_pct": 16.4
+  },
+  "hybrid_delta_new_vs_prev_pct": {
+    "wall_time_s": 0.00,
+    "duration": 0.48,
+    "request_throughput": -0.48,
+    "output_throughput": -0.48,
+    "mean_ttft_ms": 0.82,
+    "median_ttft_ms": 1.01,
+    "p99_ttft_ms": 0.48,
+    "mean_tpot_ms": -0.43,
+    "p99_tpot_ms": -0.80,
+    "cpu_pinned16_busy_avg_pp": 0.4,
+    "gpu_util_avg_pp": 0.3,
+    "gpu_power_avg_pct": 7.6
+  },
+  "stdout_line_count": {
+    "gpu_only_new_total_server_log": 918,
+    "hybrid_new_total_server_log": 1094,
+    "hybrid_prev_total_server_log_estimate": 2701,
+    "hybrid_reduction_vs_prev_pct": -59.5,
+    "hybrid_per_req_markers_during_serving": {
+      "HYBRID-CLIENT_dispatch": 0,
+      "Request_finished": 0,
+      "Route_arrow": 0,
+      "Router_stats": 0,
+      "IPEX_decode_call": 0,
+      "HYBRID-CPU-ATTN": 0,
+      "HYBRID-CPU-EXEC": 0
+    },
+    "hybrid_boot_markers_preserved": 11,
+    "notes": "Previous run had VLLM_HYBRID_TRACE_EVERY=500 via serve.sh default (now 0). Previous server log included ~130 [HYBRID-CPU-ATTN] + [HYBRID-CPU-EXEC] + Request finished per-req lines. New log has only upstream uvicorn access + vllm engine stats during serving."
+  },
+  "conclusion": {
+    "gpu_only_is_change_significant": "No meaningful perf difference. TP +1.7%, TTFT -4.6%, TPOT unchanged. Within normal dev run-to-run variance (~2-5%). Note GPU util 50% -> 65% and power +16% suggest the GPU is fed more aggressively now, but this may reflect the reduced stdout blocking or simply variance — wall time identical (14.30 vs 14.31 s).",
+    "hybrid_is_change_significant": "No. All metrics within 1% of prev run. TPOT -0.4%, wall identical. The hybrid CPU-bound tail (CPU 2 reqs × 13s latency) dominates wall time; any tiny stdout-reduction benefit is invisible against the 17s duration.",
+    "why_dev_shows_small_benefit": "dev previously had TRACE_EVERY=500 which emits ~450 log lines/sec during an 8s GPU-only burst. The OS stdout pipe absorbs this without blocking. The dramatic stdout-blocking failure was observed on H100x4 with TRACE=1 (every call, ~120000 lines/sec) where the API server main thread serialized — that is where the fix will matter most.",
+    "tpot_evidence": "TPOT (per-token step time) is the sensitive indicator of mid-serving stdout blocking. GPU-only TPOT: 27.79 -> 27.79 (identical). Hybrid TPOT: 30.05 -> 29.92 (-0.4%). No mid-serving stdout bottleneck on dev for this workload — confirming the stdout-reduction was a correctness / production-hygiene fix rather than a perf fix on dev.",
+    "stdout_reduction_is_real": "Server log line count for hybrid dropped from 2701 to 1094 (-59.5%). All HYBRID per-req/per-call markers are zero during serving. Boot markers preserved (11). Behavior matches intended design."
+  }
+}

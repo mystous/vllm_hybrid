@@ -46,8 +46,12 @@ export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
 
 # Hybrid debugging knobs (consumed by hybrid_core/cpu_worker/cpu_attn)
+# Default hybrid trace: silent during serving. Boot/shutdown markers are
+# emitted via logger.info regardless. To turn trace on for smoke/debug:
+#   VLLM_HYBRID_TRACE=1             — log on every CPU exec_model + attn call
+#   VLLM_HYBRID_TRACE_EVERY=N (N>0) — log every N-th call at INFO
 export VLLM_HYBRID_TRACE="${VLLM_HYBRID_TRACE:-0}"
-export VLLM_HYBRID_TRACE_EVERY="${VLLM_HYBRID_TRACE_EVERY:-50}"
+export VLLM_HYBRID_TRACE_EVERY="${VLLM_HYBRID_TRACE_EVERY:-0}"
 
 echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"

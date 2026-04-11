@@ -1469,7 +1469,10 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
             engine = self._gpu_engine
 
         self._hybrid_reqs_in_flight[request.request_id] = (engine, path)
-        logger.info(
+        # per-request dispatch trace — debug only. Was INFO, but emitted
+        # once per add_request_async call, which serialized the API server
+        # main thread under large bursts (observed on H100x4 smoke w/ TRACE=1).
+        logger.debug(
             "[HYBRID-CLIENT] dispatch req=%s prompt_len=%d → %s "
             "(engine_identity=%r)",
             request.request_id, prompt_len, path, engine,

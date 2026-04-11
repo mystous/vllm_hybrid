@@ -1,0 +1,48 @@
+DEBUG_AG: Process 2523965 importing vllm.config
+DEBUG_AG: Process 2523965 importing vllm.distributed
+DEBUG_AG: Process 2523965 importing vllm.distributed.communication_op
+DEBUG_AG: Process 2523965 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 2523965 importing vllm.distributed.utils
+DEBUG_AG: Process 2523965 finished importing vllm.distributed.utils
+DEBUG_AG: Process 2523965 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 2523965 importing vllm.platforms
+DEBUG_AG: Process 2523965 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 2523965 checking plugin heterogeneous
+DEBUG_AG: Process 2523965 checking plugin tpu
+DEBUG_AG: Process 2523965 checking plugin cuda
+DEBUG_AG: Process 2523965 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 2523965 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 2523965 importing vllm.platforms.cuda
+DEBUG_AG: Process 2523965 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 2523965 finished importing vllm.distributed
+DEBUG_AG: Process 2523965 finished importing vllm.config
+/vllm_hybrid/benchmarks/benchmark_serving.py:1298: DeprecationWarning: benchmark_serving.py is deprecated and will be removed in a future version. Please use 'vllm bench serve' instead.
+  main(args)
+Namespace(backend='vllm', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='random', dataset_path=None, no_stream=False, max_concurrency=None, model='Qwen/Qwen2.5-1.5B-Instruct', tokenizer=None, use_beam_search=False, num_prompts=500, logprobs=None, request_rate=inf, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/vllm_hybrid/eval/results/20260411_120425_G_GeForce_RTX_3090_x1_Qwen2.5-1.5B-Instruct/gpu_only.json', ignore_eos=False, percentile_metrics='ttft,tpot,itl', metric_percentiles='99', goodput=None, custom_output_len=256, custom_skip_chat_template=False, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=128, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None)
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: inf RPS.
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+  0%|          | 0/500 [00:00<?, ?it/s]  0%|          | 1/500 [00:00<02:56,  2.83it/s]  1%|          | 3/500 [00:00<01:17,  6.38it/s]  1%|          | 6/500 [00:00<00:57,  8.58it/s]  2%|▏         | 8/500 [00:00<00:53,  9.25it/s]  2%|▏         | 10/500 [00:01<00:59,  8.28it/s]  2%|▏         | 12/500 [00:01<00:55,  8.82it/s]  3%|▎         | 14/500 [00:04<04:02,  2.00it/s]  6%|▌         | 30/500 [00:04<00:53,  8.75it/s]  9%|▉         | 44/500 [00:04<00:27, 16.31it/s] 12%|█▏        | 59/500 [00:04<00:16, 26.42it/s] 15%|█▌        | 75/500 [00:04<00:10, 39.32it/s] 18%|█▊        | 90/500 [00:04<00:07, 52.59it/s] 21%|██        | 105/500 [00:04<00:05, 66.68it/s] 24%|██▍       | 120/500 [00:04<00:04, 80.68it/s] 27%|██▋       | 136/500 [00:04<00:03, 95.91it/s] 30%|███       | 151/500 [00:05<00:03, 106.58it/s] 33%|███▎      | 166/500 [00:05<00:02, 115.94it/s] 36%|███▌      | 181/500 [00:05<00:02, 123.80it/s] 39%|███▉      | 196/500 [00:05<00:02, 129.70it/s] 42%|████▏     | 211/500 [00:05<00:02, 133.92it/s] 45%|████▌     | 226/500 [00:05<00:01, 137.70it/s] 48%|████▊     | 241/500 [00:05<00:01, 140.00it/s] 51%|█████     | 256/500 [00:05<00:01, 141.63it/s] 55%|█████▌    | 276/500 [00:07<00:09, 23.23it/s]  69%|██████▉   | 347/500 [00:08<00:02, 62.23it/s]100%|██████████| 500/500 [00:08<00:00, 61.51it/s]
+============ Serving Benchmark Result ============
+Successful requests:                     500       
+Benchmark duration (s):                  8.13      
+Total input tokens:                      63699     
+Total generated tokens:                  61590     
+Request throughput (req/s):              61.51     
+Output token throughput (tok/s):         7577.13   
+Total Token throughput (tok/s):          15413.72  
+---------------Time to First Token----------------
+Mean TTFT (ms):                          2911.13   
+Median TTFT (ms):                        1863.15   
+P99 TTFT (ms):                           5786.27   
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          27.79     
+Median TPOT (ms):                        30.04     
+P99 TPOT (ms):                           30.92     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           27.36     
+Median ITL (ms):                         19.43     
+P99 ITL (ms):                            104.23    
+==================================================

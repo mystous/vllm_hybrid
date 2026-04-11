@@ -617,13 +617,16 @@ class CPUWorker(Worker):
         self,
         scheduler_output: "SchedulerOutput",
     ) -> Optional[ModelRunnerOutput]:
-        # Periodic execute_model trace (every N steps).
-        # Set VLLM_HYBRID_TRACE=1 for per-step logs.
+        # Periodic execute_model trace.
+        # Default is OFF (_every=0) to avoid stdout I/O serializing the
+        # per-step hot loop under production load. Re-enable with
+        #   VLLM_HYBRID_TRACE=1              (every step — smoke only)
+        #   VLLM_HYBRID_TRACE_EVERY=N (N>0)  (every N steps)
         import time as _time
         _trace = os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
         _step = getattr(self, "_hybrid_exec_step", 0) + 1
         self._hybrid_exec_step = _step
-        _every = int(os.environ.get("VLLM_HYBRID_TRACE_EVERY", "50"))
+        _every = int(os.environ.get("VLLM_HYBRID_TRACE_EVERY", "0"))
 
         if _trace or (_every > 0 and _step % _every == 0):
             num_scheduled = (
