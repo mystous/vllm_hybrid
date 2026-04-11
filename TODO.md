@@ -309,3 +309,74 @@
 4. v1 §4 잠재 이슈 4 건
 5. v1 §5 문서화 잔여
 
+---
+
+## v4 — 2026-04-11: §1 dev 로직 검증 완결 + Abort slot leak 버그 수정
+
+> append-only 정책 유지. v1/v2/v3 섹션은 수정 없음. 본 v4 는 당일 후속 세션의 진행 스냅샷.
+> 자세한 실측 결과 / 버그 재현 로그 / 수정 diff 는 `Tech_done.md v3` + `Task_done.md v3` + `experiment_result/20260411_06*/` 참조.
+
+### v1 §1 — dev 로직 검증 잔여
+
+**상태: 실질적 완결** (H100 capacity 멈춤 dev 배제 항목까지 포함)
+
+- [x] **1-시퀀스 라이프사이클 반복 검증** — v3 에서 60 req 순차 완결 (`seq_repeat_test.py`). 평균 1.58s/req ±0.05s, Router `in_flight=0/1`, 누수 zero. → `Tech_done.md v3 F3`
+- [x] **동시 요청 스트레스 50+ burst** — v3 의 1.5B/7B 500 req burst 로 이미 커버 (`Tech_done.md v3 F1`)
+- [x] **CPU scheduler 코드 경로 트레이싱** — v3 에서 코드 분석 완결. CPU 엔진은 `max_num_seqs=1` + `chunked_prefill=False` 로 표준 경계 메커니즘 사용, 경계 edge case 없음. → `Tech_done.md v3 F6`
+- [x] **`output.finished` 감지 확실성 (length/stop/abort)** — v3 에서 length/stop 정상 + **abort 치명적 버그 발견 → 수정 → 검증 완결**. → `Tech_done.md v3 F4, F5`
+- [x] **H100 "capacity 에서 멈춤" 증상 원인 dev 배제** — v3 에서 **dev 재현 성공**. 원인 = abort slot 누수 (DP=1 + `include_finished_set=False` 에서 `EngineCoreOutputs.finished_requests` 영원히 empty + aborted req 는 새 토큰 없어 `output.finished` 도 emit 안 됨 → 어느 경로로도 slot 반납 신호 안 옴). 수정 후 dev 에서 재현 안 됨. → `Tech_done.md v3 F5`
+
+**의의**: §1 가 실질적으로 완결됨. H100 운영 전 이 패치 (`vllm/v1/engine/core_client.py::abort_requests*`) 가 반드시 포함돼야 함.
+
+### v1 §2 — 논문 ↔ 코드 재정합
+
+**상태: 여전히 ❌ 미수행** (변화 없음). 4 건 pending.
+
+### v1 §3 — H100 타겟 환경 검증
+
+**상태: 여전히 ❌ 미수행** (변화 없음). 단 중요 전제 변경:
+
+- [ ] **H100 이관 전 필수 전제**: 본 v4 에서 수정한 `abort_requests*` 패치가 코드베이스에 포함된 상태여야 함. 패치 없는 이전 commit 에서 H100 에 올리면 client disconnect 한 번이면 capacity 영구 stuck.
+- [ ] 나머지 7 항목 (Exp 1~6, H100x4 재측정, H100x8 2S 첫 부팅) 그대로 pending.
+
+### v1 §4 — 기타 잠재 이슈
+
+**상태: 여전히 ❌ 미수행** (변화 없음). 4 건 pending.
+
+### v1 §5 — 문서화 잔여
+
+**상태: 부분 완료** — v4 에서 새로 완결:
+
+- [x] `experiment_result/20260411_063046_dev_rtx3090_1.5B_7B_hybrid_verify/` — 1.5B/7B 재측정 결과 저장 (README + environment + summary + raw artifacts)
+- [x] `experiment_result/20260411_065041_dev_logic_verify_abort_slot_leak_fix/` — §1 로직 검증 + abort 버그 재현/수정/검증 기록 저장 (README + patch diff + 3 test scripts + 3 result JSONs + server logs before/after)
+
+여전히 pending:
+- [ ] H100 검증 후 `docs/CUDA13_MIGRATION_STATUS.md` "H100 검증 결과" 섹션 추가
+- [ ] 논문 draft 업데이트 (v1 §2 항목)
+- [ ] `docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md` 재확인
+
+### v2 / v3 제기 항목
+
+**상태: 부분 완료**
+
+- [x] `post-init: cpu_affinity=1 cores [1]` 은 의도된 동작임을 `Tech_done.md v1 Q1` 에 기록됨 (v4 에서 CLAUDE.md 주석 추가는 여전히 미진행)
+- [x] **dev 에서 CPU 완료 req 가 너무 적음** — 60 req 순차 반복으로 slot cycle 이 여러 번 관측됨 (v3 F3)
+- [ ] `_C_cpu_ops` AVX-512 경로 실측 공백 — H100 에서 확인 필요 (§3 에 종속)
+- [ ] 다음 작업 세션 시작 시 stale 여부 재확인 — v4 작성 시점에서 stale 없음 확인 완료
+
+### v4 에서 새로 추가된 작업
+
+- [ ] **H100 smoke test 재시도** — v4 의 abort slot 누수 패치 포함 상태에서 H100x4 에 올려 부팅 + 10 req smoke 우선 확인. 이전에 "capacity 에서 멈춤" 으로 관찰된 증상이 재현 안 되면 이 패치가 그 증상의 직접 원인이었음이 H100 에서도 확정됨.
+- [ ] **Long-running production smoke** — H100 smoke 가 통과하면 분 단위로 client abort 가 섞여 들어가는 시나리오 (health check timeout, LB graceful restart 등) 를 반복 시뮬레이션해 slot counter 가 끝까지 0 으로 돌아오는지 확인
+
+### "현재 남은 작업" 한눈 요약 (v4 기준)
+
+높은 우선순위:
+1. v1 §2 논문 정정 (4 항목) — 로컬 가능
+2. v1 §3 H100 실측 — v4 패치 포함 + dev 로직 검증 완결 상태에서 시작 가능 (준비 완료)
+3. v4 의 H100 smoke test 에서 abort 버그 증상 해소 확인
+
+낮은 우선순위:
+4. v1 §4 잠재 이슈 4 건
+5. v1 §5 문서화 잔여 (논문 + HYBRID_OPTIONS plan)
+

@@ -173,3 +173,93 @@ v1 표의 나머지 3 행 (H100x4 KVM, H100x8 + Xeon 8480+ 2S, 일반 x86_64 lap
 ### v1 에 대한 보존 선언
 
 append-only 정책에 따라 v1 섹션 자체는 수정/삭제하지 않는다. v1 의 Q4 매트릭스 표는 **당시 시점의 기록** 으로 그대로 남고, 본 v2 섹션의 정정이 v1 의 해당 표 해석을 덮어쓴다. 이후 독자는 v1 의 4행 표를 볼 때 본 v2 섹션을 함께 참조해야 한다.
+
+---
+
+## v3 — 2026-04-11: 1.5B/7B 재현 + CPU slot cycle 무결성 (abort 경로 포함)
+
+> append-only. v1/v2 섹션 불변. 본 v3 는 당일 후속 세션에서 추가로 검증된 사실만 기록한다.
+
+### 검증 환경
+- v1/v2 와 동일 (i9-12900KF + RTX 3090, AVX2+NUMA1, vLLM `0.1.dev8475+g78fa48cb8`, torch `2.9.0+cu130`, CUDA 13.0)
+- 세션 시작 시 HEAD `a0d15b3788d40fd85a19e1635bd2d30b08a5bc71` (clean)
+- 세션 중 `vllm/v1/engine/core_client.py` 패치 1 건 적용 (abort slot 반납)
+
+### 추가 검증된 사실 (실측 완료분만 — v2 원칙 준수)
+
+#### V3-F1. 1.5B / 7B 양 모델에서 16 core 포화 재현
+- **환경**: dev (i9-12900KF + RTX 3090)
+- **측정 방법**: monitor.py 1 Hz per-core CPU util sampling, `/tmp/hybrid*psr.log` 로 per-thread PSR 샘플링
+- **1.5B Hybrid** (500 req burst, busy window 3.96s → 29.65s, 26 samples):
+  - pinned 16 코어 avg = **96.5% (max 100%)**, P-core odd 95.7~97.6% / E-core 97.0% (전원)
+  - 비-pin 짝수 P-core SMT sibling = 5~9% (hyperthread contention)
+- **7B Hybrid** (500 req burst, busy window 3.96s → 108.13s, 102 samples):
+  - pinned 16 코어 avg = **97.7% (max 100%)**, P-core odd 95.8~96.3% / E-core 99.4% (전원)
+- **결론**: 모델 크기 4.67× 증가에도 16 core 포화율은 동일 (96.5% / 97.7%). C++ `init_cpu_threads_env` 의 OMP 1:1 pin + `sched_setaffinity` 로직이 모델 크기에 무관하게 안정.
+
+#### V3-F2. 1.5B/7B CPU decode rate 선형 스케일링
+- **1.5B**: Router stats `CPU=9.9 tok/s (2 reqs)` → per-req latency ≈ 13s (128 output tokens)
+- **7B**: Router stats `CPU=2.3 tok/s (2 reqs)` → per-req latency ≈ 55s — **v1 Q2 (7B, 이전 세션) 의 2.3 tok/s 와 정확히 일치 → 재현성 확인**
+- 모델 크기 4.67× → CPU throughput 0.23× (≈ 1/4.3, 선형에 가까움). CPU 경로에 체계적 regression 없음.
+
+#### V3-F3. 60 req 순차 반복 — slot cycle 무결성 (dev)
+- **스크립트**: `/tmp/seq_repeat_test.py` (sequential, `max_tokens=16`, 앞 req 완료 후 다음 송출)
+- **결과**: 60/60 성공, 평균 1.58s/req, 편차 ±0.05s
+- Router stats: `GPU=0.0 tok/s (0 reqs), CPU=10.2 tok/s (50 reqs), cpu_ratio=100.0%, in_flight=0/1`
+- 60/60 모두 CPU 로 라우팅 (sequential 이라 매 req 마다 in_flight=0 에서 출발 → cpu-first → CPU)
+- **누수 없음**: latency 가 끝까지 일정하고 stats 의 `in_flight=0` 로 복귀 — `length` 종료 경로의 slot 반납은 60 회 연속 정상
+
+#### V3-F4. `length` / `stop` 종료 — slot 반납 정상 (dev)
+- **length**: `max_tokens=10` → `finish_reason=length`, 0.91s on CPU, 다음 req 즉시 CPU 로 라우팅
+- **stop**: `stop=["."]` → `finish_reason=stop`, 0.21s on CPU, 다음 req 즉시 CPU 로 라우팅
+- 두 경로 모두 엔진이 `output.finished=True` 를 emit → `process_engine_outputs` 의 line 1507 경로로 `on_request_finished` 호출 → `cpu_in_flight` 감소
+- **결론**: 정상 종료 (length/stop) 경로는 수정 없이 기존 구현으로 정상 동작
+
+#### V3-F5. `abort` (client disconnect) — slot 반납 **버그 재현 → 수정 → 검증**
+- **버그 증상 (수정 전)**: CPU request 를 mid-stream abort 하면 `cpu_in_flight` 가 영구 `1` 로 stuck. 이후 모든 요청이 GPU 로 fallback.
+- **재현 스크립트**: `/tmp/cpu_abort_test.py` (long CPU req → 2s 후 client close → 10 probe 로 라우팅 확인)
+- **수정 전 측정**:
+  - long req: dispatched to `cpu:0`, aborted after 2s
+  - probe 0~9: 전원 GPU 로 (~0.03-0.05s = GPU latency), CPU 로 가는 probe 0개
+- **수정 후 측정**:
+  - long req: dispatched to `cpu:0`, aborted after 2s, **`Request finished: ... (cpu_count=1)` 로그 관측 — abort 시점에 slot 반납됨**
+  - probe 0~9: 전원 CPU 로 (~0.37-0.47s = 4 tokens / 9.9 tok/s × k), `cpu_count=1→11` 순차 증가
+- **Root cause (코드 추적)**:
+  - `vllm/v1/engine/core_client.py::HybridAsyncMPClient.abort_requests_async` (수정 전) 이 `_hybrid_reqs_in_flight.get()` 만 호출하고 pop/router 반납 안 함
+  - Engine 측 scheduler 는 `finish_requests()` → `_free_request()` 호출해서 request 를 해제하지만
+  - `self.finished_req_ids_dict` 는 `vllm/v1/engine/core.py:122` 에서 `include_finished_set=(data_parallel_size > 1)` 로 초기화 → **DP=1 (dev/H100x4 모두 해당) 에서는 `None`**
+  - `_free_request` 가 `finished_req_ids_dict` 에 추가하는 코드 (`scheduler.py:1018`) 는 `is not None` 가드 덕분에 no-op
+  - Update step 에서 `EngineCoreOutputs.finished_requests` 필드가 empty 로 남음
+  - Aborted request 는 새 토큰도 없으므로 `outputs.outputs` 의 `output.finished=True` 도 emit 안 됨
+  - `process_engine_outputs` 의 어느 경로로도 slot 반납 신호가 안 옴 → 영구 누수
+- **Fix**: `abort_requests_async` / `abort_requests` 두 함수에서 `_hybrid_reqs_in_flight.pop()` + `_hybrid_router.on_request_finished()` 를 명시 호출. Engine 쪽 이중 반납은 `process_engine_outputs` 의 `.pop(req_id, None)` 패턴으로 자동 방지.
+- **의의**: H100 운영 환경의 "capacity 에서 멈춤" 증상 (TODO v1 §1 마지막 항목) 의 직접 원인 후보 1 로 **dev 재현 + 원인 확정 + 수정 완료**. client disconnect 는 production 환경에서 자주 발생 (timeout, LB health check, 네트워크 오류) — 이 경로 한 번이면 CPU slot 영구 점유.
+
+#### V3-F6. V1 scheduler `cpu_max_num_seqs=1` 경계 경로 확정 (dev, 코드 분석)
+- `vllm/v1/engine/hybrid_core.py::_create_cpu_vllm_config` (line 945~1004):
+  - `cpu_sched.max_num_seqs = resolved.cpu_max_num_seqs` (= 1) — 표준 `max_num_running_reqs` 메커니즘으로 enforce
+  - `cpu_sched.enable_chunked_prefill = False`, `chunked_prefill_enabled = False` — **CPU 엔진에서 chunked prefill 명시 비활성화** (decode 와 interleave 시 극심하게 느려지기 때문)
+  - `cpu_max_model_len = min(gpu_max, cpu_max_batched_tokens × cpu_max_num_seqs)` — chunked prefill 끄면 `max_num_batched_tokens >= max_model_len` 조건 필요
+- `vllm/v1/core/sched/scheduler.py::Scheduler.schedule` (line 334):
+  - `if len(self.running) == self.max_num_running_reqs: break` — 표준 경계 체크, cpu 엔진도 동일 경로
+- 정상 종료 (`length`/`stop`) 경로는 `_free_request()` → `update_from_output` → per-output `finished=True` → `process_engine_outputs` → `on_request_finished` 으로 완결
+- Preemption (KV cache exhaustion) 경로는 `num_cpu_engines=1` + `cpu_kvcache=8~16GB` + `cpu_max_model_len` 제한 덕에 실제 발생 가능성 매우 낮음 — 이 경로의 edge case 는 검증 미수행 (dev 에서 트리거 어려움)
+- **결론**: CPU 엔진의 slot 경계는 표준 V1 scheduler 메커니즘으로 처리되며 chunked prefill 경계 edge case 없음. 유일한 edge case 였던 abort 경로는 V3-F5 로 수정됨.
+
+### v3 매트릭스 (실측 완료 환경, v2 정정 원칙 준수)
+
+| 환경 | AVX | AMX | NUMA | 실측 경로 | 검증 범위 | 근거 |
+|------|-----|-----|------|----------|---------|------|
+| dev (i9-12900KF + RTX 3090) | AVX2 + AVX-VNNI | ❌ | 1 node | `ipex` + C++ `init_cpu_threads_env` | 1.5B/7B 벤치 500 req 완결, 60 req 순차 누수 zero, length/stop/abort slot cycle 정상 (**단 abort 는 v3 패치 포함 시**), V1 scheduler 경계 경로 확정 | v1 Q1~Q4 + v3 F1~F6 |
+
+H100x4 KVM / H100x8 + Xeon 2S / 일반 x86_64 laptop 등 기타 환경은 여전히 실측 없음 → TODO §3.
+
+### v3 의 TODO 해소 현황
+
+- TODO v1 §1 "1-시퀀스 라이프사이클 반복 검증" → v3 F3 으로 **완결** (60 req 순차)
+- TODO v1 §1 "`output.finished` 감지 확실성 (length/stop/abort)" → v3 F4 + F5 로 **완결** (abort 는 수정 후)
+- TODO v1 §1 "CPU scheduler 코드 경로 트레이싱" → v3 F6 으로 **완결** (코드 분석)
+- TODO v1 §1 "H100 capacity 멈춤 증상 dev 배제" → v3 F5 로 **재현 + 원인 확정 + 수정 완료**. dev 에서 배제 성공.
+- TODO v1 §1 "동시 요청 스트레스 50+ burst 확장" → v3-F1 의 500 req burst 로 이미 커버됨 (1.5B/7B 양쪽)
+
+→ TODO v1 §1 은 본 v3 로 실질적으로 완결. 남은 것은 TODO v1 §2 (논문 정합성) / §3 (H100 실측) / §4 (기타 잠재 이슈) / §5 (문서화 잔여).

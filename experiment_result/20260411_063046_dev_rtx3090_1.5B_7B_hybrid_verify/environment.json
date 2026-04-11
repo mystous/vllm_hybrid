@@ -1,0 +1,99 @@
+{
+  "timestamp_kst": "2026-04-11 06:30:46 KST",
+  "experiment": "dev RTX 3090 Qwen2.5-1.5B/7B hybrid vs GPU-only verification",
+  "host": {
+    "hostname": "mystousUbuntu",
+    "container": "docker mystous/vllm_hybrid:cu13_v0.6_h100x4 (--gpus all --privileged --network host --ipc host --pid host)",
+    "os": "Linux 6.8.0-90-generic (Ubuntu 22.04)",
+    "arch": "x86_64"
+  },
+  "cpu": {
+    "model": "12th Gen Intel Core i9-12900KF",
+    "sockets": 1,
+    "cores_per_socket": 16,
+    "threads_per_core": 2,
+    "total_logical_cpus": 24,
+    "topology_note": "8 P-cores (SMT-2 → logical 0-15) + 8 E-cores (SMT-1 → logical 16-23)",
+    "numa_nodes": 1,
+    "isa_flags_of_interest": [
+      "avx", "avx2", "avx_vnni", "fma", "sse4_1", "sse4_2", "f16c",
+      "NO avx512*", "NO amx_*"
+    ],
+    "memory_gb": 63
+  },
+  "gpu": {
+    "model": "NVIDIA GeForce RTX 3090",
+    "count": 1,
+    "vram_mib": 24576,
+    "driver": "580.126.09"
+  },
+  "software": {
+    "vllm_version": "0.1.dev8475+g78fa48cb8",
+    "torch_version": "2.9.0+cu130",
+    "cuda_version": "13.0",
+    "ipex_available": true,
+    "extensions_loaded": {
+      "_C (CUDA main)": true,
+      "_C_cpu_ops (AVX-512 CPU kernels)": "HAS_CPU_OPS=True (built as stub on this dev AVX2 host — fallback path)",
+      "_C_utils (init_cpu_threads_env)": true
+    }
+  },
+  "git": {
+    "branch": "h100_cu13",
+    "head_commit": "a0d15b3788d40fd85a19e1635bd2d30b08a5bc71",
+    "head_subject": "docs: append TODO v3 progress snapshot and Tech_done v2 policy correction",
+    "recent_commits": [
+      "a0d15b378 docs: append TODO v3 progress snapshot and Tech_done v2 policy correction",
+      "c31bc5877 docs: sync project docs to current codebase",
+      "84e9c8201 chore: add benchmark results and archive old_TODO_TASKS.md",
+      "ad70b8f4d fix: hybrid CPU engine end-to-end fixes — _C_utils extension, NUMA auto, diagnostics",
+      "ee01e68cf docs: add Tech_done.md and append v2 work logs (hybrid verification session)"
+    ],
+    "uncommitted_changes_at_run_time": "none (clean)"
+  },
+  "workload": {
+    "benchmark_tool": "benchmarks/benchmark_serving.py",
+    "dataset": "random",
+    "input_len_tokens": 128,
+    "output_len_tokens": 128,
+    "num_prompts": 500,
+    "request_rate": "inf (burst)"
+  },
+  "hybrid_config_applied": {
+    "mode": "parallel-batch",
+    "num_cpu_engines": 1,
+    "cpu_max_num_seqs_per_engine": 1,
+    "cpu_threads": "auto (= 16 physical cores)",
+    "cpu_kvcache_gb_1.5B": 8,
+    "cpu_kvcache_gb_7B": 16,
+    "numa_aware_1.5B": false,
+    "numa_aware_7B": true,
+    "routing_strategy": "capacity",
+    "routing_priority": "cpu-first",
+    "omp_pin_target_cores": [1,3,5,7,9,11,13,15,16,17,18,19,20,21,22,23],
+    "omp_pin_method": "C++ torch.ops._C_utils.init_cpu_threads_env → sched_setaffinity 1:1"
+  },
+  "files_used": {
+    "env_files": [
+      "eval/envs/dev_rtx3090_500.env (1.5B)",
+      "eval/envs/dev_rtx3090_qwen7b_500.env (7B)"
+    ],
+    "serve_script": "eval/serve.sh",
+    "bench_script": "eval/bench.sh",
+    "monitor_script": "eval/monitor.py",
+    "benchmark_script": "benchmarks/benchmark_serving.py",
+    "key_source_files": [
+      "vllm/v1/engine/hybrid_core.py — CapacityAwareRouter, _resolve_cpu_params, launch_hybrid_engines",
+      "vllm/v1/engine/core_client.py — HybridAsyncMPClient/SyncMPClient dispatch + resolver write-back",
+      "vllm/v1/worker/cpu_worker.py — init_device, _get_autobind_cpu_ids, execute_model trace",
+      "vllm/v1/attention/backends/cpu_attn.py — _IPEXPagedAttention decode path + counter",
+      "vllm/platforms/intel_cpu_utils.py — CPU feature detection, NUMA, oneDNN ISA env",
+      "vllm/worker/worker_base.py — heterogeneous heuristic bypass for hybrid CPU engine",
+      "vllm/config.py — HybridConfig dataclass (num_cpu_engines=0 auto sentinel)",
+      "vllm/engine/arg_utils.py — CLI arg defaults",
+      "csrc/cpu/utils.cpp — init_cpu_threads_env C++ impl (omp + sched_setaffinity + numa_set_membind)",
+      "csrc/cpu/torch_bindings_utils.cpp — _C_utils torch library registration",
+      "cmake/cpu_utils_extension.cmake — _C_utils standalone extension build (OpenMP + libnuma, no SIMD req)"
+    ]
+  }
+}

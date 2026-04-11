@@ -1483,8 +1483,14 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
 
         by_engine = defaultdict[EngineIdentity, list[str]](list)
         for req_id in request_ids:
-            entry = self._hybrid_reqs_in_flight.get(req_id)
-            engine = entry[0] if entry is not None else self._gpu_engine
+            entry = self._hybrid_reqs_in_flight.pop(req_id, None)
+            if entry is not None:
+                engine, engine_path = entry
+                num_tokens = self._hybrid_req_token_counts.pop(req_id, 0)
+                self._hybrid_router.on_request_finished(
+                    req_id, engine_path, num_tokens=num_tokens)
+            else:
+                engine = self._gpu_engine
             by_engine[engine].append(req_id)
 
         for engine, req_ids in by_engine.items():
@@ -1656,8 +1662,14 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
 
         by_engine = defaultdict[EngineIdentity, list[str]](list)
         for req_id in request_ids:
-            entry = self._hybrid_reqs_in_flight.get(req_id)
-            engine = entry[0] if entry is not None else self._gpu_engine
+            entry = self._hybrid_reqs_in_flight.pop(req_id, None)
+            if entry is not None:
+                engine, engine_path = entry
+                num_tokens = self._hybrid_req_token_counts.pop(req_id, 0)
+                self._hybrid_router.on_request_finished(
+                    req_id, engine_path, num_tokens=num_tokens)
+            else:
+                engine = self._gpu_engine
             by_engine[engine].append(req_id)
 
         for engine, req_ids in by_engine.items():

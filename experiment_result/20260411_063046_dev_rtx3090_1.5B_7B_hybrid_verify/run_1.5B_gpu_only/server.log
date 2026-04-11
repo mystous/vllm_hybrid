@@ -1,0 +1,922 @@
+============================================================
+ vLLM server starting: MODE=gpu_only
+ MODEL=Qwen/Qwen2.5-1.5B-Instruct
+ PORT=8000
+ ENV_FILE=/vllm_hybrid/eval/envs/dev_rtx3090_500.env
+============================================================
+DEBUG_AG: Process 2511860 importing vllm.config
+DEBUG_AG: Process 2511860 importing vllm.distributed
+DEBUG_AG: Process 2511860 importing vllm.distributed.communication_op
+DEBUG_AG: Process 2511860 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 2511860 importing vllm.distributed.utils
+DEBUG_AG: Process 2511860 finished importing vllm.distributed.utils
+DEBUG_AG: Process 2511860 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 2511860 importing vllm.platforms
+DEBUG_AG: Process 2511860 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 2511860 checking plugin heterogeneous
+DEBUG_AG: Process 2511860 checking plugin tpu
+DEBUG_AG: Process 2511860 checking plugin cuda
+DEBUG_AG: Process 2511860 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 2511860 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 2511860 importing vllm.platforms.cuda
+DEBUG_AG: Process 2511860 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 2511860 finished importing vllm.distributed
+DEBUG_AG: Process 2511860 finished importing vllm.config
+DEBUG_AG: Process 2511860 importing vllm.worker.worker_base
+WARNING 04-11 06:02:52 [__init__.py:1675] argument '--disable-log-requests' is deprecated and replaced with '--enable-log-requests'. This will be removed in v0.12.0.
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:02:52 [api_server.py:1795] vLLM API server version 0.1.dev8475+g78fa48cb8
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:02:52 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'gpu_memory_utilization': 0.85}
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:02:56 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+[1;36m(APIServer pid=2511860)[0;0m `torch_dtype` is deprecated! Use `dtype` instead!
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:02:56 [config.py:1807] Using max model len 32768
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:02:56 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=2048.
+DEBUG_AG: Process 2511991 importing vllm.config
+DEBUG_AG: Process 2511991 importing vllm.distributed
+DEBUG_AG: Process 2511991 importing vllm.distributed.communication_op
+DEBUG_AG: Process 2511991 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 2511991 importing vllm.distributed.utils
+DEBUG_AG: Process 2511991 finished importing vllm.distributed.utils
+DEBUG_AG: Process 2511991 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 2511991 importing vllm.platforms
+DEBUG_AG: Process 2511991 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 2511991 checking plugin heterogeneous
+DEBUG_AG: Process 2511991 checking plugin tpu
+DEBUG_AG: Process 2511991 checking plugin cuda
+DEBUG_AG: Process 2511991 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 2511991 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 2511991 importing vllm.platforms.cuda
+DEBUG_AG: Process 2511991 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 2511991 finished importing vllm.distributed
+DEBUG_AG: Process 2511991 finished importing vllm.config
+DEBUG_AG: Process 2511991 importing vllm.worker.worker_base
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:02:59 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:02:59 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8475+g78fa48cb8) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=32768, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":3,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":["vllm.unified_attention","vllm.unified_attention_with_output","vllm.mamba_mixer2"],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":1,"cudagraph_capture_sizes":[512,504,496,488,480,472,464,456,448,440,432,424,416,408,400,392,384,376,368,360,352,344,336,328,320,312,304,296,288,280,272,264,256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":512,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=nccl init_method=tcp://192.168.0.4:56423
+[W411 06:03:00.664101074 ProcessGroupNCCL.cpp:924] Warning: TORCH_NCCL_AVOID_RECORD_STREAMS is the default now, this environment variable is thus deprecated. (function operator())
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:00 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=2511991)[0;0m WARNING 04-11 06:03:00 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: GPUModelRunner.load_model start
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:00 [gpu_model_runner.py:1930] Starting to load model Qwen/Qwen2.5-1.5B-Instruct...
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:00 [gpu_model_runner.py:1962] Loading model from scratch...
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:00 [cuda.py:328] Using Flash Attention backend on V1 engine.
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:00 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:00 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=2511991)[0;0m Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+[1;36m(EngineCore_0 pid=2511991)[0;0m Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  2.78it/s]
+[1;36m(EngineCore_0 pid=2511991)[0;0m Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  2.78it/s]
+[1;36m(EngineCore_0 pid=2511991)[0;0m 
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:00 [default_loader.py:262] Loading weights took 0.40 seconds
+[1;36m(EngineCore_0 pid=2511991)[0;0m DEBUG_AG: GPUModelRunner.load_model end
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:01 [gpu_model_runner.py:1980] Model loading took 2.8871 GiB and 0.473531 seconds
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:01 [gpu_model_runner.py:2518] DEBUG_AG: profile_run start. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:01 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=2048 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:03 [backends.py:530] Using cache directory: /root/.cache/vllm/torch_compile_cache/14c538605c/rank_0_0/backbone for vLLM's torch.compile
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:03 [backends.py:541] Dynamo bytecode transform time: 2.39 s
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:04 [backends.py:161] Directly load the compiled graph(s) for dynamic shape from the cache, took 1.016 s
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:05 [monitor.py:34] torch.compile takes 2.39 s in total
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:05 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:05 [gpu_model_runner.py:2521] DEBUG_AG: profile_run dummy_run finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_worker.py:296] Available KV cache memory: 15.73 GiB
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [kv_cache_utils.py:829] GPU KV cache size: 589,008 tokens
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [kv_cache_utils.py:833] Maximum concurrency for 32,768 tokens per request: 17.98x
+[1;36m(EngineCore_0 pid=2511991)[0;0m Capturing CUDA graph shapes:   0%|          | 0/67 [00:00<?, ?it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=512 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=512 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=504 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=504 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=496 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=496 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=488 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=488 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:   6%|▌         | 4/67 [00:00<00:01, 33.31it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=480 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=480 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=472 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=472 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=464 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=464 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=456 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=456 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  12%|█▏        | 8/67 [00:00<00:01, 32.82it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=448 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=448 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=440 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=440 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=432 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=432 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=424 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:06 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=424 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  18%|█▊        | 12/67 [00:00<00:01, 33.55it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=416 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=416 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=408 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=408 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=400 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=400 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=392 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=392 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  24%|██▍       | 16/67 [00:00<00:01, 33.81it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=384 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=384 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=376 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=376 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=368 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=368 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=360 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=360 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  30%|██▉       | 20/67 [00:00<00:01, 35.05it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=352 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=352 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=344 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=344 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=336 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=336 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=328 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=328 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  36%|███▌      | 24/67 [00:00<00:01, 35.50it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=320 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=320 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=312 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=312 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=304 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=304 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=296 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=296 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  42%|████▏     | 28/67 [00:00<00:01, 36.18it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=288 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=288 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=280 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=280 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=272 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=272 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=264 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=264 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  48%|████▊     | 32/67 [00:00<00:00, 36.51it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=256 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=256 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=248 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=248 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=240 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=240 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=232 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=232 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=224 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=224 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  55%|█████▌    | 37/67 [00:01<00:00, 38.95it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=216 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=216 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=208 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=208 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=200 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=200 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=192 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=192 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=184 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=184 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  63%|██████▎   | 42/67 [00:01<00:00, 41.63it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=176 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=176 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=168 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=168 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=160 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=160 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=152 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=152 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=144 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=144 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=136 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=136 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  72%|███████▏  | 48/67 [00:01<00:00, 45.97it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=128 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=128 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=120 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=120 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=112 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=112 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=104 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=104 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=96 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=96 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=88 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=88 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=80 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=80 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  82%|████████▏ | 55/67 [00:01<00:00, 52.10it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=72 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=72 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=64 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:07 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=64 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=56 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=56 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=48 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=48 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=40 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=40 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=32 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=32 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=24 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=24 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes:  93%|█████████▎| 62/67 [00:01<00:00, 56.30it/s][1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=16 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=16 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=8 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=8 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=4 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=4 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=2 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=2 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=1 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=1 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+Capturing CUDA graph shapes: 100%|██████████| 67/67 [00:01<00:00, 43.91it/s]
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2590] Graph capturing finished in 2 secs, took 0.43 GiB
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2209] DEBUG_AG: _dummy_run start. device=cuda:0 num_tokens=256 tp_size=1
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [gpu_model_runner.py:2304] DEBUG_AG: _dummy_run model execution finished. device=cuda:0
+[1;36m(EngineCore_0 pid=2511991)[0;0m INFO 04-11 06:03:08 [core.py:198] init engine (profile, create kv cache, warmup model) took 7.14 seconds
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [loggers.py:142] Engine 000: vllm cache_config_info with initialization after num_gpu_blocks is: 36813
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [api_server.py:1610] Supported_tasks: ['generate']
+[1;36m(APIServer pid=2511860)[0;0m WARNING 04-11 06:03:08 [config.py:1673] Default sampling parameters have been overridden by the model's Hugging Face generation config recommended from the model creator. If this is not intended, please relaunch vLLM instance with `--generation-config vllm`.
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [serving_responses.py:107] Using default chat sampling params from model: {'repetition_penalty': 1.1, 'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [serving_chat.py:133] Using default chat sampling params from model: {'repetition_penalty': 1.1, 'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [serving_completion.py:77] Using default completion sampling params from model: {'repetition_penalty': 1.1, 'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [api_server.py:1865] Starting vLLM API server 0 on http://0.0.0.0:8000
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:29] Available routes are:
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /openapi.json, Methods: GET, HEAD
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /docs, Methods: GET, HEAD
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /docs/oauth2-redirect, Methods: GET, HEAD
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /redoc, Methods: GET, HEAD
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /health, Methods: GET
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /load, Methods: GET
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /ping, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /ping, Methods: GET
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /tokenize, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /detokenize, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/models, Methods: GET
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /version, Methods: GET
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/responses, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/responses/{response_id}, Methods: GET
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/responses/{response_id}/cancel, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/chat/completions, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/completions, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/embeddings, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /pooling, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /classify, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /score, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/score, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/audio/transcriptions, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/audio/translations, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /rerank, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v1/rerank, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /v2/rerank, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /scale_elastic_ep, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /is_scaling_elastic_ep, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /invocations, Methods: POST
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:03:08 [launcher.py:37] Route: /metrics, Methods: GET
+[1;36m(APIServer pid=2511860)[0;0m INFO:     Started server process [2511860]
+[1;36m(APIServer pid=2511860)[0;0m INFO:     Waiting for application startup.
+[1;36m(APIServer pid=2511860)[0;0m INFO:     Application startup complete.
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:57058 - "GET /health HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:57074 - "GET /health HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:45052 - "GET /health HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39144 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:04:18 [loggers.py:123] Engine 000: Avg prompt throughput: 12.8 tokens/s, Avg generation throughput: 9.2 tokens/s, Running: 1 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.0%
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39152 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39158 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39168 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39172 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39180 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39186 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39196 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39204 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39206 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39222 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39228 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39230 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39246 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39250 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39266 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39272 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39286 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39300 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39302 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39316 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39332 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39334 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39338 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39342 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39344 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39358 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39368 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39384 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39390 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39398 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39400 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39406 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39422 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39432 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39448 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39452 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39456 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39466 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39472 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39488 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39494 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39502 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39516 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39520 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39532 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39540 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39548 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39564 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39570 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39572 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39576 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39586 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39602 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39610 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39616 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39626 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39636 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39648 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39656 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39666 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39672 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39684 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39692 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39698 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39704 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39710 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39724 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39728 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39738 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39754 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39768 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39772 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39782 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39792 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39794 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39804 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39810 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39822 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39834 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39842 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39854 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39856 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39864 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39880 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39896 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39908 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39916 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39922 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39926 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39936 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39942 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39952 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39960 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39966 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39982 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:39998 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40008 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40018 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40020 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40022 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40030 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40042 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40048 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40060 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40064 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40080 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40094 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40100 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40102 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40112 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40120 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40128 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40134 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40136 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40140 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40150 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40160 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40166 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40174 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40188 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40204 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40210 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40212 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40226 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40232 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40244 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40248 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40262 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40266 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40282 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40290 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40296 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40302 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40318 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40332 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40338 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40354 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40364 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40380 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40384 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40396 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40406 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40422 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40430 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40442 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40456 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40464 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40476 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40478 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40494 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40500 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40506 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40522 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40526 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40530 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40544 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40550 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40566 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40580 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40596 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40602 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40610 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40622 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40624 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40636 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40638 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40654 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40666 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40678 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40686 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40692 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40706 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40718 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40720 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40724 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40726 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40734 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40736 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40738 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40742 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40744 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40760 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40764 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40770 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40780 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40784 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40792 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40800 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40810 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40822 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40826 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40838 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40840 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40852 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40868 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40878 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40888 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40894 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40900 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40908 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40918 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40930 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40938 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40940 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40950 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40960 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40970 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40974 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40978 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:40986 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41002 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41008 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41014 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41030 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41034 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41040 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41050 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41054 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41062 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41074 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41078 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41084 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41088 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41100 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41102 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41110 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41124 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41134 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41144 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41154 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41164 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41168 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41174 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41186 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41200 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41208 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41216 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41230 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41234 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41236 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41250 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41258 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41268 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41282 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41290 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41298 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41300 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41312 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41320 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41324 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41338 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41344 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41356 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41358 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41368 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41370 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41372 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41376 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41386 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41394 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41406 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41410 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41418 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41426 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41442 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41454 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41460 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41464 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41470 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41480 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41496 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41508 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41512 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41518 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41528 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41540 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41544 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41560 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41562 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41568 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41584 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41588 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41598 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41608 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41610 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41612 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41616 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41632 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41640 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41656 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41662 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41672 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41686 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41700 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41706 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41712 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41720 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41726 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41736 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41740 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41752 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41754 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41766 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41782 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41786 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41794 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41802 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41814 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41826 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41830 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41834 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41840 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41850 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41852 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41862 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41868 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41872 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41874 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41882 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41884 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41898 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41908 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41914 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41930 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41944 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41952 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41956 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41972 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41978 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41980 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41982 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:41986 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42000 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42004 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42018 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42026 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42034 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42040 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42044 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42060 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42068 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42084 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42100 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42112 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42126 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42136 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42142 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42156 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42164 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42172 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42176 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42190 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42192 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42204 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42210 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42216 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42224 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42236 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42242 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42250 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42260 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42270 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42278 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42280 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42296 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42306 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42308 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42324 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42334 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42340 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42354 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42368 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42384 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42392 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42400 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42406 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42414 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42422 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42428 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42434 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42438 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42454 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42468 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42470 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42474 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42484 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42500 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42516 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42520 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42530 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42532 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42542 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42546 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42552 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42564 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42576 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42584 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42600 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42616 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42624 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42634 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42644 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42658 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42674 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42678 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42690 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42698 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42706 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42716 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42720 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42728 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42732 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42748 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42764 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42778 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42794 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42810 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42818 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42820 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42824 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42840 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42854 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42858 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42860 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42872 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42882 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42892 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42898 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42908 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42918 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42930 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42942 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42956 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42970 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42976 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42980 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42988 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42994 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:42998 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43008 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43018 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43032 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43044 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43060 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43072 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43080 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43084 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43090 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43100 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43112 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43114 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43122 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43128 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43136 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43150 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43162 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43178 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43194 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43204 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43220 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43236 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43240 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43242 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43244 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43246 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43256 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43262 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43274 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43284 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43296 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43308 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43318 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43322 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43338 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43348 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43362 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43364 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43378 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43394 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43406 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43418 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43432 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43444 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43454 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43462 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43464 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43476 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43482 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43494 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43500 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43504 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43514 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43524 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43532 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43534 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43548 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43550 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43556 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43570 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO:     127.0.0.1:43586 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:04:28 [loggers.py:123] Engine 000: Avg prompt throughput: 6369.8 tokens/s, Avg generation throughput: 6162.5 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.4%
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:04:38 [loggers.py:123] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.0%, Prefix cache hit rate: 0.4%
+[1;36m(APIServer pid=2511860)[0;0m INFO 04-11 06:05:17 [launcher.py:80] Shutting down FastAPI HTTP server.
+[rank0]:[W411 06:05:18.459224542 ProcessGroupNCCL.cpp:1524] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[1;36m(APIServer pid=2511860)[0;0m INFO:     Shutting down
+[1;36m(APIServer pid=2511860)[0;0m INFO:     Waiting for application shutdown.
+[1;36m(APIServer pid=2511860)[0;0m INFO:     Application shutdown complete.
