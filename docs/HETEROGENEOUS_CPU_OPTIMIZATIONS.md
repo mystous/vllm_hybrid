@@ -1,28 +1,41 @@
 # vLLM Heterogeneous CPU/GPU 최적화 기술 문서
 
+> **마지막 업데이트**: 2026-04-11
+
 ## 개요
 
-이 문서는 vLLM의 CPU/GPU 이기종(Heterogeneous) 실행 모드에서 수행된 모든 기술적 변경 사항을 기술합니다.
+이 문서는 vLLM Hybrid 프로젝트의 CPU 최적화 경로에 대한 기술 기록이다.
 
-**타겟 환경:**
-- GPU: NVIDIA H100
-- CPU: Intel Xeon Platinum 8480+ (Sapphire Rapids)
-- RAM: 2TB DDR5
-- Pipeline Parallel Size: 2 (GPU PP0 + CPU PP1)
+**역사적 주의**: §1~§12 는 초기 `heterogeneous` platform (단일 프로세스 내 pipeline
+parallel PP0=GPU / PP1=CPU) 기반의 구현 기록이다. 현재 프로젝트는 **Dual-Process
+CapacityAwareRouter** (`vllm/v1/engine/hybrid_core.py`) 로 전환되어 GPU engine 과
+CPU engine 이 별도 OS 프로세스로 실행된다. 초기 단계에서 발견된 최적화 (AVX-512 감지,
+IPEX fallback, NUMA KV cache, OMP 환경변수 등) 는 대부분 현재 구현에도 그대로
+유효하지만, platform 진입점과 worker 초기화 경로는 재구성되었다.
 
-**변경 파일 요약:**
-| 파일 | 변경량 | 주요 내용 |
-|------|--------|----------|
-| `README.md` | +99 | IPEX/NUMA 설치 가이드, 테스트 방법 |
-| `vllm/_ipex_ops.py` | +5/-1 | IPEX import 예외 처리 강화 |
-| `vllm/attention/layer.py` | +21/-3 | CPU 텐서 런타임 디바이스 체크 |
-| `vllm/platforms/__init__.py` | +4/-1 | heterogeneous 플랫폼 우선순위 조정 |
-| `vllm/platforms/cpu.py` | +124/-3 | AVX-512 감지, Inductor/OpenMP 최적화 |
-| `vllm/platforms/heterogeneous.py` | +244/-27 | lazy 초기화, `get_device_capability()` |
-| `vllm/v1/attention/backends/cpu_attn.py` | +93/-1 | 토큰-시퀀스 불일치 처리 |
-| `vllm/v1/worker/cpu_model_runner.py` | +225/-1 | NUMA KVCache, IPEX 모델 최적화 |
-| `vllm/v1/worker/cpu_worker.py` | +177/-3 | Intel CPU 환경 설정, 스레드 어피니티 |
-| `vllm/v1/worker/gpu_model_runner.py` | +18/-1 | Mamba/Triton lazy import |
+**현재 진입점 참고**: `CLAUDE.md` 와 `docs/paper/main.tex` §3 참조.
+
+**대상 환경**: x86_64 + NVIDIA GPU (CUDA). 특정 기종 (Sapphire Rapids/H100) 에 고정하지
+않는다. 런타임에 AVX-512/AVX-VNNI/AMX/NUMA 를 감지하고 graceful fallback 한다.
+
+**초기 변경 파일 요약 (heterogeneous phase)**:
+
+| 파일 | 주요 내용 |
+|------|----------|
+| `vllm/_ipex_ops.py` | IPEX import 예외 처리 강화 |
+| `vllm/platforms/cpu.py` | AVX-512 감지, Inductor/OpenMP 최적화 |
+| `vllm/v1/attention/backends/cpu_attn.py` | IPEX / SDPA fallback, 토큰-시퀀스 불일치 처리 |
+| `vllm/v1/worker/cpu_model_runner.py` | NUMA KVCache, IPEX 모델 최적화 |
+| `vllm/v1/worker/cpu_worker.py` | Intel CPU 환경 설정, 스레드 어피니티 |
+
+**현재 추가 파일 (hybrid_core / dual process phase)**:
+
+| 파일 | 역할 |
+|------|------|
+| `vllm/v1/engine/hybrid_core.py` | `CapacityAwareRouter`, `_resolve_cpu_params`, `run_cpu_engine_core`, `launch_hybrid_engines` |
+| `vllm/v1/engine/core_client.py` | `HybridAsyncMPClient`, ZMQ identity dispatch |
+| `vllm/platforms/intel_cpu_utils.py` | Intel CPU feature 감지, NUMA, AMX/AVX-512/VNNI 환경 설정 |
+| `csrc/cpu/utils.cpp` + `cmake/cpu_utils_extension.cmake` | `_C_utils.abi3.so` 빌드 — `init_cpu_threads_env` (OMP 1:1 pin + NUMA strict membind), AVX-512 / AMX 무관, 어떤 x86_64 에서도 빌드 |
 
 ---
 
@@ -773,50 +786,44 @@ mamba_layers = get_layers_from_vllm_config(self.vllm_config, MambaBase) \
 
 ## 11. 의존성 버전 호환성
 
-### PyTorch / torchvision / IPEX 버전 매칭
+### 현재 타겟 버전 (CUDA 13.0 / torch 2.9)
 
-| PyTorch | torchvision | IPEX | CUDA |
-|---------|-------------|------|------|
-| **2.8.0** | **0.23.0** | **2.8.0** | 12.1/12.4 |
-| 2.7.x | 0.22.x | 2.7.x | 12.1/12.4 |
-| 2.6.x | 0.21.x | 2.6.x | 12.1 |
-| 2.5.x | 0.20.x | 2.5.x | 12.1 |
+| 컴포넌트 | 버전 |
+|---------|------|
+| CUDA Toolkit | 13.0 (V13.0.88) |
+| PyTorch | 2.9.0+cu130 |
+| torchvision | 0.24.0+cu130 |
+| torchaudio | 2.9.0+cu130 |
+| IPEX | 2.8.0 (소스 빌드, torch 2.9 대응 패치) |
+| transformers | 5.5.0 |
+| NCCL | 2.27.7 |
 
-### 설치 명령어 (PyTorch 2.8.0 + CUDA 12.1 기준)
+자세한 CUDA 13.0 마이그레이션 상태는 `docs/CUDA13_MIGRATION_STATUS.md` 참조.
+
+### 설치 명령어
 
 ```bash
-# PyTorch + torchvision (버전 매칭 필수)
-pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu121
-pip install torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu121
+# PyTorch 2.9.0 + cu130
+pip install torch==2.9.0 torchvision==0.24.0 torchaudio==2.9.0 --index-url https://download.pytorch.org/whl/cu130
 
-# IPEX (선택적, Intel CPU 최적화용)
-pip install intel-extension-for-pytorch==2.8.0
+# IPEX 는 torch 2.9 용 공식 wheel 이 없으므로 소스에서 빌드 (CUDA13_MIGRATION_STATUS.md §7)
 ```
-
-### 버전 불일치 오류 예시
-
-```
-# torchvision 버전 불일치
-RuntimeError: operator torchvision::nms does not exist
-
-# IPEX 버전 불일치
-ERROR! Intel® Extension for PyTorch* needs to work with PyTorch 2.8.*
-AttributeError: module 'os' has no attribute 'exit'
-```
-
-**해결**: 위 버전 매칭 표에 따라 재설치
 
 ---
 
 ## 12. 테스트 방법
 
-### 서버 실행
+### 서버 실행 (현재 CLI)
+
 ```bash
-VLLM_HETEROGENEOUS_PLATFORM=1 python -m vllm.entrypoints.openai.api_server \
-  --model facebook/opt-6.7b \
-  --device heterogeneous \
-  --pipeline-parallel-size 2
+# parallel-batch hybrid 모드 (dual process)
+vllm serve Qwen/Qwen2.5-7B-Instruct \
+  --tensor-parallel-size 1 \
+  --hybrid-mode parallel-batch
 ```
+
+`VLLM_HETEROGENEOUS_PLATFORM=1` 및 `--device heterogeneous` 는 초기 구현의 유물이며
+현재 진입점이 아니다.
 
 ### 벤치마크
 ```bash
@@ -846,9 +853,15 @@ print(f'NUMA: {features.num_sockets} sockets')
 
 ---
 
-## 13. Parallel Batch Executor NUMA/AMX 최적화
+## 13. Dual-Process CPU Engine NUMA/AMX 최적화 (현재)
 
-### 파일: `vllm/executor/parallel_batch_executor.py`
+> 초기 `parallel_batch_executor.py` 기반 단일 프로세스 CPU worker 구현은 dual-process
+> 구조로 대체되었다. 현재 동일 기능은 `vllm/v1/engine/hybrid_core.py` + `vllm/v1/worker/cpu_worker.py`
+> + `csrc/cpu/utils.cpp` 에 분산되어 있다. 아래 §13.1~§13.4 의 코드 스니펫은 **초기 설계**
+> 이며 현재 파일 트리와는 다르지만, NUMA / AMX / IPEX 우선순위 로직은 그대로 현재 구현에
+> 이식되어 있다.
+
+### 파일: `vllm/executor/parallel_batch_executor.py` (legacy, removed)
 
 ### 13.1 NUMA-aware CPU 워커
 
@@ -930,11 +943,9 @@ def _enable_ipex_amx(self):
 --no-hybrid-numa-aware      # NUMA 비활성화
 --hybrid-numa-node <N>      # 특정 NUMA 노드 지정
 
-# 112 코어 전체 활용 예시
-numactl --interleave=all vllm serve model \
-  --hybrid-mode parallel-batch \
-  --hybrid-cpu-threads 112 \
-  --hybrid-cpu-dtype bfloat16
+# 모든 CPU 파라미터 auto — 권장
+vllm serve model --hybrid-mode parallel-batch
+# (num_cpu_engines = NUMA 노드 수, cpu_max_num_seqs = 1, cpu_num_threads = 해당 NUMA 물리 코어 수)
 ```
 
 ### 13.4 AMX vs AVX-512 선택 우선순위
@@ -968,4 +979,4 @@ numactl --interleave=all vllm serve model \
 ---
 
 *문서 작성: Claude (vLLM Heterogeneous CPU/GPU Optimization)*
-*최종 업데이트: 2026-02-03*
+*마지막 업데이트: 2026-04-11 (dual-process / CapacityAwareRouter / CUDA 13.0 / torch 2.9 반영)*

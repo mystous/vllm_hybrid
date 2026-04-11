@@ -1,7 +1,12 @@
 # Harvesting Idle CPU Cycles for LLM Inference: A Dual-Process Parallel-Batch Architecture for CPU-GPU Heterogeneous Serving
 
+> ⚠️ **This is an early draft. The current single source of truth for the design is
+> `docs/paper/main.tex`.** Where this draft diverges from main.tex (notably: the
+> `cpu_max_num_seqs` auto rule, the `num_cpu_engines` derivation, the `_C_utils`
+> build target, and the CUDA 13 / torch 2.9 toolchain), main.tex is authoritative.
+>
 > **IEEE Transactions on Parallel and Distributed Systems (TPDS) — Draft**
-> Status: Draft v2 (2026-02-26)
+> Status: Draft v2.1 — last refreshed 2026-04-11 to align with current code principles
 
 ---
 
@@ -292,7 +297,9 @@ The CapacityAwareRouter is the central component that bridges the GPU and CPU en
 ```
 Algorithm 1: CapacityAwareRouter — Basic Capacity Routing
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-State: cpu_in_flight ← 0, N ← cpu_max_num_seqs
+State: cpu_in_flight ← 0, N ← num_cpu_engines × cpu_max_num_seqs
+                               = num_numa_nodes × 1
+                               (one slot per NUMA-bound CPU engine)
 
 function ROUTE(request r):
     if cpu_in_flight < N then
@@ -400,16 +407,25 @@ During warmup, the router uses basic capacity routing. After warmup completes, E
 
 A key barrier to CPU inference deployment is the complexity of tuning parameters for diverse hardware configurations. We implement a zero-configuration pipeline (`_resolve_cpu_params()`) that automatically derives optimal settings from hardware detection.
 
-**Table IV. Automatic parameter derivation rules**
+**Table IV. Automatic parameter derivation rules (current)**
 
 | Parameter | Auto Value | Detection Source | Rationale |
 |-----------|-----------|-----------------|-----------|
-| `cpu_num_threads` | NUMA node physical cores | `numactl` CPU list ÷ threads_per_core | HT provides minimal benefit for ALU-intensive inference [8] |
-| `cpu_max_num_seqs` | physical_cores ÷ 4 (min 4) | Derived from thread count | ~4 OpenMP threads per attention computation unit |
-| `cpu_kvcache_space_gb` | total_memory × 0.4 (32–512 GB) | `psutil.virtual_memory()` | Reserve 60% for OS, model weights, PyTorch buffers |
-| `cpu_max_batched_tokens` | max_seqs × 256 | Derived from max_seqs | Median request length in typical workloads |
+| `num_cpu_engines` | `num_numa_nodes` | `NUMAAllocator.num_nodes` | One independent CPU EngineCore process per NUMA node — strict bind eliminates remote memory access |
+| `cpu_num_threads` (per engine) | physical cores of the bound NUMA node | `/proc/cpuinfo` ÷ `threads_per_core` | HT provides minimal benefit for memory-bound decode [8] |
+| `cpu_max_num_seqs` (per engine) | **fixed at 1** | — | One sequence saturates every physical core of the NUMA node via OMP; batching fractions the OMP pool and loses NUMA/cache locality |
+| `cpu_kvcache_space_gb` (per engine) | `clamp(effective_mem × 0.4, 32, 512)` | `psutil.virtual_memory()` + NUMA node memory | Reserve headroom for OS, model weights, PyTorch buffers |
+| `cpu_max_batched_tokens` | `cpu_max_num_seqs × 256` = 256 | Derived | Decode batch buffer |
 
-**NUMA topology handling.** On multi-socket servers, the CPU process is bound to a single NUMA node (default: node 0, matching local_rank=0) to prevent remote memory access. The binding pipeline is:
+> The earlier draft rule (`cpu_max_num_seqs = physical_cores ÷ 4`) was empirically
+> worse than the current fixed-at-1 rule. Keeping one sequence per NUMA engine lets
+> every matmul saturate the full OMP pool bound to that node, which maximizes
+> wall-clock throughput per NUMA node. Total concurrent CPU sequences across the
+> system equal `num_numa_nodes`.
+
+**NUMA topology handling.** Each CPU EngineCore process is bound to its own NUMA
+node (engine index → node index) and receives strict `numa_set_membind` plus
+per-thread `sched_setaffinity` via the `_C_utils` extension. The binding pipeline is:
 
 1. Detect NUMA topology via `libnuma` / `/sys/devices/system/node/`
 2. Identify target node's CPU IDs and memory

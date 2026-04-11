@@ -1,7 +1,8 @@
 # Docker를 이용한 vLLM Hybrid 실행 가이드
 
-> **Docker 이미지**: `mystous/vllm_hybrid:v1.4`
+> **Docker 이미지**: `mystous/vllm_hybrid:cu13_v0.6_h100x4` (CUDA 13.0 + torch 2.9 기반)
 > **사전 조건**: Docker, NVIDIA Container Toolkit 설치 필요
+> **마지막 업데이트**: 2026-04-11
 
 ---
 
@@ -28,7 +29,7 @@ docker run -it \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -v ~/.claude:/root/.claude \
   -v ~/.config/claude:/root/.config/claude \
-  mystous/vllm_hybrid:v1.4 \
+  mystous/vllm_hybrid:cu13_v0.6_h100x4 \
   /bin/bash
 ```
 
@@ -81,14 +82,15 @@ cmake --build --preset release --target install
 ### 2.4 빌드 결과 확인
 
 ```bash
-ls -la vllm/_C.abi3.so vllm/_moe_C.abi3.so vllm/_C_cpu_ops.abi3.so
+ls -la vllm/_C.abi3.so vllm/_moe_C.abi3.so vllm/_C_cpu_ops.abi3.so vllm/_C_utils.abi3.so
 ```
 
-| 모듈 | 파일 | 내용 |
-| :--- | :--- | :--- |
-| `_C` | `vllm/_C.abi3.so` | CUDA ops |
-| `_moe_C` | `vllm/_moe_C.abi3.so` | MoE ops |
-| `_C_cpu_ops` | `vllm/_C_cpu_ops.abi3.so` | AVX-512 CPU 커널 (하이브리드용) |
+| 모듈 | 파일 | 내용 | 빌드 요구 |
+| :--- | :--- | :--- | :--- |
+| `_C` | `vllm/_C.abi3.so` | CUDA 메인 ops | CUDA toolkit |
+| `_moe_C` | `vllm/_moe_C.abi3.so` | MoE ops | CUDA toolkit |
+| `_C_cpu_ops` | `vllm/_C_cpu_ops.abi3.so` | AVX-512 CPU 커널 (VNNI GEMM / Q8_0 / decode GEMV / batched attention / mem_opt) | AVX-512F 이상 |
+| `_C_utils` | `vllm/_C_utils.abi3.so` | `init_cpu_threads_env` (OMP 1:1 pin + NUMA strict membind) | OpenMP + libnuma (어떤 x86_64) |
 
 ---
 
@@ -102,16 +104,22 @@ vllm serve <model> \
   --hybrid-mode parallel-batch
 ```
 
-### 3.2 수동 설정
+### 3.2 수동 설정 (override)
+
+기본적으로 모든 CPU 파라미터는 0 (auto) 로 두는 것을 권장한다. 원칙:
+`cpu_max_num_seqs = 1` per NUMA engine 고정. 아래 예시처럼 명시 override 시
+`cpu_max_num_seqs ≠ 1` 는 경고 로그를 출력한다 (원칙 위반 알림).
 
 ```bash
+# 디버그용 — 값은 예시이며 auto 가 권장
 vllm serve <model> \
   --tensor-parallel-size 8 \
   --hybrid-mode parallel-batch \
-  --hybrid-cpu-max-seqs 28 \
-  --hybrid-cpu-kvcache-gb 800 \
-  --hybrid-cpu-threads 112 \
-  --hybrid-cpu-max-batched-tokens 7168
+  --hybrid-num-cpu-engines 2 \
+  --hybrid-cpu-max-seqs 1 \
+  --hybrid-cpu-kvcache-gb 400 \
+  --hybrid-cpu-threads 56 \
+  --hybrid-cpu-max-batched-tokens 256
 ```
 
 ---
@@ -122,6 +130,11 @@ vllm serve <model> \
 
 ```bash
 python -c "
+import vllm._custom_ops as ops, torch
+print('HAS_CPU_OPS:', ops.HAS_CPU_OPS)
+print('HAS_CPU_UTILS:', ops.HAS_CPU_UTILS)
+print('init_cpu_threads_env:', torch.ops._C_utils.init_cpu_threads_env)
+
 from vllm.platforms.intel_cpu_utils import detect_intel_cpu_features
 f = detect_intel_cpu_features()
 print(f'{f.model_name}: {f.num_sockets}S x {f.cores_per_socket}C')

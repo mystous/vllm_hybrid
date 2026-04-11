@@ -1,7 +1,8 @@
 # CPU+GPU 하이브리드 최적화 구현 계획서
 
-> **목표**: GPU only보다 빠른 CPU+GPU 하이브리드 추론
-> **작성일**: 2026-02-03
+> **목표**: GPU-only 대비 더 높은 처리량을 달성하는 CPU+GPU 병렬 배치 추론
+> **마지막 업데이트**: 2026-04-11
+> **설계의 단일 진실 공급원**: `docs/paper/main.tex`
 
 ---
 
@@ -11,39 +12,40 @@
 
 | 옵션 | 구성 | 대상 환경 |
 |------|------|----------|
-| **Option A** | MoE Offload + N-gram + Disaggregated | MoE 모델 (DeepSeek 등) |
-| **Option B** | APEX 스케줄링 | Dense 모델, 제한된 GPU |
+| **Option A (parallel-batch)** | Dual-process CapacityAwareRouter | Dense 모델 전반 (구현 완료) |
+| **Option B (moe-hybrid)** | MoE Expert Offload + N-gram + Disaggregated | MoE 모델 (미래) |
+
+현재 구현된 것은 **parallel-batch** 옵션 한 가지이며, GPU engine 과 CPU engine 을
+별도 OS 프로세스로 띄워 `HybridAsyncMPClient` 가 ZMQ identity 기반으로 라우팅한다.
+MoE 계열은 `expert_offload.py` / `ngram_proposer_dynamic.py` / `disaggregated/`
+디렉토리에 스켈레톤만 존재한다.
 
 ### 실행 예시
 
 ```bash
-# Option A: MoE 최적화 (DeepSeek R1 권장)
-vllm serve deepseek-ai/DeepSeek-R1-Distill-Llama-70B \
-  --hybrid-mode moe-hybrid \
-  --moe-cpu-offload \
-  --ngram-spec-decode \
-  --disaggregated-prefill
+# parallel-batch (구현 완료). 모든 CPU 파라미터는 auto 권장
+vllm serve Qwen/Qwen2.5-7B-Instruct \
+  --tensor-parallel-size 1 \
+  --hybrid-mode parallel-batch
 
-# Option B: Parallel Batch (APEX 스케줄링) - 구현 완료
+# 명시적 override (디버깅용)
 vllm serve meta-llama/Llama-3-70B \
+  --tensor-parallel-size 8 \
   --hybrid-mode parallel-batch \
-  --hybrid-cpu-ratio 0.2 \
-  --hybrid-cpu-threads 112 \
-  --hybrid-numa-aware
+  --hybrid-routing-strategy capacity \
+  --hybrid-routing-priority cpu-first
 
-# Option B: 112 코어 NUMA 전체 활용 (권장)
-numactl --interleave=all vllm serve meta-llama/Llama-3-70B \
-  --hybrid-mode parallel-batch \
-  --hybrid-cpu-threads 112 \
-  --hybrid-cpu-dtype bfloat16
+# moe-hybrid (미래 계획)
+vllm serve deepseek-ai/DeepSeek-R1-Distill-Llama-70B \
+  --hybrid-mode moe-hybrid
 ```
 
-### 구현 상태 (2026-02-03)
+### 구현 상태 (2026-04-11)
 
 | 옵션 | 상태 | 설명 |
 |------|------|------|
-| **parallel-batch** | ✅ 구현 완료 | IPEX + NUMA + AMX 최적화 |
-| **moe-hybrid** | 🔲 Dummy | 추후 구현 예정 |
+| **parallel-batch** | 구현 완료 | Dual-process, CapacityAwareRouter, IPEX/AVX-512/AMX graceful fallback |
+| **moe-hybrid** | 스켈레톤 | MoE Expert Offload / Speculative / Disaggregated (미래) |
 
 ---
 
@@ -90,7 +92,35 @@ numactl --interleave=all vllm serve meta-llama/Llama-3-70B \
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Option B 아키텍처
+### 1.2 Option B 아키텍처 (parallel-batch, 구현 완료)
+
+실제 구현은 **Dual-Process CapacityAwareRouter** 이다. 아래 "APEX Scheduler" 그림은
+초기 계획이고, 현재는 GPU/CPU engine 을 별도 OS 프로세스로 띄우고 `HybridAsyncMPClient`
+가 ZMQ identity 기반으로 routing 한다. 단일 프로세스 내 partition/merger 는 존재하지
+않는다. 상세는 `CLAUDE.md` 및 `docs/paper/main.tex` §3 참조.
+
+```
+HybridAsyncMPClient (단일 API endpoint)
+│
+├─ CapacityAwareRouter (cpu_in_flight < cpu_max_num_seqs ? CPU : GPU)
+├─ input socket (ZMQ ROUTER, identity dispatch)
+│   ├─ GPU engine: identity = b'\x00\x00'
+│   └─ CPU engine: identity = b'\x01\x00'  (multi-NUMA 시 \x02\x00 …)
+└─ output socket (ZMQ PULL)
+
+GPU EngineCoreProc [별도 PID] → MultiprocExecutor → N × GPUWorker
+CPU EngineCoreProc [별도 PID, num_numa 개] → UniProcExecutor → CPUWorker
+  ├─ init_cpu_threads_env (C++, _C_utils): OMP 1:1 pin + numa strict membind
+  └─ IPEX → oneDNN → AMX/AVX-512/AVX2 graceful fallback
+```
+
+핵심 원칙:
+- `num_cpu_engines = num_numa_nodes` auto
+- per-engine `cpu_max_num_seqs = 1` 고정 — 1 시퀀스가 NUMA 의 모든 물리 코어를 OMP 로 점유
+- `cpu-first` routing priority (논문 Property 2: GPU non-interference)
+- 3 차원 독립 fallback chain (attention kernel / thread bind / ISA)
+
+--- (아래는 초기 계획 그림, 참고용으로 남겨둠) ---
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -820,31 +850,29 @@ class DisaggregatedCoordinator:
 
 ---
 
-## 3. Option B 상세 설계
+## 3. Option B (parallel-batch) 상세 설계
 
-### 3.1 APEX 스케줄러
+> 실제 구현은 "APEX 스케줄러 + cpu_ratio" 가 아니라 **CapacityAwareRouter + Dual Process**
+> 이다. 아래 3.1 의 profiling/ratio 계산 섹션들은 **구식 계획** 이며, 현재 코드는
+> `vllm/v1/engine/hybrid_core.py :: CapacityAwareRouter` 의 3 전략 (capacity /
+> length-aware / throughput-adaptive) 만 사용한다. 자세한 설계는 논문 §3.3 Algorithm 1/2/3 참조.
 
-#### 3.1.1 개념
+### 3.1 CapacityAwareRouter (현재 구현)
 
 ```
-APEX (Asynchronous Parallel EXecution):
-┌─────────────────────────────────────────────────────────────────┐
-│  프로파일링 단계:                                                │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ GPU 성능 측정: 70B 모델, batch=1 → 16 tok/s              │   │
-│  │ CPU 성능 측정: 70B INT8 모델, batch=1 → 3 tok/s          │   │
-│  │ 최적 비율: GPU 84%, CPU 16%                              │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│  런타임:                                                         │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ 10개 요청 도착                                            │   │
-│  │ → GPU: 8개 배치 (84%)                                    │   │
-│  │ → CPU: 2개 배치 (16%)                                    │   │
-│  │ → 동시 실행 → 총 처리량 = GPU + CPU                      │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+매 요청 도착 시:
+    if cpu_in_flight < cpu_max_num_seqs:   # 기본값: N = num_numa_nodes × 1
+        route → CPU (identity b'\x01\x00')
+    else:
+        route → GPU (identity b'\x00\x00')
 ```
+
+- `cpu_max_num_seqs = 1` per engine 이므로 CPU 는 한 번에 1 seq × NUMA count 만 처리
+- nominal capacity 초과 시 즉시 GPU 로 overflow → CPU 가 GPU 를 블로킹하지 않음 (Property 2)
+- length-aware / throughput-adaptive 는 prompt length 또는 측정된 EMA 처리량으로 threshold 를 조정
+- `round-robin` 은 디버깅용
+
+### 3.1 (legacy) APEX 스케줄러 — 초기 계획 (구현되지 않음)
 
 ---
 
@@ -872,7 +900,7 @@ APEX (Asynchronous Parallel EXecution):
 │     R_gpu = T_gpu / (T_gpu + T_cpu)                             │
 │     R_cpu = T_cpu / (T_gpu + T_cpu)                             │
 │                                                                  │
-│  3. 예시 (H100 + Xeon 8480+)                                    │
+│  3. 예시 (임의의 x86_64 + NVIDIA GPU)                           │
 │     T_gpu = 100 tok/s (추정)                                    │
 │     T_cpu = 5 tok/s (측정)                                      │
 │     R_gpu = 100 / 105 = 95.2%                                   │
@@ -1325,85 +1353,47 @@ class APEXConfig:
     cpu_num_threads: int = 48
 ```
 
-### 4.2 CLI 인터페이스
+### 4.2 CLI 인터페이스 (현재 구현)
+
+실제 구현은 `vllm/engine/arg_utils.py` 의 `EngineArgs` 에 들어 있다. 옵션은 모두
+`hybrid_*` prefix 를 쓰며, 기본값이 0/auto 인 옵션은 런타임에 NUMA/CPU 감지 결과로 자동 유도된다.
+
+| 옵션 | 기본값 | 의미 |
+|------|--------|------|
+| `--hybrid-mode` | `none` | `none` / `parallel-batch` / `moe-hybrid` |
+| `--hybrid-num-cpu-engines` | 0 (auto) | auto 는 `num_numa_nodes` |
+| `--hybrid-cpu-max-seqs` | 0 (auto) | auto 는 **1 고정** (per engine) |
+| `--hybrid-cpu-kvcache-gb` | 0 (auto) | auto 는 `clamp(eff_mem × 0.4, 32, 512)` |
+| `--hybrid-cpu-threads` | 0 (auto) | auto 는 NUMA 노드 물리 코어 전체 |
+| `--hybrid-cpu-max-batched-tokens` | 0 (auto) | `cpu_max_num_seqs × 256` |
+| `--hybrid-numa-aware` / `--no-hybrid-numa-aware` | True | NUMA 최적화 on/off |
+| `--hybrid-numa-node` | auto | 특정 NUMA 노드 강제 바인딩 |
+| `--hybrid-routing-strategy` | `capacity` | `capacity` / `length-aware` / `throughput-adaptive` / `round-robin` |
+| `--hybrid-routing-priority` | `gpu-first` | `gpu-first` / `cpu-first` |
+| `--hybrid-cpu-prefill-threshold` | 512 | length-aware / throughput-adaptive 임계 |
+| `--hybrid-warmup-requests` | 10 | throughput-adaptive EMA 워밍업 |
+| `--hybrid-stats-log-interval` | 50 | router 통계 로그 간격 (완료 요청 수) |
+
+권장: 모든 CPU 파라미터는 0 (auto) 로 두고 `--hybrid-mode parallel-batch` 만 지정.
+수동 override 는 허용하되 `cpu_max_num_seqs ≠ 1` 은 경고 로그 (원칙 위반 알림).
+
+아래 `option-a` / `option-b` / `--apex-cpu-ratio` / `--moe-cpu-offload` 등은 초기
+계획 draft 이며 현재 CLI 에는 존재하지 않는다. 참고용으로만 남겨둔다.
 
 ```python
-# vllm/entrypoints/openai/cli_args.py 확장
+# (legacy / not implemented — kept for reference)
+# vllm/entrypoints/openai/cli_args.py 확장 (초기 안)
 
 def add_hybrid_args(parser: argparse.ArgumentParser):
-    """하이브리드 실행 인자 추가"""
+    """하이브리드 실행 인자 추가 (초기 계획, 현재 CLI 와 다름)"""
 
-    group = parser.add_argument_group("Hybrid Execution Options")
-
-    # 모드 선택
-    group.add_argument(
-        "--hybrid-mode",
-        type=str,
-        choices=["option-a", "option-b", "none"],
-        default="none",
-        help="하이브리드 실행 모드 선택"
-    )
-
-    # Option A: MoE Offload
-    group.add_argument(
-        "--moe-cpu-offload",
-        action="store_true",
-        help="MoE Expert를 CPU로 오프로드"
-    )
-    group.add_argument(
-        "--moe-num-gpu-experts",
-        type=int,
-        default=8,
-        help="GPU에 상주할 expert 수"
-    )
-
-    # Option A: N-gram Speculative
-    group.add_argument(
-        "--ngram-spec-decode",
-        action="store_true",
-        help="N-gram 기반 Speculative Decoding 활성화"
-    )
-    group.add_argument(
-        "--ngram-n",
-        type=int,
-        default=3,
-        help="N-gram 크기"
-    )
-    group.add_argument(
-        "--ngram-num-spec-tokens",
-        type=int,
-        default=5,
-        help="추측할 토큰 수"
-    )
-
-    # Option A: Disaggregated
-    group.add_argument(
-        "--disaggregated-prefill",
-        action="store_true",
-        help="Prefill/Decode 분리 활성화"
-    )
-    group.add_argument(
-        "--prefill-device",
-        type=str,
-        choices=["gpu", "cpu"],
-        default="gpu",
-        help="Prefill 실행 디바이스"
-    )
-
-    # Option B: APEX
-    group.add_argument(
-        "--apex-cpu-ratio",
-        type=float,
-        default=None,
-        help="APEX CPU 배치 비율 (자동 프로파일링 시 생략)"
-    )
-    group.add_argument(
-        "--apex-cpu-threads",
-        type=int,
-        default=48,
-        help="APEX CPU 스레드 수"
-    )
-
+    group = parser.add_argument_group("Hybrid Execution Options (legacy draft)")
+    group.add_argument("--hybrid-mode", choices=["option-a", "option-b", "none"], default="none")
+    group.add_argument("--moe-cpu-offload", action="store_true")
+    group.add_argument("--ngram-spec-decode", action="store_true")
+    group.add_argument("--disaggregated-prefill", action="store_true")
+    group.add_argument("--apex-cpu-ratio", type=float, default=None)
+    group.add_argument("--apex-cpu-threads", type=int, default=48)
     return parser
 ```
 
@@ -1932,36 +1922,31 @@ def benchmark_all_modes():
 | + N-gram Spec | 8,500-10,000 | 1.5-1.7x |
 | + Disaggregated | 10,000-15,000 | 1.7-2.6x |
 
-### 9.2 Option B (Llama 70B)
+### 9.2 Option B (parallel-batch) 예상 성능
 
-| 구성 | 처리량 (tok/s) | vs GPU only |
-|------|----------------|-------------|
-| GPU only | 5,742 | 1.0x |
-| APEX (H100) | 6,000-6,500 | 1.05-1.13x |
-| APEX (T4) | 1.8-2.0x baseline | - |
+실측 수치는 `docs/paper/main.tex` 의 평가 섹션과 `eval/results/` 하위 raw 로그를
+참조. 특정 기종 (H100 / T4 등) 에 고정된 tok/s 숫자는 런타임 자동 감지 원칙과 상충하므로
+삭제했다.
 
 ---
 
 ## 10. 결론
 
-### Option A vs Option B 선택 가이드
+### 현재 옵션 선택 가이드
 
 | 조건 | 권장 옵션 |
 |------|----------|
-| MoE 모델 (DeepSeek, Mixtral) | **Option A** |
-| Dense 모델 (Llama, GPT) | Option B 또는 GPU only |
-| GPU 메모리 부족 | **Option A** (MoE Offload) |
-| 제한된 GPU (T4, A10) | **Option B** |
-| H100 충분 | GPU only (또는 Option A) |
-| 최대 처리량 목표 | **Option A** (전체 활성화) |
+| Dense 모델 + CPU 여유 있음 | **parallel-batch** (구현 완료) |
+| MoE 모델 (DeepSeek, Mixtral) | moe-hybrid (미래 구현) |
+| CPU 미탑재 또는 NUMA 없음 | GPU only (`--hybrid-mode none`) |
 
-### 핵심 성공 요인
+### 핵심 성공 요인 (parallel-batch)
 
-1. **MoE Offload**: GPU 메모리 절약 → 더 큰 배치 → 처리량 증가
-2. **N-gram**: CPU의 "공짜" 추측 → GPU 효율 증가
-3. **Disaggregated**: Prefill/Decode 분리 → 각각 최적화
+1. **Dual process + CapacityAwareRouter**: CPU-first routing + overflow to GPU → GPU non-interference
+2. **per-NUMA `cpu_max_num_seqs = 1` 고정**: 1 시퀀스가 NUMA 의 모든 물리 코어를 OMP 병렬로 점유
+3. **3 차원 fallback chain**: attention kernel (custom_avx → ipex → sdpa_batched → sdpa_loop) / thread bind (C++ _C_utils → Python) / ISA (AMX → AVX-512 VNNI → AVX-512 → AVX2)
 
 ---
 
-*작성일: 2026-02-03*
-*버전: 1.0*
+*마지막 업데이트: 2026-04-11*
+*버전: 2.0 (CapacityAwareRouter / CUDA 13.0 / torch 2.9 반영)*

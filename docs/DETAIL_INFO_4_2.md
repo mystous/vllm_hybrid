@@ -1,6 +1,13 @@
 # §4.2 Throughput Model — 심층 해설
 
-> 논문 §4.2에 사용된 모든 HPC 개념(LogGP, Roofline, α)의 배경 조사 및 상세 해설
+> 논문 §4.2 에 사용된 HPC 개념 (LogGP, Roofline, α) 의 배경 조사 및 상세 해설
+>
+> **마지막 업데이트**: 2026-04-11
+>
+> 이 문서의 수식/정의는 `docs/paper/main.tex` 에 이미 반영되어 있다. 본 문서는 그
+> 배경 해설이며 Roofline 계산의 수치 예시에는 실제 평가 대상인 NVIDIA H100 +
+> Intel Xeon Platinum 8480+ 를 사용하지만, 이는 **하나의 예시 환경**이고 구현
+> 자체는 어떤 x86_64 + CUDA GPU 에서도 런타임 감지 후 자동 동작한다.
 
 ---
 
@@ -43,7 +50,10 @@ T_hybrid = T_GPU + α · T_CPU     (α ∈ [0, 1])
 
 ### α가 1을 초과할 수 없는 이유
 
-물리적으로 CPU가 자신의 최대 처리량(cpu_max_num_seqs에 의해 결정)을 초과할 수 없다. 슬롯 수는 유한하고, 각 슬롯의 처리 시간에는 하한이 있다.
+물리적으로 CPU 가 자신의 최대 처리량을 초과할 수 없다. 슬롯 수는 유한하고
+(`num_cpu_engines × cpu_max_num_seqs = num_numa_nodes × 1`, 현재 구현 원칙), 각
+슬롯의 처리 시간에는 하한이 있다. 본 프로젝트는 per-engine `cpu_max_num_seqs = 1`
+을 고정하여 각 CPU engine 이 자기 NUMA 노드의 모든 물리 코어를 OMP 로 점유하게 한다.
 
 ### "+"가 성립하는 이유
 

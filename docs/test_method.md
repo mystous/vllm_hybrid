@@ -1,22 +1,22 @@
 # vLLM Hybrid 테스트 가이드
 
-> 최종 업데이트: 2026-02-21
+> 마지막 업데이트: 2026-04-11
 
 ---
 
 ## 1. 실행 모드
 
-### 모드 A: Parallel-Batch (Dual-Process, 권장)
+### Parallel-Batch (Dual-Process, 현재 유일한 공식 경로)
 
-GPU와 CPU가 별도 프로세스에서 완전 병렬 실행:
+GPU 와 CPU 가 별도 OS 프로세스에서 완전 병렬 실행:
 
 ```
-GPU EngineCoreProc (PID A) ← TP=8, 8x H100
-CPU EngineCoreProc (PID B) ← UniProcExecutor, CPUWorker
+GPU EngineCoreProc (PID A) ← MultiprocExecutor, N × GPUWorker
+CPU EngineCoreProc (PID B, num_numa_nodes 개) ← UniProcExecutor, CPUWorker
 ```
 
 ```bash
-# 자동 감지 (권장)
+# 자동 감지 (권장) — 모든 CPU 파라미터 auto, 1 sequence / NUMA engine, thread binding 자동
 vllm serve meta-llama/Llama-3-70B-Instruct \
   --tensor-parallel-size 8 \
   --hybrid-mode parallel-batch \
@@ -25,31 +25,16 @@ vllm serve meta-llama/Llama-3-70B-Instruct \
   --port 8000 \
   --trust-remote-code
 
-# 수동 설정
+# 디버깅용 override (대부분 불필요)
 vllm serve meta-llama/Llama-3-70B-Instruct \
   --tensor-parallel-size 8 \
   --hybrid-mode parallel-batch \
-  --hybrid-cpu-max-seqs 28 \
-  --hybrid-cpu-kvcache-gb 800 \
-  --hybrid-cpu-threads 112 \
-  --dtype bfloat16 \
-  --host 0.0.0.0 \
-  --port 8000
+  --hybrid-routing-strategy capacity \
+  --hybrid-routing-priority cpu-first
 ```
 
-### 모드 B: Heterogeneous Pipeline (레거시)
-
-GPU와 CPU가 같은 텐서 병렬 그룹에서 파이프라인 실행:
-
-```bash
-VLLM_HETEROGENEOUS_PLATFORM=1 vllm serve meta-llama/Llama-3-70B-Instruct \
-  --device heterogeneous \
-  --tensor-parallel-size 8 \
-  --pipeline-parallel-size 2 \
-  --dtype bfloat16 \
-  --host 0.0.0.0 \
-  --port 8000
-```
+> 주의: `VLLM_HETEROGENEOUS_PLATFORM=1` / `--device heterogeneous` / `--pipeline-parallel-size 2`
+> 조합은 초기 구현의 유물이며 현재 코드 경로가 아니다.
 
 ---
 
@@ -197,12 +182,38 @@ from vllm.v1.engine.core_client import HybridAsyncMPClient
 print('All imports OK')
 "
 
-# CPU ops 빌드 확인
+# CPU ops / utils 빌드 확인
 python -c "
-try:
-    import vllm._C_cpu_ops
-    print('_C_cpu_ops: available')
-except ImportError:
-    print('_C_cpu_ops: not built')
+import vllm._custom_ops as ops, torch
+print('HAS_CPU_OPS:', ops.HAS_CPU_OPS)     # AVX-512F 있으면 True
+print('HAS_CPU_UTILS:', ops.HAS_CPU_UTILS) # 어떤 x86_64 에서도 True
+print('init_cpu_threads_env:', torch.ops._C_utils.init_cpu_threads_env)
 "
 ```
+
+---
+
+## 6. 진단 로그
+
+하이브리드 엔진 진입점 / CPU 워커 / 라우팅 / attention path 등을 추적하려면:
+
+```bash
+# 모든 마커 매 호출 로깅 (디버그)
+VLLM_HYBRID_TRACE=1 vllm serve ...
+
+# 기본 (N 호출마다)
+VLLM_HYBRID_TRACE_EVERY=200 vllm serve ...
+```
+
+주요 마커 (8 종):
+
+| marker | 의미 |
+|--------|------|
+| `[HYBRID-RESOLVE]` | `_resolve_cpu_params` 결과 |
+| `[HYBRID-LAUNCH]` | `launch_hybrid_engines` 프로세스 런칭 |
+| `[HYBRID-CLIENT]` | 라우팅 dispatch (request_id → engine identity) |
+| `[HYBRID-CPU-ENV]` | CPU 프로세스 OS 환경 변수 |
+| `[HYBRID-CPU-PROC]` | CPU EngineCore 프로세스 초기화 |
+| `[HYBRID-CPU-WORKER]` | thread binding (C++ vs Python fallback) |
+| `[HYBRID-CPU-EXEC]` | CPU worker `execute_model` per-step trace |
+| `[HYBRID-CPU-ATTN]` | decode path counter (custom_avx / ipex / sdpa_batched / sdpa_loop) |

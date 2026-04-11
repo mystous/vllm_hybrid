@@ -1,8 +1,8 @@
 # CUDA 13.0 Migration Status
 
 **Branch**: `h100_cu13`
-**Last commit**: `f0b527824`
-**Date**: 2026-04-10
+**Last commit**: `484b89016`
+**Date**: 2026-04-11
 
 ---
 
@@ -19,7 +19,7 @@
 | transformers | 5.5.0 |
 | NCCL | 2.27.7 |
 | Docker | mystous/vllm_hybrid:cu13_v0.6_h100x4 |
-| Hardware | H100 80GB x4, Xeon Platinum 8480+ (96 cores, 1 socket KVM) |
+| Reference target | x86_64 + NVIDIA GPU (CUDA 13.0); dev 환경 i9-12900KF + RTX 3090 로 검증 완료 (Tech_done.md v1) |
 
 ---
 
@@ -78,34 +78,27 @@
 
 ---
 
-## Current Issue: CPU Engine 500 Error
+## Status (2026-04-11)
 
-### Symptom
-- Server starts, GPU + CPU engines both initialize successfully
-- CapacityAwareRouter routes requests to `cpu:0` correctly (confirmed in logs)
-- CPU engine returns **500 Internal Server Error** with empty message
-- No traceback in server logs (error swallowed internally)
+CPU engine 500 에러는 dev (i9-12900KF + RTX 3090) 환경에서 **해결 완료**. 자세한 검증은
+`Tech_done.md` v1 Q1~Q4 참조. 주요 해결 포인트:
 
-### Confirmed Working
-- Routing: `cpu-first` + `capacity` strategy -> `cpu:0` (logged)
-- CPU engine: UniProcExecutor, IPEX loaded, KV cache allocated, warmup completed
-- OMP threads: 8 (reduced from 96 to avoid 17ms fork/join overhead)
+- CPU engine 에서 chunked prefill 강제 비활성화 (`enable_chunked_prefill=False`)
+- `UniProcExecutor` 강제 (MultiprocExecutor spawn 방지)
+- `_current_platform = CpuPlatform()` 강제 (spawn 상속 platform 오염 방지)
+- `_resolve_cpu_params()` + `_setup_cpu_process_env()` 를 torch import 전에 실행
+- `intel_cpu_utils.py` lazy torch import
+- `_C_utils.abi3.so` 신규 extension (`init_cpu_threads_env` 전용, AVX-512 무관)
 
-### Root Cause Investigation
-1. **OMP overhead discovered**: 96 threads = 17ms/op overhead (vs 0.02ms actual compute). Reduced to 8 threads.
-2. **IPEX decode timing**: 34ms/call regardless of context length (ctx=2 or ctx=512 both 34ms). This is due to OMP thread sync overhead, NOT IPEX bug.
-3. **With 8 threads**: IPEX attention should be sub-ms, but **500 error prevents testing**.
+dev 에서 500 req burst 기준 end-to-end 동작 확인: CapacityAwareRouter → CPU engine
+1 sequence / NUMA 원칙 → IPEX oneDNN attention → router stats (CPU=2.3 tok/s, 2 reqs 완료) →
+slot 반환.
 
-### Next Steps
-1. **Debug 500 error**: The CPU engine receives the request but fails during execution. Need to:
-   - Add try/except with traceback logging in `EngineCore._handle_client_request()` or CPU model runner's `execute_model()`
-   - Or enable `VLLM_LOGGING_LEVEL=DEBUG` to get more detail
-   - Check if the error is in prefill or decode step
-   - Possible causes: tensor shape mismatch, missing custom op fallback, KV cache layout incompatibility
+타겟 환경 (고성능 Xeon + 다중 NUMA + AVX-512/AMX) 실측은 `TODO.md` §3 참조.
 
-2. **After 500 fix**: Re-benchmark with 8 threads to measure actual CPU throughput improvement
-
-3. **IPEX rebuild**: On new machine, need to rebuild IPEX from source with same patches (see Section 7)
+### 남은 과제
+1. IPEX 소스 빌드 자동화 (현재 `/tmp/ipex_build/` 에 수동 패치). 새 머신 배포 시 재빌드 필요
+2. 타겟 환경에서 `_C_cpu_ops` (AVX-512F) 경로 실측 검증
 
 ---
 
@@ -175,4 +168,4 @@ pip install dist/intel_extension_for_pytorch-*.whl --force-reinstall --no-deps
 
 ---
 
-*Last updated: 2026-04-10 11:30 UTC*
+*마지막 업데이트: 2026-04-11*

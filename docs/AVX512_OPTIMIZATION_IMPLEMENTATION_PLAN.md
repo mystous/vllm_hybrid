@@ -1,20 +1,33 @@
 # AVX-512 / AMX CPU 최적화 구현 계획서
 
-> **목표**: AVX-512 및 AMX를 활용하여 vLLM CPU 백엔드 성능을 극대화
-> **환경**: Intel Xeon (AVX-512F, AVX-512BW, AVX-512DQ, AVX-512VL, AVX-512VNNI, AMX-BF16, AMX-INT8)
-> **작성일**: 2026-02-03
-> **업데이트**: 2026-02-03 - AMX 지원 추가
+> **목표**: AVX-512 및 AMX 를 가용 환경에서 자동 활성화하여 vLLM CPU 백엔드 성능을 극대화
+> **대상 ISA (가용 시 graceful 사용)**: AVX-512F/BW/DQ/VL/VNNI/BF16, AMX-BF16, AMX-INT8
+> **비 AVX-512 환경**: AVX2 + oneDNN/IPEX 자동 fallback
+> **마지막 업데이트**: 2026-04-11
 
 ---
 
-## 0. AMX (Advanced Matrix Extensions) 지원 상태
+## 0. 빌드 타겟 & AMX 지원 상태
 
-### 구현 완료 (2026-02-03)
+### 빌드 산출물 (현재)
 
-| 파일 | 변경 내용 |
-|------|-----------|
-| `vllm/platforms/intel_cpu_utils.py` | AMX 타일 권한 요청, oneDNN ISA 설정 |
-| `vllm/executor/parallel_batch_executor.py` | IPEX AMX 모드 활성화 |
+| 산출물 | 요구 사항 | 용도 |
+|--------|---------|------|
+| `vllm/_C.abi3.so` | CUDA toolkit | GPU main extension (hybrid 코드 없음) |
+| `vllm/_C_cpu_ops.abi3.so` | AVX-512F 이상 | AVX-512 custom GEMM/quant/decode/attention 커널 |
+| `vllm/_C_utils.abi3.so` | OpenMP + libnuma | `init_cpu_threads_env` (OMP 1:1 pin + NUMA strict membind). 어떤 x86_64 에서도 빌드 |
+
+**중요**: `_C_cpu_ops` 는 AVX-512F 가 없으면 빌드에서 skip 되지만 `_C_utils` 는 항상 빌드된다.
+따라서 dev (i9-12900KF, AVX2) 와 target (Sapphire Rapids AVX-512 + AMX) 이 동일한 `setup.py`
+로 빌드된다.
+
+### AMX 자동 활성화 경로
+
+| 파일 | 역할 |
+|------|------|
+| `vllm/platforms/intel_cpu_utils.py` | `configure_intel_optimizations()` — AMX 타일 권한 요청, `ONEDNN_MAX_CPU_ISA` setdefault |
+| `vllm/v1/engine/hybrid_core.py` | `_create_cpu_vllm_config` → `_setup_cpu_process_env` 가 CPU engine 프로세스에 ISA env 주입 |
+| `csrc/cpu/utils.cpp` | `init_cpu_threads_env` — ISA 의존성 없음, OpenMP + libnuma 만 사용 |
 
 ### AMX 동작 방식
 
@@ -33,7 +46,7 @@ IPEX FP32MathMode.BF16 설정
 ### 환경변수 설정
 
 ```bash
-# AMX 활성화 (Sapphire Rapids+)
+# AMX 활성화 (AMX-BF16/INT8 지원 CPU)
 export ONEDNN_MAX_CPU_ISA=AVX512_CORE_AMX
 export DNNL_MAX_CPU_ISA=AVX512_CORE_AMX
 
@@ -1580,27 +1593,24 @@ sudo apt install libnuma-dev
 ### A.2 빌드 명령
 
 ```bash
-cd vllm_hybrid
-
-# AVX-512 VNNI 활성화 빌드
-CMAKE_ARGS="-DVLLM_CPU_AVX512_VNNI=ON" pip install -e .
-
-# 또는 직접 CMake
-mkdir build && cd build
-cmake .. \
-  -DVLLM_CPU_AVX512_VNNI=ON \
-  -DCMAKE_BUILD_TYPE=Release \
-  -GNinja
-ninja
+# CUDA + CPU hybrid 빌드 (dev / target 동일). AVX-512 는 런타임 감지 결과에 따라 자동 활성.
+pip install -e . --config-settings="cmake.args=-DVLLM_TARGET_DEVICE=cuda"
 ```
+
+빌드 결과:
+- `vllm/_C.abi3.so` — CUDA main extension
+- `vllm/_C_cpu_ops.abi3.so` — AVX-512F 있으면 빌드 (gemm_vnni/quant_q8_0/decode_gemv/batch_attention/mem_opt)
+- `vllm/_C_utils.abi3.so` — 항상 빌드 (init_cpu_threads_env only)
 
 ### A.3 검증
 
 ```bash
-# AVX-512 VNNI 활성화 확인
 python -c "
-import vllm._C as C
-print('AVX512-VNNI kernels available:', hasattr(C, 'int8_gemm_vnni'))
+import vllm._custom_ops as ops
+print('HAS_CPU_OPS:', ops.HAS_CPU_OPS)     # True if AVX-512F 가용
+print('HAS_CPU_UTILS:', ops.HAS_CPU_UTILS) # 항상 True
+import torch
+print('init_cpu_threads_env:', torch.ops._C_utils.init_cpu_threads_env)
 "
 ```
 

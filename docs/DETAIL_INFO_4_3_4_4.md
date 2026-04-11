@@ -1,5 +1,7 @@
 # §4.3 CapacityAwareRouter & §4.4 Automatic CPU Configuration — 상세 설명
 
+> **마지막 업데이트**: 2026-04-11
+
 ## §4.3 CapacityAwareRouter
 
 ### 핵심 아이디어
@@ -98,10 +100,10 @@ Algorithm으로 제시하지 않고 텍스트로 설명:
 4. **StarPU와의 차이:** StarPU는 매 작업마다 디바이스를 선택하지만, 우리는 **단일 글로벌 파라미터 N** 하나만 조정 → 캘리브레이션 오버헤드를 수많은 요청에 걸쳐 분산(amortize)
 
 #### 왜 이 전략이 필요한가?
-- capacity 전략은 N이 고정. 하지만 실제로 CPU 성능은 모델 크기, 양자화 방식, 입력 특성에 따라 달라짐.
-- 고정 N=28이면 어떤 모델에서는 CPU가 밀리고, 다른 모델에서는 CPU가 놀 수 있음.
-- throughput-adaptive는 이 문제를 해결: 실측 데이터를 보고 N을 늘리거나 줄임.
-- 예: CPU가 예상보다 느리면 N을 줄여 CPU 요청을 줄이고, 빠르면 N을 늘려 더 많이 활용.
+- capacity 전략은 N 이 고정 (`num_cpu_engines × cpu_max_num_seqs = num_numa_nodes × 1`). 실제로 CPU 성능은 모델 크기, 양자화 방식, 입력 특성에 따라 달라진다.
+- 고정 N 이면 어떤 모델에서는 CPU 가 밀리고 (queue 쌓임), 다른 모델에서는 CPU 가 논다 (slot 낭비).
+- throughput-adaptive 는 이 문제를 실측 데이터를 사용해 동적 threshold (length-aware 의 τ) 또는 effective N 을 EMA 비율로 조정하여 완화한다.
+- 주의: 본 프로젝트의 기본 N 은 hardware topology 에서 유도되며, 변경 시 runtime 재시작이 필요하다. throughput-adaptive 는 "라우팅 결정 임계"를 조정하지 per-engine `cpu_max_num_seqs` 자체를 건드리지는 않는다.
 
 ---
 
@@ -124,17 +126,19 @@ Algorithm으로 제시하지 않고 텍스트로 설명:
 
 | 파라미터 | 자동 규칙 | 이유 |
 |---------|----------|------|
-| `cpu_threads` | NUMA 노드의 물리 코어 수 | Hyper-Threading 경합 회피 |
-| `max_seqs` | ⌊코어 수 / 4⌋ | 시퀀스당 4스레드 할당 |
-| `kv_cache_gb` | 총 메모리 × 0.4 | OS/모델 가중치용 메모리 확보 |
-| `batch_tokens` | max_seqs × 256 | 일반적인 디코드 길이 |
+| `num_cpu_engines` | NUMA 노드 수 | 노드 당 1 개의 독립 CPU EngineCore 프로세스 — strict NUMA bind 로 remote memory access 제거 |
+| `cpu_threads` (per engine) | 해당 NUMA 노드의 물리 코어 수 전체 | Hyper-Threading 경합 회피 |
+| `cpu_max_num_seqs` (per engine) | **1 고정** | 1 시퀀스가 NUMA 의 모든 물리 코어를 OMP + BLAS matmul 병렬로 사용. 배치를 만들지 않음 |
+| `kv_cache_gb` | `clamp(eff_mem × 0.4, 32, 512)` | OS / 모델 가중치 / torch 버퍼 확보 후 나머지를 KV cache 로 |
+| `batch_tokens` | `cpu_max_num_seqs × 256` (= 256) | 짧은 decode 배치 버퍼 |
 
 #### 각 규칙의 근거
 
-- **cpu_threads = NUMA 물리 코어:** 예를 들어 2소켓 × 56코어 시스템에서, 한 NUMA 노드의 56개 물리 코어만 사용. 112개 논리 코어(HT 포함)를 다 쓰면 오히려 **SMT 경합**으로 성능이 떨어짐. 추론은 memory-bandwidth-bound이므로 HT의 이점이 없고, 캐시 경합만 발생.
-- **max_seqs = 코어/4:** 시퀀스 하나당 attention, FFN 등에서 병렬 처리할 스레드가 필요. 실험적으로 시퀀스당 4개 스레드가 최적 균형점. 56코어 → 14 시퀀스 동시 처리.
-- **kv_cache_gb = 메모리×0.4:** 2TB 서버에서 800GB를 KV cache로 할당. 나머지는 OS(~수십 GB), 모델 가중치(~수십~수백 GB), PyTorch 버퍼 등에 필요.
-- **batch_tokens = seqs×256:** decode 시 한 시퀀스가 평균 ~256 토큰을 생성한다고 가정하여 배치 버퍼 크기 설정.
+- **num_cpu_engines = NUMA 노드 수:** 2 소켓 = 2 NUMA 시스템이면 CPU EngineCore 프로세스를 2 개 띄우고, 각각 자기 NUMA 노드의 물리 코어와 DRAM 에 strict bind. 프로세스 간 GIL / 메모리 allocator / OpenMP pool 을 완전히 분리한다. `vllm/v1/engine/hybrid_core.py :: _resolve_num_cpu_engines` 가 `NUMAAllocator.num_nodes` 로 자동 감지.
+- **cpu_threads = NUMA 물리 코어:** 예를 들어 2 소켓 × 56 코어 시스템이면 한 NUMA 노드의 56 물리 코어만 사용. 112 논리 코어 (HT 포함) 를 다 쓰면 SMT 경합으로 성능이 떨어진다 (memory-bandwidth-bound + 캐시 경합).
+- **cpu_max_num_seqs = 1 고정 (per engine):** 예전 draft 에서는 `max(4, ⌊cores/4⌋)` 로 기술했으나, 이는 **잘못된 규칙** 이었다. 실측 결과 per-engine 1 시퀀스로 고정하고 NUMA 의 모든 물리 코어를 해당 1 시퀀스의 matmul 에 쏟아붓는 편이 wall-clock 기준 가장 빠르다. 여러 시퀀스를 배치로 묶으면 per-seq OMP pool 이 잘게 쪼개져 NUMA/cache 이점이 사라진다. 총 동시 CPU 시퀀스 = `num_cpu_engines × 1 = num_numa_nodes`. 이 원칙은 `_resolve_cpu_params` 에 강제되며, 사용자가 `cpu_max_num_seqs ≠ 1` 로 override 하면 경고 로그가 출력된다.
+- **kv_cache_gb:** `clamp(eff_mem × 0.4, 32, 512)` — 가용 메모리의 40% 를 CPU KV cache 로 할당하되 하한 32 GB / 상한 512 GB. 나머지는 OS, 모델 가중치, PyTorch 버퍼 등에 필요.
+- **batch_tokens = seqs × 256:** per-engine seqs=1 기준으로 256 토큰. 짧은 decode 배치 버퍼.
 
 ---
 
@@ -189,7 +193,7 @@ AMX 없음 → AVX-512로 fallback
 AVX-512 없음 → AVX2로 fallback
 ```
 
-이것이 "zero-configuration" 철학의 핵심. H100 + Xeon 8480+ 최적 환경에서는 모든 기능이 자동 활성화되고, 개발자의 i9 노트북에서도 가용한 기능만으로 동작. 사용자는 `--hybrid-mode parallel-batch` 한 줄만 추가하면 됨.
+이것이 "zero-configuration" 철학의 핵심. 고성능 Xeon + 다중 NUMA 환경에서는 AMX / VNNI / NUMA 분리가 모두 자동 활성화되고, AVX2 밖에 없는 개발자 노트북에서도 가용한 기능만으로 동작한다. 사용자는 `--hybrid-mode parallel-batch` 한 줄만 추가하면 된다.
 
 ---
 

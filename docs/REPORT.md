@@ -1,8 +1,8 @@
 # vLLM Hybrid: CPU-GPU 이기종 LLM 추론 시스템 구현 보고서
 
 **프로젝트**: vLLM Hybrid — Dual-Process Parallel-Batch Architecture
-**대상 하드웨어**: NVIDIA H100 x8 (TP=8) + Intel Xeon Platinum 8480+ (2소켓, 112코어, 2TB DDR5)
-**작성일**: 2026-03-20
+**대상 플랫폼**: x86_64 + NVIDIA GPU (CUDA). 특정 기종에 고정되지 않는다 — 런타임에 AVX-512/AVX-VNNI/AMX/NUMA 를 감지하고 graceful fallback 한다. 평가에 사용한 reference 환경은 논문 `docs/paper/main.tex` 의 평가 섹션 참조.
+**마지막 업데이트**: 2026-04-11
 
 ---
 
@@ -393,12 +393,15 @@ classDiagram
 | **CPU 최적화** | `vllm/platforms/intel_cpu_utils.py` | 965 | Intel CPU 감지, NUMA 할당, ISA 감지 |
 | | `vllm/v1/worker/cpu_worker.py` | 530 | CPU 워커 (NUMA 바인딩, IPEX 감지) |
 | | `vllm/v1/attention/backends/cpu_attn.py` | 1,205 | CPU PagedAttention (IPEX/SDPA) |
-| **C++ 커널** | `csrc/cpu/gemm_vnni.cpp` | 503 | VNNI INT8 GEMM (6×16 마이크로커널) |
+| **C++ 커널 (_C_cpu_ops)** | `csrc/cpu/gemm_vnni.cpp` | 503 | VNNI INT8 GEMM (6×16 마이크로커널) |
 | | `csrc/cpu/quant_q8_0.cpp` | 366 | Q8_0 양자화 커널 |
 | | `csrc/cpu/decode_gemv.cpp` | 289 | BF16/FP32 Decode GEMV |
 | | `csrc/cpu/batch_attention.cpp` | 499 | 배치 Paged Attention + L2 프리페치 |
 | | `csrc/cpu/mem_opt.cpp` | 246 | NT memcpy, NUMA 할당, 프리페치 |
-| **빌드** | `cmake/cpu_hybrid_extension.cmake` | — | _C_cpu_ops 타겟 빌드 |
+| **C++ 유틸 (_C_utils)** | `csrc/cpu/utils.cpp` | — | `init_cpu_threads_env` (OMP 1:1 pin + NUMA strict membind). OpenMP + libnuma 만 require, AVX-512/AMX 무관 |
+| | `csrc/cpu/torch_bindings_utils.cpp` | — | `_C_utils` 네임스페이스 torch op 등록 |
+| **빌드** | `cmake/cpu_hybrid_extension.cmake` | — | `_C_cpu_ops` 타겟 (AVX-512F 요구) |
+| | `cmake/cpu_utils_extension.cmake` | — | `_C_utils` 타겟 (어떤 x86_64 에서도 빌드) |
 | **테스트** | `tests/v1/engine/test_hybrid_core.py` | 390 | 단위 테스트 30개 |
 | | **합계** | **~7,781** | |
 
@@ -440,34 +443,55 @@ class CapacityAwareRouter:
 
 ```python
 def _resolve_cpu_params(hybrid_config, features) -> ResolvedCpuParams:
-    """0(auto) 값을 하드웨어 기반 최적값으로 해석"""
+    """0(auto) 값을 하드웨어 기반 최적값으로 해석.
 
-    # NUMA 노드의 물리 코어 수 (HT 제외)
-    effective_cores = features.cores_per_socket  # 56 (Xeon 8480+)
+    원칙:
+      - num_cpu_engines = num_numa_nodes (엔진 1 개/NUMA)
+      - per-engine cpu_max_num_seqs = 1 고정 (절대 배치를 만들지 않음)
+      - per-engine cpu_num_threads = 해당 NUMA 노드 물리 코어 전체
+    """
 
-    # NUMA 노드의 유효 메모리 (GB)
-    effective_mem = get_numa_node_memory(node_id)  # ~1,000 GB
+    # 해당 NUMA 노드의 물리 코어 수 (HT 제외)
+    effective_cores = features.physical_cores_in_node(node_id)
+
+    # 해당 NUMA 노드의 유효 메모리 (GB)
+    effective_mem = get_numa_node_memory(node_id)
 
     return ResolvedCpuParams(
-        cpu_num_threads=effective_cores,                      # 56
-        cpu_max_num_seqs=max(4, effective_cores // 4),        # 14
-        cpu_kvcache_gb=clamp(effective_mem * 0.4, 32, 512),   # 400
-        cpu_max_batched_tokens=cpu_max_num_seqs * 256,        # 3,584
+        cpu_num_threads=effective_cores,                      # 예: 56
+        cpu_max_num_seqs=1,                                   # 고정
+        cpu_kvcache_gb=clamp(effective_mem * 0.4, 32, 512),
+        cpu_max_batched_tokens=1 * 256,                       # 256
     )
 ```
+
+> 이전 draft 의 `cpu_max_num_seqs = max(4, cores // 4)` 는 **틀린 규칙** 이었다.
+> 실측 결과 1 NUMA 노드 당 1 시퀀스가 모든 물리 코어를 OMP 병렬로 점유하는 편이 최대
+> throughput 을 달성한다. 배치로 묶으면 per-seq OMP pool 이 쪼개져 cache/NUMA 이점이 사라진다.
+> 근거: `Tech_done.md` v1 (Qwen2.5-7B dev 실측, 16 OMP tid ↔ 16 core 1:1 pin).
 
 #### 4.2.3 CPU 프로세스 환경 설정
 
 ```python
 def _setup_cpu_process_env(resolved_params, features):
-    """CPU 엔진 프로세스의 환경 변수를 자동 설정"""
-    os.environ["CUDA_VISIBLE_DEVICES"] = ""           # GPU 격리
-    os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(400)   # KV cache GB
-    os.environ["OMP_NUM_THREADS"] = str(56)            # OpenMP 스레드
-    os.environ["VLLM_CPU_OMP_THREADS_BIND"] = "auto"   # 자동 바인딩
+    """CPU 엔진 프로세스의 환경 변수를 자동 설정 (값은 런타임 감지 결과)."""
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""                  # GPU 격리
+    os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(resolved_params.cpu_kvcache_gb)
+    os.environ["OMP_NUM_THREADS"] = str(resolved_params.cpu_num_threads)
+    os.environ["MKL_NUM_THREADS"] = str(resolved_params.cpu_num_threads)
+    os.environ["OMP_DYNAMIC"] = "FALSE"
+    os.environ["OMP_WAIT_POLICY"] = "ACTIVE"
+    os.environ["VLLM_CPU_OMP_THREADS_BIND"] = "auto"          # CPUWorker init_device 에서 참조
     os.environ["KMP_AFFINITY"] = "granularity=fine,compact,1,0"
-    os.environ["ONEDNN_MAX_CPU_ISA"] = "AVX512_CORE_AMX"  # AMX 활성화
+    if features.amx_bf16:
+        os.environ.setdefault("ONEDNN_MAX_CPU_ISA", "AVX512_CORE_AMX")
+    elif features.avx512_vnni:
+        os.environ.setdefault("ONEDNN_MAX_CPU_ISA", "AVX512_CORE_VNNI")
+    # AVX2 만 있으면 oneDNN 이 자동 선택 (env 미설정)
 ```
+
+실제 OMP 1:1 pinning 과 NUMA strict membind 는 `init_cpu_threads_env` (C++ `_C_utils`)
+가 위 환경 변수와 무관하게 `sched_setaffinity` / `numa_set_membind` 로 직접 수행한다.
 
 #### 4.2.4 ZMQ IPC 통신
 
@@ -584,15 +608,19 @@ output_data = output_socket.recv()  # GPU/CPU 인터리브 수신
 | 연간 전기 비용 절감 | $18,400 | 153MWh × $0.12/kWh |
 | 유휴 하드웨어 자산 | $3M+ | CPU/메모리 시스템 $30-50K × 100노드 |
 
-### 5.4 자동 감지 결과 (Xeon 8480+ 기준)
+### 5.4 자동 감지 결과 (NUMA 당 1 engine 예시)
 
-| 파라미터 | 자동 감지값 | 산출 공식 |
+아래 표는 NUMA 노드 당 물리 코어 56 개, 유효 메모리 1,000 GB 가정 예시이다.
+실제 값은 런타임에 `/sys/devices/system/node/`, `/proc/cpuinfo`, `NUMAAllocator` 로 자동 유도된다.
+
+| 파라미터 | 자동 감지값 (예시) | 산출 공식 |
 |----------|-----------|----------|
-| cpu_num_threads | 56 | NUMA 노드 물리코어 수 |
-| cpu_max_num_seqs | 14 | max(4, 56/4) |
-| cpu_kvcache_space_gb | 400 GB | clamp(1000×0.4, 32, 512) |
-| cpu_max_batched_tokens | 3,584 | 14 × 256 |
-| NUMA 노드 | 0 | rank % num_nodes |
+| num_cpu_engines | 2 (= NUMA 노드 수) | `NUMAAllocator.num_nodes` |
+| cpu_num_threads (per engine) | 56 | 해당 NUMA 노드 물리 코어 수 |
+| cpu_max_num_seqs (per engine) | **1 고정** | 원칙 (배치 만들지 않음) |
+| cpu_kvcache_space_gb (per engine) | 400 GB | clamp(eff_mem × 0.4, 32, 512) |
+| cpu_max_batched_tokens | 256 | `cpu_max_num_seqs × 256` |
+| NUMA 노드 바인딩 | `engine_idx → node_idx` | strict membind |
 
 ### 5.5 테스트 결과
 
@@ -646,7 +674,7 @@ output_data = output_socket.recv()  # GPU/CPU 인터리브 수신
 
 | 한계 | 상세 | 완화 방안 |
 |------|------|----------|
-| **실측 미완료** | 모든 성능 수치가 이론적 예측 | H100 서버에서 실측 검증 진행 중 |
+| **target 하드웨어 실측 미완료** | `docs/paper/main.tex` 의 평가용 측정 수치가 아직 누락 | dev (i9-12900KF + RTX 3090, AVX2, NUMA 1) 의 end-to-end 로직 검증은 `Tech_done.md` v1 에서 완료. target 환경 측정은 `TODO.md` §3 |
 | **CPU TTFT 지연** | Prefill 단계 10-50× 느림 | length-aware 라우팅으로 짧은 요청만 CPU |
 | **모델 가중치 중복** | CPU/GPU 모두 모델 로드 (~70GB) | DDR5 용량(2TB) 대비 미미, KV cache 17% 감소 |
 | **하드웨어 경합** | PCIe/DDR5 경합 가능 | NUMA 분리 + 실측 검증으로 확인 |
