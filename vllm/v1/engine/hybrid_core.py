@@ -244,14 +244,45 @@ class CapacityAwareRouter:
         """
         self._request_start_times[request_id] = time.monotonic()
 
+        # [HYBRID-ROUTER-INIT] one-shot config dump on first route call.
+        if not getattr(self, "_logged_init", False):
+            self._logged_init = True
+            logger.info(
+                "[HYBRID-ROUTER-INIT] strategy=%s priority=%s "
+                "cpu_max_num_seqs=%d num_cpu_engines=%d "
+                "adaptive_cpu_max_seqs=%d "
+                "gate=(cpu_in_flight<%d) prefill_threshold=%d "
+                "warmup_requests=%d",
+                self.routing_strategy, self.routing_priority,
+                self.cpu_max_num_seqs, self.num_cpu_engines,
+                self._adaptive_cpu_max_seqs,
+                self._adaptive_cpu_max_seqs * self.num_cpu_engines,
+                self.cpu_prefill_threshold,
+                self._warmup_requests,
+            )
+
         if self.routing_strategy == "round-robin":
-            return self._route_round_robin(request_id)
+            result = self._route_round_robin(request_id)
         elif self.routing_strategy == "length-aware":
-            return self._route_length_aware(request_id, prompt_len)
+            result = self._route_length_aware(request_id, prompt_len)
         elif self.routing_strategy == "throughput-adaptive":
-            return self._route_throughput_adaptive(request_id, prompt_len)
+            result = self._route_throughput_adaptive(request_id, prompt_len)
         else:  # "capacity" (기본)
-            return self._route_capacity(request_id)
+            result = self._route_capacity(request_id)
+
+        # [HYBRID-ROUTER-DISPATCH] periodic sample every 25 routing calls.
+        _n = self.gpu_count + self.cpu_count
+        if _n > 0 and _n % 25 == 0:
+            logger.info(
+                "[HYBRID-ROUTER-DISPATCH] n=%d last=%s prompt_len=%d "
+                "cpu_count=%d gpu_count=%d cpu_in_flight=%d "
+                "gpu_in_flight=%d adaptive_slots=%d",
+                _n, result, prompt_len,
+                self.cpu_count, self.gpu_count,
+                self.cpu_in_flight, self.gpu_in_flight,
+                self._adaptive_cpu_max_seqs,
+            )
+        return result
 
     def _find_available_cpu(self) -> int:
         """여유 슬롯이 가장 많은 CPU 엔진 인덱스 반환. 없으면 -1."""
@@ -346,23 +377,66 @@ class CapacityAwareRouter:
 
     def _route_throughput_adaptive(self, request_id: str,
                                    prompt_len: int) -> str:
-        """priority 기반 + EMA 처리량 기반 동적 CPU 슬롯 조정."""
+        """EMA 기반 expected-finish-time 비교 라우팅 (Property 2 구현).
+
+        CPU 로 보내는 결정 기준: **expected CPU finish time < expected GPU
+        wait time**. CPU 가 GPU 보다 빨리 끝낼 수 있는 경우에만 CPU 로 라우팅.
+        그 외에는 GPU. 이는 paper §3 Property 2 ("CPU 는 GPU 의 보완") 의
+        직접 구현이고, CPU 가 GPU 대비 훨씬 느린 환경 (H100 + 작은 모델)
+        에서 CPU 가 long-tail 로 wall time 을 망치는 회귀를 막는다.
+
+        Cold start (no EMA): default to GPU. 첫 요청을 CPU 로 blind probing
+        하면 CPU 의 첫 inference latency (~수십 초) 가 그대로 wall 에 들어가
+        benchmark probe 가 멈춘 것처럼 보이는 증상을 방지.
+        """
         effective_max = self._adaptive_cpu_max_seqs
+        cpu_capacity_ok = (
+            prompt_len <= self.cpu_prefill_threshold
+            and self.cpu_in_flight < effective_max * self.num_cpu_engines)
+
+        # Cold start — no GPU EMA yet → 항상 GPU. 첫 probe 가 CPU 로 가서
+        # 느린 CPU 첫-요청 latency 가 main bench 시작을 막는 것을 방지.
+        if self._gpu_ema_throughput <= 0.0:
+            return self._to_gpu()
+
+        if not cpu_capacity_ok:
+            return self._to_gpu()
+
+        # Per-request expected throughput (tok/s/req).
+        # cpu_throughput / cpu_in_flight ≈ 1 (max_num_seqs=1) 이라
+        # cpu_per_req = cpu_throughput.
+        cpu_per_req = max(self._cpu_ema_throughput, 1e-6)
+        # GPU 는 batch 로 돌려 aggregate throughput 이 큼. per-req 는 aggregate
+        # / 평균 동시 in-flight. EMA 는 per-finished-request elapsed 의 합으로
+        # 계산되어 있어 이미 per-req 분모가 들어가 있음 → 그대로 사용.
+        gpu_per_req = max(self._gpu_ema_throughput, 1e-6)
+
+        # 출력 길이 평균은 알 수 없으므로 256 (vLLM custom default) 가정.
+        # 분자는 CPU/GPU 양쪽에서 같은 값이라 비교 결과에 영향 없음.
+        avg_output = 256.0
+
+        # Expected CPU finish: serial through CPU engine.
+        # cpu_in_flight + 1 = 새로 들어갈 자기 자신 포함.
+        cpu_finish = (self.cpu_in_flight + 1) * (avg_output / cpu_per_req)
+
+        # Expected GPU finish: GPU 는 batch 로 돌아가므로 큐에 쌓여도
+        # 자신의 wait 는 ceil((gpu_in_flight + 1) / gpu_max_num_seqs) 배치 후.
+        gpu_batches_ahead = max(1, (self.gpu_in_flight + 1)
+                                // max(1, self.gpu_max_num_seqs))
+        gpu_finish = gpu_batches_ahead * (avg_output / gpu_per_req)
+
         if self.cpu_first:
-            # CPU-first: 짧으면 CPU 우선 (adaptive 슬롯 범위 내)
-            if (prompt_len <= self.cpu_prefill_threshold
-                    and self.cpu_in_flight
-                    < effective_max * self.num_cpu_engines):
+            # CPU-first 의 의도: "가능하면 CPU". 그러나 Property 2 위배 시
+            # (CPU 가 GPU 보다 늦게 끝남) 강제로 GPU 로 보내야 long-tail 회피.
+            if cpu_finish <= gpu_finish:
                 result = self._to_cpu()
                 if result is not None:
                     return result
             return self._to_gpu()
         else:
-            # GPU-first: GPU 포화 시에만 CPU
+            # GPU-first: GPU 포화 + CPU 가 더 빠를 때만 CPU.
             if (self.gpu_in_flight >= self.gpu_max_num_seqs
-                    and prompt_len <= self.cpu_prefill_threshold
-                    and self.cpu_in_flight
-                    < effective_max * self.num_cpu_engines):
+                    and cpu_finish < gpu_finish):
                 result = self._to_cpu()
                 if result is not None:
                     return result
@@ -508,19 +582,21 @@ class CapacityAwareRouter:
         if self.routing_strategy == "throughput-adaptive":
             extra = (f", adaptive_slots="
                      f"{stats.get('adaptive_cpu_max_seqs', 'N/A')}")
-        # Periodic router stats — demoted to debug. In steady state this fires
-        # every stats_log_interval completions and can dominate stdout I/O under
-        # burst load. Enable DEBUG level on the hybrid_core logger to inspect.
-        logger.debug(
-            "Router stats [%d reqs]: "
+        # [HYBRID-ROUTER-STATS] promoted to INFO for instrumentation runs.
+        # Fires every stats_log_interval completions; keep interval >= 10 to
+        # avoid dominating stdout I/O under burst load.
+        logger.info(
+            "[HYBRID-ROUTER-STATS] finished=%d "
             "GPU=%.1f tok/s (%d reqs), "
             "CPU=%.1f tok/s (%d reqs), "
-            "cpu_ratio=%.1f%%, in_flight=%d/%d%s",
+            "cpu_ratio=%.1f%%, in_flight_cpu=%d/%d, "
+            "in_flight_gpu=%d%s",
             stats["total_requests"],
             stats["gpu_throughput_tok_s"], stats["gpu_requests"],
             stats["cpu_throughput_tok_s"], stats["cpu_requests"],
             stats["actual_cpu_ratio"] * 100,
             stats["cpu_in_flight"], stats["cpu_max_num_seqs"],
+            self.gpu_in_flight,
             extra)
 
     @property
