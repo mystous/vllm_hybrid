@@ -201,3 +201,111 @@
   - dev 는 AVX-512 없어 `custom_avx=0`. 이 경로는 H100x4 KVM 이상에서만 실행되므로, H100 검증 시 `_decode_path_counts['custom_avx'] > 0` 로 **반드시** 확인해야 함
   - Tech_done.md 매트릭스 표 에 해당 셀 채우기
 
+---
+
+## v3 — 2026-04-11: 진행 상태 스냅샷 (완료 항목 표시)
+
+> append-only 정책: v1 / v2 섹션은 수정하지 않는다. 본 섹션은 v2 이후 시점의
+> 진행 상태 스냅샷이며, v1 / v2 에 나열된 항목 중 **완료된 것을 명시적으로 표시**한다.
+> 새 독자는 v1 → v2 → v3 순으로 읽고, "현재 남은 작업" 목록은 본 v3 섹션을 기준으로 삼으면 된다.
+
+### v1 §0 — uncommitted 변경 commit 정리
+
+**상태: ✅ 완료** (단 논리 분할은 포기하고 단일 commit 으로 통합)
+
+- [x] Group A (`_C_utils` standalone extension) — commit `ad70b8f4d`, push 완료
+- [x] Group B (WorkerBase 우회 + CPUWorker device_type coerce) — commit `ad70b8f4d`, push 완료
+- [x] Group C (NUMA auto rule: num_cpu_engines=num_numa, max_seqs=1) — commit `ad70b8f4d`, push 완료
+- [x] Group D (Python sched_setaffinity fallback + 진단 로그 7종 + execute_model trace) — commit `ad70b8f4d`, push 완료
+- [x] Group E (문서 + eval env 파일들) — commit `ad70b8f4d` + `84e9c8201`, push 완료
+
+**정정**: 본래 TODO v1 §0 은 Group A~E 를 5 개 논리 commit 으로 분할 권장했으나, 원격의 workaround hotfix 4 commits (`b147cafcc`, `19e7ed64f`, `f0b527824`, `c5349b799`) 와의 merge 복잡성을 해결하는 과정에서 **단일 bundled commit 으로 통합**했다. Bisect 어려움이 있을 수 있으나 전체가 하나의 논리 단위 ("hybrid CPU engine end-to-end fix") 이므로 수용한다. 다음부터는 초기 단계에서부터 원격과 로컬을 자주 sync 해서 이런 divergence 를 피해야 한다.
+
+### v1 §1 — dev 로직 검증 잔여
+
+**상태: 부분 완료**
+
+- [x] **1-시퀀스 라이프사이클 기본 검증** — 500 req burst 에서 CPU 2 req 완료, `in_flight=1/1` slot 반납 cycle 관측. 근거: `Tech_done.md v1 Q2`
+- [x] **OMP thread 1:1 pinning 재확인** — `init_cpu_threads_env (C++) returned` 로그에 16 tid ↔ 16 core mapping 명시. 근거: `Tech_done.md v1 Q1`
+- [x] **16 core PSR 고정 매핑** — 동일 근거
+- [ ] **50+ req 순차 반복** — burst 만 수행, 순차 반복은 미수행
+- [ ] **동시 요청 스트레스 50+ burst 확장** — 현재 500 req 까지 확장되었으나 데드락 세부 검증은 미수행
+- [ ] **CPU scheduler 코드 경로 트레이싱** — preemption / reschedule / chunked prefill 경계 검증 미수행
+- [ ] **`output.finished` 감지 확실성 (length/stop/abort)** — 단일 종료 경로만 관측
+- [ ] **H100 capacity 멈춤 증상 dev 배제** — 미수행
+
+### v1 §2 — 논문 ↔ 코드 재정합
+
+**상태: ❌ 미수행** (전체 pending)
+
+- [ ] 논문 Table 2 `max_seqs` auto rule 수정 (`max(4, ⌊cores/4⌋)` → `1 per NUMA engine`)
+- [ ] 논문에 `num_cpu_engines = num_numa` auto 규칙 추가
+- [ ] §3.3 Algorithm 1 의 `N` 표기 명확화 (`N = 1 per engine × num_numa`)
+- [ ] §5 Implementation 에 `_C_utils` standalone extension 언급 추가
+
+**추가 관찰 (v3)**: `Tech_done.md v1` 이 dev 실측으로 `cpu_max_num_seqs=1` 원칙의 타당성을 증명했으므로, 논문 Table 2 수정의 근거 자료는 확보됨.
+
+### v1 §3 — H100 타겟 환경 검증
+
+**상태: ❌ 미수행** (전체 pending)
+
+- [ ] H100x4 KVM 재측정
+- [ ] H100x8 + Xeon 8480+ 2-socket 실 환경 첫 부팅
+- [ ] Exp 1 — end-to-end throughput
+- [ ] Exp 2 — GPU latency impact (p99 preservation)
+- [ ] Exp 3 — 라우팅 전략 비교 (ShareGPT 필수)
+- [ ] Exp 4 — ablation study
+- [ ] Exp 5 — 모델 크기 스케일링
+- [ ] Exp 6 — 에너지 효율 (Intel RAPL)
+
+### v1 §4 — 기타 잠재 이슈
+
+**상태: ❌ 미수행** (전체 pending)
+
+- [ ] `set_num_interop_threads` 타이밍 확인
+- [ ] `numa_migrate_pages` × 2TB 지연 측정
+- [ ] AMX tile permission 커널 버전 의존성 확인
+- [ ] 70B weight 중복 로딩 실측
+
+### v1 §5 — 문서화 잔여
+
+**상태: 부분 완료**
+
+- [x] `docs/CUDA13_MIGRATION_STATUS.md` 작성 — 원격 `c5349b799` 로 이미 존재 (crossmachine handoff 용)
+- [ ] H100 검증 후 `docs/CUDA13_MIGRATION_STATUS.md` 에 "H100 검증 결과" 섹션 추가
+- [ ] 논문 draft 업데이트 (v1 §2 항목)
+- [ ] `docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md` 가 현재 코드와 맞는지 재확인
+
+### v2 에서 제기된 항목
+
+**상태: 부분 완료**
+
+- [x] **`post-init: cpu_affinity=1 cores [1]` 는 의도된 동작임을 문서화** — `Tech_done.md v1 Q1` 에 "main thread 는 core 1 하나에만 affinity, OMP worker pool 16 개가 16 core 에 pin. matmul 병렬은 정상" 로 상세 설명
+- [ ] CLAUDE.md 에도 1 줄 주석 추가 (혼란 방지) — v3 에서도 미추가
+- [ ] dev 에서 CPU 완료 req 가 너무 적음 — 순차 반복 (§1) 로 추가 관측 필요
+- [ ] `_C_cpu_ops` AVX-512 경로 실측 공백 — H100 에서 확인 필요 (§3 에 종속)
+
+### v3 에서 새로 완료된 항목
+
+- [x] **CLAUDE.md 하드웨어 호환성 매트릭스 제거** — "단일 코드베이스 + 런타임 감지 + graceful fallback" 원칙으로 재기술
+- [x] **CLAUDE.md 타겟 하드웨어 섹션 삭제** — 특정 기종 못 박지 않고 "x86_64 + NVIDIA GPU 만 요구, 구체 스펙은 논문 평가 환경 참조" 로 대체
+- [x] **CLAUDE.md "dev / H100 동일" 빌드 주석 정리** — "환경 구분 없이 동일" 로 일반화
+- [x] **`Tech_done.md v2` append — "실측 완료 환경만 나열" 원칙** + v1 Q4 매트릭스 정정 (실측 환경은 dev 1 행만 유효, 나머지 3 행 제외)
+- [x] **메모리 `feedback_work_log_files.md` 에 Tech_done.md 전용 원칙 추가** — "미검증 항목은 TODO.md 로"
+- [x] **`Task_done.md` / `Tech_done.md` / `TODO.md` 세 파일 append-only 정책 운용** — 메모리 `feedback_work_log_files.md` 에 규칙화
+
+### v3 에서 새로 추가된 작업
+
+- [ ] **다음 작업 세션 시작 시 stale 여부 재확인** — v3 작성 후 시간이 지나면 일부 "미수행" 항목이 실제로는 해결되었을 수 있음. 다음 세션 첫 단계에서 `git log` / 로그 파일로 크로스체크 후 v4 append
+
+### "현재 남은 작업" 한눈 요약 (v3 기준)
+
+높은 우선순위:
+1. v1 §1 의 미완 검증 (순차 반복, output.finished 다양 종료 조건, CPU scheduler 코드 경로) — dev 에서 가능
+2. v1 §2 논문 정정 (4 항목) — 로컬에서 가능, H100 불필요
+3. v1 §3 H100 실측 — dev 검증 완료 후 실행
+
+낮은 우선순위:
+4. v1 §4 잠재 이슈 4 건
+5. v1 §5 문서화 잔여
+
