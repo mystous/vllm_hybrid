@@ -1386,16 +1386,37 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
                  client_count: int = 1,
                  client_index: int = 0):
         from vllm.v1.engine.hybrid_core import (CapacityAwareRouter,
-                                                 _resolve_cpu_params)
+                                                 _resolve_cpu_params,
+                                                 _resolve_num_cpu_engines)
+        import dataclasses as _dc
 
-        # CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
+        # 1) num_cpu_engines를 NUMA 수로 resolve하여 write-back.
+        #    router, _compute_core_engines, launch_hybrid_engines 모두
+        #    동일한 값을 보도록 단일 진실 공급원 확보.
         hybrid_config = vllm_config.hybrid_config
+        resolved_num_cpu_engines = _resolve_num_cpu_engines(hybrid_config)
+        if hybrid_config.num_cpu_engines != resolved_num_cpu_engines:
+            hybrid_config = _dc.replace(
+                hybrid_config,
+                num_cpu_engines=resolved_num_cpu_engines,
+            )
+            vllm_config = _dc.replace(
+                vllm_config,
+                hybrid_config=hybrid_config,
+            )
+            logger.info(
+                "[HYBRID-CLIENT] resolved num_cpu_engines=%d (was %r), "
+                "written back to vllm_config",
+                resolved_num_cpu_engines,
+                vllm_config.hybrid_config.num_cpu_engines)
+
+        # 2) CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
         resolved = _resolve_cpu_params(hybrid_config)
         gpu_max_num_seqs = vllm_config.scheduler_config.max_num_seqs
         self._hybrid_router = CapacityAwareRouter(
             resolved.cpu_max_num_seqs,
             gpu_max_num_seqs=gpu_max_num_seqs,
-            num_cpu_engines=hybrid_config.num_cpu_engines,
+            num_cpu_engines=resolved_num_cpu_engines,
             routing_strategy=hybrid_config.routing_strategy,
             routing_priority=hybrid_config.routing_priority,
             cpu_prefill_threshold=hybrid_config.cpu_prefill_threshold,
@@ -1448,6 +1469,11 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
             engine = self._gpu_engine
 
         self._hybrid_reqs_in_flight[request.request_id] = (engine, path)
+        logger.info(
+            "[HYBRID-CLIENT] dispatch req=%s prompt_len=%d → %s "
+            "(engine_identity=%r)",
+            request.request_id, prompt_len, path, engine,
+        )
         await self._send_input(EngineCoreRequestType.ADD, request, engine)
         self._ensure_output_queue_task()
 
@@ -1512,16 +1538,33 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
     def __init__(self, vllm_config: VllmConfig, executor_class: type[Executor],
                  log_stats: bool):
         from vllm.v1.engine.hybrid_core import (CapacityAwareRouter,
-                                                 _resolve_cpu_params)
+                                                 _resolve_cpu_params,
+                                                 _resolve_num_cpu_engines)
+        import dataclasses as _dc
 
-        # CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
+        # 1) num_cpu_engines resolve + write-back (HybridAsyncMPClient와 동일)
         hybrid_config = vllm_config.hybrid_config
+        resolved_num_cpu_engines = _resolve_num_cpu_engines(hybrid_config)
+        if hybrid_config.num_cpu_engines != resolved_num_cpu_engines:
+            hybrid_config = _dc.replace(
+                hybrid_config,
+                num_cpu_engines=resolved_num_cpu_engines,
+            )
+            vllm_config = _dc.replace(
+                vllm_config,
+                hybrid_config=hybrid_config,
+            )
+            logger.info(
+                "[HYBRID-CLIENT] resolved num_cpu_engines=%d (sync)",
+                resolved_num_cpu_engines)
+
+        # 2) CPU 파라미터 자동 감지 → CapacityAwareRouter 초기화
         resolved = _resolve_cpu_params(hybrid_config)
         gpu_max_num_seqs = vllm_config.scheduler_config.max_num_seqs
         self._hybrid_router = CapacityAwareRouter(
             resolved.cpu_max_num_seqs,
             gpu_max_num_seqs=gpu_max_num_seqs,
-            num_cpu_engines=hybrid_config.num_cpu_engines,
+            num_cpu_engines=resolved_num_cpu_engines,
             routing_strategy=hybrid_config.routing_strategy,
             routing_priority=hybrid_config.routing_priority,
             cpu_prefill_threshold=hybrid_config.cpu_prefill_threshold,

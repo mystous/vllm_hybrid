@@ -45,6 +45,10 @@ fi
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
 
+# Hybrid debugging knobs (consumed by hybrid_core/cpu_worker/cpu_attn)
+export VLLM_HYBRID_TRACE="${VLLM_HYBRID_TRACE:-0}"
+export VLLM_HYBRID_TRACE_EVERY="${VLLM_HYBRID_TRACE_EVERY:-50}"
+
 echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"
 echo " MODEL=${MODEL}"

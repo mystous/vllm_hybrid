@@ -4666,9 +4666,11 @@ class HybridConfig:
     stats_log_interval: int = 50
     """라우터 통계를 로깅할 완료 요청 간격. 0이면 비활성화."""
 
-    num_cpu_engines: int = 1
-    """CPU 엔진 프로세스 수. 1이면 단일 CPU 엔진 (기존 동작).
-    2이면 NUMA 노드별 CPU 엔진 2개 (예: Xeon 듀얼소켓)."""
+    num_cpu_engines: int = 0
+    """CPU 엔진 프로세스 수.  기본값 0이면 NUMA 노드 수에 맞춰 자동 감지
+    (launch_hybrid_engines에서 NUMAAllocator.num_nodes를 읽음).
+    수동 지정 시 그 값을 그대로 사용. 설계 원칙상 NUMA 노드당 엔진 1개,
+    엔진당 cpu_max_num_seqs=1이므로 총 CPU 동시 시퀀스 수 = num_numa."""
 
     def __post_init__(self):
         valid_strategies = ("capacity", "length-aware", "throughput-adaptive",

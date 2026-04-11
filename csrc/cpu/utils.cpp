@@ -3,6 +3,11 @@
   #include <unistd.h>
   #include <string>
   #include <sched.h>
+  #include <vector>
+  #include <sstream>
+  #include <utility>
+  #include <algorithm>
+  #include <omp.h>
 #endif
 #if __GLIBC__ == 2 && __GLIBC_MINOR__ < 30
   #include <unistd.h>
@@ -10,7 +15,11 @@
   #define gettid() syscall(SYS_gettid)
 #endif
 
-#include "cpu_types.hpp"
+// init_cpu_threads_env only uses libnuma + sched_setaffinity + OMP runtime —
+// no SIMD intrinsics, so we deliberately do NOT include cpu_types.hpp.
+// This allows the file to be compiled into a small standalone extension on
+// any x86_64 system regardless of AVX-512/AMX availability.
+#include <torch/all.h>
 
 #ifdef VLLM_NUMA_DISABLED
 std::string init_cpu_threads_env(const std::string& cpu_ids) {

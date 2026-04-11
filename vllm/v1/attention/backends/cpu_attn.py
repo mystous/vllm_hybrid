@@ -62,6 +62,27 @@ logger = init_logger(__name__)
 # when available (requires _C_cpu_ops extension built with AVX-512F)
 _USE_CUSTOM_CPU_ATTN = HAS_CPU_OPS
 
+# Counters for periodic decode-path logging.
+# Set VLLM_HYBRID_TRACE=1 for per-call logs, otherwise logs every N calls.
+_decode_call_count = 0
+_decode_path_counts = {"custom_avx": 0, "ipex": 0,
+                       "sdpa_batched": 0, "sdpa_loop": 0}
+
+
+def _trace_decode_path(path: str, num_seqs: int, num_tokens: int):
+    global _decode_call_count
+    _decode_call_count += 1
+    _decode_path_counts[path] = _decode_path_counts.get(path, 0) + 1
+    import os as _os
+    _every = int(_os.environ.get("VLLM_HYBRID_TRACE_EVERY", "200"))
+    if (_os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
+            or (_every > 0 and _decode_call_count % _every == 0)):
+        logger.info(
+            "[HYBRID-CPU-ATTN] decode call#%d path=%s num_seqs=%d "
+            "num_tokens=%d | totals=%s",
+            _decode_call_count, path, num_seqs, num_tokens,
+            _decode_path_counts)
+
 
 class TorchSDPABackend(AttentionBackend):
     accept_output_buffer: bool = False
@@ -947,6 +968,7 @@ class _PagedAttention:
                         scale,
                         num_kv_heads,
                     )
+                    _trace_decode_path("custom_avx", num_seqs, num_tokens)
                     return
                 except Exception as e:
                     logger.warning_once(
@@ -957,6 +979,7 @@ class _PagedAttention:
             # Handle case where num_tokens != num_seqs
             # This can happen when sequences have multiple tokens scheduled (e.g., resumed from preemption)
             if num_tokens != num_seqs:
+                _trace_decode_path("sdpa_loop", num_seqs, num_tokens)
                 # Fall back to loop-based implementation for this edge case
                 # Each token attends to its sequence's KV cache
                 # Since we don't have explicit token-to-sequence mapping, we use a heuristic:
@@ -1035,6 +1058,8 @@ class _PagedAttention:
                         token_idx += 1
 
                 return
+
+            _trace_decode_path("sdpa_batched", num_seqs, num_tokens)
 
             # Determine maximum context length in this batch for padding
             # context_lens is [num_seqs]
@@ -1223,6 +1248,7 @@ class _IPEXPagedAttention(_PagedAttention):
             dtype=torch.int32,
         ).view(num_kv_heads,
                1).repeat_interleave(query.size(1) // num_kv_heads).flatten()
+        _trace_decode_path("ipex", context_lens.shape[0], query.shape[0])
         import time as _time
         _t0 = _time.monotonic()
         ipex_modules.PagedAttention.single_query_cached_kv_attention(

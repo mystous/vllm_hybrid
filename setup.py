@@ -635,6 +635,10 @@ if _build_custom_ops():
 import platform
 if (_is_cuda() or _is_hip()) and platform.machine() == "x86_64":
     ext_modules.append(CMakeExtension(name="vllm._C_cpu_ops", optional=True))
+    # _C_utils: tiny extension exposing init_cpu_threads_env so the hybrid
+    # CPU worker can pin OMP threads 1:1 to cores. Built only on CUDA/ROCm
+    # targets — CPU-only builds register the same symbol via _C.
+    ext_modules.append(CMakeExtension(name="vllm._C_utils", optional=True))
 
 package_data = {
     "vllm": [

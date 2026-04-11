@@ -574,7 +574,22 @@ class WorkerWrapperBase:
 
         # Heuristic: If we have more ranks than physical GPUs, we are in heterogeneous mode.
         # We must enforce this on the config so that GPUWorker (Rank 0) knows to use Gloo.
-        if world_size > num_gpus:
+        #
+        # Skip the heuristic when this process is a CPU EngineCore inside
+        # the hybrid parallel-batch path: each engine is its own process and
+        # the CPU engine intentionally hides CUDA via CUDA_VISIBLE_DEVICES="",
+        # so num_gpus=0 and the world_size>num_gpus test mis-fires. The CPU
+        # engine really IS a pure-CPU worker, so device_type must stay "cpu"
+        # — otherwise CpuPlatform.check_and_update_config (which asserts
+        # device_type=="cpu") will fail with a silent AssertionError.
+        is_hybrid_cpu_engine = (
+            os.environ.get("CUDA_VISIBLE_DEVICES", None) == ""
+            and getattr(self.vllm_config, "hybrid_config", None) is not None
+            and "cpu_worker" in str(
+                getattr(self.vllm_config.parallel_config, "worker_cls", "")
+            )
+        )
+        if world_size > num_gpus and not is_hybrid_cpu_engine:
              self.vllm_config.device_config.device_type = "heterogeneous"
         
         # Note: device_type sometimes reports as "cuda" even in heterogeneous mode due to internal aliasing.

@@ -567,6 +567,39 @@ class ResolvedCpuParams:
     cpu_num_threads: int
 
 
+def _resolve_num_cpu_engines(hybrid_config: HybridConfig) -> int:
+    """num_cpu_engines를 NUMA 노드 수로 결정.
+
+    설계 원칙: num_cpu_engines == num_numa_nodes.
+    각 NUMA 노드에 하나의 CPU 엔진 프로세스를 띄우고, 엔진 내부에서는
+    cpu_max_num_seqs=1이므로 1 시퀀스가 해당 노드의 모든 물리 코어에
+    matmul 병렬로 분산되어 처리된다. 총 CPU 동시 시퀀스 = num_numa.
+
+    우선순위:
+    1. hybrid_config.num_cpu_engines > 0  → 사용자 명시 값 사용 (경고 가능)
+    2. numa_aware=False → 1 (NUMA 무시)
+    3. auto → NUMAAllocator.num_nodes
+
+    이 함수는 client와 launcher 모두에서 호출되어야 **같은 값**을 반환한다.
+    결과를 vllm_config.hybrid_config.num_cpu_engines에 write-back 하여
+    downstream 코드가 일관된 값을 보도록 한다.
+    """
+    if hybrid_config.num_cpu_engines and hybrid_config.num_cpu_engines > 0:
+        return hybrid_config.num_cpu_engines
+
+    if not hybrid_config.numa_aware:
+        return 1
+
+    try:
+        from vllm.platforms.intel_cpu_utils import NUMAAllocator
+        alloc = NUMAAllocator()
+        if alloc.is_available:
+            return max(1, alloc.num_nodes)
+    except Exception as e:
+        logger.debug("_resolve_num_cpu_engines: NUMA detect failed: %s", e)
+    return 1
+
+
 def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
     """HybridConfig의 0(auto) 값을 시스템 감지값으로 해석.
 
@@ -654,11 +687,24 @@ def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
     else:
         cpu_num_threads = effective_cores
 
-    # cpu_max_num_seqs: 유효 코어 기반 (코어 4개당 시퀀스 1개)
+    # cpu_max_num_seqs: 엔진당 항상 1 (고정, NUMA 노드당 엔진 1개 설계).
+    # 핵심 원칙: 1 시퀀스가 해당 NUMA 노드의 모든 물리 코어에 OMP + BLAS로
+    # matmul 병렬 분산되어 최대 속도로 처리된다. batch를 만들면 false sharing
+    # 과 per-thread work 감소로 오히려 느려진다. num_cpu_engines가 NUMA 수와
+    # 같도록 launch_hybrid_engines가 보장하므로, 총 CPU 동시 시퀀스 수는
+    # num_numa × 1 = num_numa 가 된다.
+    # 수동 override(hybrid_config.cpu_max_num_seqs > 0)는 허용하되 경고.
     if hybrid_config.cpu_max_num_seqs > 0:
         cpu_max_num_seqs = hybrid_config.cpu_max_num_seqs
+        if cpu_max_num_seqs != 1:
+            logger.warning(
+                "[HYBRID-RESOLVE] cpu_max_num_seqs=%d is a manual override; "
+                "the design principle is 1 per CPU engine (each sequence "
+                "saturates the whole NUMA node via OMP). Total concurrent "
+                "CPU seqs should equal num_cpu_engines = num_numa_nodes.",
+                cpu_max_num_seqs)
     else:
-        cpu_max_num_seqs = max(4, effective_cores // 4)
+        cpu_max_num_seqs = 1
 
     # cpu_kvcache_space_gb: 유효 메모리 기반 (40%, 최소 32GB, 최대 512GB)
     if hybrid_config.cpu_kvcache_space_gb > 0:
@@ -680,19 +726,22 @@ def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
     )
 
     logger.info(
-        "Resolved CPU params: max_seqs=%d, kvcache=%dGB, "
-        "max_batched_tokens=%d, threads=%d "
-        "(effective_cores=%d, physical_cores=%d, "
-        "numa_nodes=%d, effective_mem=%.0fGB, total_mem=%.0fGB)",
+        "[HYBRID-RESOLVE] max_seqs=%d threads=%d kvcache=%dGB "
+        "batched_tokens=%d | effective_cores=%d (physical=%d) "
+        "numa_nodes=%d effective_mem=%.0fGB (total=%.0fGB) "
+        "user_overrides: max_seqs=%s threads=%s kvcache=%s",
         resolved.cpu_max_num_seqs,
+        resolved.cpu_num_threads,
         resolved.cpu_kvcache_space_gb,
         resolved.cpu_max_num_batched_tokens,
-        resolved.cpu_num_threads,
         effective_cores,
         physical_cores,
         numa_num_nodes,
         effective_mem_gb,
         total_mem_gb,
+        hybrid_config.cpu_max_num_seqs or "auto",
+        hybrid_config.cpu_num_threads or "auto",
+        hybrid_config.cpu_kvcache_space_gb or "auto",
     )
 
     return resolved
@@ -720,8 +769,33 @@ def _setup_cpu_process_env(
     # 1. KV cache 크기 설정 (CpuPlatform이 참조)
     os.environ["VLLM_CPU_KVCACHE_SPACE"] = str(resolved.cpu_kvcache_space_gb)
 
-    # OpenMP 스레드 수 설정 (configure_intel_optimizations 전에 설정)
-    os.environ["OMP_NUM_THREADS"] = str(resolved.cpu_num_threads)
+    # ===== CPU 병렬성 강제 활성화 =====
+    # 모든 BLAS 백엔드에 대해 동일한 스레드 수를 강제로 설정.
+    # AVX/AMX가 없어도 BLAS multi-thread가 살아나도록 한다.
+    # OMP/MKL/OpenBLAS/NumExpr 모두 같은 값 사용 (간섭 방지).
+    #
+    # 주의: init_cpu_threads_env (csrc/cpu/utils.cpp)가 부팅 후 한 번 더
+    # omp_set_num_threads + sched_setaffinity로 thread pool을 고정한다.
+    # 즉 여기서 설정한 OMP_NUM_THREADS는 init_cpu_threads_env가 호출되기
+    # 전까지 (CPUWorker.init_device 이전 단계 — model load, profile 등)
+    # 적용된다.
+    threads = str(resolved.cpu_num_threads)
+    os.environ["OMP_NUM_THREADS"] = threads
+    os.environ["MKL_NUM_THREADS"] = threads
+    os.environ["OPENBLAS_NUM_THREADS"] = threads
+    os.environ["NUMEXPR_NUM_THREADS"] = threads
+    os.environ["VECLIB_MAXIMUM_THREADS"] = threads
+    os.environ["BLIS_NUM_THREADS"] = threads
+    # 동적 thread 조정 끄기 — 우리가 명시한 값을 그대로 유지
+    os.environ["OMP_DYNAMIC"] = "FALSE"
+    os.environ["MKL_DYNAMIC"] = "FALSE"
+    # 스핀 대기 (latency ↓, single-tenant 환경 가정)
+    os.environ.setdefault("OMP_WAIT_POLICY", "ACTIVE")
+    # 주의: 중첩 OMP(OMP_NESTED=TRUE)는 oversubscription을 만들기 쉬워
+    # 여기서는 활성화하지 않는다. BLAS 내부 OMP 한 단계만 사용.
+    # 주의: OMP_PROC_BIND/OMP_PLACES는 init_cpu_threads_env의
+    # sched_setaffinity와 충돌할 수 있어 여기서 설정하지 않는다.
+    # init_cpu_threads_env가 코어 1대1 매핑을 직접 수행한다.
 
     # 스레드 바인딩 모드 설정 (CPUWorker.init_device()에서 참조)
     # "auto"는 NUMA 토폴로지 기반 자동 바인딩
@@ -812,11 +886,18 @@ def _setup_cpu_process_env(
         logger.info("NUMA affinity disabled by config")
 
     logger.info(
-        "CPU process env configured: OMP_NUM_THREADS=%s, "
-        "VLLM_CPU_KVCACHE_SPACE=%s, ONEDNN_MAX_CPU_ISA=%s",
+        "[HYBRID-CPU-ENV] PID=%d configured: OMP=%s MKL=%s OPENBLAS=%s "
+        "OMP_PROC_BIND=%s OMP_PLACES=%s KVCACHE=%sGB ONEDNN_ISA=%s "
+        "BIND=%s",
+        os.getpid(),
         os.environ.get("OMP_NUM_THREADS"),
+        os.environ.get("MKL_NUM_THREADS"),
+        os.environ.get("OPENBLAS_NUM_THREADS"),
+        os.environ.get("OMP_PROC_BIND"),
+        os.environ.get("OMP_PLACES"),
         os.environ.get("VLLM_CPU_KVCACHE_SPACE"),
         os.environ.get("ONEDNN_MAX_CPU_ISA", "not set"),
+        os.environ.get("VLLM_CPU_OMP_THREADS_BIND"),
     )
 
 
@@ -898,6 +979,14 @@ def _create_cpu_vllm_config(
     cpu_load = copy.deepcopy(gpu_config.load_config)
 
     # 8. VllmConfig 조립
+    # CPU 엔진은 hybrid 모드를 자체 활성화하지 않지만 (mode="none"으로
+    # 무한 hybrid 재귀 방지), numa_bind_node와 numa_aware는 보존해야
+    # CPUWorker가 정확한 NUMA 노드의 코어로 OMP 1:1 pinning을 수행할 수 있다.
+    cpu_hybrid_passthrough = HybridConfig(
+        mode="none",
+        numa_aware=hybrid.numa_aware,
+        numa_bind_node=hybrid.numa_bind_node,
+    )
     cpu_config = replace(
         gpu_config,
         model_config=cpu_model,
@@ -907,7 +996,7 @@ def _create_cpu_vllm_config(
         scheduler_config=cpu_sched,
         compilation_config=cpu_compilation,
         load_config=cpu_load,
-        hybrid_config=HybridConfig(),  # CPU 엔진은 hybrid 미사용
+        hybrid_config=cpu_hybrid_passthrough,
         # GPU 전용 기능 비활성화
         lora_config=None,
         speculative_config=None,
@@ -982,6 +1071,15 @@ def run_cpu_engine_core(*args,
     if numa_node_override is not None and numa_node_override >= 0:
         import copy as _copy
         hybrid_cfg = _copy.replace(hybrid_cfg, numa_bind_node=numa_node_override)
+        # vllm_config also needs the updated hybrid_cfg so that
+        # _create_cpu_vllm_config below propagates numa_bind_node into the
+        # CPU EngineCore's vllm_config — without this, CPUWorker would see
+        # numa_bind_node=None and fall back to local_rank-based NUMA
+        # selection, causing multiple CPU engines to pin themselves to the
+        # same NUMA node on multi-socket hosts (H100x8 + Sapphire Rapids
+        # 2-socket).
+        vllm_config = _copy.replace(vllm_config, hybrid_config=hybrid_cfg)
+        kwargs["vllm_config"] = vllm_config
 
     # CPU 파라미터 자동 감지 및 환경 설정 (NUMA/AMX/IPEX 포함)
     # torch import 전에 호출하여 OMP 환경변수가 반영되도록 함
@@ -989,6 +1087,28 @@ def run_cpu_engine_core(*args,
     _setup_cpu_process_env(resolved, hybrid_cfg)
 
     # ===== 이제 torch를 안전하게 import =====
+    # 환경변수가 모두 설정된 후 torch import → OpenMP 런타임이
+    # OMP_NUM_THREADS, OMP_PROC_BIND 등을 정확히 인식.
+    import torch as _torch
+    try:
+        _torch.set_num_threads(resolved.cpu_num_threads)
+        # interop = 1로 두면 같은 op 호출들이 직렬화되므로 적당히 늘림
+        _torch.set_num_interop_threads(max(2, resolved.cpu_num_threads // 8))
+    except RuntimeError as _e:
+        # set_num_interop_threads는 첫 op 실행 후 호출 불가
+        logger.debug("torch threads already initialized: %s", _e)
+
+    logger.info(
+        "[HYBRID-CPU-PROC] PID=%d torch_threads=%d torch_interop=%d "
+        "torch.version=%s mkldnn=%s",
+        os.getpid(),
+        _torch.get_num_threads(),
+        _torch.get_num_interop_threads(),
+        _torch.__version__,
+        getattr(_torch.backends, 'mkldnn', None)
+        and _torch.backends.mkldnn.is_available(),
+    )
+
     from vllm.transformers_utils.config import (
         maybe_register_config_serialize_by_value)
     from vllm.utils import decorate_logs, set_process_title
@@ -1134,8 +1254,18 @@ def launch_hybrid_engines(
             kwargs=common_kwargs,
         )
 
-        # CPU 엔진 수 결정 (기본 1)
-        num_cpu_engines = max(1, vllm_config.hybrid_config.num_cpu_engines)
+        # CPU 엔진 수 결정 — client와 동일한 공용 resolver 사용.
+        # HybridAsyncMPClient.__init__이 이미 hybrid_config.num_cpu_engines
+        # 에 resolved 값을 write-back 했을 것이므로, 여기선 그 값을 읽기만
+        # 하면 일관성이 보장된다. 혹시 client 경로를 거치지 않은 경우를
+        # 대비해 다시 한 번 resolve.
+        num_cpu_engines = _resolve_num_cpu_engines(vllm_config.hybrid_config)
+        logger.info(
+            "[HYBRID-LAUNCH] num_cpu_engines=%d "
+            "(numa_aware=%s, config=%r)",
+            num_cpu_engines,
+            vllm_config.hybrid_config.numa_aware,
+            vllm_config.hybrid_config.num_cpu_engines)
 
         # NUMA 노드 할당 (num_cpu_engines > 1이면 NUMA 노드별로 분배)
         cpu_numa_nodes: list[int] = []

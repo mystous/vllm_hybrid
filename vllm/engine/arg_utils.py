@@ -442,8 +442,10 @@ class EngineArgs:
     hybrid_stats_log_interval: int = 50
     """Log router statistics every N finished requests (0=disable)."""
 
-    hybrid_num_cpu_engines: int = 1
-    """Number of CPU engine processes. 1=single (default), 2=per-NUMA-node."""
+    hybrid_num_cpu_engines: int = 0
+    """Number of CPU engine processes. 0=auto (NUMA 노드 수로 결정).
+    수동 지정 시 그 값을 그대로 사용. 설계 원칙은 NUMA 노드당 엔진 1개
+    + 엔진당 cpu_max_num_seqs=1이므로 총 CPU 동시 시퀀스 수 = num_numa."""
 
     show_hidden_metrics_for_version: Optional[str] = \
         ObservabilityConfig.show_hidden_metrics_for_version

@@ -851,6 +851,15 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
 endif()
 
 #
+# _C_utils extension (init_cpu_threads_env for hybrid OMP thread pinning)
+# Only built for CUDA/ROCm targets — CPU-only builds already register the
+# same symbol via cpu_extension.cmake / csrc/cpu/torch_bindings.cpp.
+#
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/cpu_utils_extension.cmake)
+endif()
+
+#
 # _moe_C extension
 #
 

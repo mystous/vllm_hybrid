@@ -30,6 +30,15 @@ with contextlib.suppress(ImportError):
     import vllm._C_cpu_ops  # noqa: F401
     HAS_CPU_OPS = True
 
+# _C_utils: tiny extension that exposes init_cpu_threads_env so the hybrid
+# CPU worker can pin OMP threads 1:1 to cores even on CUDA/ROCm builds.
+# Importing the module here triggers the TORCH_LIBRARY registration so that
+# torch.ops._C_utils.init_cpu_threads_env becomes callable.
+HAS_CPU_UTILS = False
+with contextlib.suppress(ImportError):
+    import vllm._C_utils  # noqa: F401
+    HAS_CPU_UTILS = True
+
 
 def cpu_ops():
     """Return the CPU ops namespace.

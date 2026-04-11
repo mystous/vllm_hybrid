@@ -160,12 +160,41 @@ class CPUWorker(Worker):
         # =====================================================
         # Update config for CPU platform
         # =====================================================
+        # WorkerBase.__init__ may have set device_type="heterogeneous"
+        # because CUDA_VISIBLE_DEVICES is empty in the CPU EngineCore
+        # process (so num_gpus=0, world_size>num_gpus heuristic triggers).
+        # CpuPlatform.check_and_update_config asserts device_type=="cpu",
+        # so we restore it before the call.  This is safe inside the CPU
+        # engine process — it really IS a pure-CPU worker, the
+        # heterogeneous flag was a side effect of process isolation.
+        try:
+            prev_dev_type = vllm_config.device_config.device_type
+            if prev_dev_type != "cpu":
+                logger.info(
+                    "[HYBRID-CPU-WORKER] Forcing device_config.device_type "
+                    "%r → 'cpu' (heterogeneous flag was set by WorkerBase "
+                    "heuristic because CUDA is hidden in this process).",
+                    prev_dev_type)
+                vllm_config.device_config.device_type = "cpu"
+        except Exception as _e:
+            logger.warning(
+                "[HYBRID-CPU-WORKER] could not coerce device_type: %s", _e)
         try:
             from vllm.platforms.cpu import CpuPlatform
             CpuPlatform.check_and_update_config(vllm_config)
-            logger.info("Updated vllm_config for CPU platform via check_and_update_config.")
+            logger.info(
+                "Updated vllm_config for CPU platform via "
+                "check_and_update_config (device_type=%r).",
+                vllm_config.device_config.device_type)
         except Exception as e:
-            logger.error(f"Failed to update config for CPU: {str(e)}")
+            # logger.exception so traceback + exception type are visible
+            # — previously str(e) was empty for assertion errors, hiding
+            # the root cause.
+            logger.exception(
+                "Failed to update config for CPU "
+                "(device_type=%r, type=%s, msg=%r)",
+                vllm_config.device_config.device_type,
+                type(e).__name__, str(e))
 
         # =====================================================
         # PyTorch Compilation Configuration for CPU
@@ -239,9 +268,18 @@ class CPUWorker(Worker):
                 try:
                     target = int(omp_threads_str)
                     torch.set_num_threads(target)
+                    # interop을 약간 늘려서 op 간 직렬화 방지
+                    try:
+                        torch.set_num_interop_threads(max(2, target // 8))
+                    except RuntimeError:
+                        pass  # 이미 사용된 후엔 변경 불가
                     logger.info(
-                        "CPUWorker: Using hybrid-configured thread count: %d "
-                        "(from OMP_NUM_THREADS)", target)
+                        "[HYBRID-CPU-WORKER] thread config: "
+                        "torch_threads=%d torch_interop=%d "
+                        "(from OMP_NUM_THREADS=%s)",
+                        torch.get_num_threads(),
+                        torch.get_num_interop_threads(),
+                        omp_threads_str)
                     return
                 except ValueError:
                     pass
@@ -295,6 +333,78 @@ class CPUWorker(Worker):
                 "CPUWorker: Overrode low thread count (%d) "
                 "to %d for performance.", current_threads, target_threads)
 
+    def _python_init_cpu_threads_env(self, cpu_ids_str: str) -> None:
+        """Python fallback for torch.ops._C_utils.init_cpu_threads_env.
+
+        Sets the process CPU affinity (so all OMP/BLAS threads are
+        constrained to these cores) and re-asserts torch thread count.
+
+        Unlike the C++ version, this does NOT pin individual OMP threads
+        1-to-1 to single cores via sched_setaffinity inside the OMP
+        parallel region. Instead it relies on the Linux scheduler to
+        distribute the OMP_NUM_THREADS workers across the affinity mask,
+        which is sufficient for typical hybrid deployments without
+        AVX-512/AMX builds. The C++ path remains preferred when
+        available (built into _C extension on CPU-only builds).
+
+        cpu_ids_str: comma-separated CPU id list, e.g. "0,1,2,3" or
+            "0-3,8-11" (numa-style range syntax).
+        """
+        cpu_ids: list[int] = []
+        for part in cpu_ids_str.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if "-" in part:
+                a, b = part.split("-", 1)
+                cpu_ids.extend(range(int(a), int(b) + 1))
+            else:
+                cpu_ids.append(int(part))
+        if not cpu_ids:
+            raise ValueError(f"empty cpu_ids parsed from {cpu_ids_str!r}")
+
+        # 1. Process-level affinity (inherited by every thread spawned
+        #    by this process from now on, including OMP/BLAS workers).
+        os.sched_setaffinity(0, set(cpu_ids))
+
+        # 2. Re-assert torch and OMP thread counts to match #cores.
+        nthreads = len(cpu_ids)
+        os.environ["OMP_NUM_THREADS"] = str(nthreads)
+        os.environ["MKL_NUM_THREADS"] = str(nthreads)
+        torch.set_num_threads(nthreads)
+        try:
+            torch.set_num_interop_threads(max(2, nthreads // 8))
+        except RuntimeError:
+            # set_num_interop_threads can only be called before any
+            # parallel work has started; ignore if too late.
+            pass
+
+        # 3. Memory-bind to the NUMA node containing the first core
+        #    (matches what the C++ init_cpu_threads_env does).
+        try:
+            from vllm.platforms.intel_cpu_utils import NUMAAllocator
+            alloc = NUMAAllocator()
+            if alloc.is_available:
+                # Find which NUMA node hosts cpu_ids[0]
+                for nid in range(alloc.num_nodes):
+                    info = alloc.get_node_info(nid)
+                    if info and cpu_ids[0] in info.cpu_ids:
+                        alloc.bind_to_node(nid)
+                        logger.info(
+                            "[HYBRID-CPU-WORKER] Python fallback "
+                            "memory-bound to NUMA node %d", nid)
+                        break
+        except Exception as e:
+            logger.debug("NUMA membind in fallback skipped: %s", e)
+
+        logger.info(
+            "[HYBRID-CPU-WORKER] Python fallback bound %d cores: %s "
+            "(OMP_NUM_THREADS=%d, torch.get_num_threads()=%d)",
+            nthreads,
+            cpu_ids if nthreads <= 16 else f"{cpu_ids[:8]}...{cpu_ids[-8:]}",
+            nthreads, torch.get_num_threads(),
+        )
+
     @property
     def numa_node(self) -> int:
         """Get the NUMA node this worker is bound to."""
@@ -323,17 +433,74 @@ class CPUWorker(Worker):
         else:
             self.local_omp_cpuid = omp_cpuids.split("|")[self.rank]
 
+        logger.info(
+            "[HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND=%r "
+            "→ local_omp_cpuid=%r (rank=%d, local_rank=%d)",
+            omp_cpuids, self.local_omp_cpuid, self.rank, self.local_rank,
+        )
         if self.local_omp_cpuid != "all":
+            bound_via = None
             try:
                 ret = torch.ops._C_utils.init_cpu_threads_env(self.local_omp_cpuid)
-                if ret:
-                    logger.info(ret)
+                bound_via = "C++ (init_cpu_threads_env)"
+                # init_cpu_threads_env가 코어 매핑을 출력 → 항상 INFO로 기록
+                logger.info(
+                    "[HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:\n%s",
+                    ret if ret else "(empty)")
             except AttributeError:
+                # CUDA 빌드에서는 _C_utils.init_cpu_threads_env가 등록되지
+                # 않는다 (cmake/cpu_extension.cmake가 include 안 됨).
+                # Python fallback으로 process-level affinity를 직접 설정.
                 logger.warning(
-                    "torch.ops._C_utils.init_cpu_threads_env not found. "
-                    "Thread affinity binding skipped. This may reduce "
-                    "performance due to thread migration across cores. "
-                    "Consider building vLLM with CPU extension support.")
+                    "[HYBRID-CPU-WORKER] torch.ops._C_utils."
+                    "init_cpu_threads_env not registered (CUDA build). "
+                    "Falling back to Python sched_setaffinity.")
+                try:
+                    self._python_init_cpu_threads_env(self.local_omp_cpuid)
+                    bound_via = "Python (sched_setaffinity)"
+                except Exception as fb_e:
+                    logger.error(
+                        "[HYBRID-CPU-WORKER] Python affinity fallback "
+                        "FAILED: %s. Thread affinity NOT set — expect "
+                        "poor CPU utilization.", fb_e)
+            except RuntimeError as e:
+                # VLLM_NUMA_DISABLED 빌드는 warning string만 반환할 수 있다.
+                logger.warning(
+                    "[HYBRID-CPU-WORKER] C++ init_cpu_threads_env failed: "
+                    "%s. Falling back to Python sched_setaffinity.", e)
+                try:
+                    self._python_init_cpu_threads_env(self.local_omp_cpuid)
+                    bound_via = "Python (sched_setaffinity, fallback)"
+                except Exception as fb_e:
+                    logger.error(
+                        "[HYBRID-CPU-WORKER] Python affinity fallback "
+                        "FAILED: %s.", fb_e)
+            if bound_via:
+                logger.info(
+                    "[HYBRID-CPU-WORKER] thread binding established via: %s",
+                    bound_via)
+        else:
+            logger.warning(
+                "[HYBRID-CPU-WORKER] local_omp_cpuid='all' → no explicit "
+                "thread binding. OMP runtime will choose; check "
+                "VLLM_CPU_OMP_THREADS_BIND.")
+
+        # OS 레벨 thread/affinity 진단 (init_cpu_threads_env 직후)
+        try:
+            import psutil as _ps
+            _proc = _ps.Process()
+            _aff = sorted(_proc.cpu_affinity())
+            _nthr = _proc.num_threads()
+            logger.info(
+                "[HYBRID-CPU-WORKER] post-init: torch_threads=%d "
+                "process_threads=%d cpu_affinity=%d cores %s",
+                torch.get_num_threads(), _nthr, len(_aff),
+                _aff if len(_aff) <= 32 else f"{_aff[:16]}...{_aff[-16:]}",
+            )
+        except Exception as _e:
+            logger.warning(
+                "[HYBRID-CPU-WORKER] failed to read process affinity: %s",
+                _e)
 
 
         # Note: unique identifier for creating allreduce shared memory
@@ -450,6 +617,35 @@ class CPUWorker(Worker):
         self,
         scheduler_output: "SchedulerOutput",
     ) -> Optional[ModelRunnerOutput]:
+        # Periodic execute_model trace (every N steps).
+        # Set VLLM_HYBRID_TRACE=1 for per-step logs.
+        import time as _time
+        _trace = os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
+        _step = getattr(self, "_hybrid_exec_step", 0) + 1
+        self._hybrid_exec_step = _step
+        _every = int(os.environ.get("VLLM_HYBRID_TRACE_EVERY", "50"))
+
+        if _trace or (_every > 0 and _step % _every == 0):
+            num_scheduled = (
+                getattr(scheduler_output, "total_num_scheduled_tokens", None)
+                or getattr(scheduler_output, "num_scheduled_tokens", None)
+                or 0)
+            try:
+                if hasattr(num_scheduled, "values"):
+                    num_scheduled = sum(num_scheduled.values())
+            except Exception:
+                pass
+            num_reqs = len(getattr(scheduler_output,
+                                   "scheduled_new_reqs", []) or [])
+            try:
+                num_reqs += len(getattr(scheduler_output,
+                                        "scheduled_cached_reqs", []) or [])
+            except Exception:
+                pass
+            _t0 = _time.perf_counter()
+        else:
+            _t0 = None
+
         intermediate_tensors = None
         if not get_pp_group().is_first_rank:
             intermediate_tensors = IntermediateTensors(
@@ -458,6 +654,15 @@ class CPUWorker(Worker):
 
         output = self.model_runner.execute_model(scheduler_output,
                                                  intermediate_tensors)
+
+        if _t0 is not None:
+            elapsed_ms = (_time.perf_counter() - _t0) * 1000
+            logger.info(
+                "[HYBRID-CPU-EXEC] step=%d reqs=%s tokens=%s "
+                "torch_threads=%d elapsed=%.1fms",
+                _step, num_reqs, num_scheduled,
+                torch.get_num_threads(), elapsed_ms,
+            )
 
         if not get_pp_group().is_last_rank:
             assert isinstance(output, IntermediateTensors)
@@ -485,20 +690,44 @@ class CPUWorker(Worker):
 
         allowed_numa_nodes, logical_cpu_list = \
             CpuPlatform.get_allowed_cpu_memory_node_list()
-        
-        # In heterogeneous mode (or if we just don't have enough NUMA nodes), we shouldn't crash.
-        # Just warn and reuse nodes.
-        if len(allowed_numa_nodes) < self.parallel_config.world_size:
-             logger.warning(
-                 f"Not enough NUMA nodes ({len(allowed_numa_nodes)}) for {self.parallel_config.world_size} workers. "
-                 f"Workers will share NUMA nodes."
-             )
 
+        # In hybrid mode with num_cpu_engines>1, every CPU engine is a
+        # separate process whose local_rank is 0. The NUMA assignment must
+        # come from hybrid_config.numa_bind_node (set by
+        # run_cpu_engine_core via numa_node kwarg in launch_hybrid_engines).
+        # Without this override, all CPU engines would pin themselves to
+        # the same NUMA node and contend for the same cores — fatal for
+        # multi-NUMA hosts like H100x8 + Sapphire Rapids 2-socket.
+        selected_numa_node = None
+        try:
+            hc = getattr(self.vllm_config, 'hybrid_config', None)
+            if hc is not None:
+                bind_node = getattr(hc, 'numa_bind_node', None)
+                if bind_node is not None and bind_node in allowed_numa_nodes:
+                    selected_numa_node = bind_node
+                    logger.info(
+                        "[HYBRID-CPU-WORKER] _get_autobind_cpu_ids: "
+                        "using hybrid_config.numa_bind_node=%d "
+                        "(allowed_nodes=%s)",
+                        bind_node, allowed_numa_nodes)
+        except Exception as _e:
+            logger.debug("numa_bind_node lookup failed: %s", _e)
 
-        # Get CPUs on NUMA node `allowed_numa_nodes[local_rank]``
-        # Use modulo to cycle through available nodes if local_rank exceeds available nodes
-        node_idx = self.local_rank % len(allowed_numa_nodes)
-        selected_numa_node = allowed_numa_nodes[node_idx]  # type: ignore
+        if selected_numa_node is None:
+            # Fallback: historical local_rank-based selection (single CPU
+            # engine, or non-hybrid CPU-only build).
+            if len(allowed_numa_nodes) < self.parallel_config.world_size:
+                logger.warning(
+                    f"Not enough NUMA nodes ({len(allowed_numa_nodes)}) "
+                    f"for {self.parallel_config.world_size} workers. "
+                    f"Workers will share NUMA nodes.")
+            node_idx = self.local_rank % len(allowed_numa_nodes)
+            selected_numa_node = allowed_numa_nodes[node_idx]  # type: ignore
+            logger.info(
+                "[HYBRID-CPU-WORKER] _get_autobind_cpu_ids: "
+                "local_rank=%d → node_idx=%d → NUMA node %d",
+                self.local_rank, node_idx, selected_numa_node)
+
         logical_cpu_list = [
             x for x in logical_cpu_list if x.numa_node == selected_numa_node
         ]
