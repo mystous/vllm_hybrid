@@ -263,3 +263,150 @@ H100x4 KVM / H100x8 + Xeon 2S / 일반 x86_64 laptop 등 기타 환경은 여전
 - TODO v1 §1 "동시 요청 스트레스 50+ burst 확장" → v3-F1 의 500 req burst 로 이미 커버됨 (1.5B/7B 양쪽)
 
 → TODO v1 §1 은 본 v3 로 실질적으로 완결. 남은 것은 TODO v1 §2 (논문 정합성) / §3 (H100 실측) / §4 (기타 잠재 이슈) / §5 (문서화 잔여).
+
+---
+
+## v4 — 2026-04-11: stdout fast-path contention / H100 라우팅 Property 2 gate / 1.5B~32B scaling baseline / ISA + AMX brgemm 실측
+
+> append-only. v1/v2/v3 섹션 보존. 본 v4 는 v3 이후 연속 세션에서 **실측으로 확정된 기술 결론만** 기록 (v2 원칙 준수).
+
+### 검증 환경
+- dev: i9-12900KF + RTX 3090 (AVX2+NUMA1), vLLM `0.1.dev8475+g78fa48cb8`, torch `2.9.0+cu130`, CUDA 13.0
+- H100x4 KVM: Intel Xeon Platinum 8480+ (1S × 96 vCPU, 1 NUMA, 944 GB DDR5), H100 80GB HBM3 × 4, 동일 vLLM / torch / CUDA 스택, IPEX 2.8.0+gitcb81bf2
+- 세션 동안 코드 commit 연대: `019c7121a` → `9bccbe651` → `3f528123e` → `3e6e514ca` → `81f46717d`
+
+### 추가 검증된 사실 (실측 완료분만)
+
+#### V4-F1. Stdout fast-path contention — H100x4 1.5B/500 req + `TRACE=1` 에서 hybrid wall ×7.6
+- **환경**: H100x4, `h100x4_qwen1.5b_hybrid.env` 의 이전 버전 (NUM_PROMPTS=500, `VLLM_HYBRID_TRACE=1`, `TRACE_EVERY=1`)
+- **측정 출처**: `experiment_result/20260411_090942_h100x4_qwen1.5b_capacity_trace_on_500/`
+- **결과**:
+  - GPU-only: wall 13.96 s, duration 3.68 s, output TP 16,742 tok/s, TPOT 22.36 ms, GPU mean util 42.6%
+  - Hybrid (capacity + cpu-first, **TRACE=1**): wall **106.66 s**, duration **49.54 s**, output TP **1,243 tok/s**, TPOT **60.06 ms**, GPU mean util **1.5%**
+  - Ratio: wall **×7.64**, output TP **×0.074**, TPOT **×2.69**
+  - CPU 96-core busy window avg **93.1% (87/95 samples)** — CPU 는 2 reqs 만 받아서 끝까지 처리 중이었음
+  - 모니터 CSV 로 교차 확인: `experiment_result/20260411_121509_.../` 의 rate 추정표
+
+- **직접 증거**: 같은 env 에서 `TRACE=0` + `throughput-adaptive` 로 돌린 `20260411_085801_h100x4_qwen1.5b_thro_adaptive_500/` 는 hybrid wall 25.67 s ≈ gpu_only wall 25.70 s 로 **hybrid penalty 0**. 유일한 변수는 `VLLM_HYBRID_TRACE=1`.
+
+- **메커니즘**: stdout 은 하드웨어 속도와 독립적인 상수 성능 단일 channel (커널 file offset lock + write syscall). H100x4 같이 throughput 이 2~8× 큰 환경에서는 동일 "decode call 마다 1 line" 정책이 초당 emit 되는 log 수를 기하급수적으로 키우고, 여기에 TP=4 로 writer process 수까지 2× 늘어남. `VLLM_HYBRID_TRACE_EVERY=1` 은 dev (`TRACE_EVERY=500`) 대비 500× aggressive → 총 stdout 부담 ~2000×.
+
+- **해결 (silent 패치 적용 후 dev 재검증)**: `experiment_result/20260411_120746_dev_rtx3090_1.5B_silent_stdout_rerun/`
+  - dev 1.5B gpu_only / hybrid wall 13.97 / 34.90 s 양쪽 모두 이전 60412 / 60712 run 과 **동일** (TPOT 완전 동일 27.79 ms ↔ 27.79 ms)
+  - hybrid server log 라인 수 2701 → 1094 (−59.5%), serving 중 HYBRID per-req/per-call marker 전부 0, 부팅 markers 11 preserved
+  - **결론**: dev 1.5B 에서는 stdout 이 원래부터 병목이 아니었음을 직접 증명. H100x4 쪽의 7.6× slowdown 은 fast-path contention (hardware throughput ↑ + TRACE_EVERY ↓ + TP writer multi-process) 조합이 만든 것.
+
+#### V4-F2. H100x4 hybrid 라우팅 회귀 — 근본 원인 + Property 2 expected-finish gate 수정
+- **환경**: H100x4, `h100x4_qwen1.5b_hybrid.env` (production config: throughput-adaptive + cpu-first + silent + auto everything)
+- **측정 출처**: `experiment_result/20260411_130959_.../` (회귀 발견), `20260411_141500_.../` (근본 원인 + 수정), `20260411_142900_.../` (4-run 검증)
+- **회귀 초기 측정** (수정 전 hybrid vs gpu_only 같은 분 run):
+  - bench duration **3.64 → 44.64 s (×12.3)**
+  - output TP **16,924 → 1,380 tok/s (×0.082)**
+  - TPOT **22.10 → 60.34 ms (×2.73)**
+  - CPU mean util 6.7% → **84.7%** (76/83 busy samples)
+  - GPU mean util 13.7% → **1.4%**
+- **5 단계 가설 분리 검증** (`141500` README §2):
+  - 가설 A (resolver `max_seqs` 오판): 반증 — `[HYBRID-RESOLVE] max_seqs=1` 정상
+  - 가설 B (CPU scheduler 가 max_seqs=1 무시하고 batch): 반증 — `[HYBRID-CPU-EXEC] reqs=0..1 tokens=1`
+  - 가설 C (라우터가 다수를 CPU 로): 반증 — `[HYBRID-ROUTER-DISPATCH] cpu=2 gpu=498` (대부분 GPU 임)
+  - 가설 D (CPU OMP 96C 점유로 API server starve): 반증 — `HYBRID_CPU_THREADS=1` 로 재실험해도 TPOT 64 ms 그대로
+  - 가설 E (라우팅이 "CPU 가 GPU 보다 빠른가" 를 안 봐서 1~2건 long-tail): **확정 ✓**
+- **결정적 증거** (GPU `nvidia-smi` 시계열 96 s):
+  ```
+  [0..51] 0%   ← GPU 완전 idle (51 초)
+  [52..55] 54%/29%/27%/32%
+  [56..95] 0%  ← GPU 다시 idle (40 초)
+  ```
+  GPU 실제 work 시간 = **4 초** (gpu_only 의 3.55 s 와 일치). 나머지 92 초는 idle 대기.
+- **메커니즘**: `benchmark_serving.py` 가 main bench 전 1건 probe 전송 → 이전 `_route_throughput_adaptive` 는 cpu-first 분기에서 `cpu_in_flight < effective_max * num_cpu_engines` 만 확인 → probe 가 CPU 로 라우팅됨 → 1.5B CPU decode ~47s → probe 혼자 47 s 점유 → main bench 시작 지연 + long tail → wall ≈ max(GPU 4s, CPU 47s) = 47s (+ 부팅).
+- **수정** (`vllm/v1/engine/hybrid_core.py::_route_throughput_adaptive`):
+  - Cold start gate: `_gpu_ema_throughput <= 0` 이면 항상 GPU (probe 블라인드 회피)
+  - Expected-finish 비교: `cpu_finish = (cpu_in_flight+1)·(L_out / tput_cpu_ema)` vs `gpu_finish = ceil((gpu_in_flight+1)/gpu_max_seqs)·(L_out / tput_gpu_ema)`, CPU 가 더 빠를 때만 CPU 선택
+  - `cpu-first` / `gpu-first` 에 동일 비교 gate, 우선순위는 "동률 시 CPU 우선" 의미만 남음
+  - Paper §3 Property 2 의 직접 구현
+- **수정 후 검증 (instrumentation run)**:
+  | | 수정 전 | 수정 후 | gpu_only |
+  |---|---:|---:|---:|
+  | bench dur (s) | 52.94 | **4.02** | 3.55 |
+  | TPOT (ms) | 61.09 | **23.71** | 21.48 |
+  | output TP (tok/s) | 1,212 | **15,305** | 17,362 |
+  | router CPU / total | 2/501 | **0/501** | — |
+  | wall (s) | 107.64 | **17.15** | 12.88 |
+- **4-run 최종 검증 (production env 무수정)**:
+  | run | bench dur (s) | TPOT (ms) | output TP | CPU/GPU disp | hybrid/gpu ratio (TPOT) |
+  |---|---:|---:|---:|---|---:|
+  | 1.5B gpu_only | 3.94 | 23.56 | 15,640 | — | — |
+  | 1.5B hybrid | **3.87** | **23.03** | 15,911 | **0/501** | **0.978×** |
+  | 7B gpu_only | 4.02 | 24.73 | 15,492 | — | — |
+  | 7B hybrid | **3.93** | **23.04** | 15,984 | **0/501** | **0.932×** |
+- **결론**: H100x4 + 1.5B/7B 에서 수정 후 hybrid ≈ gpu_only (±2% 노이즈). Property 2 gate 가 정확히 작동 — GPU 가 압도적으로 빠른 구간에서는 모든 요청을 GPU 로 보낸다. **7B probe hang** 증상 (1차 probe 에서 분 단위 정지) 도 동일 기전이었고 cold start gate 로 해소.
+- **부수 발견 (Bug 1)**: `_update_adaptive_slots` (`hybrid_core.py:436-443`) 는 `cpu_max_num_seqs=1` 에서 항상 `new_max=2` 로 고정되는 dead code. Property 2 gate 이후 라우팅 영향은 0 이지만 코드는 정리 필요 → `TODO §3.1`.
+
+#### V4-F3. 1.5B / 7B / 32B scaling baseline — H100x4 에서 32B 까지도 GPU sub-saturation
+- **환경**: H100x4, production env (`h100x4_qwen{1.5b,7b,32b}_hybrid.env`), 라우팅 fix 포함 상태
+- **측정 출처**: `experiment_result/20260411_142900_.../` (1.5B/7B), `20260411_145900_.../` (32B)
+- **결과**:
+  | 모델 | 모드 | bench dur (s) | TPOT (ms) | output TP (tok/s) | GPU mean util |
+  |---|---|---:|---:|---:|---:|
+  | 1.5B | gpu_only | 3.94 | 23.56 | 15,640 | 13.9% |
+  | 1.5B | hybrid | 3.87 | 23.03 | 15,911 | 13.1% |
+  | 7B | gpu_only | 4.02 | 24.73 | 15,492 | 19.2% |
+  | 7B | hybrid | 3.93 | 23.04 | 15,984 | 13.8% |
+  | **32B** | gpu_only | **7.01** | **41.82** | **8,774** | **42.6%** |
+  | 32B | hybrid | 7.09 | 41.93 | 8,674 | 43.3% |
+- **Scaling 관찰**:
+  - 1.5B → 7B TPOT 1.05× (거의 동일) — GPU 가 양쪽에서 underutilized, **launch overhead > compute** 영역
+  - 7B → 32B TPOT **1.69×** + GPU util **2.22×** — compute 가 launch 를 처음으로 추월
+  - 32B GPU mean util 43% 는 여전히 sub-saturation. **H100x4 는 32B 까지도 over-provisioned**
+- **의미**: paper 의 1.5B/7B/32B scaling section baseline. "H100x4 는 32B 까지 GPU saturated 가 아니다" 가 핵심. ninja gap 정량 측정을 위해서는 **70B+, batch ↑, 긴 context, 또는 spec decode** 같은 구조적 변경이 필요.
+- **32B 부팅 시간 실측**: gpu_only ~100 s / hybrid ~150 s. `SERVER_READY_TIMEOUT=1800` 필요. Weight 64 GB 로드 + TP=4 CUDA graph capture (~2.9 GB) 가 지배.
+- **라우터 분배 (3 모델 공통)**: `[HYBRID-ROUTER-STATS] finished=501 GPU=501 CPU=0, cpu_ratio=0.0%` — Property 2 gate 가 모든 모델에서 "GPU always wins" 로 올바르게 결정.
+
+#### V4-F4. ISA / IPEX / oneDNN / AMX BF16 brgemm 실측 — H100x4 + Xeon 8480+ 에서 AMX 가 실제로 dispatch 되고 있음
+- **환경**: H100x4 KVM guest, Intel Xeon Platinum 8480+ (1S × 96 vCPU, SPR+)
+- **측정 출처**: `experiment_result/20260411_143500_h100x4_isa_verification_and_ninja_gap_strategy/` §1 (5 단계 evidence)
+- **결과**:
+  | 단계 | 측정 | 결과 |
+  |---|---|---|
+  | 1. CPU feature detect | `intel_cpu_utils.detect_intel_cpu_features()` | AVX-512 F/VNNI/BF16/FP16 ✓, AVX-VNNI ✓, **AMX-BF16 ✓**, **AMX-INT8 ✓**, 96 cores |
+  | 2. 환경변수 | `[HYBRID-CPU-ENV]` 부팅 로그 | `ONEDNN_MAX_CPU_ISA=AVX512_CORE_AMX` 정상 적용 |
+  | 3. Extension / module load | `vllm._custom_ops` + `torch.ops._C_utils` + IPEX | `HAS_CPU_OPS=True`, `HAS_CPU_UTILS=True`, `init_cpu_threads_env` 등록 ✓, IPEX 2.8.0+gitcb81bf2 ✓, mkldnn enabled ✓ |
+  | 4. Decode path 실측 | 1.5B 회귀 run 의 1900 회 attention 호출 | 100% `[HYBRID-CPU-ATTN] path=ipex`, fallback (custom_avx / sdpa_batched / sdpa_loop) **0 건** |
+  | 5. oneDNN 커널 실측 | `ONEDNN_VERBOSE=1` BF16 64×128 × 128×256 matmul | `brg_matmul:avx10_1_512_amx` — **실제 AMX BF16 brgemm 커널 dispatch 확인** |
+- **`ONEDNN_VERBOSE` 원문 발췌**:
+  ```
+  onednn_verbose,v1,info,cpu,isa:Intel AVX-512 with float16, Intel DL Boost
+    and bfloat16 support and Intel AMX with bfloat16 and 8-bit integer support
+  onednn_verbose,v1,primitive,exec,cpu,matmul,brg_matmul:avx10_1_512_amx,...
+    src:bf16::blocked:ab::f0 wei:bf16::blocked:ab::f0 dst:bf16::blocked:ab::f0
+  ```
+- **결론**: ISA / IPEX / oneDNN / AMX 스택은 H100x4 + SPR 8480+ 에서 **빈틈없이 실행 경로에 들어온다**. 라우팅 fix 이후 H100 + 1.5B/7B/32B 에서 CPU 분배가 0건이 된 것은 **Property 2 가 올바르게 "CPU 가 더 느려서 안 쓰는 것"** 이지, ISA 가 안 도는 것이 아님. AMX 의 **compute 잠재력은 실재**하지만, H100+BF16 dense decode 워크로드에서는 memory-BW bound 에 먼저 도달해 AMX peak 가 사용되지 못하는 것이 현재 천장.
+
+#### V4-F5. Ninja Gap 이론적 천장 — request-level partition 의 상한
+- **환경**: 이론 분석 + H100x4 실측 데이터 교차 검증
+- **측정 출처**: `20260411_143500_.../` §2
+- **결론**: 현재 hybrid 의 구조적 천장은
+  ```
+  T_hybrid = max(T_gpu_share, T_cpu_share)
+  ```
+  여기서 CPU per-req latency > GPU per-req latency 인 환경 (H100+1.5B 에서 13×, H100+7B 에서 20×+, H100+32B 에서도 비슷) 에서는 어떤 request-level routing 으로도 `T_hybrid < T_gpu` 불가. Property 2 gate 는 이 상한 **안에서** optimal (hybrid ≤ gpu_only) 이지만 그 이상은 불가능.
+- **하한 돌파 조건**:
+  - (a) GPU 가 queue-saturated 되어 `gpu_wait > cpu_per_req` — 현 H100 + 1.5B/7B/32B burst 에서 발생 안 함
+  - (b) CPU 와 GPU 가 **본질적으로 다른 layer / 다른 step / 다른 precision** 을 처리 — A1/A2/A3 후보. 현재 미구현
+- → paper Property 2 를 "complement" 에서 "expected-finish-time gate + 구조적 분해" 로 강화해야 실제 ninja gap 실현 가능. `TODO §1`, `§4.1` 로 이관.
+
+### v4 매트릭스 (실측 완료 환경만 나열, v2 정정 원칙 준수)
+
+| 환경 | CPU | NUMA | ISA 검증 | hybrid routing 검증 | 1.5B | 7B | 32B | 근거 |
+|------|-----|------|---------|-------------------|------|----|-----|------|
+| **dev** (i9-12900KF + RTX 3090, TP=1) | AVX2 + AVX-VNNI | 1 | v1 Q1~Q4 + v3 F1~F6 | 라우팅 fix 미검증 (TODO §5.1) | wall 34.9s / TPOT 30.0ms (hybrid), ≈ gpu_only wall 14.3s | wall 109.3s / TPOT 116ms (hybrid, CPU tail 지배) | 미수행 | v3 F1~F6 + v4 F1 |
+| **H100x4 KVM** (Xeon 8480+, TP=4, 944 GB DDR5) | AVX-512 F/VNNI/BF16, AVX-VNNI, **AMX-BF16/INT8** | 1 (KVM 1 node) | v4 F4 (5단계 + `brg_matmul:avx10_1_512_amx`) | v4 F2 (Property 2 gate 수정 후) | wall 17.13s / TPOT 23.03ms / 0/501 CPU / hybrid ≈ gpu_only | wall 17.15s / TPOT 23.04ms / 0/501 CPU / hybrid ≈ gpu_only | wall 17.21s / TPOT 41.93ms / 0/501 CPU / hybrid ≈ gpu_only | v4 F2 + F3 |
+
+다른 환경 (H100x8 2-socket, 일반 laptop, 70B 모델, 긴 context) 은 여전히 실측 없음 → `TODO §2.1` / `§2.2` / `§2.6`.
+
+### v4 의 TODO 해소 현황
+- TODO v1 §3 "H100x4 KVM 재측정" → v4 F2 + F3 로 **완결** (1.5B / 7B / 32B baseline + 라우팅 fix 검증)
+- TODO v1 §3 "Exp 1 end-to-end throughput" → v4 F3 으로 **부분 완결** (단일 workload, production bench)
+- TODO v4 (이전 버전) §3 "H100 capacity 멈춤" → v4 F2 로 **완결** (dev + H100 양쪽에서 근본 원인 확정 + 수정 + 검증). 대부분은 v3 F5 의 abort slot leak fix 로 해소되었고, 본 세션에서 발견된 routing regression 은 별개의 관련 이슈로 동시에 해결.
+- TODO v1 §4 "AMX tile permission 커널 버전 의존성" → v4 F4 로 **완결** (H100x4 KVM 에서 `brg_matmul:avx10_1_512_amx` 실제 dispatch 확인)
+- → 남은 것은 `TODO.md` (v4 재작성본, clean file) 의 §1~§7 — ninja gap 구현 (A1~A4), 70B / 긴 context 확장, bug 1 / OMP binding 정리, 논문 정합성, dev 보조 검증.
