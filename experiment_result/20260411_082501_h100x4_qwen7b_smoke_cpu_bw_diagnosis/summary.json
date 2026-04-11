@@ -1,0 +1,58 @@
+{
+  "experiment_id": "20260411_082501_h100x4_qwen7b_smoke_cpu_bw_diagnosis",
+  "purpose": "First H100x4 hybrid bring-up + 10 req smoke + diagnosis of CPU throughput parity vs dev",
+  "host": "H100 80GB x4 + Xeon Platinum 8480+ (96 vCPU KVM, 1 NUMA, 944 GB RAM)",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "git_head": "019c7121a (h100_cu13)",
+  "results": {
+    "smoke_hybrid": {
+      "num_prompts": 10,
+      "completed": 10,
+      "duration_s": 508.3079562910002,
+      "wall_time_s": 1031.58,
+      "request_throughput": 0.019673113269694956,
+      "output_throughput": 2.3096234978621877,
+      "total_token_throughput": 4.827781996383142,
+      "mean_ttft_ms": 1598.6418488000254,
+      "median_ttft_ms": 191.24900499991782,
+      "p99_ttft_ms": 13206.186510380128,
+      "mean_tpot_ms": 405.3087215492682,
+      "median_tpot_ms": 17.97941481889777,
+      "p99_tpot_ms": 3540.0948728999288,
+      "mean_itl_ms": 440.4529735326459,
+      "median_itl_ms": 19.67753149983764,
+      "p99_itl_ms": 4098.058588859889
+    }
+  },
+  "router_stats_observed": [
+    {
+      "at": "08:08:25 (mid-bench)",
+      "reqs_total": 11,
+      "gpu_tok_s": 51.9,
+      "gpu_reqs": 9,
+      "cpu_tok_s": 0.2,
+      "cpu_reqs": 2,
+      "cpu_ratio_pct": 18.2,
+      "in_flight": "1/1"
+    }
+  ],
+  "key_findings": {
+    "boot": "OK after rebuild (CUDA 13 graph capture issue resolved by recompile)",
+    "abort_capacity_stuck": "not reproduced \u2014 10/10 success, slot cycle clean",
+    "amx_env_active": "ONEDNN_ISA=AVX512_CORE_AMX set; ipex=6261 / custom_avx=0 / sdpa=0",
+    "core_pin": "C++ init_cpu_threads_env returned with 96 OMP workers 1:1 pinned to PSR 0..95",
+    "cpu_throughput_per_req": "\u2248 2.47 tok/s (mean TPOT 405 ms inverse). dev (i9-12900KF) was 2.3 tok/s for the same model. Practically equal.",
+    "cpu_util_pattern": "all 96 PSRs receive threads, ~70% util each. ~67 cpu-units total vs dev 16 cpu-units. 4.2x cpu budget but no throughput gain.",
+    "root_cause_hypothesis": "decode is memory-bandwidth bound: 7B BF16 weight (~14 GB) is read once per token, and KVM-guest DDR5 BW is similar to dev's DDR5. Adding cores past the BW limit gives no speedup. AMX not effective because compute is not the bottleneck. attention head=28 \u2192 IPEX paged-attn parallelism caps at 28 anyway."
+  },
+  "implications": {
+    "cpu_max_num_seqs_principle": "cpu_max_num_seqs=1 is throughput-pessimal in BW-bound regime (no weight reuse). batching N seqs would reuse the single weight read across seqs.",
+    "amx_value": "AMX value materialises only when compute > BW (int8 / w8a8 quant, larger batch).",
+    "model_scaling": "larger models still BW-bound but absolute decode time grows linearly; ratio of CPU vs GPU may improve as the model becomes large enough that GPU is also slower per token.",
+    "next_actions": [
+      "Run 500-prompt main with throughput-adaptive + cpu-first to characterise the adaptive routing behaviour with a slow CPU.",
+      "Try int8/w8a8 quantised 7B to test AMX kernel path and BW relief.",
+      "Try Llama-3.1-70B-Instruct to see whether the GPU/CPU ratio shifts in hybrid's favour at large scale."
+    ]
+  }
+}

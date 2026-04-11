@@ -1,0 +1,135 @@
+### HYBRID-RESOLVE / LAUNCH / ENV / PROC / WORKER (init phase) ###
+37:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:05:43 [hybrid_core.py:728] [HYBRID-RESOLVE] max_seqs=1 threads=96 kvcache=377GB batched_tokens=256 | effective_cores=96 (physical=96) numa_nodes=1 effective_mem=944GB (total=944GB) user_overrides: max_seqs=auto threads=auto kvcache=auto
+40:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:05:43 [hybrid_core.py:1263] [HYBRID-LAUNCH] num_cpu_engines=1 (numa_aware=True, config=1)
+84:INFO 04-11 09:05:50 [hybrid_core.py:728] [HYBRID-RESOLVE] max_seqs=1 threads=96 kvcache=377GB batched_tokens=256 | effective_cores=96 (physical=96) numa_nodes=1 effective_mem=944GB (total=944GB) user_overrides: max_seqs=auto threads=auto kvcache=auto
+123:INFO 04-11 09:05:51 [hybrid_core.py:888] [HYBRID-CPU-ENV] PID=51014 configured: OMP=96 MKL=96 OPENBLAS=96 OMP_PROC_BIND=None OMP_PLACES=None KVCACHE=377GB ONEDNN_ISA=AVX512_CORE_AMX BIND=auto
+124:INFO 04-11 09:05:51 [hybrid_core.py:1101] [HYBRID-CPU-PROC] PID=51014 torch_threads=96 torch_interop=1 torch.version=2.9.0+cu130 mkldnn=True
+145:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:05:52 [cpu_worker.py:276] [HYBRID-CPU-WORKER] thread config: torch_threads=96 torch_interop=1 (from OMP_NUM_THREADS=96)
+147:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:05:52 [cpu_worker.py:726] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+149:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:05:52 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95' (rank=0, local_rank=0)
+150:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:05:52 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+249:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:05:52 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+250:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:05:52 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=96 process_threads=415 cpu_affinity=1 cores [0]
+
+### Router stats (all) ###
+6558:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [hybrid_core.py:506] Router stats [356 reqs]: GPU=4.4 tok/s (354 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.6%, in_flight=1/1
+7004:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [hybrid_core.py:506] Router stats [501 reqs]: GPU=3.8 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7178:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=25.0 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7189:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=26.2 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7200:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=26.7 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7211:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.0 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7222:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.2 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7233:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.3 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7244:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.4 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7255:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.5 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7266:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.6 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7277:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.7 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7288:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.7 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7299:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.8 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7310:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.8 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7321:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=27.9 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7336:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.0 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7347:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.0 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7358:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.0 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7369:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.1 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7380:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.1 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7391:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.2 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7402:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.2 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7413:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.3 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7424:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.3 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7435:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.3 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7446:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.4 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7457:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.4 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7468:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.5 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7479:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.5 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7490:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.5 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7501:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.6 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7512:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.6 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7523:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.6 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7534:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.7 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7545:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.7 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7556:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.7 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7567:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.8 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7578:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.8 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7589:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.9 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7600:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.9 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7613:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=28.9 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7624:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=29.0 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7635:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=29.0 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7646:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=29.1 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7657:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=29.1 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7668:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=29.2 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7682:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=29.2 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7693:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=29.3 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+7704:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:20 [hybrid_core.py:506] Router stats [501 reqs]: GPU=29.3 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1
+
+### HYBRID-CPU-ATTN sample first/last 20 ###
+1754:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#1 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 1, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1756:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#2 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 2, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1758:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#3 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 3, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1760:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#4 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 4, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1762:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#5 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 5, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1764:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#6 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 6, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1765:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1766:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#8 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 8, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1767:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#9 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 9, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1768:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#10 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 10, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1769:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#11 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 11, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1770:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#12 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 12, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1771:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#13 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 13, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1772:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#14 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 14, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1773:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#15 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 15, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1774:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#16 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 16, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1775:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#17 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 17, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1776:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#18 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 18, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1777:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#19 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 19, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1778:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:07:28 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#20 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 20, 'sdpa_batched': 0, 'sdpa_loop': 0}
+...
+11242:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7093 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7093, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11243:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7094 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7094, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11244:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7095 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7095, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11245:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7096 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7096, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11246:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7097 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7097, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11247:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7098 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7098, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11248:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7099 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7099, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11249:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7100 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7100, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11251:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7101 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7101, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11252:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7102 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7102, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11253:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7103 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7103, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11254:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7104 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7104, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11255:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7105 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7105, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11256:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7106 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7106, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11257:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7107 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7107, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11258:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7108 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7108, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11259:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7109 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7109, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11260:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7110 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7110, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11261:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7111 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7111, 'sdpa_batched': 0, 'sdpa_loop': 0}
+11262:[1;36m(CPU_EngineCore_1 pid=51014)[0;0m INFO 04-11 09:09:04 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7112 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7112, 'sdpa_batched': 0, 'sdpa_loop': 0}
+
+### HYBRID-CLIENT dispatches sample ###
+1752:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:07:26 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-38e8858a40464b74bc27088968bf4ce3-0 prompt_len=128 → cpu:0 (engine_identity=b'\x01\x00')
+5486:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-32c510df87ba4bb5a0d0d4711eb72931-0 prompt_len=128 → cpu:0 (engine_identity=b'\x01\x00')
+5489:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-276b4bac26eb484d8b952ff93e3eb901-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5492:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-b2d3fab6606c4383afbada92a6f7ba3b-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5495:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-ec0d4ce87ba9478c90a36e137c6017b3-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5498:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-135d29669d994decb9d60d5140b167ce-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5501:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-6750e79d6dce4f25bdb7e1c09c8910e0-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5504:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-e2ea0d8344174c0b97ec4589d4e74457-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5507:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-eace266b8a024b859b0f92889bbc0c1e-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5510:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:15 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-c73257addba64575b33e5872c7d19013-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+...
+6971:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-acc88089798441d98c0703ec53328f77-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+6974:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-ad341d188aae43c0b4433344de3404e7-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+6977:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-b3a236911c784b00a01527bbc0959c97-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+6980:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-88232a6608a64260a874d2798e2e1f56-0 prompt_len=127 → gpu (engine_identity=b'\x00\x00')
+6983:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-1b8bd620b219435b983c997f47bc596d-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+6986:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-3c3ef502be4b4aebb67ac8e7f7b50a22-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+6989:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-84668b7067324bd99327d94eeb5f078f-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+6992:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-5936093bac124c2db42932db37fe21b8-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+6995:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-569f6a86b6ca44fdbf1f8e28812e8958-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+6998:[1;36m(APIServer pid=50617)[0;0m INFO 04-11 09:08:16 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-33953878769f4cb99e7d64ef706ed15c-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+
+### counts ###
+HYBRID-CPU-ATTN total: 7112
+HYBRID-CLIENT total: 501
+Router stats total: 50

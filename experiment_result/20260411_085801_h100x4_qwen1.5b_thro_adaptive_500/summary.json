@@ -1,0 +1,89 @@
+{
+  "experiment_id": "20260411_085801_h100x4_qwen1.5b_thro_adaptive_500",
+  "purpose": "GPU-only vs Hybrid (throughput-adaptive + cpu-first) on Qwen2.5-1.5B-Instruct, 500 prompts in/out 512.",
+  "host": "H100 80GB x4 + Xeon Platinum 8480+ (96 vCPU KVM, 1 NUMA, 944 GB RAM)",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "prompts": "random in=512 out=512, request_rate=inf, num_prompts=500",
+  "hybrid_config": {
+    "routing_strategy": "throughput-adaptive",
+    "routing_priority": "cpu-first",
+    "cpu_max_seqs_user": 2,
+    "cpu_max_seqs_resolved": 1,
+    "cpu_threads": 8,
+    "cpu_kvcache_gb": 8,
+    "numa_aware": false,
+    "num_cpu_engines": 1,
+    "cpu_prefill_threshold": 1024,
+    "amx_env": "ONEDNN_ISA=AVX512_CORE_AMX"
+  },
+  "gpu_only": {
+    "num_prompts": 500,
+    "completed": 500,
+    "duration": 12.988,
+    "total_input_tokens": 255169,
+    "total_output_tokens": 245718,
+    "request_throughput": 38.497,
+    "output_throughput": 18918.657,
+    "total_token_throughput": 38564.979,
+    "mean_ttft_ms": 1140.109,
+    "median_ttft_ms": 1109.626,
+    "p99_ttft_ms": 1746.036,
+    "mean_tpot_ms": 23.162,
+    "median_tpot_ms": 22.9,
+    "p99_tpot_ms": 40.199,
+    "mean_itl_ms": 22.845,
+    "median_itl_ms": 21.88,
+    "p99_itl_ms": 52.974,
+    "wall_time_s": 25.7
+  },
+  "hybrid": {
+    "num_prompts": 500,
+    "completed": 500,
+    "duration": 12.884,
+    "total_input_tokens": 255169,
+    "total_output_tokens": 245796,
+    "request_throughput": 38.809,
+    "output_throughput": 19078.106,
+    "total_token_throughput": 38883.722,
+    "mean_ttft_ms": 1159.747,
+    "median_ttft_ms": 1149.64,
+    "p99_ttft_ms": 1766.397,
+    "mean_tpot_ms": 22.841,
+    "median_tpot_ms": 22.564,
+    "p99_tpot_ms": 41.219,
+    "mean_itl_ms": 22.583,
+    "median_itl_ms": 21.605,
+    "p99_itl_ms": 52.102,
+    "wall_time_s": 25.67
+  },
+  "router_stats_observed": [
+    "Router stats [503 reqs]: GPU=58.9~59.5 tok/s (501 reqs), CPU=0.0 tok/s (2 reqs), cpu_ratio=0.4%, in_flight=1/1, adaptive_slots=1"
+  ],
+  "delta_hybrid_vs_gpu_only": {
+    "duration_s": -0.104,
+    "wall_time_s": -0.03,
+    "output_throughput": 159.449,
+    "request_throughput": 0.312,
+    "mean_ttft_ms": 19.638,
+    "p99_ttft_ms": 20.361,
+    "mean_tpot_ms": -0.321,
+    "p99_tpot_ms": 1.02,
+    "ratio_hybrid_over_gpu_output_throughput": 1.0084
+  },
+  "key_findings": {
+    "boot": "GPU-only 85s, Hybrid 70s \u2014 both clean.",
+    "routing_behavior": "throughput-adaptive accepted 2/503 reqs on CPU, then kept adaptive_slots=1 and routed remaining 501 reqs to GPU. CPU=0.0 tok/s observed (CPU req still in-flight at every stats interval).",
+    "abort_slot_leak": "not reproduced \u2014 500/500 success, no stuck slot, hybrid wall \u2248 gpu-only wall.",
+    "performance": "Hybrid throughput \u2248 GPU-only throughput (within \u00b12%) because adaptive routing diverted nearly all traffic to GPU after probing CPU. Adding the CPU lane gave no measurable speedup at this batch shape (1.5B / in=out=512 / threads=8).",
+    "cpu_threads_8_observation": "user override threads=8 dramatically caps CPU's effective compute. Even on 96-core 8480+ with AMX, only 8 OMP workers run \u2192 1.5B prefill 512 tokens stalls the CPU lane indefinitely while GPU finishes the rest of the burst."
+  },
+  "implications": {
+    "throughput_adaptive_correctness": "EMA-based adaptive routing correctly detected the slow CPU lane and avoided sending more work to it. Capacity router's 'cpu-first' bias still let the first reqs probe CPU, then back-off.",
+    "cpu_lane_value_at_1.5B": "At 1.5B with this prompt shape and threads=8, the CPU lane has effectively 0 production value \u2014 it absorbs 0.4% of traffic and contributes 0 tok/s. The hybrid lane is a no-op safety net here.",
+    "next_actions": [
+      "Bump HYBRID_CPU_THREADS toward 96 (or auto) and re-run to test whether 12x more threads pulls CPU above the threshold where adaptive routing keeps it engaged.",
+      "Try larger model (7B/70B) where GPU per-token cost is also higher \u2014 CPU lane may become productive relative to GPU's marginal cost.",
+      "Try int8/w8a8 quant + AMX_INT8 path (still pending overall)."
+    ]
+  }
+}

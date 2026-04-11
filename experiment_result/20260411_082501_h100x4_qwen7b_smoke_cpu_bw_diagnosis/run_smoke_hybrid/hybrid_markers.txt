@@ -1,0 +1,71 @@
+### HYBRID-RESOLVE / LAUNCH / ENV / PROC / WORKER (init phase) ###
+37:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 07:55:04 [hybrid_core.py:728] [HYBRID-RESOLVE] max_seqs=1 threads=96 kvcache=377GB batched_tokens=256 | effective_cores=96 (physical=96) numa_nodes=1 effective_mem=944GB (total=944GB) user_overrides: max_seqs=auto threads=auto kvcache=auto
+40:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 07:55:04 [hybrid_core.py:1263] [HYBRID-LAUNCH] num_cpu_engines=1 (numa_aware=True, config=1)
+90:INFO 04-11 07:55:10 [hybrid_core.py:728] [HYBRID-RESOLVE] max_seqs=1 threads=96 kvcache=377GB batched_tokens=256 | effective_cores=96 (physical=96) numa_nodes=1 effective_mem=944GB (total=944GB) user_overrides: max_seqs=auto threads=auto kvcache=auto
+123:INFO 04-11 07:55:12 [hybrid_core.py:888] [HYBRID-CPU-ENV] PID=21250 configured: OMP=96 MKL=96 OPENBLAS=96 OMP_PROC_BIND=None OMP_PLACES=None KVCACHE=377GB ONEDNN_ISA=AVX512_CORE_AMX BIND=auto
+124:INFO 04-11 07:55:12 [hybrid_core.py:1101] [HYBRID-CPU-PROC] PID=21250 torch_threads=96 torch_interop=1 torch.version=2.9.0+cu130 mkldnn=True
+145:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 07:55:13 [cpu_worker.py:276] [HYBRID-CPU-WORKER] thread config: torch_threads=96 torch_interop=1 (from OMP_NUM_THREADS=96)
+147:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 07:55:13 [cpu_worker.py:726] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+149:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 07:55:13 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95' (rank=0, local_rank=0)
+150:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 07:55:13 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+249:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 07:55:13 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+250:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 07:55:13 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=96 process_threads=415 cpu_affinity=1 cores [0]
+
+### Router stats (all) ###
+5569:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:25 [hybrid_core.py:506] Router stats [11 reqs]: GPU=51.9 tok/s (9 reqs), CPU=0.2 tok/s (2 reqs), cpu_ratio=18.2%, in_flight=1/1
+
+### HYBRID-CPU-ATTN (every 500th by default; sample first/last 20) ###
+1755:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:06 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#1 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 1, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1757:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:06 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#2 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 2, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1759:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:06 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#3 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 3, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1761:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:07 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#4 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 4, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1763:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:07 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#5 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 5, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1765:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:07 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#6 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 6, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1766:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:07 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1767:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:07 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#8 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 8, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1768:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:07 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#9 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 9, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1769:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:07 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#10 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 10, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1770:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:08 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#11 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 11, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1771:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:08 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#12 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 12, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1772:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:08 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#13 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 13, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1773:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:08 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#14 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 14, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1774:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:08 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#15 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 15, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1775:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:08 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#16 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 16, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1776:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:08 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#17 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 17, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1777:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:09 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#18 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 18, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1778:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:09 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#19 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 19, 'sdpa_batched': 0, 'sdpa_loop': 0}
+1779:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:00:09 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#20 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 20, 'sdpa_batched': 0, 'sdpa_loop': 0}
+...
+9320:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:48 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7093 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7093, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9321:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:48 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7094 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7094, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9322:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:48 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7095 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7095, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9323:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:49 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7096 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7096, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9324:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:49 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7097 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7097, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9325:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:49 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7098 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7098, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9326:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:49 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7099 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7099, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9327:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:49 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7100 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7100, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9329:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:49 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7101 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7101, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9330:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:49 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7102 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7102, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9331:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:49 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7103 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7103, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9332:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:50 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7104 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7104, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9333:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:50 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7105 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7105, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9334:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:50 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7106 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7106, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9335:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:50 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7107 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7107, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9336:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:50 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7108 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7108, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9337:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:50 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7109 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7109, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9338:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:50 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7110 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7110, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9339:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:50 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7111 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7111, 'sdpa_batched': 0, 'sdpa_loop': 0}
+9340:[1;36m(CPU_EngineCore_1 pid=21250)[0;0m INFO 04-11 08:16:51 [cpu_attn.py:80] [HYBRID-CPU-ATTN] decode call#7112 path=ipex num_seqs=1 num_tokens=1 | totals={'custom_avx': 0, 'ipex': 7112, 'sdpa_batched': 0, 'sdpa_loop': 0}
+
+### HYBRID-CLIENT dispatches (all) ###
+1753:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 07:59:49 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-0696647229124421b3f1ed006dca3401-0 prompt_len=128 → cpu:0 (engine_identity=b'\x01\x00')
+5531:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-3e0aee4191af4401a4efd0d36512f620-0 prompt_len=128 → cpu:0 (engine_identity=b'\x01\x00')
+5534:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-dc1f2c5f10b64fa7a6220ed19c0b54ac-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5537:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-8604dbe2a790451aba6717282c93a257-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5540:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-c00687351c7d483584f5f0acfcb88530-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5543:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-b88381e405ec464a8cac0d4a60333dbf-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5546:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-871c5b86a8c74711bd139be167198393-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5549:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-dae12d91e9544d018311665ef47ecf63-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5552:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-e29f092be8b943d1be9e9dff06d70ab6-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5555:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-1a64def8763047eaaac9336e609447d2-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')
+5558:[1;36m(APIServer pid=20729)[0;0m INFO 04-11 08:08:22 [core_client.py:1472] [HYBRID-CLIENT] dispatch req=cmpl-9f0edba0985d4212b03d02b94cb38210-0 prompt_len=128 → gpu (engine_identity=b'\x00\x00')

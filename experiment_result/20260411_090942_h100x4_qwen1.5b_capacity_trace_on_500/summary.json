@@ -1,0 +1,90 @@
+{
+  "experiment_id": "20260411_090942_h100x4_qwen1.5b_capacity_trace_on_500",
+  "purpose": "GPU-only vs Hybrid (capacity + cpu-first) on Qwen2.5-1.5B 500 reqs in/out 128. NOTE: VLLM_HYBRID_TRACE=1.",
+  "host": "H100 80GB x4 + Xeon Platinum 8480+ (96 vCPU KVM, 1 NUMA, 944 GB RAM)",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "prompts": "random in=128 out=128, request_rate=inf, num_prompts=500",
+  "hybrid_config": {
+    "routing_strategy": "capacity",
+    "routing_priority": "cpu-first",
+    "cpu_max_seqs_resolved": 1,
+    "cpu_threads_resolved": 96,
+    "cpu_kvcache_gb_resolved": 377,
+    "numa_aware": true,
+    "num_cpu_engines": 1,
+    "amx_env": "ONEDNN_ISA=AVX512_CORE_AMX",
+    "VLLM_HYBRID_TRACE": 1,
+    "VLLM_HYBRID_TRACE_EVERY": 1
+  },
+  "gpu_only": {
+    "num_prompts": 500,
+    "completed": 500,
+    "duration": 3.679,
+    "total_input_tokens": 63699,
+    "total_output_tokens": 61590,
+    "request_throughput": 135.921,
+    "output_throughput": 16742.801,
+    "total_token_throughput": 34058.919,
+    "mean_ttft_ms": 736.691,
+    "median_ttft_ms": 735.963,
+    "p99_ttft_ms": 888.559,
+    "mean_tpot_ms": 22.361,
+    "median_tpot_ms": 22.269,
+    "p99_tpot_ms": 23.052,
+    "mean_itl_ms": 22.237,
+    "median_itl_ms": 21.149,
+    "p99_itl_ms": 49.826,
+    "wall_time_s": 13.96
+  },
+  "hybrid": {
+    "num_prompts": 500,
+    "completed": 500,
+    "duration": 49.537,
+    "total_input_tokens": 63699,
+    "total_output_tokens": 61590,
+    "request_throughput": 10.093,
+    "output_throughput": 1243.31,
+    "total_token_throughput": 2529.195,
+    "mean_ttft_ms": 1225.77,
+    "median_ttft_ms": 1293.577,
+    "p99_ttft_ms": 1550.192,
+    "mean_tpot_ms": 60.059,
+    "median_tpot_ms": 58.915,
+    "p99_tpot_ms": 61.362,
+    "mean_itl_ms": 59.995,
+    "median_itl_ms": 58.039,
+    "p99_itl_ms": 131.628,
+    "wall_time_s": 106.66
+  },
+  "delta_hybrid_vs_gpu_only": {
+    "duration_s": 45.858,
+    "wall_time_s": 92.7,
+    "output_throughput": -15499.491,
+    "request_throughput": -125.828,
+    "mean_ttft_ms": 489.079,
+    "p99_ttft_ms": 661.633,
+    "mean_tpot_ms": 37.698,
+    "p99_tpot_ms": 38.31,
+    "ratio_hybrid_over_gpu_output_throughput": 0.0743,
+    "ratio_hybrid_over_gpu_wall": 7.6404
+  },
+  "router_stats_observed": [
+    "first observed: GPU=4.4 tok/s (354 reqs), CPU=2.7 tok/s (2 reqs)",
+    "later: GPU=27.5 tok/s (499 reqs), CPU=2.7 tok/s (2 reqs)",
+    "in_flight=1/1 throughout, cpu_ratio=0.4-0.6%"
+  ],
+  "key_findings": {
+    "performance_regression": "Hybrid wall is 7.6x of GPU-only (106.66 s vs 13.96 s) and output_throughput drops to ~7.4% of GPU-only.",
+    "primary_cause_hypothesis": "VLLM_HYBRID_TRACE=1 + VLLM_HYBRID_TRACE_EVERY=1 produces a per-call log line on the API server side AND the CPU engine, plus dispatch/router/CPU-ATTN markers. With 500 reqs \u00d7 128 output tokens, this becomes thousands of log lines per second. Stdout I/O lock contention serialises through the API server's main thread, which is the same thread that ships responses to clients. GPU-only does not exercise hybrid_core / cpu_attn paths, so it is unaffected.",
+    "secondary": "CPU lane took only 2/501 reqs (capacity router default behavior with cpu-first when slot stays full). Mean GPU TPOT bloated from 22.4 ms (GPU-only) to 60.1 ms (hybrid) \u2014 direct evidence that the slowdown is in the hosting process, not the GPU executor.",
+    "abort_slot_leak": "not reproduced \u2014 500/500 success, in_flight=1/1 stable, no stuck slot.",
+    "cpu_attention_path": "ipex=7112 / custom_avx=0 / sdpa=0 \u2014 IPEX path consistent."
+  },
+  "implications": {
+    "trace_overhead": "VLLM_HYBRID_TRACE must be 0 (or VLLM_HYBRID_TRACE_EVERY must be large) for any production-quality benchmark. Trace is only safe for small smoke runs or for reading first-N marker emissions.",
+    "next_actions": [
+      "Re-run the same env with VLLM_HYBRID_TRACE=0 to measure the true capacity + cpu-first performance on 1.5B in=out=128.",
+      "Compare against the throughput-adaptive 500-prompt 1.5B (in/out=512) experiment that ran trace-off and matched gpu-only wall."
+    ]
+  }
+}
