@@ -415,7 +415,7 @@ except ImportError:
     sys.exit(0)
 
 results = []
-thread_counts = [8, 16, 24, 32, 48, 76]
+thread_counts = [8, 16, 24, 32, 48, 76, 96]
 model_name = "Qwen/Qwen2.5-1.5B-Instruct"  # 1.5B for speed (7B too slow for sweep)
 
 for nthreads in thread_counts:
