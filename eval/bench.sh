@@ -101,9 +101,11 @@ _TS="$(TZ=Asia/Seoul date '+%Y%m%d_%H%M%S')"
 _GPU_TYPE=""
 _GPU_COUNT="0"
 if command -v nvidia-smi &>/dev/null; then
-    _GPU_TYPE=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1 \
-        | sed 's/NVIDIA //;s/ /_/g')
-    _GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+    _GPU_LINES=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null || true)
+    if [[ -n "${_GPU_LINES}" ]]; then
+        _GPU_TYPE=$(echo "${_GPU_LINES}" | head -1 | sed 's/NVIDIA //;s/ /_/g')
+        _GPU_COUNT=$(echo "${_GPU_LINES}" | wc -l)
+    fi
 fi
 _GPU_TYPE="${_GPU_TYPE:-unknown}"
 _MODEL_SHORT="${MODEL##*/}"
