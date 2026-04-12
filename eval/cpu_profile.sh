@@ -13,7 +13,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-OUTDIR="${SCRIPT_DIR}/analysis_log/${TIMESTAMP}_cpu_profile"
+export OUTDIR="${SCRIPT_DIR}/analysis_log/${TIMESTAMP}_cpu_profile"
 mkdir -p "$OUTDIR"
 echo "=== CPU Profile Output: $OUTDIR ==="
 echo "=== Start: $(date) ==="
@@ -87,7 +87,8 @@ else:
     print('No SMT detected (1 thread per core)')
 
 cores_str = {f'{k[0]}_{k[1]}': v for k, v in core_map.items()}
-with open('$OUTDIR/core_topology.json', 'w') as f:
+_outdir = os.environ.get('OUTDIR', '/tmp')
+with open(os.path.join(_outdir, 'core_topology.json'), 'w') as f:
     json.dump({'cores': cores_str, 'smt_pairs': len(smt_pairs),
                'logical_cpus': len(topo), 'physical_cores': len(core_map)}, f, indent=2)
 " | tee "$OUTDIR/smt_detection.txt"
@@ -143,7 +144,7 @@ for name, M, K, N in gemm_configs:
         except Exception as e:
             print(f"  threads={nthreads}: ERROR {e}")
 
-with open(os.path.join("$OUTDIR", "gemm_scaling.json"), "w") as f:
+with open(os.path.join(os.environ.get("OUTDIR", "/tmp"), "gemm_scaling.json"), "w") as f:
     json.dump(results, f, indent=2)
 PYGEMM
 
@@ -196,7 +197,7 @@ for batch in batch_sizes:
         except Exception as e:
             print(f"  batch={batch} threads={nthreads}: ERROR {e}")
 
-with open(os.path.join("$OUTDIR", "attention_scaling.json"), "w") as f:
+with open(os.path.join(os.environ.get("OUTDIR", "/tmp"), "attention_scaling.json"), "w") as f:
     json.dump(results, f, indent=2)
 PYATTN
 
@@ -239,7 +240,7 @@ for size_mb in sizes_mb:
         except Exception as e:
             print(f"  threads={nthreads}: ERROR {e}")
 
-with open(os.path.join("$OUTDIR", "memory_bw.json"), "w") as f:
+with open(os.path.join(os.environ.get("OUTDIR", "/tmp"), "memory_bw.json"), "w") as f:
     json.dump(results, f, indent=2)
 PYSTREAM
 
@@ -372,7 +373,7 @@ for nthreads in thread_counts_to_test:
         import traceback; traceback.print_exc()
 
 if results:
-    with open(os.path.join("$OUTDIR", "layer_breakdown.json"), "w") as f:
+    with open(os.path.join(os.environ.get("OUTDIR", "/tmp"), "layer_breakdown.json"), "w") as f:
         json.dump(results, f, indent=2)
 
     if len(results) >= 2:
@@ -458,7 +459,7 @@ for nthreads in thread_counts:
         import traceback; traceback.print_exc()
 
 if results:
-    with open(os.path.join("$OUTDIR", "vllm_thread_sweep.json"), "w") as f:
+    with open(os.path.join(os.environ.get("OUTDIR", "/tmp"), "vllm_thread_sweep.json"), "w") as f:
         json.dump(results, f, indent=2)
 PYVLLM
 
