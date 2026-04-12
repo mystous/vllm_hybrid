@@ -276,9 +276,8 @@ for nthreads in thread_counts_to_test:
         print(f"Loading model with {nthreads} threads...")
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
         model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=torch.bfloat16, trust_remote_code=True,
-            device_map="cpu"
-        )
+            model_name, dtype=torch.bfloat16, trust_remote_code=True
+        ).to("cpu")
         model.eval()
 
         # Prepare input (simulate decode: batch=16, seq_len=1, past_kv exists)
