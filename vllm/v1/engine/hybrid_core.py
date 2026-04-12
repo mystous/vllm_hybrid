@@ -474,7 +474,18 @@ class CapacityAwareRouter:
         GPU 는 항상 받는다 (wave 와 무관하게 continuous).
         CPU wave 가 admit 불가면 전부 GPU 로 라우팅.
         Partial wave (BATCH 미만) 는 열지 않는다 — 나머지 GPU 행.
+
+        Cold-start gate: 첫 요청 (routed count = 0) 은 항상 GPU 로.
+        benchmark_serving.py 는 main burst 전에 1 건 "Initial test run"
+        probe 를 먼저 보내는데, 이게 CPU wave 에 admit 되면 probe 가
+        main bench 시작 전에 CPU 에서 혼자 돌아가면서 (a) monitor
+        첫 샘플부터 CPU 100% 가 찍혀 수치를 왜곡하고, (b) wave 가
+        "동시 시작" 이 아니라 "순차 admit" 이 되어 측정 해석이 꼬인다.
+        probe 를 GPU 로 보내서 bench 측정 정합성을 보장한다.
         """
+        if (self.gpu_count + self.cpu_count) == 0:
+            return self._to_gpu()
+
         cpu_idx = self._find_wave_open_cpu()
         if cpu_idx < 0:
             return self._to_gpu()
