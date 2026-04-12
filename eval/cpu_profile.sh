@@ -86,9 +86,10 @@ if smt_pairs:
 else:
     print('No SMT detected (1 thread per core)')
 
+cores_str = {f'{k[0]}_{k[1]}': v for k, v in core_map.items()}
 with open('$OUTDIR/core_topology.json', 'w') as f:
-    json.dump({'cores': dict(core_map), 'smt_pairs': len(smt_pairs),
-               'logical_cpus': len(topo), 'physical_cores': len(core_map)}, f, indent=2, default=str)
+    json.dump({'cores': cores_str, 'smt_pairs': len(smt_pairs),
+               'logical_cpus': len(topo), 'physical_cores': len(core_map)}, f, indent=2)
 " | tee "$OUTDIR/smt_detection.txt"
 
 
