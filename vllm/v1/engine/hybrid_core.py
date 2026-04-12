@@ -152,6 +152,11 @@ class CapacityAwareRouter:
     - capacity: 단순 슬롯 기반 (기본값, 기존 동작)
     - length-aware: 프롬프트 길이 고려 — 긴 프롬프트는 GPU, 짧은 것만 CPU
     - throughput-adaptive: EMA 처리량 기반 동적 CPU 슬롯 조정
+    - round-robin: 교대 분배
+    - wave-batch: CPU 는 cpu_max_num_seqs 크기의 wave 단위로만 받는다.
+      wave 가 꽉 차면 더 이상 CPU 로 안 보내고, wave 의 모든 request 가
+      완료되면 다음 wave 를 연다. BATCH_SIZE 미만의 미완성 wave 는 열지
+      않는다 (partial wave 무시). CPU matmul batching 의 효과 측정용.
 
     실시간 처리량 모니터링: 요청 시작/완료 시간과 생성 토큰 수를 추적하여
     GPU/CPU 각각의 실측 처리량(tok/s)을 계산합니다.
@@ -220,6 +225,15 @@ class CapacityAwareRouter:
         self._stats_log_interval = stats_log_interval
         self._total_finished: int = 0
 
+        # wave-batch 전략 상태 (per-engine).
+        # wave 의 "기대 크기" = cpu_max_num_seqs (forward pass batch M-dim).
+        # accepted: 현재 wave 에 admit 된 request 수 (wave 열릴 때 0)
+        # closed: wave 가 BATCH_SIZE 로 가득 차 "닫혔는가" — True 면 더
+        #         이상 admit 안 하고, in_flight 가 0 으로 떨어질 때까지 대기
+        # 완료 조건: closed AND per-engine in_flight == 0 → 다음 wave 열림
+        self._cpu_wave_accepted: list[int] = [0] * self.num_cpu_engines
+        self._cpu_wave_closed: list[bool] = [False] * self.num_cpu_engines
+
         logger.info(
             "CapacityAwareRouter initialized: gpu_max_num_seqs=%d, "
             "cpu_max_num_seqs=%d (per-engine), num_cpu_engines=%d, "
@@ -267,6 +281,8 @@ class CapacityAwareRouter:
             result = self._route_length_aware(request_id, prompt_len)
         elif self.routing_strategy == "throughput-adaptive":
             result = self._route_throughput_adaptive(request_id, prompt_len)
+        elif self.routing_strategy == "wave-batch":
+            result = self._route_wave_batch(request_id)
         else:  # "capacity" (기본)
             result = self._route_capacity(request_id)
 
@@ -377,17 +393,24 @@ class CapacityAwareRouter:
 
     def _route_throughput_adaptive(self, request_id: str,
                                    prompt_len: int) -> str:
-        """EMA 기반 expected-finish-time 비교 라우팅 (Property 2 구현).
+        """EMA warmup 을 위한 단순 capacity 라우팅.
 
-        CPU 로 보내는 결정 기준: **expected CPU finish time < expected GPU
-        wait time**. CPU 가 GPU 보다 빨리 끝낼 수 있는 경우에만 CPU 로 라우팅.
-        그 외에는 GPU. 이는 paper §3 Property 2 ("CPU 는 GPU 의 보완") 의
-        직접 구현이고, CPU 가 GPU 대비 훨씬 느린 환경 (H100 + 작은 모델)
-        에서 CPU 가 long-tail 로 wall time 을 망치는 회귀를 막는다.
+        결정 로직 (사용자 확정 — 이전의 per-req 비교는 H100 에서 항상
+        "CPU loses" 를 만들어 0 dispatch 회귀를 일으켰음):
 
-        Cold start (no EMA): default to GPU. 첫 요청을 CPU 로 blind probing
-        하면 CPU 의 첫 inference latency (~수십 초) 가 그대로 wall 에 들어가
-        benchmark probe 가 멈춘 것처럼 보이는 증상을 방지.
+        1. **Cold start (test run probe)**: `gpu_ema <= 0` 이면 무조건 GPU.
+           benchmark_serving.py 가 main bench 전 보내는 1 건 probe 가
+           CPU 로 blind dispatch 돼서 47 초 stall 하는 회귀를 차단.
+        2. **Post cold start**: capacity 만 확인.
+           - cpu-first: CPU slot 있고 prompt 가 threshold 이하면 CPU, 없으면 GPU
+           - gpu-first: GPU 포화 + CPU slot 있으면 CPU, 아니면 GPU
+
+        expected-finish time 비교는 하지 않는다. 그 비교는 "CPU per-req 가
+        GPU per-req 보다 느리면 CPU 영원히 배제" 로 축소돼서 paper 의
+        `T_hybrid = T_GPU + α·T_CPU` 에서 α=0 을 만든다. CPU 가 slot 이
+        있으면 GPU 와 병렬로 자기 몫을 처리하도록 두고, wall time 이
+        늘어날 가능성은 감수한다 (wave-batch strategy 와 조합해서 CPU
+        batching 으로 보완 가능).
         """
         effective_max = self._adaptive_cpu_max_seqs
         cpu_capacity_ok = (
@@ -399,48 +422,77 @@ class CapacityAwareRouter:
         if self._gpu_ema_throughput <= 0.0:
             return self._to_gpu()
 
-        if not cpu_capacity_ok:
-            return self._to_gpu()
-
-        # Per-request expected throughput (tok/s/req).
-        # cpu_throughput / cpu_in_flight ≈ 1 (max_num_seqs=1) 이라
-        # cpu_per_req = cpu_throughput.
-        cpu_per_req = max(self._cpu_ema_throughput, 1e-6)
-        # GPU 는 batch 로 돌려 aggregate throughput 이 큼. per-req 는 aggregate
-        # / 평균 동시 in-flight. EMA 는 per-finished-request elapsed 의 합으로
-        # 계산되어 있어 이미 per-req 분모가 들어가 있음 → 그대로 사용.
-        gpu_per_req = max(self._gpu_ema_throughput, 1e-6)
-
-        # 출력 길이 평균은 알 수 없으므로 256 (vLLM custom default) 가정.
-        # 분자는 CPU/GPU 양쪽에서 같은 값이라 비교 결과에 영향 없음.
-        avg_output = 256.0
-
-        # Expected CPU finish: serial through CPU engine.
-        # cpu_in_flight + 1 = 새로 들어갈 자기 자신 포함.
-        cpu_finish = (self.cpu_in_flight + 1) * (avg_output / cpu_per_req)
-
-        # Expected GPU finish: GPU 는 batch 로 돌아가므로 큐에 쌓여도
-        # 자신의 wait 는 ceil((gpu_in_flight + 1) / gpu_max_num_seqs) 배치 후.
-        gpu_batches_ahead = max(1, (self.gpu_in_flight + 1)
-                                // max(1, self.gpu_max_num_seqs))
-        gpu_finish = gpu_batches_ahead * (avg_output / gpu_per_req)
-
         if self.cpu_first:
-            # CPU-first 의 의도: "가능하면 CPU". 그러나 Property 2 위배 시
-            # (CPU 가 GPU 보다 늦게 끝남) 강제로 GPU 로 보내야 long-tail 회피.
-            if cpu_finish <= gpu_finish:
+            if cpu_capacity_ok:
                 result = self._to_cpu()
                 if result is not None:
                     return result
             return self._to_gpu()
         else:
-            # GPU-first: GPU 포화 + CPU 가 더 빠를 때만 CPU.
+            # GPU-first: GPU 포화일 때만 CPU 로 overflow.
             if (self.gpu_in_flight >= self.gpu_max_num_seqs
-                    and cpu_finish < gpu_finish):
+                    and cpu_capacity_ok):
                 result = self._to_cpu()
                 if result is not None:
                     return result
             return self._to_gpu()
+
+    def _find_wave_open_cpu(self) -> int:
+        """wave-batch: wave 가 아직 열려 있고 admit 여력이 있는 engine 반환.
+
+        반환: engine index (0-based) 또는 -1 (admit 가능한 engine 없음).
+
+        규칙:
+        - 해당 engine 의 wave 가 closed → admit 불가
+        - wave_accepted < cpu_max_num_seqs → admit 가능
+        - 여러 engine 이 가능하면 wave_accepted 가 가장 작은 engine 선택
+          (wave 를 동시에 균일하게 채워 BATCH 완성 타이밍 동기화)
+        """
+        best_idx = -1
+        best_accepted = self.cpu_max_num_seqs + 1
+        for i in range(self.num_cpu_engines):
+            if self._cpu_wave_closed[i]:
+                continue
+            if self._cpu_wave_accepted[i] >= self.cpu_max_num_seqs:
+                # 방어: closed flag 가 늦게 set 됐을 가능성
+                continue
+            if self._cpu_wave_accepted[i] < best_accepted:
+                best_accepted = self._cpu_wave_accepted[i]
+                best_idx = i
+        return best_idx
+
+    def _route_wave_batch(self, request_id: str) -> str:
+        """wave-batch 전략: cpu_max_num_seqs 크기의 closed wave 단위 dispatch.
+
+        Wave lifecycle (per CPU engine):
+            open   : accepted=0, closed=False, in_flight=0
+            admitting: 0 < accepted < BATCH, closed=False  → 계속 admit
+            full   : accepted == BATCH → closed=True, 더 이상 admit X
+            draining: closed=True, in_flight > 0  → wave 소화 중
+            complete: closed=True, in_flight == 0 → reset, 다음 wave open
+
+        GPU 는 항상 받는다 (wave 와 무관하게 continuous).
+        CPU wave 가 admit 불가면 전부 GPU 로 라우팅.
+        Partial wave (BATCH 미만) 는 열지 않는다 — 나머지 GPU 행.
+        """
+        cpu_idx = self._find_wave_open_cpu()
+        if cpu_idx < 0:
+            return self._to_gpu()
+
+        # admit to CPU wave
+        self._cpu_states[cpu_idx]["in_flight"] += 1
+        self._cpu_states[cpu_idx]["count"] += 1
+        self.cpu_in_flight += 1
+        self.cpu_count += 1
+        self._cpu_wave_accepted[cpu_idx] += 1
+        if self._cpu_wave_accepted[cpu_idx] >= self.cpu_max_num_seqs:
+            self._cpu_wave_closed[cpu_idx] = True
+            logger.info(
+                "[HYBRID-WAVE] engine=%d wave closed (accepted=%d, "
+                "batch_size=%d) — no more admit until drain",
+                cpu_idx, self._cpu_wave_accepted[cpu_idx],
+                self.cpu_max_num_seqs)
+        return f"cpu:{cpu_idx}"
 
     def on_request_finished(self, request_id: str, engine_path: str,
                             num_tokens: int = 0):
@@ -467,6 +519,20 @@ class CapacityAwareRouter:
                 self._cpu_states[cpu_idx]["in_flight"] = max(
                     0, self._cpu_states[cpu_idx]["in_flight"] - 1)
             self.cpu_in_flight = max(0, self.cpu_in_flight - 1)
+
+            # wave-batch: wave 가 closed 이고 in_flight=0 이면 drain 완료 →
+            # 다음 wave 를 연다. partial wave (accepted<BATCH) 상태는
+            # 그대로 두어 추가 admit 을 계속 받도록 한다.
+            if (self.routing_strategy == "wave-batch"
+                    and 0 <= cpu_idx < self.num_cpu_engines):
+                if (self._cpu_wave_closed[cpu_idx]
+                        and self._cpu_states[cpu_idx]["in_flight"] == 0):
+                    logger.info(
+                        "[HYBRID-WAVE] engine=%d wave drained "
+                        "(accepted=%d) → reset, next wave open",
+                        cpu_idx, self._cpu_wave_accepted[cpu_idx])
+                    self._cpu_wave_accepted[cpu_idx] = 0
+                    self._cpu_wave_closed[cpu_idx] = False
         else:
             self.gpu_in_flight = max(0, self.gpu_in_flight - 1)
 
@@ -753,11 +819,20 @@ def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
     except Exception as e:
         logger.debug("NUMA topology detection failed: %s", e)
 
-    # effective_cores: NUMA 바인딩 시 해당 노드 코어, 아니면 전체
+    # effective_cores: NUMA 바인딩 시 해당 노드 코어, 아니면 전체.
+    # core_ratio 를 적용해 실제로 사용할 코어 수로 축소 (1.0 = 전부).
     if hybrid_config.numa_aware and numa_node_cores is not None:
-        effective_cores = numa_node_cores
+        numa_cores_available = numa_node_cores
     else:
-        effective_cores = physical_cores
+        numa_cores_available = physical_cores
+
+    core_ratio = float(getattr(hybrid_config, "cpu_core_ratio", 1.0) or 1.0)
+    if not 0.0 < core_ratio <= 1.0:
+        logger.warning(
+            "[HYBRID-RESOLVE] invalid cpu_core_ratio=%s, clamped to 1.0",
+            core_ratio)
+        core_ratio = 1.0
+    effective_cores = max(1, int(numa_cores_available * core_ratio))
 
     # effective_mem: NUMA 바인딩 시 해당 노드 메모리, 아니면 전체
     if hybrid_config.numa_aware and numa_node_mem_gb is not None:
@@ -765,28 +840,20 @@ def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
     else:
         effective_mem_gb = total_mem_gb
 
-    # cpu_num_threads: 유효 코어 수 전부 사용 (코어 낭비 없음)
+    # cpu_num_threads: 유효 코어 수 전부 사용 (코어 낭비 없음).
+    # 사용자가 cpu_num_threads 를 명시하면 그 값을 그대로 사용하고
+    # core_ratio 는 무시한다 (두 knob 충돌 방지).
     if hybrid_config.cpu_num_threads > 0:
         cpu_num_threads = hybrid_config.cpu_num_threads
     else:
         cpu_num_threads = effective_cores
 
-    # cpu_max_num_seqs: 엔진당 항상 1 (고정, NUMA 노드당 엔진 1개 설계).
-    # 핵심 원칙: 1 시퀀스가 해당 NUMA 노드의 모든 물리 코어에 OMP + BLAS로
-    # matmul 병렬 분산되어 최대 속도로 처리된다. batch를 만들면 false sharing
-    # 과 per-thread work 감소로 오히려 느려진다. num_cpu_engines가 NUMA 수와
-    # 같도록 launch_hybrid_engines가 보장하므로, 총 CPU 동시 시퀀스 수는
-    # num_numa × 1 = num_numa 가 된다.
-    # 수동 override(hybrid_config.cpu_max_num_seqs > 0)는 허용하되 경고.
+    # cpu_max_num_seqs: 한 forward pass 의 batch M-dim = 뭉쳐서 처리할 req 수.
+    # 기본값 1 (bring-up default: batching 비활성화). >1 로 두면 weight DRAM
+    # 로드를 여러 request 가 공유해 throughput 이 M 배에 가깝게 증가.
+    # 총 CPU 동시 시퀀스 = cpu_max_num_seqs × num_cpu_engines.
     if hybrid_config.cpu_max_num_seqs > 0:
         cpu_max_num_seqs = hybrid_config.cpu_max_num_seqs
-        if cpu_max_num_seqs != 1:
-            logger.warning(
-                "[HYBRID-RESOLVE] cpu_max_num_seqs=%d is a manual override; "
-                "the design principle is 1 per CPU engine (each sequence "
-                "saturates the whole NUMA node via OMP). Total concurrent "
-                "CPU seqs should equal num_cpu_engines = num_numa_nodes.",
-                cpu_max_num_seqs)
     else:
         cpu_max_num_seqs = 1
 
@@ -811,13 +878,16 @@ def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
 
     logger.info(
         "[HYBRID-RESOLVE] max_seqs=%d threads=%d kvcache=%dGB "
-        "batched_tokens=%d | effective_cores=%d (physical=%d) "
-        "numa_nodes=%d effective_mem=%.0fGB (total=%.0fGB) "
-        "user_overrides: max_seqs=%s threads=%s kvcache=%s",
+        "batched_tokens=%d | numa_cores_available=%d core_ratio=%.2f "
+        "effective_cores=%d (physical=%d) numa_nodes=%d "
+        "effective_mem=%.0fGB (total=%.0fGB) "
+        "user_overrides: max_seqs=%s threads=%s core_ratio=%s kvcache=%s",
         resolved.cpu_max_num_seqs,
         resolved.cpu_num_threads,
         resolved.cpu_kvcache_space_gb,
         resolved.cpu_max_num_batched_tokens,
+        numa_cores_available,
+        core_ratio,
         effective_cores,
         physical_cores,
         numa_num_nodes,
@@ -825,6 +895,7 @@ def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
         total_mem_gb,
         hybrid_config.cpu_max_num_seqs or "auto",
         hybrid_config.cpu_num_threads or "auto",
+        hybrid_config.cpu_core_ratio,
         hybrid_config.cpu_kvcache_space_gb or "auto",
     )
 
@@ -1029,18 +1100,27 @@ def _create_cpu_vllm_config(
     cpu_cache.cpu_kvcache_space_bytes = resolved.cpu_kvcache_space_gb * (
         1024**3)
 
-    # 4. SchedulerConfig: CPU 처리량에 맞는 제한 (자동 감지값 사용)
+    # 4. SchedulerConfig: CPU 처리량에 맞는 제한 (자동 감지값 사용).
+    # CPU scheduler 의 max_num_seqs 는 "한 forward pass 에 batch 로 뭉칠
+    # request 수". vLLM V1 scheduler 는 running pool 에서 매 step 이 값을
+    # 상한으로 batched forward 를 돌린다. cpu_max_num_seqs=16 이면 16 개가
+    # 한 matmul 에 M-dim 으로 투입된다.
     cpu_sched = copy.deepcopy(gpu_config.scheduler_config)
     cpu_sched.max_num_seqs = resolved.cpu_max_num_seqs
     # CPU에서 chunked prefill 비활성화: decode와 interleave되면
     # 매 step마다 prefill chunk 처리로 decode가 극심하게 느려짐
     cpu_sched.enable_chunked_prefill = False
     cpu_sched.chunked_prefill_enabled = False
-    # chunked prefill 끄면 max_num_batched_tokens >= max_model_len 필수
-    # CPU에서는 max_model_len을 제한하여 메모리와 지연 시간 관리
+    # chunked prefill 끄면 max_num_batched_tokens >= max_model_len 필수.
+    # max_num_batched_tokens 는 "batch 전체 토큰 수" 이므로 max_seqs 와
+    # 독립적으로 해석: 한 번의 forward 가 처리할 수 있는 총 token 수.
+    # prefill batch 를 수용하려면 >= max_model_len 이어야 하고,
+    # max_seqs 개 request 가 전부 prefill 인 최악의 경우에는
+    # >= max_model_len (prefill 은 자동으로 seq 하나씩 schedule 되므로
+    # 한 step 에 다 들어가진 않지만 안전하게 max_model_len 으로 상한).
     cpu_max_model_len = min(
         gpu_config.model_config.max_model_len,
-        resolved.cpu_max_num_batched_tokens * resolved.cpu_max_num_seqs
+        max(resolved.cpu_max_num_batched_tokens, 2048)
     )
     cpu_sched.max_num_batched_tokens = max(
         resolved.cpu_max_num_batched_tokens, cpu_max_model_len)

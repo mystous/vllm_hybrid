@@ -410,6 +410,8 @@ class EngineArgs:
     hybrid_cpu_ratio: Optional[float] = None
     """CPU batch ratio for parallel-batch mode (None for auto-profiling)."""
     hybrid_cpu_threads: int = 0
+
+    hybrid_cpu_core_ratio: float = 1.0
     """Number of CPU threads for hybrid execution (0=auto-detect)."""
 
     hybrid_numa_aware: bool = True
@@ -938,6 +940,15 @@ class EngineArgs:
                  "0 means auto-detect from physical core count. (default: 0)"
         )
         hybrid_group.add_argument(
+            '--hybrid-cpu-core-ratio',
+            type=float,
+            default=1.0,
+            help="Fraction of NUMA node physical cores the CPU engine will "
+                 "actually use (0<r<=1). 1.0 = all cores, 0.9 = 90%% of "
+                 "cores. Only applies when --hybrid-cpu-threads is 0 (auto). "
+                 "(default: 1.0)"
+        )
+        hybrid_group.add_argument(
             '--hybrid-numa-aware',
             action='store_true',
             default=True,
@@ -967,8 +978,12 @@ class EngineArgs:
             '--hybrid-cpu-max-seqs',
             type=int,
             default=0,
-            help="Max concurrent sequences for CPU path. "
-                 "0 means auto-detect from core count. (default: 0)"
+            help="Per-CPU-engine forward-pass batch size = number of "
+                 "requests bundled into one matmul (M-dim). All cores of "
+                 "the NUMA node work on that single batched matmul, "
+                 "amortizing weight DRAM load across M requests. "
+                 "0 means 1 (batching disabled, bring-up default). "
+                 "(default: 0)"
         )
         hybrid_group.add_argument(
             '--hybrid-cpu-max-batched-tokens',
@@ -982,11 +997,14 @@ class EngineArgs:
             type=str,
             default="capacity",
             choices=["capacity", "length-aware", "throughput-adaptive",
-                     "round-robin"],
+                     "round-robin", "wave-batch"],
             help="Routing strategy: 'capacity' (slot-based), "
                  "'length-aware' (filter long prompts to GPU), "
                  "'throughput-adaptive' (EMA-based dynamic adjustment), "
-                 "'round-robin' (alternate GPU/CPU). "
+                 "'round-robin' (alternate GPU/CPU), "
+                 "'wave-batch' (fill CPU with a wave of cpu_max_num_seqs "
+                 "requests, wait for the whole wave to finish, then fill "
+                 "next wave — intended for CPU batched matmul test runs). "
                  "(default: capacity)"
         )
         hybrid_group.add_argument(
@@ -1530,6 +1548,7 @@ class EngineArgs:
             mode=self.hybrid_mode,
             cpu_ratio=self.hybrid_cpu_ratio,
             cpu_num_threads=self.hybrid_cpu_threads,
+            cpu_core_ratio=self.hybrid_cpu_core_ratio,
             numa_aware=self.hybrid_numa_aware,
             numa_bind_node=self.hybrid_numa_node,
             cpu_kvcache_space_gb=self.hybrid_cpu_kvcache_gb,

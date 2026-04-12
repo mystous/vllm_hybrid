@@ -4605,6 +4605,12 @@ class HybridConfig:
     cpu_num_threads: int = 0
     """CPU 워커 스레드 수. 0이면 물리 코어 수 기반 자동 감지."""
 
+    cpu_core_ratio: float = 1.0
+    """NUMA 노드 물리 코어 중 CPU 엔진이 실제로 사용할 비율 (0<r<=1).
+    1.0 = 노드의 모든 물리 코어 사용, 0.9 = 90% 만 사용. OMP 1:1 pin 에
+    넘겨지는 core ID 목록이 그만큼 짧아진다. cpu_num_threads 가 명시적으로
+    설정되면 그 값이 우선하고 ratio 는 무시된다."""
+
     cpu_dtype: str = "bfloat16"
     """CPU 모델 데이터 타입 (bfloat16, float16, int8)."""
 
@@ -4640,7 +4646,11 @@ class HybridConfig:
     """CPU KV cache에 할당할 메모리 (GB). 0이면 시스템 메모리 기반 자동 감지."""
 
     cpu_max_num_seqs: int = 0
-    """CPU 경로의 최대 동시 시퀀스 수. 0이면 CPU 코어 수 기반 자동 감지."""
+    """CPU 엔진 당 한 forward pass 의 batch 크기 (= 동시에 뭉쳐서 처리할
+    request 수). 모든 코어가 이 batch 의 한 matmul (M-dim=cpu_max_num_seqs)
+    에 투입된다. 0 이면 1 (bring-up default, CPU batching 비활성화 효과).
+    >1 로 두면 weight DRAM 로드를 여러 request 가 공유해 throughput 이
+    M 배에 가깝게 증가한다. 총 CPU 동시 시퀀스 = cpu_max_num_seqs × num_cpu_engines."""
 
     cpu_max_num_batched_tokens: int = 0
     """CPU 경로의 최대 배치 토큰 수. 0이면 cpu_max_num_seqs * 256."""
@@ -4674,7 +4684,7 @@ class HybridConfig:
 
     def __post_init__(self):
         valid_strategies = ("capacity", "length-aware", "throughput-adaptive",
-                            "round-robin")
+                            "round-robin", "wave-batch")
         if self.routing_strategy not in valid_strategies:
             raise ValueError(
                 f"routing_strategy must be one of {valid_strategies}, "
@@ -4690,6 +4700,10 @@ class HybridConfig:
             raise ValueError(
                 f"cpu_prefill_threshold must be >= 1, "
                 f"got {self.cpu_prefill_threshold}"
+            )
+        if not 0.0 < self.cpu_core_ratio <= 1.0:
+            raise ValueError(
+                f"cpu_core_ratio must be in (0, 1], got {self.cpu_core_ratio}"
             )
 
         if self.mode == "parallel-batch":

@@ -757,6 +757,26 @@ class CPUWorker(Worker):
         if reserve_cpu_num != 0:
             logical_cpu_list = logical_cpu_list[:-reserve_cpu_num]
 
+        # Apply hybrid_config.cpu_core_ratio (0<r<=1): clip the front part
+        # of the physical-core list to use only ratio × cores. The C++
+        # init_cpu_threads_env pins one OMP thread to each of the returned
+        # cores, so shortening the list directly reduces the number of
+        # cores the CPU engine actually uses. Leaves the remaining NUMA
+        # cores idle for main thread / other processes.
+        try:
+            hc = getattr(self.vllm_config, 'hybrid_config', None)
+            ratio = float(getattr(hc, 'cpu_core_ratio', 1.0) or 1.0)
+        except Exception:
+            ratio = 1.0
+        if 0.0 < ratio < 1.0 and len(logical_cpu_list) > 1:
+            keep = max(1, int(len(logical_cpu_list) * ratio))
+            dropped = len(logical_cpu_list) - keep
+            logical_cpu_list = logical_cpu_list[:keep]
+            logger.info(
+                "[HYBRID-CPU-WORKER] cpu_core_ratio=%.2f → keep %d / "
+                "drop %d physical cores (NUMA %d)",
+                ratio, keep, dropped, selected_numa_node)
+
         logger.info("auto thread-binding list (id, physical core): %s",
                     [(x.id, x.physical_core) for x in logical_cpu_list])
         return ",".join([str(x.id) for x in logical_cpu_list])

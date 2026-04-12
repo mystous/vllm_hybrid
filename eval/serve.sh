@@ -86,6 +86,7 @@ elif [[ "${MODE}" == "hybrid" ]]; then
     CPU_MAX_SEQS_ARG=""
     CPU_KVCACHE_ARG=""
     CPU_THREADS_ARG=""
+    CPU_CORE_RATIO_ARG=""
     CPU_ENGINES_ARG=""
     CPU_MAX_BATCHED_TOKENS_ARG=""
     CPU_PREFILL_THRESHOLD_ARG=""
@@ -99,6 +100,9 @@ elif [[ "${MODE}" == "hybrid" ]]; then
     fi
     if [[ "${HYBRID_CPU_THREADS:-0}" -gt 0 ]]; then
         CPU_THREADS_ARG="--hybrid-cpu-threads ${HYBRID_CPU_THREADS}"
+    fi
+    if [[ -n "${HYBRID_CPU_CORE_RATIO:-}" ]]; then
+        CPU_CORE_RATIO_ARG="--hybrid-cpu-core-ratio ${HYBRID_CPU_CORE_RATIO}"
     fi
     if [[ "${HYBRID_NUM_CPU_ENGINES:-1}" -gt 1 ]]; then
         CPU_ENGINES_ARG="--hybrid-num-cpu-engines ${HYBRID_NUM_CPU_ENGINES}"
@@ -126,6 +130,7 @@ elif [[ "${MODE}" == "hybrid" ]]; then
         ${CPU_MAX_SEQS_ARG} \
         ${CPU_KVCACHE_ARG} \
         ${CPU_THREADS_ARG} \
+        ${CPU_CORE_RATIO_ARG} \
         ${CPU_ENGINES_ARG} \
         ${CPU_MAX_BATCHED_TOKENS_ARG} \
         ${CPU_PREFILL_THRESHOLD_ARG} \
