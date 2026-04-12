@@ -1,0 +1,30 @@
+=== Attention: batched Q×K^T + score×V (simulated) ===
+(Pure torch SDPA, not IPEX — measures compute+BW scaling)
+  batch= 1 threads=  4: 0.032 ms
+  batch= 1 threads=  8: 0.027 ms
+  batch= 1 threads= 16: 0.029 ms
+  batch= 1 threads= 24: 0.030 ms
+  batch= 1 threads= 48: 0.034 ms
+  batch= 1 threads= 76: 0.035 ms
+  batch= 1 threads= 96: 4.625 ms
+  batch= 4 threads=  4: 0.054 ms
+  batch= 4 threads=  8: 0.037 ms
+  batch= 4 threads= 16: 0.032 ms
+  batch= 4 threads= 24: 0.032 ms
+  batch= 4 threads= 48: 0.034 ms
+  batch= 4 threads= 76: 0.037 ms
+  batch= 4 threads= 96: 0.545 ms
+  batch= 8 threads=  4: 0.086 ms
+  batch= 8 threads=  8: 0.063 ms
+  batch= 8 threads= 16: 0.044 ms
+  batch= 8 threads= 24: 0.048 ms
+  batch= 8 threads= 48: 0.035 ms
+  batch= 8 threads= 76: 0.039 ms
+  batch= 8 threads= 96: 2.485 ms
+  batch=16 threads=  4: 0.155 ms
+  batch=16 threads=  8: 0.118 ms
+  batch=16 threads= 16: 0.062 ms
+  batch=16 threads= 24: 0.054 ms
+  batch=16 threads= 48: 0.047 ms
+  batch=16 threads= 76: 0.042 ms
+  batch=16 threads= 96: 0.050 ms
