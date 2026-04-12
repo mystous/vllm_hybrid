@@ -357,7 +357,7 @@ WALL_START=$(date +%s.%N)
 start_monitor
 
 log "--- Running benchmark ---"
-python "${VLLM_ROOT}/benchmarks/benchmark_serving.py" \
+python -u "${VLLM_ROOT}/benchmarks/benchmark_serving.py" \
     --backend vllm \
     --base-url "http://localhost:${PORT}" \
     --model "${MODEL}" \

@@ -1,0 +1,239 @@
+{
+  "generated_at": "2026-04-12T13:44:05.946344+09:00",
+  "runs": [
+    {
+      "index": 0,
+      "label": "gpu_only | Qwen2.5-7B-Instruct",
+      "dir": "20260412_043829_G_H100_80GB_HBM3_x1_Qwen2.5-7B-Instruct",
+      "mode": "gpu_only",
+      "hybrid_config": {
+        "routing_strategy": "wave-batch",
+        "routing_priority": "cpu-first",
+        "cpu_max_seqs": "16",
+        "cpu_kvcache_gb": "0",
+        "cpu_threads": "0",
+        "numa_aware": "true",
+        "num_cpu_engines": "0",
+        "stats_log_interval": "25"
+      },
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "cpu": "Intel(R) Xeon(R) Platinum 8480+"
+    },
+    {
+      "index": 1,
+      "label": "hybrid wave-batch(cpu-first) seqs=16 | Qwen2.5-7B-Instruct",
+      "dir": "20260412_044201_H_C_H100_80GB_HBM3_x1_Qwen2.5-7B-Instruct",
+      "mode": "hybrid",
+      "hybrid_config": {
+        "routing_strategy": "wave-batch",
+        "routing_priority": "cpu-first",
+        "cpu_max_seqs": "16",
+        "cpu_kvcache_gb": "0",
+        "cpu_threads": "0",
+        "numa_aware": "true",
+        "num_cpu_engines": "0",
+        "stats_log_interval": "25"
+      },
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "cpu": "Intel(R) Xeon(R) Platinum 8480+"
+    }
+  ],
+  "metrics": {
+    "wall_time_s": {
+      "label": "Wall Time (s)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 16.55
+        },
+        {
+          "run": 1,
+          "value": 65.43
+        }
+      ]
+    },
+    "request_throughput": {
+      "label": "Req TP (req/s)",
+      "direction": "higher_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 103.82892180485587
+        },
+        {
+          "run": 1,
+          "value": 9.342615939408415
+        }
+      ]
+    },
+    "output_throughput": {
+      "label": "Out TP (tok/s)",
+      "direction": "higher_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 12952.86565299938
+        },
+        {
+          "run": 1,
+          "value": 1167.490658252233
+        }
+      ]
+    },
+    "total_token_throughput": {
+      "label": "Total TP (tok/s)",
+      "direction": "higher_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 26180.46263309441
+        },
+        {
+          "run": 1,
+          "value": 2357.721243700986
+        }
+      ]
+    },
+    "duration": {
+      "label": "Duration (s)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 4.815613909000604
+        },
+        {
+          "run": 1,
+          "value": 53.518201244999545
+        }
+      ]
+    },
+    "mean_ttft_ms": {
+      "label": "Mean TTFT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 1309.1290078800212
+        },
+        {
+          "run": 1,
+          "value": 2148.7309977380137
+        }
+      ]
+    },
+    "median_ttft_ms": {
+      "label": "Median TTFT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 1391.4797329998692
+        },
+        {
+          "run": 1,
+          "value": 1798.4193790002792
+        }
+      ]
+    },
+    "p99_ttft_ms": {
+      "label": "P99 TTFT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 1988.9241228801166
+        },
+        {
+          "run": 1,
+          "value": 12498.440769419713
+        }
+      ]
+    },
+    "mean_tpot_ms": {
+      "label": "Mean TPOT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 28.33922923720473
+        },
+        {
+          "run": 1,
+          "value": 91.24958588421113
+        }
+      ]
+    },
+    "median_tpot_ms": {
+      "label": "Median TPOT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 26.150257586613318
+        },
+        {
+          "run": 1,
+          "value": 82.72389501181301
+        }
+      ]
+    },
+    "p99_tpot_ms": {
+      "label": "P99 TPOT (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 76.31352649164492
+        },
+        {
+          "run": 1,
+          "value": 322.9352668555121
+        }
+      ]
+    },
+    "mean_itl_ms": {
+      "label": "Mean ITL (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 26.783731542972877
+        },
+        {
+          "run": 1,
+          "value": 90.49931297050361
+        }
+      ]
+    },
+    "median_itl_ms": {
+      "label": "Median ITL (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 21.768575999885798
+        },
+        {
+          "run": 1,
+          "value": 77.8475049996814
+        }
+      ]
+    },
+    "p99_itl_ms": {
+      "label": "P99 ITL (ms)",
+      "direction": "lower_better",
+      "values": [
+        {
+          "run": 0,
+          "value": 195.5532311200295
+        },
+        {
+          "run": 1,
+          "value": 337.27525463003076
+        }
+      ]
+    }
+  }
+}
