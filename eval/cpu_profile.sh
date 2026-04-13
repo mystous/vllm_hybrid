@@ -107,7 +107,7 @@ import torch, time, json, os
 
 results = []
 
-# 7B Qwen2.5 의 주요 GEMM 크기들
+# 7B Qwen2.5 크기 기준 GEMM (모델 로드 없이 텐서만 생성)
 gemm_configs = [
     ("decode_qkv",   16, 3584, 3584),    # QKV proj, batch=16
     ("decode_ffn_up", 16, 3584, 9728),   # Gate+Up proj, batch=16
@@ -116,7 +116,7 @@ gemm_configs = [
     ("prefill_128",  128, 3584, 9728),   # Prefill 128 tokens
 ]
 
-thread_counts = [4, 8, 12, 16, 24, 32, 48, 64, 76, 96]
+thread_counts = [4, 8, 12, 16, 24, 32, 48, 64, 76, 96, 112]
 
 for name, M, K, N in gemm_configs:
     print(f"\n--- GEMM: {name} [{M}x{K}] × [{K}x{N}] ---")
@@ -215,7 +215,7 @@ import torch, time, json, os
 
 results = []
 sizes_mb = [64, 256, 1024]  # 64MB, 256MB, 1GB
-thread_counts = [1, 4, 8, 16, 24, 48, 76, 96]
+thread_counts = [1, 4, 8, 16, 24, 48, 76, 96, 112]
 
 for size_mb in sizes_mb:
     n = size_mb * 1024 * 1024 // 4  # float32 elements
@@ -250,7 +250,7 @@ PYSTREAM
 # ─────────────────────────────────────────────────────────────────────────────
 echo ""
 echo "================================================================"
-echo "SECTION 5: Per-Layer Time Breakdown (actual 7B model)"
+echo "SECTION 5: Per-Layer Time Breakdown (actual 1.5B model)"
 echo "================================================================"
 echo "(이 섹션은 모델 로드 필요, 3-5분 소요)"
 
