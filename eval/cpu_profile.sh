@@ -161,12 +161,12 @@ python3 << 'PYATTN' | tee "$OUTDIR/attention_scaling.txt"
 import torch, time, json, os
 
 results = []
-# 7B Qwen2.5: num_heads=28, num_kv_heads=4, head_dim=128
-num_kv_heads = 4
-head_dim = 128
+# 1.5B Qwen2.5: num_heads=12, num_kv_heads=2, head_dim=64 (GQA 6:1)
+num_kv_heads = 2
+head_dim = 64
 seq_len = 256  # typical decode position
 batch_sizes = [1, 4, 8, 16]
-thread_counts = [4, 8, 16, 24, 48, 76, 96]
+thread_counts = [4, 8, 16, 24, 48, 76, 96, 112]
 
 print("=== Attention: batched Q×K^T + score×V (simulated) ===")
 print("(Pure torch SDPA, not IPEX — measures compute+BW scaling)")
@@ -258,14 +258,14 @@ python3 << 'PYLAYER' | tee "$OUTDIR/layer_breakdown.txt"
 import torch, time, json, os, sys
 
 # Check if model is available
-model_name = "Qwen/Qwen2.5-7B-Instruct"
+model_name = "Qwen/Qwen2.5-1.5B-Instruct"
 try:
     from transformers import AutoModelForCausalLM, AutoTokenizer
 except ImportError:
     print("transformers not available, skipping layer breakdown")
     sys.exit(0)
 
-thread_counts_to_test = [24, 76]
+thread_counts_to_test = [24, 76, 96, 112]
 results = []
 
 for nthreads in thread_counts_to_test:
@@ -415,11 +415,20 @@ except ImportError:
     sys.exit(0)
 
 results = []
-thread_counts = [8, 16, 24, 32, 48, 76, 96]
-model_name = "Qwen/Qwen2.5-1.5B-Instruct"  # 1.5B for speed (7B too slow for sweep)
+thread_counts = [8, 16, 24, 32, 48, 76, 96, 112]
+model_name = "Qwen/Qwen2.5-1.5B-Instruct"
 
 for nthreads in thread_counts:
     print(f"\n--- vLLM CPU decode: {nthreads} threads, 1.5B, 1 request ---")
+
+    # GPU 차단 → CPU 강제
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
+    # vLLM 의 CPU 초기화가 OMP_NUM_THREADS 를 override 하므로
+    # VLLM_CPU_OMP_THREADS_BIND 에 명시적 core list 를 전달해야
+    # init_cpu_threads_env 가 해당 core 수만큼만 OMP thread 를 pin 함.
+    cores = ",".join(str(i) for i in range(nthreads))
+    os.environ["VLLM_CPU_OMP_THREADS_BIND"] = cores
     os.environ["OMP_NUM_THREADS"] = str(nthreads)
     os.environ["MKL_NUM_THREADS"] = str(nthreads)
 
@@ -437,18 +446,23 @@ for nthreads in thread_counts:
         # Warmup
         _ = llm.generate([prompt], params)
 
-        # Measure
-        t0 = time.perf_counter()
-        outputs = llm.generate([prompt], params)
-        t1 = time.perf_counter()
+        # Measure (3 회 평균)
+        times = []
+        for _ in range(3):
+            t0 = time.perf_counter()
+            outputs = llm.generate([prompt], params)
+            t1 = time.perf_counter()
+            times.append(t1 - t0)
 
         n_tokens = len(outputs[0].outputs[0].token_ids)
-        elapsed = t1 - t0
+        elapsed = sum(times) / len(times)
         tps = n_tokens / elapsed
 
-        print(f"  tokens={n_tokens} elapsed={elapsed:.2f}s tps={tps:.2f}")
+        print(f"  tokens={n_tokens} elapsed={elapsed:.2f}s tps={tps:.2f} "
+              f"(runs: {[f'{t:.2f}' for t in times]})")
         results.append({"threads": nthreads, "tokens": n_tokens,
-                        "elapsed_s": elapsed, "tps": tps})
+                        "elapsed_s": elapsed, "tps": tps,
+                        "runs": times})
 
         del llm
         import gc; gc.collect()
