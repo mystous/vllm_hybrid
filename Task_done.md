@@ -734,3 +734,42 @@ def _route_throughput_adaptive(self, request_id, prompt_len):
 - CPU prefill 직렬화 (chunked_prefill=False) 로 max_seqs=16 시 TTFT p99 70s. max_seqs=1 하에선 비문제이지만, batched 길이 변화 또는 다중 workload 도입 시 재점검 필요
 - dev 에서 hybrid (max_seqs=4) 수동 run 6개 수집 — 분석은 별도 작업으로 이관 (basic/GTX3090/)
 
+### 코드 변경 상세 (2026-04-14 commits)
+
+**버그 수정** (2eb677b87 + 6b2d77399):
+- `vllm/engine/arg_utils.py:1048` — argparse `--hybrid-num-cpu-engines` default 1→0 (env auto sentinel 복구)
+- `eval/serve.sh` — `HYBRID_NUM_CPU_ENGINES` CLI 전달 조건 `-gt 1` → `-n` (0 포함 모든 값 전달)
+- `vllm/v1/engine/hybrid_core.py:1263-1274` — `copy.replace` (3.13+) → `dataclasses.replace` (3.7+, Python 3.12 호환)
+- `vllm/v1/engine/hybrid_core.py:1350` — `cpu_kwargs.pop("numa_node", None)` 추가 (EngineCoreProc 미등록 kwarg TypeError 해소)
+
+**PROFILE logging 인프라 (기본 silent, `VLLM_HYBRID_PROFILE=1` 게이트)**:
+- `vllm/v1/worker/cpu_worker.py` (+150): `_install_hybrid_profile_hooks` (forward pre/post hooks on layers[i].self_attn/.mlp) + per-step `[HYBRID-CPU-PROFILE]` breakdown + `cpu_core_ratio` slice in `_get_autobind_cpu_ids`
+- `vllm/v1/attention/backends/cpu_attn.py` (+33): IPEX `single_query_cached_kv_attention` 호출 timing + batch-size histogram → `[HYBRID-CPU-ATTN-IPEX]`
+- `vllm/v1/engine/hybrid_core.py` (+16): `[HYBRID-WAVE-DISPATCH]` engine 선택 / wave lifecycle marker
+
+**서버 로그 캡처 인프라**:
+- `eval/serve.sh` (+44): `tee` 로 `serve_logs/server_YYYYMMDD_HHMMSS_MODE.log` + `server_latest.log` 심링크 갱신
+- `eval/bench.sh` (+68): 시작 시 `wc -c` offset 기록 → 종료 시 `tail -c +START` slice + `grep` boot markers → `RUN_DIR/MODE_server_{boot,run}.log`
+- `.gitignore`: `eval/serve_logs/` 제외 + (후속) `!eval/basic/**/*.log`, `!eval/basic/**/*.csv` whitelist
+
+**신규 파일**:
+- `eval/cpu_profile_dev.sh` — dev (i9-12900KF 24 logical) 전용 축소판. FP32 GEMM + iter 축소 + `python3 -u` (unbuffered). Section 2/3/4 thread sweep [1~24], Section 5 [16], Section 6 [4,8,12,16,24]
+- `eval/envs/h100x8_qwen7b_hybrid_wave_maxthreads.env` — NUMA 풀가동 (threads=56) variant (base 와 threads 값만 다름)
+- `eval/envs/dev_test_log_capture.env` — 짧은 50 req 로그 캡처 검증용
+
+**env 재작성 / 튜닝**:
+- `eval/envs/h100x8_qwen7b_hybrid_wave.env` — profile peak 기반 (threads=32, max_seqs=1, max-model-len 4096→1024, cpu-first 유지)
+- `eval/envs/dev_rtx3090_qwen{1.5b,7b}_hybrid_wave.env` — HYBRID_CPU_THREADS 8→16 (v5 F3 profile peak)
+- `eval/envs/dev_test_log_capture.env` — threads 8→16
+- `eval/envs/h100x{1,4}_qwen{1.5b,7b,32b}_hybrid_wave.env` — 주석/설정 소폭 정리
+
+**디렉토리 재구성** (426c8992f / a4310cdba):
+- `eval/basic/H100x8/` — 4 runs: gpu_only baseline + 2-NUMA 검증 3 configs (max_seqs=1/threads=32, max_seqs=16/threads=32, max_seqs=1/threads=56)
+- `eval/basic/GTX3090/` — 6 runs: dev 1.5B/7B × gpu_only/hybrid (사용자 수동 실행, max_seqs=4)
+- `eval/results/backup_0414/` — 기존 히스토리 전체 보존
+- `eval/analysis_log/h100x8_cpu_profile_20260413_075749/` — findings 보고서 authoritative H100x8 profile 라벨된 복사본
+- `eval/analysis_log/20260414_050715_cpu_profile_dev/` — dev thread sweep (cpu_profile_dev.sh 산출물)
+
+**분석 / 보고서**:
+- `experiment_result/20260414_003400_h100x8_physical_7b_wave_batch_catastrophic_findings/README.md` — 전면 rewrite (IPEX FD 소스 분석 + max_seqs=1 vs 16 비교 + 이전 초안 오류 정정)
+

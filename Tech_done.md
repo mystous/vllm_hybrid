@@ -474,7 +474,15 @@ H100x4 KVM / H100x8 + Xeon 2S / 일반 x86_64 laptop 등 기타 환경은 여전
   - `MODE_server_boot.log` — grep 기반 boot markers (LAUNCH/RESOLVE/CPU-ENV/CPU-PROC/CPU-WORKER/ROUTER-INIT)
   - `MODE_server_run.log` — bench 구간 byte-offset slice (dispatch/profile/stats markers)
 - **검증**: `eval/basic/H100x8/20260414_*/` 의 `hybrid_server_boot.log` / `hybrid_server_run.log` 에 실제로 2-NUMA 증거 (`[HYBRID-LAUNCH] num_cpu_engines=2` 등) 포함 확인.
-- **결론**: 과거 session 에서 추측으로만 진단하던 num_cpu_engines / NUMA binding / max_seqs resolve 결과를 이제 **log 증거 기반으로 확정** 가능.
+- **새 diagnostic markers (2026-04-14 추가, 모두 `VLLM_HYBRID_PROFILE=1` 게이트, 기본 silent)**:
+  - `[HYBRID-CPU-PROFILE] step=N reqs=R tokens=T threads=K total=Xms attn=Y ms (N layers) mlp=Z ms (N layers) other=W ms`
+    → `cpu_worker.py _install_hybrid_profile_hooks` 가 `model.model.layers[i].self_attn` / `.mlp` 에 forward pre/post hook 부착. per-step 시간 누적. 처음 1회 `hooks installed on N layers` info.
+  - `[HYBRID-CPU-ATTN-IPEX] call=N num_seqs=K elapsed=X.XX ms avg=Y.YY ms batch_hist={1: N1, 4: N4, ...}`
+    → `cpu_attn.py` IPEX `single_query_cached_kv_attention` 호출 timing + batch-size histogram. 실제 dispatch batch 분포 확인.
+  - `[HYBRID-WAVE-DISPATCH] req=REQ_ID → cpu:ENGINE_IDX accepted=K max=M`
+    → `_route_wave_batch` 의 engine 선택 + wave lifecycle (open → accepted 증가 → closed → drain → reset) 가시화.
+- **오버헤드**: hook 실행 + logger.info 포맷팅으로 per-step 수십 μs 수준 예상. `_EVERY=N` 간격 조절 가능 (기본 10). 진단 run 전용, production run 은 silent.
+- **결론**: 과거 session 에서 추측으로만 진단하던 num_cpu_engines / NUMA binding / max_seqs resolve / IPEX batch 분포 / layer 병목 전부 **log 증거 기반 확정 가능**.
 
 ### V5-F5. Python 3.12 / 3.13 API 호환성
 - **증상**: `copy.replace()` 사용 코드가 H100 환경 (Python 3.12.13) 에서 `AttributeError: module 'copy' has no attribute 'replace'`
