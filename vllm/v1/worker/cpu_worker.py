@@ -425,9 +425,12 @@ class CPUWorker(Worker):
                 self.local_omp_cpuid = self._get_autobind_cpu_ids(
                     lambda cpus: [cpu for cpu in cpus if cpu.id % 8 < 4])
             elif current_platform.get_cpu_architecture() == CpuArchEnum.X86:
-                # For x86 SMT-2, use 1 CPU per core
+                # For x86 SMT-2, use physical primary (lower-numbered) CPU per
+                # core. cpus[:1] picks the physical core (e.g. 0-55 on NUMA 0)
+                # rather than the HT sibling (e.g. 112-167), ensuring the OMP
+                # threads get exclusive execution-unit access per physical core.
                 self.local_omp_cpuid = self._get_autobind_cpu_ids(
-                    lambda cpus: cpus[-1:])
+                    lambda cpus: cpus[:1])
             else:
                 self.local_omp_cpuid = "all"
         else:

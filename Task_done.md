@@ -732,7 +732,7 @@ def _route_throughput_adaptive(self, request_id, prompt_len):
 
 ### 본 세션에서 새로 발견 → TODO.md 추가
 - CPU prefill 직렬화 (chunked_prefill=False) 로 max_seqs=16 시 TTFT p99 70s. max_seqs=1 하에선 비문제이지만, batched 길이 변화 또는 다중 workload 도입 시 재점검 필요
-- dev 에서 hybrid (max_seqs=4) 수동 run 6개 수집 — 분석은 별도 작업으로 이관 (basic/GTX3090/)
+- dev 에서 hybrid (max_seqs=4) 수동 run 6개 수집 — 분석은 별도 작업으로 이관 (basic/RTX3090/)
 
 ### 코드 변경 상세 (2026-04-14 commits)
 
@@ -765,7 +765,7 @@ def _route_throughput_adaptive(self, request_id, prompt_len):
 
 **디렉토리 재구성** (426c8992f / a4310cdba):
 - `eval/basic/H100x8/` — 4 runs: gpu_only baseline + 2-NUMA 검증 3 configs (max_seqs=1/threads=32, max_seqs=16/threads=32, max_seqs=1/threads=56)
-- `eval/basic/GTX3090/` — 6 runs: dev 1.5B/7B × gpu_only/hybrid (사용자 수동 실행, max_seqs=4)
+- `eval/basic/RTX3090/` — 6 runs: dev 1.5B/7B × gpu_only/hybrid (사용자 수동 실행, max_seqs=4)
 - `eval/results/backup_0414/` — 기존 히스토리 전체 보존
 - `eval/analysis_log/h100x8_cpu_profile_20260413_075749/` — findings 보고서 authoritative H100x8 profile 라벨된 복사본
 - `eval/analysis_log/20260414_050715_cpu_profile_dev/` — dev thread sweep (cpu_profile_dev.sh 산출물)

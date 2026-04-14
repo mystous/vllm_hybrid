@@ -975,9 +975,14 @@ def _setup_cpu_process_env(
     os.environ.setdefault("OMP_WAIT_POLICY", "ACTIVE")
     # 주의: 중첩 OMP(OMP_NESTED=TRUE)는 oversubscription을 만들기 쉬워
     # 여기서는 활성화하지 않는다. BLAS 내부 OMP 한 단계만 사용.
-    # 주의: OMP_PROC_BIND/OMP_PLACES는 init_cpu_threads_env의
-    # sched_setaffinity와 충돌할 수 있어 여기서 설정하지 않는다.
-    # init_cpu_threads_env가 코어 1대1 매핑을 직접 수행한다.
+    # OMP_PROC_BIND / OMP_PLACES는 부모 프로세스 환경에서 상속될 수 있다.
+    # Intel OMP가 이 값을 보면 첫 번째 parallel region 진입 시 master thread를
+    # sched_setaffinity로 단일 CPU(예: CPU 1)에 pin한다. 이후
+    # get_allowed_cpu_memory_node_list()의 os.sched_getaffinity(0)가 {1}만
+    # 반환 → _get_autobind_cpu_ids가 1개 코어만 선택하는 버그가 발생한다.
+    # init_cpu_threads_env가 직접 1:1 pin을 수행하므로 여기서 제거해야 한다.
+    os.environ.pop("OMP_PROC_BIND", None)
+    os.environ.pop("OMP_PLACES", None)
 
     # 스레드 바인딩 모드 설정 (CPUWorker.init_device()에서 참조)
     # "auto"는 NUMA 토폴로지 기반 자동 바인딩

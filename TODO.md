@@ -205,7 +205,7 @@
 - [ ] `CLAUDE.md` 에 서버 로그 캡처 메커니즘 (serve.sh tee + bench.sh slice/grep) 섹션 추가
 - [ ] 본 TODO.md 재작성 + old_doc 백업 규칙을 `CLAUDE.md` 의 "3 파일 운용 규칙" 섹션에 반영
 - [ ] `eval/basic/H100x8/README.md` — 4 runs (gpu_only + max_seqs=1/16, threads=32/56) 비교 요약 (Tech_done v5 F2 기반)
-- [ ] `eval/basic/GTX3090/README.md` — 6 runs 요약 (1.5B/7B × gpu_only/hybrid × max_seqs=4)
+- [ ] `eval/basic/RTX3090/README.md` — 6 runs 요약 (1.5B/7B × gpu_only/hybrid × max_seqs=4)
 
 ---
 
