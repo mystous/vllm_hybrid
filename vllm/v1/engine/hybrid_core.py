@@ -1260,8 +1260,10 @@ def run_cpu_engine_core(*args,
     hybrid_cfg = vllm_config.hybrid_config
     numa_node_override = kwargs.get("numa_node", None)
     if numa_node_override is not None and numa_node_override >= 0:
-        import copy as _copy
-        hybrid_cfg = _copy.replace(hybrid_cfg, numa_bind_node=numa_node_override)
+        # Python 3.12 호환 — copy.replace 는 3.13+ 전용. HybridConfig 및
+        # VllmConfig 는 dataclass 이므로 dataclasses.replace 사용.
+        import dataclasses as _dc
+        hybrid_cfg = _dc.replace(hybrid_cfg, numa_bind_node=numa_node_override)
         # vllm_config also needs the updated hybrid_cfg so that
         # _create_cpu_vllm_config below propagates numa_bind_node into the
         # CPU EngineCore's vllm_config — without this, CPUWorker would see
@@ -1269,7 +1271,7 @@ def run_cpu_engine_core(*args,
         # selection, causing multiple CPU engines to pin themselves to the
         # same NUMA node on multi-socket hosts (H100x8 + Sapphire Rapids
         # 2-socket).
-        vllm_config = _copy.replace(vllm_config, hybrid_config=hybrid_cfg)
+        vllm_config = _dc.replace(vllm_config, hybrid_config=hybrid_cfg)
         kwargs["vllm_config"] = vllm_config
 
     # CPU 파라미터 자동 감지 및 환경 설정 (NUMA/AMX/IPEX 포함)
@@ -1345,7 +1347,10 @@ def run_cpu_engine_core(*args,
         cpu_kwargs["vllm_config"] = cpu_config
         cpu_kwargs["executor_class"] = cpu_executor_class
         cpu_kwargs["engine_index"] = kwargs.get("engine_index", 1)
-        # numa_node는 _resolve_cpu_params/_setup_cpu_process_env에서 이미 처리됨
+        # numa_node 는 run_cpu_engine_core 전용 kwarg — EngineCoreProc 는
+        # 받지 않으므로 pop 해서 제거. 이미 위에서 numa_bind_node 로
+        # vllm_config 에 반영됐음.
+        cpu_kwargs.pop("numa_node", None)
 
         engine_core = EngineCoreProc(**cpu_kwargs)
         engine_core.run_busy_loop()
