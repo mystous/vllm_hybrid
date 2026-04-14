@@ -92,6 +92,26 @@ if ! _check_server; then
     exit 1
 fi
 
+# ─────────────────────────────────────────────────────────────────────
+# 서버 로그 byte offset 기록 — 이 시점 이후 기록된 로그만 이번 run 에
+# 속함. bench 완료 후 이 offset 부터 tail 로 잘라 RUN_DIR 에 저장.
+# 여러 bench 를 같은 서버에 연속으로 돌려도 구간 분리 정확.
+# ─────────────────────────────────────────────────────────────────────
+SERVER_LOG_SRC="${SCRIPT_DIR}/serve_logs/server_latest.log"
+if [[ -f "${SERVER_LOG_SRC}" ]] || [[ -L "${SERVER_LOG_SRC}" ]]; then
+    SERVER_LOG_START_BYTES="$(wc -c < "${SERVER_LOG_SRC}" 2>/dev/null || echo 0)"
+else
+    SERVER_LOG_START_BYTES="0"
+fi
+
+# 서버에 명시적 marker 주입도 시도 — 런 구분용.
+# /health 같은 엔드포인트가 서버 로그에 찍히지 않을 수 있어서 실패해도 무시.
+# 서버 로그에 [BENCH-START] 마커를 남기려면 아래 주석 풀 것:
+# curl -sf -X POST "http://localhost:${PORT}/v1/completions" \
+#     -H "Content-Type: application/json" \
+#     -d "{\"model\":\"${MODEL}\",\"prompt\":\"__BENCH_MARKER_${_TS:-x}__\",\"max_tokens\":1}" \
+#     > /dev/null 2>&1 || true
+
 # ---------------------------------------------------------------------------
 # Results directory
 # ---------------------------------------------------------------------------
@@ -389,10 +409,58 @@ with open('${RESULT_FILE}', 'w') as f:
 "
 fi
 
+# ─────────────────────────────────────────────────────────────────────
+# 서버 로그 구간 추출: bench 시작 시점 (SERVER_LOG_START_BYTES) 부터
+# 현재까지 기록된 부분만 RUN_DIR 로 잘라 저장. 같은 서버에서 bench 를
+# 여러 번 돌려도 각 run 에 해당하는 로그만 분리됨.
+#
+# 저장되는 marker 예:
+#   [HYBRID-LAUNCH] num_cpu_engines=N ...         ← 서버 부팅 시만 한 번
+#     (첫 번째 run 에만 찍힘. 2번째 이후 run 로그엔 이미 찍힌 뒤라 안 포함)
+#   [HYBRID-CPU-WORKER] init_cpu_threads_env ...  ← 동일
+#   [HYBRID-ROUTER-INIT] strategy=... max_seqs=... ← 첫 route 호출 시
+#   [HYBRID-WAVE-DISPATCH] req=... → cpu:N ...    ← 매 CPU dispatch
+#   [HYBRID-WAVE] engine=N wave closed/drained    ← wave state 전이
+#   [HYBRID-CPU-PROFILE] step=... attn=... mlp=.. ← PROFILE=1 시 매 step
+#   [HYBRID-CPU-ATTN-IPEX] call=... num_seqs=...  ← PROFILE=1 시 매 IPEX call
+#   [HYBRID-ROUTER-STATS] finished=... CPU=...    ← stats_log_interval 마다
+#
+# ⚠ 첫 run 과 이후 run 의 차이:
+#   - 첫 run: 서버 부팅 로그 (LAUNCH/RESOLVE/CPU-WORKER init) 포함
+#   - 이후 run: route/dispatch/profile 만 포함 (부팅은 앞 run 에 속함)
+#   - 부팅 정보가 필요하면 첫 run 의 server.log 를 참조
+# ─────────────────────────────────────────────────────────────────────
+if [[ -f "${SERVER_LOG_SRC}" ]] || [[ -L "${SERVER_LOG_SRC}" ]]; then
+    SERVER_LOG_END_BYTES="$(wc -c < "${SERVER_LOG_SRC}" 2>/dev/null || echo 0)"
+    LOG_DELTA=$((SERVER_LOG_END_BYTES - SERVER_LOG_START_BYTES))
+
+    # (1) boot.log: 전체 파일에서 부팅 markers 추출 (NUMA/engine 설정 확인용)
+    #     서버가 한 번만 부팅하므로 매 run 에 동일 내용. grep 기반이라 언제든 추출 가능.
+    grep -E '\[HYBRID-(LAUNCH|RESOLVE|CPU-ENV|CPU-PROC|CPU-WORKER|ROUTER-INIT)\]|auto thread-binding list|CPU VllmConfig created|Model loading took' \
+        "${SERVER_LOG_SRC}" 2>/dev/null > "${RUN_DIR}/${MODE}_server_boot.log" || true
+    BOOT_LINES=$(wc -l < "${RUN_DIR}/${MODE}_server_boot.log" 2>/dev/null || echo 0)
+
+    # (2) run.log: 이번 bench 구간의 dispatch/profile/stats
+    if [[ "${LOG_DELTA}" -gt 0 ]]; then
+        tail -c +$((SERVER_LOG_START_BYTES + 1)) "${SERVER_LOG_SRC}" \
+            > "${RUN_DIR}/${MODE}_server_run.log" 2>/dev/null \
+            && log "Server run log: ${LOG_DELTA} bytes → ${MODE}_server_run.log" \
+            || log "WARN: server run log slice 실패"
+    else
+        log "WARN: server log 에 새로 기록된 내용 없음 (delta=${LOG_DELTA})"
+    fi
+
+    log "Server boot log: ${BOOT_LINES} lines → ${MODE}_server_boot.log"
+else
+    log "WARN: server log not found at ${SERVER_LOG_SRC}"
+    log "      serve.sh 이 tee 지원 버전인지 확인 필요"
+fi
+
 log "============================================================"
 log " Done!  (wall time: ${WALL_SECS}s)"
 log " Results : ${RUN_DIR}"
 log " Benchmark: ${RESULT_FILE}"
 log " Monitor  : ${RUN_DIR}/${MODE}_monitor_gpu.csv"
 log "            ${RUN_DIR}/${MODE}_monitor_cpu.csv"
+log " Server   : ${RUN_DIR}/${MODE}_server.log"
 log "============================================================"

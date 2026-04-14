@@ -1045,9 +1045,10 @@ class EngineArgs:
         hybrid_group.add_argument(
             '--hybrid-num-cpu-engines',
             type=int,
-            default=1,
-            help="Number of CPU engine processes. 1=single CPU engine (default), "
-                 "2=one CPU engine per NUMA node (for dual-socket Xeon). (default: 1)"
+            default=0,
+            help="Number of CPU engine processes. 0=auto (NUMA 노드 수로 결정, "
+                 "dual-socket 시 2), 1=single CPU engine, 2+=명시적 값. "
+                 "(default: 0=auto)"
         )
 
         return parser

@@ -1256,7 +1256,7 @@ class _IPEXPagedAttention(_PagedAttention):
         ).view(num_kv_heads,
                1).repeat_interleave(query.size(1) // num_kv_heads).flatten()
         _trace_decode_path("ipex", context_lens.shape[0], query.shape[0])
-        import time as _time
+        import time as _time, os as _os
         _t0 = _time.monotonic()
         ipex_modules.PagedAttention.single_query_cached_kv_attention(
             output, query.contiguous(), key_cache, value_cache, head_mapping,
@@ -1265,12 +1265,33 @@ class _IPEXPagedAttention(_PagedAttention):
         _elapsed = _time.monotonic() - _t0
         if not hasattr(_IPEXPagedAttention, '_decode_call_count'):
             _IPEXPagedAttention._decode_call_count = 0
+            _IPEXPagedAttention._decode_total_ms = 0.0
+            _IPEXPagedAttention._decode_batch_histogram = {}
         _IPEXPagedAttention._decode_call_count += 1
-        # per-call IPEX kernel trace — demoted to debug so it does not flood
-        # stdout during serving. The first-use confirmation of the IPEX path
-        # is already provided by [HYBRID-CPU-ATTN] in _trace_decode_path (also
-        # debug/opt-in) and the boot-time [HYBRID-CPU-WORKER] markers.
-        if _IPEXPagedAttention._decode_call_count <= 5 or _IPEXPagedAttention._decode_call_count % 100 == 0:
+        _IPEXPagedAttention._decode_total_ms += _elapsed * 1000
+
+        # Per-call batch histogram 으로 실제 batch 분포 파악.
+        num_seqs = context_lens.shape[0]
+        hist = _IPEXPagedAttention._decode_batch_histogram
+        hist[num_seqs] = hist.get(num_seqs, 0) + 1
+
+        # VLLM_HYBRID_PROFILE=1 이면 매 call 정보를 INFO 레벨로 에미트.
+        # VLLM_HYBRID_PROFILE_EVERY=N 이면 N call 마다.
+        # Default (둘 다 미설정) = silent.
+        _profile = _os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1"
+        _profile_every = int(_os.environ.get("VLLM_HYBRID_PROFILE_EVERY", "0"))
+        if _profile or (_profile_every > 0
+                        and _IPEXPagedAttention._decode_call_count
+                        % _profile_every == 0):
+            avg_ms = (_IPEXPagedAttention._decode_total_ms
+                      / _IPEXPagedAttention._decode_call_count)
+            logger.info(
+                "[HYBRID-CPU-ATTN-IPEX] call=%d num_seqs=%d "
+                "elapsed=%.2fms avg=%.2fms batch_hist=%s",
+                _IPEXPagedAttention._decode_call_count,
+                num_seqs, _elapsed * 1000, avg_ms, dict(hist))
+        elif _IPEXPagedAttention._decode_call_count <= 5 or \
+                _IPEXPagedAttention._decode_call_count % 100 == 0:
             logger.debug(
                 "IPEX decode: call=%d q=%s kc=%s ctx=%s elapsed=%.4fs",
                 _IPEXPagedAttention._decode_call_count,

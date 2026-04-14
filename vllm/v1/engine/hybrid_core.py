@@ -496,6 +496,22 @@ class CapacityAwareRouter:
         self.cpu_in_flight += 1
         self.cpu_count += 1
         self._cpu_wave_accepted[cpu_idx] += 1
+
+        # VLLM_HYBRID_PROFILE=1 이면 매 CPU dispatch 시 per-engine state 로그.
+        # 기본 off (기존 [HYBRID-WAVE] wave closed 마커만 emit).
+        import os as _os
+        if _os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1":
+            accepted_snapshot = list(self._cpu_wave_accepted)
+            in_flight_snapshot = [
+                self._cpu_states[i]["in_flight"]
+                for i in range(self.num_cpu_engines)]
+            logger.info(
+                "[HYBRID-WAVE-DISPATCH] req=%s → cpu:%d "
+                "engines accepted=%s in_flight=%s "
+                "(wave_max=%d, num_engines=%d)",
+                request_id, cpu_idx, accepted_snapshot, in_flight_snapshot,
+                self.cpu_max_num_seqs, self.num_cpu_engines)
+
         if self._cpu_wave_accepted[cpu_idx] >= self.cpu_max_num_seqs:
             self._cpu_wave_closed[cpu_idx] = True
             logger.info(

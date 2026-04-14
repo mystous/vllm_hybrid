@@ -46,18 +46,42 @@ export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
 
 # Hybrid debugging knobs (consumed by hybrid_core/cpu_worker/cpu_attn)
-# Default hybrid trace: silent during serving. Boot/shutdown markers are
-# emitted via logger.info regardless. To turn trace on for smoke/debug:
-#   VLLM_HYBRID_TRACE=1             — log on every CPU exec_model + attn call
+#
+# TRACE (coarse per-step elapsed):
+#   VLLM_HYBRID_TRACE=1             — log every CPU exec_model + attn call
 #   VLLM_HYBRID_TRACE_EVERY=N (N>0) — log every N-th call at INFO
+#
+# PROFILE (per-layer attn/mlp breakdown, IPEX call histogram, wave dispatch):
+#   VLLM_HYBRID_PROFILE=1           — PROFILE markers on
+#   VLLM_HYBRID_PROFILE_EVERY=N     — breakdown emit interval
+#                                     (default 10 if PROFILE=1, 0 otherwise)
+#
+# Default all-silent during serving. Boot markers (LAUNCH/RESOLVE/CPU-ENV/
+# CPU-PROC/CPU-WORKER) are always logger.info regardless.
 export VLLM_HYBRID_TRACE="${VLLM_HYBRID_TRACE:-0}"
 export VLLM_HYBRID_TRACE_EVERY="${VLLM_HYBRID_TRACE_EVERY:-0}"
+export VLLM_HYBRID_PROFILE="${VLLM_HYBRID_PROFILE:-0}"
+export VLLM_HYBRID_PROFILE_EVERY="${VLLM_HYBRID_PROFILE_EVERY:-0}"
 
 echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"
 echo " MODEL=${MODEL}"
 echo " PORT=${PORT}"
 echo " ENV_FILE=${ENV_FILE}"
+echo "============================================================"
+
+# ─────────────────────────────────────────────────────────────────────
+# 서버 stdout/stderr 를 고정 위치 로그 파일에 tee 로 복제해서 bench.sh
+# 가 런 완료 후 이 파일을 results/ 디렉토리에 복사할 수 있게 함.
+# 경로: eval/serve_logs/server_latest.log (symlink + 타임스탬프)
+# bench.sh 는 이 로그를 RUN_DIR 로 복사.
+# ─────────────────────────────────────────────────────────────────────
+SERVER_LOG_DIR="${SCRIPT_DIR}/serve_logs"
+mkdir -p "${SERVER_LOG_DIR}"
+SERVER_LOG_FILE="${SERVER_LOG_DIR}/server_$(date +%Y%m%d_%H%M%S)_${MODE}.log"
+# latest 심링크 갱신
+ln -sf "${SERVER_LOG_FILE}" "${SERVER_LOG_DIR}/server_latest.log"
+echo " SERVER_LOG=${SERVER_LOG_FILE}"
 echo "============================================================"
 
 TP="${TENSOR_PARALLEL_SIZE:-1}"
@@ -68,13 +92,15 @@ fi
 
 if [[ "${MODE}" == "gpu_only" ]]; then
     # shellcheck disable=SC2086
-    exec python -m vllm.entrypoints.openai.api_server \
+    # tee 로 stdout/stderr 를 SERVER_LOG_FILE 에 복제.
+    # exec 을 포기하고 pipe 를 쓰므로 trap 으로 자식 python 종료 보장.
+    python -u -m vllm.entrypoints.openai.api_server \
         --model "${MODEL}" \
         --port "${PORT}" \
         --gpu-memory-utilization "${GPU_MEMORY_UTIL}" \
         ${TP_ARGS} \
         ${EXTRA_SERVE_ARGS:-} \
-        --disable-log-requests
+        --disable-log-requests 2>&1 | tee "${SERVER_LOG_FILE}"
 
 elif [[ "${MODE}" == "hybrid" ]]; then
     NUMA_FLAG="--hybrid-numa-aware"
@@ -104,7 +130,9 @@ elif [[ "${MODE}" == "hybrid" ]]; then
     if [[ -n "${HYBRID_CPU_CORE_RATIO:-}" ]]; then
         CPU_CORE_RATIO_ARG="--hybrid-cpu-core-ratio ${HYBRID_CPU_CORE_RATIO}"
     fi
-    if [[ "${HYBRID_NUM_CPU_ENGINES:-1}" -gt 1 ]]; then
+    # HYBRID_NUM_CPU_ENGINES: 0=auto(NUMA 수), 1=single, 2+=명시
+    # env 에 설정되어 있으면 항상 CLI 로 전달 (0 포함). 미설정이면 생략 → argparse default=0(auto)
+    if [[ -n "${HYBRID_NUM_CPU_ENGINES:-}" ]]; then
         CPU_ENGINES_ARG="--hybrid-num-cpu-engines ${HYBRID_NUM_CPU_ENGINES}"
     fi
     if [[ "${HYBRID_CPU_MAX_BATCHED_TOKENS:-0}" -gt 0 ]]; then
@@ -121,7 +149,7 @@ elif [[ "${MODE}" == "hybrid" ]]; then
     fi
 
     # shellcheck disable=SC2086
-    exec python -m vllm.entrypoints.openai.api_server \
+    python -u -m vllm.entrypoints.openai.api_server \
         --model "${MODEL}" \
         --port "${PORT}" \
         --gpu-memory-utilization "${GPU_MEMORY_UTIL}" \
@@ -140,5 +168,5 @@ elif [[ "${MODE}" == "hybrid" ]]; then
         --hybrid-stats-log-interval "${HYBRID_STATS_LOG_INTERVAL}" \
         ${NUMA_FLAG} \
         ${EXTRA_SERVE_ARGS:-} \
-        --disable-log-requests
+        --disable-log-requests 2>&1 | tee "${SERVER_LOG_FILE}"
 fi

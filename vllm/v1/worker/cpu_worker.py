@@ -617,18 +617,51 @@ class CPUWorker(Worker):
         self,
         scheduler_output: "SchedulerOutput",
     ) -> Optional[ModelRunnerOutput]:
-        # Periodic execute_model trace.
-        # Default is OFF (_every=0) to avoid stdout I/O serializing the
-        # per-step hot loop under production load. Re-enable with
-        #   VLLM_HYBRID_TRACE=1              (every step — smoke only)
-        #   VLLM_HYBRID_TRACE_EVERY=N (N>0)  (every N steps)
+        # ─────────────────────────────────────────────────────────────────
+        # Trace / Profile switches (env-driven)
+        #
+        # VLLM_HYBRID_TRACE=1            — per-step total elapsed log (coarse)
+        # VLLM_HYBRID_TRACE_EVERY=N      — emit above every N steps (0=off)
+        #
+        # VLLM_HYBRID_PROFILE=1          — per-step breakdown log
+        #                                  (attn/mlp/sampler 구간 분리 측정)
+        # VLLM_HYBRID_PROFILE_EVERY=N    — emit breakdown every N steps
+        #                                  default N=10 if PROFILE=1 and unset
+        #
+        # Profile 은 forward hook 을 layer 별로 달아 per-step 에서 attn/mlp
+        # 시간을 분리 집계. 첫 번째 step 에 hook 설치. 이후 매 step 에서
+        # hook 이 기록하는 시간 스탬프를 누적해서 breakdown 으로 출력.
+        # Hook 자체 overhead 는 step 당 수 μs (무시 가능).
+        # ─────────────────────────────────────────────────────────────────
         import time as _time
         _trace = os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
         _step = getattr(self, "_hybrid_exec_step", 0) + 1
         self._hybrid_exec_step = _step
         _every = int(os.environ.get("VLLM_HYBRID_TRACE_EVERY", "0"))
 
-        if _trace or (_every > 0 and _step % _every == 0):
+        _profile = os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1"
+        _profile_every = int(os.environ.get("VLLM_HYBRID_PROFILE_EVERY",
+                                            "10" if _profile else "0"))
+        _emit_profile = _profile and (_profile_every == 0
+                                      or _step % _profile_every == 0)
+
+        # Install per-layer forward hooks on first step if profiling requested.
+        # Hooks record timestamps into self._hybrid_layer_times[step] dict.
+        if _profile and not getattr(self, "_hybrid_hooks_installed", False):
+            self._install_hybrid_profile_hooks()
+            self._hybrid_hooks_installed = True
+
+        # Reset per-step layer time accumulators
+        if _emit_profile:
+            self._hybrid_layer_times = {
+                "attn_total_ms": 0.0,
+                "mlp_total_ms": 0.0,
+                "attn_count": 0,
+                "mlp_count": 0,
+            }
+        self._hybrid_profile_active = _emit_profile
+
+        if _trace or (_every > 0 and _step % _every == 0) or _emit_profile:
             num_scheduled = (
                 getattr(scheduler_output, "total_num_scheduled_tokens", None)
                 or getattr(scheduler_output, "num_scheduled_tokens", None)
@@ -660,12 +693,28 @@ class CPUWorker(Worker):
 
         if _t0 is not None:
             elapsed_ms = (_time.perf_counter() - _t0) * 1000
-            logger.info(
-                "[HYBRID-CPU-EXEC] step=%d reqs=%s tokens=%s "
-                "torch_threads=%d elapsed=%.1fms",
-                _step, num_reqs, num_scheduled,
-                torch.get_num_threads(), elapsed_ms,
-            )
+            if _trace or (_every > 0 and _step % _every == 0):
+                logger.info(
+                    "[HYBRID-CPU-EXEC] step=%d reqs=%s tokens=%s "
+                    "torch_threads=%d elapsed=%.1fms",
+                    _step, num_reqs, num_scheduled,
+                    torch.get_num_threads(), elapsed_ms,
+                )
+            if _emit_profile:
+                lt = self._hybrid_layer_times
+                attn = lt["attn_total_ms"]
+                mlp = lt["mlp_total_ms"]
+                other = elapsed_ms - attn - mlp
+                logger.info(
+                    "[HYBRID-CPU-PROFILE] step=%d reqs=%s tokens=%s "
+                    "threads=%d total=%.1fms "
+                    "attn=%.1fms (%d layers) mlp=%.1fms (%d layers) "
+                    "other=%.1fms",
+                    _step, num_reqs, num_scheduled,
+                    torch.get_num_threads(), elapsed_ms,
+                    attn, lt["attn_count"], mlp, lt["mlp_count"], other,
+                )
+        self._hybrid_profile_active = False
 
         if not get_pp_group().is_last_rank:
             assert isinstance(output, IntermediateTensors)
@@ -675,6 +724,83 @@ class CPUWorker(Worker):
 
         assert isinstance(output, ModelRunnerOutput)
         return output if self.is_driver_worker else None
+
+    def _install_hybrid_profile_hooks(self):
+        """per-layer attn/mlp 시간 측정을 위한 forward hook 설치.
+
+        한 번만 실행. 이후 self._hybrid_profile_active 가 True 인 step 에서만
+        시간 누적. 비활성 step 에서는 hook 이 early-return 하여 overhead 무시.
+
+        모델 구조 탐색: model_runner.model 의 layers 리스트 찾기.
+        Qwen2/Llama 계열은 model.model.layers 에 DecoderLayer 들이 있고,
+        각 layer 에 self_attn, mlp attribute.
+        """
+        import time as _time
+        model = getattr(self.model_runner, 'model', None)
+        if model is None:
+            logger.warning("[HYBRID-CPU-PROFILE] model_runner.model 없음, "
+                           "hook 설치 스킵")
+            return
+
+        # model → model.model.layers (HF 구조) 또는 model.layers
+        layers = None
+        for path in [('model', 'layers'), ('layers',),
+                     ('model', 'model', 'layers')]:
+            obj = model
+            try:
+                for attr in path:
+                    obj = getattr(obj, attr)
+                if hasattr(obj, '__len__') and len(obj) > 0:
+                    layers = obj
+                    break
+            except AttributeError:
+                continue
+
+        if layers is None:
+            logger.warning("[HYBRID-CPU-PROFILE] layers 찾기 실패, "
+                           "hook 설치 스킵")
+            return
+
+        num_layers = len(layers)
+        logger.info("[HYBRID-CPU-PROFILE] hook installing on %d layers",
+                    num_layers)
+
+        def make_pre_hook(kind):
+            def pre_hook(module, args, kwargs=None):
+                if getattr(self, '_hybrid_profile_active', False):
+                    module._hybrid_t0 = _time.perf_counter()
+            return pre_hook
+
+        def make_post_hook(kind):
+            def post_hook(module, args, output):
+                if not getattr(self, '_hybrid_profile_active', False):
+                    return
+                t0 = getattr(module, '_hybrid_t0', None)
+                if t0 is None:
+                    return
+                elapsed_ms = (_time.perf_counter() - t0) * 1000
+                lt = self._hybrid_layer_times
+                if kind == 'attn':
+                    lt['attn_total_ms'] += elapsed_ms
+                    lt['attn_count'] += 1
+                else:
+                    lt['mlp_total_ms'] += elapsed_ms
+                    lt['mlp_count'] += 1
+            return post_hook
+
+        installed = 0
+        for i, layer in enumerate(layers):
+            if hasattr(layer, 'self_attn'):
+                layer.self_attn.register_forward_pre_hook(
+                    make_pre_hook('attn'), with_kwargs=False)
+                layer.self_attn.register_forward_hook(make_post_hook('attn'))
+                installed += 1
+            if hasattr(layer, 'mlp'):
+                layer.mlp.register_forward_pre_hook(
+                    make_pre_hook('mlp'), with_kwargs=False)
+                layer.mlp.register_forward_hook(make_post_hook('mlp'))
+        logger.info("[HYBRID-CPU-PROFILE] hooks installed on %d layers "
+                    "(attn+mlp per layer)", installed)
 
     def _get_autobind_cpu_ids(
         self, cpu_selector: Callable[[list[LogicalCPUInfo]],
