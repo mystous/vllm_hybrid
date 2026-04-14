@@ -4,11 +4,14 @@
 
 **본 파일 운용 규칙 (2026-04-11 변경)**: 기존의 append-only 버전 히스토리 방식에서 **"남은 작업만 담는 clean 파일"** 로 정책 변경. 이전 버전은 `old_doc/TODO_v4_20260411.md` 에 스냅샷으로 보존. 완료된 항목은 이 파일에서 제거하고 `Task_done.md` 에 append 한다.
 
-**상태 요약 (2026-04-11 기준)**:
+**상태 요약 (2026-04-14 기준)**:
 - dev 로직 검증 (v1 §1) **완결** — 순차 반복 / finish variety / scheduler 경계 / capacity 멈춤 dev 배제 전부 완료. abort slot leak 버그 발견 + 수정 + 검증.
-- H100x4 bring-up 및 1.5B/7B/32B baseline **완결** — hybrid routing regression 근본 원인 수정 (`_route_throughput_adaptive` Property 2 expected-finish gate), 3개 모델에서 hybrid ≈ gpu_only 확인, 라우터가 H100 에선 0건 CPU 로 보냄 (올바른 동작).
+- H100x4 KVM bring-up 및 1.5B/7B/32B baseline **완결** — hybrid routing regression 근본 원인 수정, 3개 모델에서 hybrid ≈ gpu_only 확인.
 - stdout fast-path contention 이슈 **완결** — per-req/per-call 전부 silent, boot 만 emit.
-- **남은 큰 방향**: ninja gap 구현 (A-series architectural changes), 논문 정합성, 더 큰 모델/긴 context workload 정의.
+- **H100x8 물리 2-NUMA 경로 실동작 증명 완결 (2026-04-14, v5)** — 4겹 버그 (arg_utils default / serve.sh -gt 1 / copy.replace / numa_node kwarg) 전원 수정 + server log 로 2 engine × NUMA 0/1 strict bind 확인 + wave=16 재앙 재현.
+- **dev CPU thread 최적 16 확정 (2026-04-14)** — cpu_profile_dev.sh Section 6 vLLM sweep 기반.
+- **서버 로그 캡처 인프라 완성 (2026-04-14)** — serve.sh tee + bench.sh byte offset slice + boot marker grep.
+- **남은 큰 방향**: ninja gap 구현 (A-series architectural changes), 70B / long-context / rate-saturated workload 실측, 논문 정합성.
 
 ---
 
@@ -95,11 +98,20 @@
 - [ ] gpu_only vs hybrid 의 perf/watt 비교 (H100 + Xeon 의 power 모니터링)
 - [ ] spec decode (A1) 구현 후 재측정 — draft 가 GPU TPOT 을 줄이므로 per-token 에너지 개선 예상
 
-### 2.6 H100x8 + Xeon 2-socket 환경 (접근 가능 시)
-- [ ] 2-NUMA auto 감지: `num_cpu_engines=2` resolve 확인
-- [ ] 각 CPU engine 이 자기 NUMA 의 코어에 1:1 pin 되는지 (`HYBRID-CPU-WORKER` 로그)
-- [ ] `_get_autobind_cpu_ids` 의 `numa_bind_node` 우선 경로 실측
-- [ ] 기본 bench 수행 (1.5B/7B/32B)
+### 2.6 H100x8 + Xeon 2-socket 환경 — **2-NUMA 경로 검증 완결 (v5)**
+- [x] 2-NUMA auto 감지: `num_cpu_engines=2` resolve 확인 → **Tech_done v5 F1**
+- [x] 각 CPU engine 이 자기 NUMA 의 코어에 1:1 pin (`HYBRID-CPU-WORKER` 로그) → **확인**
+- [x] `_get_autobind_cpu_ids` 의 `numa_bind_node` 우선 경로 실측 → **확인**
+- [x] 7B 기본 bench (500×128/128) → `eval/basic/H100x8/` 4 runs 보존
+- [ ] **1.5B / 32B H100x8 bench 는 미수행** — 필요 시 추가
+- [ ] **wave=16 재앙이 2-NUMA 상태에서도 재현** (Tech_done v5 F2) → max_seqs=1 가 고정 답, max_seqs 실험은 종료
+
+### 2.7 GPU 포화 workload 탐색 — hybrid 이득 실제 검증
+현재 모든 실측에서 `T_hybrid ≥ T_gpu_only` — GPU 가 항상 여유 있어 CPU 경로는 overhead. 이득을 보려면 GPU 가 먼저 saturate 되는 조건이 필요.
+- [ ] **70B TP=8 H100x8** — weight 140GB → GPU HBM 압박, batch slot 감소
+- [ ] **long-context 16K+ input** — GPU prefill bottleneck, CPU prefill 분담 효과 측정 (§1.4 A3 으로 이관)
+- [ ] **rate-limited burst 2000+ req** — GPU queue 가 saturated 되는 조건 재현
+- [ ] 이 3 조건 중 어느 것도 충족 안 되면 request-level hybrid 의 이득은 구조적 불가 (§1.1 A1 spec decode 필요)
 
 ---
 
@@ -180,6 +192,8 @@
 - [ ] **`numa_migrate_pages` × 2TB 지연**: 부팅 지연만 영향, 런타임 성능 무관. H100x8 2-socket 환경 접근 시 측정
 - [ ] **70B weight 중복 로딩 실측**: CPU engine 은 별도 프로세스이므로 weight 독립 로드. 70B 환경에서 부팅 가능성 / startup time 측정 (A2 KV offload 전제조건)
 - [ ] **`post-init: cpu_affinity=1 cores [1]` 문서화**: `Tech_done v1 Q1` 에서 이미 상세 설명됨. `CLAUDE.md` 진단 섹션에 1줄 주석 추가 (혼란 방지)
+- [ ] **CPU prefill 직렬화 (chunked_prefill=False) 영향 재점검** (v5 신규): max_seqs=1 하에서는 비문제이지만 batch 크기 변동 또는 다중 workload 도입 시 TTFT P99 급증 가능. 현재 `_create_cpu_vllm_config` 가 강제 `False` 인데, chunked prefill 활성화 시 per-step 이 어떻게 변하는지 실험적 확인
+- [ ] **Python 3.12/3.13 API 호환 정책** (v5 신규): `copy.replace` 와 같은 3.13+ 전용 API 피하기. CI 에서 3.12 로 import 테스트 추가 고려
 
 ---
 
@@ -187,8 +201,11 @@
 
 - [ ] `docs/CUDA13_MIGRATION_STATUS.md` 에 "H100x4 실측 결과" 섹션 추가 (1.5B/7B/32B baseline + 라우팅 fix 언급)
 - [ ] `docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md` 가 현재 코드 + 본 세션 fix 와 맞는지 재확인
-- [ ] `CLAUDE.md` 의 "진단 로그 marker 7종" 표에 `[HYBRID-ROUTER-INIT]`, `[HYBRID-ROUTER-DISPATCH]`, `[HYBRID-ROUTER-STATS]` 3종 추가 (instrumentation PR 이후)
+- [ ] `CLAUDE.md` 의 "진단 로그 marker 7종" 표에 `[HYBRID-ROUTER-INIT]`, `[HYBRID-ROUTER-DISPATCH]`, `[HYBRID-ROUTER-STATS]`, `[HYBRID-WAVE-DISPATCH]`, `[HYBRID-CPU-PROFILE]`, `[HYBRID-CPU-ATTN-IPEX]` 추가 (v5 PROFILE logging 반영)
+- [ ] `CLAUDE.md` 에 서버 로그 캡처 메커니즘 (serve.sh tee + bench.sh slice/grep) 섹션 추가
 - [ ] 본 TODO.md 재작성 + old_doc 백업 규칙을 `CLAUDE.md` 의 "3 파일 운용 규칙" 섹션에 반영
+- [ ] `eval/basic/H100x8/README.md` — 4 runs (gpu_only + max_seqs=1/16, threads=32/56) 비교 요약 (Tech_done v5 F2 기반)
+- [ ] `eval/basic/GTX3090/README.md` — 6 runs 요약 (1.5B/7B × gpu_only/hybrid × max_seqs=4)
 
 ---
 

@@ -410,3 +410,87 @@ H100x4 KVM / H100x8 + Xeon 2S / 일반 x86_64 laptop 등 기타 환경은 여전
 - TODO v4 (이전 버전) §3 "H100 capacity 멈춤" → v4 F2 로 **완결** (dev + H100 양쪽에서 근본 원인 확정 + 수정 + 검증). 대부분은 v3 F5 의 abort slot leak fix 로 해소되었고, 본 세션에서 발견된 routing regression 은 별개의 관련 이슈로 동시에 해결.
 - TODO v1 §4 "AMX tile permission 커널 버전 의존성" → v4 F4 로 **완결** (H100x4 KVM 에서 `brg_matmul:avx10_1_512_amx` 실제 dispatch 확인)
 - → 남은 것은 `TODO.md` (v4 재작성본, clean file) 의 §1~§7 — ninja gap 구현 (A1~A4), 70B / 긴 context 확장, bug 1 / OMP binding 정리, 논문 정합성, dev 보조 검증.
+
+---
+
+## v5 — 2026-04-14 (H100x8 2-NUMA 실측 검증 + dev 최적화)
+
+### V5-F1. H100x8 2-NUMA hybrid 경로 실동작 증명
+- **환경**: H100x8 물리 (violet-h100-023), Xeon Platinum 8480+ 2S × 56C × 2T = 224 logical, 2 NUMA
+- **측정 출처**: `eval/basic/H100x8/20260414_{044922,045947,054010}_H_C_*/hybrid_server_boot.log`
+- **서버 로그 증거**:
+  ```
+  [HYBRID-LAUNCH] num_cpu_engines=2 (numa_aware=True, config=2)
+  CPU_EngineCore_1 → numa_bind_node=0, local_omp_cpuid='112..167' (56 cores NUMA 0)
+  CPU_EngineCore_2 → numa_bind_node=1, local_omp_cpuid='168..223' (56 cores NUMA 1)
+  ```
+- **결론**: 2 NUMA engine 이 각자 자기 노드 물리 코어 56개에 strict bind 되어 spawn. 이전 0413 run 에서 N_CPU=16 이 나온 것은 `arg_utils.py default=1` / `serve.sh -gt 1` / `copy.replace` (Python 3.13+) / `numa_node` kwarg mismatch 의 4 겹 버그 복합 결과. 본 세션에서 4개 모두 수정 후 실측으로 복원 완료.
+
+### V5-F2. Wave-batch max_seqs=16 vs max_seqs=1 — 2-NUMA 정상 동작 하에도 재앙 재현
+- **환경**: 위와 동일, TP=4, Qwen2.5-7B, 500×128/128 burst
+- **측정 출처**: `eval/basic/H100x8/`
+- **실측**:
+  | config | wall | output TP | TPOT med/mean/p99 | TTFT p99 |
+  |---|---:|---:|---:|---:|
+  | gpu_only baseline | 14.0s | 16,501 | 22.7 / 23.1 / 55.8 | 1,075 |
+  | max_seqs=1 threads=32 2NUMA | 394s | 158 | 26 / 37 / 83 | 1,106 |
+  | max_seqs=16 threads=32 2NUMA | 2,098s | 30 | 22 / 1,047 / 15,966 | 69,959 |
+  | max_seqs=1 threads=56 2NUMA | 408s | 153 | 26 / 38 / 79 | 1,179 |
+- **TPOT 역산 (max_seqs=16)**:
+  ```
+  500 × 1047 = 468 × 21.6 + 32 × X  →  X = 16,043 ms ≈ p99 15,966 ✓
+  ```
+  **N_CPU=32** 으로 깔끔히 맞음 → 2 engine × max_seqs=16 alternating routing 정상 작동.
+- **결론**:
+  - 2 NUMA 가 작동하는데도 wave=16 은 여전히 **2098s**, max_seqs=1 대비 5.3× 느림
+  - 원인은 **IPEX FD kernel batch>1 KV paged-access penalty** + **CPU prefill 직렬화 (chunked_prefill=False)**. NUMA 분산으로 해결 불가.
+  - **max_seqs=1 이 어떤 상황에서도 맞는 답** — wave-batch 의 "batch" 자체가 독이므로 본질적으로 `throughput-adaptive cpu-first` 와 동치.
+  - threads=32 vs 56 (394 vs 408s) 는 -3.6% 차이. profile Section C.5 peak 32 재현 (BW-bound). NUMA 내 56 core 풀가동은 GPU worker / scheduler core contention 으로 오히려 손해.
+
+### V5-F3. dev (i9-12900KF) CPU thread sweep — 16 peak
+- **환경**: i9-12900KF (8P+8E, 16 physical / 24 logical, 1 NUMA), AVX2+VNNI (AVX-512 없음)
+- **측정 출처**: `eval/analysis_log/20260414_050715_cpu_profile_dev/vllm_thread_sweep.json`
+- **실측 (Qwen2.5-1.5B CPU solo decode, 3-run avg, 64 tokens)**:
+  ```
+  threads= 4 : 10.56 tps
+  threads= 8 : 10.64 tps (+0.7% vs 4)
+  threads=12 : 11.35 tps (+7.5%)
+  threads=16 : 11.62 tps (+10.0%) ⭐ peak
+  threads=24 : 11.20 tps (-3.6% SMT 오버서브)
+  ```
+- **GEMM 층별 peak (Section 2)**:
+  - decode_qkv (16×3584²): threads=16 peak (427 GFLOPS)
+  - decode_ffn_up/dn (16×3584×9728): **threads=8 peak** (301/316 GFLOPS)
+  - decode_single (1×3584×9728): threads=4-8 plateau
+- **Layer breakdown (Section 5, 16 threads)**:
+  - MLP **76%** / Attn 11% / Other 13% — AVX-512 없어 MLP GEMM 이 압도적 병목
+- **결론**: 8P+8E 물리 16 코어 전부 사용이 최적. E-core barrier stall 우려는 실측에서 무효화. MLP GEMM peak 가 8 이고 전체 peak 가 16 인 것은 attention GEMM (peak=16) + MLP + overhead 가 섞여 종합 최적이 16 으로 밀린 결과. dev env 3개 `HYBRID_CPU_THREADS=16` 업데이트 완료.
+
+### V5-F4. 서버 로그 캡처 인프라 완성
+- **구조**:
+  - `serve.sh`: `tee` 로 stdout/stderr 를 `eval/serve_logs/server_YYYYMMDD_HHMMSS_MODE.log` 에 복제, `server_latest.log` 심링크 갱신
+  - `bench.sh`: 시작 시 `wc -c` 로 byte offset 기록 → 종료 시 `tail -c +START` 로 run-window slice 추출 + `grep` 으로 boot markers 추출
+- **산출물 (per RUN_DIR)**:
+  - `MODE_server_boot.log` — grep 기반 boot markers (LAUNCH/RESOLVE/CPU-ENV/CPU-PROC/CPU-WORKER/ROUTER-INIT)
+  - `MODE_server_run.log` — bench 구간 byte-offset slice (dispatch/profile/stats markers)
+- **검증**: `eval/basic/H100x8/20260414_*/` 의 `hybrid_server_boot.log` / `hybrid_server_run.log` 에 실제로 2-NUMA 증거 (`[HYBRID-LAUNCH] num_cpu_engines=2` 등) 포함 확인.
+- **결론**: 과거 session 에서 추측으로만 진단하던 num_cpu_engines / NUMA binding / max_seqs resolve 결과를 이제 **log 증거 기반으로 확정** 가능.
+
+### V5-F5. Python 3.12 / 3.13 API 호환성
+- **증상**: `copy.replace()` 사용 코드가 H100 환경 (Python 3.12.13) 에서 `AttributeError: module 'copy' has no attribute 'replace'`
+- **원인**: `copy.replace()` 는 **Python 3.13+ 전용** 신규 API. `dataclasses.replace()` 는 3.7+ 이고 동일 동작.
+- **수정**: `hybrid_core.py:1263-1274` — `dataclasses.replace()` 로 대체. HybridConfig / VllmConfig 둘 다 dataclass 이므로 동치.
+- **결론**: 향후 신규 API 사용 시 `import sys; sys.version_info >= (3, 13)` 로 게이트하거나, `dataclasses` / `typing` / `functools` 의 안정 API 선호.
+
+### v5 매트릭스 (실측 완료 환경만)
+
+| 환경 | CPU | NUMA | 2-NUMA 실측 | 1.5B | 7B | 32B |
+|------|-----|------|-----------|------|----|-----|
+| **dev** (i9-12900KF + RTX 3090, TP=1) | AVX2+VNNI | 1 | N/A | cpu_profile peak 16t = 11.62 tps | 없음 (TP=1 에서 KV 압박) | 없음 |
+| **H100x4 KVM** (Xeon 8480+, TP=4) | AVX-512 F/VNNI + AMX | 1 (KVM 통합) | N/A | v4 F2 | v4 F2 | v4 F2 |
+| **H100x8 물리** (Xeon 8480+ 2S, TP=4) | AVX-512 + AMX | **2** | **V5-F1 ✓** | 없음 | **V5-F2 ✓** | 없음 |
+
+다음 우선순위 (TODO §2):
+- H100x8 70B TP=8 (GPU 포화 조건에서 hybrid 이득 실측)
+- H100x8 long-context (16K input, GPU KV 압박)
+- H100x8 rate-limited burst 2000+ req (GPU queue-saturation)

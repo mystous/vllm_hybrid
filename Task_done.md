@@ -713,3 +713,24 @@ def _route_throughput_adaptive(self, request_id, prompt_len):
 - **Task_done.md / Tech_done.md**: 기존대로 **append-only** 유지. 새 섹션은 파일 말미에 `## vN — YYYY-MM-DD 주제` 로 추가.
 
 
+
+
+---
+
+## v5 — 2026-04-14 세션 (H100x8 2-NUMA 검증 + dev 최적화)
+
+### 확정된 수정 / 변경
+- 2-NUMA 경로 크래시 3건 전원 수정 → H100x8 에서 실측 검증 완료 (§ Tech_done v5 F1 참조)
+- dev CPU thread 최적값 16 확정 — 해당 env 파일 업데이트 완료
+- Wave-batch max_seqs=16 은 하드웨어 무관하게 재앙 확정 (Tech_done v5 F2)
+- 서버 로그 캡처 인프라 완성 (serve.sh tee + bench.sh slice/grep)
+
+### 자동 해소된 TODO 항목
+- v4 TODO "§2.1 H100x8 2-socket 실측 없음" → **완결** (Tech_done v5 F1)
+- v4 TODO "num_cpu_engines auto-detect 실동작 증명" → **완결** (server log 증거 확보)
+- v4 TODO "CPU throughput thread sweep on dev" → **완결** (cpu_profile_dev.sh + env fix)
+
+### 본 세션에서 새로 발견 → TODO.md 추가
+- CPU prefill 직렬화 (chunked_prefill=False) 로 max_seqs=16 시 TTFT p99 70s. max_seqs=1 하에선 비문제이지만, batched 길이 변화 또는 다중 workload 도입 시 재점검 필요
+- dev 에서 hybrid (max_seqs=4) 수동 run 6개 수집 — 분석은 별도 작업으로 이관 (basic/GTX3090/)
+
