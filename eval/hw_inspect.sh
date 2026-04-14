@@ -16,4 +16,4 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
-exec python3 "${SCRIPT_DIR}/inspect.py" "$@"
+exec python3 "${SCRIPT_DIR}/hw_inspect.py" "$@"

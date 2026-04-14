@@ -984,6 +984,20 @@ def _setup_cpu_process_env(
     os.environ.pop("OMP_PROC_BIND", None)
     os.environ.pop("OMP_PLACES", None)
 
+    # 부모로부터 상속된 sched_setaffinity 제한을 cgroup 의 cpuset.effective
+    # 로 복원한다. CUDA/Torch/IPEX 초기화가 PCIe NUMA hint 로 부모 프로세스
+    # 의 affinity 를 일부 CPU (예: RTX 3090 dev 에서 {0,1}) 로 좁혀 놓으면
+    # fork 된 CPU EngineCore 가 그 제한을 상속 → 이후 get_allowed_cpu_memory_
+    # node_list 의 os.sched_getaffinity(0) 가 1-2 CPU 만 반환 → 1 core 만
+    # 사용되는 버그. PID 1 은 컨테이너 init 이며 cgroup cpuset.effective 와
+    # 동일한 affinity 를 가지므로 이를 그대로 복사하면 container/host 양쪽
+    # 에서 안전하게 동작한다. 실패 시 (권한 부족 등) 기존 affinity 유지.
+    try:
+        effective = os.sched_getaffinity(1)
+        os.sched_setaffinity(0, effective)
+    except (OSError, PermissionError, AttributeError) as _e:
+        logger.debug("sched_setaffinity reset skipped: %s", _e)
+
     # 스레드 바인딩 모드 설정 (CPUWorker.init_device()에서 참조)
     # "auto"는 NUMA 토폴로지 기반 자동 바인딩
     os.environ.setdefault("VLLM_CPU_OMP_THREADS_BIND", "auto")
@@ -1072,10 +1086,15 @@ def _setup_cpu_process_env(
     else:
         logger.info("NUMA affinity disabled by config")
 
+    try:
+        _cur_affinity = os.sched_getaffinity(0)
+        _affinity_count = len(_cur_affinity)
+    except (OSError, AttributeError):
+        _affinity_count = -1
     logger.info(
         "[HYBRID-CPU-ENV] PID=%d configured: OMP=%s MKL=%s OPENBLAS=%s "
         "OMP_PROC_BIND=%s OMP_PLACES=%s KVCACHE=%sGB ONEDNN_ISA=%s "
-        "BIND=%s",
+        "BIND=%s sched_affinity_count=%d",
         os.getpid(),
         os.environ.get("OMP_NUM_THREADS"),
         os.environ.get("MKL_NUM_THREADS"),
@@ -1085,6 +1104,7 @@ def _setup_cpu_process_env(
         os.environ.get("VLLM_CPU_KVCACHE_SPACE"),
         os.environ.get("ONEDNN_MAX_CPU_ISA", "not set"),
         os.environ.get("VLLM_CPU_OMP_THREADS_BIND"),
+        _affinity_count,
     )
 
 
