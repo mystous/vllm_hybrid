@@ -137,6 +137,17 @@ Request lifecycle:
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_PD_DISAGG` | `0` (기본) / `1` | P/D split 활성 (long-ctx 전용) |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `vllm/engine/disaggregated/coordinator.py` — 기존 stub

@@ -654,6 +654,11 @@ class CPUWorker(Worker):
             self._install_hybrid_profile_hooks()
             self._hybrid_hooks_installed = True
 
+        # Sublayer 세분화 옵션. VLLM_HYBRID_PROFILE_SUBLAYER=1 이면
+        # attn/mlp 덩어리 대신 qkv/o/gate_up/down/norm 수준으로 분해.
+        _sublayer = (os.environ.get("VLLM_HYBRID_PROFILE_SUBLAYER", "0")
+                     == "1")
+
         # Reset per-step layer time accumulators
         if _emit_profile:
             self._hybrid_layer_times = {
@@ -661,7 +666,15 @@ class CPUWorker(Worker):
                 "mlp_total_ms": 0.0,
                 "attn_count": 0,
                 "mlp_count": 0,
+                # sublayer breakdown (VLLM_HYBRID_PROFILE_SUBLAYER=1 시 채워짐)
+                "qkv_ms": 0.0, "qkv_n": 0,
+                "o_ms": 0.0, "o_n": 0,
+                "gate_up_ms": 0.0, "gate_up_n": 0,
+                "down_ms": 0.0, "down_n": 0,
+                "norm_ms": 0.0, "norm_n": 0,
+                "act_ms": 0.0, "act_n": 0,
             }
+        self._hybrid_profile_sublayer = _sublayer
         self._hybrid_profile_active = _emit_profile
 
         if _trace or (_every > 0 and _step % _every == 0) or _emit_profile:
@@ -708,15 +721,37 @@ class CPUWorker(Worker):
                 attn = lt["attn_total_ms"]
                 mlp = lt["mlp_total_ms"]
                 other = elapsed_ms - attn - mlp
-                logger.info(
-                    "[HYBRID-CPU-PROFILE] step=%d reqs=%s tokens=%s "
-                    "threads=%d total=%.1fms "
-                    "attn=%.1fms (%d layers) mlp=%.1fms (%d layers) "
-                    "other=%.1fms",
-                    _step, num_reqs, num_scheduled,
-                    torch.get_num_threads(), elapsed_ms,
-                    attn, lt["attn_count"], mlp, lt["mlp_count"], other,
-                )
+                if getattr(self, "_hybrid_profile_sublayer", False) \
+                        and (lt["qkv_n"] + lt["gate_up_n"] + lt["down_n"]) > 0:
+                    # Sublayer breakdown log
+                    logger.info(
+                        "[HYBRID-CPU-PROFILE] step=%d reqs=%s tokens=%s "
+                        "threads=%d total=%.1fms "
+                        "qkv=%.1fms(%d) o=%.1fms(%d) "
+                        "gate_up=%.1fms(%d) down=%.1fms(%d) "
+                        "norm=%.1fms(%d) act=%.1fms(%d) "
+                        "attn_core=%.1fms(%d) other=%.1fms",
+                        _step, num_reqs, num_scheduled,
+                        torch.get_num_threads(), elapsed_ms,
+                        lt["qkv_ms"], lt["qkv_n"],
+                        lt["o_ms"], lt["o_n"],
+                        lt["gate_up_ms"], lt["gate_up_n"],
+                        lt["down_ms"], lt["down_n"],
+                        lt["norm_ms"], lt["norm_n"],
+                        lt["act_ms"], lt["act_n"],
+                        attn, lt["attn_count"], other,
+                    )
+                else:
+                    # Coarse attn/mlp log (기존 호환)
+                    logger.info(
+                        "[HYBRID-CPU-PROFILE] step=%d reqs=%s tokens=%s "
+                        "threads=%d total=%.1fms "
+                        "attn=%.1fms (%d layers) mlp=%.1fms (%d layers) "
+                        "other=%.1fms",
+                        _step, num_reqs, num_scheduled,
+                        torch.get_num_threads(), elapsed_ms,
+                        attn, lt["attn_count"], mlp, lt["mlp_count"], other,
+                    )
         self._hybrid_profile_active = False
 
         if not get_pp_group().is_last_rank:
@@ -791,8 +826,33 @@ class CPUWorker(Worker):
                     lt['mlp_count'] += 1
             return post_hook
 
+        # Sublayer 전용 hook factory. kind ∈ {qkv, o, gate_up, down, norm, act}
+        # 누적 대상은 self._hybrid_layer_times[f"{kind}_ms"], _n.
+        def make_sub_post_hook(kind):
+            def post_hook(module, args, output):
+                if not getattr(self, '_hybrid_profile_active', False):
+                    return
+                t0 = getattr(module, '_hybrid_t0', None)
+                if t0 is None:
+                    return
+                elapsed_ms = (_time.perf_counter() - t0) * 1000
+                lt = self._hybrid_layer_times
+                lt[f"{kind}_ms"] += elapsed_ms
+                lt[f"{kind}_n"] += 1
+            return post_hook
+
+        def _install_sub(module, kind):
+            if module is None:
+                return 0
+            module.register_forward_pre_hook(
+                make_pre_hook(kind), with_kwargs=False)
+            module.register_forward_hook(make_sub_post_hook(kind))
+            return 1
+
         installed = 0
+        sub_installed = 0
         for i, layer in enumerate(layers):
+            # Coarse attn/mlp hooks (기존 호환)
             if hasattr(layer, 'self_attn'):
                 layer.self_attn.register_forward_pre_hook(
                     make_pre_hook('attn'), with_kwargs=False)
@@ -802,8 +862,45 @@ class CPUWorker(Worker):
                 layer.mlp.register_forward_pre_hook(
                     make_pre_hook('mlp'), with_kwargs=False)
                 layer.mlp.register_forward_hook(make_post_hook('mlp'))
+
+            # Sublayer hooks (Qwen2/Llama 구조: attn 안의 qkv_proj/o_proj,
+            # mlp 안의 gate_up_proj(merged) or gate_proj+up_proj, down_proj)
+            attn = getattr(layer, 'self_attn', None)
+            if attn is not None:
+                # qkv_proj (merged) OR q_proj/k_proj/v_proj 개별
+                if hasattr(attn, 'qkv_proj'):
+                    sub_installed += _install_sub(attn.qkv_proj, 'qkv')
+                else:
+                    for n in ('q_proj', 'k_proj', 'v_proj'):
+                        sub_installed += _install_sub(getattr(attn, n, None),
+                                                      'qkv')
+                sub_installed += _install_sub(
+                    getattr(attn, 'o_proj', None), 'o')
+
+            mlp = getattr(layer, 'mlp', None)
+            if mlp is not None:
+                if hasattr(mlp, 'gate_up_proj'):
+                    sub_installed += _install_sub(mlp.gate_up_proj, 'gate_up')
+                else:
+                    for n in ('gate_proj', 'up_proj'):
+                        sub_installed += _install_sub(getattr(mlp, n, None),
+                                                      'gate_up')
+                sub_installed += _install_sub(
+                    getattr(mlp, 'down_proj', None), 'down')
+                # SiLU/GELU activation
+                act_fn = getattr(mlp, 'act_fn', None)
+                if act_fn is not None:
+                    sub_installed += _install_sub(act_fn, 'act')
+
+            # RMSNorm / LayerNorm (input_layernorm, post_attention_layernorm)
+            for norm_name in ('input_layernorm', 'post_attention_layernorm',
+                              'pre_attention_layernorm'):
+                sub_installed += _install_sub(
+                    getattr(layer, norm_name, None), 'norm')
+
         logger.info("[HYBRID-CPU-PROFILE] hooks installed on %d layers "
-                    "(attn+mlp per layer)", installed)
+                    "(coarse attn+mlp) + %d sublayer hooks",
+                    installed, sub_installed)
 
     def _get_autobind_cpu_ids(
         self, cpu_selector: Callable[[list[LogicalCPUInfo]],

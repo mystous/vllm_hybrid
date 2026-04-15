@@ -133,6 +133,17 @@ NEO 구조: CPU = **attention 전용 워커** (모든 request 의 attention 만)
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_NEO_ASYMMETRIC` | `0` (기본) / `1` | NEO step-level batch split 활성 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `vllm/v1/engine/hybrid_core.py` — `_split_batch_asymmetric` (신규)

@@ -152,6 +152,17 @@ Qwen2.5 GQA: group=4. 같은 group 의 query heads 는 K, V 공유. Batch-aware 
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_BATCH_AWARE_ATTN` | `off` (기본) / `v1` / `v2` | v1=batch16 hardcoded (기존), v2=동적 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `csrc/cpu/batch_attention.cpp` — 기존 v1 (batch=16 hardcoded)

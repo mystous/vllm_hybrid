@@ -173,6 +173,102 @@ D 에 머무는 기법이 3개 연속 실패 시 드롭.
 
 ---
 
+## 측정 모드 (VLLM_HYBRID_PROFILE)
+
+G0 계측과 기법 ablation 은 **측정 전용 env flag** 로 제어. Production 실행은 flag off → hook overhead 없음.
+
+### 2단 분리 구조
+
+**Layer 1 — 측정 모드**
+```bash
+VLLM_HYBRID_PROFILE=0   # 기본. production.
+VLLM_HYBRID_PROFILE=1   # 측정 모드. sublayer hook + manifest + 로그 활성
+VLLM_HYBRID_PROFILE_EVERY=10   # N step 마다 로그 출력 (기본 10)
+VLLM_HYBRID_PROFILE_SUBLAYER=1 # attn/mlp → qkv/o/gate_up/down/norm 세분화
+```
+
+**Layer 2 — 기법 feature flag** (아래 표. §03~§22 각 기법)
+
+Layer 1 과 독립. 기법 flag 는 실제 동작 변경 (production 에서도 켤 수 있음), Layer 1 은 관찰만.
+
+### 기법 Feature Flag 테이블
+
+| Flag | 기법 | 기본값 | 현재 |
+|---|---|:---:|:---:|
+| `HYBRID_HUGEPAGES` | §03 Huge Pages 1GB | 0 | ⭕ |
+| `HYBRID_WOQ_INT8` | §04 IPEX WoQ INT8 | 0 | ⭕ |
+| `HYBRID_KMP_BLOCKTIME` | §05 OMP env (KMP_BLOCKTIME=0) | auto | ✅ |
+| `HYBRID_VNNI_HOT_PATH` | §06 VNNI hot path wiring | 0 | ⭕ |
+| `HYBRID_ISA_DISPATCH` | §07 ISA binary dispatch | auto | 🔶 |
+| `HYBRID_KERNEL_FUSION` | §08 Kernel fusion | 0 | 🔶 |
+| `HYBRID_LUT_SOFTMAX` | §09 Softmax LUT | 0 | ⭕ |
+| `HYBRID_LUT_SILU` | §09 SiLU LUT | 0 | ⭕ |
+| `HYBRID_HEAD_FOLDING` | §10 Head Folding | 0 | ⭕ |
+| `HYBRID_BATCH_AWARE_ATTN` | §11 Batch-aware attn (v1/v2/off) | off | 🔶 |
+| `HYBRID_PERSISTENT_OMP` | §12 Barrier/Sync 감소 | 0 | ⭕ |
+| `HYBRID_TMAC_LUT_INT4` | §13 T-MAC LUT GEMV | 0 | ⭕ |
+| `HYBRID_AVX_AMX_CASCADE` | §14 AVX/AMX Cascade | 0 | ⭕ |
+| `HYBRID_AMX_PREPACK` | §15 AMX pre-pack (auto/ipex/custom) | auto | 🔶 |
+| `HYBRID_SPARSE_BITMASK` | §16 SparAMX sparse | 0 | 🔶 |
+| `HYBRID_CORE_GROUP_PIPELINE` | §17 Core group systolic | 0 | ⭕ |
+| `HYBRID_SPEC_DECODE_CPU` | §18 Spec Decode CPU drafter | 0 | 🔶 |
+| `HYBRID_PD_DISAGG` | §19 P/D disaggregation | 0 | 🔶 |
+| `HYBRID_KV_OFFLOAD` | §20 KV offload (predictive) | 0 | 🔶 |
+| `HYBRID_SCOUT_ATTN` | §21 ScoutAttention | 0 | ⭕ |
+| `HYBRID_NEO_ASYMMETRIC` | §22 NEO asymmetric split | 0 | ⭕ |
+
+**auto**: Intel feature 감지 기반 자동 결정 (기본 켜짐). **0**: 명시 opt-in 기법.
+
+### 측정 모드 사용 흐름
+
+**A. Production 실행** (기본):
+```bash
+# env 에 VLLM_HYBRID_PROFILE 언급 없음
+./eval/serve.sh h100x8_qwen7b_hybrid.env
+# hook 없음, overhead 0
+```
+
+**B. G0 측정 실행**:
+```bash
+# env 에 추가
+VLLM_HYBRID_PROFILE=1
+VLLM_HYBRID_PROFILE_SUBLAYER=1
+HYBRID_VNNI_HOT_PATH=1   # 이번 주 적용 기법
+HYBRID_BATCH_AWARE_ATTN=v2
+
+./eval/serve.sh h100x8_qwen7b_hybrid.env
+./eval/bench.sh h100x8_qwen7b_hybrid.env
+```
+
+Result dir 에 자동 생성:
+- `applied_features.json` — 활성 flag + git sha + 모델 정보
+- `hybrid_server_run.log` 에 `[HYBRID-APPLIED-FEATURES]` (boot) + `[HYBRID-CPU-PROFILE]` (per step) 마커
+- `env_snapshot.txt` — `HYBRID_*`, `VLLM_HYBRID_*` 환경변수 덤프
+
+**C. Feature ablation (같은 조건에서 1 flag 만 차이)**:
+```bash
+# run 1
+VLLM_HYBRID_PROFILE=1 HYBRID_LUT_SOFTMAX=0 ./serve.sh ...
+
+# run 2
+VLLM_HYBRID_PROFILE=1 HYBRID_LUT_SOFTMAX=1 ./serve.sh ...
+
+./eval/g0_compare.sh run1_dir run2_dir
+# manifest diff 로 LUT_SOFTMAX 차이만 추출 + 성능 delta + attribution
+```
+
+### 주간 운영 (최소 2점, 여유 시 5점)
+
+```
+Week 0 (baseline):           [seqs=1, 16]  → curve_0
+Week N (기법 적용 후):        [seqs=1, 16]  → curve_N
+필요 시 중간점 추가:          [seqs=4]  → knee 확정
+```
+
+`eval/<HW>/g0_<NN>/seqs<N>/` 구조로 저장 (`<NN>` = 적용 TODO 번호, `00` = baseline, `05` = §05 KMP_BLOCKTIME 적용 후, `06` = §06 hot path 적용 후 …). `g0_compare.sh` 로 라운드 간 diff.
+
+---
+
 ## 공통 참조 문서
 
 - `/vllm_hybrid/TODO.md` — 전체 요약

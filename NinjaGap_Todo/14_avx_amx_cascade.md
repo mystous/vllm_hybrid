@@ -162,6 +162,17 @@ batch=16+ → full AMX path, cascade 의미 축소
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_AVX_AMX_CASCADE` | `0` (기본) / `1` | 3-stage cascade pipeline 활성 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `csrc/cpu/cascade_gemm.cpp` — (신규)

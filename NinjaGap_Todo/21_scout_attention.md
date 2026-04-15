@@ -145,6 +145,17 @@ GPU (layer i+1):
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_SCOUT_ATTN` | `0` (기본) / `1` | Layer-ahead ScoutAttention 활성 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `csrc/cpu/scout_attention.cpp` — (신규)

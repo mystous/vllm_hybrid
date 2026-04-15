@@ -62,6 +62,7 @@ export VLLM_HYBRID_TRACE="${VLLM_HYBRID_TRACE:-0}"
 export VLLM_HYBRID_TRACE_EVERY="${VLLM_HYBRID_TRACE_EVERY:-0}"
 export VLLM_HYBRID_PROFILE="${VLLM_HYBRID_PROFILE:-0}"
 export VLLM_HYBRID_PROFILE_EVERY="${VLLM_HYBRID_PROFILE_EVERY:-0}"
+export VLLM_HYBRID_PROFILE_SUBLAYER="${VLLM_HYBRID_PROFILE_SUBLAYER:-0}"
 
 echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"
@@ -82,6 +83,19 @@ SERVER_LOG_FILE="${SERVER_LOG_DIR}/server_$(date +%Y%m%d_%H%M%S)_${MODE}.log"
 # latest 심링크 갱신
 ln -sf "${SERVER_LOG_FILE}" "${SERVER_LOG_DIR}/server_latest.log"
 echo " SERVER_LOG=${SERVER_LOG_FILE}"
+
+# VLLM_HYBRID_PROFILE=1 일 때 측정 manifest 디렉토리 설정.
+# bench.sh 가 RUN_DIR 로 rename 복사할 수 있도록 latest 심링크 유지.
+export VLLM_HYBRID_RESULT_DIR="${VLLM_HYBRID_RESULT_DIR:-${SERVER_LOG_DIR}/profile_latest}"
+if [[ "${VLLM_HYBRID_PROFILE}" == "1" ]]; then
+    mkdir -p "${VLLM_HYBRID_RESULT_DIR}"
+    # env 스냅샷: HYBRID_* + VLLM_HYBRID_* 전부
+    env | grep -E '^(HYBRID_|VLLM_HYBRID_)' | sort \
+        > "${VLLM_HYBRID_RESULT_DIR}/env_snapshot.txt"
+    (cd "${SCRIPT_DIR}/.." && git rev-parse HEAD 2>/dev/null || true) \
+        > "${VLLM_HYBRID_RESULT_DIR}/git_sha.txt"
+    echo " PROFILE_MODE=on, manifest dir: ${VLLM_HYBRID_RESULT_DIR}"
+fi
 echo "============================================================"
 
 TP="${TENSOR_PARALLEL_SIZE:-1}"

@@ -306,11 +306,21 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 |---|---|---:|
 | 경로 1 단독 승리 | T-MAC LUT GEMV 4× 실현 + cascade 1.7× + batch-aware attn 12× scaling | 30% |
 | 경로 1 + Spec Decode 조합 ★ | Stage C 후 15–20× + DuoDecoding 2× 추가 | 50% |
-| 구조 변경 필요 | 현 workload Ninja Gap 포기 → 70B/long-ctx 전환 | 20% |
 
 ---
 
-## 9. 근거 등급
+## 9. 실행 순서
+
+1. **G0 profiler**: `num_seqs=1/2/4/8/16` CPU-only/hybrid 동일 shape 에서 `batch_scaling_ratio`, `per_req_cost`, sublayer breakdown 확보
+2. **Hot path 증명**: VNNI/pre-pack/oneDNN dispatch 가 실제 CPU linear/attention 경로에 걸리는지 marker 로 확인
+3. **Batch scaling kernel**: profiler top bottleneck 기준으로 batch-aware attention, head folding, fusion, barrier 감소 중 먼저 착수
+4. **Big wins prototype**: LUT INT4, AVX/AMX cascade, AMX pre-pack, SparAMX 는 cache-fit/정확도/dispatch 조건을 만족하는 shape 에 한해 승격
+5. **Routing 재활성**: `num_seqs=4` cost 가 single 대비 2× 이하로 내려간 뒤에만 `cpu_max_num_seqs` knee point 탐색
+6. **Spec decode**: 경로 1 이 CPU drafter balance 조건을 만족할 때 본격화
+
+---
+
+## 10. 근거 등급
 
 - **A** (로컬 실측): H100x8 wall 394/2098/14s, RTX3090 wall 23/90/8.1/6.5s
 - **B** (유사 HW 논문): SparAMX 1.42× (Xeon SPR), KTransformers ISA batch>4 경계
@@ -321,7 +331,7 @@ D 에 머무는 기법이 Stage 3개 연속 실패 시 드롭. 각 단계 종료
 
 ---
 
-## 10. 코드 수정 위치 총괄
+## 11. 코드 수정 위치 총괄
 
 - **계측**: `vllm/v1/worker/cpu_worker.py` (sublayer hook, barrier marker), `eval/cpu_profile*.sh` (num_seqs sweep), `eval/basic/H100x8/analysis_h100.ipynb`
 - **라우팅**: `vllm/v1/engine/hybrid_core.py` (default strategy, cpu_max_num_seqs, wave-batch, throughput-adaptive), `vllm/v1/engine/core_client.py` (dispatch/finished accounting, throughput feedback)

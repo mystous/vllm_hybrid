@@ -115,6 +115,17 @@ model = ipex.llm.optimize(
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_WOQ_INT8` | `0` (기본) / `1` | IPEX WoQ INT8 경로 활성 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `vllm/v1/worker/cpu_worker.py` — `ipex.llm.optimize` 호출부

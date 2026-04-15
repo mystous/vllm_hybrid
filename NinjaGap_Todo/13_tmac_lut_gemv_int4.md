@@ -186,6 +186,17 @@ Weight 를 INT4 로 만드는 방법:
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_TMAC_LUT_INT4` | `0` (기본) / `1` | T-MAC LUT GEMV INT4 경로 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `csrc/cpu/lut_gemv.cpp` — (신규)

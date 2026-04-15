@@ -23,6 +23,7 @@ import time
 import weakref
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import Optional
 
 from vllm.config import HybridConfig, VllmConfig
@@ -973,6 +974,16 @@ def _setup_cpu_process_env(
     os.environ["MKL_DYNAMIC"] = "FALSE"
     # 스핀 대기 (latency ↓, single-tenant 환경 가정)
     os.environ.setdefault("OMP_WAIT_POLICY", "ACTIVE")
+
+    # KMP_BLOCKTIME — §05. hybrid dual-process 구조에서 CPU engine thread 가
+    # step 사이 spin 하면 API server / router 와 IPC 경쟁. 0 으로 즉시 sleep
+    # 시키는 게 latency 에 유리 (dev env 파일에서 이미 0 적용 중). HYBRID_KMP_
+    # BLOCKTIME 로 override 가능: 'auto' (=0 강제), '0'|'1'|...|'infinite'.
+    _kmp_override = os.environ.get("HYBRID_KMP_BLOCKTIME", "auto")
+    if _kmp_override == "auto":
+        os.environ["KMP_BLOCKTIME"] = "0"
+    elif _kmp_override:
+        os.environ["KMP_BLOCKTIME"] = _kmp_override
     # 주의: 중첩 OMP(OMP_NESTED=TRUE)는 oversubscription을 만들기 쉬워
     # 여기서는 활성화하지 않는다. BLAS 내부 OMP 한 단계만 사용.
     # OMP_PROC_BIND / OMP_PLACES는 부모 프로세스 환경에서 상속될 수 있다.
@@ -1424,6 +1435,129 @@ class HybridEngineProcManager:
 
 
 # ============================================================================
+# Applied features manifest — VLLM_HYBRID_PROFILE=1 측정 모드 전용
+# ============================================================================
+
+# Ninja Gap 기법 flag 목록. 각 env var 의 현재 값을 수집해 manifest 에 기록.
+# 문서: /vllm_hybrid/NinjaGap_Todo/00_Overview.md "기법 Feature Flag 테이블"
+_NINJA_GAP_FLAGS = [
+    "HYBRID_HUGEPAGES",          # §03 Huge Pages 1GB
+    "HYBRID_WOQ_INT8",           # §04 IPEX WoQ INT8
+    "HYBRID_KMP_BLOCKTIME",      # §05 OMP env KMP_BLOCKTIME=0
+    "HYBRID_VNNI_HOT_PATH",      # §06 VNNI hot path wiring
+    "HYBRID_ISA_DISPATCH",       # §07 ISA binary dispatch
+    "HYBRID_KERNEL_FUSION",      # §08 Kernel fusion
+    "HYBRID_LUT_SOFTMAX",        # §09 Softmax LUT
+    "HYBRID_LUT_SILU",           # §09 SiLU LUT
+    "HYBRID_HEAD_FOLDING",       # §10 Head Folding
+    "HYBRID_BATCH_AWARE_ATTN",   # §11 Batch-aware decode attn
+    "HYBRID_PERSISTENT_OMP",     # §12 Barrier/Sync 감소
+    "HYBRID_TMAC_LUT_INT4",      # §13 T-MAC LUT GEMV
+    "HYBRID_AVX_AMX_CASCADE",    # §14 AVX/AMX Cascade
+    "HYBRID_AMX_PREPACK",        # §15 AMX pre-pack
+    "HYBRID_SPARSE_BITMASK",     # §16 SparAMX sparse
+    "HYBRID_CORE_GROUP_PIPELINE", # §17 Core group systolic
+    "HYBRID_SPEC_DECODE_CPU",    # §18 Spec Decode CPU drafter
+    "HYBRID_PD_DISAGG",          # §19 P/D disaggregation
+    "HYBRID_KV_OFFLOAD",         # §20 KV offload
+    "HYBRID_SCOUT_ATTN",         # §21 ScoutAttention
+    "HYBRID_NEO_ASYMMETRIC",     # §22 NEO asymmetric split
+]
+
+# Profile 관련 meta flag
+_PROFILE_META_FLAGS = [
+    "VLLM_HYBRID_PROFILE",
+    "VLLM_HYBRID_PROFILE_EVERY",
+    "VLLM_HYBRID_PROFILE_SUBLAYER",
+    "VLLM_HYBRID_TRACE",
+    "VLLM_HYBRID_TRACE_EVERY",
+]
+
+
+def _emit_applied_features_manifest(vllm_config: VllmConfig) -> None:
+    """Ninja Gap 기법 feature flag 현재 상태를 boot log 에 출력하고
+    (가능하면) JSON 파일로도 저장.
+
+    VLLM_HYBRID_PROFILE=1 측정 모드에서만 호출.
+
+    Manifest 위치 결정:
+      1. VLLM_HYBRID_RESULT_DIR 가 설정되어 있으면 그 디렉토리
+      2. 없으면 CWD/applied_features.json
+      serve.sh 가 `VLLM_HYBRID_RESULT_DIR` 를 export 해주는 구조를 전제.
+    """
+    import json as _json
+    import subprocess as _sp
+
+    features: dict = {}
+    for flag in _NINJA_GAP_FLAGS:
+        features[flag] = os.environ.get(flag, "")
+    meta: dict = {}
+    for flag in _PROFILE_META_FLAGS:
+        meta[flag] = os.environ.get(flag, "")
+
+    # git sha (옵션)
+    git_sha = ""
+    try:
+        git_sha = _sp.check_output(
+            ["git", "rev-parse", "HEAD"],
+            stderr=_sp.DEVNULL, timeout=2).decode().strip()
+    except Exception:
+        pass
+
+    # 모델 정보
+    model_name = getattr(vllm_config.model_config, "model", "unknown")
+    hybrid_cfg = vllm_config.hybrid_config
+
+    manifest = {
+        "timestamp_kst": datetime.now().isoformat(),
+        "git_sha": git_sha,
+        "model": model_name,
+        "hybrid_config": {
+            "mode": getattr(hybrid_cfg, "mode", None),
+            "num_cpu_engines": getattr(hybrid_cfg, "num_cpu_engines", None),
+            "cpu_max_num_seqs": getattr(hybrid_cfg, "cpu_max_num_seqs", None),
+            "cpu_num_threads": getattr(hybrid_cfg, "cpu_num_threads", None),
+            "numa_aware": getattr(hybrid_cfg, "numa_aware", None),
+            "routing_strategy": getattr(hybrid_cfg, "routing_strategy", None),
+            "routing_priority": getattr(hybrid_cfg, "routing_priority", None),
+        },
+        "profile_meta": meta,
+        "features": features,
+    }
+
+    # boot log 출력
+    enabled = [f"{k}={v}" for k, v in features.items()
+               if v and v != "0" and v.lower() != "off"]
+    logger.info(
+        "[HYBRID-APPLIED-FEATURES] profile_mode=1 model=%s git=%s "
+        "enabled=[%s]",
+        model_name, git_sha[:8] if git_sha else "n/a",
+        ", ".join(enabled) if enabled else "none",
+    )
+    # 전체 flag 상세는 debug 로
+    for k, v in features.items():
+        logger.debug("[HYBRID-APPLIED-FEATURES] %s=%r", k, v)
+
+    # JSON 저장
+    result_dir = os.environ.get("VLLM_HYBRID_RESULT_DIR")
+    if result_dir:
+        try:
+            os.makedirs(result_dir, exist_ok=True)
+            path = os.path.join(result_dir, "applied_features.json")
+            with open(path, "w") as f:
+                _json.dump(manifest, f, indent=2, ensure_ascii=False)
+            logger.info("[HYBRID-APPLIED-FEATURES] manifest saved to %s",
+                        path)
+        except Exception as e:
+            logger.warning(
+                "[HYBRID-APPLIED-FEATURES] manifest save failed: %s", e)
+    else:
+        logger.info(
+            "[HYBRID-APPLIED-FEATURES] VLLM_HYBRID_RESULT_DIR 미설정, "
+            "JSON 저장 생략 (boot log 의 manifest 로 대체)")
+
+
+# ============================================================================
 # GPU+CPU 하이브리드 엔진 프로세스 스폰
 # ============================================================================
 
@@ -1487,6 +1621,11 @@ def launch_hybrid_engines(
             num_cpu_engines,
             vllm_config.hybrid_config.numa_aware,
             vllm_config.hybrid_config.num_cpu_engines)
+
+        # VLLM_HYBRID_PROFILE=1 이면 측정 모드로 간주, applied features
+        # manifest 를 boot log 에 1회 출력 + JSON 파일로도 저장
+        if os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1":
+            _emit_applied_features_manifest(vllm_config)
 
         # NUMA 노드 할당 (num_cpu_engines > 1이면 NUMA 노드별로 분배)
         cpu_numa_nodes: list[int] = []

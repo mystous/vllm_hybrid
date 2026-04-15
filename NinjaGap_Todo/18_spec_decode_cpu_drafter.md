@@ -184,6 +184,19 @@ else:
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_SPEC_DECODE_CPU` | `0` (기본) / `1` | CPU drafter + GPU verifier 경로 |
+| `HYBRID_SPEC_DRAFT_MODEL` | `""` (기본) / `Qwen2.5-0.5B-Instruct` 등 | Drafter 모델 id |
+| `HYBRID_SPEC_K` | `4` (기본) | Draft 길이 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `vllm/v1/spec_decode/` — 기존 (참조)

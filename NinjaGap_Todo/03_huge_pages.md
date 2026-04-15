@@ -120,6 +120,17 @@ allocate 후 hint. THP 모드에서만 의미.
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_HUGEPAGES` | `0` (기본) / `1` | 본 기법 활성 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `vllm/model_executor/model_loader/loader.py` — weight loading

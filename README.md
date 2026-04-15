@@ -197,6 +197,38 @@ python benchmarks/benchmark_serving.py \
 
 ---
 
+## Ninja Gap 성능 개선 추적 (Applied Features Log)
+
+**Ninja Gap** = `T_hybrid < T_gpu_only` 달성 목표. 현재 H100x8 / 7B / 500×128 기준 hybrid wall 은 GPU-only 대비 26–143× 느림 (batch scaling 실패). 아래는 **소스 코드에 적용된 기법을 누적 기록** 하는 로그. 각 항목 적용 후 주간 측정 (`VLLM_HYBRID_PROFILE=1` + `num_seqs` sweep) 결과와 함께 위에서 아래로 쌓아간다.
+
+기법 상세: [NinjaGap_Todo/00_Overview.md](NinjaGap_Todo/00_Overview.md) (전체 Gate / flag 테이블 / 진도)
+기법 각 문서: [NinjaGap_Todo/](NinjaGap_Todo/) (§01–§22)
+
+### 적용 순서 (적층 로그)
+
+| # | 일자 (KST) | 기법 | TODO 문서 | 상태 | 주요 커밋 | Gate | 측정 결과 (wall/ratio) |
+|---:|---|---|---|:---:|---|:---:|---|
+| 0 | 2026-04-15 | **Baseline (H100x8, 7B)** — hybrid dual-process, wave-batch routing, cpu_max_num_seqs=1 (auto), NUMA strict membind, C++ init_cpu_threads_env, feature 기반 ONEDNN ISA | — | ✅ 기존 | — | pre-G0 | wall 394-2003 s, ratio(16/1)=5.3× |
+| 1 | 2026-04-15 | **측정 infra** — `VLLM_HYBRID_PROFILE=1` manifest + sublayer hook (qkv/o/gate_up/down/norm/act) + `applied_features.json` + env snapshot | [01_G0_measurement.md](NinjaGap_Todo/01_G0_measurement.md) | ✅ | `bfc48eda8` 등 | G0 준비 | — |
+| 2 | 2026-04-15 | **§05 KMP_BLOCKTIME=0** (auto 기본) — `_setup_cpu_process_env` 에서 `HYBRID_KMP_BLOCKTIME=auto` 시 강제 적용. hybrid dual-process IPC 경합 완화 | [05_omp_env_finalize.md](NinjaGap_Todo/05_omp_env_finalize.md) | ✅ | (pending) | — | 측정 대기 |
+| 3 | — | (예정) §03 Huge Pages 1GB | [03_huge_pages.md](NinjaGap_Todo/03_huge_pages.md) | ⭕ | — | — | — |
+| 4 | — | (예정) §04 IPEX WoQ INT8 | [04_ipex_woq_int8.md](NinjaGap_Todo/04_ipex_woq_int8.md) | ⭕ | — | — | — |
+| 5 | — | (예정) §06 Hot Path Wiring (VNNI pre-pack) | [06_hot_path_wiring.md](NinjaGap_Todo/06_hot_path_wiring.md) | ⭕ | — | G1 진입 | — |
+| 6 | — | (예정) §07 ISA Binary Dispatch | [07_isa_binary_dispatch.md](NinjaGap_Todo/07_isa_binary_dispatch.md) | 🔶 | — | — | — |
+| 7 | — | (예정) §08 Kernel Fusion | [08_kernel_fusion.md](NinjaGap_Todo/08_kernel_fusion.md) | 🔶 | — | — | — |
+| 8 | — | (예정) §11 Batch-aware Decode Attention (v2 동적) | [11_batch_aware_decode_attn.md](NinjaGap_Todo/11_batch_aware_decode_attn.md) | 🔶 | — | G2 경유 | — |
+| 9 | — | (예정) §13 T-MAC LUT GEMV INT4 | [13_tmac_lut_gemv_int4.md](NinjaGap_Todo/13_tmac_lut_gemv_int4.md) | ⭕ | — | G3 지점 | — |
+| … | | | | | | | |
+
+**운영 규칙**:
+1. 기법 구현 + 측정 완료 후에만 한 행 추가 (설계만 된 항목은 "예정" 으로 별도)
+2. 각 행은 직전 행 대비 **누적 (적층)** 성능. 독립 이득 아님
+3. `측정 결과` 열에는 `(wall, ratio(16/1), batch_scaling_ratio)` 최소 3 수치 — 상세는 `eval/<HW>/g0_<NN>/` 디렉토리 링크
+4. Gate 열 변화 (G0 → G1 → G2 → G3) 가 Ninja Gap 진척의 단일 지표
+5. 행 추가 시 `applied_features.json` 의 flag state 도 같이 기록 (추적성)
+
+---
+
 ## Documentation
 
 | Document | Description |

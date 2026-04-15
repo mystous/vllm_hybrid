@@ -147,6 +147,17 @@ cpu_attn.py → IPEX single_query_cached_kv_attention
 
 ---
 
+## 실행 flag
+
+| flag | 값 | 의미 |
+|---|---|---|
+| `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
+| `HYBRID_HEAD_FOLDING` | `0` (기본) / `1` | Head Fold attention 경로 활성 |
+
+전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+
+---
+
 ## 관련 코드 위치
 
 - `csrc/cpu/fold_attention.cpp` — (신규)

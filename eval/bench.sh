@@ -456,6 +456,21 @@ else
     log "      serve.sh 이 tee 지원 버전인지 확인 필요"
 fi
 
+# ─────────────────────────────────────────────────────────────────────
+# PROFILE 모드 manifest (applied_features.json / env_snapshot.txt /
+# git_sha.txt) 를 RUN_DIR 로 복사. serve.sh 가 VLLM_HYBRID_RESULT_DIR
+# 에 이미 생성해둠.
+# ─────────────────────────────────────────────────────────────────────
+PROFILE_DIR="${VLLM_HYBRID_RESULT_DIR:-${SCRIPT_DIR}/serve_logs/profile_latest}"
+if [[ -d "${PROFILE_DIR}" ]]; then
+    for f in applied_features.json env_snapshot.txt git_sha.txt; do
+        if [[ -f "${PROFILE_DIR}/${f}" ]]; then
+            cp "${PROFILE_DIR}/${f}" "${RUN_DIR}/${f}" && \
+                log "Profile manifest: ${f} → ${RUN_DIR}/" || true
+        fi
+    done
+fi
+
 log "============================================================"
 log " Done!  (wall time: ${WALL_SECS}s)"
 log " Results : ${RUN_DIR}"
