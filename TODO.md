@@ -100,9 +100,8 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - **성공 조건**: 적용 여부가 아니라 CPU linear hot path 가 실제 WoQ kernel 로 치환되고 `num_seqs>1` per-req cost 가 내려가야 함. IPEX version 호환성 선검증
 - **스택 호환성**: §4.12 LUT INT4 로 넘어가면 **대체됨**
 
-### 4.4 OMP env 마무리 ✅ (KMP_BLOCKTIME 만 누락)
-- **현재**: `csrc/cpu/utils.cpp` 에 `numa_set_membind` + `numa_set_strict(1)` + `sched_setaffinity` 3종 완료
-- **남은 작업**: H100 env 파일에 `KMP_BLOCKTIME=0` 추가
+### 4.4 OMP env 마무리 ✅ **완료** (2026-04-15)
+- **현재**: `csrc/cpu/utils.cpp` 3종 + `_setup_cpu_process_env` 에서 `HYBRID_KMP_BLOCKTIME=auto` (기본) 시 `KMP_BLOCKTIME=0` 강제
 - **주의**: `OMP_PROC_BIND=close` 는 **의도적 미설정** (Intel OMP master-thread pin bug → `hybrid_core.py` 에서 pop)
 
 ### 4.5 Hot Path 연결 증명 (G1 진입 필수)
@@ -278,7 +277,7 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 |---|---|:---:|
 | 4.2 | Huge Pages 1GB | ⭕ |
 | 4.3 | IPEX WoQ INT8 | ⭕ |
-| 4.4 | OMP + NUMA memory | ✅ (KMP_BLOCKTIME 만 누락) |
+| 4.4 | OMP + NUMA memory + KMP_BLOCKTIME | ✅ 완료 (§05) |
 | 4.6 | ISA binary dispatch | 🔶 fallback chain, 명시적 batch-based 없음 |
 | 4.7 | Sublayer fusion | 🔶 GPU 경로 only, CPU 전용 없음 |
 | 4.8 | Softmax/SiLU LUT | ⭕ |

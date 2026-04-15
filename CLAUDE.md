@@ -89,6 +89,15 @@ CPU EngineCoreProc  [별도 PID, num_cpu_engines = num_numa 개]
 - `vllm/_C_cpu_ops.abi3.so` — AVX-512 CPU 커널들 (AVX-512F 필요, dev 는 skip 또는 stub)
 - `vllm/_C_utils.abi3.so` — `init_cpu_threads_env` 전용 작은 extension (어떤 x86_64 에서도 빌드)
 
+### G0 측정 / Post-processing (2026-04-15 구현)
+| 파일 | 역할 |
+|------|------|
+| `eval/serve.sh` / `eval/bench.sh` | `VLLM_HYBRID_PROFILE=1` 시 `applied_features.json` + `env_snapshot.txt` + `git_sha.txt` 를 `eval/results/<ts>_.../` 에 포함 |
+| `eval/envs/g0_dev_rtx3090_qwen1.5b.env` | dev G0 template — `HYBRID_TODO_NN` + `HYBRID_CPU_MAX_SEQS` 만 수정해 사용. 21개 Ninja Gap flag + § 주석 포함 |
+| `eval/envs/g0_h100x8_qwen7b.env` | H100x8 G0 template (동일 구조) |
+| `eval/g0_analyze.py` | Post-processing: sweep 디렉토리 → sublayer scaling plot + bench summary + markdown. 사용: `python3 eval/g0_analyze.py measurement_results/<HW>/g0_<NN>/` |
+| `measurement_results/<HW>/g0_<NN>/seqs<N>/applied_features.json` | serve.sh 가 boot 시 자동 저장하는 활성 flag snapshot (attribution 추적) |
+
 ### 기타 컴포넌트 (미래용)
 | 파일 | 역할 |
 |------|------|
@@ -130,21 +139,37 @@ vllm serve <model> \
 ## 진단 환경 변수
 
 ```bash
+# Trace (coarse per-step elapsed)
 VLLM_HYBRID_TRACE=1            # 모든 hybrid marker 매 호출 로깅
-VLLM_HYBRID_TRACE_EVERY=50     # 그 외는 50회마다 로깅 (기본값)
+VLLM_HYBRID_TRACE_EVERY=50     # N-th 호출마다 로깅
+
+# G0 Profile mode (sublayer hook + manifest, 측정 전용)
+VLLM_HYBRID_PROFILE=1          # sublayer forward hook 활성, manifest 기록
+VLLM_HYBRID_PROFILE_SUBLAYER=1 # qkv/o/gate_up/down/norm/act 세분화 로그
+VLLM_HYBRID_PROFILE_EVERY=1    # N step 마다 출력 (1=매 step)
+
+# Ninja Gap 기법 활성화 tag (측정 결과 경로에 반영)
+HYBRID_TODO_NN=00              # 00=baseline / 05=§05 / 06=§06 / ... 누적
+HYBRID_KMP_BLOCKTIME=auto      # auto 면 KMP_BLOCKTIME=0 강제 (§05)
+# 나머지 21개 HYBRID_* 기법 flag 는 NinjaGap_Todo/README.md 참조
 ```
 
-### 진단 로그 marker (7종)
+PROFILE=1 이면 sublayer hook + manifest 가 활성. **결과는 기존 `eval/results/<ts>_.../` 에 저장**. sweep 단위로 모아 분석하려면 사용자가 `measurement_results/<HW>/g0_<NN>/seqs<N>/` 같은 규칙으로 수동 mv 후 `eval/g0_analyze.py <sweep_dir>` 실행. Template env: `eval/envs/g0_dev_rtx3090_qwen1.5b.env`, `eval/envs/g0_h100x8_qwen7b.env`.
+
+### 진단 로그 marker
 | marker | 의미 |
 |------|------|
 | `[HYBRID-RESOLVE]` | `_resolve_cpu_params` 최종 결과 + user override 여부 |
 | `[HYBRID-LAUNCH]` | `launch_hybrid_engines` 가 결정한 `num_cpu_engines` + NUMA 정보 |
+| `[HYBRID-APPLIED-FEATURES]` | PROFILE=1 시 activated flag manifest (boot 1회) |
 | `[HYBRID-CLIENT]` | 라우팅 dispatch (request_id → engine identity) |
 | `[HYBRID-CPU-ENV]` | `_setup_cpu_process_env` 가 설정한 OMP/MKL/OPENBLAS 환경변수 |
 | `[HYBRID-CPU-PROC]` | CPU EngineCore 프로세스 초기화 상태 (torch threads, mkldnn) |
 | `[HYBRID-CPU-WORKER]` | thread binding 경로 (C++ vs Python fallback), affinity, post-init 상태 |
 | `[HYBRID-CPU-EXEC]` | CPU worker `execute_model` per-step trace (reqs, tokens, elapsed) |
+| `[HYBRID-CPU-PROFILE]` | PROFILE=1 시 per-step sublayer breakdown (qkv/o/gate_up/...) |
 | `[HYBRID-CPU-ATTN]` | decode path counter (`custom_avx` / `ipex` / `sdpa_batched` / `sdpa_loop`) |
+| `[HYBRID-ROUTER-INIT]` `[HYBRID-ROUTER-DISPATCH]` `[HYBRID-ROUTER-STATS]` `[HYBRID-WAVE]` | 라우터 내부 상태 |
 
 ---
 
@@ -168,7 +193,7 @@ VLLM_CPU_NUM_OF_RESERVED_CPU=0
 
 # configure_intel_optimizations() 가 feature 감지 후 setdefault 로 설정:
 KMP_AFFINITY=granularity=fine,compact,1,0
-KMP_BLOCKTIME=1
+KMP_BLOCKTIME=0                         # §05. HYBRID_KMP_BLOCKTIME=auto 시 강제 (dual-process IPC 경합 완화)
 KMP_TPAUSE=0
 MKL_ENABLE_INSTRUCTIONS=AVX512          # avx512f 감지 시
 ONEDNN_MAX_CPU_ISA=AVX512_CORE_AMX      # amx 감지 시

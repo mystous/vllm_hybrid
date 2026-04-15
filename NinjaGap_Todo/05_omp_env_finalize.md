@@ -1,14 +1,28 @@
 # 05. OMP env 마무리 (KMP_BLOCKTIME)
 
 **Tier**: 0
-**상태**: ✅ 거의 완료 (`KMP_BLOCKTIME=0` 만 H100 env 파일에 누락)
-**예상 이득**: <5% (90% 이미 적용)
+**상태**: ✅ **완료 (2026-04-15)** — `HYBRID_KMP_BLOCKTIME=auto` (기본) 시 `_setup_cpu_process_env` (hybrid_core.py) 가 `KMP_BLOCKTIME=0` 강제
+**예상 이득**: <5% (측정 대기)
 
 ---
 
-## 왜 "거의 완료" 인가
+## 구현 상세
 
-핵심 OMP/NUMA 설정은 이미 C++ `init_cpu_threads_env` (`csrc/cpu/utils.cpp`) 에서 강제됨:
+`vllm/v1/engine/hybrid_core.py:_setup_cpu_process_env` 내부:
+```python
+_kmp_override = os.environ.get("HYBRID_KMP_BLOCKTIME", "auto")
+if _kmp_override == "auto":
+    os.environ["KMP_BLOCKTIME"] = "0"
+elif _kmp_override:
+    os.environ["KMP_BLOCKTIME"] = _kmp_override
+```
+`intel_cpu_utils.configure_intel_optimizations()` 가 `setdefault` 로 `KMP_BLOCKTIME=1` 설정하므로, 우리 값(0) 이 먼저 들어가면 유지됨. Override 예: `HYBRID_KMP_BLOCKTIME=infinite` (spin 유지), `HYBRID_KMP_BLOCKTIME=200` (200ms) 등.
+
+---
+
+## 왜 필요한가
+
+핵심 OMP/NUMA 설정 (기본 인프라) 은 이미 C++ `init_cpu_threads_env` (`csrc/cpu/utils.cpp`) 에서 강제됨:
 
 ```cpp
 // csrc/cpu/utils.cpp:55-95

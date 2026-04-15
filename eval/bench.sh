@@ -150,25 +150,23 @@ else
     _PRI_TAG="G"
 fi
 
-# Directory name: TS_MODE_PRI_GPU_MODEL
-# e.g. 20260407_180242_H_C_H100_80GB_HBM3_x4_Qwen2.5-7B-Instruct
+# Directory name: TS_MODE_PRI_GPU_MODEL_seqsN
+# e.g. 20260407_180242_H_C_H100_80GB_HBM3_x4_Qwen2.5-7B-Instruct_seqs1
 if [[ -n "${_PRI_TAG}" ]]; then
     _TAG="${_MODE_TAG}_${_PRI_TAG}"
 else
     _TAG="${_MODE_TAG}"
 fi
 
-# PROFILE=1 이면 measurement_results/<HW>/g0_<NN>/seqs<N>/ 로 직접 배치
-# (serve.sh 와 동일 경로 공유). 아니면 기존 results/ 타임스탬프 디렉토리.
-if [[ "${VLLM_HYBRID_PROFILE:-0}" == "1" ]]; then
-    # shellcheck source=lib/hw_dir.sh
-    source "${SCRIPT_DIR}/lib/hw_dir.sh"
-    compute_hw_dir
-    compute_meas_root
-    RUN_DIR="${_MEAS_RUN_DIR}"
+# max_num_seqs 정보 suffix — G0 sweep 에서 1/2/4/8/16 구분용
+# hybrid: HYBRID_CPU_MAX_SEQS, gpu_only: 생략
+if [[ "${MODE}" == "hybrid" ]]; then
+    _SEQS_TAG="_seqs${HYBRID_CPU_MAX_SEQS:-auto}"
 else
-    RUN_DIR="${RESULTS_BASE}/${_TS}_${_TAG}_${_GPU_TYPE}_x${_GPU_COUNT}_${_MODEL_SHORT}"
+    _SEQS_TAG=""
 fi
+
+RUN_DIR="${RESULTS_BASE}/${_TS}_${_TAG}_${_GPU_TYPE}_x${_GPU_COUNT}_${_MODEL_SHORT}${_SEQS_TAG}"
 mkdir -p "${RUN_DIR}"
 
 log "============================================================"

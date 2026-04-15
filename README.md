@@ -204,6 +204,33 @@ python benchmarks/benchmark_serving.py \
 기법 상세: [NinjaGap_Todo/README.md](NinjaGap_Todo/README.md) (전체 Gate / flag 테이블 / 진도)
 기법 각 문서: [NinjaGap_Todo/](NinjaGap_Todo/) (§01–§22)
 
+**측정 워크플로** (수동 이동):
+
+```bash
+# 1. template 복사
+cp eval/envs/g0_h100x8_qwen7b.env /tmp/run.env
+
+# 2. 편집
+#    HYBRID_TODO_NN=00              # baseline=00, §05 후=05, §06 후=06 ...
+#    HYBRID_CPU_MAX_SEQS=1          # sweep: 1/2/4/8/16 각각 재실행
+
+# 3. 두 터미널 실행 — 결과는 eval/results/<ts>_.../ 에
+./eval/serve.sh hybrid /tmp/run.env   # 서버 (터미널 1)
+./eval/bench.sh hybrid /tmp/run.env   # 벤치 (터미널 2, ready 후)
+# PROFILE=1 이므로 eval/results/<ts>_.../ 에 applied_features.json,
+# env_snapshot.txt, git_sha.txt 포함 + server log 에 [HYBRID-CPU-PROFILE] 라인
+
+# 4. 사용자가 sweep 정리 (수동 mv)
+mv eval/results/<ts1>_...  measurement_results/H100x8/g0_00/seqs1
+mv eval/results/<ts2>_...  measurement_results/H100x8/g0_00/seqs2
+# ...
+
+# 5. sweep 모두 끝난 후 분석
+python3 eval/g0_analyze.py measurement_results/H100x8/g0_00/
+```
+
+상세 절차와 실전 주의사항: [NinjaGap_Todo/01_G0_measurement.md](NinjaGap_Todo/01_G0_measurement.md) §실행 방법 / §실전 주의사항
+
 ### 적용 순서 (적층 로그)
 
 | # | 일자 (KST) | 기법 | TODO 문서 | 상태 | 주요 커밋 | Gate | 측정 결과 (wall/ratio) |

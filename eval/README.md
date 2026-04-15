@@ -1,247 +1,229 @@
 # vLLM Hybrid Evaluation Scripts
 
-GPU-only vs Hybrid(GPU+CPU) 서빙 성능을 비교하는 평가 스크립트 모음.
+GPU-only vs Hybrid(GPU+CPU) 서빙 성능 측정 + CPU 커널 마이크로벤치 + G0 Ninja Gap 측정을 위한 스크립트 모음.
 
----
-
-## 파일 구조
+## 디렉토리 구조
 
 ```
 eval/
-├── envs/                    # 환경별 설정 파일
-│   ├── dev_rtx3090.env
-│   ├── dev_rtx3090_cpu_first.env
-│   ├── dev_rtx3090_gpu_first.env
-│   ├── dev_rtx3090_rr.env
-│   ├── h100x4.env
-│   ├── h100x4_cpu_first.env
-│   ├── h100x4_gpu_first.env
-│   ├── h100x4_rr.env
-│   └── ...
-├── serve.sh        # 1단계: vLLM 서버 실행 (foreground, 로그 실시간 출력)
-├── bench.sh        # 2단계: 벤치마크 실행 + 모니터링 + 결과 저장
-├── compare.sh      # 3단계: N개 결과 비교 리포트 생성
-├── monitor.py      # GPU/CPU 활용률 백그라운드 모니터 (CSV)
-├── compare.py      # compare.sh에서 호출하는 Python 스크립트
-├── run_eval.sh     # (레거시) 전체 파이프라인 자동 실행
-└── results/        # 결과 저장 디렉토리
+├── README.md                       # 본 파일
+│
+├── serve.sh                        # vLLM 서버 기동 (foreground)
+├── bench.sh                        # 벤치마크 + 모니터 + 결과 수집
+├── monitor.py                      # 1Hz per-logical-CPU / per-GPU 샘플러 (CSV)
+│
+├── cpu_profile.sh                  # CPU-only 마이크로벤치 (thread sweep, kernel 직접 호출)
+├── cpu_profile_dev.sh              # dev 머신 축소판
+│
+├── hw_inspect.sh / hw_inspect.py   # 단일 run 디렉토리 HW 이용률 요약
+├── g0_analyze.py                   # G0 sweep 디렉토리 batch scaling 분석
+├── compare.sh / compare.py         # N개 run 비교 리포트
+│
+├── run_eval.sh                     # (레거시) 전체 파이프라인 자동 실행
+├── benchmark.sh                    # 내부 호출용 bench wrapper
+│
+├── analysis*.ipynb                 # Jupyter 탐색 노트북 (분석 스크립트와 동일 계산의 interactive 버전)
+│
+├── envs/                           # env 파일 (model, GPU, hybrid flag 등)
+│   ├── dev_rtx3090_qwen*.env       # dev (RTX3090 + i9-12900KF)
+│   ├── h100x1/4/8_qwen*.env        # H100 다양한 구성
+│   ├── g0_dev_rtx3090_qwen1.5b.env # G0 측정 template (dev)
+│   ├── g0_h100x8_qwen7b.env        # G0 측정 template (H100x8)
+│   └── backup/                     # 구버전 env
+│
+├── results/                        # bench.sh 기본 출력: <ts>_TAG_GPU_MODEL/
+├── serve_logs/                     # serve.sh tee log
+├── analysis_log/                   # cpu_profile*.sh 출력
+│
+├── basic/                          # 논문/commit 된 baseline 실측 데이터 (H100x8, RTX3090)
+├── RTX3090/                        # dev 분석 노트북 + 이전 결과
+└── h100x8/                         # H100 분석 노트북 + 이전 결과
 ```
 
 ---
 
-## 빠른 시작
+## 핵심 워크플로 3종
 
-3개 스크립트를 순서대로 사용합니다.
-
-### 1단계: 서버 실행 (`serve.sh`)
+### A. 일반 벤치 (GPU-only / Hybrid 비교)
 
 ```bash
-./serve.sh <mode> <env_file>
-# mode: gpu_only | hybrid
+# 터미널 1 — 서버
+./serve.sh hybrid envs/h100x4_qwen7b_hybrid_wave.env
+
+# 터미널 2 — 벤치 (서버 ready 후)
+./bench.sh hybrid envs/h100x4_qwen7b_hybrid_wave.env
+# → results/<ts>_H_C_H100_80GB_HBM3_x4_Qwen2.5-7B-Instruct/ 에 저장
+
+# 하드웨어 이용률 요약
+./hw_inspect.sh results/<ts>_.../
 ```
 
-vLLM 서버를 foreground로 실행합니다. 로그가 터미널에 그대로 출력되므로 모델 로딩, CPU 엔진 초기화, 서비스 준비 상태를 직접 확인할 수 있습니다.
+### B. G0 Ninja Gap 측정 (sublayer breakdown + batch scaling)
 
 ```bash
-# Terminal 1
-./serve.sh hybrid envs/h100x4_cpu_first.env
+# 1. G0 template 복사 + 편집
+cp envs/g0_h100x8_qwen7b.env /tmp/run.env
+#    편집: HYBRID_TODO_NN, HYBRID_CPU_MAX_SEQS (sweep 값)
+
+# 2. serve + bench (기본과 동일) — PROFILE=1 이라 부가 파일 자동 포함
+./serve.sh hybrid /tmp/run.env
+./bench.sh hybrid /tmp/run.env
+
+# 3. HYBRID_CPU_MAX_SEQS 값 바꿔가며 반복 (1, 2, 4, 8, 16)
+
+# 4. 수동으로 sweep 단위 정리
+mv results/<ts1>_... ../measurement_results/H100x8/g0_00/seqs1
+mv results/<ts2>_... ../measurement_results/H100x8/g0_00/seqs2
+# ...
+
+# 5. Post-processing
+python3 g0_analyze.py ../measurement_results/H100x8/g0_00/
+# → <sweep>/analysis_summary.png / _sublayer_scaling.png / _bench.png / _summary.md
 ```
 
-`INFO: Application startup complete` 또는 `Uvicorn running on http://0.0.0.0:8000` 메시지가 나오면 서버 준비 완료.
+상세: `../NinjaGap_Todo/01_G0_measurement.md`
 
-### 2단계: 벤치마크 실행 (`bench.sh`)
+### C. CPU-only 마이크로벤치 (thread sweep, kernel 성능)
 
 ```bash
-./bench.sh <mode> <env_file>
-# mode: gpu_only | hybrid (serve.sh와 동일하게)
+./cpu_profile.sh          # H100/SPR 용 풀 sweep (thread 32/56/76/96/112/... × kernel 시험)
+./cpu_profile_dev.sh      # dev 용 축소판 (thread 1/2/4/8/12/16/24 × 간단 kernel)
+# → analysis_log/<ts>_cpu_profile[_dev]/ 에 저장
 ```
 
-서버가 실행 중인 상태에서 별도 터미널에서 실행합니다.
-
-```bash
-# Terminal 2
-./bench.sh hybrid envs/h100x4_cpu_first.env
-```
-
-bench.sh가 하는 일:
-1. 모델 캐시 확인 (없으면 다운로드 안내 후 종료)
-2. 서버 health 확인 (서버가 안 떠있으면 에러 + 안내 후 종료)
-3. 타임스탬프+HW 태그 결과 디렉토리 생성 (예: `results/20260407_180242_H100_80GB_HBM3_x4_Qwen2.5-7B-Instruct/`)
-4. system_info.json 수집 (HW, SW, hybrid_config 기록)
-5. GPU/CPU 모니터 시작 (1초 간격 CSV)
-6. 벤치마크 실행 (`benchmark_serving.py`)
-7. 모니터 종료, 결과 저장
-
-### 3단계: 비교 리포트 (`compare.sh`)
-
-```bash
-./compare.sh <result_dir1> <result_dir2> [result_dir3 ...] [-o output_dir]
-```
-
-N개 결과 디렉토리를 받아 비교 리포트를 생성합니다.
-
-```bash
-# 2개 비교
-./compare.sh results/20260407_175848_* results/20260407_180242_*
-
-# glob으로 여러 개 비교
-./compare.sh results/20260407_*
-
-# 출력 디렉토리 지정
-./compare.sh results/20260407_* -o results/comparison_0407
-```
-
-`[0]` 런이 기준이 되어 나머지와의 차이(`vs [0]`)를 표시합니다.
+서버 없이 CPU kernel 만 직접 호출하는 low-level 측정. G0 측정 (서빙 흐름) 과 **독립**.
 
 ---
 
-## 전체 워크플로우 예시
+## 스크립트 상세
+
+### serve.sh
+
+vLLM OpenAI API 서버 기동. `MODE` = `gpu_only` / `hybrid`.
+
+- env 파일의 `MODEL`, `TENSOR_PARALLEL_SIZE`, `HYBRID_*`, `VLLM_HYBRID_*` 읽어 CLI 인자 구성
+- stdout/stderr 을 `serve_logs/server_<ts>_<MODE>.log` 로 **tee** 복제 (bench.sh 가 slice 해감)
+- `VLLM_HYBRID_PROFILE=1` 시 `serve_logs/profile_latest/` 에 manifest (env_snapshot, git_sha, applied_features.json) staging
+
+### bench.sh
+
+`benchmark_serving.py` 를 호출해 벤치 수행 + 서버 로그 수집 + 모니터 결과 병합.
+
+- `results/<ts>_<MODE>_<PRIORITY>_<GPU>_x<N>_<MODEL>/` 디렉토리 생성 (항상)
+- 생성물:
+  - `hybrid.json` (또는 `gpu_only.json`) — benchmark_serving.py 결과 (wall, TPOT, TTFT)
+  - `hybrid_bench.log` — bench 진행 로그
+  - `hybrid_monitor_cpu.csv` / `_gpu.csv` — monitor.py 샘플링
+  - `hybrid_server_boot.log` — serve_logs 에서 boot marker grep
+  - `hybrid_server_run.log` — bench 기간의 서버 log byte-slice (PROFILE=1 이면 `[HYBRID-CPU-PROFILE]` sublayer 라인 포함)
+  - `system_info.json` — lscpu / numactl / nvidia-smi 스냅샷
+  - `inspect.txt` — hw_inspect 자동 호출 결과
+  - (PROFILE=1) `applied_features.json`, `env_snapshot.txt`, `git_sha.txt` — serve 의 staging 에서 복사
+
+### monitor.py
+
+`bench.sh` 가 백그라운드로 1Hz 샘플. 자체 실행도 가능:
 
 ```bash
-cd /workspace/vllm_hybrid/eval
-
-# === GPU-only 벤치마크 ===
-# Terminal 1: 서버
-./serve.sh gpu_only envs/h100x4.env
-# Terminal 2: 벤치마크 (서버 ready 확인 후)
-./bench.sh gpu_only envs/h100x4.env
-# Terminal 1: Ctrl+C로 서버 종료
-
-# === Hybrid cpu-first 벤치마크 ===
-# Terminal 1: 서버
-./serve.sh hybrid envs/h100x4_cpu_first.env
-# Terminal 2: 벤치마크
-./bench.sh hybrid envs/h100x4_cpu_first.env
-# Terminal 1: Ctrl+C
-
-# === Hybrid gpu-first 벤치마크 ===
-# Terminal 1: 서버
-./serve.sh hybrid envs/h100x4_gpu_first.env
-# Terminal 2: 벤치마크
-./bench.sh hybrid envs/h100x4_gpu_first.env
-# Terminal 1: Ctrl+C
-
-# === 3개 결과 비교 ===
-./compare.sh results/20260407_*
+python3 monitor.py /path/to/output_prefix --interval 1.0
+# → <prefix>_cpu.csv, <prefix>_gpu.csv
 ```
 
----
+CPU CSV 는 **per-logical-CPU** (0..N-1) 시계열. NUMA/HT 분류는 downstream (hw_inspect.py) 에서 `system_info.json` 으로 계산.
 
-## env 파일 설정
+### hw_inspect.sh / hw_inspect.py
 
-### 환경별 변형 패턴
-
-각 하드웨어별로 4가지 변형이 존재합니다:
-
-| 파일 | 전략 | 우선순위 | 설명 |
-|------|------|---------|------|
-| `h100x4.env` | throughput-adaptive | gpu-first | 기본 (원본) |
-| `h100x4_cpu_first.env` | capacity | cpu-first | CPU 우선 |
-| `h100x4_gpu_first.env` | capacity | gpu-first | GPU 우선 |
-| `h100x4_rr.env` | round-robin | (무시) | 교대 분배 |
-
-### 주요 파라미터
+**단일 run 디렉토리** 의 HW 이용 상황 요약.
 
 ```bash
-# ── 모델 ──
-MODEL=Qwen/Qwen2.5-7B-Instruct
-PORT=8000
-
-# ── 서버 ──
-GPU_MEMORY_UTIL=0.9
-TENSOR_PARALLEL_SIZE=4
-
-# ── 벤치마크 ──
-NUM_PROMPTS=500
-INPUT_LEN=128
-OUTPUT_LEN=512
-REQUEST_RATE=inf
-
-# ── Hybrid 라우팅 ──
-HYBRID_ROUTING_STRATEGY=capacity       # capacity | length-aware | throughput-adaptive | round-robin
-HYBRID_ROUTING_PRIORITY=cpu-first      # cpu-first | gpu-first (round-robin시 무시)
-HYBRID_CPU_MAX_SEQS=1                  # 전체 코어가 1개 요청에 집중
-
-# ── Hybrid CPU ──
-HYBRID_CPU_KVCACHE_GB=0               # 0=auto
-HYBRID_CPU_THREADS=0                  # 0=auto
-HYBRID_NUMA_AWARE=false
-HYBRID_NUM_CPU_ENGINES=1
-
-# ── 모니터링 ──
-MONITOR_INTERVAL=1
+./hw_inspect.sh results/<ts>_H_C_H100_80GB_HBM3_x8_Qwen2.5-7B-Instruct/
+# → inspect.txt (stdout + 디렉토리 안에도 저장)
 ```
 
-### 라우팅 전략
+출력:
+- 시스템 스펙 (CPU 모델, NUMA 토폴로지, GPU 개수)
+- CPU pinning (어느 engine 이 어느 CPUs 에 bind)
+- CPU util: NUMA 0/1 physical / HT sibling 분리 mean/max
+- GPU util / 전력 / 온도
 
-| 전략 | 동작 |
-|------|------|
-| `capacity` + `cpu-first` | CPU 슬롯 먼저 채움, 가득차면 GPU |
-| `capacity` + `gpu-first` | GPU 먼저 채움, 포화 시 CPU |
-| `round-robin` | GPU/CPU 교대 분배 (priority 무시) |
-| `throughput-adaptive` | EMA 처리량 기반 동적 CPU 슬롯 조정 |
-| `length-aware` | 짧은 프롬프트만 CPU 허용 |
+### g0_analyze.py
 
-### `HYBRID_CPU_MAX_SEQS`
+**G0 sweep 디렉토리** (내부에 `seqs1/`, `seqs2/`, ..., `seqs16/`) 를 읽어 batch scaling 분석.
 
-| 값 | 동작 |
-|----|------|
-| `1` | 전체 코어가 1개 요청에 집중 (권장) |
-| `0` | 자동 감지 (`cores/4`) — 요청당 코어 분산 |
-
----
-
-## 결과 파일 구조
-
-```
-results/20260407_180242_H100_80GB_HBM3_x4_Qwen2.5-7B-Instruct/
-├── hybrid.json                # 벤치마크 결과 (또는 gpu_only.json)
-├── hybrid_bench.log           # 벤치마크 콘솔 로그
-├── hybrid_monitor_gpu.csv     # GPU 활용률 시계열
-├── hybrid_monitor_cpu.csv     # CPU 활용률 시계열
-├── monitor_hybrid.log         # 모니터 로그
-└── system_info.json           # HW/SW 정보 + hybrid_config
-```
-
-compare.sh 실행 시 추가:
-```
-├── comparison.txt             # 텍스트 비교 리포트
-└── comparison.json            # JSON 비교 데이터
-```
-
----
-
-## 트러블슈팅
-
-### 서버가 멈춘 것 같을 때
-serve.sh는 foreground 실행이므로 로그를 직접 확인합니다.
-- `Loading model weights` → 모델 로딩 중 (대형 모델은 수 분 소요)
-- `CPU_EngineCore` 로그 → CPU 엔진 초기화 중
-- `Application startup complete` → 서버 준비 완료
-
-### bench.sh에서 서버가 없다고 나올 때
-```
-[ERROR] Server not running on port 8000
-```
-→ Terminal 1에서 serve.sh가 실행 중인지, 서버가 준비 완료되었는지 확인
-
-### GPU 메모리 부족
 ```bash
-pkill -f "vllm.entrypoints.openai.api_server"
-# .env에서 GPU_MEMORY_UTIL=0.7로 낮추기
+python3 g0_analyze.py ../measurement_results/<HW>/g0_<NN>/
 ```
+
+생성물 (sweep 루트에 저장):
+- `analysis_summary.png` — sublayer stacked bar + scaling curve
+- `analysis_sublayer_scaling.png` — per-sublayer scaling ratio
+- `analysis_bench.png` — wall + TPOT vs num_seqs
+- `analysis_summary.md` — 요약 표 + Gate 판정
+
+각 seqs<N>/ 의 `hybrid_server_run.log` 에서 `[HYBRID-CPU-PROFILE]` sublayer 시간 파싱, `hybrid.json` 에서 wall/TPOT 집계.
+
+### cpu_profile.sh / cpu_profile_dev.sh
+
+CPU-only 마이크로벤치 — 서버 없이 thread count 와 kernel 성능 직접 측정.
+
+- `cpu_profile.sh` — H100/SPR 풀 sweep (thread counts 32/56/76/96/112, 다양한 GEMM/GEMV shape)
+- `cpu_profile_dev.sh` — dev 축소판 (thread 1/2/4/8/12/16/24)
+- 출력: `analysis_log/<ts>_cpu_profile[_dev]/` — 각 thread count 별 tps, MFLOPS
+
+G0 측정 (§B) 과 목적이 다름:
+- `cpu_profile*` — CPU kernel 자체 성능 (서버 무관)
+- G0 — 실제 서빙 흐름에서 sublayer 시간
+
+### compare.sh / compare.py
+
+N개 run 결과를 표로 정리:
+
+```bash
+./compare.sh results/<ts1>_... results/<ts2>_... results/<ts3>_...
+```
+
+wall, TPOT mean/p99, TTFT mean/p99 를 나란히 보여줌. G0 전용 아님 (일반 벤치 비교).
+
+### run_eval.sh
+
+레거시 — `serve.sh` + `bench.sh` 자동 연결. 대부분 사용자는 두 터미널 수동 실행 선호. 특정 env 에만 제약적으로 사용.
+
+### analysis*.ipynb
+
+Jupyter notebook — g0_analyze.py / hw_inspect 와 같은 분석을 interactive 로 수행. 여러 버전 (v1/v2/v3/v4) 은 시간순 반복 개발 흔적. 새 측정은 `g0_analyze.py` 사용 권장.
 
 ---
 
-## 의존성
+## env 파일 분류
 
-```
-psutil       # CPU 활용률 모니터링
-nvidia-smi   # GPU 활용률 (NVIDIA 드라이버)
-curl         # 서버 헬스체크
-```
+| 패턴 | 용도 |
+|---|---|
+| `dev_rtx3090_*` | dev (RTX3090 + i9-12900KF, 1 NUMA, AVX2) |
+| `h100x1_*` | 단일 H100 |
+| `h100x4_*` | H100 × 4 (TP=4 권장) |
+| `h100x8_*` | H100 × 8 (TP=8 or TP=4, 2 NUMA Xeon SPR) |
+| `g0_*` | G0 측정 template — `HYBRID_TODO_NN`, `HYBRID_CPU_MAX_SEQS` + 21개 기법 flag |
+| `*_wave.env` | wave-batch routing |
+| `*_cpu_first.env` / `*_gpu_first.env` | priority 분기 |
+| `*_smoke.env` | 빠른 동작 확인 (작은 NUM_PROMPTS) |
+| `backup/` | 구버전 보존 |
 
-선택:
-```
-intel-extension-for-pytorch   # CPU 추론 최적화 (IPEX)
-```
+---
+
+## 결과 디렉토리 보존 정책
+
+| 디렉토리 | 생성 주체 | 보존 정책 |
+|---|---|---|
+| `results/` | `bench.sh` — 매 run | 임시. 분석 후 사용자가 정리 |
+| `serve_logs/` | `serve.sh` — tee log + profile staging | 디스크 차면 오래된 것부터 삭제 |
+| `analysis_log/` | `cpu_profile*.sh` | 필요 시 유지 |
+| `basic/` | 사용자가 명시적 mv — **commit 된 baseline 실측 데이터** | 영구 |
+| `../measurement_results/<HW>/g0_<NN>/` | 사용자가 results/ 에서 수동 mv — **G0 sweep 결과** | 영구 |
+
+---
+
+## 참고
+
+- 전체 프로젝트 구성: `../CLAUDE.md`
+- G0 측정 상세: `../NinjaGap_Todo/01_G0_measurement.md`
+- Ninja Gap Applied Features Log: `../README.md` §"Ninja Gap 성능 개선 추적"
