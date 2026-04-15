@@ -1,216 +1,328 @@
-# vLLM Hybrid — 남은 작업
+# vLLM Hybrid — Ninja Gap 성능 향상 작업 (v6, 2026-04-15)
 
 작업 이력: `Task_done.md` / 기술 검증 결론: `Tech_done.md` / 설계 단일 진실 공급원: `docs/paper/main.tex` / 프로젝트 구성: `CLAUDE.md`.
 
-**본 파일 운용 규칙 (2026-04-11 변경)**: 기존의 append-only 버전 히스토리 방식에서 **"남은 작업만 담는 clean 파일"** 로 정책 변경. 이전 버전은 `old_doc/TODO_v4_20260411.md` 에 스냅샷으로 보존. 완료된 항목은 이 파일에서 제거하고 `Task_done.md` 에 append 한다.
+**운용 규칙**: "남은 성능 향상 작업만" 유지. 이전 버전 `old_doc/TODO_v5_20260415.md` 에 스냅샷 보존. 완료는 `Task_done.md` 에 append.
 
-**상태 요약 (2026-04-14 기준)**:
-- dev 로직 검증 (v1 §1) **완결** — 순차 반복 / finish variety / scheduler 경계 / capacity 멈춤 dev 배제 전부 완료. abort slot leak 버그 발견 + 수정 + 검증.
-- H100x4 KVM bring-up 및 1.5B/7B/32B baseline **완결** — hybrid routing regression 근본 원인 수정, 3개 모델에서 hybrid ≈ gpu_only 확인.
-- stdout fast-path contention 이슈 **완결** — per-req/per-call 전부 silent, boot 만 emit.
-- **H100x8 물리 2-NUMA 경로 실동작 증명 완결 (2026-04-14, v5)** — 4겹 버그 (arg_utils default / serve.sh -gt 1 / copy.replace / numa_node kwarg) 전원 수정 + server log 로 2 engine × NUMA 0/1 strict bind 확인 + wave=16 재앙 재현.
-- **dev CPU thread 최적 16 확정 (2026-04-14)** — cpu_profile_dev.sh Section 6 vLLM sweep 기반.
-- **서버 로그 캡처 인프라 완성 (2026-04-14)** — serve.sh tee + bench.sh byte offset slice + boot marker grep.
-- **남은 큰 방향**: ninja gap 구현 (A-series architectural changes), 70B / long-context / rate-saturated workload 실측, 논문 정합성.
+**v6 변경**: Ninja Gap 성능 향상 항목만 남김. 착수 시점·기간 추정 전부 제거. 기법별 메커니즘 / 예상 이득 / 구현 상태 / 스택 호환성 / 성공 조건 만 유지.
 
 ---
 
-## 1. Ninja Gap 구현 — hybrid 가 실제로 gpu_only 를 이기게 만들기
+## 핵심 메시지
 
-현재 H100x4 + 1.5B/7B/32B 에서 hybrid ≈ gpu_only (±2% 노이즈). 원인은 **request-level partition** 구조 자체의 천장 — `T_hybrid = max(T_gpu, T_cpu)` 에서 CPU per-req 가 더 느리면 어떤 라우팅 전략으로도 gain 불가. 구조 변경이 필요.
-
-상세 분석: `experiment_result/20260411_143500_h100x4_isa_verification_and_ninja_gap_strategy/README.md`
-
-### 1.1 [A1] Speculative decode with CPU drafter ⭐⭐⭐⭐⭐ — **1순위**
-- [ ] Implementation plan 문서화 (`docs/SPEC_DECODE_CPU_DRAFTER_PLAN.md`) — `HybridConfig` 확장 필드, `launch_hybrid_engines` third engine spawn, `_route_speculative` fanout, accept/reject 로직
-- [ ] `HybridConfig.spec_decode_draft_model: str | None` 필드 추가
-- [ ] Third engine 프로세스 spawn (CPU EngineCore 와 동일 패턴, ZMQ identity `b'\x02\x00'` 예정)
-- [ ] `_route_speculative` 라우터 구현 (모든 요청 → GPU + draft 양쪽 fanout)
-- [ ] `process_engine_outputs` 에서 GPU verify result + CPU draft tokens combine + accept/reject
-- [ ] V0 `vllm.spec_decode` 참조하여 accept/reject 로직 차용
-- [ ] 32B + Qwen2.5-0.5B draft 조합으로 측정 — 목표: **TPOT 41.82 ms → ~22~28 ms** (1.5~2×)
-- [ ] Accept rate 측정 + 로깅 (`[HYBRID-SPEC-STATS] accept=N/M rate=0.xx`)
-- [ ] 1.5B/7B 에서도 동일 fix 의 non-regression 확인
-
-**왜 1순위**: 기존 dual-process 인프라 재사용, AMX/IPEX 검증 완료, 효과 정량 측정 가능, 본 라우팅 fix 와 직교, H100+1.5B/7B 같이 GPU 가 fast 한 환경에서도 작동.
-
-### 1.2 [A4] AMX-INT8 dispatch path 활성화 ⭐⭐⭐ — A1 의 곱셈 인자
-- [ ] `csrc/cpu/gemm_vnni.cpp` (VNNI INT8 6×16 micro-kernel) 를 실제 런타임에 호출하는 경로 연결
-- [ ] `cpu_attn.py` 에 INT8 dispatch 분기 추가 (IPEX BF16 path 옆)
-- [ ] `_C_cpu_ops` 의 INT8 GEMM 엔트리포인트를 Python 쪽에서 호출 가능하게
-- [ ] Int8 quant 모델 (예: `Qwen2.5-0.5B-Instruct-W8A8`) 로 CPU per-req throughput 측정 — 목표 **2× 가속**
-- [ ] A1 의 draft 모델을 INT8 로 돌려 draft throughput 2× 추가 확인
-
-**왜 A1 과 동시**: 단독 효과 0 이지만 A1 draft 속도를 2× 가속하면 ninja gap 이 그만큼 더 커짐. 작은 PR 로 시작 가능.
-
-### 1.3 [A2] KV cache CPU tier offload ⭐⭐⭐⭐ — 70B 데모 이후
-- [ ] PagedAttention `block_table` 에 tier 필드 추가 (hot=HBM / cold=DRAM)
-- [ ] Eviction policy 구현 (LRU / recency-based, 설정 가능)
-- [ ] DMA path (`cudaMemcpyAsync` + pinned host memory, `torch.cuda.Stream` 분리)
-- [ ] Attention kernel 의 cold block swap-in trigger + prefetch hint
-- [ ] Demo workload: 70B + batch 1500+ 에서 GPU saturated 확인
-- [ ] 측정 목표: 동시 시퀀스 ~3×, total throughput **2~3×**
-
-**전제**: 70B baseline (§3.1) 이 있어야 KV 한계가 실제로 드러남.
-
-### 1.4 [A3] Long-context Prefill/Decode disaggregation ⭐⭐⭐⭐ — 32K+ workload 필요
-- [ ] `vllm/engine/disaggregated/` stub 구조 파악 + hybrid process isolation 과 조합 설계
-- [ ] Prefill 전용 CPU EngineCore (AMX BF16 prefill 특화, decode 안 함)
-- [ ] Decode 전용 GPU EngineCore (기존 구조)
-- [ ] Request 가 prefill 단계는 CPU, decode 단계는 GPU 로 넘어가는 hand-off 메커니즘
-- [ ] KV cache transfer path (CPU → GPU via DMA)
-- [ ] Demo workload: 32K+ input length, 100 reqs, GPU TPOT p99 개선 측정
+> 현재 H100x8 에서 hybrid wall 은 GPU-only 대비 **26-143×** 느리다 (7B, 500×128/128). 실패 원인은 "CPU 가 느리다" 가 아니라 **`num_seqs` 증가에도 per-req cost 가 안 내려감 — batch scaling 실패**. `cpu_max_num_seqs` 확대는 throughput 이 아닌 **tail amplification**.
+>
+> **순서가 전부다**. 계측(G0) → batch scaling 커널(G1–G2) → big wins(G3) → routing 재활성. 이 순서를 건너뛰면 어떤 기법도 tail 만 만든다.
 
 ---
 
-## 2. H100 확장 실험 — 더 큰 모델 / 더 큰 workload
+## 하지 말아야 할 것 (Guardrails)
 
-### 2.1 70B baseline
-- [ ] `h100x4_Llama-3.3-70B-Instruct_hybrid.env` 생성 (production config 기준)
-- [ ] 70B gpu_only + hybrid 500 req 128/128 측정
-- [ ] HBM 압력 관찰: weight 140 GB / TP=4 → 35 GB per GPU. KV cache 한계 batch 예측
-- [ ] 부팅 시간 측정 (weight 로드 + CUDA graph capture ~ 수 분 예상)
-- [ ] SERVER_READY_TIMEOUT 조정 (3600s ?)
-- [ ] GPU mean util 이 32B 의 43% 에서 얼마나 상승하는지 관찰
-- [ ] KV offload (A2) demo 후보로 확정 가능한지 판단
-
-### 2.2 Long-context (32B + 16K/32K input)
-- [ ] 환경 파일: `h100x4_qwen32b_hybrid_longctx.env` (INPUT_LEN=16384, OUTPUT_LEN=512)
-- [ ] GPU TPOT p99 측정: decode 가 long prefill 동안 stall 되는 증상 재현
-- [ ] A3 P/D disaggregation 효과의 기준선 확정
-- [ ] 64K 시도 (KV 한계 워크로드)
-
-### 2.3 Routing strategy 비교 실험 (paper §3 Exp 3)
-- [ ] 동일 모델 (32B 권장) / 동일 shape 에서 4 전략 비교: `capacity` / `round-robin` / `length-aware` / `throughput-adaptive`
-- [ ] 주의: random 고정 길이 dataset 에선 length-aware / throughput-adaptive prefill_threshold 의 효과 0 → **ShareGPT 길이 분포 dataset 사용**
-- [ ] 각 전략에서 CPU/GPU 분배 비율, TPOT, P99 TTFT 측정
-- [ ] 본 fix 이후 throughput-adaptive 는 항상 GPU 로 수렴할 것 → 전략 비교 의미가 흐려질 수 있으므로 GPU가 saturated 되는 설정 (큰 모델 + 긴 input) 필수
-
-### 2.4 Ablation — NUMA binding / IPEX / auto config
-- [ ] `HYBRID_NUMA_AWARE=false` vs `true` (H100 KVM 은 1 NUMA 이라 차이 적음)
-- [ ] IPEX 비활성화 경로 (`_PagedAttention` + `sdpa_batched`) fallback throughput 측정
-- [ ] `cpu_max_num_seqs=1` (원칙) vs 수동 override 2~4 의 throughput 차이 (BW reuse 효과 측정)
-- [ ] 본 ablation 은 CPU 에 실제 요청이 갈 때만 의미 있음 → spec decode (A1) 구현 이후 수행
-
-### 2.5 에너지 효율 (paper §6 Exp 6)
-- [ ] Intel RAPL counters 활용 (`/sys/class/powercap/intel-rapl/`)
-- [ ] `eval/monitor.py` 에 RAPL 주기 샘플링 추가
-- [ ] gpu_only vs hybrid 의 perf/watt 비교 (H100 + Xeon 의 power 모니터링)
-- [ ] spec decode (A1) 구현 후 재측정 — draft 가 GPU TPOT 을 줄이므로 per-token 에너지 개선 예상
-
-### 2.6 H100x8 + Xeon 2-socket 환경 — **2-NUMA 경로 검증 완결 (v5)**
-- [x] 2-NUMA auto 감지: `num_cpu_engines=2` resolve 확인 → **Tech_done v5 F1**
-- [x] 각 CPU engine 이 자기 NUMA 의 코어에 1:1 pin (`HYBRID-CPU-WORKER` 로그) → **확인**
-- [x] `_get_autobind_cpu_ids` 의 `numa_bind_node` 우선 경로 실측 → **확인**
-- [x] 7B 기본 bench (500×128/128) → `eval/basic/H100x8/` 4 runs 보존
-- [ ] **1.5B / 32B H100x8 bench 는 미수행** — 필요 시 추가
-- [ ] **wave=16 재앙이 2-NUMA 상태에서도 재현** (Tech_done v5 F2) → max_seqs=1 가 고정 답, max_seqs 실험은 종료
-
-### 2.7 GPU 포화 workload 탐색 — hybrid 이득 실제 검증
-현재 모든 실측에서 `T_hybrid ≥ T_gpu_only` — GPU 가 항상 여유 있어 CPU 경로는 overhead. 이득을 보려면 GPU 가 먼저 saturate 되는 조건이 필요.
-- [ ] **70B TP=8 H100x8** — weight 140GB → GPU HBM 압박, batch slot 감소
-- [ ] **long-context 16K+ input** — GPU prefill bottleneck, CPU prefill 분담 효과 측정 (§1.4 A3 으로 이관)
-- [ ] **rate-limited burst 2000+ req** — GPU queue 가 saturated 되는 조건 재현
-- [ ] 이 3 조건 중 어느 것도 충족 안 되면 request-level hybrid 의 이득은 구조적 불가 (§1.1 A1 spec decode 필요)
+1. batch scaling 확인 전 `cpu_max_num_seqs` 확대
+2. `wave-batch` 를 기본 전략으로 유지
+3. NUMA/pinning bring-up 재증명 (이미 실측 검증 완료)
+4. 이미 구현된 기능 (chunked prefill off, NUMA membind, ISA 감지) 을 **신규 gain 항목으로 재계산**
+5. VNNI/AMX 토대 존재만으로 "INT8/AMX 사용 중" 판단 — **hot path 연결 여부는 별개**
+6. CPU handled request 수만 늘어도 wall 악화 시 성공으로 판단
+7. 외부 논문 speedup 수치를 우리 코드에 직접 곱하기
 
 ---
 
-## 3. 라우팅/코드 품질 — 별도 정리 PR
+## 1. 성공 판정 4축
 
-### 3.1 Bug 1 — `_update_adaptive_slots` 상수 2 고정
-- [ ] `hybrid_core.py:436-443` 의 `_update_adaptive_slots` 정리 — `cpu_max_num_seqs=1` 에 대해 `new_max = max(2, min(2, 1)) = 2` 로 항상 고정되는 dead code
-- [ ] Property 2 expected-finish gate 이후 이 함수의 라우팅 영향은 0 이지만 코드 자체가 잘못됨
-- [ ] 원칙대로 "CPU slot 수는 고정 1 per engine × num_cpu_engines" 을 유지하고 `adaptive_cpu_max_seqs` 필드 자체를 제거 또는 의미 재정의
+Stage 종료 시마다 **동시 확인**:
 
-### 3.2 OMP binding defaults
-- [ ] `_setup_cpu_process_env` 에 다음 추가:
-  ```python
-  os.environ.setdefault("OMP_PROC_BIND", "close")
-  os.environ.setdefault("OMP_PLACES", "cores")
-  ```
-- [ ] 현재 C++ `init_cpu_threads_env` 가 `sched_setaffinity` 로 1:1 pin 하므로 동작 무결하지만, 향후 large CPU workload (spec decode drafter, KV offload) 시나리오에 대비 OpenMP hint 도 같이 주는 게 안전
+| 축 | 측정 | 방향 |
+|---|---|---|
+| CPU scaling | `cost(batch=N) / cost(batch=1)` | N 보다 훨씬 작아야 |
+| CPU throughput | CPU-only tok/s, req/s | batch↑ 에 따라 ↑ |
+| Tail | GPU bulk 완료 후 CPU drain | ↓ |
+| Wall ratio | `hybrid wall / gpu_only wall` | ↓ |
+| CPU contribution | handled req | ↑ |
 
-### 3.3 Router instrumentation 정리
-- [ ] `[HYBRID-ROUTER-INIT]`, `[HYBRID-ROUTER-DISPATCH]`, `[HYBRID-ROUTER-STATS]` 마커가 현재 `hybrid_core.py` 에 영구 보존됨
-- [ ] silent 정책 기준으로 DISPATCH 는 debug (대다수 요청마다), STATS 는 info 유지 (periodic), INIT 는 info (boot)
-- [ ] 현재 코드 상태 재확인 필요
+**4축 동시 개선 아니면 성공 아님**.
 
----
+### Stop/Go Rules
 
-## 4. 논문 ↔ 코드 재정합 (`docs/paper/main.tex`)
-
-현재 논문과 실제 코드가 어긋나는 항목 5건. H100 bring-up 과정에서 Property 2 구현 세부가 추가되어 이 항목이 가장 큼.
-
-### 4.1 Property 2 expected-finish 정량식 본문 추가
-- [ ] 현재 paper §3 은 "CPU is complement" 라고만 적혀 있고 정량 식 없음
-- [ ] 실제 구현 (`_route_throughput_adaptive`) 의 공식 본문화:
-  ```
-  cpu_finish = (cpu_in_flight + 1) · (L_out / tput_cpu_ema)
-  gpu_finish = ceil((gpu_in_flight + 1) / gpu_max_seqs) · (L_out / tput_gpu_ema)
-  route_to_cpu  iff  cpu_finish ≤ gpu_finish
-  ```
-- [ ] cold start gate (`gpu_ema == 0 → GPU`) 정당화 — probe blind 회피
-- [ ] cpu-first / gpu-first 의 semantics: "동률 시 누가 우선" 으로 축소된 것 명시
-
-### 4.2 Table 2 `max_seqs` auto rule 수정
-- [ ] 논문 현재: `max(4, ⌊cores / 4⌋)` + "4 threads/sequence" rationale
-- [ ] 실제: **`1` per NUMA engine** + "1 sequence saturates whole NUMA node via OMP" rationale
-- [ ] Table 2 + §3.4 "Maximum concurrent sequences" 단락 재작성
-
-### 4.3 `num_cpu_engines = num_numa` auto rule 추가
-- [ ] 현재: CLI 옵션으로만 언급, auto 감지 설명 없음
-- [ ] 실제: `_resolve_num_cpu_engines` 가 `NUMAAllocator.num_nodes` 로 자동 결정
-- [ ] §3.4 Table 2 에 auto rule 행 추가
-- [ ] Figure 4 (hwloc topology) 캡션 업데이트
-
-### 4.4 §3.3 Algorithm 1 의 `N` 표기 명확화
-- [ ] 현재: `N = cpu_max_num_seqs` 로 추상화
-- [ ] 설계 원칙: `N = 1 per engine × num_numa` 임을 명시
-
-### 4.5 §5 Implementation 에 `_C_utils` standalone extension 언급
-- [ ] 현재: `_C_cpu_ops` 만 언급
-- [ ] 추가: `_C_utils` 는 `init_cpu_threads_env` 전용, AVX-512/AMX 무관, CUDA/ROCm 빌드에서도 항상 빌드
+| Case | 관측 | 판정 | 조치 |
+|---|---|---|---|
+| 1 | CPU handled↑ but wall↓ | 실패 | `cpu_max_num_seqs` 확대 중단, kernel 단계 복귀 |
+| 2 | CPU tok/s↑ but tail 그대로 | 부분 실패 | routing/gate/prefill 재검토 |
+| 3 | 단일 req 만 빨라짐, batch scaling 없음 | 실패 | single-req 최적화로만 분류 |
+| 4 | Kernel 수정 후 metric 변화 없음 | hot path 미타격 | marker 로 실제 호출 확인, 다음 kernel 금지 |
 
 ---
 
-## 5. Dev 환경 보조 검증
+## 2. Gate 정의
 
-### 5.1 Dev RTX 3090 + 1.5B/7B 에서 routing fix 재측정
-- [ ] 본 `_route_throughput_adaptive` fix 가 dev 환경의 "weak GPU + 상대적으로 비슷한 CPU" 영역을 망치지 않는지 확인
-- [ ] dev 1.5B: 이전 hybrid (capacity + cpu-first) 가 wall 34.9s 였음. 본 fix 후 thro-adaptive 로 돌리면 모든 요청 GPU 로 수렴하여 wall ≈ 14s (gpu_only) 로 감소 예상
-- [ ] 만약 dev 에서도 "CPU 가 실제로 도움이 되는 영역" 이 발견되면 fix 의 cold-start gate 나 EMA 초기값 조정 필요 여부 판단
+| Gate | 통과 조건 | 실패 시 |
+|---|---|---|
+| G0 | seq=1/2/4/8/16 CPU-only scaling + sublayer breakdown 확보 | 계측 보강 |
+| G1 | 4req cost ≤ 2× single / tail < 100s / wall ratio < 8× | hot path 미타격 |
+| G2 | 4req cost ≤ 1.5× / tail < 10s / wall ratio < 1.5× | routing/gate 재설계 |
+| G3 | CPU req↑ + tail 제거 + wall ≤ GPU-only | **Ninja Gap 달성** |
 
-### 5.2 dev 의 60 req 순차 / finish variety test 재실행 (fix 포함 상태)
-- [ ] `/tmp/seq_repeat_test.py`, `/tmp/finish_variety_test.py`, `/tmp/cpu_abort_test.py` 를 routing fix 적용 상태에서 재실행하여 regression 없음 확인
-- [ ] 특히 abort slot leak 재현 안 되는지 재확인
-
----
-
-## 6. 기타 관찰된 잠재 이슈 (우선순위 낮음)
-
-- [ ] **`set_num_interop_threads` 타이밍**: 첫 op 실행 후에는 `RuntimeError`. 현재 `try/except RuntimeError` 로 감쌌지만 H100 실측에서 interop thread 가 원하는 값으로 설정되는지 로그 확인
-- [ ] **`numa_migrate_pages` × 2TB 지연**: 부팅 지연만 영향, 런타임 성능 무관. H100x8 2-socket 환경 접근 시 측정
-- [ ] **70B weight 중복 로딩 실측**: CPU engine 은 별도 프로세스이므로 weight 독립 로드. 70B 환경에서 부팅 가능성 / startup time 측정 (A2 KV offload 전제조건)
-- [ ] **`post-init: cpu_affinity=1 cores [1]` 문서화**: `Tech_done v1 Q1` 에서 이미 상세 설명됨. `CLAUDE.md` 진단 섹션에 1줄 주석 추가 (혼란 방지)
-- [ ] **CPU prefill 직렬화 (chunked_prefill=False) 영향 재점검** (v5 신규): max_seqs=1 하에서는 비문제이지만 batch 크기 변동 또는 다중 workload 도입 시 TTFT P99 급증 가능. 현재 `_create_cpu_vllm_config` 가 강제 `False` 인데, chunked prefill 활성화 시 per-step 이 어떻게 변하는지 실험적 확인
-- [ ] **Python 3.12/3.13 API 호환 정책** (v5 신규): `copy.replace` 와 같은 3.13+ 전용 API 피하기. CI 에서 3.12 로 import 테스트 추가 고려
+Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 
 ---
 
-## 7. 문서화 잔여
+## 3. G0 — 계측 재정의 (모든 후속 기법의 전제)
 
-- [ ] `docs/CUDA13_MIGRATION_STATUS.md` 에 "H100x4 실측 결과" 섹션 추가 (1.5B/7B/32B baseline + 라우팅 fix 언급)
-- [ ] `docs/HYBRID_OPTIONS_IMPLEMENTATION_PLAN.md` 가 현재 코드 + 본 세션 fix 와 맞는지 재확인
-- [ ] `CLAUDE.md` 의 "진단 로그 marker 7종" 표에 `[HYBRID-ROUTER-INIT]`, `[HYBRID-ROUTER-DISPATCH]`, `[HYBRID-ROUTER-STATS]`, `[HYBRID-WAVE-DISPATCH]`, `[HYBRID-CPU-PROFILE]`, `[HYBRID-CPU-ATTN-IPEX]` 추가 (v5 PROFILE logging 반영)
-- [ ] `CLAUDE.md` 에 서버 로그 캡처 메커니즘 (serve.sh tee + bench.sh slice/grep) 섹션 추가
-- [ ] 본 TODO.md 재작성 + old_doc 백업 규칙을 `CLAUDE.md` 의 "3 파일 운용 규칙" 섹션에 반영
-- [ ] `eval/basic/H100x8/README.md` — 4 runs (gpu_only + max_seqs=1/16, threads=32/56) 비교 요약 (Tech_done v5 F2 기반)
-- [ ] `eval/basic/RTX3090/README.md` — 6 runs 요약 (1.5B/7B × gpu_only/hybrid × max_seqs=4)
+- [ ] `eval/cpu_profile*.sh` 에 `num_seqs=1/2/4/8/16` sweep 고정
+- [ ] CPU-only 와 hybrid CPU engine 동일 shape 비교 harness
+- [ ] `cpu_worker.py` attn/mlp coarse hook → QKV/O/Gate/Up/SiLU/Down/Norm 세분화
+- [ ] per-step barrier/sync time, memory wait, packing/repacking marker
+- [ ] H100x8 + dev (RTX3090) 결과 동일 CSV schema 로 저장
+- [ ] 산출물: `batch_scaling_ratio`, `per_req_cost`, sublayer top bottleneck, `num_seqs` 증가 시 폭증 sublayer
 
 ---
 
-## 8. 다음 작업 세션 시작 시 체크
+## 4. 경로 1 — CPU 자체 가속 스택
 
-- [ ] 이 파일의 stale 여부 재확인 — `git log --since=<last_modified>` 로 commit 이력 + `experiment_result/` 최신 추가분 교차 확인
-- [ ] Stale 항목은 완료 표시 후 `Task_done.md` 에 append 하고 본 파일에서 제거
-- [ ] 새로 발견된 작업은 본 파일의 적절한 섹션에 추가
+구현 상태 태그: ✅ 이미 구현 / 🔶 부분 구현 / ⭕ 미구현
+
+### 4.1 [Tier 0] 기준선 방어
+- [ ] 기본 실험 `cpu_max_num_seqs=1` 고정
+- [ ] `wave-batch` 는 비교 대상으로만 유지
+- [ ] `throughput-adaptive` vs strict continuous baseline 동일 workload 비교
+
+### 4.2 Huge Pages 1GB ⭕
+- **메커니즘**: 4KB → 1GB 페이지. TLB 엔트리 70B INT4 기준 900만 → 35개
+- **예상 이득**: 5–15%. decode 전반 균등
+- **변경 위치**: grub `hugepagesz=1G hugepages=40` + vLLM mmap `MAP_HUGETLB`
+- **위험**: 컨테이너 cgroup 승인 선행 확인
+- **스택 호환성**: 모든 후속 기법과 독립. 항상 깔아야
+
+### 4.3 IPEX WoQ INT8 ⭕
+- **메커니즘**: BF16 weight → INT8 저장, BF16 연산. weight memory 2× 절감
+- **예상 이득**: 2× decode (memory-bound). PPL 열화 <0.5
+- **변경 위치**: `cpu_worker.py` 의 `ipex.llm.optimize` 에 `quantization_config=qconfig` 추가
+- **성공 조건**: 적용 여부가 아니라 CPU linear hot path 가 실제 WoQ kernel 로 치환되고 `num_seqs>1` per-req cost 가 내려가야 함. IPEX version 호환성 선검증
+- **스택 호환성**: §4.12 LUT INT4 로 넘어가면 **대체됨**
+
+### 4.4 OMP env 마무리 ✅ (KMP_BLOCKTIME 만 누락)
+- **현재**: `csrc/cpu/utils.cpp` 에 `numa_set_membind` + `numa_set_strict(1)` + `sched_setaffinity` 3종 완료
+- **남은 작업**: H100 env 파일에 `KMP_BLOCKTIME=0` 추가
+- **주의**: `OMP_PROC_BIND=close` 는 **의도적 미설정** (Intel OMP master-thread pin bug → `hybrid_core.py` 에서 pop)
+
+### 4.5 Hot Path 연결 증명 (G1 진입 필수)
+- [ ] VNNI INT8 GEMM (`gemm_vnni.cpp`) 을 실제 Qwen2.5 CPU linear hot path 에 연결 (현재는 build 되지만 call-site 없음)
+- [ ] load-time weight pre-pack cache (`cpu_model_runner.py` model load 후 hook)
+- [ ] runtime repack 이 step 마다 일어나는지 계측 후 제거
+- [ ] `batch=1/2/4/8/16` shape 별 AVX/VNNI/oneDNN primitive dispatch 로그
+- [ ] `ONEDNN_MAX_CPU_ISA` 설정 존재가 아닌 **실제 dispatch** 를 프로파일로 확인
+- **성공 조건**: hot path 로그/marker 바뀜 + `num_seqs=4` per-req cost 감소. 단일 req 만 빨라지고 scaling 없으면 다음 Tier 금지
+
+### 4.6 ISA Binary Dispatch 🔶
+- **현재**: `cpu_attn.py` decode 경로에 `custom_avx → ipex → sdpa_batched → sdpa_loop` fallback chain. batch size 기반 명시적 dispatch 없음 (IPEX 내부 dispatcher 의존)
+- **메커니즘**: batch>4 → AMX, else → AVX-512 VNNI (KTransformers 방식)
+- **예상 이득**: decode 1.5–2.22× (KTransformers 실측)
+- **변경 위치**: `cpu_worker.execute_model` pre-dispatch + csrc kernel 등록
+- **위험**: IPEX 내부 dispatcher 와 충돌. Bypass 필요
+- **스택 호환성**: §4.11 cascade 전제
+
+### 4.7 Kernel Fusion 🔶
+- **현재**: GPU 경로에 `gate_up_proj`, `qkv_proj` merged linear. CPU 전용 fused kernel 없음
+- **메커니즘**: sublayer 8개 독립 kernel → 4개 묶음. 중간 DDR write 제거, 입력 x 단일 로드
+- **예상 이득**: 1.5–2× (SGLang SiLU+up 12% × 4 sublayer 누적)
+- **변경 위치**: `csrc/cpu/fused_qkv.cpp`, `fused_gate_up_silu_down.cpp`, `fused_add_rmsnorm.cpp`
+- **위험**: IPEX 기존 fused kernel 과 충돌 검증 필요
+- **주의**: 이미 fused 된 모델 구조인지 먼저 확인 후 착수
+- **스택 호환성**: LUT / cascade 와 독립, 항상 병행
+
+### 4.8 Softmax + SiLU LUT 대체 ⭕
+- **메커니즘**: `exp()` 20 cycles → `vpshufb` LUT 1 cycle. SiLU "hot range" 선형 근사 + LUT
+- **예상 이득**: Softmax 2.2×, SiLU 1.2× (TARDIS vLLM 1.6×)
+- **변경 위치**: `csrc/cpu/lut_ops.cpp`. 32B/512B LUT register 상주
+- **위험**: 근사 정확도 열화 (<2% 추정, 측정 필요)
+- **조건**: scalar transcendental 이 프로파일 top bottleneck 일 때만
+- **스택 호환성**: §4.12 GEMV LUT 와 동일 인프라, 같이 개발
+
+### 4.9 Head Folding (GEMV → GEMM) ⭕
+- **메커니즘**: decode M=1 GEMV → batch fold M=16 GEMM. AMX tile full 활용
+- **예상 이득**: decode attention 1.5–2× (SGLang blog)
+- **변경 위치**: `csrc/cpu/fold_attention.cpp` + IPEX `single_query_cached_kv_attention` 대체
+- **위험**: MLA 에서는 직접 적용. GQA (Qwen) 에서는 batch fold 변형 필요
+- **스택 호환성**: §4.13 batch-aware attention 의 한 방식
+
+### 4.10 Batch-aware Decode Attention 🔶
+- **현재**: `csrc/cpu/batch_attention.cpp` 의 `batch16_paged_attention_v1` kernel 구현. **batch=16 hardcoded**, 동적 batch 미지원
+- **메커니즘**: per-seq KV paged access 구조를 batch 단위 재구성. head-parallel + page-coalesced
+- **예상 이득**: batch=16 scaling 5.3× → 10–12×
+- **변경 위치**: `cpu_attn.py` 의 IPEX call 대체 + 새 kernel
+- **위험**: IPEX 내부 FD kernel 재구현에 해당
+- **스택 호환성**: §4.9 Head Folding 과 중복 영역, 하나 선택 or 통합
+
+### 4.11 Barrier/Sync 감소 ⭕ (미계측)
+- **메커니즘**: OMP parallel region 이 sublayer 마다 재진입하는지 확인. thread team 재사용 / chunk scheduling / layer·block 단위 persistent region
+- **예상 이득**: 프로파일 의존 (G0 산출물 기반)
+- **스택 호환성**: 독립
+
+### 4.12 T-MAC LUT GEMV INT4 ⭕
+- **메커니즘**: INT4 weight 16 값 × input → LUT 32B precompute. 곱셈 + 역양자화 `vpshufb` 1-cycle
+- **예상 이득**: 4× (T-MAC 실측, CPU 22 tok/s > NPU 10.4 tok/s)
+- **변경 위치**: `csrc/cpu/lut_gemv.cpp` 전용 kernel. IPEX bypass
+- **위험**: ⚠ T-MAC 은 edge CPU 검증 (Snapdragon). **SPR+AMX 재검증 필수**. 강한 가설
+- **스택 호환성**: §4.3 WoQ INT8 대체. §4.8 LUT Softmax 와 동일 인프라
+
+### 4.13 AVX/AMX Cascade Pipeline ⭕
+- **메커니즘**: tile k+2 load (prefetch/DSA) / k+1 dequant·pack (AVX-512) / k matmul (AMX) 3-stage 동시 실행
+- **예상 이득**: 1.5–3× (T-MAN NPU 3.1× decode, CPU 이식 보수적 1.5–2×)
+- **변경 위치**: 타일 버퍼 설계 + cache-fit 검증
+- **위험**: ⚠ Staging overhead 가 이득 상쇄 가능. AVX `zmm` ↔ AMX tile 별도라 **중간 버퍼 L2 상주 필수**. cache-fit 실패 시 pipeline 이 아니라 DDR 왕복 증가
+- **구체 항목**:
+  - tile size 별 buffer footprint 계산
+  - L2 fit staging layout 설계
+  - `batch=1` → AVX, `batch>=N` → AMX/cascade shape-aware dispatch
+  - 전환 비용과 tile config 비용 profile marker 로 분리
+- **스택 호환성**: §4.6 binary dispatch 의 발전형. §4.14 pre-pack 과 조합 필수
+
+### 4.14 AMX Weight Pre-pack 🔶 (IPEX 내부 자동, 독자 없음)
+- **현재**: IPEX `ipex.llm.optimize(weights_prepack=True)` 기본값 암묵 활성. KTransformers 스타일 독자 pre-pack (AMX tile layout 직접 제어) 없음
+- **메커니즘**: 모델 로드 시 1회 weight → AMX tile layout (16×64 byte) 재배치. tileloadd 가 연속 16 cache line 로드
+- **예상 이득**: 1.1–1.2× (KTransformers 10–20%)
+- **변경 위치**: CPUWorker `load_model` 후 hook
+- **위험**: 낮음. 메모리 부담 2× (원본 + 재배치)
+- **스택 호환성**: §4.13 cascade 전제. §4.12 LUT path 에도 유사 pre-pack 필요 (T-MAC group layout)
+
+### 4.15 AVX-512 Bitmask Sparse (SparAMX) 🔶
+- **현재**: `csrc/cpu/gemm_vnni.cpp` 의 `int8_gemm_vnni` (dense). sparse 경로 없음
+- **메커니즘**: Unstructured sparsity `K` 레지스터 64-bit mask. `_mm512_mask_fmadd_ps` 로 유효 원소만 계산
+- **예상 이득**: linear 1.42×, attention 1.14× (SparAMX 실측, Xeon SPR)
+- **변경 위치**: `csrc/cpu/sparse_amx.cpp`. 가중치 50% pruning 선행 필요
+- **위험**: 프루닝 후 PPL 열화 검증. MLP 희소성은 batch↑ 시 소멸 — **attention head sparsity 만 batch-invariant**
+- **스택 호환성**: LUT 과 별개 경로, 대체가 아닌 추가
+
+### 4.16 Core Group Pipeline (Systolic) ⭕
+- **메커니즘**: 56 core 를 4 group 분할. A:QKV / B:Attn / C:MLP / D:next layer QKV 파이프라인. L3 로 inter-group 전달
+- **예상 이득**: 2–3× latency (4 layer 동시 실행). GPU SM cluster 원리를 CPU L3 로
+- **위험**: 매우 높음. L3 BW 가 DDR 보다 높지만 coherence 비용 큼
+- **전제**: §4.5~§4.15 완료로 기반 kernel 이 fast 해야 이득
+
+---
+
+## 5. 경로 2 — 역할 재정의 (구조 변경)
+
+### 5.1 Spec Decode CPU Drafter 🔶 (GPU-only spec decode 프레임워크만)
+- **현재**: `vllm/v1/spec_decode/` 에 ngram/eagle/medusa (GPU-on-GPU). CPU drafter + GPU verifier DuoDecoding 스타일 미구현
+- **메커니즘**: CPU drafter (Qwen2.5-0.5B) k 토큰 생성 → GPU verifier (7B) 한 번에 검증. accept rate ~70% 면 k-1 토큰 free
+- **예상 이득**: TPOT 2.1–2.61× (DuoDecoding 실측). TTFT 17% 감소
+- **변경 위치**: 3rd EngineCore spawn + `_route_speculative` fanout + accept/reject 로직 + `HybridConfig.spec_decode_draft_model`
+- **위험**: ⚠ CPU drafter 속도가 GPU verifier 와 balance 조건 충족 — **경로 1 batch scaling 필수 선행**
+- **Ninja Gap 기여도**: 매우 큼. wall 공식 변경 — `max` 의 CPU term 이 "전체 처리" → "draft 만" 이 되어 tail 소멸
+- **세부 구현 항목**:
+  - Implementation plan 문서화 (`docs/SPEC_DECODE_CPU_DRAFTER_PLAN.md`)
+  - `HybridConfig.spec_decode_draft_model: str | None` 필드
+  - Third CPU EngineCore 프로세스 (ZMQ identity `b'\x02\x00'`)
+  - `_route_speculative` 라우터 (요청 → GPU verifier + CPU draft fanout)
+  - `process_engine_outputs` 에서 verify + accept/reject
+  - Accept rate 로깅 (`[HYBRID-SPEC-STATS] accept=N/M`)
+  - 32B + Qwen2.5-0.5B 조합 측정 / 1.5B/7B non-regression
+
+### 5.2 P/D Disaggregation 🔶 (stub)
+- **현재**: `vllm/engine/disaggregated/` stub. hybrid 엔진과 통합 안 됨
+- **메커니즘**: prefill CPU (AMX BF16), decode GPU. long-context 16K+ GPU prefill bottleneck 해소
+- **예상 이득**: 16K input 에서 GPU TPOT p99 개선
+- **Ninja Gap 기여도**: 현 workload (128/128) 에서 0. long-ctx 전용
+
+### 5.3 KV Cache CPU Tier Offload 🔶
+- **현재**: `--cpu-offload-gb` CLI flag 존재 (용량 기반만). InfiniGen predictive prefetching / tier-aware block_table / LMCache prefix reuse 미구현
+- **메커니즘**: PagedAttention block_table 에 tier 필드. hot → HBM / cold → CPU DRAM. LRU eviction + DMA prefetch
+- **예상 이득**: 동시 시퀀스 3×, throughput 2–3× (70B/batch 1500+)
+- **변경 위치**: `vllm/v1/core/kv_cache_manager.py` + DMA stream 분리
+- **위험**: PCIe 지연. predictive prefetch 필요
+- **Ninja Gap 기여도**: 7B 현 workload 0. 70B 에서 큼
+
+### 5.4 ScoutAttention Layer-Ahead ⭕
+- **메커니즘**: CPU 가 1 layer 앞서 Q 예측 (Q_{i+1} ≈ Q_i, cos sim 0.93+) → top-k KV block 선별 → partial attention. GPU 는 hot block 만. 결과 합산
+- **예상 이득**: decoding 5.1× (장문). GPU idle 57% → <5%
+- **위험**: 근사 attention PPL 열화 <2.1%. vLLM 포팅 대규모
+- **Ninja Gap 기여도**: 현 workload 제한적. 8K+ context 에서 큼
+
+### 5.5 NEO Asymmetric Batch Split ⭕
+- **메커니즘**: 매 decode step batch 를 Batch-0 (GPU attn) + Batch-1 (CPU attn) 분할. GPU linear 실행 중 CPU attn overlap
+- **예상 이득**: H100 70B 14.3% (MLSys'25). 작은 workload 축소
+- **변경 위치**: `hybrid_core.py` 에 `_split_batch_asymmetric` + CPU worker 가 "attention 전용 워커" 로 역할 재정의
+- **Ninja Gap 기여도**: 7B 제한적
+
+---
+
+## 6. 경로 1 스택 누적 이론 상한
+
+순차 적용 (diminishing returns 50% 가정):
+
+| 기법 | 단독 이득 | 누적 | Gate |
+|---|---:|---:|---|
+| Baseline | 1× | 1× | |
+| + Huge Pages (§4.2) | 1.1× | 1.1× | |
+| + WoQ INT8 (§4.3) | 2.0× | 2.1× | |
+| + OMP env (§4.4) | 1.05× | 2.2× | |
+| + ISA binary (§4.6) | 2.0× | **3.3×** | G1 |
+| + Fusion (§4.7) | 1.7× | 4.7× | |
+| + LUT ops (§4.8) | 1.3× | 5.7× | |
+| + Head Folding (§4.9) | 1.5× | **7.4×** | |
+| + LUT GEMV INT4 (§4.12) | 3.0× | 13× | (WoQ 대체) |
+| + Cascade (§4.13) | 1.7× | **19×** | G2 |
+| + Pre-pack (§4.14) | 1.15× | 21× | |
+| + Sparse (§4.15) | 1.35× | 27× | |
+| + Batch-aware Attn (§4.10) | 1.5× | **35×** | G3 Ninja Gap |
+| + Systolic (§4.16) | 2× | 70× | (overshoot) |
+
+**현재 cost_cpu / cost_gpu ≈ 28×**. 경로 1 단독 역전 이론상 가능, 실제는 30% 효율 가정 시 10–20× 구간 예상 → **경로 2 조합 필요**.
+
+---
+
+## 7. 구현 상태 Audit (2026-04-15)
+
+| # | 기법 | 상태 |
+|---|---|:---:|
+| 4.2 | Huge Pages 1GB | ⭕ |
+| 4.3 | IPEX WoQ INT8 | ⭕ |
+| 4.4 | OMP + NUMA memory | ✅ (KMP_BLOCKTIME 만 누락) |
+| 4.6 | ISA binary dispatch | 🔶 fallback chain, 명시적 batch-based 없음 |
+| 4.7 | Sublayer fusion | 🔶 GPU 경로 only, CPU 전용 없음 |
+| 4.8 | Softmax/SiLU LUT | ⭕ |
+| 4.9 | Head Folding | ⭕ |
+| 4.10 | Batch-aware decode attn | 🔶 batch16 hardcoded |
+| 4.11 | Barrier/Sync 감소 | ⭕ (미계측) |
+| 4.12 | T-MAC LUT GEMV | ⭕ |
+| 4.13 | AVX/AMX cascade | ⭕ |
+| 4.14 | AMX pre-pack | 🔶 IPEX 내부 자동 |
+| 4.15 | SparAMX bitmask sparse | 🔶 dense int8_gemm_vnni 있음 |
+| 4.16 | Core group pipeline | ⭕ |
+| 5.1 | Spec decode CPU drafter | 🔶 GPU-only spec decode 만 |
+| 5.2 | P/D disaggregation | 🔶 stub |
+| 5.3 | KV offload | 🔶 용량 기반만 |
+| 5.4 | ScoutAttention | ⭕ |
+| 5.5 | NEO asymmetric | ⭕ |
+
+**19 기법**: ✅ 완전 구현 1, 🔶 부분 구현 9, ⭕ 미구현 9
+
+---
+
+## 8. Ninja Gap 달성 시나리오
+
+| 시나리오 | 조건 | 확률 |
+|---|---|---:|
+| 경로 1 단독 승리 | T-MAC LUT GEMV 4× 실현 + cascade 1.7× + batch-aware attn 12× scaling | 30% |
+| 경로 1 + Spec Decode 조합 ★ | Stage C 후 15–20× + DuoDecoding 2× 추가 | 50% |
+| 구조 변경 필요 | 현 workload Ninja Gap 포기 → 70B/long-ctx 전환 | 20% |
+
+---
+
+## 9. 근거 등급
+
+- **A** (로컬 실측): H100x8 wall 394/2098/14s, RTX3090 wall 23/90/8.1/6.5s
+- **B** (유사 HW 논문): SparAMX 1.42× (Xeon SPR), KTransformers ISA batch>4 경계
+- **C** (edge/NPU/MoE 논문, 이식 시 재검증): T-MAC 48 tok/s, T-MAN 3.1× decode, DuoDecoding 2.61×
+- **D** (강한 가설, 환경 미검증): AVX/AMX cascade, LUT GEMV on SPR+AMX, staging cache-fit
+
+D 에 머무는 기법이 Stage 3개 연속 실패 시 드롭. 각 단계 종료 시 D → B/A 승격 시도.
+
+---
+
+## 10. 코드 수정 위치 총괄
+
+- **계측**: `vllm/v1/worker/cpu_worker.py` (sublayer hook, barrier marker), `eval/cpu_profile*.sh` (num_seqs sweep), `eval/basic/H100x8/analysis_h100.ipynb`
+- **라우팅**: `vllm/v1/engine/hybrid_core.py` (default strategy, cpu_max_num_seqs, wave-batch, throughput-adaptive), `vllm/v1/engine/core_client.py` (dispatch/finished accounting, throughput feedback)
+- **CPU hot path**: `vllm/v1/attention/backends/cpu_attn.py` (batch-aware, IPEX vs custom 분기), `csrc/cpu/*` (VNNI pre-pack, fusion, LUT, AVX/AMX dispatch, cascade), `vllm/v1/worker/cpu_model_runner.py` (load-time optimize/pre-pack hook, NUMA allocator)
