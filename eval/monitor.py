@@ -97,10 +97,11 @@ def _get_cpu_topology() -> tuple[int, int, int]:
 
 
 def _sample_cpu_per_physical(logical_percents: list[float], tpc: int) -> list[float]:
-    """Group logical cores into HT pairs and return per-physical-core averages.
-
-    If tpc=1, logical cores are treated as physical cores and returned as-is.
-    For hybrid (P+E) architectures, the actual logical core count is used directly.
+    """Deprecated: positional (2i, 2i+1) pairing assumed HT siblings, which is
+    wrong on Xeon (HT siblings are (N, N+cores_total)). Kept only for callers
+    that still expect the legacy shape. New CSV schema emits raw per-logical-CPU
+    columns (`cpu{N}_util_pct`) instead; analysis code does NUMA/HT grouping
+    from `system_info.json` + sysfs topology.
     """
     if tpc == 1:
         return list(logical_percents)
@@ -130,10 +131,13 @@ def _build_gpu_header(gpu_count: int) -> list[str]:
 
 
 def _build_cpu_header(num_cpu_cols: int) -> list[str]:
-    """num_cpu_cols: actual column count returned by _sample_cpu_per_physical."""
+    """Emit one column per logical CPU: `cpu{N}_util_pct` for N in [0, num_cpu_cols).
+    Downstream analysis (hw_inspect) does NUMA/HT grouping from system_info.json
+    + sysfs topology — schema-free of hardware layout assumptions.
+    """
     base = ["timestamp", "elapsed_s"]
     for i in range(num_cpu_cols):
-        base.append(f"core{i}_util_pct")
+        base.append(f"cpu{i}_util_pct")
     base += ["cpu_avg_util_pct", "cpu_mem_used_mb", "cpu_mem_avail_mb"]
     return base
 
@@ -152,18 +156,14 @@ def monitor(output_prefix: str, interval: float):
     gpu_csv_path = f"{output_prefix}_gpu.csv"
     cpu_csv_path = f"{output_prefix}_cpu.csv"
 
-    # Determine header column count from actual sample (handles hybrid architectures)
+    # One column per logical CPU — leaves HT/NUMA grouping to downstream analysis.
     _first_logical = psutil.cpu_percent(percpu=True)
     time.sleep(0.1)
     _first_logical = psutil.cpu_percent(percpu=True)
-    _first_physical = _sample_cpu_per_physical(_first_logical, tpc)
-    num_cpu_cols = len(_first_physical)
+    num_cpu_cols = len(_first_logical)
 
-    cpu_label = f"{num_cpu_cols} cores"
-    if tpc > 1:
-        cpu_label += f" (physical, {tpc}T/core)"
-    else:
-        cpu_label += f" (logical={logical_cores}, physical={physical_cores})"
+    cpu_label = (f"{num_cpu_cols} logical CPUs "
+                 f"(physical={physical_cores}, tpc={tpc})")
 
     print(f"[monitor] CPU: {cpu_label}")
     print(f"[monitor] GPU: {gpu_count} cards")
@@ -222,14 +222,13 @@ def monitor(output_prefix: str, interval: float):
 
             # --- CPU ---
             logical_pcts = psutil.cpu_percent(percpu=True)
-            physical_pcts = _sample_cpu_per_physical(logical_pcts, tpc)
             mem = psutil.virtual_memory()
 
             cpu_row: dict = {"timestamp": ts, "elapsed_s": elapsed}
-            for i, pct in enumerate(physical_pcts):
-                cpu_row[f"core{i}_util_pct"] = round(pct, 2)
+            for i, pct in enumerate(logical_pcts):
+                cpu_row[f"cpu{i}_util_pct"] = round(pct, 2)
 
-            cpu_row["cpu_avg_util_pct"] = round(sum(physical_pcts) / len(physical_pcts), 2)
+            cpu_row["cpu_avg_util_pct"] = round(sum(logical_pcts) / len(logical_pcts), 2)
             cpu_row["cpu_mem_used_mb"] = round(mem.used / 1024 / 1024, 1)
             cpu_row["cpu_mem_avail_mb"] = round(mem.available / 1024 / 1024, 1)
 

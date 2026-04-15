@@ -61,20 +61,29 @@ def build_cpu_maps(si: dict) -> tuple[dict, int, int, int]:
 
 
 def build_column_map(num_cols: int, tpc: int,
-                     cpu_to_numa: dict, phys_thresh: int) -> list[dict]:
+                     cpu_to_numa: dict, phys_thresh: int,
+                     schema: str = "core") -> list[dict]:
     """
-    column_map[col_idx] = {
-        "cpu_ids":  [cpu_a, cpu_b, ...],
-        "numa":     int,
-        "is_phys":  bool,
-    }
+    Map CSV column index → {cpu_ids, numa, is_phys}.
+
+    schema="cpu"  (new): col N = logical CPU N (raw per-logical-CPU).
+    schema="core" (legacy): col N = avg of CPUs (N*tpc, N*tpc+1). Positional
+        pairing was wrong on Xeon (HT siblings are (N, N+phys_thresh), not
+        adjacent). NUMA-level aggregates still work because CPUs in each
+        pair happen to share a NUMA node; per-physical-core resolution is
+        lost. Kept for backward compat with pre-fix CSVs.
     """
     col_map = []
     for i in range(num_cols):
-        base = i * tpc
-        cpu_ids = list(range(base, base + tpc))
-        numa = cpu_to_numa.get(base, -1)
-        is_phys = base < phys_thresh
+        if schema == "cpu":
+            cpu_ids = [i]
+            numa    = cpu_to_numa.get(i, -1)
+            is_phys = i < phys_thresh
+        else:  # legacy "core"
+            base = i * tpc
+            cpu_ids = list(range(base, base + tpc))
+            numa    = cpu_to_numa.get(base, -1)
+            is_phys = base < phys_thresh
         col_map.append({"cpu_ids": cpu_ids, "numa": numa, "is_phys": is_phys})
     return col_map
 
@@ -178,8 +187,17 @@ def compute_numa_cpu_util(csv_path: Path, col_map: list[dict]) -> dict:
     if not rows:
         return {}
 
-    # Identify available core columns
-    core_cols = [h for h in rows[0].keys() if re.match(r"core\d+_util_pct$", h)]
+    # Support both schemas: new `cpu{N}_util_pct` (raw per-logical-CPU) and
+    # legacy `core{N}_util_pct` (2-CPU positional average). Detect from header.
+    headers = list(rows[0].keys())
+    cpu_cols  = [h for h in headers if re.match(r"cpu\d+_util_pct$", h)]
+    legacy_cols = [h for h in headers if re.match(r"core\d+_util_pct$", h)]
+    if cpu_cols:
+        core_cols = cpu_cols
+        col_re    = re.compile(r"cpu(\d+)_util_pct$")
+    else:
+        core_cols = legacy_cols
+        col_re    = re.compile(r"core(\d+)_util_pct$")
     num_cols   = len(core_cols)
 
     if num_cols != len(col_map):
@@ -201,7 +219,7 @@ def compute_numa_cpu_util(csv_path: Path, col_map: list[dict]) -> dict:
         all_vals: list[float] = []
 
         for col_hdr in core_cols:
-            m = re.match(r"core(\d+)_util_pct$", col_hdr)
+            m = col_re.match(col_hdr)
             if not m:
                 continue
             idx = int(m.group(1))
@@ -399,13 +417,21 @@ def build_report(run_dir: Path) -> str:
 
     cpu_csv = run_dir / f"{mode}_monitor_cpu.csv"
     col_map: list[dict] = []
+    csv_schema = "cpu"  # default: new raw per-logical-CPU schema
     if cpu_csv.exists() and total_cpus > 0:
         rows_probe = list(csv.DictReader(open(cpu_csv)))
         if rows_probe:
-            core_cols_probe = [h for h in rows_probe[0].keys()
-                               if re.match(r"core\d+_util_pct$", h)]
-            num_cols = len(core_cols_probe)
-            col_map  = build_column_map(num_cols, tpc, cpu_to_numa, phys_thresh)
+            headers = rows_probe[0].keys()
+            cpu_cols_probe    = [h for h in headers if re.match(r"cpu\d+_util_pct$", h)]
+            legacy_cols_probe = [h for h in headers if re.match(r"core\d+_util_pct$", h)]
+            if cpu_cols_probe:
+                csv_schema = "cpu"
+                num_cols   = len(cpu_cols_probe)
+            else:
+                csv_schema = "core"
+                num_cols   = len(legacy_cols_probe)
+            col_map = build_column_map(num_cols, tpc, cpu_to_numa, phys_thresh,
+                                       schema=csv_schema)
 
     if col_map:
         numa_util = compute_numa_cpu_util(cpu_csv, col_map)

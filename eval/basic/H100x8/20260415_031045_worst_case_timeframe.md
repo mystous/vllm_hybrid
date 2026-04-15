@@ -63,10 +63,12 @@
 |--------|----------:|------|
 | GPU 0-3 (TP=4 active) | 0.1% | 4 s burst 후 33 min idle |
 | GPU 4-7 (idle) | 0% | TP=4 이므로 unused |
-| NUMA 0 physical (CPU 0-55) | 69.4% | CPU tail 구간 ~100% |
-| NUMA 1 physical (CPU 56-111) | 70.2% | 동일 |
-| NUMA 0 HT (CPU 112-167) | ~4% | physical primary pinning 정상 작동 |
-| NUMA 1 HT (CPU 168-223) | ~4% | 동일 |
+| NUMA 0 physical (CPU 0-55) | 69.6% | CPU tail 구간 ~100% |
+| NUMA 1 physical (CPU 56-111) | 70.3% | 동일 — engine_2 정상 풀가동 |
+| NUMA 0 HT (CPU 112-167) | 4.4% | physical primary pinning 정상 작동 |
+| NUMA 1 HT (CPU 168-223) | 4.2% | 동일 |
+
+> **CSV 컬럼 주의**: `monitor.py` 는 logical CPU 2 개씩 평균 묶음. Xeon 넘버링이 interleaved 가 아니므로 실제 매핑은 `core0-27`=NUMA0 phys, `core28-55`=NUMA1 phys, `core56-83`=NUMA0 HT, `core84-111`=NUMA1 HT. 단순히 앞/뒤 절반으로 나누면 NUMA 1 이 놀고 있는 것처럼 보이는 착시 발생.
 
 Latency:
 - TTFT median 860 ms / p99 **62 427 ms** (CPU prefill 직렬화)
