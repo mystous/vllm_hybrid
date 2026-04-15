@@ -93,12 +93,18 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 
 ## Part 2 — 경로 1. CPU 자체 가속 스택 (ROI 순 정렬)
 
-각 기법: **메커니즘 / 예상 이득 / 구현 비용 / 위험 / 스택 호환성**.
+각 기법: **구현 상태 / 메커니즘 / 예상 이득 / 구현 비용 / 위험 / 스택 호환성**.
 
-### 2-1. [Tier 0] Huge Pages 1GB
+### 구현 상태 태그 (2026-04-15 audit)
+- ✅ **이미 구현** — 추가 작업 불요 또는 미미
+- 🔶 **부분 구현** — 일부 경로만 / 기능 축소형 존재. 본격 활용은 추가 작업 필요
+- ⭕ **미구현** — 새로 개발
+
+### 2-1. [Tier 0] Huge Pages 1GB  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ grep `MAP_HUGETLB\|hugepagesz` 결과 없음. vLLM / csrc / env 파일 어디에도 적용 안 됨 |
 | **메커니즘** | 4KB 페이지 → 1GB 페이지. TLB 엔트리 70B INT4 기준 900만 → 35개. TLB miss 해소. |
 | **예상 이득** | **5-15%** (논문 수치). decode 전반에 균등 영향. |
 | **비용** | 0.5일. grub `hugepagesz=1G hugepages=40` + vLLM mmap flag `MAP_HUGETLB`. |
@@ -106,10 +112,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | 모든 후속 기법과 독립. 항상 깔아야. |
 | **근거** | 70B INT4 TLB 분석 (ideation 0950_cpu_llm_optimization_techniques §3.2) |
 
-### 2-2. [Tier 0] IPEX WoQ INT8
+### 2-2. [Tier 0] IPEX WoQ INT8  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ grep `WoqWeightDtype\|weight_only_quant` 결과 없음. `cpu_worker.py` 의 `ipex.llm.optimize` 호출에 quantization_config 미전달 |
 | **메커니즘** | BF16 weight → INT8 저장, BF16 연산. weight memory 2× 절감. |
 | **예상 이득** | **2× decode throughput** (memory-bound). PPL 열화 <0.5 |
 | **비용** | 2-3일. `cpu_worker.py` 의 `ipex.llm.optimize` 에 `quantization_config=qconfig` 추가. |
@@ -117,20 +124,22 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | LUT INT4 (§2-8) 로 넘어가면 **대체됨**. Tier 0 임시. |
 | **근거** | Intel ICML'24 workshop (arXiv 2407.07304) |
 
-### 2-3. [Tier 0] OMP 환경 + Memory Pinning
+### 2-3. [Tier 0] OMP 환경 + Memory Pinning  ✅ **이미 구현** (KMP_BLOCKTIME 제외)
 
 | | |
 |---|---|
+| **구현 상태** | ✅ `csrc/cpu/utils.cpp:70-71` 에서 **`numa_set_membind(mask)` + `numa_set_strict(1)`** + `sched_setaffinity` (line 90) 로 **메모리 strict membind + core pinning + page migration** 3종 전부 수행. `OMP_PROC_BIND=close` 는 오히려 Intel OMP master-thread pin bug 유발로 **의도적으로 pop** (hybrid_core.py). **KMP_BLOCKTIME=0 은 dev env 만 있고 H100 env 에 없음** — 이것만 누락 |
 | **메커니즘** | `OMP_PROC_BIND=close`, `OMP_PLACES=cores`, `KMP_BLOCKTIME=0`, `numactl --membind=strict`. OS scheduler migration 금지. |
-| **예상 이득** | **5-10%** (이미 대부분 설정돼 있음). |
-| **비용** | 1일. 현재 env 검증 + 누락분 추가. |
-| **위험** | 낮음. |
-| **스택 호환성** | 독립. 모든 Tier 기반. |
+| **예상 이득** | **<5%** (90% 이미 적용 상태). H100 env 에 `KMP_BLOCKTIME=0` 추가 만 남음 |
+| **비용** | 10분 (env 파일 편집) |
+| **위험** | 없음 |
+| **스택 호환성** | 독립 |
 
-### 2-4. [Tier 1] ISA Binary Dispatch
+### 2-4. [Tier 1] ISA Binary Dispatch  🔶 **부분 구현**
 
 | | |
 |---|---|
+| **구현 상태** | 🔶 `cpu_attn.py` decode 경로에 `custom_avx → ipex → sdpa_batched → sdpa_loop` **fallback chain 존재** (`_decode_path_counts` 카운터). 그러나 **batch size 기반 명시적 dispatch 가 아님** — IPEX 내부 dispatcher 가 대부분 처리. KTransformers 방식 (batch>4 → AMX, else → AVX-512 강제) 은 미구현 |
 | **메커니즘** | batch size > 4 → AMX, else → AVX-512 VNNI. KTransformers 방식. |
 | **예상 이득** | decode **1.5-2.22×** (KTransformers 실측). |
 | **비용** | 1주. `cpu_worker.execute_model` pre-dispatch + csrc kernel 등록. |
@@ -138,10 +147,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | § 2-9 cascade 의 전제. |
 | **근거** | [KTransformers AMX doc](https://github.com/kvcache-ai/ktransformers/blob/main/doc/en/AMX.md) |
 
-### 2-5. [Tier 1] Kernel Fusion — QKV concat + Gate/Up interleave + Residual+Norm
+### 2-5. [Tier 1] Kernel Fusion — QKV concat + Gate/Up interleave + Residual+Norm  🔶 **부분 구현**
 
 | | |
 |---|---|
+| **구현 상태** | 🔶 vLLM **GPU 경로** layer (`linear.py:704` 등) 에 `gate_up_proj`, `qkv_proj` merged linear 이미 구현. **CPU 경로** (`cpu_worker.py`, `cpu_attn.py`) 에서 그 fused layer 가 사용되는지 미확인 — 일반적으로 IPEX 가 PyTorch layer 를 재사용. 그러나 **CPU 전용 fused kernel (csrc/cpu 에)** 은 없음. Residual+RMSNorm fusion 은 IPEX 내부에 있음 |
 | **메커니즘** | sublayer 8개 독립 kernel → 4개 묶음 kernel. 중간 DDR write 제거, 입력 x 단일 로드. |
 | **예상 이득** | **1.5-2×** (SGLang SiLU+up 12% × 4 sublayer 누적). |
 | **비용** | 2주. `csrc/cpu/fused_qkv.cpp`, `fused_gate_up_silu_down.cpp`, `fused_add_rmsnorm.cpp`. |
@@ -149,10 +159,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | § 2-8 LUT / § 2-9 cascade 와 독립. 항상 병행. |
 | **근거** | SGLang CPU 백엔드 블로그 (12% 실측), T-MAC 의 Gate+Up interleave 설계 |
 
-### 2-6. [Tier 1] Softmax + SiLU LUT 대체
+### 2-6. [Tier 1] Softmax + SiLU LUT 대체  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ `csrc/cpu/` 에 `lut*` 파일 없음. `vpshufb` 기반 LUT kernel 없음. Softmax/SiLU 는 현재 IPEX/oneDNN 의 기본 `exp()` 구현 사용 |
 | **메커니즘** | `exp()` 20 cycles → `vpshufb` LUT 1 cycle. SiLU는 "hot range" 선형 근사 + LUT. |
 | **예상 이득** | Softmax **2.2×**, SiLU **1.2×** (TARDIS 로는 vLLM 1.6× 보고). |
 | **비용** | 2주. `csrc/cpu/lut_ops.cpp`. 32B/512B LUT register 상주. |
@@ -160,10 +171,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | § 2-8 GEMV LUT 와 동일 인프라. 같이 개발. |
 | **근거** | T-MAN (arXiv 2511.11248), TARDIS (arXiv 2501.10054) |
 
-### 2-7. [Tier 1] Head Folding (GEMV → GEMM)
+### 2-7. [Tier 1] Head Folding (GEMV → GEMM)  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ grep `head_fold\|fold_head` 결과 없음. decode attention 의 `single_query_cached_kv_attention` 이 per-seq 구조 그대로 유지 |
 | **메커니즘** | decode attention 의 M=1 GEMV 를 batch fold 해서 M=16 GEMM 으로. AMX tile full 활용. |
 | **예상 이득** | decode attention **1.5-2×** (SGLang blog). |
 | **비용** | 2주. `csrc/cpu/fold_attention.cpp` + IPEX single_query 대체. GQA 구조 반영. |
@@ -171,10 +183,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | § 2-12 batch-aware attention 의 한 방식. |
 | **근거** | SGLang Head Folding blog |
 
-### 2-8. [Tier 2] T-MAC LUT-Based GEMV (INT4 핵심)
+### 2-8. [Tier 2] T-MAC LUT-Based GEMV (INT4 핵심)  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ `csrc/cpu/` 에 `lut_gemv` / `tmac` 파일 없음. INT4 LUT 기반 GEMV 경로 없음. INT4 양자화 자체도 기본 구현 없음 (IPEX WoQ 미활성) |
 | **메커니즘** | INT4 weight 16 값 × input 을 LUT 32B 에 precompute. 곱셈 + 역양자화를 `vpshufb` 1-cycle 로. |
 | **예상 이득** | INT4 **4×** (T-MAC 실측, CPU 22 tok/s > NPU 10.4 tok/s). bit↓ 선형 가속. |
 | **비용** | 3-4주. `csrc/cpu/lut_gemv.cpp` 전용 kernel. IPEX bypass. |
@@ -182,10 +195,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | § 2-2 WoQ INT8 대체. § 2-6 LUT Softmax 와 동일 인프라. |
 | **근거** | [T-MAC EuroSys'25](https://arxiv.org/pdf/2407.00088), [github](https://github.com/microsoft/T-MAC/) |
 
-### 2-9. [Tier 2] AVX/AMX Cascade Pipeline (codex §2-5)
+### 2-9. [Tier 2] AVX/AMX Cascade Pipeline (codex §2-5)  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ grep `enqcmd\|dsa\|3_stage\|cascade` 에 CPU 쪽 결과 없음 (GPU `cascade_attn` 은 FlashAttention 기능, 별개). Intel DSA 사용 경로 없음 |
 | **메커니즘** | tile k+2 load (prefetch/DSA) / tile k+1 dequant·pack (AVX-512) / tile k matmul (AMX) 3-stage 동시 실행. NPU T-MAN 의 DMA+Vec+Mat 패턴. |
 | **예상 이득** | **1.5-3×** (T-MAN NPU 실측 decode 3.1×. CPU 이식 시 보수적 추정 1.5-2×). |
 | **비용** | 4주. 타일 버퍼 설계 + cache-fit 검증. AVX `zmm` ↔ AMX tile 별도 파일이라 **중간 버퍼 L2 상주 설계** 필수. |
@@ -193,20 +207,22 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | § 2-4 binary dispatch 의 발전형. § 2-10 pre-pack 과 조합 필수. |
 | **근거** | codex §2-5, T-MAN (3-stage 원리 증명) |
 
-### 2-10. [Tier 2] AMX Weight Pre-pack
+### 2-10. [Tier 2] AMX Weight Pre-pack  🔶 **부분 구현** (IPEX 내부 기능 의존)
 
 | | |
 |---|---|
+| **구현 상태** | 🔶 IPEX 의 `ipex.llm.optimize(..., weights_prepack=True)` 기본값이 우리 코드에서 **암묵적으로 활성** (explicit 지정 안 함). H100 SPR AVX-512 환경에서 자동 prepack. dev (AVX2 only) 는 warning 후 `weights_prepack=False` 로 자동 fallback (`intel_cpu_utils.py:891`). **KTransformers 스타일의 독자적 pre-pack (AMX tile layout 직접 제어)** 은 없음. IPEX 의 내부 layout 에 위임 |
 | **메커니즘** | 모델 로드 시 1회 weight 를 AMX tile layout (16×64 byte) 로 재배치. 런타임 tileloadd 가 연속 16 cache line 로드. |
 | **예상 이득** | **1.1-1.2×** (KTransformers 실측 10-20%). |
 | **비용** | 1주. CPUWorker `load_model` 후 hook. layer 단위 변환. |
 | **위험** | 낮음. 메모리 부담 2× (원본 + 재배치). |
 | **스택 호환성** | § 2-9 cascade 의 전제. LUT path 에도 유사 pre-pack 필요 (T-MAC 의 group layout). |
 
-### 2-11. [Tier 2] AVX-512 Bitmask Sparse (SparAMX 기반)
+### 2-11. [Tier 2] AVX-512 Bitmask Sparse (SparAMX 기반)  🔶 **부분 구현**
 
 | | |
 |---|---|
+| **구현 상태** | 🔶 `csrc/cpu/gemm_vnni.cpp` 에 `int8_gemm_vnni` kernel 존재 (INT8 VNNI dense GEMM). **sparse 경로 (bitmask) 는 없음**. `_mm512_mask_fmadd_ps` 활용한 SpMV 없음. 또한 weight pruning (50% sparsity 확보) 파이프라인도 없음 |
 | **메커니즘** | Unstructured sparsity 를 zero-pad 없이 `K` 레지스터 64-bit mask 로 표현. `_mm512_mask_fmadd_ps` 로 유효 원소만 계산. AMX 도 mask 확장해 희소 GEMM. |
 | **예상 이득** | linear **1.42×**, attention **1.14×** (SparAMX 실측, Xeon SPR). |
 | **비용** | 4주. `csrc/cpu/sparse_amx.cpp`. 가중치 50% 프루닝 필요 (사전 작업). |
@@ -214,10 +230,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | LUT 과 별개 경로. 대체가 아닌 추가. |
 | **근거** | [SparAMX](https://huggingface.co/papers/2502.12444) |
 
-### 2-12. [Tier 2] Batch-aware Decode Attention
+### 2-12. [Tier 2] Batch-aware Decode Attention  🔶 **부분 구현** (batch=16 한정)
 
 | | |
 |---|---|
+| **구현 상태** | 🔶 `csrc/cpu/batch_attention.cpp` + `torch_bindings.cpp:91` 에 `batch16_paged_attention_v1` kernel **이미 구현 됨**. `cpu_attn.py:964` 에서 `custom_avx` fallback path 로 호출. 단 **batch=16 에 hardcoded** (v1 이름이 말해줌). 동적 batch size 지원 안 함. IPEX 기본 경로에서는 여전히 `single_query_cached_kv_attention` 사용 |
 | **메커니즘** | IPEX `single_query_cached_kv_attention` 의 per-seq KV paged access 구조를 batch 단위로 재구성. head-parallel + page-coalesced. |
 | **예상 이득** | batch=16 scaling을 5.3× → **10-12×** 로 개선 (목표). |
 | **비용** | 4주. `cpu_attn.py` 의 IPEX call 대체 + 새 kernel. 가장 복잡. |
@@ -225,10 +242,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | § 2-7 Head Folding 과 중복 영역 있음. 하나 선택 or 통합. |
 | **근거** | H100x8 H2 실측 재앙 (2098s), codex 4-2 #3 |
 
-### 2-13. [Tier 3] Core Group Pipeline (Systolic)
+### 2-13. [Tier 3] Core Group Pipeline (Systolic)  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ CPU core group 분할 / L3 inter-group 전달 구조 없음. 현재는 모든 core 가 동일 sublayer 를 병렬 처리하는 pure data parallel |
 | **메커니즘** | 56 core 를 4 group 으로 분할. A: QKV, B: Attn, C: MLP, D: next layer QKV 파이프라인. L3 로 inter-group 전달. |
 | **예상 이득** | **2-3× latency** (4 layer 동시 실행). GPU SM cluster 원리를 CPU L3 로. |
 | **비용** | 6주+. scheduler 재설계, worker 분리, L3 버퍼 설계. 매우 복잡. |
@@ -236,7 +254,42 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **스택 호환성** | Tier 2 완료 후. 기반 kernel 이 fast 해야 이득 보임. |
 | **근거** | Eyeriss systolic (원리), NPU multi-core pipeline |
 
-### 2-14. 경로 1 스택 누적 예상 이득 (이론 상한)
+### 2-14. 구현 상태 audit 요약 (2026-04-15)
+
+| # | 기법 | Tier | 상태 |
+|---|---|:---:|:---:|
+| 2-1 | Huge Pages 1GB | 0 | ⭕ 미구현 |
+| 2-2 | IPEX WoQ INT8 | 0 | ⭕ 미구현 |
+| 2-3 | OMP + NUMA memory | 0 | ✅ **구현됨** (KMP_BLOCKTIME 만 누락) |
+| 2-4 | ISA binary dispatch | 1 | 🔶 fallback chain 만, 명시적 batch-based 없음 |
+| 2-5 | Sublayer fusion | 1 | 🔶 GPU 경로 only, CPU 전용 fused kernel 없음 |
+| 2-6 | Softmax/SiLU LUT | 1 | ⭕ 미구현 |
+| 2-7 | Head Folding | 1 | ⭕ 미구현 |
+| 2-8 | T-MAC LUT GEMV | 2 | ⭕ 미구현 |
+| 2-9 | AVX/AMX cascade | 2 | ⭕ 미구현 |
+| 2-10 | AMX pre-pack | 2 | 🔶 IPEX 내부 자동 (독자 없음) |
+| 2-11 | AVX-512 bitmask sparse | 2 | 🔶 dense int8_gemm_vnni 있음, sparse 없음 |
+| 2-12 | Batch-aware decode attn | 2 | 🔶 `batch16_paged_attention_v1` 구현 (batch=16 hardcoded) |
+| 2-13 | Core group pipeline | 3 | ⭕ 미구현 |
+| **3-1** | **Spec decode CPU drafter** | 3 | 🔶 vLLM spec_decode 프레임워크 있음, CPU drafter 경로 없음 |
+| **3-2** | **P/D disaggregation** | 3 | 🔶 stub 있음, hybrid 와 통합 안 됨 |
+| **3-3** | **KV offload** | 3 | 🔶 `--cpu-offload-gb` 기본, predictive 없음 |
+| **3-4** | **ScoutAttention** | 3 | ⭕ 미구현 |
+| **3-5** | **NEO asymmetric** | 3 | ⭕ 미구현 |
+
+**통계**: 18 기법 중
+- ✅ 완전 구현: **1** (2-3)
+- 🔶 부분 구현: **8** (2-4, 2-5, 2-10, 2-11, 2-12, 3-1, 3-2, 3-3)
+- ⭕ 미구현: **9** (2-1, 2-2, 2-6, 2-7, 2-8, 2-9, 2-13, 3-4, 3-5)
+
+**통합 의미**:
+- **Tier 0 중 실질 남은 작업**: 2-1 Huge Pages + 2-2 WoQ INT8 (2-3 는 10분 작업만)
+- **Tier 1 ROI 순**: 2-4 binary dispatch 강화 (부분 → 완전) > 2-6 LUT ops 신규 > 2-7 Head Folding 신규
+- **Tier 2 최우선**: 2-8 T-MAC LUT GEMV (0 → 4×, 가장 큰 단일 이득) + 2-9 cascade
+- **Part 3 병행 트랙**: 3-1 CPU drafter 가 기존 spec_decode 프레임워크 위에 구축 가능 (low friction)
+- **이미 있는 🔶 들**: 2-12 batch16 kernel 확장 + 2-11 SparAMX 추가가 실질적 투자 대비 효과 큼
+
+### 2-15. 경로 1 스택 누적 예상 이득 (이론 상한)
 
 순차 적용 시 (diminishing returns 50% 가정):
 
@@ -265,10 +318,11 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 
 ## Part 3 — 경로 2. 역할 재정의 (구조 변경)
 
-### 3-1. Spec Decode CPU Drafter (DuoDecoding 방식)
+### 3-1. Spec Decode CPU Drafter (DuoDecoding 방식)  🔶 **부분 구현** (GPU-only spec decode 만)
 
 | | |
 |---|---|
+| **구현 상태** | 🔶 `vllm/v1/spec_decode/` 에 ngram_proposer, eagle, medusa 등 **GPU-on-GPU spec decode** 프레임워크 존재. 그러나 **CPU drafter + GPU verifier 의 DuoDecoding 스타일은 미구현**. `ngram_proposer_dynamic.py` 는 있지만 별개 경로. ZMQ 로 CPU drafter 연결하는 3rd engine 구조 없음 |
 | **메커니즘** | CPU 가 작은 drafter (Qwen2.5-0.5B) 로 k 토큰 생성 → GPU verifier (7B) 가 한 번에 검증. accept rate ~70% 이면 k-1 토큰 free. |
 | **예상 이득** | TPOT **2.1-2.61×** (DuoDecoding 실측). TTFT **17% 감소**. |
 | **비용** | 6주. 세 번째 EngineCore (drafter) + verifier 동기화 + accept/reject 로직. |
@@ -276,40 +330,44 @@ dev 에서 T-MAC INT4 포팅 시 이론상 (선형 누적 가정):
 | **Ninja Gap 기여도** | 매우 큼. wall 공식 변경 — `max` 의 CPU term 이 "전체 처리" 가 아닌 "draft 만" 이 되므로 tail 소멸. |
 | **근거** | [DuoDecoding 2503.00784](https://arxiv.org/abs/2503.00784) |
 
-### 3-2. P/D Disaggregation (장거리 context 한정)
+### 3-2. P/D Disaggregation (장거리 context 한정)  🔶 **부분 구현** (stub 수준)
 
 | | |
 |---|---|
+| **구현 상태** | 🔶 `vllm/engine/disaggregated/` 디렉토리 존재 (`coordinator.py`, `kv_transfer.py`). **stub 수준** — 현재 hybrid 엔진과 통합 안 됨. 실제 P/D split 경로 없음 |
 | **메커니즘** | prefill 은 CPU (AMX BF16 compute-bound), decode 는 GPU. long-context 16K+ 에서 GPU prefill bottleneck 해소. |
 | **예상 이득** | 16K input 에서 GPU TPOT p99 개선 (KV handoff 비용 제외). |
 | **비용** | 8주. `vllm/engine/disaggregated/` stub 활용 + hybrid 구조 병합 + KV DMA. |
 | **위험** | 현재 workload (128/128) 에 무효. 16K+ 에서만 의미. |
 | **Ninja Gap 기여도** | 현 workload 에서 0. long-ctx 전용. |
 
-### 3-3. KV Cache CPU Tier Offload
+### 3-3. KV Cache CPU Tier Offload  🔶 **부분 구현** (`--cpu-offload-gb` 기본 용량 기반만)
 
 | | |
 |---|---|
+| **구현 상태** | 🔶 `--cpu-offload-gb` CLI flag 존재 (`arg_utils.py:748`, `config.py:1864`). 단순 용량 기반 offload. **InfiniGen 스타일 predictive prefetching / tier-aware block_table / LMCache prefix reuse 는 미구현** |
 | **메커니즘** | PagedAttention block_table 에 tier 필드. hot → HBM, cold → CPU DRAM. Eviction LRU + DMA prefetch. |
 | **예상 이득** | 동시 시퀀스 **3×**, throughput **2-3×** (70B / batch 1500+ 에서). |
 | **비용** | 6주. `vllm/v1/core/kv_cache_manager.py` + DMA stream 분리. |
 | **위험** | PCIe 지연. InfiniGen 스타일 predictive prefetch 필요. |
 | **Ninja Gap 기여도** | 7B 현 workload 에서 0. 70B 에서 큼. |
 
-### 3-4. ScoutAttention Layer-Ahead
+### 3-4. ScoutAttention Layer-Ahead  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ layer-ahead Q 예측, top-k KV block 선별, CPU partial attention 경로 모두 없음 |
 | **메커니즘** | CPU 가 1 layer 앞서 Q 예측 (Q_{i+1} ≈ Q_i, cos sim 0.93+) → top-k KV block 선별 → partial attention. GPU 는 hot block 만. 결과 합산. |
 | **예상 이득** | decoding **5.1×** (ScoutAttention 실측, 장문). GPU idle 57% → <5%. |
 | **비용** | 11주. 가장 복잡. cos sim 검증 먼저 (1일). |
 | **위험** | 근사 attention PPL 열화 <2.1%. vLLM 포팅 대규모. |
 | **Ninja Gap 기여도** | 현 workload 제한적. 8K+ context 에서 의미 큼. |
 
-### 3-5. NEO Asymmetric Batch Split
+### 3-5. NEO Asymmetric Batch Split  ⭕ **미구현**
 
 | | |
 |---|---|
+| **구현 상태** | ⭕ batch 를 GPU/CPU sub-batch 로 분할하는 step-level 라우팅 없음. 현재 구조는 request-level partition 유지 |
 | **메커니즘** | 매 decode step batch 를 Batch-0 (GPU attn) + Batch-1 (CPU attn) 분할. GPU linear 실행 중 CPU attn overlap. |
 | **예상 이득** | H100 70B **14.3%** (MLSys'25 실측). 작은 workload 에서는 축소. |
 | **비용** | 8주. `hybrid_core.py` 에 `_split_batch_asymmetric` + CPU worker 가 "attention 전용 워커" 로 역할 재정의. |
