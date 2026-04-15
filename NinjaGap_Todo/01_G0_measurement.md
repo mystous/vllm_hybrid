@@ -119,41 +119,41 @@ Intel 엔지니어가 권장하는 3단 접근:
 
 측정은 기존 `serve.sh` + `bench.sh` 를 그대로 쓰되, **env 파일에 측정 flag 만 추가**. sweep wrapper 스크립트 불필요 — 사용자가 `num_seqs` 값만 바꿔가며 평소대로 실행.
 
-### 1. env 파일에 측정 flag 설정
+### 1. 측정 template env 복사
+
+**Template 2종** (준비됨, PROFILE flag + 21개 기법 flag 모두 주석과 함께 명시):
+- `eval/envs/g0_dev_rtx3090_qwen1.5b.env` — dev (RTX3090 + i9-12900KF)
+- `eval/envs/g0_h100x8_qwen7b.env` — H100x8 + Xeon SPR
 
 ```bash
-# eval/envs/h100x8_qwen7b_hybrid.env 에 추가
-
-# 측정 모드 (Layer 1) — hook 활성
-VLLM_HYBRID_PROFILE=1
-VLLM_HYBRID_PROFILE_SUBLAYER=1
-VLLM_HYBRID_PROFILE_EVERY=10
-
-# 이번 주 적용할 기법 flag (Layer 2) — baseline 은 전부 0/auto
-HYBRID_VNNI_HOT_PATH=0
-HYBRID_BATCH_AWARE_ATTN=off
-HYBRID_LUT_SOFTMAX=0
-# ... (§00 Overview 표 참조)
-
-# 이번 run 의 num_seqs
-HYBRID_CPU_MAX_SEQS=1   # 또는 2, 4, 8, 16
+cp eval/envs/g0_h100x8_qwen7b.env /tmp/run.env
+# 편집: 이번 측정에 맞게 2개만
+#   HYBRID_TODO_NN=00         # 00=baseline / 05=§05 적용 후 / ...
+#   HYBRID_CPU_MAX_SEQS=1     # sweep: 1, 2, 4, 8, 16 각각 재실행
+# 기법 적용 후 해당 flag 를 on (예: TODO NN=06 → HYBRID_VNNI_HOT_PATH=1 까지 수정)
 ```
 
-### 2. 평소대로 serve + bench 실행 (사용자 수동)
+Template 안의 각 flag 옆 `§NN` 주석이 어느 TODO 에 대응하는지 보여줌.
+
+### 2. serve + bench 실행 (두 터미널 수동)
 
 ```bash
 # 터미널 1
-./eval/serve.sh h100x8_qwen7b_hybrid.env
+./eval/serve.sh hybrid /tmp/run.env
 
-# 터미널 2 (서버 ready 후)
-./eval/bench.sh h100x8_qwen7b_hybrid.env
+# 터미널 2 (ready 후)
+./eval/bench.sh hybrid /tmp/run.env
 ```
 
-결과 자동 생성:
-- `eval/results/<timestamp>/hybrid_server_run.log` — `[HYBRID-APPLIED-FEATURES]` (boot) + `[HYBRID-CPU-PROFILE]` (per step) 마커
-- `eval/results/<timestamp>/applied_features.json` — 활성 flag snapshot
-- `eval/results/<timestamp>/env_snapshot.txt` — 환경변수 덤프
-- 기존 monitor csv, bench log, system_info.json 은 그대로
+**자동 배치** — PROFILE=1 이므로 serve.sh 와 bench.sh 가 같은 디렉토리로:
+- `measurement_results/<HW>/g0_<NN>/seqs<N>/hybrid_server_run.log` — `[HYBRID-APPLIED-FEATURES]` (boot) + `[HYBRID-CPU-PROFILE]` (per step)
+- `measurement_results/<HW>/g0_<NN>/seqs<N>/applied_features.json` — 활성 flag snapshot
+- `measurement_results/<HW>/g0_<NN>/seqs<N>/env_snapshot.txt` — env 변수 덤프
+- `measurement_results/<HW>/g0_<NN>/seqs<N>/hybrid.json` — bench 수치
+- `measurement_results/<HW>/g0_<NN>/seqs<N>/git_sha.txt`
+- monitor csv, system_info 등 기존 파일
+
+HW 이름 (`RTX3090`, `H100x8`) 은 `nvidia-smi` 에서 자동 감지.
 
 ### 3. 필요한 만큼 반복 (최소 2점, 여유 시 5점)
 
