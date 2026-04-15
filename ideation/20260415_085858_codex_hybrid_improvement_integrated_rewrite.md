@@ -137,6 +137,33 @@ RTX3090:
 이건 “AMX/VNNI/희소성은 보조선일 뿐”이라고 보기 어렵다는 뜻이다.  
 적어도 request-level hybrid 를 살리려면 이런 하드웨어 친화적 커널 개선은 본선에 가깝다.
 
+### 2-5. AVX 와 AMX 는 대체 관계만이 아니라 cascade / pipeline 관계로도 볼 수 있다
+
+이 점은 이번 교차 검토에서 문서에 더 명확히 남겨둘 가치가 있었다.
+
+- AVX-512는 dequant, packing, norm, softmax 일부 같은 벡터/원소별 작업에 적합하다
+- AMX는 tile-friendly matmul 에 적합하다
+
+즉 두 ISA 는 “둘 중 하나만 선택”하는 관계만이 아니라, 다음처럼 **연속 단계**로 배치할 수 있다.
+
+- AVX-512: `tile k+1` dequant / pack
+- AMX: `tile k` matmul
+- 필요하면 prefetch/DSA: `tile k+2` load
+
+중요한 점:
+
+- AVX `zmm` 와 AMX `tile register` 는 별도 레지스터 파일이라 직접 연결되는 구조는 아니다
+- 따라서 완전한 register-to-register 연쇄보다는 **타일 버퍼 기반 cascade / pipeline** 으로 설계해야 한다
+- 잘 설계하면 dequant / pack / matmul 의 일부 오버랩이 가능하지만, 잘못 설계하면 중간 write/read 비용만 늘 수 있다
+
+즉 AVX/AMX 병용의 핵심은 “같이 쓸 수 있느냐”가 아니라:
+
+- 어떤 batch/shape 에서 어느 쪽이 hot path 인가
+- 어느 시점에 AVX 에서 AMX 로 넘길 것인가
+- 그 staging 이 L1/L2/L3 안에서 닫히는가
+
+라는 dataflow 문제다.
+
 ---
 
 ## 3. 클로드 문서에서 가져올 것과 낮춰 쓸 것
@@ -234,11 +261,18 @@ RTX3090:
 5. **NUMA-local multi-engine 강화**
 6. **barrier / sync 감소**
 7. **AMX / VNNI / AVX-512 dispatch 최적화**
+8. **AVX dequant/pack -> AMX matmul 타일 파이프라인**
 
 이 단계의 목표:
 
 - CPU request 1개를 조금 빠르게 만드는 것보다
 - **여러 request 를 함께 넣었을 때 비용이 실제로 줄어드는지**를 확인하는 것
+
+여기서 특히 새로 명시할 포인트:
+
+- AVX 와 AMX 를 단순 경쟁 ISA 로 보지 말고
+- **AVX 준비 단계 + AMX 계산 단계** 로 나눈 타일 파이프라인이 가능한지 검토해야 한다
+- 단, 작은 decode batch 에서는 전환/버퍼링 고정비가 더 클 수 있으므로 반드시 shape 별 측정이 선행돼야 한다
 
 ## 4-3. 3단계: 그 위에서 routing 재평가
 
