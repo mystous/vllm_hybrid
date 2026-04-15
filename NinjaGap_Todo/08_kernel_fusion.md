@@ -140,7 +140,7 @@ Transformer layer 의 sublayer 당 weight read + intermediate write/read 가 각
 | `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
 | `HYBRID_KERNEL_FUSION` | `0` (기본) / `qkv` / `gate_up` / `norm` / `all` | 어느 fusion 경로 활성 |
 
-전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+전체 flag 테이블: [README.md](./README.md) "기법 Feature Flag 테이블" 참조.
 
 ---
 

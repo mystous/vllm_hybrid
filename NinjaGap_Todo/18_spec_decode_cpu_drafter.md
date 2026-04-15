@@ -193,7 +193,7 @@ else:
 | `HYBRID_SPEC_DRAFT_MODEL` | `""` (기본) / `Qwen2.5-0.5B-Instruct` 등 | Drafter 모델 id |
 | `HYBRID_SPEC_K` | `4` (기본) | Draft 길이 |
 
-전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+전체 flag 테이블: [README.md](./README.md) "기법 Feature Flag 테이블" 참조.
 
 ---
 

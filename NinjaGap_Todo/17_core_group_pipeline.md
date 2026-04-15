@@ -170,7 +170,7 @@ L3 shared → cache line 이 다른 core 에서 modified 되면 coherence invali
 | `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
 | `HYBRID_CORE_GROUP_PIPELINE` | `0` (기본) / `1` | Systolic core group pipeline 모드 |
 
-전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+전체 flag 테이블: [README.md](./README.md) "기법 Feature Flag 테이블" 참조.
 
 ---
 

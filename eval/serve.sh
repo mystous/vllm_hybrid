@@ -84,17 +84,24 @@ SERVER_LOG_FILE="${SERVER_LOG_DIR}/server_$(date +%Y%m%d_%H%M%S)_${MODE}.log"
 ln -sf "${SERVER_LOG_FILE}" "${SERVER_LOG_DIR}/server_latest.log"
 echo " SERVER_LOG=${SERVER_LOG_FILE}"
 
-# VLLM_HYBRID_PROFILE=1 일 때 측정 manifest 디렉토리 설정.
-# bench.sh 가 RUN_DIR 로 rename 복사할 수 있도록 latest 심링크 유지.
-export VLLM_HYBRID_RESULT_DIR="${VLLM_HYBRID_RESULT_DIR:-${SERVER_LOG_DIR}/profile_latest}"
+# VLLM_HYBRID_PROFILE=1 일 때 측정 결과를 measurement_results/<HW>/g0_<NN>/seqs<N>/
+# 로 직접 배치. bench.sh 도 동일 경로를 RUN_DIR 로 사용하므로 사후 mv 불필요.
+# HYBRID_TODO_NN (기본 "00" = baseline) 로 적용 기법 시점 구분.
 if [[ "${VLLM_HYBRID_PROFILE}" == "1" ]]; then
+    # shellcheck source=lib/hw_dir.sh
+    source "${SCRIPT_DIR}/lib/hw_dir.sh"
+    compute_hw_dir
+    compute_meas_root
+    export VLLM_HYBRID_RESULT_DIR="${VLLM_HYBRID_RESULT_DIR:-${_MEAS_RUN_DIR}}"
     mkdir -p "${VLLM_HYBRID_RESULT_DIR}"
-    # env 스냅샷: HYBRID_* + VLLM_HYBRID_* 전부
     env | grep -E '^(HYBRID_|VLLM_HYBRID_)' | sort \
         > "${VLLM_HYBRID_RESULT_DIR}/env_snapshot.txt"
     (cd "${SCRIPT_DIR}/.." && git rev-parse HEAD 2>/dev/null || true) \
         > "${VLLM_HYBRID_RESULT_DIR}/git_sha.txt"
-    echo " PROFILE_MODE=on, manifest dir: ${VLLM_HYBRID_RESULT_DIR}"
+    echo " PROFILE_MODE=on (HW=${_HW_DIR} NN=${HYBRID_TODO_NN:-00} seqs=${HYBRID_CPU_MAX_SEQS:-1})"
+    echo " Measurement dir: ${VLLM_HYBRID_RESULT_DIR}"
+else
+    export VLLM_HYBRID_RESULT_DIR="${VLLM_HYBRID_RESULT_DIR:-${SERVER_LOG_DIR}/profile_latest}"
 fi
 echo "============================================================"
 

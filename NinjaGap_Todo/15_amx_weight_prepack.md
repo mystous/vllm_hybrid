@@ -145,7 +145,7 @@ Pre-pack 은 원본 weight 와 별도 메모리 보유 → **메모리 2×**. 7B
 | `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
 | `HYBRID_AMX_PREPACK` | `auto` (기본) / `ipex` / `custom` / `off` | Pre-pack 전략 |
 
-전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+전체 flag 테이블: [README.md](./README.md) "기법 Feature Flag 테이블" 참조.
 
 ---
 

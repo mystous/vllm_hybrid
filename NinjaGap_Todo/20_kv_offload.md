@@ -167,7 +167,7 @@ Prompt 앞부분이 동일한 요청 (예: system prompt) 의 KV 를 재사용:
 | `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
 | `HYBRID_KV_OFFLOAD` | `0` (기본) / `1` | Predictive KV offload (기존 `--cpu-offload-gb` 와 별개) |
 
-전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+전체 flag 테이블: [README.md](./README.md) "기법 Feature Flag 테이블" 참조.
 
 ---
 

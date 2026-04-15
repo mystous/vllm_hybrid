@@ -131,7 +131,7 @@ os.sched_setaffinity(0, effective)
 | `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
 | `HYBRID_KMP_BLOCKTIME` | `auto` (기본) / `0` / `<n>ms` | `auto` 면 hybrid 가 0 으로 강제 |
 
-전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+전체 flag 테이블: [README.md](./README.md) "기법 Feature Flag 테이블" 참조.
 
 ---
 

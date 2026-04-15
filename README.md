@@ -201,7 +201,7 @@ python benchmarks/benchmark_serving.py \
 
 **Ninja Gap** = `T_hybrid < T_gpu_only` 달성 목표. 현재 H100x8 / 7B / 500×128 기준 hybrid wall 은 GPU-only 대비 26–143× 느림 (batch scaling 실패). 아래는 **소스 코드에 적용된 기법을 누적 기록** 하는 로그. 각 항목 적용 후 주간 측정 (`VLLM_HYBRID_PROFILE=1` + `num_seqs` sweep) 결과와 함께 위에서 아래로 쌓아간다.
 
-기법 상세: [NinjaGap_Todo/00_Overview.md](NinjaGap_Todo/00_Overview.md) (전체 Gate / flag 테이블 / 진도)
+기법 상세: [NinjaGap_Todo/README.md](NinjaGap_Todo/README.md) (전체 Gate / flag 테이블 / 진도)
 기법 각 문서: [NinjaGap_Todo/](NinjaGap_Todo/) (§01–§22)
 
 ### 적용 순서 (적층 로그)
@@ -223,7 +223,7 @@ python benchmarks/benchmark_serving.py \
 **운영 규칙**:
 1. 기법 구현 + 측정 완료 후에만 한 행 추가 (설계만 된 항목은 "예정" 으로 별도)
 2. 각 행은 직전 행 대비 **누적 (적층)** 성능. 독립 이득 아님
-3. `측정 결과` 열에는 `(wall, ratio(16/1), batch_scaling_ratio)` 최소 3 수치 — 상세는 `eval/<HW>/g0_<NN>/` 디렉토리 링크
+3. `측정 결과` 열에는 `(wall, ratio(16/1), batch_scaling_ratio)` 최소 3 수치 — 상세는 `measurement_results/<HW>/g0_<NN>/` 디렉토리 링크
 4. Gate 열 변화 (G0 → G1 → G2 → G3) 가 Ninja Gap 진척의 단일 지표
 5. 행 추가 시 `applied_features.json` 의 flag state 도 같이 기록 (추적성)
 

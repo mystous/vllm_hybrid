@@ -158,7 +158,17 @@ else
     _TAG="${_MODE_TAG}"
 fi
 
-RUN_DIR="${RESULTS_BASE}/${_TS}_${_TAG}_${_GPU_TYPE}_x${_GPU_COUNT}_${_MODEL_SHORT}"
+# PROFILE=1 이면 measurement_results/<HW>/g0_<NN>/seqs<N>/ 로 직접 배치
+# (serve.sh 와 동일 경로 공유). 아니면 기존 results/ 타임스탬프 디렉토리.
+if [[ "${VLLM_HYBRID_PROFILE:-0}" == "1" ]]; then
+    # shellcheck source=lib/hw_dir.sh
+    source "${SCRIPT_DIR}/lib/hw_dir.sh"
+    compute_hw_dir
+    compute_meas_root
+    RUN_DIR="${_MEAS_RUN_DIR}"
+else
+    RUN_DIR="${RESULTS_BASE}/${_TS}_${_TAG}_${_GPU_TYPE}_x${_GPU_COUNT}_${_MODEL_SHORT}"
+fi
 mkdir -p "${RUN_DIR}"
 
 log "============================================================"

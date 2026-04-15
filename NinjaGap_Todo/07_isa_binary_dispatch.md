@@ -159,7 +159,7 @@ IPEX 의 `_IPEXLinearFusionCPU` 가 자체적으로 kernel 선택. 우리 dispat
 | `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
 | `HYBRID_ISA_DISPATCH` | `auto` (기본) / `avx512` / `amx` / `cascade` | Dispatch 정책 |
 
-전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+전체 flag 테이블: [README.md](./README.md) "기법 Feature Flag 테이블" 참조.
 
 ---
 

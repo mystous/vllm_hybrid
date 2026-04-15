@@ -1,9 +1,6 @@
-# G0 Analysis — dev (RTX3090 + i9-12900KF) baseline
+# G0 Analysis — RTX3090 / g0_00
 
-**Date**: 2026-04-15 KST
-**Model**: Qwen2.5-1.5B-Instruct
-**Workload**: 20 req × 64/16 tokens, capacity + cpu-first, rate=1 req/s
-**Profile mode**: `VLLM_HYBRID_PROFILE=1 VLLM_HYBRID_PROFILE_SUBLAYER=1 VLLM_HYBRID_PROFILE_EVERY=1`
+**Profile mode**: `VLLM_HYBRID_PROFILE=1 VLLM_HYBRID_PROFILE_SUBLAYER=1`
 
 ## Sublayer breakdown (median ms)
 
@@ -25,15 +22,13 @@
 |      8 |  22.9669 |  0.870817 |  12.6268  |    262.77   |    660.706 |    1362.21  |    3267.8  |
 |     16 |  29.2685 |  0.68333  |   9.90828 |    659.21   |   1251.73  |    3425.31  |    6926.65 |
 
-## Key findings
+## Verdict: **G2 pass**
 
-- **scaling_ratio(4/1)  = 1.00x** **G2 pass**
-- **scaling_ratio(16/1) = 0.99x** (linear expects 16x)
-- Top bottleneck @ seqs=1:
+Top bottleneck @ seqs=1:
 
-  1. Gate+Up: 37.90ms (40.6%)
-  1. Down: 19.20ms (20.6%)
-  1. Attn core: 18.80ms (20.1%)
+1. Gate+Up: 37.90ms (40.6%)
+1. Down: 19.20ms (20.6%)
+1. Attn core: 18.80ms (20.1%)
 
 ## Plots
 

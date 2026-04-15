@@ -159,7 +159,7 @@ Qwen2.5 GQA: group=4. 같은 group 의 query heads 는 K, V 공유. Batch-aware 
 | `VLLM_HYBRID_PROFILE=1` | 측정 모드 | manifest + sublayer hook 활성 |
 | `HYBRID_BATCH_AWARE_ATTN` | `off` (기본) / `v1` / `v2` | v1=batch16 hardcoded (기존), v2=동적 |
 
-전체 flag 테이블: [00_Overview.md](./00_Overview.md) "기법 Feature Flag 테이블" 참조.
+전체 flag 테이블: [README.md](./README.md) "기법 Feature Flag 테이블" 참조.
 
 ---
 
