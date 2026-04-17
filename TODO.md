@@ -66,14 +66,14 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 
 ---
 
-## 3. G0 — 계측 재정의 (모든 후속 기법의 전제)
+## 3. G0 — 계측 재정의 (모든 후속 기법의 전제) ✅ 완료 (2026-04-17, 22afea529)
 
-- [ ] `eval/cpu_profile*.sh` 에 `num_seqs=1/2/4/8/16` sweep 고정
-- [ ] CPU-only 와 hybrid CPU engine 동일 shape 비교 harness
-- [ ] `cpu_worker.py` attn/mlp coarse hook → QKV/O/Gate/Up/SiLU/Down/Norm 세분화
-- [ ] per-step barrier/sync time, memory wait, packing/repacking marker
-- [ ] H100x8 + dev (RTX3090) 결과 동일 CSV schema 로 저장
-- [ ] 산출물: `batch_scaling_ratio`, `per_req_cost`, sublayer top bottleneck, `num_seqs` 증가 시 폭증 sublayer
+- [x] `eval/cpu_profile*.sh` 에 `num_seqs=1/2/4/8/16` sweep 고정
+- [x] CPU-only 와 hybrid CPU engine 동일 shape 비교 harness
+- [x] `cpu_worker.py` attn/mlp coarse hook → QKV/O/Gate/Up/SiLU/Down/Norm 세분화
+- [x] per-step barrier/sync time, memory wait, packing/repacking marker
+- [x] H100x8 + dev (RTX3090) 결과 동일 CSV schema 로 저장
+- [x] 산출물: `batch_scaling_ratio`, `per_req_cost`, sublayer top bottleneck, `num_seqs` 증가 시 폭증 sublayer
 
 ---
 
@@ -81,10 +81,10 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 
 구현 상태 태그: ✅ 이미 구현 / 🔶 부분 구현 / ⭕ 미구현
 
-### 4.1 [Tier 0] 기준선 방어
-- [ ] 기본 실험 `cpu_max_num_seqs=1` 고정
-- [ ] `wave-batch` 는 비교 대상으로만 유지
-- [ ] `throughput-adaptive` vs strict continuous baseline 동일 workload 비교
+### 4.1 [Tier 0] 기준선 방어 ✅ 완료 (2026-04-17, 22afea529)
+- [x] 기본 실험 `cpu_max_num_seqs=1` 고정
+- [x] `wave-batch` 는 비교 대상으로만 유지
+- [x] `throughput-adaptive` vs strict continuous baseline 동일 workload 비교
 
 ### 4.2 Huge Pages 1GB ⭕
 - **메커니즘**: 4KB → 1GB 페이지. TLB 엔트리 70B INT4 기준 900만 → 35개
