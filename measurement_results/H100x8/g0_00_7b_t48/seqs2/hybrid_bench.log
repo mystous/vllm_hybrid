@@ -1,0 +1,48 @@
+DEBUG_AG: Process 3736741 importing vllm.config
+DEBUG_AG: Process 3736741 importing vllm.distributed
+DEBUG_AG: Process 3736741 importing vllm.distributed.communication_op
+DEBUG_AG: Process 3736741 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 3736741 importing vllm.distributed.utils
+DEBUG_AG: Process 3736741 finished importing vllm.distributed.utils
+DEBUG_AG: Process 3736741 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 3736741 importing vllm.platforms
+DEBUG_AG: Process 3736741 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 3736741 checking plugin heterogeneous
+DEBUG_AG: Process 3736741 checking plugin tpu
+DEBUG_AG: Process 3736741 checking plugin cuda
+DEBUG_AG: Process 3736741 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 3736741 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 3736741 importing vllm.platforms.cuda
+DEBUG_AG: Process 3736741 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 3736741 finished importing vllm.distributed
+DEBUG_AG: Process 3736741 finished importing vllm.config
+/vllm_hybrid/benchmarks/benchmark_serving.py:1298: DeprecationWarning: benchmark_serving.py is deprecated and will be removed in a future version. Please use 'vllm bench serve' instead.
+  main(args)
+Namespace(backend='vllm', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='random', dataset_path=None, no_stream=False, max_concurrency=None, model='Qwen/Qwen2.5-7B-Instruct', tokenizer=None, use_beam_search=False, num_prompts=500, logprobs=None, request_rate=inf, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/vllm_hybrid/eval/results/20260417_113225_H_C_H100_80GB_HBM3_x8_Qwen2.5-7B-Instruct_seqs2/hybrid.json', ignore_eos=False, percentile_metrics='ttft,tpot,itl', metric_percentiles='99', goodput=None, custom_output_len=256, custom_skip_chat_template=False, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=128, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None)
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: inf RPS.
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+  0%|          | 0/500 [00:00<?, ?it/s]  0%|          | 1/500 [00:00<04:49,  1.73it/s]  0%|          | 2/500 [00:00<02:45,  3.00it/s]  1%|          | 5/500 [00:00<01:03,  7.82it/s]  2%|▏         | 8/500 [00:01<00:46, 10.69it/s]  2%|▏         | 10/500 [00:01<00:41, 11.85it/s]  2%|▏         | 12/500 [00:01<00:56,  8.65it/s]  3%|▎         | 14/500 [00:01<01:01,  7.85it/s]  3%|▎         | 15/500 [00:02<01:57,  4.12it/s]  3%|▎         | 16/500 [00:03<02:54,  2.77it/s]  8%|▊         | 42/500 [00:03<00:26, 17.43it/s] 11%|█         | 54/500 [00:04<00:17, 25.10it/s] 60%|█████▉    | 299/500 [00:04<00:00, 262.72it/s] 99%|█████████▉| 496/500 [00:20<00:00, 262.72it/s] 99%|█████████▉| 497/500 [01:43<00:00,  3.87it/s] 100%|█████████▉| 498/500 [07:24<00:03,  1.52s/it]100%|█████████▉| 499/500 [09:53<00:02,  2.29s/it]100%|██████████| 500/500 [09:56<00:00,  2.30s/it]100%|██████████| 500/500 [09:56<00:00,  1.19s/it]
+============ Serving Benchmark Result ============
+Successful requests:                     500       
+Benchmark duration (s):                  596.39    
+Total input tokens:                      63699     
+Total generated tokens:                  62143     
+Request throughput (req/s):              0.84      
+Output token throughput (tok/s):         104.20    
+Total Token throughput (tok/s):          211.01    
+---------------Time to First Token----------------
+Mean TTFT (ms):                          1128.58   
+Median TTFT (ms):                        836.17    
+P99 TTFT (ms):                           1127.31   
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          56.97     
+Median TPOT (ms):                        25.31     
+P99 TPOT (ms):                           79.60     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           51.09     
+Median ITL (ms):                         23.15     
+P99 ITL (ms):                            88.37     
+==================================================
