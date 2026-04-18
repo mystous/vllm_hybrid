@@ -61,6 +61,12 @@ export VLLM_HYBRID_TRACE_EVERY="${VLLM_HYBRID_TRACE_EVERY:-0}"
 export VLLM_HYBRID_PROFILE="${VLLM_HYBRID_PROFILE:-0}"
 export VLLM_HYBRID_PROFILE_EVERY="${VLLM_HYBRID_PROFILE_EVERY:-0}"
 export VLLM_HYBRID_PROFILE_SUBLAYER="${VLLM_HYBRID_PROFILE_SUBLAYER:-0}"
+# NinjaGap §04: IPEX WoQ INT8 flag
+# ✗ 기각 (2026-04-19) — vLLM 모델 구조 vs IPEX HF assumption 비호환.
+#   상세: NinjaGap_Todo/04_ipex_woq_int8.md. flag 는 dormant 상태로 보존
+#   (향후 §06 VNNI hot path wiring 시 재활용 가능).
+export HYBRID_WOQ_INT8="${HYBRID_WOQ_INT8:-0}"
+export HYBRID_WOQ_DTYPE="${HYBRID_WOQ_DTYPE:-int8}"
 
 echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"

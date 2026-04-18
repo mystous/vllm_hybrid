@@ -857,6 +857,134 @@ def get_ipex_module():
     return None
 
 
+def _ensure_transformers_beam_search_shim():
+    """IPEX 2.8 이 기대하는 transformers 구 API 를 transformers 5.x 에 shim 주입.
+
+    NOTE (§04 기각, 2026-04-19): 본 shim 은 ``ipex.llm.optimize`` import
+    단계를 통과시키기 위한 것이었으나, 이어지는 module walking 단계에서
+    vLLM 모델 구조 (`num_heads` / `num_kv_heads`, QKVParallelLinear) 가 IPEX
+    가 기대하는 HF transformers module 구조와 다르다는 **구조적 비호환**이
+    확인되어 §04 자체가 기각되었다. 상세: NinjaGap_Todo/04_ipex_woq_int8.md.
+    코드는 히스토리/후속 참고 목적으로 보존하며, ``HYBRID_WOQ_INT8=1`` 은
+    dormant flag 로 남아 있다. 재활성화는 §06 VNNI hot path wiring 시 별도
+    설계.
+
+    Shim 대상:
+    1) `transformers.generation.beam_search.BeamScorer` — 모듈 자체가 사라짐 → 신규 모듈 생성
+    2) `transformers.generation.utils` 내 구이름 Output 클래스 → 신이름으로 alias
+       - BeamSearch* → GenerateBeam*
+       - GreedySearch* / Sample* → Generate{Encoder,Decoder}Output
+
+    vLLM 은 IPEX generation path 를 쓰지 않으므로 실제 호출은 없다.
+    import 만 성공하면 `ipex.llm.optimize` 가 WoQ qconfig 로 가중치를 변환한다.
+    """
+    import sys
+
+    # (1) beam_search 모듈 자체 shim
+    key = 'transformers.generation.beam_search'
+    if key not in sys.modules:
+        try:
+            import types
+            mod = types.ModuleType(key)
+
+            class BeamScorer:  # minimal abstract stub
+                def __init__(self, *a, **kw):
+                    pass
+
+                def process(self, *a, **kw):
+                    raise RuntimeError(
+                        "BeamScorer shim: beam search path not supported")
+
+                def finalize(self, *a, **kw):
+                    raise RuntimeError(
+                        "BeamScorer shim: beam search path not supported")
+
+            mod.BeamScorer = BeamScorer
+            sys.modules[key] = mod
+            logger.info(
+                "[HYBRID-WOQ] shim injected: %s.BeamScorer", key)
+        except Exception as e:
+            logger.warning("[HYBRID-WOQ] shim module injection failed: %s", e)
+
+    # (2) generation.utils alias — 구이름 → 신이름
+    try:
+        from transformers.generation import utils as _u
+        alias_map = {
+            # Beam (이름 변경)
+            'BeamSearchEncoderDecoderOutput': 'GenerateBeamEncoderDecoderOutput',
+            'BeamSearchDecoderOnlyOutput': 'GenerateBeamDecoderOnlyOutput',
+            # Greedy / Sample — transformers 5.x 에서 Generate{E,D}Output 으로 통합
+            'GreedySearchEncoderDecoderOutput': 'GenerateEncoderDecoderOutput',
+            'GreedySearchDecoderOnlyOutput': 'GenerateDecoderOnlyOutput',
+            'SampleEncoderDecoderOutput': 'GenerateEncoderDecoderOutput',
+            'SampleDecoderOnlyOutput': 'GenerateDecoderOnlyOutput',
+        }
+        injected = []
+        for old, new in alias_map.items():
+            if hasattr(_u, old):
+                continue
+            target = getattr(_u, new, None)
+            if target is None:
+                # 최후 수단: dummy type
+                target = type(old, (), {})
+            setattr(_u, old, target)
+            injected.append(old)
+        if injected:
+            logger.info(
+                "[HYBRID-WOQ] alias injected in generation.utils: %s",
+                injected)
+    except Exception as e:
+        logger.warning("[HYBRID-WOQ] alias injection failed: %s", e)
+
+    # (3) modeling_mllama — IPEX 2.8 이 SDPA variant 별도 class 기대하나
+    # transformers 5.x 에서 base Attention 클래스로 통합됨.
+    # vLLM 에서 Llama 계열 모델은 mllama 가 아니므로 alias 만 걸어 import 성공시킨다.
+    try:
+        from transformers.models.mllama import modeling_mllama as _mm
+        mllama_alias = {
+            'MllamaTextCrossSdpaAttention': 'MllamaTextCrossAttention',
+        }
+        mm_injected = []
+        for old, new in mllama_alias.items():
+            if hasattr(_mm, old):
+                continue
+            target = getattr(_mm, new, None) or type(old, (), {})
+            setattr(_mm, old, target)
+            mm_injected.append(old)
+        if mm_injected:
+            logger.info(
+                "[HYBRID-WOQ] alias injected in modeling_mllama: %s",
+                mm_injected)
+    except Exception as e:
+        logger.warning(
+            "[HYBRID-WOQ] mllama alias injection failed: %s", e)
+
+
+def _build_woq_qconfig(ipex, weight_dtype: str = "int8"):
+    """NinjaGap §04: Weight-Only Quantization qconfig (INT8/INT4).
+
+    HYBRID_WOQ_INT8=1 시 호출. 실패 시 None 반환 → WoQ skip, 기본 BF16 optimize.
+    """
+    try:
+        from intel_extension_for_pytorch.quantization import (  # type: ignore
+            WoqLowpMode, WoqWeightDtype)
+        wdtype = (WoqWeightDtype.INT8 if weight_dtype == "int8"
+                  else WoqWeightDtype.INT4)
+        qconfig = ipex.quantization.get_weight_only_quant_qconfig_mapping(
+            weight_dtype=wdtype,
+            lowp_mode=WoqLowpMode.BF16,
+            act_quant_mode=None,
+            group_size=-1,
+        )
+        logger.info(
+            "[HYBRID-WOQ] qconfig built: weight=%s lowp=BF16 group=-1",
+            weight_dtype.upper())
+        return qconfig
+    except Exception as e:
+        logger.warning("[HYBRID-WOQ] qconfig build failed: %s", e)
+        return None
+
+
 def optimize_model_with_ipex(model, dtype=None):
     """
     Optimize a PyTorch model using IPEX.
@@ -867,6 +995,11 @@ def optimize_model_with_ipex(model, dtype=None):
 
     Returns:
         Optimized model
+
+    Env vars:
+        HYBRID_WOQ_INT8=1  — NinjaGap §04: WoQ INT8 적용
+                             (ipex.llm.optimize path 사용, qconfig INT8)
+        HYBRID_WOQ_DTYPE   — 'int8' (기본) 또는 'int4' (실험)
     """
     torch = _get_torch()
     if dtype is None:
@@ -877,8 +1010,34 @@ def optimize_model_with_ipex(model, dtype=None):
 
     ipex = get_ipex_module()
 
+    # ── NinjaGap §04: WoQ path ─────────────────────────────────────────────
+    import os as _os
+    woq_enabled = _os.environ.get("HYBRID_WOQ_INT8", "0") == "1"
+    if woq_enabled and hasattr(ipex, "llm") and hasattr(ipex.llm, "optimize"):
+        # transformers 5.x 와 IPEX 2.8 호환성 shim
+        _ensure_transformers_beam_search_shim()
+        weight_dtype = _os.environ.get("HYBRID_WOQ_DTYPE", "int8").lower()
+        qconfig = _build_woq_qconfig(ipex, weight_dtype=weight_dtype)
+        if qconfig is not None:
+            try:
+                model = ipex.llm.optimize(
+                    model, dtype=dtype, inplace=True,
+                    quantization_config=qconfig,
+                )
+                logger.info(
+                    "[HYBRID-WOQ] ipex.llm.optimize applied "
+                    "(dtype=%s, weight=%s)", dtype, weight_dtype.upper())
+                return model
+            except Exception as e:
+                logger.warning(
+                    "[HYBRID-WOQ] ipex.llm.optimize with WoQ failed: %s. "
+                    "Falling back to plain BF16 optimize.", e)
+        else:
+            logger.warning(
+                "[HYBRID-WOQ] qconfig unavailable, falling back to BF16")
+
+    # ── 기본: BF16 optimize (기존 동작) ───────────────────────────────────
     try:
-        # Optimize model with IPEX
         model = ipex.optimize(
             model,
             dtype=dtype,

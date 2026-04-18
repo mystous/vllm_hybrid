@@ -1,8 +1,72 @@
 # 04. IPEX WoQ INT8 (Weight-Only Quantization)
 
 **Tier**: 0
-**상태**: ⭕ 미구현
-**예상 이득**: 2× decode (memory-bound). PPL 열화 <0.5
+**상태**: ✗ **기각 (2026-04-19)** — §06/§11 VNNI hot path 로 통합
+**예상 이득 (원 계획)**: 2× decode (memory-bound). PPL 열화 <0.5
+**실제 검증 결과**: vLLM 모델 구조 · vLLM quant backend · IPEX WoQ 모두 경로 없음 (아래 §"기각 근거" 참조)
+
+---
+
+## 기각 근거 (2026-04-19 실측/코드 검증)
+
+본래 목표는 "CPU hot path 를 INT8 WoQ 커널로 치환해 decode memory BW ceiling 을 절반으로 낮춘다" 였다. 그런데 아래 세 경로 모두 막힌다.
+
+### (A) `ipex.llm.optimize(quantization_config=...)` — 구조 비호환
+
+- IPEX 2.8 의 `ipex.llm.optimize` 는 HuggingFace transformers module naming 을 walking:
+  - `module.num_attention_heads`, `module.num_key_value_heads` 존재 가정
+  - 분리된 `q_proj / k_proj / v_proj` 가정
+- vLLM 의 `Qwen2Attention` (`vllm/model_executor/models/qwen2.py`) 은
+  - `num_heads` / `num_kv_heads` (TP-aware naming)
+  - `QKVParallelLinear` (q/k/v 통합)
+  - → IPEX 가 module 인식 실패. `AttributeError` 시리즈 발생
+- 우회 시도한 shim 3종 (`generation.beam_search.BeamScorer` / `generation.utils` alias / `mllama` alias) 으로 import 단계는 통과했으나 **module walking 단계**에서 막힘 — 단순 alias 로 해결 불가
+- CPU ISA (AVX-512 VNNI / AMX) 와 **무관한 구조적 문제** → H100 SPR 에서도 동일 실패
+
+### (B) vLLM native AWQ / GPTQ — CUDA 전용
+
+- `vllm/model_executor/layers/quantization/awq.py:60` — `get_min_capability() = 75` (Turing 이상 **GPU**)
+- `awq.py:221-224` — `ops.awq_dequantize` / `ops.awq_gemm` 호출
+- 커널 위치: `csrc/quantization/awq/gemm_kernels.cu` — **CUDA only**, `csrc/cpu/` 에 CPU 구현 없음
+- GPTQ / AWQ-Marlin / GPTQ-Marlin / bitblas / marlin 모두 동일 — CPU backend 커널 부재
+- CPU engine 에서 AWQ 모델 로드 시 forward 단계에서 `ops.awq_dequantize` 호출 → CUDA kernel lookup 실패 → **CPU EngineCore crash**
+
+### (C) Intel Neural Compressor (INC) — Gaudi(HPU) 전용
+
+- `vllm/model_executor/layers/quantization/inc.py` 는 Intel Gaudi HPU 용 FP8 경로
+- CPU 양자화 아님. 본 건과 무관
+
+### (D) 남는 유일한 경로 — custom CPU INT8 GEMM wiring
+
+- `csrc/cpu/gemm_vnni.cpp` 에 VNNI INT8 6×16 micro-kernel 이 **이미 구현됨** (`_mm512_dpbusd_epi32` 기반)
+- 하지만 현재 `vllm/_custom_ops.py` 에 `cpu_gemm_vnni` 등 registered op 없음 — dispatch 경로 미완
+- 이걸 wiring 하는 작업은:
+  - CPU Linear layer (`QKVParallelLinear`, `MergedColumnParallelLinear`, `RowParallelLinear`) 에 INT8 weight holder + dispatch 추가
+  - torch custom op 등록 + backward 불필요 (inference-only)
+  - 정확도 검증 (PPL, MMLU)
+  - 예상 기간 3–4주
+- **이는 본래 §06 (VNNI hot path wiring) 과 §11 (T-MAC LUT INT4) 의 본연 영역**. §04 "IPEX 한 줄 API 로 WoQ 얻기" 의 범주를 벗어남
+
+---
+
+## 결론
+
+§04 는 **"IPEX 공식 API 한 줄로 CPU WoQ 를 얻는다"** 라는 가정 위에 설계되었다. 실제로는:
+
+- IPEX API 가 vLLM 모델 구조를 전제로 만들어지지 않았고
+- vLLM 이 지원하는 기존 quantization backend 는 전부 GPU-only 이고
+- 결국 CPU 에서 INT8 WoQ 를 얻으려면 **§06/§11 에서 다룰 custom kernel dispatch 가 필수**
+
+→ **§04 기각**. INT8 WoQ 의 본질적 이득 (decode memory BW 절감) 은 §06 VNNI hot path 에 편입된다. §06 의 성공 조건에 "INT8 weight 경로 측정" 추가로 반영.
+
+---
+
+## 남겨진 산출물 (히스토리 보존)
+
+- `feat/g0-04-ipex-woq-int8` branch (rebase/force 금지, 기록 보존)
+- `vllm/platforms/intel_cpu_utils.py::_ensure_transformers_beam_search_shim`, `_build_woq_qconfig` — import-level shim. 다른 IPEX 경로 재활용 가능성 있을 시 참조 자료
+- `eval/serve.sh` 의 `HYBRID_WOQ_INT8` / `HYBRID_WOQ_DTYPE` export — dormant flag, 향후 §06 wiring 시 명명 참고
+- `eval/envs/g0_h100x8_qwen32b_thp_awq.env` — 기각 전제로 작성됨. 파일 헤더에 "기각" 명시, 실행 금지
 
 ---
 
