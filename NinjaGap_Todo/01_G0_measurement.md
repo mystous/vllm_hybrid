@@ -68,9 +68,9 @@ Intel 엔지니어가 권장하는 3단 접근:
 
 ## 구체 작업
 
-- [ ] `eval/cpu_profile*.sh` 에 `num_seqs=1/2/4/8/16` sweep 고정 (dev + H100x8 동일)
-- [ ] CPU-only 와 hybrid CPU engine 동일 shape 비교 harness 구축
-- [ ] `cpu_worker.py` 의 `attn/mlp` coarse hook 을 sublayer 수준으로 세분화:
+- [x] `eval/cpu_profile*.sh` 에 `num_seqs=1/2/4/8/16` sweep 고정 (dev + H100x8 동일)
+- [x] CPU-only 와 hybrid CPU engine 동일 shape 비교 harness 구축
+- [x] `cpu_worker.py` 의 `attn/mlp` coarse hook 을 sublayer 수준으로 세분화:
   - QKV (split or fused)
   - O projection
   - RMSNorm × 2
@@ -79,11 +79,11 @@ Intel 엔지니어가 권장하는 3단 접근:
   - SiLU
   - Down projection
   - Residual add
-- [ ] per-step barrier/sync time 측정 marker (`omp_get_wtime()` 기반)
-- [ ] memory wait 측정 (packing/repacking count)
-- [ ] H100x8 + dev (RTX3090) 동일 CSV schema 로 저장
-- [ ] Intel VTune run 1회 (top-down metric: frontend bound / backend memory bound / backend core bound / retiring) — 결과는 `<run_dir>/vtune/<YYYYMMDD_HHMMSS>/` 에 저장 (여러 번 돌릴 경우 타임스탬프로 구분)
-- [ ] Linux perf run 1회 (L2/L3 miss, dTLB miss, uncore BW) — 결과는 `<run_dir>/perf/<YYYYMMDD_HHMMSS>/`
+- [x] per-step barrier/sync time 측정 marker (`omp_get_wtime()` 기반)
+- [x] memory wait 측정 (packing/repacking count)
+- [x] H100x8 + dev (RTX3090) 동일 CSV schema 로 저장
+- [ ] Intel VTune run 1회 (top-down metric: frontend bound / backend memory bound / backend core bound / retiring) — 결과는 `<run_dir>/vtune/<YYYYMMDD_HHMMSS>/` 에 저장 (여러 번 돌릴 경우 타임스탬프로 구분)  [선택: 환경 권한 의존]
+- [ ] Linux perf run 1회 (L2/L3 miss, dTLB miss, uncore BW) — 결과는 `<run_dir>/perf/<YYYYMMDD_HHMMSS>/`  [선택: 환경 권한 의존]
 
 ---
 
@@ -97,6 +97,12 @@ Intel 엔지니어가 권장하는 3단 접근:
 5. OMP barrier/sync overhead 가 step 시간 중 차지하는 비율
 
 이 5개가 나오기 전에는 §06 이후 어떤 kernel 수정도 시작 금지.
+
+완료 근거:
+- `measurement_results/RTX3090/g0_00/seqs{1,2,4,8,16}/`
+- `measurement_results/H100x8/g0_00_7b_t32/seqs{1,2,4,8,16,32}/`
+- `measurement_results/H100x8/g0_00_32b_t48/seqs{1,2,4,8,16,32}/`
+- `eval/g0_analyze.py` 산출물: `analysis_summary.png`, `analysis_sublayer_scaling.png`, `analysis_bench.png`, `analysis_summary.md`
 
 ---
 

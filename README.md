@@ -236,15 +236,16 @@ python3 eval/g0_analyze.py measurement_results/H100x8/g0_00/
 | # | 일자 (KST) | 기법 | TODO 문서 | 상태 | 주요 커밋 | Gate | 측정 결과 (wall/ratio) |
 |---:|---|---|---|:---:|---|:---:|---|
 | 0 | 2026-04-15 | **Baseline (H100x8, 7B)** — hybrid dual-process, wave-batch routing, cpu_max_num_seqs=1 (auto), NUMA strict membind, C++ init_cpu_threads_env, feature 기반 ONEDNN ISA | — | ✅ 기존 | — | pre-G0 | wall 394-2003 s, ratio(16/1)=5.3× |
-| 1 | 2026-04-15 | **측정 infra** — `VLLM_HYBRID_PROFILE=1` manifest + sublayer hook (qkv/o/gate_up/down/norm/act) + `applied_features.json` + env snapshot | [01_G0_measurement.md](NinjaGap_Todo/01_G0_measurement.md) | ✅ | `bfc48eda8` 등 | G0 준비 | — |
-| 2 | 2026-04-15 | **§05 KMP_BLOCKTIME=0** (auto 기본) — `_setup_cpu_process_env` 에서 `HYBRID_KMP_BLOCKTIME=auto` 시 강제 적용. hybrid dual-process IPC 경합 완화 | [05_omp_env_finalize.md](NinjaGap_Todo/05_omp_env_finalize.md) | ✅ | (pending) | — | 측정 대기 |
-| 3 | — | (예정) §03 Huge Pages 1GB | [03_huge_pages.md](NinjaGap_Todo/03_huge_pages.md) | ⭕ | — | — | — |
-| 4 | — | (예정) §04 IPEX WoQ INT8 | [04_ipex_woq_int8.md](NinjaGap_Todo/04_ipex_woq_int8.md) | ⭕ | — | — | — |
-| 5 | — | (예정) §06 Hot Path Wiring (VNNI pre-pack) | [06_hot_path_wiring.md](NinjaGap_Todo/06_hot_path_wiring.md) | ⭕ | — | G1 진입 | — |
-| 6 | — | (예정) §07 ISA Binary Dispatch | [07_isa_binary_dispatch.md](NinjaGap_Todo/07_isa_binary_dispatch.md) | 🔶 | — | — | — |
-| 7 | — | (예정) §08 Kernel Fusion | [08_kernel_fusion.md](NinjaGap_Todo/08_kernel_fusion.md) | 🔶 | — | — | — |
-| 8 | — | (예정) §11 Batch-aware Decode Attention (v2 동적) | [11_batch_aware_decode_attn.md](NinjaGap_Todo/11_batch_aware_decode_attn.md) | 🔶 | — | G2 경유 | — |
-| 9 | — | (예정) §13 T-MAC LUT GEMV INT4 | [13_tmac_lut_gemv_int4.md](NinjaGap_Todo/13_tmac_lut_gemv_int4.md) | ⭕ | — | G3 지점 | — |
+| 1 | 2026-04-17 | **§01 G0 measurement 완료** — `num_seqs` sweep 고정, sublayer profiling, manifest/summary pipeline, `measurement_results/<HW>/g0_*` schema 정착 | [01_G0_measurement.md](NinjaGap_Todo/01_G0_measurement.md) | ✅ | `22afea529` | G0 완료 | RTX3090 `g0_00` + H100x8 `g0_00_*` sweep 확보 |
+| 2 | 2026-04-17 | **§02 Tier 0 baseline defense 완료** — baseline 기본값을 `cpu_max_num_seqs=1`, `strategy=capacity`, `priority=cpu-first` 로 고정, wave env 분리, 전략 비교 env 3종 추가 | [02_tier0_baseline_defense.md](NinjaGap_Todo/02_tier0_baseline_defense.md) | ✅ | `22afea529` | G0 baseline 고정 | H100x8 `g0_02_strat_{capacity,length_aware,throughput_adaptive}` |
+| 3 | 2026-04-15 | **§05 KMP_BLOCKTIME=0** (auto 기본) — `_setup_cpu_process_env` 에서 `HYBRID_KMP_BLOCKTIME=auto` 시 강제 적용. hybrid dual-process IPC 경합 완화 | [05_omp_env_finalize.md](NinjaGap_Todo/05_omp_env_finalize.md) | ✅ | `869c736eb` | — | 측정 대기 |
+| 4 | — | (예정) §03 Huge Pages (2MB THP → 1GB hugetlb) | [03_huge_pages.md](NinjaGap_Todo/03_huge_pages.md) | ⭕ | — | — | — |
+| 5 | — | (예정) §04 IPEX WoQ INT8 | [04_ipex_woq_int8.md](NinjaGap_Todo/04_ipex_woq_int8.md) | ⭕ | — | — | — |
+| 6 | — | (예정) §06 Hot Path Wiring (VNNI pre-pack) | [06_hot_path_wiring.md](NinjaGap_Todo/06_hot_path_wiring.md) | ⭕ | — | G1 진입 | — |
+| 7 | — | (예정) §07 ISA Binary Dispatch | [07_isa_binary_dispatch.md](NinjaGap_Todo/07_isa_binary_dispatch.md) | 🔶 | — | — | — |
+| 8 | — | (예정) §08 Kernel Fusion | [08_kernel_fusion.md](NinjaGap_Todo/08_kernel_fusion.md) | 🔶 | — | — | — |
+| 9 | — | (예정) §11 Batch-aware Decode Attention (v2 동적) | [11_batch_aware_decode_attn.md](NinjaGap_Todo/11_batch_aware_decode_attn.md) | 🔶 | — | G2 경유 | — |
+| 10 | — | (예정) §13 T-MAC LUT GEMV INT4 | [13_tmac_lut_gemv_int4.md](NinjaGap_Todo/13_tmac_lut_gemv_int4.md) | ⭕ | — | G3 지점 | — |
 | … | | | | | | | |
 
 **운영 규칙**:

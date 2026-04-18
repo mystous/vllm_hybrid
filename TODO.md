@@ -86,12 +86,21 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - [x] `wave-batch` 는 비교 대상으로만 유지
 - [x] `throughput-adaptive` vs strict continuous baseline 동일 workload 비교
 
-### 4.2 Huge Pages 1GB ⭕
-- **메커니즘**: 4KB → 1GB 페이지. TLB 엔트리 70B INT4 기준 900만 → 35개
-- **예상 이득**: 5–15%. decode 전반 균등
-- **변경 위치**: grub `hugepagesz=1G hugepages=40` + vLLM mmap `MAP_HUGETLB`
-- **위험**: 컨테이너 cgroup 승인 선행 확인
-- **스택 호환성**: 모든 후속 기법과 독립. 항상 깔아야
+### 4.2 Huge Pages (2MB THP → 1GB hugetlb) ⭕
+- **메커니즘**:
+  1. `4KB → 2MB` THP 로 TLB miss / page walk 를 먼저 줄인다
+  2. 그 다음 `2MB → 1GB` hugetlb 로 large resident weight / KV 구간을 더 크게 묶는다
+- **예상 이득**:
+  - **Phase 1 (2MB THP)**: 3–10% (7B), 큰 모델일수록 상한↑
+  - **Phase 2 (1GB hugetlb 추가)**: 2MB 대비 추가 3–10%
+- **변경 위치**:
+  - **Phase 1**: 호스트 THP 설정 (`transparent_hugepage=always`), 코드 수정 없음
+  - **Phase 2**: grub/runtime hugepage reservation + vLLM explicit `MAP_HUGETLB`
+- **위험**:
+  - 2MB 는 비교적 낮음
+  - 1GB 는 메모리 단편화, NUMA별 reserve, 컨테이너/cgroup, 운영 승인 리스크 큼
+- **주의**: 여기서 말하는 2MB/1GB 는 **캐시 크기**가 아니라 **페이지 크기**다. 표준적으로 의미 있는 중간 단계는 2MB THP 이며, 1GB 는 그 다음 explicit hugetlb 단계다.
+- **스택 호환성**: 모든 후속 기법과 독립. 다만 **실험 순서는 반드시 2MB 먼저**, 1GB 는 추가 이득이 확인될 때만 진행
 
 ### 4.3 IPEX WoQ INT8 ⭕
 - **메커니즘**: BF16 weight → INT8 저장, BF16 연산. weight memory 2× 절감
