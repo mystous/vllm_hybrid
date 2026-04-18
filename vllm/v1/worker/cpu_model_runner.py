@@ -250,6 +250,21 @@ class CPUModelRunner(GPUModelRunner):
             except Exception as e:
                 logger.warning(f"IPEX optimization failed: {e}")
 
+        # NinjaGap §03 Phase 2 — copy model weights to 1GB hugetlbfs pages.
+        # no-op unless HYBRID_HUGETLB_1G_ENABLE=1 AND HYBRID_HUGETLB_1G_BIND_WEIGHTS=1.
+        # Any failure is tolerated (partial bind is allowed, original tensors
+        # remain for parameters that couldn't be migrated).
+        if _HUGETLB_1G_AVAILABLE:
+            try:
+                _hugetlb_bind_params(
+                    self.model,
+                    numa_node=(self._numa_node
+                               if self._numa_node >= 0 else -1),
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[HYBRID-HUGETLB-1G] bind_params raised (non-fatal): {e}")
+
         if self.lora_config:
             self.model = self.load_lora_model(self.model, self.model_config,
                                               self.scheduler_config,

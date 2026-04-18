@@ -77,10 +77,42 @@ def _torch_to_numpy_dtype(dtype: torch.dtype):
     return nd
 
 
+class _Slab:
+    """
+    1GB hugetlbfs region 위의 bump allocator.
+    작은 파라미터 하나당 1GB 소비를 피하기 위한 sub-allocation 스토리지.
+    """
+
+    __slots__ = ("mm", "size", "offset", "numa_node")
+
+    def __init__(self, mm: mmap.mmap, numa_node: int):
+        self.mm = mm
+        self.size = len(mm)
+        self.offset = 0
+        self.numa_node = numa_node
+
+    def try_alloc(self, size_bytes: int, align: int = 64) -> Optional[int]:
+        """성공 시 offset, 실패 시 None. slab 전체는 불변 (thread-unsafe 주의)."""
+        aligned = (self.offset + align - 1) & ~(align - 1)
+        if aligned + size_bytes > self.size:
+            return None
+        self.offset = aligned + size_bytes
+        return aligned
+
+    @property
+    def free_bytes(self) -> int:
+        return max(0, self.size - self.offset)
+
+
 class HugeTLB1GAllocator:
     """
     프로세스 당 singleton. hugetlbfs 마운트 위에서 1GB 배수 크기의 파일을
     만들어 mmap 한 뒤 NUMA first-touch 로 local node 에 고정한다.
+
+    두 종류의 할당:
+    - alloc_region(): KV cache 처럼 수 GB 단위 큰 버퍼용. 1GB 배수 round up.
+    - alloc_sub_tensor(): weight 처럼 작은 tensor 다수. _Slab bump allocator
+      로 sub-allocate 해서 1GB 단위 낭비를 피함.
     """
 
     _instance: Optional["HugeTLB1GAllocator"] = None
@@ -124,6 +156,9 @@ class HugeTLB1GAllocator:
         inst.path = path
         inst._mmaps: list[mmap.mmap] = []
         inst._total_bytes = 0
+        # per-NUMA slab pools for sub-allocation (weight bind).
+        # numa_node=-1 은 "unspecified" bucket.
+        inst._slabs_by_node: dict[int, list[_Slab]] = {}
         logger.info(
             "[HYBRID-HUGETLB-1G] allocator ready at %s "
             "(bind_weights=%s, pid=%d)",
@@ -214,7 +249,57 @@ class HugeTLB1GAllocator:
             tag, total >> 30, pages, numa_node, self._total_bytes >> 30)
         return mm
 
+    def alloc_sub_tensor(
+        self,
+        shape,
+        dtype: torch.dtype,
+        numa_node: int = -1,
+        tag: str = "w",
+    ) -> Optional[torch.Tensor]:
+        """
+        작은 tensor 를 slab 에서 sub-allocate 해 torch.Tensor 로 반환.
+        - 요청 크기가 1GB 초과면 자체 region 할당
+        - 알맞은 slab 없으면 새 1GB region 하나를 추가
+        - 실패 시 None
+        """
+        elem_size = torch.empty(0, dtype=dtype).element_size()
+        n_elem = 1
+        for d in shape:
+            n_elem *= int(d)
+        size_bytes = n_elem * elem_size
+        if size_bytes == 0:
+            # Empty tensor: 기본 allocator 로 충분
+            return None
+
+        # 대형 tensor (> 1GB) 는 자체 region
+        if size_bytes > PAGE_1G_BYTES:
+            mm = self.alloc_region(size_bytes, numa_node=numa_node, tag=tag)
+            if mm is None:
+                return None
+            return _wrap_tensor(mm, 0, shape, dtype, n_elem)
+
+        # slab 찾기 (해당 numa_node bucket)
+        bucket = self._slabs_by_node.setdefault(numa_node, [])
+        for slab in bucket:
+            off = slab.try_alloc(size_bytes)
+            if off is not None:
+                return _wrap_tensor(slab.mm, off, shape, dtype, n_elem)
+
+        # 새 slab 필요
+        mm = self.alloc_region(PAGE_1G_BYTES, numa_node=numa_node,
+                               tag=f"slab_{tag}")
+        if mm is None:
+            return None
+        slab = _Slab(mm, numa_node)
+        bucket.append(slab)
+        off = slab.try_alloc(size_bytes)
+        if off is None:
+            # size_bytes <= 1GB 인데도 실패할 이유 없음. 방어적 처리.
+            return None
+        return _wrap_tensor(slab.mm, off, shape, dtype, n_elem)
+
     def release_all(self) -> None:
+        self._slabs_by_node.clear()
         for mm in self._mmaps:
             try:
                 mm.close()
@@ -225,6 +310,33 @@ class HugeTLB1GAllocator:
         logger.info("[HYBRID-HUGETLB-1G] released all regions")
 
 
+def _wrap_tensor(
+    mm: mmap.mmap,
+    byte_offset: int,
+    shape,
+    dtype: torch.dtype,
+    n_elem: int,
+) -> Optional[torch.Tensor]:
+    """mmap buffer 의 byte_offset 부터 torch.Tensor wrap. 실패 시 None."""
+    try:
+        np_dtype = _torch_to_numpy_dtype(dtype)
+        arr = np.frombuffer(
+            mm, dtype=np_dtype, count=n_elem, offset=byte_offset,
+        ).reshape(tuple(int(d) for d in shape))
+        t = torch.from_numpy(arr)
+        if dtype == torch.bfloat16:
+            t = t.view(torch.bfloat16)
+        # mmap lifetime 보호 — 여러 tensor 가 같은 mmap 을 나눠 쓸 수 있음
+        existing = getattr(t, "_hugetlb_mm", None)
+        if existing is None:
+            t._hugetlb_mm = mm  # type: ignore[attr-defined]
+        return t
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "[HYBRID-HUGETLB-1G] tensor wrap failed (%s) — fallback", e)
+        return None
+
+
 def alloc_tensor_1g(
     shape,
     dtype: torch.dtype,
@@ -232,12 +344,12 @@ def alloc_tensor_1g(
     tag: str = "kv",
 ) -> Optional[torch.Tensor]:
     """
-    1GB hugetlbfs 위에 할당된 torch.Tensor 반환. 실패 시 None.
-    호출자는 None 을 받으면 기본 allocator (torch.zeros 등) 로 fallback 해야 한다.
+    큰 단일 버퍼 (KV cache 등) 용 할당자. 요청 크기를 1GB 배수로 round-up
+    해 자체 region 으로 확보한다. 작은 tensor 다수에는 alloc_sub_tensor 를
+    쓸 것 (slab 기반).
 
-    주의: 반환 tensor 는 mmap 수명과 연결돼 있으므로 tensor._hugetlb_mm
-    attribute 를 통해 참조를 유지한다. tensor 를 외부로 넘기더라도
-    이 attribute 가 사라지면 mmap 이 GC 되어 segfault 가능.
+    실패 시 None. 호출자는 None 받으면 기본 allocator 로 fallback 해야 함.
+    반환 tensor 에 _hugetlb_mm attribute 로 mmap lifetime 연결됨.
     """
     alloc = HugeTLB1GAllocator.get()
     if alloc is None:
@@ -250,21 +362,7 @@ def alloc_tensor_1g(
     mm = alloc.alloc_region(size_bytes, numa_node=numa_node, tag=tag)
     if mm is None:
         return None
-    try:
-        np_dtype = _torch_to_numpy_dtype(dtype)
-        arr = np.frombuffer(mm, dtype=np_dtype, count=n_elem).reshape(
-            tuple(int(d) for d in shape))
-        t = torch.from_numpy(arr)
-        if dtype == torch.bfloat16:
-            # numpy int16 버퍼를 bf16 으로 reinterpret
-            t = t.view(torch.bfloat16)
-        # keep mmap alive
-        t._hugetlb_mm = mm  # type: ignore[attr-defined]
-        return t
-    except Exception as e:  # noqa: BLE001
-        logger.warning(
-            "[HYBRID-HUGETLB-1G] tensor wrap failed (%s) — fallback", e)
-        return None
+    return _wrap_tensor(mm, 0, shape, dtype, n_elem)
 
 
 def bind_params_to_hugetlb(
@@ -272,17 +370,64 @@ def bind_params_to_hugetlb(
     numa_node: int = -1,
 ) -> Tuple[int, int]:
     """
-    NinjaGap §03 Phase 2 — Commit 2 에서 실제 구현될 hook.
-    현재 (Commit 1) 에서는 bind_weights_enabled() 이 True 여도 **no-op**.
-    weight 를 모두 1GB 영역으로 옮기려면 slab allocator 가 필요한데
-    (작은 파라미터 당 1GB 통째 소비 방지), 그 부분은 Commit 2 에서 추가됨.
+    NinjaGap §03 Phase 2 — 모델 nn.Parameter.data 를 1GB hugetlbfs slab 으로
+    in-place 복사. HYBRID_HUGETLB_1G_BIND_WEIGHTS=1 이고 allocator 사용 가능할
+    때만 동작. 한 파라미터씩 copy_ 후 data 교체 → GC 가 orig 해제 → peak 메모리
+    는 per-parameter 크기.
 
-    Returns (migrated_count, migrated_bytes). 현재는 항상 (0, 0).
+    Returns (migrated_count, migrated_bytes). 실패하거나 env off 면 (0, 0).
+    어떤 파라미터라도 graceful skip 하고 나머지는 계속 진행 — 부분 적용 허용.
     """
     if not bind_weights_enabled():
         return (0, 0)
-    logger.warning(
-        "[HYBRID-HUGETLB-1G] weight bind requested but not implemented "
-        "in Commit 1 (KV cache only). Will activate in Commit 2 with slab "
-        "allocator. See NinjaGap_Todo/03_huge_pages.md.")
-    return (0, 0)
+    alloc = HugeTLB1GAllocator.get()
+    if alloc is None:
+        return (0, 0)
+
+    migrated = 0
+    skipped = 0
+    bytes_total = 0
+    bytes_skipped = 0
+    with torch.no_grad():
+        for name, p in model.named_parameters(recurse=True):
+            if not isinstance(p, torch.nn.Parameter):
+                continue
+            orig = p.data
+            if orig.device.type != "cpu":
+                continue
+            if orig.numel() == 0:
+                continue
+            try:
+                new_t = alloc.alloc_sub_tensor(
+                    shape=orig.shape,
+                    dtype=orig.dtype,
+                    numa_node=numa_node,
+                    tag=f"w_{name[:40].replace('.', '_')}",
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "[HYBRID-HUGETLB-1G] alloc_sub_tensor raised for %s: %s "
+                    "— skipping", name, e)
+                new_t = None
+            if new_t is None:
+                skipped += 1
+                bytes_skipped += orig.numel() * orig.element_size()
+                continue
+            try:
+                new_t.copy_(orig)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "[HYBRID-HUGETLB-1G] copy failed for %s (%s) — skipping",
+                    name, e)
+                skipped += 1
+                bytes_skipped += orig.numel() * orig.element_size()
+                continue
+            p.data = new_t
+            migrated += 1
+            bytes_total += orig.numel() * orig.element_size()
+    logger.info(
+        "[HYBRID-HUGETLB-1G] weight bind: migrated=%d (%.2f GiB), "
+        "skipped=%d (%.2f GiB), node=%d",
+        migrated, bytes_total / (1024**3),
+        skipped, bytes_skipped / (1024**3), numa_node)
+    return (migrated, bytes_total)
