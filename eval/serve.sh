@@ -62,6 +62,16 @@ export VLLM_HYBRID_PROFILE="${VLLM_HYBRID_PROFILE:-0}"
 export VLLM_HYBRID_PROFILE_EVERY="${VLLM_HYBRID_PROFILE_EVERY:-0}"
 export VLLM_HYBRID_PROFILE_SUBLAYER="${VLLM_HYBRID_PROFILE_SUBLAYER:-0}"
 
+# NinjaGap §03 Phase 2: 1GB hugetlbfs (기본 off — 호스트 사전 준비 필요)
+#   호스트 prep:
+#     echo 64 > /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages
+#     mkdir -p /mnt/hugetlb_1g
+#     mount -t hugetlbfs -o pagesize=1G,size=64G none /mnt/hugetlb_1g
+export HYBRID_HUGETLB_1G_ENABLE="${HYBRID_HUGETLB_1G_ENABLE:-0}"
+export HYBRID_HUGETLB_1G_PATH="${HYBRID_HUGETLB_1G_PATH:-/mnt/hugetlb_1g}"
+# Commit 2 flag — 현재는 no-op (경고 로그만). slab allocator 구현 후 활성화
+export HYBRID_HUGETLB_1G_BIND_WEIGHTS="${HYBRID_HUGETLB_1G_BIND_WEIGHTS:-0}"
+
 echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"
 echo " MODEL=${MODEL}"

@@ -38,6 +38,20 @@ except ImportError:
     is_ipex_available = lambda: False  # type: ignore
     optimize_model_with_ipex = lambda m, **kw: m  # type: ignore
 
+# NinjaGap §03 Phase 2 — 1GB hugetlbfs allocator (optional, graceful fallback)
+try:
+    from vllm.platforms.hugetlb_allocator import (
+        alloc_tensor_1g as _hugetlb_alloc_tensor_1g,
+        bind_params_to_hugetlb as _hugetlb_bind_params,
+        is_configured as _hugetlb_is_configured,
+    )
+    _HUGETLB_1G_AVAILABLE = True
+except ImportError:
+    _HUGETLB_1G_AVAILABLE = False
+    _hugetlb_alloc_tensor_1g = lambda *a, **kw: None  # type: ignore
+    _hugetlb_bind_params = lambda *a, **kw: (0, 0)  # type: ignore
+    _hugetlb_is_configured = lambda: False  # type: ignore
+
 
 if TYPE_CHECKING:
     from vllm.v1.core.sched.output import SchedulerOutput
@@ -151,23 +165,42 @@ class CPUModelRunner(GPUModelRunner):
 
         for kv_cache_tensor in kv_cache_config.kv_cache_tensors:
             size = kv_cache_tensor.size
+            tensor: Optional[torch.Tensor] = None
 
-            # Use NUMA-aware allocation if available
-            if (_INTEL_UTILS_AVAILABLE and
-                self._numa_allocator is not None and
-                self._numa_allocator.is_available and
-                self._numa_node >= 0):
+            # NinjaGap §03 Phase 2: try 1GB hugetlbfs first (opt-in).
+            # On success, subsequent accesses skip the 4KB TLB path entirely.
+            # On any failure, falls through to the existing NUMA/default path.
+            if _HUGETLB_1G_AVAILABLE and _hugetlb_is_configured():
+                tensor = _hugetlb_alloc_tensor_1g(
+                    shape=(size,),
+                    dtype=torch.int8,
+                    numa_node=(self._numa_node
+                               if self._numa_node >= 0 else -1),
+                    tag="kv",
+                )
+                if tensor is not None:
+                    logger.info(
+                        "[HYBRID-HUGETLB-1G] KV cache backed by 1GB pages: "
+                        "%.2f GiB on NUMA node %d",
+                        size / (1024**3), self._numa_node)
 
-                # Ensure allocation happens on the correct NUMA node
-                self._numa_allocator.bind_to_node(self._numa_node)
-                tensor = torch.zeros(size, dtype=torch.int8, device='cpu')
-                logger.info(f"Allocated KVCache ({size / (1024**3):.2f} GiB) "
-                           f"on NUMA node {self._numa_node}")
-            else:
-                # Standard allocation (fallback)
-                tensor = torch.zeros(size, dtype=torch.int8, device='cpu')
-                logger.info(f"Allocated KVCache ({size / (1024**3):.2f} GiB) "
-                           f"without NUMA binding")
+            if tensor is None:
+                # Use NUMA-aware allocation if available
+                if (_INTEL_UTILS_AVAILABLE and
+                    self._numa_allocator is not None and
+                    self._numa_allocator.is_available and
+                    self._numa_node >= 0):
+
+                    # Ensure allocation happens on the correct NUMA node
+                    self._numa_allocator.bind_to_node(self._numa_node)
+                    tensor = torch.zeros(size, dtype=torch.int8, device='cpu')
+                    logger.info(f"Allocated KVCache ({size / (1024**3):.2f} GiB) "
+                               f"on NUMA node {self._numa_node}")
+                else:
+                    # Standard allocation (fallback)
+                    tensor = torch.zeros(size, dtype=torch.int8, device='cpu')
+                    logger.info(f"Allocated KVCache ({size / (1024**3):.2f} GiB) "
+                               f"without NUMA binding")
 
             for layer_name in kv_cache_tensor.shared_by:
                 kv_cache_raw_tensors[layer_name] = tensor
