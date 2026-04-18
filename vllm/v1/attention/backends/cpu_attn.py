@@ -58,6 +58,11 @@ from vllm._custom_ops import HAS_CPU_OPS, cpu_ops
 
 logger = init_logger(__name__)
 
+
+def _hybrid_profile_enabled() -> bool:
+    import os as _os
+    return _os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1"
+
 # Whether to use the custom AVX-512 batch16 paged attention kernel
 # when available (requires _C_cpu_ops extension built with AVX-512F)
 _USE_CUSTOM_CPU_ATTN = HAS_CPU_OPS
@@ -68,9 +73,10 @@ _USE_CUSTOM_CPU_ATTN = HAS_CPU_OPS
 # bursty load (observed on H100x4 smoke with TRACE=1).
 #
 # To re-enable:
+#   VLLM_HYBRID_PROFILE=1          — master switch for hybrid observability
 #   VLLM_HYBRID_TRACE=1            — log on every call (smoke / debugging only)
 #   VLLM_HYBRID_TRACE_EVERY=N (N>0) — log every N-th call at INFO level
-# Default (both unset or =0) is silent.
+# Default (PROFILE=0) is silent.
 _decode_call_count = 0
 _decode_path_counts = {"custom_avx": 0, "ipex": 0,
                        "sdpa_batched": 0, "sdpa_loop": 0}
@@ -81,9 +87,11 @@ def _trace_decode_path(path: str, num_seqs: int, num_tokens: int):
     _decode_call_count += 1
     _decode_path_counts[path] = _decode_path_counts.get(path, 0) + 1
     import os as _os
-    _every = int(_os.environ.get("VLLM_HYBRID_TRACE_EVERY", "0"))
-    if (_os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
-            or (_every > 0 and _decode_call_count % _every == 0)):
+    _every = int(_os.environ.get("VLLM_HYBRID_TRACE_EVERY", "0")) \
+        if _hybrid_profile_enabled() else 0
+    if (_hybrid_profile_enabled() and (
+            _os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
+            or (_every > 0 and _decode_call_count % _every == 0))):
         logger.info(
             "[HYBRID-CPU-ATTN] decode call#%d path=%s num_seqs=%d "
             "num_tokens=%d | totals=%s",
@@ -1275,14 +1283,14 @@ class _IPEXPagedAttention(_PagedAttention):
         hist = _IPEXPagedAttention._decode_batch_histogram
         hist[num_seqs] = hist.get(num_seqs, 0) + 1
 
-        # VLLM_HYBRID_PROFILE=1 이면 매 call 정보를 INFO 레벨로 에미트.
-        # VLLM_HYBRID_PROFILE_EVERY=N 이면 N call 마다.
-        # Default (둘 다 미설정) = silent.
+        # VLLM_HYBRID_PROFILE=1 이어도 PROFILE_EVERY 주기에 맞을 때만
+        # INFO 레벨로 emit. Default (PROFILE_EVERY=0) = silent.
         _profile = _os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1"
         _profile_every = int(_os.environ.get("VLLM_HYBRID_PROFILE_EVERY", "0"))
-        if _profile or (_profile_every > 0
-                        and _IPEXPagedAttention._decode_call_count
-                        % _profile_every == 0):
+        _emit_profile = (_profile and _profile_every > 0
+                         and _IPEXPagedAttention._decode_call_count
+                         % _profile_every == 0)
+        if _emit_profile:
             avg_ms = (_IPEXPagedAttention._decode_total_ms
                       / _IPEXPagedAttention._decode_call_count)
             logger.info(

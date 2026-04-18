@@ -46,6 +46,17 @@ except ImportError as e:
 logger = init_logger(__name__)
 
 
+def _hybrid_profile_enabled() -> bool:
+    return os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1"
+
+
+def _hybrid_info(msg: str, *args) -> None:
+    if _hybrid_profile_enabled():
+        logger.info(msg, *args)
+    else:
+        logger.debug(msg, *args)
+
+
 class CPUWorker(Worker):
     """
     CPU Worker optimized for Intel Xeon processors.
@@ -110,7 +121,7 @@ class CPUWorker(Worker):
             # Just detect features for logging/downstream use
             try:
                 self._cpu_features = detect_intel_cpu_features()
-                logger.info(
+                _hybrid_info(
                     "CPUWorker[%d] running in hybrid mode "
                     "(env pre-configured by _setup_cpu_process_env). "
                     "OMP_THREADS=%s, KVCACHE=%sGB",
@@ -119,7 +130,7 @@ class CPUWorker(Worker):
                     os.environ.get("VLLM_CPU_KVCACHE_SPACE", "?"),
                 )
                 if self._cpu_features:
-                    logger.info(
+                    _hybrid_info(
                         "  CPU: %s, %d sockets x %d cores, "
                         "AVX512=%s, AMX=%s, VNNI=%s",
                         self._cpu_features.model_name,
@@ -153,7 +164,7 @@ class CPUWorker(Worker):
             vllm.platforms._current_platform = CpuPlatform()
             from vllm.attention.selector import _cached_get_attn_backend
             _cached_get_attn_backend.cache_clear()
-            logger.info("Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.")
+            _hybrid_info("Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.")
         except Exception as e:
             logger.error(f"Failed to force CpuPlatform: {e}")
 
@@ -170,7 +181,7 @@ class CPUWorker(Worker):
         try:
             prev_dev_type = vllm_config.device_config.device_type
             if prev_dev_type != "cpu":
-                logger.info(
+                _hybrid_info(
                     "[HYBRID-CPU-WORKER] Forcing device_config.device_type "
                     "%r → 'cpu' (heterogeneous flag was set by WorkerBase "
                     "heuristic because CUDA is hidden in this process).",
@@ -182,7 +193,7 @@ class CPUWorker(Worker):
         try:
             from vllm.platforms.cpu import CpuPlatform
             CpuPlatform.check_and_update_config(vllm_config)
-            logger.info(
+            _hybrid_info(
                 "Updated vllm_config for CPU platform via "
                 "check_and_update_config (device_type=%r).",
                 vllm_config.device_config.device_type)
@@ -273,7 +284,7 @@ class CPUWorker(Worker):
                         torch.set_num_interop_threads(max(2, target // 8))
                     except RuntimeError:
                         pass  # 이미 사용된 후엔 변경 불가
-                    logger.info(
+                    _hybrid_info(
                         "[HYBRID-CPU-WORKER] thread config: "
                         "torch_threads=%d torch_interop=%d "
                         "(from OMP_NUM_THREADS=%s)",
@@ -390,14 +401,14 @@ class CPUWorker(Worker):
                     info = alloc.get_node_info(nid)
                     if info and cpu_ids[0] in info.cpu_ids:
                         alloc.bind_to_node(nid)
-                        logger.info(
+                        _hybrid_info(
                             "[HYBRID-CPU-WORKER] Python fallback "
                             "memory-bound to NUMA node %d", nid)
                         break
         except Exception as e:
             logger.debug("NUMA membind in fallback skipped: %s", e)
 
-        logger.info(
+        _hybrid_info(
             "[HYBRID-CPU-WORKER] Python fallback bound %d cores: %s "
             "(OMP_NUM_THREADS=%d, torch.get_num_threads()=%d)",
             nthreads,
@@ -436,7 +447,7 @@ class CPUWorker(Worker):
         else:
             self.local_omp_cpuid = omp_cpuids.split("|")[self.rank]
 
-        logger.info(
+        _hybrid_info(
             "[HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND=%r "
             "→ local_omp_cpuid=%r (rank=%d, local_rank=%d)",
             omp_cpuids, self.local_omp_cpuid, self.rank, self.local_rank,
@@ -447,7 +458,7 @@ class CPUWorker(Worker):
                 ret = torch.ops._C_utils.init_cpu_threads_env(self.local_omp_cpuid)
                 bound_via = "C++ (init_cpu_threads_env)"
                 # init_cpu_threads_env가 코어 매핑을 출력 → 항상 INFO로 기록
-                logger.info(
+                _hybrid_info(
                     "[HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:\n%s",
                     ret if ret else "(empty)")
             except AttributeError:
@@ -479,7 +490,7 @@ class CPUWorker(Worker):
                         "[HYBRID-CPU-WORKER] Python affinity fallback "
                         "FAILED: %s.", fb_e)
             if bound_via:
-                logger.info(
+                _hybrid_info(
                     "[HYBRID-CPU-WORKER] thread binding established via: %s",
                     bound_via)
         else:
@@ -494,7 +505,7 @@ class CPUWorker(Worker):
             _proc = _ps.Process()
             _aff = sorted(_proc.cpu_affinity())
             _nthr = _proc.num_threads()
-            logger.info(
+            _hybrid_info(
                 "[HYBRID-CPU-WORKER] post-init: torch_threads=%d "
                 "process_threads=%d cpu_affinity=%d cores %s",
                 torch.get_num_threads(), _nthr, len(_aff),
@@ -637,12 +648,12 @@ class CPUWorker(Worker):
         # Hook 자체 overhead 는 step 당 수 μs (무시 가능).
         # ─────────────────────────────────────────────────────────────────
         import time as _time
-        _trace = os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
+        _profile = _hybrid_profile_enabled()
+        _trace = _profile and os.environ.get("VLLM_HYBRID_TRACE", "0") == "1"
         _step = getattr(self, "_hybrid_exec_step", 0) + 1
         self._hybrid_exec_step = _step
-        _every = int(os.environ.get("VLLM_HYBRID_TRACE_EVERY", "0"))
-
-        _profile = os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1"
+        _every = int(os.environ.get("VLLM_HYBRID_TRACE_EVERY", "0")) \
+            if _profile else 0
         _profile_every = int(os.environ.get("VLLM_HYBRID_PROFILE_EVERY",
                                             "10" if _profile else "0"))
         _emit_profile = _profile and (_profile_every == 0
@@ -710,7 +721,7 @@ class CPUWorker(Worker):
         if _t0 is not None:
             elapsed_ms = (_time.perf_counter() - _t0) * 1000
             if _trace or (_every > 0 and _step % _every == 0):
-                logger.info(
+                _hybrid_info(
                     "[HYBRID-CPU-EXEC] step=%d reqs=%s tokens=%s "
                     "torch_threads=%d elapsed=%.1fms",
                     _step, num_reqs, num_scheduled,
@@ -800,8 +811,8 @@ class CPUWorker(Worker):
             return
 
         num_layers = len(layers)
-        logger.info("[HYBRID-CPU-PROFILE] hook installing on %d layers",
-                    num_layers)
+        _hybrid_info("[HYBRID-CPU-PROFILE] hook installing on %d layers",
+                     num_layers)
 
         def make_pre_hook(kind):
             def pre_hook(module, args, kwargs=None):
@@ -898,9 +909,9 @@ class CPUWorker(Worker):
                 sub_installed += _install_sub(
                     getattr(layer, norm_name, None), 'norm')
 
-        logger.info("[HYBRID-CPU-PROFILE] hooks installed on %d layers "
-                    "(coarse attn+mlp) + %d sublayer hooks",
-                    installed, sub_installed)
+        _hybrid_info("[HYBRID-CPU-PROFILE] hooks installed on %d layers "
+                     "(coarse attn+mlp) + %d sublayer hooks",
+                     installed, sub_installed)
 
     def _get_autobind_cpu_ids(
         self, cpu_selector: Callable[[list[LogicalCPUInfo]],

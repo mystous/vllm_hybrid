@@ -38,6 +38,18 @@ from vllm.v1.serial_utils import MsgpackDecoder, MsgpackEncoder, bytestr
 
 logger = init_logger(__name__)
 
+
+def _hybrid_profile_enabled() -> bool:
+    import os as _os
+    return _os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1"
+
+
+def _hybrid_info(msg: str, *args) -> None:
+    if _hybrid_profile_enabled():
+        logger.info(msg, *args)
+    else:
+        logger.debug(msg, *args)
+
 AnyFuture = Union[asyncio.Future[Any], Future[Any]]
 
 _R = TypeVar('_R')  # Return type for collective_rpc
@@ -1404,7 +1416,7 @@ class HybridAsyncMPClient(_HybridEngineLauncherMixin, AsyncMPClient):
                 vllm_config,
                 hybrid_config=hybrid_config,
             )
-            logger.info(
+            _hybrid_info(
                 "[HYBRID-CLIENT] resolved num_cpu_engines=%d (was %r), "
                 "written back to vllm_config",
                 resolved_num_cpu_engines,
@@ -1563,7 +1575,7 @@ class HybridSyncMPClient(_HybridEngineLauncherMixin, SyncMPClient):
                 vllm_config,
                 hybrid_config=hybrid_config,
             )
-            logger.info(
+            _hybrid_info(
                 "[HYBRID-CLIENT] resolved num_cpu_engines=%d (sync)",
                 resolved_num_cpu_engines)
 

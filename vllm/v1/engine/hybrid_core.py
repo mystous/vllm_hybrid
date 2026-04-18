@@ -41,6 +41,16 @@ logger = init_logger(__name__)
 # Helper: hybrid mode 판별
 # ============================================================================
 
+def _hybrid_profile_enabled() -> bool:
+    return os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1"
+
+
+def _hybrid_info(msg: str, *args) -> None:
+    if _hybrid_profile_enabled():
+        logger.info(msg, *args)
+    else:
+        logger.debug(msg, *args)
+
 def is_hybrid_mode(vllm_config: VllmConfig) -> bool:
     """VllmConfig가 hybrid parallel-batch 모드인지 판별."""
     return (hasattr(vllm_config, 'hybrid_config')
@@ -235,7 +245,7 @@ class CapacityAwareRouter:
         self._cpu_wave_accepted: list[int] = [0] * self.num_cpu_engines
         self._cpu_wave_closed: list[bool] = [False] * self.num_cpu_engines
 
-        logger.info(
+        _hybrid_info(
             "CapacityAwareRouter initialized: gpu_max_num_seqs=%d, "
             "cpu_max_num_seqs=%d (per-engine), num_cpu_engines=%d, "
             "strategy=%s, priority=%s, prefill_threshold=%d, "
@@ -246,7 +256,7 @@ class CapacityAwareRouter:
             self._warmup_requests, self._stats_log_interval,
         )
         if not self._warmup_complete:
-            logger.info(
+            _hybrid_info(
                 "Warmup profiling enabled: collecting data from "
                 "first %d requests per device", warmup_requests)
 
@@ -262,7 +272,7 @@ class CapacityAwareRouter:
         # [HYBRID-ROUTER-INIT] one-shot config dump on first route call.
         if not getattr(self, "_logged_init", False):
             self._logged_init = True
-            logger.info(
+            _hybrid_info(
                 "[HYBRID-ROUTER-INIT] strategy=%s priority=%s "
                 "cpu_max_num_seqs=%d num_cpu_engines=%d "
                 "adaptive_cpu_max_seqs=%d "
@@ -290,7 +300,7 @@ class CapacityAwareRouter:
         # [HYBRID-ROUTER-DISPATCH] periodic sample every 25 routing calls.
         _n = self.gpu_count + self.cpu_count
         if _n > 0 and _n % 25 == 0:
-            logger.info(
+            _hybrid_info(
                 "[HYBRID-ROUTER-DISPATCH] n=%d last=%s prompt_len=%d "
                 "cpu_count=%d gpu_count=%d cpu_in_flight=%d "
                 "gpu_in_flight=%d adaptive_slots=%d",
@@ -500,8 +510,7 @@ class CapacityAwareRouter:
 
         # VLLM_HYBRID_PROFILE=1 이면 매 CPU dispatch 시 per-engine state 로그.
         # 기본 off (기존 [HYBRID-WAVE] wave closed 마커만 emit).
-        import os as _os
-        if _os.environ.get("VLLM_HYBRID_PROFILE", "0") == "1":
+        if _hybrid_profile_enabled():
             accepted_snapshot = list(self._cpu_wave_accepted)
             in_flight_snapshot = [
                 self._cpu_states[i]["in_flight"]
@@ -515,7 +524,7 @@ class CapacityAwareRouter:
 
         if self._cpu_wave_accepted[cpu_idx] >= self.cpu_max_num_seqs:
             self._cpu_wave_closed[cpu_idx] = True
-            logger.info(
+            _hybrid_info(
                 "[HYBRID-WAVE] engine=%d wave closed (accepted=%d, "
                 "batch_size=%d) — no more admit until drain",
                 cpu_idx, self._cpu_wave_accepted[cpu_idx],
@@ -555,7 +564,7 @@ class CapacityAwareRouter:
                     and 0 <= cpu_idx < self.num_cpu_engines):
                 if (self._cpu_wave_closed[cpu_idx]
                         and self._cpu_states[cpu_idx]["in_flight"] == 0):
-                    logger.info(
+                    _hybrid_info(
                         "[HYBRID-WAVE] engine=%d wave drained "
                         "(accepted=%d) → reset, next wave open",
                         cpu_idx, self._cpu_wave_accepted[cpu_idx])
@@ -653,18 +662,18 @@ class CapacityAwareRouter:
             self._cpu_ema_throughput = cpu_avg_tps
             self._update_adaptive_slots()
 
-        logger.info(
+        _hybrid_info(
             "=== Warmup profiling complete ===")
-        logger.info(
+        _hybrid_info(
             "  GPU: %.1f tok/s (avg over %d reqs, %d tokens)",
             gpu_avg_tps, self._warmup_gpu_finished,
             self._warmup_gpu_tokens)
-        logger.info(
+        _hybrid_info(
             "  CPU: %.1f tok/s (avg over %d reqs, %d tokens)",
             cpu_avg_tps, self._warmup_cpu_finished,
             self._warmup_cpu_tokens)
         if self.routing_strategy == "throughput-adaptive":
-            logger.info(
+            _hybrid_info(
                 "  EMA initialized → adaptive_slots=%d (base=%d)",
                 self._adaptive_cpu_max_seqs,
                 self.cpu_max_num_seqs)
@@ -679,7 +688,7 @@ class CapacityAwareRouter:
         # [HYBRID-ROUTER-STATS] promoted to INFO for instrumentation runs.
         # Fires every stats_log_interval completions; keep interval >= 10 to
         # avoid dominating stdout I/O under burst load.
-        logger.info(
+        _hybrid_info(
             "[HYBRID-ROUTER-STATS] finished=%d "
             "GPU=%.1f tok/s (%d reqs), "
             "CPU=%.1f tok/s (%d reqs), "
@@ -836,7 +845,7 @@ def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
                 except Exception:
                     tpc = 2 if logical_cpus_on_node > physical_cores else 1
                 numa_node_cores = logical_cpus_on_node // tpc
-                logger.info(
+                _hybrid_info(
                     "NUMA node %d detected: %d physical cores "
                     "(%d logical CPUs, %d threads/core), %.0fGB memory",
                     target_numa_node, numa_node_cores,
@@ -904,7 +913,7 @@ def _resolve_cpu_params(hybrid_config: HybridConfig) -> ResolvedCpuParams:
         cpu_num_threads=cpu_num_threads,
     )
 
-    logger.info(
+    _hybrid_info(
         "[HYBRID-RESOLVE] max_seqs=%d threads=%d kvcache=%dGB "
         "batched_tokens=%d | numa_cores_available=%d core_ratio=%.2f "
         "effective_cores=%d (physical=%d) numa_nodes=%d "
@@ -1028,7 +1037,7 @@ def _setup_cpu_process_env(
         features = detect_intel_cpu_features()
         settings = configure_intel_optimizations(features)
 
-        logger.info(
+        _hybrid_info(
             "Intel optimizations configured: AMX=%s, AVX512=%s, "
             "VNNI=%s, ONEDNN_ISA=%s",
             features.amx_bf16 or features.amx_int8,
@@ -1052,7 +1061,7 @@ def _setup_cpu_process_env(
     try:
         from vllm.platforms.intel_cpu_utils import configure_pytorch_for_intel
         configure_pytorch_for_intel(features)
-        logger.info("PyTorch Intel optimizations applied (IPEX/AMX/Inductor)")
+        _hybrid_info("PyTorch Intel optimizations applied (IPEX/AMX/Inductor)")
     except ImportError:
         logger.debug("configure_pytorch_for_intel not available")
     except Exception as e:
@@ -1083,7 +1092,7 @@ def _setup_cpu_process_env(
                     target_node = allocator.get_preferred_node_for_rank(
                         0, allocator.num_nodes)
                 allocator.bind_to_node(target_node)
-                logger.info(
+                _hybrid_info(
                     "CPU process bound to NUMA node %d "
                     "(total %d nodes)",
                     target_node, allocator.num_nodes,
@@ -1095,14 +1104,14 @@ def _setup_cpu_process_env(
         except Exception as e:
             logger.warning("NUMA binding failed: %s", e)
     else:
-        logger.info("NUMA affinity disabled by config")
+        _hybrid_info("NUMA affinity disabled by config")
 
     try:
         _cur_affinity = os.sched_getaffinity(0)
         _affinity_count = len(_cur_affinity)
     except (OSError, AttributeError):
         _affinity_count = -1
-    logger.info(
+    _hybrid_info(
         "[HYBRID-CPU-ENV] PID=%d configured: OMP=%s MKL=%s OPENBLAS=%s "
         "OMP_PROC_BIND=%s OMP_PLACES=%s KVCACHE=%sGB ONEDNN_ISA=%s "
         "BIND=%s sched_affinity_count=%d",
@@ -1249,7 +1258,7 @@ def _create_cpu_vllm_config(
     # device_type 강제 설정 (heterogeneous로 덮어써지는 것 방지)
     cpu_config.device_config = DeviceConfig(device="cpu")
 
-    logger.info(
+    _hybrid_info(
         "CPU VllmConfig created: device=%s, TP=%d, max_seqs=%d, "
         "kv_cache=%.1fGB, worker=%s",
         cpu_config.device_config.device_type,
@@ -1327,7 +1336,7 @@ def run_cpu_engine_core(*args,
         # set_num_interop_threads는 첫 op 실행 후 호출 불가
         logger.debug("torch threads already initialized: %s", _e)
 
-    logger.info(
+    _hybrid_info(
         "[HYBRID-CPU-PROC] PID=%d torch_threads=%d torch_interop=%d "
         "torch.version=%s mkldnn=%s",
         os.getpid(),
@@ -1528,7 +1537,7 @@ def _emit_applied_features_manifest(vllm_config: VllmConfig) -> None:
     # boot log 출력
     enabled = [f"{k}={v}" for k, v in features.items()
                if v and v != "0" and v.lower() != "off"]
-    logger.info(
+    _hybrid_info(
         "[HYBRID-APPLIED-FEATURES] profile_mode=1 model=%s git=%s "
         "enabled=[%s]",
         model_name, git_sha[:8] if git_sha else "n/a",
@@ -1546,13 +1555,13 @@ def _emit_applied_features_manifest(vllm_config: VllmConfig) -> None:
             path = os.path.join(result_dir, "applied_features.json")
             with open(path, "w") as f:
                 _json.dump(manifest, f, indent=2, ensure_ascii=False)
-            logger.info("[HYBRID-APPLIED-FEATURES] manifest saved to %s",
-                        path)
+            _hybrid_info("[HYBRID-APPLIED-FEATURES] manifest saved to %s",
+                         path)
         except Exception as e:
             logger.warning(
                 "[HYBRID-APPLIED-FEATURES] manifest save failed: %s", e)
     else:
-        logger.info(
+        _hybrid_info(
             "[HYBRID-APPLIED-FEATURES] VLLM_HYBRID_RESULT_DIR 미설정, "
             "JSON 저장 생략 (boot log 의 manifest 로 대체)")
 
@@ -1615,7 +1624,7 @@ def launch_hybrid_engines(
         # 하면 일관성이 보장된다. 혹시 client 경로를 거치지 않은 경우를
         # 대비해 다시 한 번 resolve.
         num_cpu_engines = _resolve_num_cpu_engines(vllm_config.hybrid_config)
-        logger.info(
+        _hybrid_info(
             "[HYBRID-LAUNCH] num_cpu_engines=%d "
             "(numa_aware=%s, config=%r)",
             num_cpu_engines,
@@ -1635,7 +1644,7 @@ def launch_hybrid_engines(
                 alloc = NUMAAllocator()
                 if alloc.is_available and alloc.num_nodes >= num_cpu_engines:
                     cpu_numa_nodes = list(range(num_cpu_engines))
-                    logger.info(
+                    _hybrid_info(
                         "Multi-CPU engines: assigning NUMA nodes %s",
                         cpu_numa_nodes)
                 else:

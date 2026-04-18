@@ -47,17 +47,15 @@ export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
 
 # Hybrid debugging knobs (consumed by hybrid_core/cpu_worker/cpu_attn)
 #
-# TRACE (coarse per-step elapsed):
-#   VLLM_HYBRID_TRACE=1             — log every CPU exec_model + attn call
-#   VLLM_HYBRID_TRACE_EVERY=N (N>0) — log every N-th call at INFO
-#
-# PROFILE (per-layer attn/mlp breakdown, IPEX call histogram, wave dispatch):
-#   VLLM_HYBRID_PROFILE=1           — PROFILE markers on
+# PROFILE is the master switch for hybrid observability.
+#   VLLM_HYBRID_PROFILE=0           — all HYBRID trace/profile/info markers down
+#   VLLM_HYBRID_PROFILE=1           — hybrid observability on
 #   VLLM_HYBRID_PROFILE_EVERY=N     — breakdown emit interval
 #                                     (default 10 if PROFILE=1, 0 otherwise)
 #
-# Default all-silent during serving. Boot markers (LAUNCH/RESOLVE/CPU-ENV/
-# CPU-PROC/CPU-WORKER) are always logger.info regardless.
+# TRACE is subordinate to PROFILE and only affects coarse per-step sampling.
+#   VLLM_HYBRID_TRACE=1             — log every CPU exec_model + attn call
+#   VLLM_HYBRID_TRACE_EVERY=N (N>0) — log every N-th call at INFO
 export VLLM_HYBRID_TRACE="${VLLM_HYBRID_TRACE:-0}"
 export VLLM_HYBRID_TRACE_EVERY="${VLLM_HYBRID_TRACE_EVERY:-0}"
 export VLLM_HYBRID_PROFILE="${VLLM_HYBRID_PROFILE:-0}"
