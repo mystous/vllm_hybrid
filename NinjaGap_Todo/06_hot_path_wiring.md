@@ -1,8 +1,72 @@
 # 06. Hot Path 연결 증명 (G1 진입 필수)
 
 **Tier**: 1
-**상태**: ⭕ 미구현 (build artifact 는 있지만 call-site 없음)
+**상태**: 🔶 **Phase A 구현 완료 (2026-04-19, 측정 대기)** — Q8_0 dispatch 경로로 MLP (gate_up_proj + down_proj) hot path 치환. H100 측정 전
 **중요도**: **G0 계측 다음 본선 진입의 첫 관문**
+
+---
+
+## Phase A 구현 요약 (2026-04-19)
+
+- **Scheme**: llama.cpp Q8_0 (weight INT8 + fp16 per-block scale, block=32). Activation 은 Python 쪽 BF16/FP32 유지 — kernel 내부에서 per-row dynamic INT8 양자화 → VNNI dot → FP32 accumulate → dtype-matched output. WoQ 로 분류. §04 IPEX WoQ 기각 후 대체 경로로 §23 CPU Native Quantization 과 자연스럽게 통합
+- **Scope — strict whitelist**:
+  - **Arch**: `Qwen2ForCausalLM` 만 허용. Qwen2Moe / Qwen2_5_VL / Qwen2Audio / Qwen3 / LLaMA 계열은 MLP 구조 미검증 상태라 **자동 skip**
+  - **Module**: `*.mlp.gate_up_proj` + `*.mlp.down_proj` 만 매칭. 아래 substring 하나라도 포함되면 제외 — `experts.`, `vision`, `visual`, `speech`, `audio` (MoE expert / 멀티모달 타워 차단)
+- **IPEX 관계 (명확히)**:
+  - **패치된 layer 만** apply-time 에 IPEX / oneDNN 을 우회 — `quant_method.apply()` 자체가 교체되므로 IPEX 가 설치한 optimized module 경로로 돌아가지 않음
+  - **패치되지 않은 나머지 layer** (attention, norm, embedding, lm_head 등) 는 IPEX 가 이미 설치한 최적화 경로를 그대로 사용. 즉 Phase A 는 "MLP 만 vLLM-hybrid native, 나머지는 IPEX" 구조
+  - patch 호출은 `load_model` 의 **IPEX optimize 이후 + LoRA load 이후** 시점 → LoRA delta 가 base weight 에 반영된 뒤 1회 quantize
+- **LoRA 비호환**: static Q8_0 quantized qweight 는 runtime delta-W adapter swap 과 충돌 → `lora_config` 가 있으면 `patch_mlp_to_q8_0` 이 조기 return + warning. Adapter hot-swap 지원은 Phase B 이후
+- **Load-time quantize**: `torch.ops._C_cpu_ops.q8_0_quantize_weight` 로 load 직후 1회 변환. runtime repack 없음 (`[HYBRID-KERNEL]` summary log 에 `repack=0` 명시)
+- **Guard 5겹**: `HYBRID_VNNI_HOT_PATH=1` + `HAS_CPU_OPS` + op registered + arch ∈ allowlist + LoRA 미사용. 실패 시 warning + no-op
+- **Layer-aware trace**: `VLLM_HYBRID_KERNEL_TRACE=1` 시 `[HYBRID-KERNEL-Q8_0] layer=<full_qualified_name> M=... N=... K=... time=...ms` per-call 로그. 부팅 요약 log 에 `patched=N skipped=M arch=... lora=...` 기록
+
+**신규/수정 파일**:
+- 신규: `vllm/v1/worker/hot_path_wiring.py`
+- 수정: `vllm/v1/worker/cpu_model_runner.py` (load_model 끝, **LoRA load 이후** 지점 hook)
+
+**dev smoke test 통과** (2026-04-19, RTX3090 + i9-12900KF AVX2):
+- import OK, `_cpu_ops_available = False` 정확히 감지 → no-op + warning
+- qweight 크기 공식: Qwen2.5-32B TP=8 기준 gate_up_proj [6912, 5120] → 35.9 MB (BF16 대비 0.51× 메모리)
+
+---
+
+## Phase A 실행 방법 (H100x8)
+
+**1. 사전 확인 — q8_0 op 빌드 여부 (재빌드 필요 여부 판단)**
+```bash
+python -c "import torch, vllm._C_cpu_ops; print('q8_0=', hasattr(torch.ops._C_cpu_ops,'q8_0_linear'), 'quantize=', hasattr(torch.ops._C_cpu_ops,'q8_0_quantize_weight'))"
+```
+둘 다 `True` 면 재빌드 불필요 (Python 변경뿐). 하나라도 `False` 면:
+```bash
+pip install -e . --config-settings="cmake.args=-DVLLM_TARGET_DEVICE=cuda"
+```
+
+**2. 측정 (g0_06 sweep seqs 1/4/16)**
+```bash
+cp eval/envs/g0_h100x8_qwen32b_06.env /tmp/run.env
+for s in 1 4 16; do sed -i "s/^HYBRID_CPU_MAX_SEQS=.*/HYBRID_CPU_MAX_SEQS=$s/" /tmp/run.env; ./eval/serve.sh hybrid /tmp/run.env & SERVE_PID=$!; until curl -sf http://localhost:8000/v1/models >/dev/null; do sleep 5; done; ./eval/bench.sh hybrid /tmp/run.env; kill $SERVE_PID; wait $SERVE_PID 2>/dev/null; mkdir -p measurement_results/H100x8/g0_06/seqs$s; mv eval/results/$(ls -t eval/results/ | head -1) measurement_results/H100x8/g0_06/seqs$s/; done
+```
+
+**3. 비교 대상 (baseline 이미 측정됨)**
+- `measurement_results/H100x8/g0_00_32b/seqs{1,4,16}/` — §06 미적용 (동일 env, `HYBRID_VNNI_HOT_PATH=0`)
+- `measurement_results/H100x8/g0_00_32b/gpu_only_baseline/` — wall ratio 기준
+
+**4. G1 통과 판정 3축**
+| 지표 | 계산 | 통과 조건 |
+|---|---|---|
+| Batch scaling | `per_req_cost(seqs=4) / per_req_cost(seqs=1)` | ≤ 2.0 |
+| Tail | GPU bulk 완료 후 CPU drain 시간 | < 100 s |
+| Wall ratio | `hybrid wall / gpu_only wall` (동일 workload) | < 8× |
+
+**5. 성공 시 확인할 log 마커 (`hybrid_server_boot.log`)**
+```
+[HYBRID-KERNEL] §06 patched=128 skipped=0 (filter=0, error=0) arch=Qwen2ForCausalLM lora=False scope=Qwen2_MLP(.mlp.gate_up_proj,.mlp.down_proj) quantize=load-time-1x repack=0 non_patched_layers=ipex_unchanged
+```
+`patched` = 64 layer × 2 proj = **128** 여야 정상 (Qwen2.5-32B 의 MLP 커버리지).
+
+**6. 실패 시 (Stop/Go Case 3)**
+`seqs=1` 만 빨라지고 `seqs=4` scaling 없으면 hot path 이득은 single-req 최적화로만 귀속. 다음 Tier (§07~) 진입 금지. kernel-level marker (`VLLM_HYBRID_KERNEL_TRACE=1` + 요청 수 축소) 로 병목 재추적.
 
 ---
 

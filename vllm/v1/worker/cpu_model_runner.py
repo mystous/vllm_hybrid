@@ -222,6 +222,23 @@ class CPUModelRunner(GPUModelRunner):
                                               self.scheduler_config,
                                               self.lora_config, self.device)
 
+        # §06 Hot Path Wiring — Q8_0 dispatch for Qwen2 MLP (opt-in via
+        # HYBRID_VNNI_HOT_PATH=1). Runs AFTER LoRA so that, in the LoRA-
+        # disabled case, base weights are already finalized before the
+        # one-shot Q8_0 quantization. When LoRA is enabled the patch
+        # deliberately skips itself (static qweight vs. runtime delta-W
+        # adapter swap is incompatible). Only patched layers bypass IPEX
+        # at apply-time; every other layer keeps the IPEX path.
+        try:
+            from vllm.v1.worker.hot_path_wiring import patch_mlp_to_q8_0
+            patch_mlp_to_q8_0(
+                self.model,
+                model_config=self.model_config,
+                lora_enabled=bool(self.lora_config),
+            )
+        except Exception as e:
+            logger.warning("[HYBRID-KERNEL] patch_mlp_to_q8_0 raised: %s", e)
+
     def get_model(self) -> nn.Module:
         return self.model
 

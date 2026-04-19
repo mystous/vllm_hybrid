@@ -102,24 +102,24 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - **주의**: 여기서 말하는 2MB/1GB 는 **캐시 크기**가 아니라 **페이지 크기**다. 표준적으로 의미 있는 중간 단계는 2MB THP 이며, 1GB 는 그 다음 explicit hugetlb 단계다.
 - **스택 호환성**: 모든 후속 기법과 독립. 다만 **실험 순서는 반드시 2MB 먼저**, 1GB 는 추가 이득이 확인될 때만 진행
 
-### 4.3 IPEX WoQ INT8 ⭕
-- **메커니즘**: BF16 weight → INT8 저장, BF16 연산. weight memory 2× 절감
-- **예상 이득**: 2× decode (memory-bound). PPL 열화 <0.5
-- **변경 위치**: `cpu_worker.py` 의 `ipex.llm.optimize` 에 `quantization_config=qconfig` 추가
-- **성공 조건**: 적용 여부가 아니라 CPU linear hot path 가 실제 WoQ kernel 로 치환되고 `num_seqs>1` per-req cost 가 내려가야 함. IPEX version 호환성 선검증
-- **스택 호환성**: §4.12 LUT INT4 로 넘어가면 **대체됨**
+### 4.3 ~~IPEX WoQ INT8~~ ✗ **기각** (2026-04-19)
+- **기각 사유**: IPEX `ipex.llm.optimize` + `WoqWeightDtype` 경로가 vLLM 의 `QKVParallelLinear` custom structure 와 비호환 (IPEX `replace_module` 이 vLLM Linear 클래스를 인식 못 함)
+- **대체 경로**: §23 CPU Native Quantization (llama.cpp Q8_0/Q4_K 자체 dispatch) — 이득 2× decode 동일, vLLM Linear 에 직접 torch custom op dispatch 로 구조 호환 확보
+- **Post-mortem 문서**: `NinjaGap_Todo/04_ipex_woq_int8.md`
 
 ### 4.4 OMP env 마무리 ✅ **완료** (2026-04-15)
 - **현재**: `csrc/cpu/utils.cpp` 3종 + `_setup_cpu_process_env` 에서 `HYBRID_KMP_BLOCKTIME=auto` (기본) 시 `KMP_BLOCKTIME=0` 강제
 - **주의**: `OMP_PROC_BIND=close` 는 **의도적 미설정** (Intel OMP master-thread pin bug → `hybrid_core.py` 에서 pop)
 
-### 4.5 Hot Path 연결 증명 (G1 진입 필수)
-- [ ] VNNI INT8 GEMM (`gemm_vnni.cpp`) 을 실제 Qwen2.5 CPU linear hot path 에 연결 (현재는 build 되지만 call-site 없음)
-- [ ] load-time weight pre-pack cache (`cpu_model_runner.py` model load 후 hook)
-- [ ] runtime repack 이 step 마다 일어나는지 계측 후 제거
-- [ ] `batch=1/2/4/8/16` shape 별 AVX/VNNI/oneDNN primitive dispatch 로그
-- [ ] `ONEDNN_MAX_CPU_ISA` 설정 존재가 아닌 **실제 dispatch** 를 프로파일로 확인
-- **성공 조건**: hot path 로그/marker 바뀜 + `num_seqs=4` per-req cost 감소. 단일 req 만 빨라지고 scaling 없으면 다음 Tier 금지
+### 4.5 Hot Path 연결 증명 (G1 진입 필수) 🔶 Phase A (2026-04-19)
+- [x] Q8_0 kernel (`quant_q8_0.cpp`) + torch op (`torch.ops._C_cpu_ops.q8_0_linear`) 을 Qwen2.5 MLP hot path 에 연결 (신규 `vllm/v1/worker/hot_path_wiring.py`)
+- [x] load-time weight Q8_0 변환 hook (`cpu_model_runner.py::load_model` 에서 `patch_mlp_to_q8_0` 호출)
+- [x] shape 별 dispatch log marker (`VLLM_HYBRID_KERNEL_TRACE=1` 시 `[HYBRID-KERNEL]` 출력)
+- [ ] runtime repack 이 step 마다 일어나는지 계측 — Phase B (현재는 load-time 1회 변환 구조상 0 으로 추정)
+- [ ] `ONEDNN_MAX_CPU_ISA` 설정 존재가 아닌 **실제 dispatch** 를 프로파일로 확인 — Q8_0 경로는 oneDNN 우회이므로 `ONEDNN_VERBOSE=1` 출력 없음이 정답
+- [ ] **H100x8 측정**: `HYBRID_VNNI_HOT_PATH=1` 로 g0_06 sweep, G1 통과 조건 (`4req cost ≤ 2× single`, `tail < 100s`, `wall ratio < 8×`) 검증
+- **성공 조건**: `num_seqs=4` per-req cost 감소. 단일 req 만 빨라지고 scaling 없으면 다음 Tier 금지 (§01 Stop/Go Case 3)
+- **dev smoke test (2026-04-19, AVX2)**: `_cpu_ops_available=False` 정확 감지 → no-op warning, import/startup 무결
 
 ### 4.6 ISA Binary Dispatch 🔶
 - **현재**: `cpu_attn.py` decode 경로에 `custom_avx → ipex → sdpa_batched → sdpa_loop` fallback chain. batch size 기반 명시적 dispatch 없음 (IPEX 내부 dispatcher 의존)
@@ -171,7 +171,7 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - **예상 이득**: 4× (T-MAC 실측, CPU 22 tok/s > NPU 10.4 tok/s)
 - **변경 위치**: `csrc/cpu/lut_gemv.cpp` 전용 kernel. IPEX bypass
 - **위험**: ⚠ T-MAC 은 edge CPU 검증 (Snapdragon). **SPR+AMX 재검증 필수**. 강한 가설
-- **스택 호환성**: §4.3 WoQ INT8 대체. §4.8 LUT Softmax 와 동일 인프라
+- **스택 호환성**: §4.3 WoQ INT8 기각 후 §23 CPU Native Quant 대체. §4.8 LUT Softmax 와 동일 인프라
 
 ### 4.13 AVX/AMX Cascade Pipeline ⭕
 - **메커니즘**: tile k+2 load (prefetch/DSA) / k+1 dequant·pack (AVX-512) / k matmul (AMX) 3-stage 동시 실행
@@ -263,7 +263,7 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 |---|---:|---:|---|
 | Baseline | 1× | 1× | |
 | + Huge Pages (§4.2) | 1.1× | 1.1× | |
-| + WoQ INT8 (§4.3) | 2.0× | 2.1× | |
+| + WoQ INT8 (§4.3 기각 → §23 편입) | 2.0× | 2.1× | §23 CPU Native Quant |
 | + OMP env (§4.4) | 1.05× | 2.2× | |
 | + ISA binary (§4.6) | 2.0× | **3.3×** | G1 |
 | + Fusion (§4.7) | 1.7× | 4.7× | |
@@ -285,7 +285,7 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 | # | 기법 | 상태 |
 |---|---|:---:|
 | 4.2 | Huge Pages 1GB | ⭕ |
-| 4.3 | IPEX WoQ INT8 | ⭕ |
+| 4.3 | ~~IPEX WoQ INT8~~ | ✗ 기각 (§23 편입) |
 | 4.4 | OMP + NUMA memory + KMP_BLOCKTIME | ✅ 완료 (§05) |
 | 4.6 | ISA binary dispatch | 🔶 fallback chain, 명시적 batch-based 없음 |
 | 4.7 | Sublayer fusion | 🔶 GPU 경로 only, CPU 전용 없음 |
