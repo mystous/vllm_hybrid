@@ -1,9 +1,82 @@
 # 03. Huge Pages (2MB THP / 1GB hugetlb)
 
 **Tier**: 0
-**상태**: ⭕ 미구현
-**예상 이득**: 2MB THP **3–10%** · 1GB 추가 **3–10%** (7B 기준, 큰 모델일수록 상한↑)
-**권장 순서**: Phase 1 (2MB THP, 재부팅 없이) → 이득 확인 후 Phase 2 (1GB 런타임) → 필요 시 Phase 3 (재부팅)
+**상태**: ✗ **기각 (2026-04-19)** — Phase 1 호스트 default 로 이미 활성, Phase 2 는 역효과
+**예상 이득 (원 계획)**: 2MB THP **3–10%** · 1GB 추가 **3–10%**
+**실제 검증 결과**: Phase 1 은 별도 작업 불필요 (호스트 THP=always 가 이미 기본). Phase 2 (1GB) 는 H100x8 + Qwen2.5-32B 실측에서 **baseline 대비 +22% 더 느림** (역효과)
+
+---
+
+## 기각 근거 (2026-04-19 H100x8 실측)
+
+### Phase 1 (2MB THP)
+
+호스트 RHEL 에서 `/sys/kernel/mm/transparent_hugepage/enabled` 의 기본값이 이미 `always`. 실측 시 `/proc/meminfo`:
+
+```
+AnonHugePages:   4216832 kB     # 4.1 GB 이미 2MB 페이지로 승격 상태
+Hugepagesize:       2048 kB
+```
+
+즉 기존 baseline 측정이 이미 2MB THP 적용 상태에서 이루어짐 → **별도 작업으로 얻을 gain 0**. 이전 제안 값 (3–10%) 은 THP off 가정이었으나 환경은 이미 on.
+
+### Phase 2 (1GB hugetlbfs)
+
+`feat/g0-03-phase2-1gb-hugetlb` branch 에 구현 후 H100x8 (Xeon 8480+ 2-socket) × Qwen2.5-32B 에서 실측:
+
+| 실험 | hugetlb 적용량 | wall duration | baseline 대비 |
+|---|---:|---:|:---:|
+| baseline (no hugetlb, 2MB THP 만) | 0 GiB | **67.9 s** | 기준 |
+| 부분 적용 (풀 64 GiB 제한) | 2×30 GiB | 78~79 s | **+15 ~ 16%** |
+| 거의 완전 적용 (풀 128 GiB, memlock=-1) | 2×58 GiB | **82~83 s** | **+22%** |
+
+- `migrated=446 (58.00 GiB), skipped=5 (3.03 GiB)` per CPU engine — 모델 weight 거의 전부 1GB 페이지로 이동
+- CPU_EngineCore_1 / _2 각각에 동일 로그 확인 — 양 NUMA 노드 모두 적용
+- 적용 범위가 커질수록 **monotonic 하게 더 느려짐** — 측정 노이즈 아닌 구조적 역효과
+
+### 역효과의 원인 — SPR TLB 구조
+
+Xeon 8480+ (Sapphire Rapids) 의 L2 dTLB 구조:
+
+| 페이지 크기 | L2 dTLB entries | 총 coverage |
+|---|---:|---:|
+| 4KB + 2MB (통합) | **2048** | 4KB×2048 = 8 MiB 또는 2MB×2048 = **4 GiB** |
+| 1GB (별도) | **16** | 1GB×16 = **16 GiB** (표면 수치) |
+
+원 계획은 "1GB 16 × 1GB = 16 GiB coverage 가 2MB 4 GiB 보다 큼" 이었으나 실제로는:
+
+- **1GB 페이지는 완전 별도 TLB 를 쓰고, 2048 entries 의 큰 pool 을 전혀 못 씀**. 즉 1GB 페이지로 옮기면 L2 dTLB 의 주력 pool (2048 × 2MB = 4 GiB) 을 버리고 16 entry 짜리 작은 pool 로 바꾸는 셈.
+- 32B weight ≈ 64 GiB / 1GB = **64 pages** 인데 1GB TLB 는 16 entries 만 유지 → 대부분 접근에서 **L2 TLB miss + 4-level page walk**.
+- 반면 2MB THP 는 `named_parameters` 대부분이 수백 MB 이하라 hot layer 의 weight 이 2MB 단위 → 2048 × 2MB = 4 GiB coverage 가 hot working set 에 충분.
+
+따라서 **이 workload (32B BF16, TP 기반 hybrid) 에서는 2MB THP 가 sweet spot** 이고 1GB 로 내려가면 page walk 가 오히려 증가.
+
+### KV cache 는 hugetlb 에 들어가지도 못함
+
+풀 128 GiB 확장 후에도 weight 에 ~58 GiB × 2 = 116 GiB 가 먼저 소비되어 KV cache allocator 가 mmap 에서 ENOMEM. 풀을 더 크게 확보해도 weight 쪽의 역효과가 지배적이라 시도 의미 없음.
+
+---
+
+## 결론
+
+Phase 1 은 "호스트 default 로 이미 on 이라 별도 작업 불필요" 로 종결. Phase 2 는 SPR 의 1GB dTLB 작음 + 2MB 공유 TLB 포기라는 구조적 이유로 **더 큰 페이지가 역효과**. 두 Phase 모두 Ninja Gap 기여 없음.
+
+→ **§03 전체 기각**. CPU path 의 성능 이득은 TLB 구간이 아니라 kernel / batch scaling 구간에서 찾아야 함 (§06 이후).
+
+---
+
+## 남겨진 산출물 (히스토리 보존)
+
+- `feat/g0-03-phase2-1gb-hugetlb` branch (force-push / rebase 금지, 기록 유지)
+- 그 branch 안 주요 코드:
+  - `vllm/platforms/hugetlb_allocator.py` — HugeTLB1GAllocator + slab sub-allocator
+  - `vllm/v1/worker/cpu_model_runner.py` — KV cache + post-IPEX weight bind hook
+  - `eval/envs/g0_h100x8_qwen32b_hugetlb_1g_{kv,full}.env` — 측정 env
+  - `setup/setup_hugetlb_1g_rhel.sh` — 호스트 풀 관리 도구 (enable/disable/verify)
+  - `setup/verify_hugetlb_1g.sh` — 현장 end-to-end 검증 script
+- 실측 결과: `eval/results/20260419_02*_*_seqs1/`, `20260419_03*_*_seqs1/`
+
+Phase 1 Infra 는 main 에 이미 존재 (`setup/setup_thp_rhel.sh`, `eval/envs/g0_h100x8_qwen32b_thp.env`). THP=always 기본값 확인 용도로 유지.
 
 ---
 
