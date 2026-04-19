@@ -127,18 +127,23 @@ enable_pool() {
         echo "[WARN] requested ${n}, allocated ${got} — 단편화로 부분 확보. drop_caches + compact_memory 재시도 가능"
     fi
 
-    # mount point 준비 + mount
+    # mount point 준비 + (필요 시 umount 후) mount
+    # 이미 mount 돼 있으면 size 옵션이 이전 값에 고정되므로 반드시 umount→remount.
     mkdir -p "${MOUNT_POINT}"
     if mount | grep -q " on ${MOUNT_POINT} type hugetlbfs"; then
-        echo "[INFO] already mounted on ${MOUNT_POINT}, skipping mount"
-    else
-        local total_bytes=$(( got * 1024 * 1024 * 1024 ))
-        if ! mount -t hugetlbfs -o "pagesize=1G,size=${total_bytes}" none "${MOUNT_POINT}"; then
-            echo "[ERROR] mount 실패" >&2
-            exit 1
+        echo "[INFO] 기존 mount 감지 — 새 size 반영 위해 umount 후 remount"
+        if ! umount "${MOUNT_POINT}" 2>/dev/null; then
+            echo "[WARN] 기존 mount umount 실패 (사용 중). 기존 상태 유지."
+            verify
+            return
         fi
-        echo "[OK] mounted ${MOUNT_POINT} (pagesize=1G, size=${total_bytes} bytes)"
     fi
+    local total_bytes=$(( got * 1024 * 1024 * 1024 ))
+    if ! mount -t hugetlbfs -o "pagesize=1G,size=${total_bytes}" none "${MOUNT_POINT}"; then
+        echo "[ERROR] mount 실패" >&2
+        exit 1
+    fi
+    echo "[OK] mounted ${MOUNT_POINT} (pagesize=1G, size=${total_bytes} bytes)"
 
     echo ""
     verify
