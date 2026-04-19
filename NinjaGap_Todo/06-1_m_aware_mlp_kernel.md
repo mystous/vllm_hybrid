@@ -111,11 +111,32 @@ Phase 2 는 (A) 완료 후 seqs≥16 에서 여전히 baseline 대비 손해면 
 
 ## 성공 조건
 
-1. ✅ M>1 경로가 GEMM 으로 실행 (확인: kernel trace 의 M 값)
-2. ✅ seqs=1 기존 이득 (+18% outTP) 유지
-3. ✅ seqs 4/8/16 에서 **baseline outTP 이상** (현재 −38~−81% → 0 이상으로 회복)
-4. ✅ seqs 32/64 에서 baseline 대비 손실 없음 (+ 가능하면 우위, Phase 2 여부에 따라)
-5. ✅ 정확도: 1/2/3 중 하나 이상 충족
+### 1차 판정 — `g0_06_qwen2.5_32b` (§06 on) 대비 회복
+
+§06-1 의 직접 목적은 "§06 의 batch 영역 역효과 해소" 다. 따라서 primary baseline 은 **§06 on 상태 (`g0_06_qwen2.5_32b`)** 이며 여기 대비 개선이 나와야 한다.
+
+- seqs = 2/4/8 에서 **wall/TPOT 가 g0_06 대비 회복** — 즉 §06 on → (§06 on + §06-1) 로 가면서 wall 감소, TPOT 감소
+- seqs = 1 은 §06 on 과 **동등** (GEMV 경로 변경 없음 — M=1 dispatch 그대로)
+
+### 2차 판정 — `g0_00_qwen2.5_32b_base` (baseline) 대비 역효과 해소
+
+1차 판정이 긍정이어도 §06-1 적용본이 baseline (§06 off) 보다 나쁘면 "부분 성공": kernel 경로는 유효하나 VNNI compute 한계로 완전 회복 안 된 경우.
+
+- seqs 2/4/8 에서 §06-1 적용본이 baseline 과 **동등 이상** 이면 완전 성공
+- 열세이면 §06-1 scope 안에서의 최대치를 달성한 것이고, 추가 이득은 §24 병합 영역 판단으로 이관
+
+### Scope 밖
+
+- **seqs ≥ 16 은 §06-1 판정 대상이 아님**. Compute-bound 전환 구간이며 VNNI peak 가 AMX BF16 에 열세인 band. 이 구간 이득은 Q8_0 포맷 제약상 AMX-INT8 로만 가능하고, 이는 §24 (W8A8) 와 병합 재설계 영역
+- `measurement_results/H100x8/g0_06_1_qwen2.5_32b/seqs{16,32,64}` 수치는 기록용으로 수집하되 **합격/불합격 판정에 쓰지 않는다**
+
+### 정확도 게이트 (3 단 fallback)
+
+1. **1차**: Greedy top-1 token sequence 동일 (100 prompt)
+2. **2차 fallback**: Short generation exact match ≥ 95% (100 sample)
+3. **3차 fallback**: WikiText-2 PPL 열화 < 0.5
+
+1차 충족 시 다음 fallback 생략.
 
 ---
 
@@ -129,10 +150,49 @@ Phase 2 는 (A) 완료 후 seqs≥16 에서 여전히 baseline 대비 손해면 
 
 ## 리스크
 
-- **VNNI GEMM 이 AMX BF16 을 이기지 못함 (large M)**: compute-bound 구간에서 AMX peak > VNNI peak. Phase 1 (A) 만으로 seqs≥16 break-even 어려울 수 있음 → Phase 2 (B) 로 커버
-- **Kernel shape 경계 curation**: M 임계값 실측 iteration 필요
+- **VNNI GEMM 이 AMX BF16 을 이기지 못함 (large M)**: compute-bound 구간에서 AMX peak > VNNI peak. §06-1 만으로 seqs ≥ 16 break-even 어려움. 이 구간은 의도적으로 scope 밖
+- **Kernel shape 경계 curation**: M 임계값 (현재 16) 은 실측 iteration 후 조정 가능
 - **정확도 누적**: GEMM accumulator 가 GEMV 와 정확히 같게 구현돼야 token-identical 유지. FP32 accumulate 명시
-- **Phase 2 (AMX-INT8) 착수 비용**: AMX intrinsics 는 구현 복잡도 높음. Phase 1 만으로 충분하면 Phase 2 skip
+- **Write locality / false sharing**: `output[m*N + n]` 을 N 축 parallel thread 가 인접 n 으로 쓰면 같은 M 행의 cache line 경합 가능. 관찰 시 thread 별 local buffer → 마지막에 scatter 로 회피
+- **AMX-INT8 path 는 §06-1 scope 밖**: large M 구간은 Q8_0 포맷 제약으로 AMX 직접 적용 어려움. §24 와 병합 재설계 영역
+
+---
+
+## 실패 시 디버깅 우선순위 (kernel 알고리즘 의심 전에 확인)
+
+측정 결과가 약하거나 §06 on 대비 변화가 없을 때, "내가 짠 kernel 알고리즘이 틀린가?" 보다 먼저 아래 순서로 확인한다. §06 진행에서 겪었던 "실제로 코드가 실행되지 않던" 사례의 재발 방지:
+
+1. **AVX-512 / VNNI 경로가 빌드에 실제로 포함됐는가**
+   ```bash
+   nm -D vllm/_C_cpu_ops.abi3.so | grep -iE 'q8_0_gemm_vnni_impl|q8_0_gemv_vnni_impl'
+   ```
+   - 양쪽 심볼 모두 나와야 정상. 한 쪽만 or 없음 = `#if defined(__AVX512F__) && defined(__AVX512VNNI__)` guard 가 walked off. gcc 버전 (< 12.3) 또는 `-mavx512vnni` flag 누락 확인
+
+2. **gcc 버전**
+   ```bash
+   g++ --version | head -1
+   ```
+   - `< 12.3` 이면 `cmake/cpu_hybrid_extension.cmake` 의 gate 에서 VNNI OFF. §06 때 겪은 이슈. `g++-12` 설치 + `CXX=g++-12` 로 재빌드
+
+3. **Kernel 이 실제로 dispatch 되는가 — runtime 검증**
+   - `VLLM_HYBRID_KERNEL_TRACE=1` + `HYBRID_CPU_MAX_SEQS=4` 로 서버 짧게 띄운 뒤 log 에 M=4 호출 확인
+   - M 분기 진단 로그는 §06-1 commit 자체에는 포함 안 시킴 (production 노이즈). 필요 시 임시 `fprintf(stderr, ...)` 후 debug
+   - `q8_0_linear_impl` 의 M 값이 실제로 기대한 M 으로 들어오는지 (IPEX 의 layer 중 M=1 만 오는 경우도 가능)
+
+4. **Write locality / false sharing**
+   - `output[m*N + n]` 을 여러 thread 가 인접 n 으로 쓸 때 같은 cache line 에 다수 thread 가 동시 접근
+   - `perf stat -e cache-misses,cache-references` 로 cache miss ratio 확인
+   - 확인되면 thread-local scratch buffer 후 마지막에 한 번 scatter, 또는 n 축 tile 을 cache line 경계 (16 float = 64 bytes) 에 맞추기
+
+5. **Q8_0 block alignment 및 dispatch 경로**
+   - `n_blocks_per_row` 값 확인 (K/32 배수). non-32 K 면 tail scalar path
+   - M 가 정말 1<M<16 범위로 들어오는지. IPEX 가 layer 를 wrap 해서 M 값을 다르게 만들 가능성 없는지
+
+6. **위 모두 통과하면 그때 kernel 알고리즘 의심**
+   - madd+reduce 대신 VNNI `_mm512_dpbusd_epi32` 사용 (u8×s8), s8s8 compensation
+   - Weight block load 재사용 실제 효과 측정 (block 1개에 대해 M inner 가 L1 에서 돌아가는지)
+
+이 디버깅 순서는 §06 에서 확인된 원칙 그대로 따른다: **"현상만 보고 kernel 로직 의심하지 말고 빌드/실행 경로부터 검증"**.
 
 ---
 
