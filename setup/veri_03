@@ -3,11 +3,11 @@
 ========================================================================
 branch: feat/g0-03-phase2-1gb-hugetlb
 recent commits:
+  9618648f5 verify result
   7cd4797ea test(§03-phase2): add hugetlb 1G end-to-end 현장 검증 스크립트
   007b569c6 1G Cache result
   906ed3a1e feat(§03-phase2/A): 1GB hugetlb weight bind + slab allocator
   4bd8e3ae2 feat(§03-phase2/B): 1GB hugetlbfs allocator + CPU KV cache hook
-  4bddb7653 feat(§03): THP 실험 infra (RHEL setup script + H100 env) + dev 측정 보존
 
 expected Phase 2 commits (feat/g0-03-phase2-1gb-hugetlb):
   7cd4797ea test(§03-phase2): add hugetlb 1G end-to-end 현장 검증 스크립트
@@ -19,8 +19,8 @@ expected Phase 2 commits (feat/g0-03-phase2-1gb-hugetlb):
 ========================================================================
   OK     : vllm                                          -> /vllm_hybrid/vllm/__init__.py
   OK     : vllm.platforms                                -> /vllm_hybrid/vllm/platforms/__init__.py
-DEBUG_AG: Process 2713641 importing vllm.platforms
-DEBUG_AG: Process 2713641 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 2734627 importing vllm.platforms
+DEBUG_AG: Process 2734627 vllm.platforms import step 1 (torch)
   OK     : vllm.platforms.hugetlb_allocator              -> /vllm_hybrid/vllm/platforms/hugetlb_allocator.py
   OK     : vllm.v1.worker.cpu_model_runner               -> /vllm_hybrid/vllm/v1/worker/cpu_model_runner.py
 
@@ -35,13 +35,13 @@ DEBUG_AG: Process 2713641 vllm.platforms import step 1 (torch)
 [4] hugetlbfs mount
 ========================================================================
   path exists: /mnt/hugetlb_1g
-  drwxr-xr-x. 2 root root 0 Apr 19 00:08 /mnt/hugetlb_1g
+  drwxr-xr-x. 2 root root 0 Apr 19 00:32 /mnt/hugetlb_1g
   none on /mnt/hugetlb_1g type hugetlbfs (rw,relatime,seclabel,pagesize=1024M,size=68719476736)
   stat -f:
       File: "/mnt/hugetlb_1g"
         ID: 0        Namelen: 255     Type: hugetlbfs
     Block size: 1073741824 Fundamental block size: 1073741824
-    Blocks: Total: 64         Free: 0          Available: 0
+    Blocks: Total: 64         Free: 64         Available: 64
     Inodes: Total: 18446744073709551615 Free: -1
   /proc/meminfo HugePages_1048576:
     Hugepagesize:       2048 kB
@@ -50,8 +50,8 @@ DEBUG_AG: Process 2713641 vllm.platforms import step 1 (torch)
 ========================================================================
 [5] hugetlb_allocator import / is_configured()
 ========================================================================
-DEBUG_AG: Process 2713822 importing vllm.platforms
-DEBUG_AG: Process 2713822 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 2734745 importing vllm.platforms
+DEBUG_AG: Process 2734745 vllm.platforms import step 1 (torch)
   import OK
   is_configured()        = False
   bind_weights_enabled() = False
@@ -61,41 +61,41 @@ DEBUG_AG: Process 2713822 vllm.platforms import step 1 (torch)
 ========================================================================
 [6] cpu_model_runner 에서 _HUGETLB_1G_AVAILABLE
 ========================================================================
-DEBUG_AG: Process 2713937 importing vllm.config
-DEBUG_AG: Process 2713937 importing vllm.distributed
-DEBUG_AG: Process 2713937 importing vllm.distributed.communication_op
-DEBUG_AG: Process 2713937 importing vllm.distributed.parallel_state
-DEBUG_AG: Process 2713937 importing vllm.distributed.utils
-DEBUG_AG: Process 2713937 finished importing vllm.distributed.utils
-DEBUG_AG: Process 2713937 finished importing vllm.distributed.parallel_state
-DEBUG_AG: Process 2713937 importing vllm.platforms
-DEBUG_AG: Process 2713937 vllm.platforms import step 1 (torch)
-DEBUG_AG: Process 2713937 checking plugin heterogeneous
-DEBUG_AG: Process 2713937 checking plugin tpu
-DEBUG_AG: Process 2713937 checking plugin cuda
-DEBUG_AG: Process 2713937 finished nvmlShutdown in cuda_platform_plugin
-DEBUG_AG: Process 2713937 selected platform vllm.platforms.cuda.CudaPlatform
-DEBUG_AG: Process 2713937 importing vllm.platforms.cuda
-DEBUG_AG: Process 2713937 finished importing vllm.platforms.cuda
-DEBUG_AG: Process 2713937 finished importing vllm.distributed
-DEBUG_AG: Process 2713937 finished importing vllm.config
+DEBUG_AG: Process 2734910 importing vllm.config
+DEBUG_AG: Process 2734910 importing vllm.distributed
+DEBUG_AG: Process 2734910 importing vllm.distributed.communication_op
+DEBUG_AG: Process 2734910 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 2734910 importing vllm.distributed.utils
+DEBUG_AG: Process 2734910 finished importing vllm.distributed.utils
+DEBUG_AG: Process 2734910 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 2734910 importing vllm.platforms
+DEBUG_AG: Process 2734910 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 2734910 checking plugin heterogeneous
+DEBUG_AG: Process 2734910 checking plugin tpu
+DEBUG_AG: Process 2734910 checking plugin cuda
+DEBUG_AG: Process 2734910 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 2734910 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 2734910 importing vllm.platforms.cuda
+DEBUG_AG: Process 2734910 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 2734910 finished importing vllm.distributed
+DEBUG_AG: Process 2734910 finished importing vllm.config
   module file: /vllm_hybrid/vllm/v1/worker/cpu_model_runner.py
   _HUGETLB_1G_AVAILABLE  = True
-  _hugetlb_is_configured = <function is_configured at 0x7f47cff5e840>
+  _hugetlb_is_configured = <function is_configured at 0x7f6cd95a2840>
   _hugetlb_is_configured() = False
 
 ========================================================================
 [7] alloc_region 실제 시도 (1GB)
 ========================================================================
-DEBUG_AG: Process 2714405 importing vllm.platforms
-DEBUG_AG: Process 2714405 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 2735332 importing vllm.platforms
+DEBUG_AG: Process 2735332 vllm.platforms import step 1 (torch)
   skip: HYBRID_HUGETLB_1G_ENABLE != 1
 
 ========================================================================
 [8] bind_params_to_hugetlb (작은 Linear)
 ========================================================================
-DEBUG_AG: Process 2714607 importing vllm.platforms
-DEBUG_AG: Process 2714607 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 2735501 importing vllm.platforms
+DEBUG_AG: Process 2735501 vllm.platforms import step 1 (torch)
   skip: HYBRID_HUGETLB_1G_BIND_WEIGHTS != 1
 
 ========================================================================
