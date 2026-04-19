@@ -111,15 +111,21 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - **현재**: `csrc/cpu/utils.cpp` 3종 + `_setup_cpu_process_env` 에서 `HYBRID_KMP_BLOCKTIME=auto` (기본) 시 `KMP_BLOCKTIME=0` 강제
 - **주의**: `OMP_PROC_BIND=close` 는 **의도적 미설정** (Intel OMP master-thread pin bug → `hybrid_core.py` 에서 pop)
 
-### 4.5 Hot Path 연결 증명 (G1 진입 필수) 🔶 Phase A (2026-04-19)
-- [x] Q8_0 kernel (`quant_q8_0.cpp`) + torch op (`torch.ops._C_cpu_ops.q8_0_linear`) 을 Qwen2.5 MLP hot path 에 연결 (신규 `vllm/v1/worker/hot_path_wiring.py`)
-- [x] load-time weight Q8_0 변환 hook (`cpu_model_runner.py::load_model` 에서 `patch_mlp_to_q8_0` 호출)
-- [x] shape 별 dispatch log marker (`VLLM_HYBRID_KERNEL_TRACE=1` 시 `[HYBRID-KERNEL]` 출력)
-- [ ] runtime repack 이 step 마다 일어나는지 계측 — Phase B (현재는 load-time 1회 변환 구조상 0 으로 추정)
-- [ ] `ONEDNN_MAX_CPU_ISA` 설정 존재가 아닌 **실제 dispatch** 를 프로파일로 확인 — Q8_0 경로는 oneDNN 우회이므로 `ONEDNN_VERBOSE=1` 출력 없음이 정답
-- [ ] **H100x8 측정**: `HYBRID_VNNI_HOT_PATH=1` 로 g0_06 sweep, G1 통과 조건 (`4req cost ≤ 2× single`, `tail < 100s`, `wall ratio < 8×`) 검증
-- **성공 조건**: `num_seqs=4` per-req cost 감소. 단일 req 만 빨라지고 scaling 없으면 다음 Tier 금지 (§01 Stop/Go Case 3)
-- **dev smoke test (2026-04-19, AVX2)**: `_cpu_ops_available=False` 정확 감지 → no-op warning, import/startup 무결
+### 4.5 Hot Path 연결 증명 (G1 진입 필수) ✅ 완료 (2026-04-19, `17e35adf9`)
+- [x] Q8_0 kernel + torch op 을 Qwen2.5 MLP hot path 에 연결 (`vllm/v1/worker/hot_path_wiring.py`)
+- [x] load-time Q8_0 변환 hook (`cpu_model_runner.py::load_model`, LoRA 이후)
+- [x] shape 별 dispatch log marker (`VLLM_HYBRID_KERNEL_TRACE=1`)
+- [x] H100x8 32B sweep 측정 (`measurement_results/H100x8/g0_06/seqs{1,2,4,8,16,32,64}` + `gpu_only_baseline`)
+- [x] 구조 일관성 재작업: `--hybrid-vnni-hot-path` CLI arg + `HybridConfig.vnni_hot_path` + `_create_cpu_vllm_config` passthrough (세 단계의 버그 전부 fix)
+
+**실측 결과** (500 req × 128/128, TP=8):
+- **seqs=1**: duration 80.0→57.6 s (−28%), TPOT 63.6→49.6 ms (−22%), outTP 771→1070 tok/s (+39%) — §06 단독 이득 확인
+- **batch scaling 실패**: `per_req_cost(4)/per_req_cost(1) = 2.89` (목표 ≤ 2.0 미달). seqs=64 에서 선형 확장 (33×) 로 tail 누적
+- **Wall ratio**: seqs=1 에서 10.7×, seqs=64 에서 357× — G1 조건 `< 8×` 모든 seqs 실패
+
+**G1 gate 결론**: §06 단독으로 G1 미통과. "hot path 가 dispatch 까지 연결됐음" 은 증명 (§06 scope 완결), batch scaling 해소는 §11/§25 (batch-aware + GQA-aware decode attention) 과 §24 (W8A8 activation INT8) 누적이 필수. Ninja Gap 원 설계 경로 그대로.
+
+상세 분석 및 PNG: `measurement_results/H100x8/g0_06/analysis_g0.ipynb` + `NinjaGap_Todo/06_hot_path_wiring.md`.
 
 ### 4.6 ISA Binary Dispatch 🔶
 - **현재**: `cpu_attn.py` decode 경로에 `custom_avx → ipex → sdpa_batched → sdpa_loop` fallback chain. batch size 기반 명시적 dispatch 없음 (IPEX 내부 dispatcher 의존)

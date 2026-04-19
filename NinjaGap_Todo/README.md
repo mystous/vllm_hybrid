@@ -34,7 +34,7 @@ G0 (계측) → G1 (hot path 연결) → G2 (batch scaling) → G3 (big wins) �
 | 03 | [huge_pages](./03_huge_pages.md) | Huge Pages (2MB THP → 1GB hugetlb) | 0 | ✗ **기각** | ✗ | 2026-04-19 | — (Phase 1 default on, Phase 2 역효과) |
 | 04 | [ipex_woq_int8](./04_ipex_woq_int8.md) | ~~IPEX WoQ INT8~~ | 0 | ✗ **기각** | ✗ | 2026-04-19 | — (§23 편입) |
 | 05 | [omp_env_finalize](./05_omp_env_finalize.md) | OMP env + KMP_BLOCKTIME | 0 | ✅ **완료** | ☐ 측정 대기 | 2026-04-15 | — |
-| 06 | [hot_path_wiring](./06_hot_path_wiring.md) | Q8_0 hot path 연결 (G1) | 1 | 🔶 Phase A | ▶ 측정 대기 | 2026-04-19 | (branch `ninja-gap/06-hot-path-wiring`) |
+| 06 | [hot_path_wiring](./06_hot_path_wiring.md) | Q8_0 hot path 연결 (G1) | 1 | ✅ 완료 | ✅ | 2026-04-19 | `17e35adf9` (seqs=1 −28%, batch scaling 실패 → §11/§25/§24 로 진행) |
 | 07 | [isa_binary_dispatch](./07_isa_binary_dispatch.md) | ISA Binary Dispatch (AVX-512 ↔ AMX) | 1 | 🔶 | ☐ | — | — |
 | 08 | [kernel_fusion](./08_kernel_fusion.md) | Kernel Fusion (QKV / Gate-Up / Residual+Norm) | 1 | 🔶 | ☐ | — | — |
 | 09 | [softmax_silu_lut](./09_softmax_silu_lut.md) | Softmax + SiLU LUT | 1 | ⭕ | ☐ | — | — |

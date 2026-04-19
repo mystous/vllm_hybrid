@@ -1,8 +1,98 @@
 # 06. Hot Path 연결 증명 (G1 진입 필수)
 
 **Tier**: 1
-**상태**: 🔶 **Phase A 구현 완료 (2026-04-19, 측정 대기)** — Q8_0 dispatch 경로로 MLP (gate_up_proj + down_proj) hot path 치환. H100 측정 전
+**상태**: ✅ **완료 (2026-04-19)** — Q8_0 dispatch hot path 연결 + H100x8/Qwen2.5-32B 실측 확보. **§06 기법 자체 완결**. G1 gate 자체는 단독으로는 미통과 (§4.5 참조) → §11/§25/§24 누적 필요
 **중요도**: **G0 계측 다음 본선 진입의 첫 관문**
+
+---
+
+## 실측 결과 (2026-04-19, H100x8 + Qwen2.5-32B, 500 req × 128/128)
+
+**측정 경로**: branch `ninja-gap/06-hot-path-wiring` commit `538276073`+. `hybrid_config.vnni_hot_path=True` 확인, boot log `[HYBRID-KERNEL] §06 patched=128 arch=Qwen2ForCausalLM lora=False repack=0`. 저장 위치: `measurement_results/H100x8/g0_06/`.
+
+### Bench 수치 (TP=8, PROFILE=0)
+
+| | duration (s) | reqTP | outTP (tok/s) | medTPOT (ms) | p99TPOT (ms) | meanTTFT (ms) |
+|---|---:|---:|---:|---:|---:|---:|
+| gpu_only | 5.4 | 93.0 | 11,473 | 31.1 | 36.0 | 1,298 |
+| seqs=1 | 57.6 | 8.67 | 1,070 | 49.6 | 79.8 | 1,405 |
+| seqs=2 | 94.2 | 5.31 | 655 | 48.6 | 202 | 1,680 |
+| seqs=4 | 166.7 | 3.00 | 370 | 49.4 | 810 | 2,304 |
+| seqs=8 | 292.0 | 1.71 | 211 | 44.9 | 1,322 | 4,938 |
+| seqs=16 | 523.9 | 0.95 | 118 | 47.5 | 2,221 | 15,678 |
+| seqs=32 | 969.8 | 0.52 | 64 | 42.2 | 3,929 | 59,335 |
+| seqs=64 | 1,918.3 | 0.26 | 32 | 34.9 | 7,570 | 244,052 |
+
+### 단독 이득 (seqs=1 기준, §06 on vs off)
+
+직전 §06 off 측정 (`20260419_090849_seqs1`) 대비:
+- duration: 80.0 s → **57.6 s (−28%)**
+- output TP: 770.7 → **1070 tok/s (+39%)**
+- median TPOT: 63.6 → **49.6 ms (−22%)**
+- mean TPOT: 66.3 → 47.5 ms (−28%)
+
+**seqs=1 에서 Q8_0 dispatch 는 의도된 이득 확인**. MLP (gate_up + down) 의 INT8 weight read 로 DDR bandwidth 절감이 효과 있음. TTFT 는 변화 없음 (prefill 경로와 무관, 예상대로).
+
+### Batch scaling — **실패 확인**
+
+`per_req_cost(N) / per_req_cost(1)` (목표 `≤ 2.0 at N=4`):
+
+| seqs | per_req_cost (ms) | ratio vs seqs=1 |
+|---:|---:|---:|
+| 1 | 115.3 | 1.00 |
+| 2 | 188.4 | 1.63 |
+| 4 | **333.4** | **2.89** |
+| 8 | 584.0 | 5.07 |
+| 16 | 1,047.8 | 9.09 |
+| 32 | 1,939.6 | 16.82 |
+| 64 | 3,836.5 | **33.27** (~선형) |
+
+**ratio 가 거의 선형** (N=64 → 33×). batch 가 amortize 되지 않고 **tail 이 누적**. 이건 TODO §11 가이드의 "CPU scaling 실패" 패턴 그대로. §06 은 MLP 만 치환하고 attention 은 IPEX 유지이므로, batch>1 영역에서는 attention 이 선형 확장하며 병목을 만든다.
+
+### Wall ratio (hybrid / gpu_only) — G1 미통과
+
+| seqs | wall ratio |
+|---:|---:|
+| 1 | 10.7× |
+| 2 | 17.5× |
+| 4 | 31.0× |
+| 8 | 54.3× |
+| 16 | 97.5× |
+| 32 | 180.4× |
+| 64 | 356.9× |
+
+**G1 조건 `< 8×` 전 seqs 실패**. seqs 증가할수록 급격히 악화.
+
+### G1 판정 종합
+
+| 축 | 조건 | 실측 | 결과 |
+|---|---|---|:---:|
+| Batch scaling | `cost(4)/cost(1) ≤ 2.0` | 2.89 | ✗ |
+| Tail | `< 100 s` | seqs≥4 부터 초과, seqs=64 에서 ~1900 s | ✗ |
+| Wall ratio | `< 8×` | seqs=1 에서도 10.7× | ✗ |
+| CPU contribution | 증가 | 변화 없음 | — |
+
+**G1 단독 실패**. §06 은 "hot path 연결" 은 달성했으나 batch scaling 미해결이 확정. §06 단독으로 Ninja Gap 방향에 가까워지지 않음.
+
+### 관측 — 왜 batch scaling 이 실패했나
+
+1. **Attention 은 IPEX 그대로** — §06 의 scope 가 "MLP 만". batch>1 에서 per-seq attention 이 선형 확장, 전체 step 시간을 지배
+2. **Activation BF16 유지** — Q8_0 는 weight-only. matmul 직전 per-row INT8 양자화는 kernel 내부에서 수행되지만 activation 자체가 BF16 이라 메모리 bandwidth 절감이 절반만
+3. **CPU attention 에 GQA-aware 구조 없음** — Qwen2.5-32B 의 GQA (KV head 공유) 를 batch 차원에서 활용하지 못함
+
+### 후속 방향 (이 § 의 다음 단계)
+
+| § | 기법 | 해소 대상 |
+|---|---|---|
+| **§11/§25** | Batch-aware + GQA-aware decode attention | attention 선형 확장 (G2 핵심) |
+| **§24** | W8A8 SmoothQuant (activation INT8) | activation BW 절반화 |
+| **§18** | Spec decode CPU drafter | wall 공식 자체 변경 (G3 핵심) |
+
+Ninja Gap 달성에는 §06 + §11/§25 + §18 의 **누적 조합이 필요**하다는 것이 본 측정으로 확정됨. §06 단독으론 seqs=1 wall −28% 가 최대 이득.
+
+**분석 노트북**: `measurement_results/H100x8/g0_06/analysis_g0.ipynb` (4 PNG 포함)
+
+---
 
 ---
 
