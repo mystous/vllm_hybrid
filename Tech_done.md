@@ -600,3 +600,97 @@ G1 조건 `< 8×` 모든 seqs 실패. seqs=1 에서도 여전히 GPU-only 대비
 - 중간 점검 기준: `g0_06_11` (§06 + §11 누적) 에서 `cost(4)/cost(1) ≤ 2.0` 달성 여부
 
 이 두 가지가 G1 → G2 진행의 가장 명확한 실측 지점.
+
+---
+
+## v7 — 2026-04-20: §06 batch 역효과 실측 + 원인 확정 + §06-1 분리
+
+### 검증 환경
+
+- 하드웨어: H100×8 (HBM3 80GB, TP=8) + Xeon 8480+ 2-socket (NUMA 2, 56 core/socket, AMX + AVX-512 VNNI)
+- 모델: Qwen/Qwen2.5-32B-Instruct
+- 워크로드: 500 req × 128/128, `request_rate=inf`, `HYBRID_CPU_THREADS=48`, `num_cpu_engines=2`
+- 비교 쌍:
+  - `g0_00_qwen2.5_32b_base` — `HYBRID_VNNI_HOT_PATH=0` (§06 off, baseline)
+  - `g0_06_qwen2.5_32b` — `HYBRID_VNNI_HOT_PATH=1` (§06 on)
+  - 나머지 env 완전 동일, **단일 flag 차이**
+- Git: main `6375665e2` (§06 코드 merge 완료)
+
+### Q1. §06 on 이 seqs=1 에서 이득인가 → YES (+18% outTP, +17% duration)
+
+| 지표 (seqs=1) | base (§06 off) | §06 on | Δ |
+|---|---:|---:|---:|
+| duration | 67.8 s | 57.6 s | **−15%** |
+| outTP | 908.9 tok/s | **1069.7** | **+18%** |
+| medTPOT | 58.5 ms | 49.6 ms | −15% |
+| reqTP | 7.37 | 8.67 | +18% |
+
+Q8_0 kernel 이 M=1 GEMV 로 돌 때 weight BW 절반화 이득이 그대로 나타남. 가설 (decode memory-bound) 과 일치.
+
+### Q2. §06 on 이 seqs≥2 에서 어떤가 → 대규모 역효과 (seqs=64 에서 outTP −90%)
+
+| seqs | base dur | §06 dur | base outTP | §06 outTP | Δ outTP |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 67.8 | 57.6 | 908.9 | **1069.7** | **+18%** |
+| 2 | 68.8 | 94.2 | 895.9 | 654.6 | −27% |
+| 4 | 103.6 | 166.7 | 595.3 | 370.0 | −38% |
+| 8 | 107.2 | 292.0 | 575.2 | 211.2 | −63% |
+| 16 | 96.7 | 523.9 | 637.8 | 118.2 | −81% |
+| 32 | 145.7 | 969.8 | 423.1 | 63.7 | −85% |
+| 64 | 181.7 | 1918.3 | 339.7 | 32.2 | **−90%** |
+
+wall / reqTP / outTP 모두 같은 방향. routing 정책 동일하므로 CPU 처리 속도 자체의 차이.
+
+### Q3. 원인은? → §06 kernel 이 batch-oblivious (`q8_0_linear_impl` 의 M 번 GEMV 반복)
+
+`csrc/cpu/quant_q8_0.cpp::q8_0_linear_impl` (241-247):
+```cpp
+for (int m = 0; m < M; ++m) {
+    q8_0_gemv_vnni_impl(xq_ptr + m*K, ..., out_f32 + m*N, N, K);
+}
+// q8_0_gemv_vnni_impl 내부:
+#pragma omp parallel for schedule(static)
+for (int n = 0; n < N; ++n) { ... }       // N 축만 병렬
+```
+
+M 축을 GEMM 차원으로 활용하지 않고 GEMV 를 M 번 순차 호출. IPEX AMX (baseline) 는 동일 M 을 GEMM 차원으로 써서 amortize. 그래서 §06 의 역효과는 AMX 가 VNNI 보다 빠른 게 아니라 §06 kernel 구현 결함.
+
+### 이전 분석의 오류 정정
+
+v6 에서 "§06 단독 G1 미통과 → §11/§25 (attention batch scaling) 필요" 로 결론내렸던 것은 **절반만 맞다**:
+- 정확한 부분: §06 on 상태에서 batch scaling 이 실패하는 것 자체는 사실
+- 오해석: 그 원인을 "attention 이 선형 확장하며 병목" 으로 지목했으나, 실제 주된 원인은 **§06 MLP kernel 의 batch-oblivious 구현**. Attention 경로는 §06 off/on 양쪽 동일 (IPEX `_IPEXPagedAttention`) 이므로 §06 의 역효과를 attention 탓으로 돌린 건 잘못.
+
+Baseline (§06 off) 의 batch scaling 은 실제로 나쁘지 않음:
+
+| seqs | base per_req_cost | ratio vs 1 |
+|---:|---:|---:|
+| 1 | 135.6 ms | 1.00 |
+| 4 | 207.2 ms | **1.53** (G1 조건 ≤ 2.0 충족) |
+| 16 | 193.4 ms | 1.43 |
+| 64 | 363.4 ms | 2.68 |
+
+즉 IPEX + IPEX attention 조합이 이미 seqs 1–16 에서 cost/1 ≈ 1.0–1.6 로 amortize. **G1 조건 `cost(4)/cost(1) ≤ 2.0` 은 baseline 상태에서 이미 통과**. §11/§25 가 추가로 들어갈 개선 여지는 처음 생각한 것보다 작다.
+
+### Q4. AMX vs VNNI 우열은? → 본 측정으로는 확정 불가
+
+"AMX peak > VNNI peak 이므로 large M 에서 AMX 가 유리" 는 일반론으로 맞지만, 본 대조는 "AMX 써진 BF16 kernel (IPEX) vs batch-oblivious VNNI kernel (§06)" 비교라 **AMX 자체의 이득을 분리해 말할 수 없다**. §06-1 에서 batch-aware VNNI GEMM 을 먼저 완성한 뒤, 그게 large M 에서도 IPEX AMX BF16 과 비교해서 어떤지 측정해야 한다. Phase 2 (AMX-INT8) 는 그 결과를 보고 결정.
+
+### Routing 해석의 한계
+
+두 측정 모두 `hybrid_server_run.log` 에 `Router stats` 로그가 없었다 (`VLLM_HYBRID_PROFILE=0` 이라 stats log interval 이 다운). 따라서 "CPU 가 몇 req 를 처리했는가" 의 직접 증거는 없다. 간접적으로:
+- wall time 의 대부분이 CPU tail 이라는 건 `wall − gpu_only_wall` 이 거의 그대로 CPU 처리 시간이라는 점에서 확인 가능 (seqs=64 기준 base 176 s, §06 on 1913 s → 10× 차이가 CPU 처리 속도에서 발생)
+- routing 정책은 양쪽 동일하므로 CPU 할당 req 비율은 같다고 간주
+
+완전한 routing 분리를 위해선 `VLLM_HYBRID_PROFILE=1` + `HYBRID_STATS_LOG_INTERVAL` 강제 로깅 설정 필요. §06-1 측정 전에 이 설정도 baseline 수준에서 다시 한 번 찍어야 attribution 이 깔끔.
+
+### §06-1 로 분리한 근거
+
+초기 §06 문서에 "Phase A 구현 완료, Phase B 추후" 라는 placeholder 를 남긴 뒤, 이번 측정 결과에 맞춰 kernel 수정 작업을 Phase B 에 사후 끼워 넣는 것은 기록 품질이 나빴다. Phase 용어를 철회하고 **정식 § 번호 06-1** 로 정리. §06 은 "Q8_0 dispatch 경로 구축 (seqs=1 이득 확인)" 까지로 범위를 한정, §06-1 에서 kernel 의 batch 결함 수정.
+
+### 다음 측정 계획
+
+- §06-1 (A) VNNI INT8 GEMM path 구현 → `g0_06_1_qwen2.5_32b/` sweep 측정 → base/§06 on 대비 outTP 방향 확인
+- 기준: seqs=1 기존 이득 (+18%) 유지 + seqs 4/8/16 에서 base 대비 손실 없음
+- 충족 시 G1 gate 재판정 → §11/§25 착수 여부 결정
+- 불충족 시 (seqs≥16 에서 여전히 base 대비 열세) Phase 2 (AMX-INT8) 또는 §06 전면 제거 판단

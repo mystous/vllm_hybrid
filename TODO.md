@@ -111,21 +111,33 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - **현재**: `csrc/cpu/utils.cpp` 3종 + `_setup_cpu_process_env` 에서 `HYBRID_KMP_BLOCKTIME=auto` (기본) 시 `KMP_BLOCKTIME=0` 강제
 - **주의**: `OMP_PROC_BIND=close` 는 **의도적 미설정** (Intel OMP master-thread pin bug → `hybrid_core.py` 에서 pop)
 
-### 4.5 Hot Path 연결 증명 (G1 진입 필수) ✅ 완료 (2026-04-19, `17e35adf9`)
+### 4.5 Hot Path 연결 증명 (G1 진입 필수) 🔶 Dispatch 완료 (2026-04-19, `6f904b39b`), kernel 미완 → §06-1 로 후속
+
+> **정정 공지 (2026-04-20)**: 이 섹션은 최초 "✅ 완료" 로 표기됐으나, 2026-04-20 TP=8 baseline 대조 측정 (`g0_00_qwen2.5_32b_base`) 에서 §06 이 seqs≥2 부터 outTP 역효과 (seqs=64 에서 −90%) 임이 확인됐다. 원인은 `quant_q8_0.cpp::q8_0_linear_impl` 이 M>1 에서 GEMV 를 M 번 순차 반복하는 batch-oblivious 구현. kernel 수정은 [§06-1 M-aware MLP kernel](NinjaGap_Todo/06-1_m_aware_mlp_kernel.md) 로 분리, §06 scope 는 "Q8_0 dispatch 경로 구축" 까지로 한정. G1 gate 판정은 §06-1 완료 후 재실행.
+
 - [x] Q8_0 kernel + torch op 을 Qwen2.5 MLP hot path 에 연결 (`vllm/v1/worker/hot_path_wiring.py`)
 - [x] load-time Q8_0 변환 hook (`cpu_model_runner.py::load_model`, LoRA 이후)
 - [x] shape 별 dispatch log marker (`VLLM_HYBRID_KERNEL_TRACE=1`)
 - [x] H100x8 32B sweep 측정 (`measurement_results/H100x8/g0_06_qwen2.5_32b/seqs{1,2,4,8,16,32,64}` + `gpu_only_baseline`)
 - [x] 구조 일관성 재작업: `--hybrid-vnni-hot-path` CLI arg + `HybridConfig.vnni_hot_path` + `_create_cpu_vllm_config` passthrough (세 단계의 버그 전부 fix)
+- [ ] **§06-1 (kernel M-aware 화)** — `q8_0_linear_impl` 의 M>1 경로를 VNNI INT8 GEMM 으로 교체. 별도 문서 참조
 
 **실측 결과** (500 req × 128/128, TP=8):
-- **seqs=1**: duration 80.0→57.6 s (−28%), TPOT 63.6→49.6 ms (−22%), outTP 771→1070 tok/s (+39%) — §06 단독 이득 확인
-- **batch scaling 실패**: `per_req_cost(4)/per_req_cost(1) = 2.89` (목표 ≤ 2.0 미달). seqs=64 에서 선형 확장 (33×) 로 tail 누적
-- **Wall ratio**: seqs=1 에서 10.7×, seqs=64 에서 357× — G1 조건 `< 8×` 모든 seqs 실패
+- **seqs=1**: §06 단독 이득 확인 — duration 80.0→57.6 s (−28%), outTP 908.9→1069.7 tok/s (+18%)
+- **seqs≥2 역효과 (2026-04-20 baseline 대조)**: outTP seqs=2 −27%, seqs=16 −81%, seqs=64 −90%. kernel 결함
+- **per_req_cost(4)/per_req_cost(1) = 2.89** (§06 on), baseline (§06 off) 은 1.53 으로 이미 G1 통과 → §06 이 batch 영역에서 baseline 악화시킴
 
-**G1 gate 결론**: §06 단독으로 G1 미통과. "hot path 가 dispatch 까지 연결됐음" 은 증명 (§06 scope 완결), batch scaling 해소는 §11/§25 (batch-aware + GQA-aware decode attention) 과 §24 (W8A8 activation INT8) 누적이 필수. Ninja Gap 원 설계 경로 그대로.
+**G1 gate**: §06 단독은 kernel 결함으로 미통과. §06-1 완료 후 재판정. §11/§25/§24/§18 단계는 §06-1 결과 본 뒤 우선순위 재조정.
 
 상세 분석 및 PNG: `measurement_results/H100x8/g0_06_qwen2.5_32b/analysis_g0.ipynb` + `NinjaGap_Todo/06_hot_path_wiring.md`.
+
+### 4.5-1 Q8_0 Kernel M-aware 화 (§06-1, G1 재판정 전제)
+- **문서**: [NinjaGap_Todo/06-1_m_aware_mlp_kernel.md](NinjaGap_Todo/06-1_m_aware_mlp_kernel.md)
+- **원인**: §06 kernel (`quant_q8_0.cpp::q8_0_linear_impl`) 이 M>1 에서 GEMV 를 M 번 순차 반복. batch-oblivious
+- **해결**: M>1 경로를 VNNI INT8 GEMM (기존 `gemm_vnni.cpp::int8_gemm_vnni` 재활용) 으로 교체. M=1 GEMV 유지
+- **선택 Phase 2**: SPR AMX-INT8 tile op 추가 — compute-bound 구간 커버. (A) 측정 후 필요시 진행
+- **성공 조건**: seqs 4/8/16 에서 baseline outTP 이상. seqs=1 기존 이득 (+18%) 유지. token identical (또는 fallback 허용)
+- **상태**: ⭕ 설계 완료, 구현 전
 
 ### 4.6 ISA Binary Dispatch 🔶
 - **현재**: `cpu_attn.py` decode 경로에 `custom_avx → ipex → sdpa_batched → sdpa_loop` fallback chain. batch size 기반 명시적 dispatch 없음 (IPEX 내부 dispatcher 의존)

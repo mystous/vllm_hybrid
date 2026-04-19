@@ -34,7 +34,8 @@ G0 (계측) → G1 (hot path 연결) → G2 (batch scaling) → G3 (big wins) �
 | 03 | [huge_pages](./03_huge_pages.md) | Huge Pages (2MB THP → 1GB hugetlb) | 0 | ✗ **기각** | ✗ | 2026-04-19 | — (Phase 1 default on, Phase 2 역효과) |
 | 04 | [ipex_woq_int8](./04_ipex_woq_int8.md) | ~~IPEX WoQ INT8~~ | 0 | ✗ **기각** | ✗ | 2026-04-19 | — (§23 편입) |
 | 05 | [omp_env_finalize](./05_omp_env_finalize.md) | OMP env + KMP_BLOCKTIME | 0 | ✅ **완료** | ☐ 측정 대기 | 2026-04-15 | — |
-| 06 | [hot_path_wiring](./06_hot_path_wiring.md) | Q8_0 hot path 연결 (G1) | 1 | ✅ 완료 | ✅ | 2026-04-19 | `17e35adf9` (seqs=1 −28%, batch scaling 실패 → §11/§25/§24 로 진행) |
+| 06 | [hot_path_wiring](./06_hot_path_wiring.md) | Q8_0 dispatch 경로 구축 | 1 | 🔶 Dispatch 완료 | ▶ kernel 미완 | 2026-04-19 | `6f904b39b` (seqs=1 outTP +18%, seqs≥2 역효과 → §06-1 로 분리) |
+| 06-1 | [06-1_m_aware_mlp_kernel](./06-1_m_aware_mlp_kernel.md) | Q8_0 kernel M-aware 화 (batch 결함 수정) | 1 | ⭕ 설계 완료, 구현 전 | ☐ | — | — |
 | 07 | [isa_binary_dispatch](./07_isa_binary_dispatch.md) | ISA Binary Dispatch (AVX-512 ↔ AMX) | 1 | 🔶 | ☐ | — | — |
 | 08 | [kernel_fusion](./08_kernel_fusion.md) | Kernel Fusion (QKV / Gate-Up / Residual+Norm) | 1 | 🔶 | ☐ | — | — |
 | 09 | [softmax_silu_lut](./09_softmax_silu_lut.md) | Softmax + SiLU LUT | 1 | ⭕ | ☐ | — | — |
@@ -89,7 +90,7 @@ Gate 숫자는 방향성. G0 기준선 재측정으로 조정.
 | **G0** | sublayer breakdown + seq sweep 계측 확보 | **-1** | **§01** G0 measurement |
 | (G0 baseline) | 실험 오염 방지 가드 | **0** | **§02** Tier 0 baseline defense |
 | (Tier 0 gain) | infra 기법 — gate 아닌 독립 이득 | **0** | ~~§03 Huge Pages~~ (**기각 2026-04-19** — Phase 1 기본 on, Phase 2 SPR TLB 구조상 역효과) · ~~§04 IPEX WoQ INT8~~ (**기각 2026-04-19** → §06 편입) · §05 OMP env (✅) |
-| **G1** | 4req cost ≤ 2× single / tail < 100s / wall ratio < 8× | **1** | **§06** Hot path wiring (G1 핵심) · §07 ISA dispatch · §08 Kernel fusion · §09 Softmax/SiLU LUT · §10 Head folding |
+| **G1** | 4req cost ≤ 2× single / tail < 100s / wall ratio < 8× | **1** | **§06** Q8_0 dispatch 경로 (seqs=1 이득 확인, dispatch 완료) · **§06-1** kernel M-aware 화 (batch 결함 수정, G1 재판정 전제) · §07 ISA dispatch · §08 Kernel fusion · §09 Softmax/SiLU LUT · §10 Head folding |
 | **G2** | 4req cost ≤ 1.5× / tail < 10s / wall ratio < 1.5× | **2** | §11 Batch-aware attn · §12 Barrier/Sync · §13 T-MAC LUT INT4 · §14 AVX/AMX Cascade · §15 AMX pre-pack · §16 SparAMX |
 | **G3 (Ninja Gap)** | CPU req↑ + tail 제거 + wall ≤ gpu_only | **3 / 병행** | §11 Batch-aware attn (peak gain) + **§18 Spec Decode CPU drafter** (경로 2 핵심) · §17 Core group (overshoot) |
 | 장거리 | 현 workload 기여 0, 70B / long-ctx 전용 | 장거리 | §19 P/D disagg · §20 KV offload · §21 ScoutAttn · §22 NEO asymmetric |

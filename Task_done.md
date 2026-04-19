@@ -873,3 +873,69 @@ batch>1 에서 attention 이 선형 확장하며 전체 step 을 지배. MLP 만
 ### 다음 단계
 
 Ninja Gap 원 설계대로 §11/§25 (G2) + §18 (G3) 로 진행. §06 은 본 세션으로 종결.
+
+---
+
+## v7 — 2026-04-20: §06 완결 표기 철회 + §06-1 분리 + TP=8 baseline 대조
+
+> append-only 정책 유지. v6 까지 보존. 본 v7 은 §06 의 "완료" 표기를 철회하고 §06-1 로 후속 작업을 분리한 기록.
+
+### 배경 — TP=8 baseline (g0_00_qwen2.5_32b_base) 대조로 드러난 §06 의 batch 영역 역효과
+
+v6 에서 §06 을 "완료" 로 표기했으나, 그때는 `g0_00_32b` (TP=4) 와의 비교만 있었고 TP=8 동일 조건 baseline 이 없었다. 2026-04-20 에 `g0_00_qwen2.5_32b_base` (TP=8 + §06 off + 모든 Ninja Gap flag off) 를 측정한 뒤 §06 on (`g0_06_qwen2.5_32b`) 과 대조했더니:
+
+| seqs | base outTP | §06 on outTP | Δ |
+|---:|---:|---:|---:|
+| 1 | 908.9 | **1069.7** | **+18%** (이득) |
+| 2 | 895.9 | 654.6 | −27% |
+| 4 | 595.3 | 370.0 | −38% |
+| 8 | 575.2 | 211.2 | −63% |
+| 16 | 637.8 | 118.2 | −81% |
+| 32 | 423.1 | 63.7 | −85% |
+| 64 | 339.7 | 32.2 | **−90%** |
+
+seqs≥2 부터 §06 on 이 역효과. wall duration 도 같은 방향 (seqs=64 에서 182 s vs 1918 s).
+
+### 원인 확정 — §06 kernel 의 batch-oblivious 구현
+
+`csrc/cpu/quant_q8_0.cpp::q8_0_linear_impl` (line 241-247):
+
+```cpp
+for (int m = 0; m < M; ++m) {
+    q8_0_gemv_vnni_impl(xq_ptr + m*K, ..., out_f32 + m*N, N, K);
+}
+```
+
+GEMV 를 M 번 순차 호출. M 축이 GEMM 차원으로 활용되지 않아 wall 이 M 에 선형 증가. 반면 IPEX AMX (baseline) 는 M 을 GEMM 차원으로 활용해 batch amortize.
+
+### "AMX 가 빠르니 AMX 로 가자" 는 가설 철회
+
+초기 대응에서 "memory-bound 에서 compute-bound 로 전환 → AMX BF16 > VNNI INT8" 로 해석하고 AMX 회귀를 제안했으나, 이건 현상 설명일 뿐 원인이 아니었다. 진짜 원인은 **§06 kernel 이 M 축 처리를 안 했다**이다. AMX vs VNNI 의 compute throughput 우열은 별개 논점.
+
+### Phase 용어 철회 + §06-1 로 분리
+
+§06 문서에 "Phase A 구현 완료, Phase B 추후" 로 적어둔 placeholder 에 사후적으로 "kernel 수정" 내용을 끼워 넣는 대신, **정식 § 번호 06-1 로 분리**했다. Phase 용어는 철회하고 문서 이력에 정정 공지 추가.
+
+### 문서 갱신 요약
+
+- **신규**: `NinjaGap_Todo/06-1_m_aware_mlp_kernel.md`
+- **수정**:
+  - `NinjaGap_Todo/06_hot_path_wiring.md` — 상태 `✅ 완료` → `🔶 Dispatch 경로 구축 완료, kernel 미완`. "Phase A/B" 용어 전부 정리. 정정 공지 block 추가
+  - `NinjaGap_Todo/README.md` — index 표에 `06-1` 행 추가, §06 상태 업데이트, Gate ↔ 기법 매핑에 `§06-1` 반영
+  - `TODO.md` — §4.5 정정 (완료 → Dispatch 완료), §4.5-1 신설 (§06-1 연결)
+  - `README.md` (root) — 적용 순서 적층 로그 row 6 정정, row 6-1 신설
+  - `Task_done.md` v7 (본 섹션)
+  - `Tech_done.md` v7 — batch 역효과 실측 + kernel 원인 분석 기록
+  - `CLAUDE.md` — §06 상태 및 hot_path_wiring.py 설명 업데이트
+
+### 교훈
+
+- "기법 자체 완결" 과 "측정 결과 통과" 는 다른 기준. commit 메시지에서 전자를 후자처럼 쓰면 이후 정정 비용이 커진다.
+- Phase A/B 같은 단계 naming 을 내용 없이 남겨두면 placeholder 에 사후 내용이 들어가면서 "처음부터 계획됐던 것처럼" 보이는 인상을 준다. 단계가 있다면 각 단계의 내용을 명시하거나, 단계 없이 정식 § 번호로 관리한다.
+- 대조군 baseline 을 같은 TP/CPU_THREADS 에서 확보하기 전 "G1 단독 미통과" 같은 판정을 내리면 오해석 위험. §06 측정 직후 TP=8 baseline 부터 잡았어야 했다.
+
+### 다음 단계
+
+1. §06-1 착수 (VNNI INT8 GEMM path 우선, AMX-INT8 는 조건부 Phase 2)
+2. §06-1 완료 후 G1 gate 재판정
+3. §11/§25 착수 여부는 §06-1 결과 보고 재평가 — baseline IPEX 가 이미 batch amortize 를 상당히 해주고 있어 §11/§25 의 추가 이득 여지가 처음 생각보다 작을 가능성 있음
