@@ -444,7 +444,8 @@ if [[ -f "${SERVER_LOG_SRC}" ]] || [[ -L "${SERVER_LOG_SRC}" ]]; then
 
     # (1) boot.log: 전체 파일에서 부팅 markers 추출 (NUMA/engine 설정 확인용)
     #     서버가 한 번만 부팅하므로 매 run 에 동일 내용. grep 기반이라 언제든 추출 가능.
-    grep -E '\[HYBRID-(LAUNCH|RESOLVE|CPU-ENV|CPU-PROC|CPU-WORKER|ROUTER-INIT)\]|auto thread-binding list|CPU VllmConfig created|Model loading took' \
+    #     KERNEL / APPLIED-FEATURES 는 §06+ feature patch/manifest 마커.
+    grep -E '\[HYBRID-(LAUNCH|RESOLVE|CPU-ENV|CPU-PROC|CPU-WORKER|ROUTER-INIT|KERNEL|KERNEL-Q8_0|APPLIED-FEATURES)\]|auto thread-binding list|CPU VllmConfig created|Model loading took' \
         "${SERVER_LOG_SRC}" 2>/dev/null > "${RUN_DIR}/${MODE}_server_boot.log" || true
     BOOT_LINES=$(wc -l < "${RUN_DIR}/${MODE}_server_boot.log" 2>/dev/null || echo 0)
 

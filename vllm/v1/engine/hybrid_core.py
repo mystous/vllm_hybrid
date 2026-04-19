@@ -1529,6 +1529,7 @@ def _emit_applied_features_manifest(vllm_config: VllmConfig) -> None:
             "numa_aware": getattr(hybrid_cfg, "numa_aware", None),
             "routing_strategy": getattr(hybrid_cfg, "routing_strategy", None),
             "routing_priority": getattr(hybrid_cfg, "routing_priority", None),
+            "vnni_hot_path": getattr(hybrid_cfg, "vnni_hot_path", None),
         },
         "profile_meta": meta,
         "features": features,
