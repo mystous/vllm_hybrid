@@ -1,4 +1,4 @@
-# g0_00_32b_base — TP=8 표준 baseline (§06 off)
+# g0_00_qwen2.5_32b_base — TP=8 표준 baseline (§06 off)
 
 ## 정체성
 
@@ -12,8 +12,8 @@
 ## 구조
 
 ```
-g0_00_32b_base/
-├── analysis_g0.ipynb            # g0_06 노트북 재사용, ROOT 자동 감지
+g0_00_qwen2.5_32b_base/
+├── analysis_g0.ipynb            # g0_06_qwen2.5_32b 노트북 재사용, ROOT 자동 감지
 ├── analysis_bench.png
 ├── analysis_cpu_heatmap.png
 ├── analysis_gpu_power_mem.png
@@ -25,14 +25,14 @@ g0_00_32b_base/
 
 ## 용도
 
-- `g0_06/` (§06 on, TP=8) 과 단일 flag (`HYBRID_VNNI_HOT_PATH`) 차이로 **§06 단독 이득 직접 측정**
+- `g0_06_qwen2.5_32b/` (§06 on, TP=8) 과 단일 flag (`HYBRID_VNNI_HOT_PATH`) 차이로 **§06 단독 이득 직접 측정**
 - 앞으로 §11/§25 (batch-aware + GQA-aware attention), §24 (W8A8), §18 (spec decode) 측정 시에도 이 디렉토리를 기준 baseline 으로 사용
 - wall ratio, batch scaling ratio 모두 여기 수치를 기준으로 계산
 
 ## 관련 디렉토리
 
-- `../g0_00_32b_tp4/` — TP=4 과거 snapshot (비교군 아님, 역사적 기록)
-- `../g0_06/` — §06 Q8_0 hot path on 측정 (같은 TP=8, 단일 flag 차이)
+- `../g0_00_qwen2.5_32b_tp4/` — TP=4 과거 snapshot (비교군 아님, 역사적 기록)
+- `../g0_06_qwen2.5_32b/` — §06 Q8_0 hot path on 측정 (같은 TP=8, 단일 flag 차이)
 
 ## 관련 문서
 

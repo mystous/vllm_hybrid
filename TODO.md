@@ -115,7 +115,7 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - [x] Q8_0 kernel + torch op 을 Qwen2.5 MLP hot path 에 연결 (`vllm/v1/worker/hot_path_wiring.py`)
 - [x] load-time Q8_0 변환 hook (`cpu_model_runner.py::load_model`, LoRA 이후)
 - [x] shape 별 dispatch log marker (`VLLM_HYBRID_KERNEL_TRACE=1`)
-- [x] H100x8 32B sweep 측정 (`measurement_results/H100x8/g0_06/seqs{1,2,4,8,16,32,64}` + `gpu_only_baseline`)
+- [x] H100x8 32B sweep 측정 (`measurement_results/H100x8/g0_06_qwen2.5_32b/seqs{1,2,4,8,16,32,64}` + `gpu_only_baseline`)
 - [x] 구조 일관성 재작업: `--hybrid-vnni-hot-path` CLI arg + `HybridConfig.vnni_hot_path` + `_create_cpu_vllm_config` passthrough (세 단계의 버그 전부 fix)
 
 **실측 결과** (500 req × 128/128, TP=8):
@@ -125,7 +125,7 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 
 **G1 gate 결론**: §06 단독으로 G1 미통과. "hot path 가 dispatch 까지 연결됐음" 은 증명 (§06 scope 완결), batch scaling 해소는 §11/§25 (batch-aware + GQA-aware decode attention) 과 §24 (W8A8 activation INT8) 누적이 필수. Ninja Gap 원 설계 경로 그대로.
 
-상세 분석 및 PNG: `measurement_results/H100x8/g0_06/analysis_g0.ipynb` + `NinjaGap_Todo/06_hot_path_wiring.md`.
+상세 분석 및 PNG: `measurement_results/H100x8/g0_06_qwen2.5_32b/analysis_g0.ipynb` + `NinjaGap_Todo/06_hot_path_wiring.md`.
 
 ### 4.6 ISA Binary Dispatch 🔶
 - **현재**: `cpu_attn.py` decode 경로에 `custom_avx → ipex → sdpa_batched → sdpa_loop` fallback chain. batch size 기반 명시적 dispatch 없음 (IPEX 내부 dispatcher 의존)

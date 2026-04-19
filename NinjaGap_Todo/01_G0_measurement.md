@@ -101,7 +101,7 @@ Intel 엔지니어가 권장하는 3단 접근:
 완료 근거:
 - `measurement_results/RTX3090/g0_00/seqs{1,2,4,8,16}/`
 - `measurement_results/H100x8/g0_00_7b_t32/seqs{1,2,4,8,16,32}/`
-- `measurement_results/H100x8/g0_00_32b_t48/seqs{1,2,4,8,16,32}/`
+- `measurement_results/H100x8/g0_00_qwen2.5_32b_t48/seqs{1,2,4,8,16,32}/`
 - `eval/g0_analyze.py` 산출물: `analysis_summary.png`, `analysis_sublayer_scaling.png`, `analysis_bench.png`, `analysis_summary.md`
 
 ---
@@ -197,7 +197,7 @@ mv eval/results/20260416_103000_H_C_H100_80GB_HBM3_x8_Qwen2.5-7B-Instruct \
 | `g0_03/` | §03 Huge Pages 1GB 적용 후 |
 | ~~`g0_04/`~~ | ~~§04 IPEX WoQ INT8~~ (**기각 2026-04-19**, §23 편입 — `g0_23/` 사용) |
 | `g0_05/` | §05 KMP_BLOCKTIME 적용 후 |
-| `g0_06/` | §06 Hot Path Wiring 적용 후 |
+| `g0_06_qwen2.5_32b/` | §06 Hot Path Wiring 적용 후 |
 | `g0_08/` | §08 Kernel Fusion 적용 후 |
 | `g0_13/` | §13 T-MAC LUT GEMV 적용 후 |
 
@@ -377,7 +377,7 @@ measurement_results/
 │   │   ├── analysis_bench.png
 │   │   └── analysis_summary.md
 │   ├── g0_05/                          # §05 KMP_BLOCKTIME 적용 후 (누적)
-│   ├── g0_06/                          # §06 Hot Path Wiring 적용 후 (§05 + §06)
+│   ├── g0_06_qwen2.5_32b/                          # §06 Hot Path Wiring 적용 후 (§05 + §06)
 │   └── ...
 ```
 

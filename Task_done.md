@@ -810,7 +810,7 @@ main process 의 `hybrid_config.vnni_hot_path=True` 가 맞는데도 CPU engine 
 
 ### 측정 및 분석 (`17e35adf9`, `6f904b39b`)
 
-`measurement_results/H100x8/g0_06/{seqs1,seqs2,seqs4,seqs8,seqs16,seqs32,seqs64,gpu_only_baseline}` + `analysis_g0.ipynb` (nbconvert --execute 통과, 4 PNG 생성).
+`measurement_results/H100x8/g0_06_qwen2.5_32b/{seqs1,seqs2,seqs4,seqs8,seqs16,seqs32,seqs64,gpu_only_baseline}` + `analysis_g0.ipynb` (nbconvert --execute 통과, 4 PNG 생성).
 
 **§06 patched=128 확정** (CPU engine 2 개 × 64 layer × 2 proj = 128 layer, boot log 확인).
 

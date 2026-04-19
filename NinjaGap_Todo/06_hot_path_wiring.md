@@ -8,7 +8,7 @@
 
 ## 실측 결과 (2026-04-19, H100x8 + Qwen2.5-32B, 500 req × 128/128)
 
-**측정 경로**: branch `ninja-gap/06-hot-path-wiring` commit `538276073`+. `hybrid_config.vnni_hot_path=True` 확인, boot log `[HYBRID-KERNEL] §06 patched=128 arch=Qwen2ForCausalLM lora=False repack=0`. 저장 위치: `measurement_results/H100x8/g0_06/`.
+**측정 경로**: branch `ninja-gap/06-hot-path-wiring` commit `538276073`+. `hybrid_config.vnni_hot_path=True` 확인, boot log `[HYBRID-KERNEL] §06 patched=128 arch=Qwen2ForCausalLM lora=False repack=0`. 저장 위치: `measurement_results/H100x8/g0_06_qwen2.5_32b/`.
 
 ### Bench 수치 (TP=8, PROFILE=0)
 
@@ -90,7 +90,7 @@
 
 Ninja Gap 달성에는 §06 + §11/§25 + §18 의 **누적 조합이 필요**하다는 것이 본 측정으로 확정됨. §06 단독으론 seqs=1 wall −28% 가 최대 이득.
 
-**분석 노트북**: `measurement_results/H100x8/g0_06/analysis_g0.ipynb` (4 PNG 포함)
+**분석 노트북**: `measurement_results/H100x8/g0_06_qwen2.5_32b/analysis_g0.ipynb` (4 PNG 포함)
 
 ---
 
@@ -133,15 +133,15 @@ python -c "import torch, vllm._C_cpu_ops; print('q8_0=', hasattr(torch.ops._C_cp
 pip install -e . --config-settings="cmake.args=-DVLLM_TARGET_DEVICE=cuda"
 ```
 
-**2. 측정 (g0_06 sweep seqs 1/4/16)**
+**2. 측정 (g0_06_qwen2.5_32b sweep seqs 1/4/16)**
 ```bash
 cp eval/envs/g0_h100x8_qwen32b_06.env /tmp/run.env
-for s in 1 4 16; do sed -i "s/^HYBRID_CPU_MAX_SEQS=.*/HYBRID_CPU_MAX_SEQS=$s/" /tmp/run.env; ./eval/serve.sh hybrid /tmp/run.env & SERVE_PID=$!; until curl -sf http://localhost:8000/v1/models >/dev/null; do sleep 5; done; ./eval/bench.sh hybrid /tmp/run.env; kill $SERVE_PID; wait $SERVE_PID 2>/dev/null; mkdir -p measurement_results/H100x8/g0_06/seqs$s; mv eval/results/$(ls -t eval/results/ | head -1) measurement_results/H100x8/g0_06/seqs$s/; done
+for s in 1 4 16; do sed -i "s/^HYBRID_CPU_MAX_SEQS=.*/HYBRID_CPU_MAX_SEQS=$s/" /tmp/run.env; ./eval/serve.sh hybrid /tmp/run.env & SERVE_PID=$!; until curl -sf http://localhost:8000/v1/models >/dev/null; do sleep 5; done; ./eval/bench.sh hybrid /tmp/run.env; kill $SERVE_PID; wait $SERVE_PID 2>/dev/null; mkdir -p measurement_results/H100x8/g0_06_qwen2.5_32b/seqs$s; mv eval/results/$(ls -t eval/results/ | head -1) measurement_results/H100x8/g0_06_qwen2.5_32b/seqs$s/; done
 ```
 
 **3. 비교 대상 (baseline 이미 측정됨)**
-- `measurement_results/H100x8/g0_00_32b/seqs{1,4,16}/` — §06 미적용 (동일 env, `HYBRID_VNNI_HOT_PATH=0`)
-- `measurement_results/H100x8/g0_00_32b/gpu_only_baseline/` — wall ratio 기준
+- `measurement_results/H100x8/g0_00_qwen2.5_32b/seqs{1,4,16}/` — §06 미적용 (동일 env, `HYBRID_VNNI_HOT_PATH=0`)
+- `measurement_results/H100x8/g0_00_qwen2.5_32b/gpu_only_baseline/` — wall ratio 기준
 
 **4. G1 통과 판정 3축**
 | 지표 | 계산 | 통과 조건 |

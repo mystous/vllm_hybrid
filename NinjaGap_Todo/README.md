@@ -106,7 +106,7 @@ Gate 숫자는 방향성. G0 기준선 재측정으로 조정.
 `measurement_results/<HW>/g0_<NN>/seqs<N>/` 의 `<NN>` 을 기법 번호로:
 - `g0_00` — 아무 기법 미적용 baseline (§01, §02 만)
 - `g0_05` — §05 KMP_BLOCKTIME 적용 후
-- `g0_06` — §06 hot path wiring 적용 후 (**G1 통과 시도**)
+- `g0_06_qwen2.5_32b` — §06 hot path wiring 적용 후 (**G1 통과 시도**)
 - `g0_11` — §11 batch-aware attn 적용 후 (**G2 통과 시도**)
 - `g0_18` — §18 spec decode 적용 후 (**G3 통과 시도**)
 - 누적 적용 시: `g0_05_06_07` 처럼 이어 쓰거나 `g0_07` 로 단일 표기

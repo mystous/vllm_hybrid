@@ -514,7 +514,7 @@ H100x4 KVM / H100x8 + Xeon 2S / 일반 x86_64 laptop 등 기타 환경은 여전
 - **워크로드**: 500 req × 128 input / 128 output, `request_rate=inf`
 - **측정 설정**: `VLLM_HYBRID_PROFILE=0` (production 수치), `HYBRID_CPU_THREADS=48`, `num_cpu_engines=2`, `cpu_max_num_seqs` sweep = {1,2,4,8,16,32,64}
 - **Git**: `538276073` 이후 (CLI arg / LoRA 순서 / passthrough 3 fix 반영)
-- **결과 위치**: `measurement_results/H100x8/g0_06/`
+- **결과 위치**: `measurement_results/H100x8/g0_06_qwen2.5_32b/`
 
 ### Q1. Patch 가 실제로 걸렸나 → YES
 
