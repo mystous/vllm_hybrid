@@ -195,7 +195,7 @@ mv eval/results/20260416_103000_H_C_H100_80GB_HBM3_x8_Qwen2.5-7B-Instruct \
 |---|---|
 | `g0_00/` | Baseline (pre-Ninja-Gap 상태) |
 | `g0_03/` | §03 Huge Pages 1GB 적용 후 |
-| `g0_04/` | §04 IPEX WoQ INT8 적용 후 |
+| ~~`g0_04/`~~ | ~~§04 IPEX WoQ INT8~~ (**기각 2026-04-19**, §23 편입 — `g0_23/` 사용) |
 | `g0_05/` | §05 KMP_BLOCKTIME 적용 후 |
 | `g0_06/` | §06 Hot Path Wiring 적용 후 |
 | `g0_08/` | §08 Kernel Fusion 적용 후 |

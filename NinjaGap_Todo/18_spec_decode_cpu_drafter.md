@@ -179,7 +179,7 @@ else:
 ## 스택 호환성
 
 - **경로 1 과 독립 trajectory**: 경로 1 이 CPU 를 빠르게 만들수록 drafter 효과 확대
-- §04 WoQ INT8 / §13 T-MAC INT4: drafter model 에 적용 → drafter throughput 추가 2-4×
+- ~~§04 WoQ INT8~~ (**기각 2026-04-19**, §23 편입) / §23 CPU Native Quant / §13 T-MAC INT4: drafter model 에 적용 → drafter throughput 추가 2-4×
 - **현 workload 에서 최대 Ninja Gap 잠재력**
 
 ---

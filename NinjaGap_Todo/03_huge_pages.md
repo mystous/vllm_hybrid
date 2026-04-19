@@ -310,7 +310,7 @@ mount -t hugetlbfs -o pagesize=1G none /dev/hugepages-1G
 ## 의존성
 
 - **선행**: §01 G0 계측 (baseline 확보)
-- **병행**: §04 IPEX WoQ INT8, §05 OMP env
+- **병행**: ~~§04 IPEX WoQ INT8~~ (**기각 2026-04-19**, §23 편입), §05 OMP env
 - **후속**: 모든 기법 (항상 깔려 있어야 하는 infra)
 
 ---
@@ -320,7 +320,7 @@ mount -t hugetlbfs -o pagesize=1G none /dev/hugepages-1G
 - **호스트 sudo 권한 필요**: `/sys/kernel/mm/` 쓰기는 호스트 root 전용. 컨테이너에서는 read-only. 운영팀과 협의해 호스트 세팅 적용.
 - **1GB 런타임 확보 실패**: 장기 uptime 서버의 메모리 단편화로 부분/전체 실패. 대처: 2MB THP 로 후퇴, 또는 Phase 3 boot-time.
 - **HuggingFace/safetensors 가 mmap path 에 hardcoded**: 1GB 쓰려면 `torch.from_file` + 수동 mmap 경로 구축 필요 (non-trivial). 2MB THP 경로는 이 수정 불필요.
-- **이득 측정 어려움**: 다른 기법 (WoQ INT8, ISA dispatch) 과 동시 적용 시 단독 기여도 분리 필요. **Phase 별로 단독 측정**.
+- **이득 측정 어려움**: 다른 기법 (~~WoQ INT8~~ → §23 CPU Native Quant, ISA dispatch) 과 동시 적용 시 단독 기여도 분리 필요. **Phase 별로 단독 측정**.
 - **khugepaged jitter**: THP 백그라운드 promotion 데몬이 짧은 stall 유발 가능. 발견 시 `defrag=defer+madvise` 로 조정.
 
 ---

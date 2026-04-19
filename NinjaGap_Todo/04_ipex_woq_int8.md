@@ -1,8 +1,14 @@
-# 04. IPEX WoQ INT8 (Weight-Only Quantization)
+# 04. ~~IPEX WoQ INT8~~ (Weight-Only Quantization) — ✗ **기각 (2026-04-19)**
 
-**Tier**: 0
-**상태**: ⭕ 미구현
-**예상 이득**: 2× decode (memory-bound). PPL 열화 <0.5
+> **기각 사유**: IPEX `ipex.llm.optimize` + `WoqWeightDtype` 경로가 vLLM 의 `QKVParallelLinear` custom structure 와 비호환. IPEX `replace_module` 이 vLLM Linear 클래스를 인식하지 못해 hot path 치환 실패.
+>
+> **대체 경로**: [§23 CPU Native Quantization](./23_cpu_native_quantization.md) — llama.cpp Q8_0/Q4_K 커널을 torch custom op 로 vLLM Linear 에 직접 dispatch. 이득 2× decode 동일, 구조 호환 확보.
+>
+> 본 문서는 **post-mortem 가치로 유지** — 왜 IPEX 루트가 막혔는지의 기록이며, 구현 지시로는 사용하지 말 것. 아래 본문은 기각 이전 시점의 기술 배경 그대로 보존.
+
+**Tier**: ~~0~~
+**상태**: ✗ **기각 (2026-04-19)** — §23 편입
+**예상 이득**: ~~2× decode (memory-bound). PPL 열화 <0.5~~ (§23 로 이관)
 
 ---
 

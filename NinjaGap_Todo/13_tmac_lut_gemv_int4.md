@@ -160,7 +160,7 @@ Weight 를 INT4 로 만드는 방법:
 ## 의존성
 
 - **선행**: §01 G0 계측, §06 hot path wiring, §09 LUT infra (`lut_ops.cpp`)
-- **대체 관계**: §04 IPEX WoQ INT8 은 본 기법 성공 시 **대체됨** (INT4 가 INT8 보다 2× 더 memory 절감)
+- **대체 관계**: ~~§04 IPEX WoQ INT8~~ 이미 기각 (2026-04-19, §23 편입). §23 CPU Native Quant (Q8_0) 는 본 기법 성공 시 **대체됨** (INT4 가 INT8 보다 2× 더 memory 절감)
 - **병행**: §14 AVX/AMX Cascade (LUT + tile matmul hybrid), §15 AMX Pre-pack (T-MAC 전용 layout)
 - **후속**: 장기적으로 INT3, INT2 로 확장 가능 (bit↓ 선형 가속)
 
@@ -178,7 +178,7 @@ Weight 를 INT4 로 만드는 방법:
 
 ## 스택 호환성
 
-- §04 WoQ INT8 **대체**
+- ~~§04 WoQ INT8~~ 기각됨 — §23 CPU Native Quant (Q8_0) **대체**
 - §06 Hot Path Wiring 의 torch custom op infra 재사용
 - §09 LUT Softmax 와 동일 `lut_ops.cpp` infra
 - §14 AVX/AMX Cascade 의 자연스러운 확장 (LUT → tile matmul pipeline)
