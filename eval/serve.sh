@@ -61,6 +61,8 @@ export VLLM_HYBRID_TRACE_EVERY="${VLLM_HYBRID_TRACE_EVERY:-0}"
 export VLLM_HYBRID_PROFILE="${VLLM_HYBRID_PROFILE:-0}"
 export VLLM_HYBRID_PROFILE_EVERY="${VLLM_HYBRID_PROFILE_EVERY:-0}"
 export VLLM_HYBRID_PROFILE_SUBLAYER="${VLLM_HYBRID_PROFILE_SUBLAYER:-0}"
+# §06 per-call kernel trace (observability, not a feature flag)
+export VLLM_HYBRID_KERNEL_TRACE="${VLLM_HYBRID_KERNEL_TRACE:-0}"
 
 echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"
@@ -162,6 +164,13 @@ elif [[ "${MODE}" == "hybrid" ]]; then
     if [[ -n "${HYBRID_ROUTING_PRIORITY:-}" && "${HYBRID_ROUTING_PRIORITY}" != "gpu-first" ]]; then
         ROUTING_PRIORITY_ARG="--hybrid-routing-priority ${HYBRID_ROUTING_PRIORITY}"
     fi
+    # §06 feature flag: accepted as 1/true/yes/on
+    VNNI_HOT_PATH_ARG=""
+    case "${HYBRID_VNNI_HOT_PATH:-0}" in
+        1|true|TRUE|True|yes|YES|Yes|on|ON|On)
+            VNNI_HOT_PATH_ARG="--hybrid-vnni-hot-path"
+            ;;
+    esac
 
     # shellcheck disable=SC2086
     python -u -m vllm.entrypoints.openai.api_server \
@@ -179,6 +188,7 @@ elif [[ "${MODE}" == "hybrid" ]]; then
         ${CPU_PREFILL_THRESHOLD_ARG} \
         ${WARMUP_REQUESTS_ARG} \
         ${ROUTING_PRIORITY_ARG} \
+        ${VNNI_HOT_PATH_ARG} \
         --hybrid-routing-strategy "${HYBRID_ROUTING_STRATEGY}" \
         --hybrid-stats-log-interval "${HYBRID_STATS_LOG_INTERVAL}" \
         ${NUMA_FLAG} \

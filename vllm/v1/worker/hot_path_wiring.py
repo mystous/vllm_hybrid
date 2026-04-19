@@ -26,9 +26,14 @@
 #   - module name ends with one of _ALLOWED_SUFFIXES
 #   - module name does not contain any of _EXCLUDE_SUBSTRINGS
 #
-# Gating: HYBRID_VNNI_HOT_PATH=1 + _C_cpu_ops built + q8_0 ops registered
-# + arch allowed + LoRA disabled. Any guard missing → silent no-op with
-# an explanatory warning.
+# Gating: hybrid_config.vnni_hot_path=True + _C_cpu_ops built + q8_0 ops
+# registered + arch allowed + LoRA disabled. Any guard missing → silent
+# no-op with an explanatory warning.
+#
+# The flag is passed through HybridConfig (CLI arg --hybrid-vnni-hot-path,
+# populated by serve.sh from the env file's HYBRID_VNNI_HOT_PATH). This
+# matches the existing pattern for all other hybrid-* settings rather
+# than reading the environment directly.
 
 from __future__ import annotations
 
@@ -65,12 +70,11 @@ _EXCLUDE_SUBSTRINGS = (
 )
 
 
-def _env_flag(name: str, default: str = "0") -> bool:
-    return os.getenv(name, default).lower() in ("1", "true", "yes", "on")
-
-
 def _trace_enabled() -> bool:
-    return _env_flag("VLLM_HYBRID_KERNEL_TRACE")
+    # Per-call kernel trace is an observability flag, not a feature flag —
+    # env-based is the right path here.
+    return os.getenv("VLLM_HYBRID_KERNEL_TRACE", "0").lower() in (
+        "1", "true", "yes", "on")
 
 
 def _compute_qweight_nbytes(N: int, K: int) -> int:
@@ -201,6 +205,7 @@ def _is_target_mlp_module(name: str) -> bool:
 
 
 def patch_mlp_to_q8_0(model: torch.nn.Module,
+                      hybrid_config=None,
                       model_config=None,
                       lora_enabled: bool = False) -> int:
     """Replace Qwen2 MLP Linear apply() paths with
@@ -212,11 +217,16 @@ def patch_mlp_to_q8_0(model: torch.nn.Module,
     the patched layers bypass IPEX at apply-time — the rest of the model
     remains on whatever IPEX installed.
 
+    Activation gate: ``hybrid_config.vnni_hot_path`` must be True
+    (populated from the --hybrid-vnni-hot-path CLI arg, which serve.sh
+    derives from the env file's HYBRID_VNNI_HOT_PATH).
+
     Returns the number of patched layers (0 on any no-op path).
     """
-    if not _env_flag("HYBRID_VNNI_HOT_PATH"):
+    enabled = bool(getattr(hybrid_config, "vnni_hot_path", False))
+    if not enabled:
         logger.info(
-            "[HYBRID-KERNEL] §06 disabled (HYBRID_VNNI_HOT_PATH=0)")
+            "[HYBRID-KERNEL] §06 disabled (hybrid_config.vnni_hot_path=False)")
         return 0
 
     if lora_enabled:
@@ -288,7 +298,7 @@ def patch_mlp_to_q8_0(model: torch.nn.Module,
         "quantize=load-time-1x repack=0 non_patched_layers=ipex_unchanged",
         patched, skipped_filter + skipped_error,
         skipped_filter, skipped_error, arch_tag, lora_enabled)
-    if patched_names and _env_flag("VLLM_HYBRID_KERNEL_TRACE"):
+    if patched_names and _trace_enabled():
         logger.info("[HYBRID-KERNEL] patched list: %s",
                     ", ".join(patched_names))
     return patched

@@ -449,6 +449,12 @@ class EngineArgs:
     수동 지정 시 그 값을 그대로 사용. 설계 원칙은 NUMA 노드당 엔진 1개
     + 엔진당 cpu_max_num_seqs=1이므로 총 CPU 동시 시퀀스 수 = num_numa."""
 
+    hybrid_vnni_hot_path: bool = False
+    """§06: enable Q8_0 dispatch on Qwen2 MLP (gate_up_proj + down_proj).
+    Replaces quant_method.apply with torch.ops._C_cpu_ops.q8_0_linear.
+    Requires _C_cpu_ops built with AVX-512 VNNI. Auto-skipped under LoRA
+    or for non-Qwen2 architectures."""
+
     show_hidden_metrics_for_version: Optional[str] = \
         ObservabilityConfig.show_hidden_metrics_for_version
     otlp_traces_endpoint: Optional[str] = \
@@ -1050,6 +1056,15 @@ class EngineArgs:
                  "dual-socket 시 2), 1=single CPU engine, 2+=명시적 값. "
                  "(default: 0=auto)"
         )
+        hybrid_group.add_argument(
+            '--hybrid-vnni-hot-path',
+            action='store_true',
+            default=False,
+            help="§06 Q8_0 hot path wiring: replace Qwen2 MLP (gate_up_proj + "
+                 "down_proj) quant_method with torch.ops._C_cpu_ops.q8_0_linear. "
+                 "Requires _C_cpu_ops built with AVX-512 VNNI. Auto-skipped "
+                 "under LoRA or for non-Qwen2 architectures. (default: off)"
+        )
 
         return parser
 
@@ -1561,6 +1576,7 @@ class EngineArgs:
             warmup_requests=self.hybrid_warmup_requests,
             stats_log_interval=self.hybrid_stats_log_interval,
             num_cpu_engines=self.hybrid_num_cpu_engines,
+            vnni_hot_path=self.hybrid_vnni_hot_path,
         )
 
         config = VllmConfig(

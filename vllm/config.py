@@ -4682,6 +4682,13 @@ class HybridConfig:
     수동 지정 시 그 값을 그대로 사용. 설계 원칙상 NUMA 노드당 엔진 1개,
     엔진당 cpu_max_num_seqs=1이므로 총 CPU 동시 시퀀스 수 = num_numa."""
 
+    # §06 Hot Path Wiring (Q8_0 dispatch) — feature flag
+    vnni_hot_path: bool = False
+    """§06: True 이면 Qwen2 MLP (gate_up_proj + down_proj) 의 quant_method 를
+    torch.ops._C_cpu_ops.q8_0_linear 로 교체. load_model 끝 (LoRA 이후) 에서
+    1회 Q8_0 quantize, runtime repack 없음. LoRA 활성 또는 _C_cpu_ops 미빌드
+    시 자동 skip. scope: Qwen2ForCausalLM 만 허용."""
+
     def __post_init__(self):
         valid_strategies = ("capacity", "length-aware", "throughput-adaptive",
                             "round-robin", "wave-batch")
