@@ -1222,6 +1222,10 @@ def _create_cpu_vllm_config(
         mode="none",
         numa_aware=hybrid.numa_aware,
         numa_bind_node=hybrid.numa_bind_node,
+        # §06+ feature flags: CPU engine subprocess 안에서 patch_mlp_to_q8_0
+        # 등이 참조하므로 반드시 parent hybrid_config 값을 passthrough.
+        # 추가 feature flag 가 생길 때마다 여기 목록도 확장.
+        vnni_hot_path=getattr(hybrid, "vnni_hot_path", False),
     )
     cpu_config = replace(
         gpu_config,
