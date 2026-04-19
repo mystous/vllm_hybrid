@@ -502,3 +502,101 @@ H100x4 KVM / H100x8 + Xeon 2S / 일반 x86_64 laptop 등 기타 환경은 여전
 - H100x8 70B TP=8 (GPU 포화 조건에서 hybrid 이득 실측)
 - H100x8 long-context (16K input, GPU KV 압박)
 - H100x8 rate-limited burst 2000+ req (GPU queue-saturation)
+
+---
+
+## v6 — 2026-04-19: §06 Q8_0 Hot Path Wiring — H100x8 + Qwen2.5-32B 실측 기술 결론
+
+### 검증 환경
+
+- **하드웨어**: H100×8 (HBM3 80GB, TP=8) + Xeon 8480+ 2-socket (NUMA 2 nodes, 56 core/socket, AMX + AVX-512 VNNI)
+- **모델**: Qwen/Qwen2.5-32B-Instruct
+- **워크로드**: 500 req × 128 input / 128 output, `request_rate=inf`
+- **측정 설정**: `VLLM_HYBRID_PROFILE=0` (production 수치), `HYBRID_CPU_THREADS=48`, `num_cpu_engines=2`, `cpu_max_num_seqs` sweep = {1,2,4,8,16,32,64}
+- **Git**: `538276073` 이후 (CLI arg / LoRA 순서 / passthrough 3 fix 반영)
+- **결과 위치**: `measurement_results/H100x8/g0_06/`
+
+### Q1. Patch 가 실제로 걸렸나 → YES
+
+Boot log:
+```
+[HYBRID-KERNEL] §06 patched=128 skipped=0 (filter=0, error=0)
+arch=Qwen2ForCausalLM lora=False
+scope=Qwen2_MLP(.mlp.gate_up_proj,.mlp.down_proj)
+quantize=load-time-1x repack=0 non_patched_layers=ipex_unchanged
+```
+
+CPU engine 2개 각각 128 layer (64 × 2 proj) 치환 확인. `applied_features.json.hybrid_config.vnni_hot_path = True`. Filter 로 MoE / vision / audio 계열은 제외되며 이번 32B 모델에는 해당 없음 (skipped=0).
+
+### Q2. seqs=1 에서 유의미한 이득이 있는가 → YES (−28% wall, −22% TPOT)
+
+동일 git sha / 동일 env 에서 `HYBRID_VNNI_HOT_PATH=0` vs `1` 비교 (각각 `090849` / `092458`):
+
+| 지표 | off | on | 변화 |
+|---|---:|---:|---:|
+| duration | 80.0 s | **57.6 s** | **−28%** |
+| output_throughput | 770.7 tok/s | **1070 tok/s** | **+39%** |
+| median TPOT | 63.6 ms | **49.6 ms** | **−22%** |
+| mean TPOT | 66.3 ms | 47.5 ms | −28% |
+| mean TTFT | 1517 ms | 1510 ms | ≈ 0 |
+| p99 TPOT | 68.4 ms | 72.9 ms | +7% (outlier) |
+
+Q8_0 (INT8 weight + fp16 per-block scale, activation BF16 유지) 로 MLP DDR read 절반화 → decode memory-bound 구간 명확 개선. TTFT 불변은 prefill 경로 무관 (예상). p99 미세 증가는 일부 tail outlier, 전체 분포 하락.
+
+### Q3. Batch scaling 이 나오는가 → NO (선형 확장, G1 미달)
+
+`per_req_cost(N) = duration(N) / completed(N) × 1000` (ms):
+
+| seqs | per_req_cost (ms) | ratio vs seqs=1 |
+|---:|---:|---:|
+| 1 | 115.3 | 1.00 |
+| 2 | 188.4 | 1.63 |
+| 4 | **333.4** | **2.89** (G1 ≤ 2.0 미달) |
+| 8 | 584.0 | 5.07 |
+| 16 | 1047.8 | 9.09 |
+| 32 | 1939.6 | 16.82 |
+| 64 | 3836.5 | **33.27** (~선형) |
+
+`cost(N)/cost(1) ≈ N × 0.52 + constant`. 즉 batch amortization 이 전혀 안 되고 per-req cost 가 seqs 에 선형 증가. G1 Batch scaling 조건 `cost(4)/cost(1) ≤ 2.0` **실패**.
+
+### Q4. Wall ratio (hybrid / gpu_only) → G1 미달 확정
+
+gpu_only TP=8 baseline duration 5.4 s (output_throughput 11,473 tok/s) 기준:
+
+| seqs | wall ratio |
+|---:|---:|
+| 1 | 10.7× |
+| 4 | 31.0× |
+| 16 | 97.5× |
+| 64 | 356.9× |
+
+G1 조건 `< 8×` 모든 seqs 실패. seqs=1 에서도 여전히 GPU-only 대비 10.7× 느림 (단 seqs=1 은 CPU engine 에 1 req × 2 NUMA 만 가는 구조라 대부분 GPU 가 처리, 이 이득은 CPU 쪽 tail 감소에서 나온 것).
+
+### G1 판정 (축별)
+
+| 축 | 조건 | 실측 | 결과 |
+|---|---|---|:---:|
+| Batch scaling | `cost(4)/cost(1) ≤ 2.0` | 2.89 | ✗ |
+| Tail | `< 100 s` | seqs=4 에서 333 ms×500req=167 s 초과 시작, seqs=64 1918 s | ✗ |
+| Wall ratio | `< 8×` | seqs=1 에서도 10.7× | ✗ |
+| CPU contribution | 증가 | baseline 대비 증가 없음 (routing 동일) | — |
+
+**§06 단독 G1 미통과 확정**. §01 Stop/Go Case 3 ("단일 req 만 빨라지고 batch scaling 없음") 에 부분 해당하나, §06 의 scope 자체가 MLP 만 치환이라 batch scaling 해소는 처음부터 §11/§25 의 역할로 설계되어 있었음 (`NinjaGap_Todo/README.md` Gate ↔ 기법 매핑 참조). 따라서 **"§06 실패" 가 아닌 "G1 미달 → §11/§25 필수 전제"** 로 해석.
+
+### 원인 분석 (batch scaling 실패)
+
+1. **Attention 경로 IPEX 유지** — §06 의 scope 가 MLP 만 (`*.mlp.gate_up_proj`, `*.mlp.down_proj`). Attention 은 `_IPEXPagedAttention` → `ipex_modules.PagedAttention.single_query_cached_kv_attention`. batch>1 에서 per-seq attention 이 선형 확장하며 전체 step 을 지배.
+2. **Activation BF16** — Q8_0 는 weight-only quantization. kernel 내부에서 per-row INT8 dynamic quant 을 하지만, Python 쪽 tensor 는 BF16 유지 → activation 메모리 read/write 는 여전히 BF16. W8A8 (§24) 이 들어가야 activation bandwidth 도 절반화.
+3. **GQA-aware 구조 부재** — Qwen2.5-32B 는 GQA 40:8 (Q 40 head, KV 8 head, ratio 5:1). CPU attention 은 per-query-head 로 KV 를 5번 재로드 (중복). §25 의 GQA-aware batched paged attention 이 이걸 1회 로드로 재구성해야 batch 친화적 scaling 가능.
+
+### 결론
+
+**§06 hot path wiring 은 기법 자체는 완결**. seqs=1 단독 decode 이득 −28% 확인. 하지만 G1 gate 는 단독 미통과, 이는 원 설계대로 (§06 이 G1 의 "infra 연결" 역할이고 G1 통과는 §07~§11 누적). Ninja Gap 달성 경로는 §11/§25 (G2 핵심) + §24 (W8A8 activation) + §18 (spec decode drafter, G3) 의 누적 구조로 그대로 유지.
+
+### 후속 측정 필요 항목
+
+- 동일 workload 로 `HYBRID_BATCH_AWARE_ATTN=v2` (§11) 적용 후 `cost(4)/cost(1)` 재측정
+- §24 활성화 후 activation bandwidth 병목 여부 측정
+- 중간 점검 기준: `g0_06_11` (§06 + §11 누적) 에서 `cost(4)/cost(1) ≤ 2.0` 달성 여부
+
+이 두 가지가 G1 → G2 진행의 가장 명확한 실측 지점.

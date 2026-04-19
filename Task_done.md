@@ -773,3 +773,103 @@ def _route_throughput_adaptive(self, request_id, prompt_len):
 **분석 / 보고서**:
 - `experiment_result/20260414_003400_h100x8_physical_7b_wave_batch_catastrophic_findings/README.md` — 전면 rewrite (IPEX FD 소스 분석 + max_seqs=1 vs 16 비교 + 이전 초안 오류 정정)
 
+
+---
+
+## v6 — 2026-04-19: §06 Q8_0 Hot Path Wiring 완료 (H100x8 32B 실측 포함)
+
+> append-only 정책 유지. v5 까지 보존. 본 v6 은 §06 전체 세션 (설계 → 3 버그 fix → 측정 → G1 판정) 기록.
+
+### 세션 개요
+
+§04 IPEX WoQ INT8 기각 cross-ref 정리로 시작해 §06 Hot Path Wiring 을 Qwen2 MLP 에 Q8_0 dispatch 로 실체화하고, 3 단계 버그를 연속 발견·fix 한 뒤 H100x8 + Qwen2.5-32B 에서 sweep 측정 (seqs 1/2/4/8/16/32/64 + gpu_only) 완료.
+
+### §04 기각 cross-ref 반영 (`fd084044a`)
+
+IPEX `ipex.llm.optimize` + `WoqWeightDtype` 경로가 vLLM 의 `QKVParallelLinear` custom structure 와 비호환 (IPEX `replace_module` 이 vLLM Linear 클래스를 인식 못 함) 으로 확인되어 §04 기각. 9 파일 cross-ref 업데이트 (`NinjaGap_Todo/{01,02,03,04,13,18}.md`, `NinjaGap_Todo/README.md`, `TODO.md`, `README.md`). 대체 경로는 §23 CPU Native Quantization.
+
+### §06 Phase A 초안 (`6b8d5a07c`)
+
+- 신규 `vllm/v1/worker/hot_path_wiring.py`: `_Q8_0LinearMethod` wrapper + `patch_mlp_to_q8_0(model)` + Qwen2 arch 필터 + MLP suffix 매칭 + MoE/vision/audio 제외
+- 수정 `vllm/v1/worker/cpu_model_runner.py::load_model`: IPEX optimize 이후 + LoRA 이후 hook 삽입
+- 신규 `eval/envs/g0_h100x8_qwen32b_06.env`: baseline 과 2 줄만 diff (`HYBRID_TODO_NN=06`, `HYBRID_VNNI_HOT_PATH=1`)
+- dev smoke test 통과 (AVX2 환경 에서 `_cpu_ops_available=False` 정상 skip)
+
+### 3 단계 버그 fix
+
+**Bug 1 — CLI arg 경로 누락 (`2badab728`)**:
+초안은 `os.getenv("HYBRID_VNNI_HOT_PATH")` 로 환경변수를 직접 읽었는데, 기존 `HYBRID_CPU_MAX_SEQS` / `HYBRID_ROUTING_*` 등 모든 hybrid-* 설정값은 `serve.sh` 가 `--hybrid-*` CLI arg 로 변환해 `HybridConfig` 필드로 전달되는 구조였다. env 파일의 plain `NAME=value` 가 export 되지 않아 Python 자식 프로세스에 전달 실패.
+
+Fix: `HybridConfig.vnni_hot_path: bool`, `--hybrid-vnni-hot-path` CLI arg, `serve.sh` 의 `HYBRID_VNNI_HOT_PATH=1|true|...` → `--hybrid-vnni-hot-path` 변환 블록, `hot_path_wiring.py` 를 `hybrid_config.vnni_hot_path` 기반으로 재작성. `VLLM_HYBRID_KERNEL_TRACE` 는 관측용 env flag 로 분리하여 `serve.sh` 에서 명시 export.
+
+**Bug 2 — bench.sh boot.log grep 패턴 누락 (`c4f63810b`)**:
+§06 측정 후 `hybrid_server_boot.log` 에 `[HYBRID-KERNEL]` / `[HYBRID-APPLIED-FEATURES]` 라인이 전혀 남지 않아 patch 적용 여부를 판별 불가. 원인은 `bench.sh:447` 의 grep 패턴에 `KERNEL` 계열 마커가 빠져 있었음. KERNEL / KERNEL-Q8_0 / APPLIED-FEATURES 추가. manifest 에도 `hybrid_config.vnni_hot_path` 필드 serialize 추가.
+
+**Bug 3 — `_create_cpu_vllm_config` passthrough 누락 (`538276073`)**:
+main process 의 `hybrid_config.vnni_hot_path=True` 가 맞는데도 CPU engine boot log 에 `§06 disabled (hybrid_config.vnni_hot_path=False)` 로 찍힘. 원인은 `_create_cpu_vllm_config` 가 CPU subprocess 용 `HybridConfig` 를 새로 만들 때 `numa_aware` / `numa_bind_node` 만 passthrough 하고 `vnni_hot_path` 는 default False 로 덮어쓰고 있었다 (Issue #4 와 같은 패턴). `cpu_hybrid_passthrough` 에 `vnni_hot_path=getattr(hybrid, "vnni_hot_path", False)` 추가.
+
+### 측정 및 분석 (`17e35adf9`, `6f904b39b`)
+
+`measurement_results/H100x8/g0_06/{seqs1,seqs2,seqs4,seqs8,seqs16,seqs32,seqs64,gpu_only_baseline}` + `analysis_g0.ipynb` (nbconvert --execute 통과, 4 PNG 생성).
+
+**§06 patched=128 확정** (CPU engine 2 개 × 64 layer × 2 proj = 128 layer, boot log 확인).
+
+**seqs=1 단독 이득** (§06 off 090849 → on 092458):
+- duration 80.0 → 57.6 s (−28%)
+- output TP 771 → 1070 tok/s (+39%)
+- median TPOT 63.6 → 49.6 ms (−22%)
+- TTFT 거의 무변화 (예상대로, prefill 경로 무관)
+
+**Batch scaling 실패 확인**:
+| seqs | per_req_cost (ms) | ratio vs seqs=1 |
+|---:|---:|---:|
+| 1 | 115.3 | 1.00 |
+| 4 | 333.4 | **2.89** (G1 ≤ 2.0 미달) |
+| 16 | 1047.8 | 9.09 |
+| 64 | 3836.5 | 33.27 (~선형) |
+
+**Wall ratio (hybrid / gpu_only)**: 10.7× ~ 357×. G1 조건 `< 8×` 모든 seqs 실패.
+
+### G1 판정
+
+| 축 | 조건 | 실측 | 결과 |
+|---|---|---|:---:|
+| Batch scaling | `cost(4)/cost(1) ≤ 2.0` | 2.89 | ✗ |
+| Tail | `< 100 s` | seqs≥4 부터 초과, seqs=64 에서 ~1900 s | ✗ |
+| Wall ratio | `< 8×` | seqs=1 에서도 10.7× | ✗ |
+
+**§06 단독 G1 미통과 확정**. "§06 기법 자체 (hot path dispatch 연결)" 는 완결, G1 gate 통과는 §11/§25 (batch-aware + GQA-aware decode attention) + §24 (W8A8 activation INT8) 누적 필요. Ninja Gap README 의 원 설계대로.
+
+### 원인 분석
+
+1. Attention 은 IPEX 그대로 (§06 scope 가 MLP 만)
+2. Activation BF16 유지 (Q8_0 는 weight-only)
+3. CPU attention 에 GQA-aware 구조 없음
+
+batch>1 에서 attention 이 선형 확장하며 전체 step 을 지배. MLP 만 Q8_0 로 바꾼 §06 의 자연 한계.
+
+### 코드 변경 요약
+
+**신규**:
+- `vllm/v1/worker/hot_path_wiring.py`
+- `eval/envs/g0_h100x8_qwen32b_06.env`
+
+**수정**:
+- `vllm/config.py` — `HybridConfig.vnni_hot_path: bool = False`
+- `vllm/engine/arg_utils.py` — `EngineArgs.hybrid_vnni_hot_path` + CLI arg + HybridConfig 생성 시 전달
+- `vllm/v1/engine/hybrid_core.py` — `_create_cpu_vllm_config` passthrough + manifest 필드 추가
+- `vllm/v1/worker/cpu_model_runner.py` — `patch_mlp_to_q8_0` 호출 (LoRA 이후)
+- `eval/serve.sh` — `HYBRID_VNNI_HOT_PATH` → `--hybrid-vnni-hot-path` 변환 + `VLLM_HYBRID_KERNEL_TRACE` export
+- `eval/bench.sh` — boot.log grep 패턴 확장
+
+**문서**:
+- `NinjaGap_Todo/06_hot_path_wiring.md` — Phase A 요약 + 실측 결과 + G1 판정 + 실행 방법
+- `NinjaGap_Todo/README.md` — §06 index ✅ 완료
+- `NinjaGap_Todo/{01,02,03,04,13,18}.md` — §04 기각 cross-ref
+- `TODO.md` — §4.5 완료 처리
+- `README.md` — 적용 순서 적층 로그 §06 row
+- `CLAUDE.md` — 핵심 파일 목록에 `hot_path_wiring.py` + `cpu_model_runner.py` §06 hook 반영
+
+### 다음 단계
+
+Ninja Gap 원 설계대로 §11/§25 (G2) + §18 (G3) 로 진행. §06 은 본 세션으로 종결.

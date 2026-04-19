@@ -70,6 +70,8 @@ CPU EngineCoreProc  [별도 PID, num_cpu_engines = num_numa 개]
 | `vllm/v1/worker/cpu_worker.py` | `CPUWorker`. `init_device` 에서 C++ `init_cpu_threads_env` 호출, 실패 시 `_python_init_cpu_threads_env` (sched_setaffinity) fallback. `_get_autobind_cpu_ids` 가 `hybrid_config.numa_bind_node` 우선 사용. `device_type='heterogeneous'` 방어 coerce. `execute_model` per-step trace |
 | `vllm/v1/attention/backends/cpu_attn.py` | CPU PagedAttention. decode path counter (`_decode_path_counts`) 로 custom_avx / ipex / sdpa_batched / sdpa_loop 중 어느 경로가 사용되는지 기록 |
 | `vllm/worker/worker_base.py` | `init_worker` 의 heterogeneous 휴리스틱에 `is_hybrid_cpu_engine` 우회 조건. `CUDA_VISIBLE_DEVICES=""` + hybrid_config + cpu_worker 조합이면 `device_type="cpu"` 유지 |
+| `vllm/v1/worker/hot_path_wiring.py` | **§06 완료** — `_Q8_0LinearMethod` wrapper + `patch_mlp_to_q8_0(model, hybrid_config, model_config, lora_enabled)`. Qwen2ForCausalLM 의 `*.mlp.gate_up_proj` / `*.mlp.down_proj` 만 대상 (MoE `experts.` / vision / audio 제외). load-time Q8_0 변환 1회, runtime repack 없음. 5겹 guard: `hybrid_config.vnni_hot_path` + `HAS_CPU_OPS` + op registered + arch allowlist + LoRA off. trace: `VLLM_HYBRID_KERNEL_TRACE=1` 시 layer-level per-call timing |
+| `vllm/v1/worker/cpu_model_runner.py` | `load_model` 끝 (IPEX optimize + LoRA 이후) 에서 `patch_mlp_to_q8_0` 호출. `self.vllm_config.hybrid_config` 와 `self.model_config`, `lora_config` 전달 |
 
 ### C++ 확장
 | 파일 / 타겟 | 역할 |
