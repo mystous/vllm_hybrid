@@ -45,7 +45,14 @@ vllm = "vllm.entrypoints.cli.main:main"
 lora_filesystem_resolver = "vllm.plugins.lora_resolvers.filesystem_resolver:register_filesystem_resolver"
 
 [tool.setuptools_scm]
-# no extra settings needed, presence enables setuptools-scm
+# Restrict version discovery to semver-like release tags (e.g. "v0.11.0").
+# This prevents measurement-marker tags such as `g0_00_baseline` or
+# `g0_06_hot_path_wiring` (used to mark Ninja-Gap measurement checkpoints)
+# from being picked up by `git describe` — otherwise setuptools-scm tries
+# to parse them as versions and hits AssertionError on non-semver names.
+git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "v[0-9]*"]
+tag_regex = "^v(?P<version>\\d+(?:\\.\\d+)*.*)$"
+
 
 [tool.setuptools.packages.find]
 where = ["."]
