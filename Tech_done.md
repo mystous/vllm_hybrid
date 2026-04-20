@@ -598,7 +598,7 @@ G1 조건 `< 8×` 모든 seqs 실패. seqs=1 에서도 여전히 GPU-only 대비
 ### 후속 측정 필요 항목 (historical, 이후 v8 SSOT 로 대체)
 
 - 당시에는 `§11`, `§24` 측정이 다음 단계 후보로 적혔으나, 이후 `§11 Phase 1` 기각과 v8 SSOT 정리로 우선순위가 바뀌었다.
-- 최신 다음 단계는 Tier 1 후보 (`§16 → §22 → §28 → §13`) 순차 검증이다.
+- 최신 다음 단계는 Tier 1 후보 (`§22 → §28 → §13`) 순차 검증이다. `§16 SparAMX` 는 2026-04-20 후반 기각.
 
 ---
 
@@ -734,7 +734,7 @@ gpu_only 대조: 11,522.95 tok/s (hybrid 는 어느 설정에서도 gpu_only 의
 | § | 보고 수치 | 측정 조건 | 출처 |
 |---|---|---|---|
 | §13 T-MAC LUT INT4 | 4× (22 tok/s > NPU 10.4) | edge CPU (ARM Snapdragon) | Microsoft T-MAC arXiv 2407.00088 + GitHub 공식 |
-| §16 SparAMX | linear 1.42×, attention 1.14× | **Xeon SPR** (우리 CPU 동일) | AbouElhamayed et al. HF 2502.12444 |
+| ~~§16 SparAMX~~ | ~~linear 1.42×, attention 1.14×~~ | ~~Xeon SPR~~ | **기각 2026-04-20** (unstructured pruning 은 GPU tensor core sparse 미지원, 2:4 로는 SparAMX 수치 근거 깨짐) |
 | §22 NEO asymmetric | throughput 14.3% | **H100 + 70B** (우리 HW/규모 동일) | Jiang et al. MLSys'25 + GitHub |
 | §28 xFasterTransformer 이식 | Intel SPR 실측 (블로그) | SPR production | Intel 공식 maintained |
 
@@ -752,7 +752,7 @@ gpu_only 대조: 11,522.95 tok/s (hybrid 는 어느 설정에서도 gpu_only 의
 
 1. 구현 전에 kernel 의 **실제 호출 경로 분석 필수**. §11 의 경우 "seqs<16 은 batch16 이 아니라 remainder path" 가 설계 문서에 이미 명시돼 있었으나 "scope 는 seqs 2/4/8 개선" 이라 착오
 2. 측정 중단 판정은 조기에 — §11 은 seqs=8 까지 regression 확인된 시점에서 seqs=16 진행 보류 판단 정상
-3. CPU batch 병렬화의 근본 결함은 MLP GEMM 축 문제. attention 만 건드려 해결 불가. 다음 시도는 Tier 1 후보 (§13/§16/§22/§28) 중 선택
+3. CPU batch 병렬화의 근본 결함은 MLP GEMM 축 문제. attention 만 건드려 해결 불가. 다음 시도는 Tier 1 후보 (§22/§28/§13) — §16 2026-04-20 후반 기각 중 선택
 
 ---
 
@@ -802,7 +802,7 @@ gpu_only 대조: 11,522.95 tok/s (hybrid 는 어느 설정에서도 gpu_only 의
 ### SSOT-4. §11 지위
 
 - 이전: G2 핵심축 / scenario 에 "batch-aware attn 12× scaling"
-- **현재**: 실패 가설 (failed hypothesis, pending redesign). Phase 2 (v2 신규 kernel) 재시도는 Tier 1 후보 (§13/§16/§22/§28) 선행 검증 후에만 재평가
+- **현재**: 실패 가설 (failed hypothesis, pending redesign). Phase 2 (v2 신규 kernel) 재시도는 Tier 1 후보 (§22/§28/§13) — §16 2026-04-20 후반 기각 선행 검증 후에만 재평가
 
 ### SSOT-5. 이론 상한 표 무효화
 

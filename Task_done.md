@@ -874,7 +874,7 @@ batch>1 에서 attention 이 선형 확장하며 전체 step 을 지배. MLP 만
 
 ### 다음 단계
 
-당시 판단 기준으로는 §11/§25 (G2) + §18 (G3) 로 진행한다고 기록했다. **현재 기준으로는 obsolete** 이며, 최신 우선순위는 Tier 1 후보 (`§13/§16/§22/§28`) 재평가를 따른다.
+당시 판단 기준으로는 §11/§25 (G2) + §18 (G3) 로 진행한다고 기록했다. **현재 기준으로는 obsolete** 이며, 최신 우선순위는 Tier 1 후보 (`§22/§28/§13`) — §16 2026-04-20 후반 기각 재평가를 따른다.
 
 ---
 
@@ -983,7 +983,7 @@ GEMV 를 M 번 순차 호출. M 축이 GEMM 차원으로 활용되지 않아 wal
 | § | 기법 | 보고 실측 | 측정 HW | 근거 |
 |---|---|---|---|---|
 | §13 | T-MAC LUT GEMV INT4 | 4× | edge CPU (SPR 재검증 필요) | Microsoft T-MAC |
-| §16 | SparAMX bitmask sparse | linear 1.42×, attention 1.14× | **Xeon SPR** (동일 HW) | AbouElhamayed et al. HF 2502.12444 |
+| ~~§16~~ | ~~SparAMX bitmask sparse~~ | ~~linear 1.42×, attention 1.14×~~ | ~~Xeon SPR~~ | **기각 2026-04-20 후반** (pruning 모델 변경 필요 + GPU 이득 없음) |
 | §22 | NEO asymmetric | H100 70B 14.3% | **H100 + 70B** (동일 규모) | Jiang et al. MLSys'25 |
 | §28 | xFasterTransformer 이식 | Intel SPR 실측 | SPR production | Intel 공식 |
 
