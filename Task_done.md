@@ -838,7 +838,9 @@ main process 의 `hybrid_config.vnni_hot_path=True` 가 맞는데도 CPU engine 
 | Tail | `< 100 s` | seqs≥4 부터 초과, seqs=64 에서 ~1900 s | ✗ |
 | Wall ratio | `< 8×` | seqs=1 에서도 10.7× | ✗ |
 
-**§06 단독 G1 미통과 확정**. "§06 기법 자체 (hot path dispatch 연결)" 는 완결, G1 gate 통과는 §11/§25 (batch-aware + GQA-aware decode attention) + §24 (W8A8 activation INT8) 누적 필요. Ninja Gap README 의 원 설계대로.
+> **정정 마커 (2026-04-20, v8 SSOT 이후)**: 아래 v6 결론의 `§11/§25`, `§18` 중심축 서술은 당시 시점의 가설이다. 최신 판단은 `Tech_done.md` v8 §SSOT-3/4 및 `TODO.md` v7을 따른다.
+
+**§06 단독 G1 미통과 확정**. 당시에는 "§06 기법 자체 (hot path dispatch 연결)" 는 완결, G1 gate 통과는 §11/§25 (batch-aware + GQA-aware decode attention) + §24 (W8A8 activation INT8) 누적 필요로 해석했다. **현재 기준으로 이 해석은 obsolete** 이며, 최신 원인 트리는 v8 SSOT 참조.
 
 ### 원인 분석
 
@@ -872,7 +874,7 @@ batch>1 에서 attention 이 선형 확장하며 전체 step 을 지배. MLP 만
 
 ### 다음 단계
 
-Ninja Gap 원 설계대로 §11/§25 (G2) + §18 (G3) 로 진행. §06 은 본 세션으로 종결.
+당시 판단 기준으로는 §11/§25 (G2) + §18 (G3) 로 진행한다고 기록했다. **현재 기준으로는 obsolete** 이며, 최신 우선순위는 Tier 1 후보 (`§13/§16/§22/§28`) 재평가를 따른다.
 
 ---
 
@@ -936,9 +938,11 @@ GEMV 를 M 번 순차 호출. M 축이 GEMM 차원으로 활용되지 않아 wal
 
 ### 다음 단계
 
+> **정정 마커 (2026-04-20, v8 SSOT 이후)**: 아래 "`§11/§25 착수 여부`" 문구는 v7 시점의 중간 판단이다. 이후 `§11 Phase 1`은 기각됐고, `§18`은 강등됐다.
+
 1. §06-1 착수 (VNNI INT8 GEMM path 우선, AMX-INT8 는 조건부 Phase 2)
 2. §06-1 완료 후 G1 gate 재판정
-3. §11/§25 착수 여부는 §06-1 결과 보고 재평가 — baseline IPEX 가 이미 batch amortize 를 상당히 해주고 있어 §11/§25 의 추가 이득 여지가 처음 생각보다 작을 가능성 있음
+3. 당시에는 §11/§25 착수 여부를 §06-1 결과 보고 재평가하려 했다. 현재는 `§11`이 Phase 1 기각 상태이므로, 이 문장은 historical 기록으로만 본다.
 
 ---
 

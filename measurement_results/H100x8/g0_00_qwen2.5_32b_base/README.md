@@ -26,7 +26,7 @@ g0_00_qwen2.5_32b_base/
 ## 용도
 
 - `g0_06_qwen2.5_32b/` (§06 on, TP=8) 과 단일 flag (`HYBRID_VNNI_HOT_PATH`) 차이로 **§06 단독 이득 직접 측정**
-- 앞으로 §11/§25 (batch-aware + GQA-aware attention), §24 (W8A8), §18 (spec decode) 측정 시에도 이 디렉토리를 기준 baseline 으로 사용
+- 앞으로의 모든 비교 baseline 으로 사용. 단, **2026-04-20 기준 `§11`은 Phase 1 기각, `§18`은 우선순위 강등** 상태이므로, 직접 비교 대상은 최신 `TODO.md` / `NinjaGap_Todo/README.md` 의 Tier 1 후보 우선순위를 따른다
 - wall ratio, batch scaling ratio 모두 여기 수치를 기준으로 계산
 
 ## 관련 디렉토리
@@ -36,5 +36,5 @@ g0_00_qwen2.5_32b_base/
 
 ## 관련 문서
 
-- §06 완료 이력: `Task_done.md v6` / `Tech_done.md v6`
+- §06 이력: `Task_done.md v6` / `Tech_done.md v6` (단, 이후 `v7/v8` 에서 정정 및 SSOT 갱신)
 - §06 기법 문서: `NinjaGap_Todo/06_hot_path_wiring.md`
