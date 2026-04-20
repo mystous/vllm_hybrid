@@ -168,6 +168,19 @@ class CPUWorker(Worker):
         except Exception as e:
             logger.error(f"Failed to force CpuPlatform: {e}")
 
+        # §11 Phase 1: Batch-aware decode attention dispatch.
+        # Must run BEFORE TorchSDPABackend.get_kv_cache_shape() so that
+        # KV cache allocation and runtime dispatch use the same layout.
+        try:
+            hc = getattr(vllm_config, "hybrid_config", None)
+            if hc is not None and getattr(hc, "batch_aware_attn", False):
+                from vllm.v1.attention.backends.cpu_attn import (
+                    set_batch_aware_attn_enabled)
+                set_batch_aware_attn_enabled(True)
+        except Exception as _e:
+            logger.warning(
+                "[HYBRID-BATCH-AWARE-ATTN] setter call failed: %s", _e)
+
         # =====================================================
         # Update config for CPU platform
         # =====================================================

@@ -4689,6 +4689,15 @@ class HybridConfig:
     1회 Q8_0 quantize, runtime repack 없음. LoRA 활성 또는 _C_cpu_ops 미빌드
     시 자동 skip. scope: Qwen2ForCausalLM 만 허용."""
 
+    # §11 Batch-aware Decode Attention — feature flag
+    batch_aware_attn: bool = False
+    """§11 Phase 1: True 이면 CPU decode attention 을 IPEX single_query_cached_kv
+    대신 _PagedAttention.forward_decode 경로로 강제 라우팅하여 AVX-512 기반
+    batch16_paged_attention_v1 kernel 을 활성화한다. _C_cpu_ops 미빌드 또는
+    BF16/FP32 아닌 dtype 시 자동으로 기존 path (IPEX) 로 fallback. KV cache
+    layout 도 함께 _PagedAttention layout 으로 통일되므로 반드시 boot 시점에
+    결정해야 한다 (runtime 전환 금지)."""
+
     def __post_init__(self):
         valid_strategies = ("capacity", "length-aware", "throughput-adaptive",
                             "round-robin", "wave-batch")

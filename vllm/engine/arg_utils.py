@@ -455,6 +455,12 @@ class EngineArgs:
     Requires _C_cpu_ops built with AVX-512 VNNI. Auto-skipped under LoRA
     or for non-Qwen2 architectures."""
 
+    hybrid_batch_aware_attn: bool = False
+    """§11 Phase 1: enable batch-aware paged-attention dispatch. Forces the
+    CPU decode path to use AVX-512 batch16_paged_attention_v1 by routing
+    through _PagedAttention (bypassing IPEX). Requires _C_cpu_ops built
+    with AVX-512F. BF16/FP32 only."""
+
     show_hidden_metrics_for_version: Optional[str] = \
         ObservabilityConfig.show_hidden_metrics_for_version
     otlp_traces_endpoint: Optional[str] = \
@@ -1065,6 +1071,16 @@ class EngineArgs:
                  "Requires _C_cpu_ops built with AVX-512 VNNI. Auto-skipped "
                  "under LoRA or for non-Qwen2 architectures. (default: off)"
         )
+        hybrid_group.add_argument(
+            '--hybrid-batch-aware-attn',
+            action='store_true',
+            default=False,
+            help="§11 Phase 1 Batch-aware decode attention: force the CPU "
+                 "decode path through _PagedAttention (AVX-512 "
+                 "batch16_paged_attention_v1) instead of IPEX "
+                 "single_query_cached_kv_attention. Requires _C_cpu_ops built "
+                 "with AVX-512F. BF16/FP32 only. (default: off)"
+        )
 
         return parser
 
@@ -1577,6 +1593,7 @@ class EngineArgs:
             stats_log_interval=self.hybrid_stats_log_interval,
             num_cpu_engines=self.hybrid_num_cpu_engines,
             vnni_hot_path=self.hybrid_vnni_hot_path,
+            batch_aware_attn=self.hybrid_batch_aware_attn,
         )
 
         config = VllmConfig(

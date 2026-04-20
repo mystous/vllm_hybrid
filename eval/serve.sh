@@ -172,6 +172,14 @@ elif [[ "${MODE}" == "hybrid" ]]; then
             ;;
     esac
 
+    # §11 feature flag: accepted as 1/true/yes/on
+    BATCH_AWARE_ATTN_ARG=""
+    case "${HYBRID_BATCH_AWARE_ATTN:-0}" in
+        1|true|TRUE|True|yes|YES|Yes|on|ON|On)
+            BATCH_AWARE_ATTN_ARG="--hybrid-batch-aware-attn"
+            ;;
+    esac
+
     # shellcheck disable=SC2086
     python -u -m vllm.entrypoints.openai.api_server \
         --model "${MODEL}" \
@@ -189,6 +197,7 @@ elif [[ "${MODE}" == "hybrid" ]]; then
         ${WARMUP_REQUESTS_ARG} \
         ${ROUTING_PRIORITY_ARG} \
         ${VNNI_HOT_PATH_ARG} \
+        ${BATCH_AWARE_ATTN_ARG} \
         --hybrid-routing-strategy "${HYBRID_ROUTING_STRATEGY}" \
         --hybrid-stats-log-interval "${HYBRID_STATS_LOG_INTERVAL}" \
         ${NUMA_FLAG} \

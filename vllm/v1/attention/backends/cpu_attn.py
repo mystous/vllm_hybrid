@@ -639,7 +639,15 @@ class TorchSDPABackendImpl(AttentionImpl[TorchSDPAMetadata]):
 
         output = torch.empty_like(query)
         if prefill_meta := attn_metadata.prefill_metadata:
-            if not prefill_meta.prefill_metadata.chunked_prefill or not _is_ipex_available():  # type: ignore
+            # §11 Phase 1: when batch_aware_attn forces _PagedAttention layout,
+            # the IPEX prefill flash_attn path would read key_cache with the
+            # wrong shape (IPEX expects [B, kv_heads, block_size, head_size],
+            # _PagedAttention writes [B, kv_heads, head_size/x, block_size, x]).
+            # Route prefill through pure SDPA to keep the layout self-consistent.
+            _force_sdpa_prefill = _BATCH_AWARE_ATTN_ENABLED and HAS_CPU_OPS
+            if (not prefill_meta.prefill_metadata.chunked_prefill  # type: ignore
+                    or not _is_ipex_available()
+                    or _force_sdpa_prefill):
                 assert attn_metadata.seq_lens is not None
                 self._run_sdpa_forward(output,
                                        query,
@@ -1307,8 +1315,33 @@ class _IPEXPagedAttention(_PagedAttention):
                 context_lens.tolist(), _elapsed)
 
 
+# §11 Phase 1: Batch-aware decode attention dispatch flag.
+# When True, force _PagedAttention (AVX-512 batch16_paged_attention_v1) even
+# if IPEX is available. Must be set BEFORE get_kv_cache_shape() is called so
+# allocation and dispatch use the same layout. Set from CPUWorker.__init__
+# via set_batch_aware_attn_enabled().
+_BATCH_AWARE_ATTN_ENABLED: bool = False
+
+
+def set_batch_aware_attn_enabled(enabled: bool) -> None:
+    """Sticky boot-time setter for §11 Batch-aware Decode Attention dispatch.
+    Call once during CPUWorker.__init__ after reading
+    vllm_config.hybrid_config.batch_aware_attn. Runtime flip is forbidden
+    because KV cache layout differs between IPEX and _PagedAttention paths."""
+    global _BATCH_AWARE_ATTN_ENABLED
+    _BATCH_AWARE_ATTN_ENABLED = bool(enabled)
+    logger.info(
+        "[HYBRID-BATCH-AWARE-ATTN] dispatch=%s (HAS_CPU_OPS=%s, IPEX=%s)",
+        "_PagedAttention" if _BATCH_AWARE_ATTN_ENABLED and HAS_CPU_OPS
+        else "_IPEXPagedAttention" if _is_ipex_available()
+        else "_PagedAttention",
+        HAS_CPU_OPS, _is_ipex_available(),
+    )
+
+
 def _get_paged_attn_impl():
+    if _BATCH_AWARE_ATTN_ENABLED and HAS_CPU_OPS:
+        return _PagedAttention
     if _is_ipex_available():
         return _IPEXPagedAttention
-    else:
-        return _PagedAttention
+    return _PagedAttention

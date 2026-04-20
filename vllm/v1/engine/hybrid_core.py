@@ -1226,6 +1226,7 @@ def _create_cpu_vllm_config(
         # 등이 참조하므로 반드시 parent hybrid_config 값을 passthrough.
         # 추가 feature flag 가 생길 때마다 여기 목록도 확장.
         vnni_hot_path=getattr(hybrid, "vnni_hot_path", False),
+        batch_aware_attn=getattr(hybrid, "batch_aware_attn", False),
     )
     cpu_config = replace(
         gpu_config,
@@ -1534,6 +1535,7 @@ def _emit_applied_features_manifest(vllm_config: VllmConfig) -> None:
             "routing_strategy": getattr(hybrid_cfg, "routing_strategy", None),
             "routing_priority": getattr(hybrid_cfg, "routing_priority", None),
             "vnni_hot_path": getattr(hybrid_cfg, "vnni_hot_path", None),
+            "batch_aware_attn": getattr(hybrid_cfg, "batch_aware_attn", None),
         },
         "profile_meta": meta,
         "features": features,
