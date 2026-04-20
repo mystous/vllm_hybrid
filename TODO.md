@@ -87,14 +87,15 @@ Stage 종료 시마다 **동시 확인**:
 
 §11 Phase 1 기각 이후 방향 재정립. 아래 4개가 **실제 착수 후보**. 나머지 기법은 `old_doc/NinjaGap_backlog_tier2_20260420.md` 로 분리.
 
-| 순위 | 후보 | 보고 수치 | 측정 HW 일치도 | 증거 등급 |
-|:---:|---|---|---|---|
-| **1** | [§16 SparAMX](NinjaGap_Todo/16_sparamx_bitmask_sparse.md) | linear **1.42×**, attn 1.14× | **Xeon SPR 동일** | B (SPR 실측) |
-| **2** | [§22 NEO asymmetric](NinjaGap_Todo/22_neo_asymmetric.md) | throughput **14.3%** | **H100 + 70B 동일** | B (MLSys'25 실측) |
-| **3** | [§28 xFasterTransformer 이식](NinjaGap_Todo/28_xft_kernel_porting.md) | Intel 공식 SPR 실측 | SPR production | B (Intel 공식, 블로그 수치) |
-| **4** | [§13 T-MAC LUT INT4](NinjaGap_Todo/13_tmac_lut_gemv_int4.md) | INT4 **4×** | edge CPU (ARM) | C (이식 리스크 큼, SPR 재검증 필수) |
+| 순위 | 후보 | 보고 수치 | 측정 HW 일치도 | 증거 등급 | 모델 변경 |
+|:---:|---|---|---|---|---|
+| **1** | [§22 NEO asymmetric](NinjaGap_Todo/22_neo_asymmetric.md) | throughput **14.3%** | **H100 + 70B 동일** | B (MLSys'25 실측) | 없음 (routing) |
+| **2** | [§28 xFasterTransformer 이식](NinjaGap_Todo/28_xft_kernel_porting.md) | Intel 공식 SPR 실측 | SPR production | B (Intel 공식, 블로그 수치) | 없음 (kernel swap) |
+| **3** | [§13 T-MAC LUT INT4](NinjaGap_Todo/13_tmac_lut_gemv_int4.md) | INT4 **4×** | edge CPU (ARM) | C (이식 리스크 큼, SPR 재검증 필수) | 있음 (weight INT4 quant) |
 
-**우선순위 근거**: §16 은 우리와 동일 CPU (SPR) 실측. §22 는 우리와 동일 HW + 모델 규모 (H100+70B) 실측. §28 은 Intel 공식 maintained kernel (블로그 공개 수치). §13 은 ARM edge 실측으로 우리 HW 이식 리스크 가장 큼. 이 순서로 한 개씩 검증 — 착수는 §16 부터.
+**우선순위 근거**: §22 는 우리와 동일 HW + 모델 규모 (H100+70B) 실측, 모델 변경 없음 (routing/scheduling 축). §28 은 Intel 공식 maintained kernel, 모델 변경 없음 (kernel 이식). §13 은 weight INT4 quantization (§06 Q8_0 의 더 공격적 버전), ARM edge 실측으로 SPR 재검증 필수.
+
+**기각 (2026-04-20)**: ~~§16 SparAMX~~ — unstructured pruning 은 GPU 에 이득 없음 (tensor cores 의 sparse 지원은 2:4 structured 전용), 2:4 로 바꾸면 SparAMX 논문 수치 (1.42×) 근거 깨짐. 모델 pruning 비용 대비 hybrid 전체 개선 효과 제한적.
 
 **착수 규율**: 한 번에 한 후보만. G1 (hybrid outTP ≥ base) 또는 G2 (hybrid outTP ≥ gpu_only × 0.30) 재판정 후 다음으로 이동. 실패 시 다음 후보. 모두 실패 시 Tier 2 backlog 에서 선정.
 
@@ -115,8 +116,7 @@ v2 (VNNI `vpdpbusd`) 기각 상세: [§06-1 문서](NinjaGap_Todo/06-1_m_aware_m
 
 ### 4.2 Tier 1 후보 (§3-A 착수 대상)
 
-우선순위 1~4 는 §3-A 참조. 각 기법 상세는 개별 NinjaGap_Todo 문서:
-- [§16 SparAMX](NinjaGap_Todo/16_sparamx_bitmask_sparse.md)
+우선순위 1~3 은 §3-A 참조. 각 기법 상세는 개별 NinjaGap_Todo 문서:
 - [§22 NEO asymmetric](NinjaGap_Todo/22_neo_asymmetric.md)
 - [§28 xFasterTransformer 이식](NinjaGap_Todo/28_xft_kernel_porting.md)
 - [§13 T-MAC LUT INT4](NinjaGap_Todo/13_tmac_lut_gemv_int4.md)
@@ -129,10 +129,10 @@ Tier 2 / 장거리 / 기각 / 강등 전체 목록은 [old_doc/NinjaGap_backlog_
 
 ## 5. 실행 순서
 
-1. **§3-A 우선순위 1 (§16 SparAMX) 착수** — SPR 동일 HW 실측 근거 가장 강함
+1. **§3-A 우선순위 1 (§22 NEO asymmetric) 착수** — 모델 변경 없는 routing 축. H100+70B 14.3% 실측
 2. G1 / G2 재판정 (`Tech_done.md` v8 §SSOT-2 기준)
-3. 성공 시 우선순위 2 (§22 NEO) 또는 Tier 2 재평가. 실패 시 우선순위 2 로 이동
-4. Tier 1 후보 4개 모두 실패 시 Tier 2 backlog 재평가
+3. 성공 시 우선순위 2 (§28 xFT) 또는 Tier 2 재평가. 실패 시 우선순위 2 로 이동
+4. Tier 1 후보 3개 모두 실패 시 Tier 2 backlog 재평가
 
 ---
 
@@ -161,13 +161,3 @@ Tier 2 / 장거리 / 기각 / 강등 전체 목록은 [old_doc/NinjaGap_backlog_
 
 ---
 
-## 8. 다음 코드 작업 — §16 **preflight-first** (2026-04-20 결정)
-
-상세 결정, Step 0 결과, preflight 산출물, 이식 vs 자체 구현 분기는 [§16 SparAMX 문서](NinjaGap_Todo/16_sparamx_bitmask_sparse.md)에 기록.
-
-요약만 유지:
-
-1. 우선순위 1 후보는 여전히 `§16`
-2. 첫 코드 작업은 sparse kernel 구현이 아니라 `§16 preflight harness`
-3. preflight 통과 시 공개 SparAMX 구현 **이식 우선**, 그 다음에만 자체 구현 검토
-4. preflight 실패 시 `§22` 또는 `§28` 로 이동
