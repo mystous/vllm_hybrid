@@ -199,62 +199,70 @@ python benchmarks/benchmark_serving.py \
 
 ## Ninja Gap 성능 개선 추적 (Applied Features Log)
 
-**Ninja Gap** = `T_hybrid < T_gpu_only` 달성 목표. 현재 H100x8 / 7B / 500×128 기준 hybrid wall 은 GPU-only 대비 26–143× 느림 (batch scaling 실패). 아래는 **소스 코드에 적용된 기법을 누적 기록** 하는 로그. 각 항목 적용 후 주간 측정 (`VLLM_HYBRID_PROFILE=1` + `num_seqs` sweep) 결과와 함께 위에서 아래로 쌓아간다.
+**Ninja Gap** = `T_hybrid < T_gpu_only` 달성 목표.
+
+**대표 workload (2026-04-20 고정)**: Qwen2.5-32B-Instruct × H100x8 (TP=8) × 500 req × 128/128. 7B + RTX3090 는 dev secondary.
+
+**현재 실측 gap**: gpu_only outTP **11,523 tok/s** vs hybrid 최고 (§06-1 v1 seqs=1) **1,196 tok/s** = gpu_only 의 **10.4%**.
+
+**주원인**: CPU engine batch 병렬화 구조적 결함. seqs=1 → 8 에서 §06-1 v1 outTP 1196 → 272 (4.4× 감소). 상세: [Tech_done.md](Tech_done.md) v8 §SSOT-3.
 
 기법 상세: [NinjaGap_Todo/README.md](NinjaGap_Todo/README.md) (전체 Gate / flag 테이블 / 진도)
-기법 각 문서: [NinjaGap_Todo/](NinjaGap_Todo/) (§01–§22)
+기법 각 문서: [NinjaGap_Todo/](NinjaGap_Todo/) (§01–§28)
 
-**측정 워크플로** (수동 이동):
+**측정 워크플로** (대표 workload: Qwen2.5-32B × H100x8 TP=8):
 
 ```bash
-# 1. template 복사
-cp eval/envs/g0_h100x8_qwen7b.env /tmp/run.env
+# 1. 32B template 복사
+cp eval/envs/g0_h100x8_qwen32b_00_tp8.env /tmp/run.env
 
 # 2. 편집
-#    HYBRID_TODO_NN=00              # baseline=00, §05 후=05, §06 후=06 ...
+#    HYBRID_TODO_NN=<기법 번호>     # base=00, §06=06, §06-1 v1=06_1_v1 ...
 #    HYBRID_CPU_MAX_SEQS=1          # sweep: 1/2/4/8/16 각각 재실행
 
-# 3. 두 터미널 실행 — 결과는 eval/results/<ts>_.../ 에
-./eval/serve.sh hybrid /tmp/run.env   # 서버 (터미널 1)
-./eval/bench.sh hybrid /tmp/run.env   # 벤치 (터미널 2, ready 후)
-# PROFILE=1 이므로 eval/results/<ts>_.../ 에 applied_features.json,
-# env_snapshot.txt, git_sha.txt 포함 + server log 에 [HYBRID-CPU-PROFILE] 라인
+# 3. serve + bench (한 줄 체인 — sweep loop)
+bash eval/g0_seq_sweep.sh /tmp/run.env 1 2 4 8 16
 
-# 4. 사용자가 sweep 정리 (수동 mv)
-mv eval/results/<ts1>_...  measurement_results/H100x8/g0_00/seqs1
-mv eval/results/<ts2>_...  measurement_results/H100x8/g0_00/seqs2
+# 4. 결과는 eval/results/<ts>_.../ 에 저장. 사용자가 수동 mv:
+mv eval/results/<ts1>_..._seqs1  measurement_results/H100x8/g0_<NN>_qwen2.5_32b/seqs1
 # ...
 
 # 5. sweep 모두 끝난 후 분석
-python3 eval/g0_analyze.py measurement_results/H100x8/g0_00/
+python3 eval/g0_analyze.py measurement_results/H100x8/g0_<NN>_qwen2.5_32b/
 ```
+
+7B + RTX3090 dev 환경용 예시는 `eval/envs/g0_dev_rtx3090_qwen1.5b.env` 등 별도 template.
 
 상세 절차와 실전 주의사항: [NinjaGap_Todo/01_G0_measurement.md](NinjaGap_Todo/01_G0_measurement.md) §실행 방법 / §실전 주의사항
 
-### 적용 순서 (적층 로그)
+### 적용 순서 (적층 로그) — Qwen2.5-32B × H100x8 TP=8 기준
 
-| # | 일자 (KST) | 기법 | TODO 문서 | 상태 | 주요 커밋 | Gate | 측정 결과 (wall/ratio) |
-|---:|---|---|---|:---:|---|:---:|---|
-| 0 | 2026-04-15 | **Baseline (H100x8, 7B)** — hybrid dual-process, wave-batch routing, cpu_max_num_seqs=1 (auto), NUMA strict membind, C++ init_cpu_threads_env, feature 기반 ONEDNN ISA | — | ✅ 기존 | — | pre-G0 | wall 394-2003 s, ratio(16/1)=5.3× |
-| 1 | 2026-04-17 | **§01 G0 measurement 완료** — `num_seqs` sweep 고정, sublayer profiling, manifest/summary pipeline, `measurement_results/<HW>/g0_*` schema 정착 | [01_G0_measurement.md](NinjaGap_Todo/01_G0_measurement.md) | ✅ | `22afea529` | G0 완료 | RTX3090 `g0_00` + H100x8 `g0_00_*` sweep 확보 |
-| 2 | 2026-04-17 | **§02 Tier 0 baseline defense 완료** — baseline 기본값을 `cpu_max_num_seqs=1`, `strategy=capacity`, `priority=cpu-first` 로 고정, wave env 분리, 전략 비교 env 3종 추가 | [02_tier0_baseline_defense.md](NinjaGap_Todo/02_tier0_baseline_defense.md) | ✅ | `22afea529` | G0 baseline 고정 | H100x8 `g0_02_strat_{capacity,length_aware,throughput_adaptive}` |
-| 3 | 2026-04-15 | **§05 KMP_BLOCKTIME=0** (auto 기본) — `_setup_cpu_process_env` 에서 `HYBRID_KMP_BLOCKTIME=auto` 시 강제 적용. hybrid dual-process IPC 경합 완화 | [05_omp_env_finalize.md](NinjaGap_Todo/05_omp_env_finalize.md) | ✅ | `869c736eb` | — | 측정 대기 |
-| 4 | — | (예정) §03 Huge Pages (2MB THP → 1GB hugetlb) | [03_huge_pages.md](NinjaGap_Todo/03_huge_pages.md) | ⭕ | — | — | — |
-| ~~5~~ | 2026-04-19 | ~~§04 IPEX WoQ INT8~~ **기각** — vLLM `QKVParallelLinear` 비호환, §23 CPU Native Quant 편입 | [04_ipex_woq_int8.md](NinjaGap_Todo/04_ipex_woq_int8.md) | ✗ | — | — | — |
-| 6 | 2026-04-19 | **§06 Q8_0 dispatch 경로 구축** — `hot_path_wiring.py` + `_Q8_0LinearMethod` 로 Qwen2 MLP `gate_up_proj`/`down_proj` 를 `torch.ops._C_cpu_ops.q8_0_linear` 로 apply-time 치환. 3 버그 fix (CLI arg / LoRA 순서 / passthrough). 128 layer 치환 확인 | [06_hot_path_wiring.md](NinjaGap_Todo/06_hot_path_wiring.md) | 🔶 Dispatch 완료 | `6f904b39b` | **§06-1 대기** | seqs=1: outTP +18% (vs baseline). **seqs≥2 역효과** (seqs=64 outTP −90%) — kernel batch 결함 |
-| 6-1 | — | **§06-1 Q8_0 kernel M-aware 화** — `quant_q8_0.cpp::q8_0_linear_impl` 의 M>1 경로를 GEMV 반복 → VNNI INT8 GEMM 으로 교체 (기존 `gemm_vnni.cpp::int8_gemm_vnni` 재활용). (선택) Phase 2 로 AMX-INT8. §06 batch 결함 정정 | [06-1_m_aware_mlp_kernel.md](NinjaGap_Todo/06-1_m_aware_mlp_kernel.md) | ⭕ 설계 완료 | — | G1 재판정 전제 | — |
-| 7 | — | (예정) §07 ISA Binary Dispatch | [07_isa_binary_dispatch.md](NinjaGap_Todo/07_isa_binary_dispatch.md) | 🔶 | — | — | — |
-| 8 | — | (예정) §08 Kernel Fusion | [08_kernel_fusion.md](NinjaGap_Todo/08_kernel_fusion.md) | 🔶 | — | — | — |
-| 9 | — | (예정) §11 Batch-aware Decode Attention (v2 동적) | [11_batch_aware_decode_attn.md](NinjaGap_Todo/11_batch_aware_decode_attn.md) | 🔶 | — | G2 경유 | — |
-| 10 | — | (예정) §13 T-MAC LUT GEMV INT4 | [13_tmac_lut_gemv_int4.md](NinjaGap_Todo/13_tmac_lut_gemv_int4.md) | ⭕ | — | G3 지점 | — |
-| … | | | | | | | |
+| # | 일자 | 기법 | 상태 | 측정 결과 (outTP, 32B TP=8) |
+|---:|---|---|:---:|---|
+| 0 | 2026-04-20 | **Baseline (32B TP=8, all Ninja Gap off)** — `measurement_results/H100x8/g0_00_qwen2.5_32b_base/` | ✅ | seqs=1: 908.9 tok/s · seqs=16: 637.8 · gpu_only 11,523 |
+| 1 | 2026-04-19 | **§06** Q8_0 dispatch (`6f904b39b`) | 🔶 dispatch 완료, kernel 결함 | seqs=1 +18%, seqs≥2 역효과 |
+| 2 | 2026-04-20 | **§06-1 v1** M-aware MLP kernel (`0c066f0e7`) | 🔶 v1 최종 (v2 기각 `33361eadc`→`0ca4466b7`) | §06 대비 seqs 2/4/8 +21~34% 회복, base 대비 일부 열세 |
+| ~~3~~ | 2026-04-20 | ~~**§11 Phase 1** Batch-aware decode attn~~ (`f14bfad16`…`6604ceaab`) | ✗ 기각 | §06-1 v1 대비 −12~−5% regression. 측정: `g0_11_qwen2.5_32b_phase1(fail)/` |
 
-**운영 규칙**:
-1. 기법 구현 + 측정 완료 후에만 한 행 추가 (설계만 된 항목은 "예정" 으로 별도)
-2. 각 행은 직전 행 대비 **누적 (적층)** 성능. 독립 이득 아님
-3. `측정 결과` 열에는 `(wall, ratio(16/1), batch_scaling_ratio)` 최소 3 수치 — 상세는 `measurement_results/<HW>/g0_<NN>/` 디렉토리 링크
-4. Gate 열 변화 (G0 → G1 → G2 → G3) 가 Ninja Gap 진척의 단일 지표
-5. 행 추가 시 `applied_features.json` 의 flag state 도 같이 기록 (추적성)
+**다음 단계**: Tier 1 후보 4개 (선행 연구에 실측 수치 + 조건 보고) 중 우선순위 순 — 상세 [NinjaGap_Todo/README.md](NinjaGap_Todo/README.md).
+
+1. **§16 SparAMX** — linear 1.42× / attn 1.14× (Xeon SPR, 우리 HW 동일)
+2. **§22 NEO asymmetric** — H100 70B 14.3% (MLSys'25, HW+규모 동일)
+3. **§28 xFasterTransformer 이식** — Intel 공식 SPR stack
+4. **§13 T-MAC LUT INT4** — 4× (edge ARM, SPR 재검증 필요)
+
+<details>
+<summary>Infra 이력 (§01 G0 / §02 baseline defense / §05 OMP env / §04 WoQ 기각 / §03 Huge Pages Phase 2 기각) — 개별 NinjaGap 문서 참조</summary>
+
+- §01 G0 measurement (`22afea529`, 2026-04-17): `num_seqs` sweep + sublayer profiling + manifest pipeline
+- §02 Tier 0 baseline defense (`22afea529`, 2026-04-17): `cpu_max_num_seqs=1`, strategy=capacity, priority=cpu-first
+- §03 Huge Pages: Phase 1 (2MB THP) host default / Phase 2 (1GB hugetlb) ✗ 기각 2026-04-19 (SPR TLB 역효과)
+- §04 IPEX WoQ INT8: ✗ 기각 2026-04-19 (vLLM Linear 비호환, §23 편입)
+- §05 OMP env (`869c736eb`, 2026-04-15): `KMP_BLOCKTIME=0` 강제
+
+초기 7B + RTX3090 측정 이력은 `old_doc/` 참조.
+
+</details>
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## 정체성 및 결과 요약
 
-§06-1 의 2nd revision (VNNI `vpdpbusd` intrinsic + s8s8 compensation + prefetch). **scope 구간 (seqs 2/4/8) 에서 v1 대비 7–13% outTP 저하**가 측정돼 실패로 판정. **v1 으로 롤백 후 §06-1 Phase 1 을 v1 상태로 확정**.
+§06-1 의 2nd revision (VNNI `vpdpbusd` intrinsic + s8s8 compensation + prefetch). **scope 구간 (seqs 2/4/8) 에서 v1 대비 7–13% outTP 저하**가 측정돼 실패로 판정. **v1 으로 롤백 후 §06-1 최종 선택은 v1**.
 
 본 디렉토리는 데이터 보존용. 이후 revision 에서 같은 함정을 피하기 위한 근거 자료로 유지.
 
@@ -51,9 +51,9 @@ M=1 는 v2 kernel 변경과 무관한 `q8_0_gemv_vnni_impl` 경로. 그럼에도
 v2 의 단순 VNNI 전환으로는 의미 있는 이득 없음. **v1 상태로 롤백 (옵션 A)**. 남은 선택지:
 - **v3 (two-block packing)**: lane 완전 사용. 성공 시 v2 의 half-tile 문제 해소. 구현 복잡.
 - **`vpdpbssd` (s8×s8 직접)**: compensation overhead 제거. AVX-VNNI-INT8 feature 및 gcc 13+ 필요.
-- **§24 (W8A8) / §11·§25 (batch-aware attention)**: §06-1 scope 를 벗어나 다른 축에서 이득 확보.
+- **Tier 1 후보 또는 §24 (W8A8)**: §06-1 scope 를 벗어나 다른 축에서 이득 확보.
 
-현재 프로젝트는 v1 유지 + §24 또는 §11/§25 로 전환하는 방향 (옵션 A).
+현재 기준 결론은 **v1 유지 + Tier 1 후보 재평가**다. 이 README 작성 당시 남아 있던 `§11/§25` 전환 문구는 이제 stale 이며, `§11`은 2026-04-20 Phase 1 기각 상태다.
 
 ## 구조
 
@@ -69,7 +69,7 @@ g0_06_1_qwen2.5_32b_v2(fail)/
 
 ## 관련
 
-- **v1 (확정)**: `../g0_06_1_qwen2.5_32b_v1/` — §06-1 Phase 1 최종 선택
+- **v1 (확정)**: `../g0_06_1_qwen2.5_32b_v1/` — §06-1 최종 선택
 - **§06 on (v0)**: `../g0_06_qwen2.5_32b/` — kernel 변경 전 §06
 - **baseline**: `../g0_00_qwen2.5_32b_base/` — §06 off
 - 기법 문서: `NinjaGap_Todo/06-1_m_aware_mlp_kernel.md`

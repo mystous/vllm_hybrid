@@ -581,7 +581,9 @@ G1 조건 `< 8×` 모든 seqs 실패. seqs=1 에서도 여전히 GPU-only 대비
 | Wall ratio | `< 8×` | seqs=1 에서도 10.7× | ✗ |
 | CPU contribution | 증가 | baseline 대비 증가 없음 (routing 동일) | — |
 
-**§06 단독 G1 미통과 확정**. §01 Stop/Go Case 3 ("단일 req 만 빨라지고 batch scaling 없음") 에 부분 해당하나, §06 의 scope 자체가 MLP 만 치환이라 batch scaling 해소는 처음부터 §11/§25 의 역할로 설계되어 있었음 (`NinjaGap_Todo/README.md` Gate ↔ 기법 매핑 참조). 따라서 **"§06 실패" 가 아닌 "G1 미달 → §11/§25 필수 전제"** 로 해석.
+> **정정 마커 (2026-04-20, v8 SSOT 이후)**: 아래 v6 해석의 `§11/§25 필수 전제`, `§18 G3 핵심` 문구는 당시 시점의 해석이다. 최신 단일 진실 공급원은 본 파일의 v8 `SSOT-2/3/4` 이다.
+
+**§06 단독 G1 미통과 확정**. 당시에는 §01 Stop/Go Case 3 ("단일 req 만 빨라지고 batch scaling 없음") 에 부분 해당하나, §06 의 scope 자체가 MLP 만 치환이라 batch scaling 해소는 처음부터 §11/§25 의 역할로 설계되어 있었다고 해석했다. **현재 기준으로는 이 결론은 obsolete** 이며, 최신 원인 트리는 v8 SSOT 참조.
 
 ### 원인 분석 (batch scaling 실패)
 
@@ -591,15 +593,12 @@ G1 조건 `< 8×` 모든 seqs 실패. seqs=1 에서도 여전히 GPU-only 대비
 
 ### 결론
 
-**§06 hot path wiring 은 기법 자체는 완결**. seqs=1 단독 decode 이득 −28% 확인. 하지만 G1 gate 는 단독 미통과, 이는 원 설계대로 (§06 이 G1 의 "infra 연결" 역할이고 G1 통과는 §07~§11 누적). Ninja Gap 달성 경로는 §11/§25 (G2 핵심) + §24 (W8A8 activation) + §18 (spec decode drafter, G3) 의 누적 구조로 그대로 유지.
+**§06 hot path wiring 은 기법 자체는 완결**. seqs=1 단독 decode 이득 −28% 확인. 하지만 아래의 "`§11/§25`가 G1/G2의 필수 전제" 결론은 **현재 기준으로 obsolete** 이다.
 
-### 후속 측정 필요 항목
+### 후속 측정 필요 항목 (historical, 이후 v8 SSOT 로 대체)
 
-- 동일 workload 로 `HYBRID_BATCH_AWARE_ATTN=v2` (§11) 적용 후 `cost(4)/cost(1)` 재측정
-- §24 활성화 후 activation bandwidth 병목 여부 측정
-- 중간 점검 기준: `g0_06_11` (§06 + §11 누적) 에서 `cost(4)/cost(1) ≤ 2.0` 달성 여부
-
-이 두 가지가 G1 → G2 진행의 가장 명확한 실측 지점.
+- 당시에는 `§11`, `§24` 측정이 다음 단계 후보로 적혔으나, 이후 `§11 Phase 1` 기각과 v8 SSOT 정리로 우선순위가 바뀌었다.
+- 최신 다음 단계는 Tier 1 후보 (`§16 → §22 → §28 → §13`) 순차 검증이다.
 
 ---
 
@@ -657,6 +656,8 @@ M 축을 GEMM 차원으로 활용하지 않고 GEMV 를 M 번 순차 호출. IPE
 
 ### 이전 분석의 오류 정정
 
+> **정정 마커 (2026-04-20, v8 SSOT 이후)**: 이 v7 섹션은 v6 오해석을 바로잡는 중간 단계 기록이다. 여기서 남아 있는 "`§11/§25 착수 여부 결정`" 류의 서술도 이후 §11 Phase 1 실패로 더 축소됐다.
+
 v6 에서 "§06 단독 G1 미통과 → §11/§25 (attention batch scaling) 필요" 로 결론내렸던 것은 **절반만 맞다**:
 - 정확한 부분: §06 on 상태에서 batch scaling 이 실패하는 것 자체는 사실
 - 오해석: 그 원인을 "attention 이 선형 확장하며 병목" 으로 지목했으나, 실제 주된 원인은 **§06 MLP kernel 의 batch-oblivious 구현**. Attention 경로는 §06 off/on 양쪽 동일 (IPEX `_IPEXPagedAttention`) 이므로 §06 의 역효과를 attention 탓으로 돌린 건 잘못.
@@ -692,7 +693,7 @@ Baseline (§06 off) 의 batch scaling 은 실제로 나쁘지 않음:
 
 - §06-1 (A) VNNI INT8 GEMM path 구현 → `g0_06_1_qwen2.5_32b/` sweep 측정 → base/§06 on 대비 outTP 방향 확인
 - 기준: seqs=1 기존 이득 (+18%) 유지 + seqs 4/8/16 에서 base 대비 손실 없음
-- 충족 시 G1 gate 재판정 → §11/§25 착수 여부 결정
+- 충족 시 G1 gate 재판정 → 당시에는 `§11/§25` 착수 여부를 결정하려 했으나, 이후 `§11`은 Phase 1 기각 상태가 됨
 - 불충족 시 (seqs≥16 에서 여전히 base 대비 열세) Phase 2 (AMX-INT8) 또는 §06 전면 제거 판단
 
 ---
@@ -752,3 +753,73 @@ gpu_only 대조: 11,522.95 tok/s (hybrid 는 어느 설정에서도 gpu_only 의
 1. 구현 전에 kernel 의 **실제 호출 경로 분석 필수**. §11 의 경우 "seqs<16 은 batch16 이 아니라 remainder path" 가 설계 문서에 이미 명시돼 있었으나 "scope 는 seqs 2/4/8 개선" 이라 착오
 2. 측정 중단 판정은 조기에 — §11 은 seqs=8 까지 regression 확인된 시점에서 seqs=16 진행 보류 판단 정상
 3. CPU batch 병렬화의 근본 결함은 MLP GEMM 축 문제. attention 만 건드려 해결 불가. 다음 시도는 Tier 1 후보 (§13/§16/§22/§28) 중 선택
+
+---
+
+## v8 SSOT — 2026-04-20: Gate 재정의 + 원인 트리 통합 + 대표 workload 고정
+
+문서 자기모순 / 가설 잔존 지적을 받아 아래 5개를 **단일 진실 공급원 (SSOT)** 으로 고정. 타 문서 (TODO.md, NinjaGap_Todo/README.md) 는 이 섹션을 참조해야 한다.
+
+### SSOT-1. 대표 workload 고정
+
+- **Primary**: Qwen2.5-32B-Instruct × H100x8 (TP=8) × Xeon 8480+ 2S SPR × 500 req × 128/128
+- 7B + RTX3090 는 dev 검증용 secondary. **의사결정은 32B 기준만**
+- 이전 문서 서두에 남아있는 "7B 26~143× 느림" 서술은 legacy. 32B 기준 최신 gap 은 아래 SSOT-3
+
+### SSOT-2. Gate 재정의 (baseline-relative)
+
+이전 Gate 정의 (`cost(4)/cost(1) ≤ 2×`) 는 baseline §06 off 측정에서 이미 통과됨이 확인됨 (v7 §06 분석, base seqs=4 ratio=1.53). gate 조건으로 유지 불가. 폐지 + 재정의:
+
+| Gate | 이전 조건 | **재정의 조건** (baseline-relative) |
+|---|---|---|
+| G0 | sublayer breakdown 확보 | (유지) |
+| G1 | ~~4req cost ≤ 2×, tail < 100s, wall ratio < 8×~~ | **hybrid outTP ≥ base outTP × 1.0 at seqs 1/2/4/8/16** — CPU engine 이 baseline 대비 순손실 아님을 증명 |
+| G2 | ~~4req cost ≤ 1.5×, tail < 10s, wall ratio < 1.5×~~ | **hybrid outTP ≥ gpu_only outTP × 0.30 at any seqs** — hybrid 가 gpu_only 대비 30% 이상 처리. α > 0 의 실효적 증거 |
+| G3 (Ninja Gap) | CPU req↑ + wall ≤ gpu_only | **hybrid outTP ≥ gpu_only outTP at any seqs** — 동일 |
+
+현재 실측 (2026-04-20 기준):
+- G0: ✅ 통과
+- G1: ✗ 미통과 (§06-1 v1 가 §06 off base 대비 일부 seqs 에서 우위 + 일부 seqs 에서 열세)
+- G2/G3: ✗ 미통과 (hybrid 최고치 1196 vs gpu_only 11,523 = 10.4%)
+
+### SSOT-3. §06/§06-1/§11 실패 원인 트리 (단일 버전)
+
+"문서마다 다른 서사" 지적 해결. 아래 트리 1장으로 고정.
+
+**주원인 (primary root cause)**:  
+**CPU engine 의 batch 병렬화 자체가 구조적으로 불작동.** seqs=1 → seqs=8 까지 §06-1 v1 에서 outTP 가 1196 → 272 (4.4× 감소). warmup 시간이 seqs 에 기하급수 증가. 즉 현재 CPU kernel 군 (`q8_0_gemv_vnni_impl`, `q8_0_gemm_vnni_impl`, `batch16_paged_attention_v1`) 어느 것도 M>1 에서 amortize 를 못함.
+
+**부원인 (contributing)**:
+1. `q8_0_linear_impl` 의 M>1 경로가 원래 GEMV 를 M 번 순차 호출하는 batch-oblivious 구현이었음. §06-1 v1 에서 weight reuse GEMM 으로 교체했으나 실측상 여전히 super-linear cost. 이론상 weight reuse 이득이 실제로 발현되지 않음
+2. IPEX baseline attention (`single_query_cached_kv_attention`) 이 이미 batch 를 어느 정도 amortize 하고 있어, 우리 `batch16_paged_attention_v1` 의 remainder path 가 이득 창출 공간을 가지지 못함
+3. §11 Phase 1 의 prefill IPEX → SDPA fallback 오버헤드는 순손실. layout 일관성 강제의 부작용
+
+**반증된 가설** (이전 문서에 남아있었으나 실측으로 기각):
+- ~~"§06 의 seqs≥2 역효과는 attention 이 선형 확장하기 때문"~~ — attention 은 §06 on/off 양쪽에서 동일한 IPEX 경로. §06 의 역효과 원인이 될 수 없음. v7 에서 이미 정정했으나 일부 문서에 잔존
+- ~~"§11 이 G2 핵심축 (batch-aware attention 이 scaling 돌파구)"~~ — §11 Phase 1 전 seqs (1/2/4/8) regression 으로 기각. MLP 축이 주원인인데 attention 만 건드려 해결 불가
+- ~~"§06-1 v2 의 VNNI `vpdpbusd` 직접 사용이 kernel 속도 개선"~~ — half-tile waste + s8s8 compensation overhead 로 v1 대비 −7~−13% regression
+
+### SSOT-4. §11 지위
+
+- 이전: G2 핵심축 / scenario 에 "batch-aware attn 12× scaling"
+- **현재**: 실패 가설 (failed hypothesis, pending redesign). Phase 2 (v2 신규 kernel) 재시도는 Tier 1 후보 (§13/§16/§22/§28) 선행 검증 후에만 재평가
+
+### SSOT-5. 이론 상한 표 무효화
+
+`NinjaGap_Todo/README.md` 의 "경로 1 누적 이론 상한" 표 (+35×, +70× 누적) 는:
+- 출처가 "논문 수치 직접 곱하기" — TODO.md 의 Guardrails 중 "외부 논문 speedup 수치를 우리 코드에 직접 곱하기" 금지 조항 자기 위반
+- §06-1 v1 실측 이후 전제 자체가 무너짐 (그 표는 baseline=1× 기준인데 실측 1× 자체가 역효과 구간 가짐)
+- 조치: **"HISTORICAL FANTASY — INVALIDATED (2026-04-20)"** 로 강등. 삭제보다 이력 유지 가치.
+
+### SSOT-6. Spec Decode (§18) 시나리오 확률
+
+이전: "경로 1 + Spec Decode 50% 권장". 현재 CPU kernel 자체가 baseline 대비 순손실인 상태에서 Spec Decode 2× 를 공식 권장 시나리오로 두는 건 근거 빈약.
+
+- 조치: 시나리오 확률을 50% → **근거 불충분. CPU baseline 통과 후 재평가** 로 강등
+- §18 은 Tier 2 (원리만) 로 분류 유지. Leviathan / EAGLE / DuoDecoding 논문 자체는 GPU 실측 위주
+
+### SSOT 반영 대상 파일
+
+- `TODO.md` — workload 헤더, Gate 조건, §06-1 상태, §11 지위, 이론 상한, §18 시나리오
+- `NinjaGap_Todo/README.md` — 위 동일 + flag 표 (HYBRID_BATCH_AWARE_ATTN ✗)
+- 기타 문서는 위 두 개를 참조. 원인 서술은 본 SSOT 의 원인 트리 인용

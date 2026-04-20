@@ -151,12 +151,12 @@ VLLM_HYBRID_PROFILE_SUBLAYER=1 # qkv/o/gate_up/down/norm/act 세분화 로그
 VLLM_HYBRID_PROFILE_EVERY=1    # N step 마다 출력 (1=매 step)
 
 # Ninja Gap 기법 활성화 tag (측정 결과 경로에 반영)
-HYBRID_TODO_NN=00              # 00=baseline / 05=§05 / 06=§06 / ... 누적
+HYBRID_TODO_NN=00              # 예: 00=baseline / 06=§06 / 06_1_v1=§06-1 v1 / 11_phase1=§11 Phase 1
 HYBRID_KMP_BLOCKTIME=auto      # auto 면 KMP_BLOCKTIME=0 강제 (§05)
 # 나머지 21개 HYBRID_* 기법 flag 는 NinjaGap_Todo/README.md 참조
 ```
 
-PROFILE=1 이면 sublayer hook + manifest 가 활성. **결과는 기존 `eval/results/<ts>_.../` 에 저장**. sweep 단위로 모아 분석하려면 사용자가 `measurement_results/<HW>/g0_<NN>/seqs<N>/` 같은 규칙으로 수동 mv 후 `eval/g0_analyze.py <sweep_dir>` 실행. Template env: `eval/envs/g0_dev_rtx3090_qwen1.5b.env`, `eval/envs/g0_h100x8_qwen7b.env`.
+PROFILE=1 이면 sublayer hook + manifest 가 활성. **결과는 기존 `eval/results/<ts>_.../` 에 저장**. sweep 단위로 모아 분석하려면 사용자가 `measurement_results/<HW>/g0_<NN>/seqs<N>/` 같은 규칙으로 수동 mv 후 `eval/g0_analyze.py <sweep_dir>` 실행. 대표 workload template 은 `eval/envs/g0_h100x8_qwen32b_00_tp8.env` 를 우선 사용하고, dev/7B template 은 보조 용도로만 쓴다.
 
 ### 진단 로그 marker
 | marker | 의미 |
