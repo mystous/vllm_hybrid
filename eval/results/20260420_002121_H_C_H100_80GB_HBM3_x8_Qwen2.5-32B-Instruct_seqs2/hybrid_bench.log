@@ -1,0 +1,47 @@
+DEBUG_AG: Process 595044 importing vllm.config
+DEBUG_AG: Process 595044 importing vllm.distributed
+DEBUG_AG: Process 595044 importing vllm.distributed.communication_op
+DEBUG_AG: Process 595044 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 595044 importing vllm.distributed.utils
+DEBUG_AG: Process 595044 finished importing vllm.distributed.utils
+DEBUG_AG: Process 595044 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 595044 importing vllm.platforms
+DEBUG_AG: Process 595044 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 595044 checking plugin heterogeneous
+DEBUG_AG: Process 595044 checking plugin tpu
+DEBUG_AG: Process 595044 checking plugin cuda
+DEBUG_AG: Process 595044 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 595044 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 595044 importing vllm.platforms.cuda
+DEBUG_AG: Process 595044 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 595044 finished importing vllm.distributed
+DEBUG_AG: Process 595044 finished importing vllm.config
+/vllm_hybrid/benchmarks/benchmark_serving.py:1298: DeprecationWarning: benchmark_serving.py is deprecated and will be removed in a future version. Please use 'vllm bench serve' instead.
+  main(args)
+Namespace(backend='vllm', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='random', dataset_path=None, no_stream=False, max_concurrency=None, model='Qwen/Qwen2.5-32B-Instruct', tokenizer=None, use_beam_search=False, num_prompts=500, logprobs=None, request_rate=inf, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/vllm_hybrid/eval/results/20260420_002121_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/hybrid.json', ignore_eos=False, percentile_metrics='ttft,tpot,itl', metric_percentiles='99', goodput=None, custom_output_len=256, custom_skip_chat_template=False, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=128, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None)
+
+thread '<unnamed>' (595044) panicked at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rayon-core-1.13.0/src/registry.rs:171:10:
+The global thread pool has not been initialized.: ThreadPoolBuildError { kind: IOError(Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+Traceback (most recent call last):
+  File "/vllm_hybrid/benchmarks/benchmark_serving.py", line 1298, in <module>
+    main(args)
+  File "/vllm_dev_prj/lib/python3.12/site-packages/typing_extensions.py", line 3004, in wrapper
+    return arg(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/vllm_hybrid/benchmarks/benchmark_serving.py", line 773, in main
+    input_requests = dataset_mapping[args.dataset_name]()
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/vllm_hybrid/benchmarks/benchmark_serving.py", line 762, in <lambda>
+    "random": lambda: RandomDataset(dataset_path=args.dataset_path).sample(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/vllm_hybrid/benchmarks/benchmark_dataset.py", line 356, in sample
+    re_encoded_sequence = tokenizer.encode(prompt, add_special_tokens=False)[
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/vllm_dev_prj/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 2256, in encode
+    encoded_inputs = self._encode_plus(
+                     ^^^^^^^^^^^^^^^^^^
+  File "/vllm_dev_prj/lib/python3.12/site-packages/transformers/tokenization_utils_tokenizers.py", line 959, in _encode_plus
+    encodings = self._tokenizer.encode_batch(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyo3_runtime.PanicException: The global thread pool has not been initialized.: ThreadPoolBuildError { kind: IOError(Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }) }
