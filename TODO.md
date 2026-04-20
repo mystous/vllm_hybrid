@@ -171,13 +171,11 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - **위험**: MLA 에서는 직접 적용. GQA (Qwen) 에서는 batch fold 변형 필요
 - **스택 호환성**: §4.13 batch-aware attention 의 한 방식
 
-### 4.10 Batch-aware Decode Attention 🔶
-- **현재**: `csrc/cpu/batch_attention.cpp` 의 `batch16_paged_attention_v1` kernel 구현. **batch=16 hardcoded**, 동적 batch 미지원
-- **메커니즘**: per-seq KV paged access 구조를 batch 단위 재구성. head-parallel + page-coalesced
-- **예상 이득**: batch=16 scaling 5.3× → 10–12×
-- **변경 위치**: `cpu_attn.py` 의 IPEX call 대체 + 새 kernel
-- **위험**: IPEX 내부 FD kernel 재구현에 해당
-- **스택 호환성**: §4.9 Head Folding 과 중복 영역, 하나 선택 or 통합
+### 4.10 Batch-aware Decode Attention ✗ **Phase 1 기각 (2026-04-20)**
+- **현재**: Phase 1 (Option A, IPEX 우회 + 기존 `batch16_paged_attention_v1` dispatch 활성) 측정 완료 → §06-1 v1 대비 −12~−5% regression. 데이터: `measurement_results/H100x8/g0_11_qwen2.5_32b_phase1(fail)/`
+- **실패 원인**: (1) 측정 구간 (seqs 2/4/8) 이 kernel 의 remainder path — IPEX 와 구조적 동일, (2) prefill IPEX → SDPA fallback 오버헤드, (3) CPU batch 자체의 근본 결함은 attention 로 해결되지 않음
+- **Phase 2 (v2 신규 kernel)**: 재시도 여부 보류. Tier 1 후보 (§13/§16/§22/§28) 검토 이후 재평가
+- **스택 호환성**: §4.9 Head Folding 과 중복 영역
 
 ### 4.11 Barrier/Sync 감소 ⭕ (미계측)
 - **메커니즘**: OMP parallel region 이 sublayer 마다 재진입하는지 확인. thread team 재사용 / chunk scheduling / layer·block 단위 persistent region
@@ -309,7 +307,7 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 | 4.7 | Sublayer fusion | 🔶 GPU 경로 only, CPU 전용 없음 |
 | 4.8 | Softmax/SiLU LUT | ⭕ |
 | 4.9 | Head Folding | ⭕ |
-| 4.10 | Batch-aware decode attn | 🔶 batch16 hardcoded |
+| 4.10 | Batch-aware decode attn | ✗ **Phase 1 기각** (2026-04-20) |
 | 4.11 | Barrier/Sync 감소 | ⭕ (미계측) |
 | 4.12 | T-MAC LUT GEMV | ⭕ |
 | 4.13 | AVX/AMX cascade | ⭕ |
@@ -354,6 +352,36 @@ Gate 숫자는 방향성. G0 에서 기준선 재측정으로 조정.
 - **D** (강한 가설, 환경 미검증): AVX/AMX cascade, LUT GEMV on SPR+AMX, staging cache-fit
 
 D 에 머무는 기법이 Stage 3개 연속 실패 시 드롭. 각 단계 종료 시 D → B/A 승격 시도.
+
+---
+
+## 11. Tier 1 후보 (선행 연구 실측 수치 보유) — 우선 검토 (2026-04-20 정리)
+
+§11 Phase 1 실패 후 방향 재정립. 자체 kernel 시도 (§06-1 v2, §11 Phase 1) 연속 실패 교훈 반영. **제안/착수 시 이 4개 내에서 시작**.
+
+| § | 기법 | 보고된 실측 | 측정 HW | 근거 |
+|---|---|---|---|---|
+| **§13** | T-MAC LUT GEMV INT4 | INT4 4× | edge CPU (ARM) — SPR 재검증 필요 | C (Microsoft T-MAC, arXiv 2407.00088, GitHub 공식) |
+| **§16** | SparAMX bitmask sparse | linear 1.42×, attention 1.14× | **Xeon SPR** (동일 HW) | B (AbouElhamayed et al. HF 2502.12444) |
+| **§22** | NEO asymmetric | H100 70B 14.3% | **H100 + 70B** (동일 규모) | B (Jiang et al. MLSys'25) |
+| **§28** | xFasterTransformer 이식 | Intel SPR 실측 (블로그) | SPR production | B (Intel 공식 유지) |
+
+**상호 관계**:
+- §13 은 §06 의 Q8_0 kernel 을 MLP 에서 INT4 LUT 로 교체 (상호 배타). §06 infra (torch op, patch wrapper) 재사용
+- §16 은 §06/§13 위에 sparsity + AMX 추가
+- §22 는 routing 축. kernel layer 와 독립
+- §28 은 §23 + §24 + §14 + §08 의 alternative — 자체 kernel 포기하고 Intel 검증된 것 이식
+
+## 12. 실패 기록 (재시도 시 참조)
+
+| 기법 | 측정일 | 결과 | 원인 요약 | 데이터 |
+|---|---|---|---|---|
+| §04 IPEX WoQ INT8 | 2026-04-19 | 기각 | IPEX Q8 GEMM 연결 실패 | — (§23 로 편입) |
+| §03 Huge Pages Phase 2 | 2026-04-19 | 기각 | SPR TLB 역효과 +22% | — |
+| §06-1 v2 (VNNI `vpdpbusd`) | 2026-04-20 | 기각 | half-tile waste + compensation 오버헤드, v1 대비 −7~−13% | `g0_06_1_qwen2.5_32b_v2(fail)/` |
+| **§11 Phase 1** | **2026-04-20** | **기각** | remainder path 이득 없음 + prefill SDPA 오버헤드, §06-1 v1 대비 −12~−5% | `g0_11_qwen2.5_32b_phase1(fail)/` |
+
+**교훈**: Tier 2 (원리만, 실측 수치 없음) 을 Tier 1 확신으로 추진 금지. 선행 연구의 보고된 수치 + 조건 이 우리 환경에 부합하는지 선검토.
 
 ---
 

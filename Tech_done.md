@@ -694,3 +694,61 @@ Baseline (§06 off) 의 batch scaling 은 실제로 나쁘지 않음:
 - 기준: seqs=1 기존 이득 (+18%) 유지 + seqs 4/8/16 에서 base 대비 손실 없음
 - 충족 시 G1 gate 재판정 → §11/§25 착수 여부 결정
 - 불충족 시 (seqs≥16 에서 여전히 base 대비 열세) Phase 2 (AMX-INT8) 또는 §06 전면 제거 판단
+
+---
+
+## 2026-04-20: §11 Phase 1 기각 + Tier 1 근거 기준 정립
+
+### §11 Phase 1 실패 기술 분석
+
+**조건**: §06 + §06-1 v1 스택 위에 §11 Option A (IPEX 우회 + 기존 `batch16_paged_attention_v1` dispatch 활성) 적용. C++ 변경 0 줄, Python 변경만.
+
+**측정 결과** (500 req × 128/128, TP=8, cpu_max_num_seqs sweep):
+
+| seqs | §06-1 v1 outTP | §11 Phase 1 outTP | Δ |
+|---:|---:|---:|---:|
+| 1 | 1,196.3 | 1,056.5 | −11.7% |
+| 2 | 794.0 | 735.3 | −7.4% |
+| 4 | 496.2 | 501.1 | +1.0% |
+| 8 | 272.3 | 258.4 | −5.1% |
+
+gpu_only 대조: 11,522.95 tok/s (hybrid 는 어느 설정에서도 gpu_only 의 10% 수준).
+
+**실패 원인** (구현 전 예측했어야 했던 구조적 이슈):
+
+1. `batch16_paged_attention_v1` 의 dispatch 로직 상 `num_seqs >= 16` 일 때만 full-batch path (`num_full_batches >= 1`) 활성. seqs=2/4/8 은 **remainder loop** 로 떨어지며, 이 loop 는 per-seq OMP-parallel over heads 구조 — IPEX `single_query_cached_kv_attention` 와 memory access / 병렬화 패턴 사실상 동일. 이득 구조적으로 불가능
+2. layout 일관성 위해 `_PagedAttention.split_kv_cache` layout (`[blocks, kv_heads, head_size/x, block_size, x]`) 를 강제, 덕분에 prefill 경로도 IPEX `flash_attn_varlen_func` → pure SDPA fallback 으로 전환. IPEX prefill 이 SDPA 보다 빠른 구간이 있으면 순손실
+3. seqs=1 에서도 −11.7% 관측 — attention kernel 과 무관한 M=1 GEMV path. 원인 추정: (a) 측정 노이즈 (§06-1 v2 도 seqs=1 에서 −10% 동일 패턴), (b) `_PagedAttention` 경로 강제 전환이 KV cache allocator / TLB 에 간접 영향
+
+**구조적 발견** (§11 과 무관, 상위 문제):
+
+§06-1 v1 자체가 seqs=1 (1196) → seqs=8 (272) 로 **4.4× 감소**, seqs 증가에 따라 warmup 시간 기하급수 증가. M>1 에서 kernel 이 **serialize 하고 있음** (weight reuse 이론 실효 없음). `q8_0_gemm_vnni_impl` 의 per-M 비용이 super-linear → batch 는 cost 를 amortize 해야 하는데 거꾸로 증가. 이 문제는 attention kernel 변경으로 해결 불가능.
+
+### Tier 1 근거 기준 정립
+
+2회 연속 kernel 실패 (§06-1 v2, §11 Phase 1) 의 공통 원인: "원리/인용 수준" 인 Tier 2 기법을 "검증된" Tier 1 확신으로 추진했음. 기준 재정의:
+
+**Tier 1 (근거 단단, 우선 검토)** — 선행 연구에 **실측 수치 + 조건** 이 보고된 기법만:
+
+| § | 보고 수치 | 측정 조건 | 출처 |
+|---|---|---|---|
+| §13 T-MAC LUT INT4 | 4× (22 tok/s > NPU 10.4) | edge CPU (ARM Snapdragon) | Microsoft T-MAC arXiv 2407.00088 + GitHub 공식 |
+| §16 SparAMX | linear 1.42×, attention 1.14× | **Xeon SPR** (우리 CPU 동일) | AbouElhamayed et al. HF 2502.12444 |
+| §22 NEO asymmetric | throughput 14.3% | **H100 + 70B** (우리 HW/규모 동일) | Jiang et al. MLSys'25 + GitHub |
+| §28 xFasterTransformer 이식 | Intel SPR 실측 (블로그) | SPR production | Intel 공식 maintained |
+
+**Tier 2 (원리만, 추가 검증 필요)**: §10, §11, §14, §15, §17, §24, §25. 인용 논문은 있으나 "이 조건에서 X% 이득" 같은 보고 수치 없거나, 보고 조건이 우리 환경과 괴리.
+
+**Tier 3 (infra / 기각)**: §01~§09, §04 (기각), §06/§06-1 (infra 구현).
+
+### 적용 규칙
+
+1. 기법 제안/착수 시 Tier 1 → Tier 2 → Tier 3 순
+2. Tier 2 를 Tier 1 확신으로 취급 금지
+3. 각 제안마다 **선행 연구의 보고 수치 + 조건** 명시. 우리 환경과 차이 있을 시 재검증 예산 별도 책정
+
+### 교훈
+
+1. 구현 전에 kernel 의 **실제 호출 경로 분석 필수**. §11 의 경우 "seqs<16 은 batch16 이 아니라 remainder path" 가 설계 문서에 이미 명시돼 있었으나 "scope 는 seqs 2/4/8 개선" 이라 착오
+2. 측정 중단 판정은 조기에 — §11 은 seqs=8 까지 regression 확인된 시점에서 seqs=16 진행 보류 판단 정상
+3. CPU batch 병렬화의 근본 결함은 MLP GEMM 축 문제. attention 만 건드려 해결 불가. 다음 시도는 Tier 1 후보 (§13/§16/§22/§28) 중 선택

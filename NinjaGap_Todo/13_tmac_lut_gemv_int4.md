@@ -1,9 +1,10 @@
 # 13. T-MAC LUT-Based GEMV INT4
 
-**Tier**: 2
+**Tier**: 2 / **근거 Tier 1 후보** (선행 연구 실측 수치 보유)
 **상태**: ⭕ 미구현
 **예상 이득**: INT4 **4×** (T-MAC 실측, CPU 22 tok/s > NPU 10.4 tok/s)
-**근거 등급**: D → 강한 가설 (SPR+AMX 재검증 필수)
+**근거 등급**: **C** (edge CPU 실측) → SPR+AMX 재검증 필수. Microsoft 공식 GitHub 구현 존재.
+**우선순위 근거**: 2026-04-20 Tier 1 후보 정리 시 선정. §06 의 Q8_0 kernel 을 MLP layer 에서 교체 (상호 배타). §06 infra (torch op 등록, patch wrapper) 재사용.
 
 ---
 

@@ -1,8 +1,27 @@
 # 11. Batch-aware Decode Attention
 
-**Tier**: 2
-**상태**: 🔶 부분 구현 (`batch16_paged_attention_v1` kernel 존재, **batch=16 hardcoded**)
-**예상 이득**: batch=16 scaling 5.3× → 10–12× 개선 (목표)
+**Tier**: 2 (원리만, 실측 수치 없음)
+**근거 등급**: D (강한 가설, 환경 미검증). SparAMX 의 CPU attention 1.14× 외엔 CPU 대상 보고 수치 없음.
+**상태**: ✗ **Phase 1 기각 (2026-04-20)** — IPEX 우회 + 기존 `batch16_paged_attention_v1` dispatch 활성 만으로는 이득 없음. 측정 결과 `measurement_results/H100x8/g0_11_qwen2.5_32b_phase1(fail)/` 참고.
+**예상 이득**: batch=16 scaling 5.3× → 10–12× 개선 (목표, 미검증)
+
+## Phase 1 실패 요약 (2026-04-20)
+
+Option A (기존 kernel 재라우팅) 로 시도. 측정 결과:
+
+| seqs | §06-1 v1 | §11 Phase 1 | Δ |
+|---:|---:|---:|---:|
+| 1 | 1,196.3 | 1,056.5 | −11.7% |
+| 2 | 794.0 | 735.3 | −7.4% |
+| 4 | 496.2 | 501.1 | +1.0% |
+| 8 | 272.3 | 258.4 | −5.1% |
+
+실패 원인:
+1. seqs 2/4/8 구간이 `batch16_paged_attention_v1` 의 **remainder path** (per-seq loop). IPEX 와 memory access 구조 동일 → 이득 구조적으로 없음
+2. Layout 일관성 유지 위한 prefill IPEX → SDPA fallback 의 오버헤드가 순손실
+3. seqs=16 까지 돌리지 않음 (하위 구간 전체 regression 확인돼 중단)
+
+Phase 2 (v2 신규 kernel, {1,4,8,16,32} template + block coalescing) 로 재시도 여부는 Tier 1 후보 (§13/§16/§22/§28) 검토 이후 재평가.
 
 ---
 

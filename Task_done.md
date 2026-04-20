@@ -939,3 +939,63 @@ GEMV 를 M 번 순차 호출. M 축이 GEMM 차원으로 활용되지 않아 wal
 1. §06-1 착수 (VNNI INT8 GEMM path 우선, AMX-INT8 는 조건부 Phase 2)
 2. §06-1 완료 후 G1 gate 재판정
 3. §11/§25 착수 여부는 §06-1 결과 보고 재평가 — baseline IPEX 가 이미 batch amortize 를 상당히 해주고 있어 §11/§25 의 추가 이득 여지가 처음 생각보다 작을 가능성 있음
+
+---
+
+## 2026-04-20: §11 Phase 1 실패 + Tier 1 후보 재정립
+
+### 배경
+
+§06-1 v1 완료 후 §11 (Batch-aware Decode Attention) Phase 1 wire-up 진행. Option A (IPEX 우회 + 기존 `batch16_paged_attention_v1` dispatch 활성) 로 구현 후 H100x8 측정.
+
+### 결과 — Phase 1 기각
+
+측정 (seqs 1/2/4/8, seqs=16 미도달):
+
+| seqs | §06-1 v1 | §11 Phase 1 | Δ |
+|---:|---:|---:|---:|
+| 1 | 1,196.3 | 1,056.5 | −11.7% |
+| 2 | 794.0 | 735.3 | −7.4% |
+| 4 | 496.2 | 501.1 | +1.0% |
+| 8 | 272.3 | 258.4 | −5.1% |
+
+하위 구간 전체 regression 확인 후 seqs=16 측정 중단.
+
+### 실패 원인
+
+1. **대상 구간 부적합**: seqs 2/4/8 는 `batch16_paged_attention_v1` 의 remainder path (per-seq OMP loop). IPEX `single_query_cached_kv_attention` 와 memory access 구조 동일. 이득 구조적으로 없음
+2. **prefill fallback 오버헤드**: layout 일관성 위해 IPEX `flash_attn_varlen_func` → pure SDPA 로 전환. 순손실
+3. **근본 문제는 attention 아님**: §06-1 v1 자체가 seqs=1 (1196) → seqs=8 (272) 로 4.4× 감소. warmup 시간도 seqs 에 기하급수 증가. CPU batch 병렬화가 구조적으로 작동 안 함. attention 만 건드려 해결 안 됨
+
+### 조치
+
+- **데이터 아카이브**: `measurement_results/H100x8/g0_11_qwen2.5_32b_phase1(fail)/` 로 gpu_only + seqs 1/2/4/8 데이터 이동. §06-1 v2(fail) 패턴 답습 + README 기록
+- **로컬 태그 클린업**: 비-semver 태그 (`g0_00_baseline`, `g0_06_hot_path_wiring`) 로컬 삭제. 원격은 이미 비어 있음 (이전 세션에서 삭제됨)
+
+### Tier 1 후보 재정립
+
+"원리만 차용한 Tier 2 기법을 Tier 1 확신으로 추진" 했던 것이 §06-1 v2, §11 Phase 1 연속 실패의 공통 원인. 선행 연구에 **실측 수치 + 조건** 이 있는 기법만 Tier 1 로 분류:
+
+| § | 기법 | 보고 실측 | 측정 HW | 근거 |
+|---|---|---|---|---|
+| §13 | T-MAC LUT GEMV INT4 | 4× | edge CPU (SPR 재검증 필요) | Microsoft T-MAC |
+| §16 | SparAMX bitmask sparse | linear 1.42×, attention 1.14× | **Xeon SPR** (동일 HW) | AbouElhamayed et al. HF 2502.12444 |
+| §22 | NEO asymmetric | H100 70B 14.3% | **H100 + 70B** (동일 규모) | Jiang et al. MLSys'25 |
+| §28 | xFasterTransformer 이식 | Intel SPR 실측 | SPR production | Intel 공식 |
+
+Tier 2 (원리만): §10, §11, §14, §15, §17, §24, §25 — 보고 수치 없음. 추가 가설 검증 필요.
+
+### 문서 업데이트
+
+- `NinjaGap_Todo/README.md` — §11 상태 기각, Tier 1 후보 섹션 추가, 실패 기록 표 추가
+- `NinjaGap_Todo/11_batch_aware_decode_attn.md` — Phase 1 기각 명시
+- `NinjaGap_Todo/13_tmac_lut_gemv_int4.md` / `16_sparamx_bitmask_sparse.md` / `22_neo_asymmetric.md` / `28_xft_kernel_porting.md` — 각 문서 상단에 Tier 1 후보 표시
+- `TODO.md` — §4.10 기각 상태, §11 Tier 1 후보 섹션 / 실패 기록 섹션 추가
+- `Task_done.md` (본 섹션)
+- `Tech_done.md` — §11 기각 근거 + Tier 1 기준 정립
+
+### 교훈
+
+1. **Tier 구분 규율**: "선행 연구 인용" 과 "우리 환경에 적합한 실측 수치 있음" 은 다른 기준. 인용만 있는 기법을 "검증됨" 취급 금지
+2. **실패 원인 선진단**: 측정 전에 kernel 경로 분석 필요. §11 의 경우 "seqs<16 은 remainder path" 라는 사실이 구현 전에 명확했으나 간과됨
+3. **상위 문제부터**: CPU batch 병렬화 자체가 구조적 결함인데 attention 만 건드려 해결 불가. 다음 시도는 MLP GEMM 축 (Tier 1 후보) 우선

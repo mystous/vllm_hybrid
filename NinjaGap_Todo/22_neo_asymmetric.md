@@ -1,9 +1,11 @@
 # 22. NEO Asymmetric Batch Split
 
-**Tier**: 장거리 (70B / HBM 압박 workload)
+**Tier**: 장거리 (70B / HBM 압박 workload) / **근거 Tier 1 후보** (선행 연구 실측 수치 보유)
 **상태**: ⭕ 미구현
-**예상 이득**: H100 70B **14.3%** (MLSys'25 실측). 작은 workload 축소
-**Ninja Gap 기여도**: 7B 제한적
+**예상 이득**: **H100 70B 14.3%** (MLSys'25 실측, 우리와 동일 HW + 모델 규모)
+**근거 등급**: **B** (H100 + 70B 직접 실측). Jiang et al. MLSys'25 "NEO" + GitHub 구현.
+**Ninja Gap 기여도**: 7B 제한적, 32B/70B 급에서 효과. 우리 타겟 (Qwen2.5-32B) 에 적합.
+**우선순위 근거**: 2026-04-20 Tier 1 후보 정리 시 선정. 우리 측정 환경 (H100x8 + 32B) 과 논문 실측 조건 가장 가까움.
 
 ---
 
