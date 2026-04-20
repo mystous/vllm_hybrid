@@ -1,8 +1,10 @@
 # 16. SparAMX AVX-512 Bitmask Sparse
 
-**Tier**: 2
+**Tier**: 2 / **근거 Tier 1 후보** (선행 연구 실측 수치 보유)
 **상태**: 🔶 부분 구현 (dense `int8_gemm_vnni` 존재, sparse 경로 없음)
-**예상 이득**: linear 1.42×, attention 1.14× (SparAMX 실측, Xeon SPR)
+**예상 이득**: linear **1.42×**, attention **1.14×** (SparAMX 실측, **Xeon SPR** — 우리와 동일 HW)
+**근거 등급**: **B** (유사 HW 논문 실측). AbouElhamayed et al. "SparAMX" (HF 2502.12444).
+**우선순위 근거**: 2026-04-20 Tier 1 후보 정리 시 선정. 측정 환경이 H100 호스트 CPU 와 동일 SPR. 보고 수치 직접 비교 가능.
 
 ---
 

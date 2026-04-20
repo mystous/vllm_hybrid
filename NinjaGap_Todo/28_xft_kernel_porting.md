@@ -1,8 +1,10 @@
 # 28. xFasterTransformer Kernel 이식 (참조 구현 경로)
 
-**Tier**: 1 또는 2 (§23/§24/§14 의 fast-path alternative)
+**Tier**: 1 또는 2 / **근거 Tier 1 후보** (Intel 공식 SPR CPU LLM stack)
 **상태**: ⭕ 미구현 (외부 repo 참조만)
+**근거 등급**: **B** (Intel 공식 검증된 구현). Intel 블로그에 SPR 실측 수치 공개.
 **관계**: **§23 + §24 + §14 + §08 을 한 번에 해결하는 alternative route**. 자체 구현 대신 Intel 이 공식 유지하는 xFasterTransformer (xFT) 의 검증된 커널을 이식.
+**우선순위 근거**: 2026-04-20 Tier 1 후보 정리 시 선정. 자체 kernel 시도 (§06-1 v2, §11 Phase 1) 연속 실패 후 안정적 alternative. 구현량 큼 (submodule 통합 + build 연결) 대신 성공 확률 높음.
 
 ---
 
