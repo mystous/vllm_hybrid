@@ -977,7 +977,11 @@ class _PagedAttention:
                     and query.dtype in (torch.bfloat16, torch.float32)):
                 max_blocks_per_seq = block_tables.shape[1]
                 try:
-                    cpu_ops().batch16_paged_attention_v1(
+                    # batch16_paged_attention_v1 은 torch_bindings_hybrid.cpp
+                    # 의 두 번째 TORCH_LIBRARY_EXPAND 블록에서 `_cpu_ops_cpu`
+                    # 서브네임스페이스 (_C_cpu_ops_cpu) 로 등록됨. cpu_ops()
+                    # 헬퍼는 `_C_cpu_ops` 만 반환하므로 이 op 는 직접 접근.
+                    torch.ops._C_cpu_ops_cpu.batch16_paged_attention_v1(
                         output,
                         query,
                         key_cache,
