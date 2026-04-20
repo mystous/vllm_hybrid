@@ -157,12 +157,6 @@ void q8_0_gemv_vnni_impl(const int8_t* x_quant, float x_scale,
 //   weight  : [N, n_blocks_per_row] of Q8_0Block (per-block fp16 scale)
 //   output  : [M, N] FP32 row-major
 //
-// Revisions (§06-1 kernel evolution):
-//   v1 — weight reuse across M rows (madd_epi16 + reduce)
-//   v2 — VNNI vpdpbusd intrinsic + s8s8 compensation + prefetch  ← CURRENT
-//   v3 — (future) two-block packing to recover upper-lane waste
-//        and/or row-packed microkernel to amortize horizontal reduce
-//
 // M >= 16 is intentionally not covered here: that regime enters the
 // compute-bound band where the VNNI peak throughput is the new ceiling,
 // and extending into AMX-INT8 requires a format redesign (§24 territory).
@@ -184,14 +178,6 @@ void q8_0_gemm_vnni_impl(const int8_t* x_quant, const float* x_scales,
     float acc[M_MAX] = {0.0f};
 
     for (int b = 0; b < n_blocks_per_row; ++b) {
-      // v4 (prefetch): pull the weight block 2 ahead into L1 while the
-      // current block is computed. Masks DDR→L1 latency for the streaming
-      // pass over w_row. Q8_0Block = 34 bytes so one prefetch covers it.
-      if (b + 2 < n_blocks_per_row) {
-        _mm_prefetch(
-            reinterpret_cast<const char*>(&w_row[b + 2]), _MM_HINT_T0);
-      }
-
       const Q8_0Block& block = w_row[b];
       const float w_scale = fp16_to_fp32(block.scale_fp16);
       const int k_start = b * Q8_0_BLOCK_SIZE;
@@ -199,49 +185,19 @@ void q8_0_gemm_vnni_impl(const int8_t* x_quant, const float* x_scales,
       const int k_len = k_end - k_start;
 
       if (k_len == Q8_0_BLOCK_SIZE) {
-        // v2 (VNNI dot): replace the 16-bit madd+reduce path with VNNI
-        // vpdpbusd (u8 × s8 → s32, 4-byte pairs across 16 lanes). Because
-        // VNNI ingests u8 on side A, shift the activation s8→u8 (add 128)
-        // and correct with the standard s8s8 compensation:
-        //     sum(s8_x * s8_w) = sum(u8_x * s8_w) - 128 * sum(s8_w)
-        //                     = dpbusd_dot       - 128 * comp
-        //
-        // Only lanes 0–7 of the zmm carry real data here (32 bytes fit a
-        // half-tile); lanes 8–15 run with zero feed. That halves VNNI's
-        // peak throughput at this stage — to be recovered in v3 by
-        // packing two consecutive blocks into a full 64-byte zmm.
-
-        // Load the 32-s8 weight block (lower half of zmm; upper half = 0).
+        // Load weight block once (32 INT8 = 256 bits); widen to s16 so we
+        // can pair with activation via _mm512_madd_epi16. This register
+        // stays live across the inner m loop — that's the whole point.
         __m256i vw_256 = _mm256_loadu_si256(
             reinterpret_cast<const __m256i*>(block.quants));
-        __m512i vw =
-            _mm512_inserti32x8(_mm512_setzero_si512(), vw_256, 0);
-
-        // comp = sum over the 32 s8 weight values. Block-level scalar sum
-        // is typically auto-vectorized and amortizes across the M rows.
-        int32_t comp = 0;
-        for (int k = 0; k < Q8_0_BLOCK_SIZE; ++k) {
-          comp += block.quants[k];
-        }
-
-        const __m256i v_shift128 =
-            _mm256_set1_epi8(static_cast<char>(-128));
+        __m512i vw_16 = _mm512_cvtepi8_epi16(vw_256);
 
         for (int m = 0; m < M; ++m) {
           __m256i vx_256 = _mm256_loadu_si256(
               reinterpret_cast<const __m256i*>(x_quant + m * K + k_start));
-          // s8 → u8 shift (XOR with 0x80 via add -128, wraps).
-          __m256i vx_u = _mm256_add_epi8(vx_256, v_shift128);
-          __m512i vx =
-              _mm512_inserti32x8(_mm512_setzero_si512(), vx_u, 0);
-
-          __m512i vacc = _mm512_setzero_si512();
-          vacc = _mm512_dpbusd_epi32(vacc, vx, vw);
-          int32_t uw_dot = _mm512_reduce_add_epi32(vacc);
-
-          // Compensation undoes the u8 shift.
-          int32_t block_dot = uw_dot - 128 * comp;
-
+          __m512i vx_16 = _mm512_cvtepi8_epi16(vx_256);
+          __m512i vprod = _mm512_madd_epi16(vx_16, vw_16);
+          int32_t block_dot = _mm512_reduce_add_epi32(vprod);
           acc[m] += static_cast<float>(block_dot) * w_scale * x_scales[m];
         }
       } else {
