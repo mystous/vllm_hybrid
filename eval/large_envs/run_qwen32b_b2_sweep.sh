@@ -24,7 +24,10 @@ cd "${REPO_ROOT}"
 # -----------------------------------------------------------------------------
 # 기본값 (환경변수로 override 가능)
 # -----------------------------------------------------------------------------
-ENVS="${ENVS:-eval/envs/g0_h100x8_qwen32b_00_tp8.env eval/large_envs/g0_h100x8_qwen32b_longctx_16k_16k.env}"
+ENVS="${ENVS:-eval/large_envs/g0_h100x8_qwen32b_longctx_16k_16k.env}"
+# 00_tp8 는 완료됨. 전량 재실행 필요 시:
+#   ENVS="eval/envs/g0_h100x8_qwen32b_00_tp8.env eval/large_envs/g0_h100x8_qwen32b_longctx_16k_16k.env" \
+#     bash eval/large_envs/run_qwen32b_b2_sweep.sh
 SEQS_LIST="${SEQS_LIST:-1 2 4 8 16}"
 RUN_ENV="${RUN_ENV:-/tmp/run.env}"
 PORT="${PORT:-8000}"
