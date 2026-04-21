@@ -387,15 +387,55 @@ WALL_START=$(date +%s.%N)
 start_monitor
 
 log "--- Running benchmark ---"
+
+# ------------------------------------------------------------------
+# Dataset configuration (env-driven, default to random for backward compat)
+#
+# DATASET_NAME    : random | sonnet | sharegpt | hf | burstgpt
+#                   random (default)  - fixed input/output lengths
+#                   sonnet            - variable natural text lengths
+#                   sharegpt          - real conversations
+# DATASET_PATH    : sonnet/sharegpt dataset file path (if DATASET_NAME=sonnet or sharegpt)
+# MAX_CONCURRENCY : max concurrent in-flight requests at benchmark side
+#                   (optional; benchmark_serving.py --max-concurrency)
+# SONNET_INPUT_LEN / SONNET_PREFIX_LEN / SONNET_OUTPUT_LEN : sonnet-specific
+# ------------------------------------------------------------------
+DATASET_NAME="${DATASET_NAME:-random}"
+BENCH_EXTRA_ARGS=""
+
+case "${DATASET_NAME}" in
+    random)
+        BENCH_EXTRA_ARGS="--dataset-name random --random-input-len ${INPUT_LEN} --random-output-len ${OUTPUT_LEN}"
+        ;;
+    sonnet)
+        BENCH_EXTRA_ARGS="--dataset-name sonnet --dataset-path ${DATASET_PATH:-benchmarks/sonnet.txt} --sonnet-input-len ${SONNET_INPUT_LEN:-550} --sonnet-output-len ${SONNET_OUTPUT_LEN:-150} --sonnet-prefix-len ${SONNET_PREFIX_LEN:-200}"
+        ;;
+    sharegpt)
+        BENCH_EXTRA_ARGS="--dataset-name sharegpt --dataset-path ${DATASET_PATH:-ShareGPT_V3_unfiltered_cleaned_split.json}"
+        ;;
+    hf)
+        BENCH_EXTRA_ARGS="--dataset-name hf --dataset-path ${DATASET_PATH}"
+        ;;
+    *)
+        BENCH_EXTRA_ARGS="--dataset-name ${DATASET_NAME}"
+        ;;
+esac
+
+# Optional max-concurrency cap (prevents unbounded in-flight)
+MAX_CONCURRENCY_ARG=""
+if [[ -n "${MAX_CONCURRENCY:-}" && "${MAX_CONCURRENCY}" != "0" ]]; then
+    MAX_CONCURRENCY_ARG="--max-concurrency ${MAX_CONCURRENCY}"
+fi
+
+# shellcheck disable=SC2086
 python -u "${VLLM_ROOT}/benchmarks/benchmark_serving.py" \
     --backend vllm \
     --base-url "http://localhost:${PORT}" \
     --model "${MODEL}" \
-    --dataset-name random \
-    --random-input-len "${INPUT_LEN}" \
-    --random-output-len "${OUTPUT_LEN}" \
+    ${BENCH_EXTRA_ARGS} \
     --num-prompts "${NUM_PROMPTS}" \
     --request-rate "${REQUEST_RATE}" \
+    ${MAX_CONCURRENCY_ARG} \
     --save-result \
     --result-filename "${RESULT_FILE}" \
     2>&1 | tee "${LOG_FILE}"
