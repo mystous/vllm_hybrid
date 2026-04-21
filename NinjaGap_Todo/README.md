@@ -78,7 +78,7 @@ SSOT: `Tech_done.md` v8 §SSOT-2.
 | (G0 baseline) | 실험 오염 방지 가드 | **0** | **§02** Tier 0 baseline defense |
 | (Tier 0 gain) | infra 기법 — gate 아닌 독립 이득 | **0** | ~~§03 Huge Pages~~ (**기각 2026-04-19** — Phase 1 기본 on, Phase 2 SPR TLB 구조상 역효과) · ~~§04 IPEX WoQ INT8~~ (**기각 2026-04-19** → §06 편입) · §05 OMP env (✅) |
 | **G1** | hybrid outTP ≥ base outTP at seqs 1/2/4/8/16 | **1** | **§06** Q8_0 dispatch · **§06-1** kernel M-aware (v1 최종) |
-| **G2** | hybrid outTP ≥ gpu_only × 0.30 at any seqs | **Tier 1 후보** | **§22 NEO** · **§28 xFT 이식** · **§13 T-MAC LUT INT4** |
+| **G2** | hybrid outTP ≥ gpu_only × 0.30 at any seqs | **Tier 1 후보** | **§22 NEO** · **§13 T-MAC LUT INT4** · ⏸ §28 xFT 이식 (2026-04-21 보류) |
 | **G3 (Ninja Gap)** | hybrid outTP ≥ gpu_only at any seqs | **Tier 1 후보** | Tier 1 후보 누적 + **§22 NEO asymmetric** (H100 70B 14.3% 실측) |
 | 기각 / 강등 | — | — | **§11** Batch-aware attn (✗ Phase 1 기각 2026-04-20) · **§18** Spec Decode (⏸ 강등 2026-04-20, CPU drafter balance 미충족) |
 | 보류 (Tier 2) | Tier 1 후보 후 재평가 | 2 | §07 ISA · §08 Fusion · §09 LUT · §10 Head fold · §12 Barrier · §14 Cascade · §15 Pre-pack · §17 Core group · §23 Q8_0/Q4_K · §24 W8A8 · §25 GQA batched |
@@ -87,7 +87,7 @@ SSOT: `Tech_done.md` v8 §SSOT-2.
 ### 해석 (2026-04-20 업데이트)
 
 - **G0 통과**, Tier 0 gain (§05) 적용, §06 dispatch + §06-1 v1 kernel 까지 반영된 현재 상태에서도 **G1 미통과**. 이유: §06-1 v1 이 base 대비 scope 일부 (seqs 2/4/8) 는 회복했지만 다른 seqs 에서 열세. 근본 원인은 CPU kernel 의 M>1 super-linear cost (SSOT: `Tech_done.md` v8 §SSOT-3)
-- **다음 단계는 Tier 1 후보 3개 중 선택** (우선순위 1→2→3): §22 NEO asymmetric / §28 xFT 이식 / §13 T-MAC LUT INT4. 각자 선행 연구에 실측 수치 + 조건이 보고됨. §16 SparAMX 는 pruning 필요 + GPU 이득 없음으로 2026-04-20 기각
+- **다음 단계는 Tier 1 후보 중 선택**: §22 NEO asymmetric (우선순위 1) / §13 T-MAC LUT INT4 (우선순위 2). §16 (2026-04-20 기각) + §28 xFT (2026-04-21 보류, xDNN closed binary 의존 문제) 상태
 - **§11, §18 은 재평가 대기 상태** (실패 가설 / 근거 불충분). 계획 본문에서 중심축으로 참조하지 않음
 - **Tier 2 (§10/§14/§15/§17/§24/§25)** 는 원리만 있고 실측 수치 없음. Tier 1 후보 착수 후 실측 데이터 확보한 뒤에 재평가
 
@@ -186,19 +186,21 @@ SSOT: `Tech_done.md` v8 §SSOT-2.
 
 D 에 머무는 기법이 3개 연속 실패 시 드롭.
 
-### Tier 1 후보 — **우선순위 1~3** (2026-04-20 업데이트, §16 기각 반영)
+### Tier 1 후보 (2026-04-21 업데이트 — §28 보류 반영)
 
-보고된 실측 수치 + 우리 환경 일치도 + **모델 변경 여부** 순. 착수는 1 → 2 → 3, 한 번에 하나씩 G1/G2 재판정.
+보고된 실측 수치 + 우리 환경 일치도 + **모델 변경 여부** 순.
 
 | 순위 | § | 보고 수치 | 측정 HW 일치도 | 등급 | 모델 변경 |
 |:---:|---|---|---|:---:|---|
 | **1** | §22 NEO asymmetric | throughput 14.3% | **H100 + 70B 동일** | **B** | 없음 (routing) |
-| **2** | §28 xFasterTransformer 이식 | Intel 공식 SPR (블로그) | SPR production | **B** (블로그 수준) | 없음 (kernel swap) |
-| **3** | §13 T-MAC LUT INT4 | 4× | edge CPU (ARM) — **이식 리스크 큼** | **C** | 있음 (weight INT4 quant) |
+| **2** | §13 T-MAC LUT INT4 | 4× | edge CPU (ARM) — **이식 리스크 큼** | **C** | 있음 (weight INT4 quant) |
+| ⏸ | §28 xFasterTransformer 이식 | Intel 공식 SPR (블로그) | SPR production | **보류 (2026-04-21)** | 없음, 단 Intel closed binary 의존 |
 
-**등급 근거 차이**: §22 는 우리 HW 에서 직접 실측, 모델 불변. §28 은 공식 kernel 이나 수치 세부는 블로그 의존, 모델 불변. §13 은 ARM edge 실측으로 SPR 재현 리스크 가장 크며 weight INT4 quantization 으로 모델 변경 수반.
+**등급 근거 차이**: §22 는 우리 HW 에서 직접 실측, 모델 불변. §13 은 ARM edge 실측으로 SPR 재현 리스크 + weight INT4 quantization 모델 변경 수반. §28 은 Phase 0 조사에서 AMX kernel 이 xFT 소스가 아닌 xDNN (Intel 내부 라이브러리) 에 있음이 확인돼 "Apache-2.0 kernel 소스 이식" 전제 붕괴.
 
-**기각 (2026-04-20)**: ~~§16 SparAMX~~ — unstructured pruning 이 GPU 에 이득 없음 (tensor core sparse 지원은 2:4 structured 전용). 2:4 로 바꾸면 SparAMX 논문의 1.42× 근거 깨짐. hybrid 전체 기준 CPU 기여분만 개선 (gpu_only 대비 gap 회복 효과 제한적).
+**기각 (2026-04-20)**: ~~§16 SparAMX~~ — unstructured pruning 이 GPU 에 이득 없음 (tensor core sparse 지원은 2:4 structured 전용). 2:4 로 바꾸면 SparAMX 논문의 1.42× 근거 깨짐.
+
+**보류 (2026-04-21)**: ⏸ §28 xFT — AMX 성능이 xDNN closed binary 에 있음. 3 분기 (자체 AMX intrinsic 직접 구현 / xDNN 런타임 의존 수용 / §22 전환) 사용자 결정 대기. 상세는 [§28 문서](./28_xft_kernel_porting.md) "Phase 0 조사 결과" 섹션
 
 **Tier 2 (원리만, 실측 수치 없음)**: §07~§12/§14/§15/§17/§23/§24/§25 — [backlog 참조](../old_doc/NinjaGap_backlog_tier2_20260420.md).
 

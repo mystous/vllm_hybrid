@@ -244,11 +244,12 @@ python3 eval/g0_analyze.py measurement_results/H100x8/g0_<NN>_qwen2.5_32b/
 | 2 | 2026-04-20 | **§06-1 v1** M-aware MLP kernel (`0c066f0e7`) | 🔶 v1 최종 (v2 기각 `33361eadc`→`0ca4466b7`) | §06 대비 seqs 2/4/8 +21~34% 회복, base 대비 일부 열세 |
 | ~~3~~ | 2026-04-20 | ~~**§11 Phase 1** Batch-aware decode attn~~ (`f14bfad16`…`6604ceaab`) | ✗ 기각 | §06-1 v1 대비 −12~−5% regression. 측정: `g0_11_qwen2.5_32b_phase1(fail)/` |
 
-**다음 단계**: Tier 1 후보 3개 (선행 연구에 실측 수치 + 조건 보고) 중 우선순위 순 — 상세 [NinjaGap_Todo/README.md](NinjaGap_Todo/README.md).
+**다음 단계**: Tier 1 후보 중 선택 — 상세 [NinjaGap_Todo/README.md](NinjaGap_Todo/README.md).
 
 1. **§22 NEO asymmetric** — H100 70B 14.3% (MLSys'25, HW+규모 동일). 모델 변경 없음 (routing)
-2. **§28 xFasterTransformer 이식** — Intel 공식 SPR stack. 모델 변경 없음 (kernel swap)
-3. **§13 T-MAC LUT INT4** — 4× (edge ARM, SPR 재검증 필요). weight INT4 quant (§06 보다 공격적)
+2. **§13 T-MAC LUT INT4** — 4× (edge ARM, SPR 재검증 필요). weight INT4 quant (§06 보다 공격적)
+
+보류: ⏸ **§28 xFasterTransformer 이식** (2026-04-21) — Phase 0 조사에서 AMX 성능이 xFT 소스가 아닌 xDNN (Intel closed binary) 에 있음이 확인돼 "Apache-2.0 kernel 소스 이식" 전제 붕괴. 3 분기 결정 대기 — 상세는 [§28 문서](NinjaGap_Todo/28_xft_kernel_porting.md).
 
 기각: ~~§16 SparAMX~~ (2026-04-20) — unstructured pruning 필요, GPU 이득 없음.
 

@@ -1,10 +1,69 @@
 # 28. xFasterTransformer Kernel 이식 (참조 구현 경로)
 
-**Tier**: 1 또는 2 / **근거 Tier 1 후보** (Intel 공식 SPR CPU LLM stack)
-**상태**: ⭕ 미구현 (외부 repo 참조만)
-**근거 등급**: **B** (Intel 공식 검증된 구현). Intel 블로그에 SPR 실측 수치 공개.
-**관계**: **§23 + §24 + §14 + §08 을 한 번에 해결하는 alternative route**. 자체 구현 대신 Intel 이 공식 유지하는 xFasterTransformer (xFT) 의 검증된 커널을 이식.
-**우선순위 근거**: 2026-04-20 Tier 1 후보 정리 시 선정. 자체 kernel 시도 (§06-1 v2, §11 Phase 1) 연속 실패 후 안정적 alternative. 구현량 큼 (submodule 통합 + build 연결) 대신 성공 확률 높음.
+**Tier**: 2 / **Tier 1 후보 자격 재검토 필요** (Phase 0 조사 결과 반영, 2026-04-21)
+**상태**: ⏸ **보류 — Phase 0 조사에서 원래 이식 전제 붕괴**
+**근거 등급**: **B** (xFT wrapper) + **불명** (실제 AMX 성능을 내는 xDNN 은 Intel 독점 바이너리)
+
+---
+
+## ⚠ Phase 0 조사 결과 (2026-04-21) — 원래 이식 전제 붕괴
+
+**원래 기대**: "Intel 공식 검증 Apache-2.0 오픈소스 kernel 을 vLLM 에 소스 이식"
+
+**Phase 0 에서 드러난 실제**:
+
+1. **xFT 의 `src/kernels/` 에는 AMX kernel 코드가 없다**
+   - 실제 존재: `attention_kernels`, `gemm_kernel_ext` (ext2/ext3), `layernorm_kernels`, `rmsnorm_kernels`, `rotary_embedding_kernels`, `token_embedding_kernels`
+   - **AMX 관련 (tdpbssd / tdpbf16ps 등) 소스 파일 0**
+2. **AMX 성능의 실제 위치: xDNN** (Intel 내부 DNN 라이브러리)
+   - CHANGELOG 에 "Upgrade xDNN to v1.2.1 / v1.5.2" 등 버전 업그레이드 이력 확인
+   - xDNN 은 xFT repo 안에 없음 — 별도 Intel 배포 (pip 바이너리 wheel 또는 Intel 내부)
+   - 오픈소스 여부 공식 미확인, **Intel proprietary 바이너리 가능성 높음**
+
+3. **"소스 이식" 전략 불가**
+   - xFT wrapper 자체는 Apache-2.0 오픈이지만, 성능 핵심 (AMX) 은 xDNN blob 에 있음
+   - "xFT kernel 소스를 `csrc/cpu/` 로 copy-in" 한다고 해서 AMX 이득이 오지 않음
+   - xDNN 런타임 의존을 받아들여야 AMX 성능 획득 가능
+
+## 사용자 기준 재평가 — "명확한 이론 + 도박 아님"
+
+| 판단 축 | 원래 해석 | Phase 0 이후 해석 |
+|---|---|---|
+| 이론 명확도 | AMX ISA 기반 직접 구현 수준 | AMX 이론 자체는 ISA 에 명확. **구현은 Intel 블랙박스** |
+| 검증된 구현 | Apache-2.0 공개 kernel | Apache-2.0 wrapper + **closed xDNN binary 의존** |
+| 유지보수 리스크 | Intel 공식이라 안정 | xDNN 버전 변경 시 wrapper 깨질 가능성 |
+| vLLM 프로젝트 적합성 | 안전한 이식 | Intel proprietary binary 를 vLLM build 에 결합 — upstream 기여 리스크 |
+
+## 현재 판단 — 3 분기
+
+§28 을 어떻게 할지 3 가지 선택지. 사용자 결정 대기.
+
+**A. §28 중단 → 자체 AMX intrinsic 구현으로 회귀**
+- `_tile_loadconfig` / `_tile_dpbssd` / `_tile_dpbf16ps` 를 우리 `csrc/cpu/` 에 직접 작성
+- Intel ISA 문서만 참조. 의존성 0
+- 본질적으로 **§06-1 Revision B (AMX-INT8)** 로 회귀
+- 공수: 크다. 성공 확률: 실측 없이는 불명
+
+**B. §28 진행 — xDNN 런타임 의존 수용**
+- `pip install xfastertransformer` 가 xDNN 동반 배포 추정 (확인 필요)
+- vLLM 에 Intel closed binary 결합 허용
+- Upstream vLLM 기여 시 의존성 논쟁 가능
+
+**C. §28 포기 → §22 NEO 로 전환**
+- routing 축. kernel 축 포기
+- scheduler 재설계 리스크 큼 (hybrid_core.py 대대적 변경)
+
+## 상태 변경
+
+- **이전**: Tier 1 후보 우선순위 2
+- **현재 (2026-04-21)**: ⏸ **보류** — 사용자 판단 대기
+- Phase 0 발견으로 "안전한 이식" 전제가 무너짐. 원래 "명확한 이론 + 검증된 구현" 명분 재검토
+
+---
+
+## 원래 설계 메모 (historical, Phase 0 이전)
+
+> 아래 "왜 필요한가" / "기술적 배경" / "구체 작업" / "성공 조건" 섹션은 Phase 0 에서 xDNN 블랙박스 의존이 드러나기 전의 설계 메모. 현재 승인된 실행 계획이 아니다.
 
 ---
 

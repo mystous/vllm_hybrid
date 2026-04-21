@@ -83,19 +83,21 @@ Stage 종료 시마다 **동시 확인**:
 
 ---
 
-## 3-A. 현재 진행축 — **우선순위 1~4** (2026-04-20)
+## 3-A. 현재 진행축 (2026-04-21 업데이트 — §28 Phase 0 결과 반영)
 
-§11 Phase 1 기각 이후 방향 재정립. 아래 4개가 **실제 착수 후보**. 나머지 기법은 `old_doc/NinjaGap_backlog_tier2_20260420.md` 로 분리.
+§11 Phase 1 기각 이후 방향 재정립. §16 기각 (2026-04-20) + §28 보류 (2026-04-21) 반영.
 
 | 순위 | 후보 | 보고 수치 | 측정 HW 일치도 | 증거 등급 | 모델 변경 |
 |:---:|---|---|---|---|---|
 | **1** | [§22 NEO asymmetric](NinjaGap_Todo/22_neo_asymmetric.md) | throughput **14.3%** | **H100 + 70B 동일** | B (MLSys'25 실측) | 없음 (routing) |
-| **2** | [§28 xFasterTransformer 이식](NinjaGap_Todo/28_xft_kernel_porting.md) | Intel 공식 SPR 실측 | SPR production | B (Intel 공식, 블로그 수치) | 없음 (kernel swap) |
-| **3** | [§13 T-MAC LUT INT4](NinjaGap_Todo/13_tmac_lut_gemv_int4.md) | INT4 **4×** | edge CPU (ARM) | C (이식 리스크 큼, SPR 재검증 필수) | 있음 (weight INT4 quant) |
+| **2** | [§13 T-MAC LUT INT4](NinjaGap_Todo/13_tmac_lut_gemv_int4.md) | INT4 **4×** | edge CPU (ARM) | C (이식 리스크 큼, SPR 재검증 필수) | 있음 (weight INT4 quant) |
+| ⏸ | [§28 xFasterTransformer 이식](NinjaGap_Todo/28_xft_kernel_porting.md) | Intel 공식 SPR 실측 | SPR production | **보류 (2026-04-21)** | 없음, 단 Intel closed binary (xDNN) 의존 |
 
-**우선순위 근거**: §22 는 우리와 동일 HW + 모델 규모 (H100+70B) 실측, 모델 변경 없음 (routing/scheduling 축). §28 은 Intel 공식 maintained kernel, 모델 변경 없음 (kernel 이식). §13 은 weight INT4 quantization (§06 Q8_0 의 더 공격적 버전), ARM edge 실측으로 SPR 재검증 필수.
+**우선순위 근거**: §22 는 우리와 동일 HW + 모델 규모 (H100+70B) 실측, 모델 변경 없음. §13 은 weight INT4 quantization (§06 Q8_0 의 공격적 버전). §28 은 Phase 0 조사에서 AMX kernel 이 xFT 소스가 아닌 Intel 내부 xDNN 라이브러리에 있음이 확인돼 "Apache-2.0 kernel 이식" 전제 붕괴. 사용자 판단 대기 중.
 
-**기각 (2026-04-20)**: ~~§16 SparAMX~~ — unstructured pruning 은 GPU 에 이득 없음 (tensor cores 의 sparse 지원은 2:4 structured 전용), 2:4 로 바꾸면 SparAMX 논문 수치 (1.42×) 근거 깨짐. 모델 pruning 비용 대비 hybrid 전체 개선 효과 제한적.
+**기각 / 보류**:
+- ~~§16 SparAMX~~ (2026-04-20 기각) — unstructured pruning 은 GPU tensor core sparse 미지원, 2:4 로 바꾸면 SparAMX 논문 수치 근거 깨짐
+- ⏸ §28 xFT (2026-04-21 보류) — AMX 성능이 xDNN closed binary 에 있음. 3 분기 (A: 자체 AMX intrinsic 구현 / B: xDNN 런타임 의존 수용 / C: §22 전환) 사용자 판단 대기. 상세는 [§28 문서](NinjaGap_Todo/28_xft_kernel_porting.md) "Phase 0 조사 결과" 섹션
 
 **착수 규율**: 한 번에 한 후보만. G1 (hybrid outTP ≥ base) 또는 G2 (hybrid outTP ≥ gpu_only × 0.30) 재판정 후 다음으로 이동. 실패 시 다음 후보. 모두 실패 시 Tier 2 backlog 에서 선정.
 
