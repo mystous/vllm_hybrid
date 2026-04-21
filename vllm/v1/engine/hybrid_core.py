@@ -344,6 +344,14 @@ class CapacityAwareRouter:
 
         반환값: "gpu" | "cpu:0" | "cpu:1" | ...
         """
+        # Cold-start gate: 첫 요청 (routed count=0) 은 GPU 로.
+        # benchmark_serving.py 의 initial single-prompt test 가 cpu-first
+        # 설정에서 CPU engine 으로 가면 16K+16K workload 에서 45+분 stall
+        # 되어 main bench 시작을 막는다. throughput-adaptive/wave-batch 와
+        # 동일한 probe→GPU 정책을 capacity strategy 에도 적용.
+        if (self.gpu_count + self.cpu_count) == 0:
+            return self._to_gpu()
+
         if self.cpu_first:
             # CPU-first: CPU 슬롯 여유 시 CPU, 가득차면 GPU
             # per-request route log — debug only (prevents stdout serialization
