@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Phase 3 — stuck CPU engine introspection (hang-proof)
+# Phase 3 — stuck CPU engine introspection (hang-proof, 외부 timeout wrapped)
 #
-# 원칙: hang 될 수 있는 모든 도구 제거.
-#   - perf record → 제거 (kernel 권한 / perf.data 크기로 hang 가능)
-#   - perf report → 제거 (symbol table 탐색이 수 분 가능)
-#   - perf stat   → 유지 (정확히 N초 후 exit 보장)
-#   - py-spy --nonblocking → 유지 (process 안 멈춤)
-#   - ps / /proc/<tid>/{stack,wchan} → 유지 (커널 read, 즉시)
+# 최상위에서 `exec timeout --foreground` 로 자기 자신을 감싸 process group
+# 전체 kill 을 보장. 내부 명령이 kernel stuck (D state) 이어도 무조건 종료.
 #
-# Deadline 방어:
-#   1. 모든 외부 명령에 `safe_timeout` (SIGTERM → 2초 → SIGKILL)
-#   2. 최상위 watchdog 이 DEADLINE 후 자손 재귀 kill
-#   3. trap EXIT/INT/TERM 으로 cleanup
-#
-# 총 소요 예상: 10~15초. 최악 DEADLINE=30초에서 강제 종료.
+# 도구: ps / /proc stack,wchan / py-spy --nonblocking / perf stat
+# perf record + report 는 사용 안 함 (DWARF/symbol 해석 hang 주범).
 # =============================================================================
 set -uo pipefail
+
+# -----------------------------------------------------------------------------
+# 최상위 timeout wrapper — process group 전체 kill 보장
+# 첫 실행 시 timeout 밑으로 다시 exec. DEADLINE 후 SIGTERM + 5초 → SIGKILL.
+# _PHASE3_WRAPPED=1 이면 이미 wrap 된 상태라 skip.
+# -----------------------------------------------------------------------------
+DEADLINE_OUTER="${DEADLINE:-60}"
+if [[ "${_PHASE3_WRAPPED:-0}" != "1" ]]; then
+    export _PHASE3_WRAPPED=1
+    exec timeout --foreground --kill-after=5 --signal=TERM "${DEADLINE_OUTER}" \
+        bash "$0" "$@"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -z "${OUT_DIR:-}" ]]; then
@@ -27,47 +31,13 @@ mkdir -p "${OUT_DIR}"
 
 PERF_STAT_SECS="${PERF_STAT_SECS:-5}"
 PYSPY_TIMEOUT="${PYSPY_TIMEOUT:-8}"
-DEADLINE="${DEADLINE:-30}"
 
 log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
 
 # safe_timeout: SIGTERM → 2초 후 SIGKILL
 safe_timeout() { timeout --kill-after=2 --signal=TERM "$@"; }
 
-# ----------------------------------------------------------------------------
-# 재귀 descendant kill — pkill -P 만으로는 grandchildren 놓침
-# ----------------------------------------------------------------------------
-kill_descendants() {
-    local pid=$1 kids
-    kids=$(pgrep -P "${pid}" 2>/dev/null) || true
-    for k in ${kids}; do
-        kill_descendants "${k}"
-    done
-    kill -9 "${pid}" 2>/dev/null || true
-}
-
-# ----------------------------------------------------------------------------
-# 최상위 watchdog — DEADLINE 후 자손 전체 강제 종료
-# ----------------------------------------------------------------------------
-(
-    sleep "${DEADLINE}"
-    echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] [DEADLINE] ${DEADLINE}s 초과 — 자손 재귀 kill"
-    for k in $(pgrep -P $$); do
-        kill_descendants "${k}"
-    done
-) &
-WATCHDOG_PID=$!
-
-cleanup() {
-    kill "${WATCHDOG_PID}" 2>/dev/null || true
-    for k in $(pgrep -P $$); do
-        [[ "${k}" == "${WATCHDOG_PID}" ]] && continue
-        kill_descendants "${k}"
-    done
-}
-trap cleanup EXIT INT TERM
-
-log "=== Phase 3 시작 (deadline ${DEADLINE}s) ==="
+log "=== Phase 3 시작 (외부 timeout ${DEADLINE_OUTER}s wrapped) ==="
 log "결과        : ${OUT_DIR}"
 
 # 의존성
@@ -213,6 +183,3 @@ log "=== 캡처 완료 ($((T1 - T0))s) ==="
 
 log "=== Phase 3 완료 ==="
 log "summary : ${SUMMARY}"
-
-# 정상 종료 → watchdog 수동 중단
-kill "${WATCHDOG_PID}" 2>/dev/null || true
