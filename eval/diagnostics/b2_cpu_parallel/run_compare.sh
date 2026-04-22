@@ -186,8 +186,16 @@ section "X Phase 4/5 — sync vs async 비교 시작"
 log "env      : ${ENV_SRC}"
 log "result   : ${RESULTS_DIR}"
 
+# 스크립트 시작 직전 — 이전 실행 잔여 프로세스 / GPU 메모리 / port 까지 정리
+log "pre-run cleanup..."
+cleanup_servers
+
 [[ "${SKIP_SYNC}"  == "0" ]] && run_one sync
 [[ "${SKIP_ASYNC}" == "0" ]] && run_one async
+
+# 스크립트 종료 직전 — 다음 수동 실행이 깨끗한 상태에서 시작되도록 최종 정리
+log "post-run cleanup..."
+cleanup_servers
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 비교 report

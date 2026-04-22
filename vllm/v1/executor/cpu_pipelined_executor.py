@@ -63,16 +63,84 @@ class PipelinedCPUExecutor(UniProcExecutor):
 
     _compute_pool: Optional[ThreadPoolExecutor] = None
 
+    def _get_pool_cpu_set(self) -> Optional[set]:
+        """Pool thread 에 적용할 CPU affinity set 계산.
+
+        init_cpu_threads_env (C++) 가 `#pragma omp parallel for schedule(static,1)`
+        로 각 OMP 워커를 1:1 pin 할 때 OMP master (= main thread) 본인도
+        `sched_setaffinity(0, ...)` 로 cpu_ids[0] 한 개에 pin 된다.
+
+        이후 ThreadPoolExecutor 가 새 pool thread 를 pthread_create 로 생성하면
+        creator (main) 의 affinity 를 상속 → pool thread 도 1 core 에 pinned.
+        Pool thread 가 torch.mm 으로 OMP parallel region 에 진입하면 libgomp 는
+        이를 새 master 로 간주하고 새 team 을 생성 — 새 OMP 워커들이 pool thread
+        의 affinity 를 상속해서 **전체 팀이 1 core 에 집중** 된다.
+
+        Sync 경로는 main 이 같은 master 로 기존 team 을 재사용하므로 워커들이
+        이미 1:1 pin 된 상태가 유지되어 문제 없음. Async 는 master 가 바뀌면서
+        이 이점이 깨짐.
+
+        Fix: pool thread 의 affinity 를 driver_worker.local_omp_cpuid 로 명시된
+        NUMA 노드 전체 core set 으로 확장. pool thread 가 만드는 OMP 워커들은
+        그 확장된 affinity 를 상속 → NUMA 전체 core 에 spread.
+
+        `driver_worker.local_omp_cpuid` 는 CPUWorker.init_device 에서 설정한
+        range string (예: "0-47"). `all` 이면 None 반환 (pinning 없음 상태).
+        """
+        try:
+            s = getattr(self.driver_worker, "local_omp_cpuid", None)
+        except Exception:
+            return None
+        if not s or not isinstance(s, str) or s == "all":
+            return None
+        result: set = set()
+        for chunk in s.split(","):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            if "-" in chunk:
+                try:
+                    a, b = chunk.split("-", 1)
+                    result.update(range(int(a), int(b) + 1))
+                except ValueError:
+                    continue
+            else:
+                try:
+                    result.add(int(chunk))
+                except ValueError:
+                    continue
+        return result or None
+
     def _init_compute_pool(self) -> None:
         """Lazy 초기화. Subclass `__init__` 호출 순서 민감하지 않도록."""
         if self._compute_pool is None:
+            cpu_set = self._get_pool_cpu_set()
+
+            def _initializer():
+                if cpu_set:
+                    import os as _os
+                    try:
+                        _os.sched_setaffinity(0, cpu_set)
+                        logger.info(
+                            "[HYBRID-CPU-EXEC-POOL] pool thread affinity "
+                            "확장 → %d cores (OMP team 이 NUMA 전체 core "
+                            "에 spread)", len(cpu_set))
+                    except Exception as e:
+                        logger.warning(
+                            "[HYBRID-CPU-EXEC-POOL] pool thread "
+                            "sched_setaffinity failed: %s. OMP team 이 main "
+                            "의 pinned core 에 갇힐 수 있음.", e)
+
             self._compute_pool = ThreadPoolExecutor(
                 max_workers=1,
-                thread_name_prefix="cpu-compute")
+                thread_name_prefix="cpu-compute",
+                initializer=_initializer)
             logger.info(
                 "[HYBRID-CPU-EXEC-POOL] Pipelined CPU executor ACTIVE "
-                "(max_concurrent_batches=%d, compute pool max_workers=1)",
-                self.max_concurrent_batches)
+                "(max_concurrent_batches=%d, compute pool max_workers=1, "
+                "cpu_set_size=%s)",
+                self.max_concurrent_batches,
+                len(cpu_set) if cpu_set else "None")
 
     @property
     def max_concurrent_batches(self) -> int:
