@@ -32,6 +32,10 @@ if [[ -z "${OUT_DIR:-}" ]]; then
 fi
 mkdir -p "${OUT_DIR}"
 
+# 성능 튜닝 env (override 가능):
+PERF_DURATION="${PERF_DURATION:-5}"     # perf record 초 (기본 5초로 단축)
+PYSPY_TIMEOUT="${PYSPY_TIMEOUT:-15}"    # py-spy 최대 대기 (56 threads unwind 감안)
+
 log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
 
 log "=== Phase 3 introspection 시작 ==="
@@ -82,13 +86,16 @@ SUMMARY="${OUT_DIR}/summary.md"
 } > "${SUMMARY}"
 
 # ----------------------------------------------------------------------------
-# 3. Per-engine capture
+# 3. Per-engine capture (engine 별 완전 병렬화)
+#    각 engine 의 threads / py-spy / perf 를 동시에 시작하고 끝에서 wait
+#    총 소요시간 ≈ max(PERF_DURATION, PYSPY_TIMEOUT) = ~5~15초 (engine 수 무관)
 # ----------------------------------------------------------------------------
-for PID in "${PIDS[@]}"; do
-    log "--- PID ${PID} 캡처 ---"
 
-    # (a) thread state breakdown (상시 가능)
-    THREADS_FILE="${OUT_DIR}/engine_${PID}_threads.txt"
+capture_one_engine() {
+    local PID=$1
+
+    # (a) thread state — 즉시
+    local THREADS_FILE="${OUT_DIR}/engine_${PID}_threads.txt"
     {
         echo "### thread state breakdown (ps -L)"
         echo "legend: R=Running  S=Sleeping  D=Uninterruptible  T=Stopped"
@@ -107,40 +114,55 @@ for PID in "${PIDS[@]}"; do
         head -20 /tmp/threads_${PID}.tmp
         rm /tmp/threads_${PID}.tmp
     } > "${THREADS_FILE}"
-    log "  [ok] threads → $(basename ${THREADS_FILE})"
 
-    # (b) py-spy dump
-    PYSPY_FILE="${OUT_DIR}/engine_${PID}_pyspy.txt"
+    # (b) py-spy dump — timeout 걸어서 매달려 있지 않도록
+    local PYSPY_FILE="${OUT_DIR}/engine_${PID}_pyspy.txt"
     if (( HAVE_PYSPY )); then
         {
             echo "### py-spy dump (Python call stack of all threads)"
+            echo "timeout=${PYSPY_TIMEOUT}s"
             echo
-            py-spy dump --pid ${PID} 2>&1 || echo "[FAIL] py-spy returned error"
-        } > "${PYSPY_FILE}"
-        log "  [ok] py-spy → $(basename ${PYSPY_FILE})"
-    else
-        echo "[SKIP] py-spy 미설치" > "${PYSPY_FILE}"
+            timeout ${PYSPY_TIMEOUT} py-spy dump --pid ${PID} 2>&1 \
+                || echo "[FAIL] py-spy error or timed out"
+        } > "${PYSPY_FILE}" &
+        local PYSPY_BGPID=$!
     fi
 
-    # (c) perf record 10s
-    PERF_FILE="${OUT_DIR}/engine_${PID}_perf.txt"
+    # (c) perf record — 5초 샘플링 (py-spy 와 병렬)
+    local PERF_FILE="${OUT_DIR}/engine_${PID}_perf.txt"
     if (( HAVE_PERF )); then
-        PERF_DATA="/tmp/perf_${PID}.data"
+        local PERF_DATA="/tmp/perf_${PID}.data"
         {
-            echo "### perf top (10 sec sampling)"
+            echo "### perf top (${PERF_DURATION}s sampling)"
             echo "note: kernel symbols require kptr_restrict=0"
             echo
-            perf record -p ${PID} -g -F 99 -o ${PERF_DATA} -- sleep 10 2>&1 | tail -5
+            perf record -p ${PID} -g -F 99 -o ${PERF_DATA} -- sleep ${PERF_DURATION} 2>&1 | tail -5
             echo
             echo "--- perf report (head 50 lines) ---"
             perf report -i ${PERF_DATA} --stdio --sort dso,symbol 2>&1 | head -60
             rm -f ${PERF_DATA}
-        } > "${PERF_FILE}"
-        log "  [ok] perf → $(basename ${PERF_FILE})"
-    else
-        echo "[SKIP] perf 미설치" > "${PERF_FILE}"
+        } > "${PERF_FILE}" &
+        local PERF_BGPID=$!
     fi
+
+    # py-spy + perf 완료 대기
+    (( HAVE_PYSPY )) && wait ${PYSPY_BGPID} 2>/dev/null
+    (( HAVE_PERF ))  && wait ${PERF_BGPID}  2>/dev/null
+
+    echo "[ok] PID ${PID} 캡처 완료"
+}
+
+log "=== 병렬 캡처 시작 (perf=${PERF_DURATION}s, pyspy_timeout=${PYSPY_TIMEOUT}s) ==="
+CAPTURE_T0=$(date +%s)
+
+# engine 별로 함수를 background 로 시작 → 전체가 parallel
+for PID in "${PIDS[@]}"; do
+    capture_one_engine "${PID}" &
 done
+wait
+
+CAPTURE_T1=$(date +%s)
+log "=== 병렬 캡처 완료 (elapsed $((CAPTURE_T1 - CAPTURE_T0))s) ==="
 
 # ----------------------------------------------------------------------------
 # 4. summary.md 채움

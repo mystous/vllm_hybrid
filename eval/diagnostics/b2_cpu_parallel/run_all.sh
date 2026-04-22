@@ -49,7 +49,9 @@ OUTPUT_LEN="${OUTPUT_LEN:-32}"
 SKIP_PHASE2="${SKIP_PHASE2:-0}"
 SKIP_PHASE3="${SKIP_PHASE3:-0}"
 READY_TIMEOUT=1200
-PHASE3_WAIT=60  # Phase 2 bench 시작 후 몇 초 기다렸다 Phase 3 캡처
+PHASE3_WAIT="${PHASE3_WAIT:-60}"        # bench 시작 후 몇 초 뒤 Phase 3 (prefill 통과 시간)
+PERF_DURATION="${PERF_DURATION:-5}"     # Phase 3 의 perf 기간 (초)
+export PERF_DURATION                    # phase3 script 에서 참조
 
 ENV_SRC="${SCRIPT_DIR}/g0_h100x8_qwen32b_longctx_trace.env"
 RUN_ENV="/tmp/run_phase2.env"
