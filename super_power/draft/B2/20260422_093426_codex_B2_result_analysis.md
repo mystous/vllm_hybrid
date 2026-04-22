@@ -1,344 +1,457 @@
-# B2 결과 분석 — Workload Redefinition 가설 판정
+# B2 결과 분석 — Workload Redefinition 가설의 실제 판정
 
 작성일: 2026-04-22  
 작성자: Codex  
-목적: `eval/results` 아래에 올라온 B2 실험 결과를, 비교 가능한 범위만 엄격히 묶어서 해석하고, B2 가설에 대해 구조적으로 판정한다.
+대상 결과:
 
-## 1. 질문
+- `measurement_results/H100x8/g0_longctx_32b/`
+- `measurement_results/H100x8/g0_longctx_32b_control/`
 
-B2의 질문은 단순히 "큰 모델/큰 workload를 돌려보자"가 아니었다.  
-정확한 질문은 다음과 같다.
+이 문서의 목적은 단순히 숫자를 옮기는 것이 아니다.  
+B2의 원래 질문이 무엇이었는지 다시 고정하고, 이번 실험이 그 질문에 대해 **무엇을 답했고 무엇은 아직 답하지 못했는지**를 구조적으로 판정하는 것이다.
 
-**현재 128/128 중심 workload 에서는 CPU shadow 의 ROI가 보이지 않았는데, long-context / long-decode / high-KV-pressure workload 로 가면 CPU shadow 가 실제로 기여할 구조적 자리가 생기는가?**
+---
 
-따라서 이번 분석의 목표는 다음 둘을 구분하는 것이다.
+## 1. 먼저 질문을 다시 고정한다
 
-- `큰 workload에서 current hybrid가 실제로 살아나는가`
-- `큰 workload에서 current hybrid는 여전히 죽지만, 그 원인이 workload 부적합이 아니라 구조적 tail hazard 인가`
+B2는 "큰 모델이나 긴 입력을 그냥 돌려보자"는 아이디어가 아니었다.  
+B2의 질문은 정확히 다음과 같았다.
 
-## 2. 분석 원칙
+**현재의 128/128 중심 workload 에서는 CPU shadow 기법의 ROI가 거의 보이지 않는데, long-context / long-decode / high-KV-pressure workload 로 가면 CPU가 실제로 끼어들 구조적 자리가 생기는가?**
 
-이번 문서는 단순 결과 나열을 하지 않는다.  
-결론을 오염시키지 않기 위해 아래 원칙으로 본다.
+이 질문을 더 풀어쓰면 두 개의 하위 질문으로 나뉜다.
 
-### 2.1 직접 비교 가능한 결과만 묶는다
+1. 지금까지 하이브리드가 안 좋았던 이유가 `아이디어 자체` 때문인가
+2. 아니면 `시험한 workload가 CPU shadow가 빛날 수 없는 구간`이었기 때문인가
 
-동일 모델, 동일 입력/출력 길이, 동일 concurrency, 동일 prompt 수인 경우만 직접 비교한다.
+이번 B2 실험은 바로 이 둘을 가르기 위한 것이었다.
 
-### 2.2 throughput 숫자를 그대로 믿지 않는다
+---
 
-장시간 timeout 이 개입된 실험에서는 `평균 throughput` 이 bulk path 성능이 아니라 `소수 straggler` 의 영향일 수 있다.  
-따라서 completed count, duration, TTFT, TPOT, ITL 을 같이 본다.
+## 2. 이번 문서의 분석 원칙
 
-### 2.3 이번 판정은 "current hybrid" 에 대한 것이다
+이번 분석은 다음 세 원칙 위에서 진행한다.
 
-이번 결과로 기각되는 것은 `CPU shadow 전체 개념`이 아니라,  
-현재 구현된 `CPU decode 분기형 hybrid` 가설이다.
+### 2.1 비교 가능한 실험만 직접 비교한다
 
-## 3. 비교 대상 분리
+같은 모델, 같은 입력 길이, 같은 출력 길이, 같은 prompt 수, 같은 concurrency인 경우만 직접 비교한다.  
+다른 workload를 섞어서 "전체 경향"처럼 말하지 않는다.
 
-`eval/results` 에서 이번 B2 해석에 직접 비교 가능한 묶음은 아래 셋이다.
+### 2.2 timeout이 낀 throughput은 그대로 믿지 않는다
 
-### 3.1 Large-workload 묶음
+장시간 timeout이 들어간 실험에서 평균 throughput은 bulk 성능이 아니라 **마지막 몇 개 straggler** 에 의해 망가질 수 있다.  
+따라서 throughput은 항상 아래 지표와 같이 읽는다.
 
-- [gpu_only.json](/vllm_hybrid/eval/results/20260421_085735_G_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct/gpu_only.json)
-- [hybrid seqs1](/vllm_hybrid/eval/results/20260421_091604_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs1/hybrid.json)
-- [hybrid seqs2](/vllm_hybrid/eval/results/20260421_152038_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/hybrid.json)
+- completed count
+- duration
+- TTFT
+- TPOT
+- ITL
 
-이 셋의 공통 workload:
+### 2.3 이번 판정의 대상은 `현재 hybrid 구조`다
 
-- model: `Qwen/Qwen2.5-32B-Instruct`
-- num_prompts: `100`
-- max_concurrency: `55`
-- random_input_len: `16384`
-- random_output_len: `16384`
+이번 결과로 곧바로 기각되는 것은 `CPU shadow` 전체 개념이 아니다.  
+이번 결과가 직접 겨누는 대상은 **현재 구현된 request-level CPU decode 분기형 hybrid** 다.
 
-즉, **16K input / 16K output / concurrency 55** 의 long-decode workload 이다.
+---
 
-### 3.2 Short-workload 보조 묶음
+## 3. 실험군을 두 개의 층으로 나눈다
 
-- [hybrid seqs4](/vllm_hybrid/eval/results/20260421_071441_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs4/hybrid.json)
-- [hybrid seqs8](/vllm_hybrid/eval/results/20260421_072012_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs8/hybrid.json)
-- [hybrid seqs16](/vllm_hybrid/eval/results/20260421_072521_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs16/hybrid.json)
+이번 결과는 하나의 실험이 아니라 두 개의 workload 층으로 나뉜다.
 
-이 셋은 다른 workload 이다.
+### 3.1 Heavy 층: B2의 본판정 대상
 
-- num_prompts: `500`
-- random_input_len: `128`
-- random_output_len: `128`
+디렉토리:
+[g0_longctx_32b](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b)
+
+비교 대상:
+
+- [gpu_only_baseline](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/gpu_only_baseline)
+- [seqs1](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/seqs1)
+- [seqs2](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/seqs2)
+
+공통 workload:
+
+- model: `Qwen2.5-32B-Instruct`
+- input length: `16384`
+- output length: `16384`
+- prompts: `100`
+- max concurrency: `55`
+
+즉, **16K in / 16K out / concurrency 55** 의 heavy long-decode workload 이다.  
+이 층이 B2의 핵심 판정 대상이다.
+
+### 3.2 Control 층: 기존 짧은 workload의 재확인
+
+디렉토리:
+[g0_longctx_32b_control](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control)
+
+비교 대상:
+
+- [gpu_only_baseline](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control/gpu_only_baseline)
+- [seqs1](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control/seqs1)
+- [seqs2](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control/seqs2)
+- [seqs4](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control/seqs4)
+- [seqs8](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control/seqs8)
+- [seqs16](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control/seqs16)
+
+공통 workload:
+
+- model: `Qwen2.5-32B-Instruct`
+- input length: `128`
+- output length: `128`
+- prompts: `500`
 
 즉, **128/128 short workload** 이다.  
-따라서 B2의 long-decode 본판정에는 보조 참고로만 사용한다.
+이 층은 B2의 본판정보다는, 기존 하이브리드 scaling 한계가 여전히 유지되는지 보는 대조군이다.
 
-## 4. 핵심 시각 자료
+---
 
-이번 분석에서 실제로 참고할 가치가 높은 그림은 벤치마크 요약 그림 두 장이다.  
-이유는 단순하다. 이번 B2의 핵심 질문은 `heavy workload` 와 `light control workload` 에서 hybrid 위치가 어떻게 달라지는가이기 때문이다.
+## 4. 그림은 어떻게 읽어야 하는가
 
-### 4.1 Heavy workload 요약
+이번 문서에서 그림은 **증거의 중심**이 아니라 **숫자 해석을 돕는 보조 수단**이다.  
+핵심 판정은 JSON/bench 결과로 하고, 그림은 그 판정을 시각적으로 확인하는 용도로만 쓴다.
 
-파일:
-[analysis_bench.png](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/analysis_bench.png)
+### 4.1 Heavy workload 요약 그림
 
-![Heavy workload benchmark summary](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/analysis_bench.png)
+- [analysis_bench.png](../../../measurement_results/H100x8/g0_longctx_32b/analysis_bench.png)
 
-이 그림은 `16K/16K, 100 prompts` 묶음의 GPU-only와 hybrid(`seqs1`, `seqs2`) 차이를 한 장에 요약한다.  
-이번 문서의 본판정은 이 그림이 보여주는 분포를 텍스트로 해석한 것이다.
+![Heavy workload benchmark summary](../../../measurement_results/H100x8/g0_longctx_32b/analysis_bench.png)
 
-### 4.2 Light control workload 요약
+이 그림은 heavy workload 에서 `gpu_only`, `seqs1`, `seqs2` 가 얼마나 벌어지는지를 한 장에 보여준다.  
+하지만 이 그림만 보고 "hybrid throughput이 완전히 무너졌다"라고 결론내리면 부족하다. 왜냐하면 timeout에 의해 집계가 왜곡될 수 있기 때문이다.
 
-파일:
-[analysis_bench.png](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control/analysis_bench.png)
+### 4.2 Control workload 요약 그림
 
-![Control workload benchmark summary](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b_control/analysis_bench.png)
+- [analysis_bench.png](../../../measurement_results/H100x8/g0_longctx_32b_control/analysis_bench.png)
 
-이 그림은 `128/128, 500 prompts` 의 control 묶음에서 `seqs1/2/4/8/16` 변화가 어떻게 나타나는지 보여준다.  
-heavy workload 가 아닌 기존 short workload 에서 current hybrid 의 scaling 한계가 어디서 드러나는지 보조적으로 읽을 수 있다.
+![Control workload benchmark summary](../../../measurement_results/H100x8/g0_longctx_32b_control/analysis_bench.png)
 
-### 4.3 보조 시계열 그림
+이 그림은 short workload 에서 `seqs1 -> seqs16` scaling 이 단조롭게 좋아지지 않는다는 점을 보여준다.  
+즉, current hybrid 구조의 불안정한 scaling 한계가 heavy workload 전에도 이미 존재했다는 점을 확인하는 보조 자료다.
 
-파일:
-[analysis_util_timeseries.png](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/analysis_util_timeseries.png)
+### 4.3 Heavy workload 보조 그림
 
-![Heavy workload utilization timeseries](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/analysis_util_timeseries.png)
+- [analysis_util_timeseries.png](../../../measurement_results/H100x8/g0_longctx_32b/analysis_util_timeseries.png)
+- [analysis_cpu_heatmap.png](../../../measurement_results/H100x8/g0_longctx_32b/analysis_cpu_heatmap.png)
+- [analysis_gpu_power_mem.png](../../../measurement_results/H100x8/g0_longctx_32b/analysis_gpu_power_mem.png)
 
-이 그림은 heavy workload 에서의 시간축 변화를 보여주므로, `bulk는 진행되지만 일부 tail request 가 오래 남는다`는 해석을 보조하는 용도로만 참고한다.  
-다만 최종 판정은 JSON/bench 로그 숫자를 기준으로 하고, 이 그림은 보조 증거로만 사용한다.
+![Heavy workload utilization timeseries](../../../measurement_results/H100x8/g0_longctx_32b/analysis_util_timeseries.png)
+![Heavy workload CPU heatmap](../../../measurement_results/H100x8/g0_longctx_32b/analysis_cpu_heatmap.png)
+![Heavy workload GPU power and memory](../../../measurement_results/H100x8/g0_longctx_32b/analysis_gpu_power_mem.png)
 
-### 4.4 CPU heatmap 보조 그림
+이 세 장은 각각:
 
-파일:
-[analysis_cpu_heatmap.png](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/analysis_cpu_heatmap.png)
+- 시간이 지나며 bulk와 tail이 어떻게 갈리는지
+- CPU 자원이 실제로 어떻게 쓰였는지
+- GPU pressure 자체는 충분했는지
 
-![Heavy workload CPU heatmap](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/analysis_cpu_heatmap.png)
+를 보조적으로 보여준다.
 
-이 그림은 CPU 사용 패턴을 직관적으로 보여주지만, 단독으로 해석하면 "CPU를 많이 썼으니 유의미했다"는 잘못된 결론으로 흐르기 쉽다.  
-따라서 이 문서에서는 **tail 구간에서도 CPU 자원이 실질적으로 구조를 구제하지 못했다**는 점을 보조하는 시각 자료로만 사용한다.
+중요한 점은, 이 그림들이 **CPU를 많이 썼다 = CPU가 유의미했다**를 뜻하지는 않는다는 것이다.  
+이번 문서에서는 오히려 반대로, **CPU가 관여했지만 구조를 구제하지 못했다**는 해석을 보조하는 자료로만 쓴다.
 
-### 4.5 GPU power / memory 보조 그림
+---
 
-파일:
-[analysis_gpu_power_mem.png](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/analysis_gpu_power_mem.png)
+## 5. Heavy workload에서 실제로 관측된 사실
 
-![Heavy workload GPU power and memory](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/analysis_gpu_power_mem.png)
+이제 B2의 본론으로 들어간다.
 
-이 그림은 heavy workload 에서 GPU 메모리/전력 흐름을 보여준다.  
-특히 long-context workload 에서 GPU 쪽 pressure 자체는 충분히 존재했음을 보조적으로 확인하는 자료로 쓸 수 있다. 다만 여기서도 핵심 판정은 그래프 자체가 아니라, `GPU pressure 가 있어도 current hybrid 가 ROI를 회복하지 못했다`는 JSON/bench 결과와 함께 읽어야 한다.
+### 5.1 GPU-only 기준선
 
-## 5. Large-workload 관측 사실
-
-### 4.1 GPU-only 기준선
-
-`gpu_only`:
+[gpu_only.json](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/gpu_only_baseline/gpu_only.json)
 
 - output throughput: `1918.53 tok/s`
 - total token throughput: `3893.50 tok/s`
 - mean TTFT: `6875.64 ms`
 - mean TPOT: `25.29 ms`
 - completed: `100 / 100`
-- duration: `829.58 s`
+- benchmark duration: `829.58 s`
+- wall time: `978.24 s`
 
-이 값은 long-decode workload 에서의 GPU-only 기준선이다.
+이 값은 heavy workload에서의 **정상적인 GPU-only 기준선**이다.
 
-### 4.2 Hybrid 결과
+### 5.2 Hybrid seqs1
 
-`hybrid seqs1`:
+[hybrid.json](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/seqs1/hybrid.json)
 
 - output throughput: `72.16 tok/s`
 - total token throughput: `146.49 tok/s`
 - mean TTFT: `6854.53 ms`
 - mean TPOT: `25.15 ms`
 - completed: `98 / 100`
-- duration: `21600.60 s`
+- benchmark duration: `21600.60 s`
+- wall time: `21748.89 s`
 
-`hybrid seqs2`:
+### 5.3 Hybrid seqs2
+
+[hybrid.json](/vllm_hybrid/measurement_results/H100x8/g0_longctx_32b/seqs2/hybrid.json)
 
 - output throughput: `71.40 tok/s`
 - total token throughput: `144.22 tok/s`
 - mean TTFT: `6579.33 ms`
 - mean TPOT: `25.08 ms`
 - completed: `96 / 100`
-- duration: `21600.81 s`
+- benchmark duration: `21600.81 s`
+- wall time: `21749.01 s`
 
-### 4.3 표면적인 ratio
+### 5.4 표면적인 ratio
 
-GPU-only 대비 output throughput ratio:
+heavy workload 기준에서 output throughput ratio는 다음과 같다.
 
-- seqs1: `72.16 / 1918.53 = 3.76%`
-- seqs2: `71.40 / 1918.53 = 3.72%`
+- `seqs1 / gpu_only = 72.16 / 1918.53 = 3.76%`
+- `seqs2 / gpu_only = 71.40 / 1918.53 = 3.72%`
 
-표면적으로는 hybrid 가 거의 완전히 붕괴한 것처럼 보인다.
+겉으로만 보면 current hybrid가 거의 완전히 붕괴한 것처럼 보인다.
 
-## 6. 왜 이 숫자를 그대로 해석하면 안 되는가
+---
 
-이번 B2에서 가장 중요한 포인트는 여기다.
+## 6. 그런데 왜 이 숫자를 그대로 읽으면 오판인가
 
-### 5.1 TTFT / TPOT / ITL 은 거의 동일하다
+여기서부터가 이번 문서의 핵심이다.
 
-GPU-only 와 hybrid seqs1/2 를 비교하면:
+### 6.1 throughput은 붕괴했는데 TTFT/TPOT는 거의 안 변했다
 
-- mean TTFT: 거의 동일한 범위
-- mean TPOT: 거의 동일한 범위
-- mean ITL: 거의 동일한 범위
+heavy workload에서 GPU-only와 hybrid를 비교하면:
 
-즉, **완료된 request 들의 token-step 동작 자체는 GPU-only 와 비슷하게 보인다.**
+- mean TTFT: 거의 비슷하다
+- mean TPOT: 거의 비슷하다
+- mean ITL: 거의 비슷하다
 
-### 5.2 그런데 throughput 만 26배 가까이 붕괴한다
+이 세 개가 거의 유지된다는 것은, **완료된 request들의 token-step dynamics 자체는 GPU-only와 크게 다르지 않았다**는 뜻이다.
 
-이 조합은 bulk path 전체가 느려졌다는 신호라기보다,  
-**소수의 request 가 끝나지 않아 wall clock 을 비정상적으로 늘린 경우**에 더 가깝다.
+만약 진짜로 hybrid bulk path 전체가 느려졌다면, 보통 다음 중 적어도 하나는 크게 망가진다.
 
-### 5.3 실제로 duration 이 6시간 timeout 이다
+- TTFT
+- TPOT
+- ITL
 
-hybrid seqs1/2 는 둘 다:
+그런데 이번 결과는 그렇지 않다.
 
-- duration ≈ `21600 s`
+### 6.2 반면 duration은 정확히 6시간에 박혔다
 
-즉, 정상 종료 시간이 아니라 **6시간 제한 시간에 걸린 결과**다.
+hybrid seqs1/2는 둘 다:
 
-### 5.4 completed count 도 100이 아니다
+- benchmark duration ≈ `21600 s`
+
+즉, 이건 정상 종료 시간이 아니라 **6시간 timeout** 결과다.
+
+### 6.3 completed count도 100이 아니다
 
 - seqs1: `98 / 100`
 - seqs2: `96 / 100`
 
-즉, 전체 100개 중 대다수는 끝났지만,  
-마지막 `2~4` 개가 끝나지 못하고 timeout 으로 전체 throughput 을 망쳤다.
+즉, 100개 request 중 대부분은 끝났지만  
+마지막 `2~4` 개가 끝나지 못한 채 timeout에 걸렸다.
 
-## 7. 구조적 해석
+### 6.4 여기서 논리적으로 따라오는 해석
 
-이제 관측 사실을 하나의 구조로 엮으면 다음과 같다.
+이 조합은 다음 구조를 뜻한다.
 
-### 6.1 bulk path 는 완전히 무너진 것이 아니다
+- 대다수 request 는 bulk 구간에서 거의 GPU-only처럼 진행됐다
+- 소수 request 가 tail에서 극단적으로 오래 남았다
+- 그 straggler가 전체 wall time을 6시간으로 늘렸다
+- 그래서 평균 throughput이 붕괴한 것처럼 보였다
 
-TTFT / TPOT / ITL 이 GPU-only 와 유사하다는 것은,  
-완료된 request 들은 대체로 GPU-only 와 비슷한 token-step dynamics 를 가졌다는 뜻이다.
+즉, 이번 결과는:
 
-즉, 현재 결과는:
+**"모든 요청이 조금씩 느려졌다"**가 아니라  
+**"대부분은 비슷했지만 소수 tail request가 전체 집계를 망쳤다"**
 
-**"모든 요청이 천천히 처리되었다"**가 아니라  
-**"대부분은 비슷하게 처리되었지만, 일부 tail request 가 병적으로 오래 걸렸다"**에 가깝다.
+로 읽는 것이 맞다.
 
-### 6.2 current hybrid 의 위험은 평균이 아니라 tail 에 있다
+---
 
-이 long-decode workload 에서 current hybrid 는:
+## 7. 이 해석이 의미하는 구조적 결론
 
-- bulk throughput 향상 신호를 보여주지 못했고
-- 반대로 소수 request 에 대해 극단적인 tail hazard 를 만든다
+이제 숫자를 구조로 바꾸면 다음과 같다.
 
-즉, 문제는 단순 성능 저하가 아니라 **tail amplification** 이다.
+### 7.1 current hybrid의 주된 문제는 bulk가 아니라 tail이다
 
-### 6.3 이건 B2 가설의 일부를 부정한다
+heavy workload에서 current hybrid는 bulk path의 압도적 향상을 보여주지 못했다.  
+하지만 더 중요한 것은, bulk가 약간 나쁜 수준이 아니라 **tail이 병적으로 길어진다**는 점이다.
 
-B2의 기대 중 하나는:
+즉 이번 결과의 핵심 문제는 평균 저하가 아니라:
 
-**"큰 workload 로 가면 current hybrid 도 상대적으로 나아질 수 있다"**
+**tail amplification**
 
-였는데, 이번 결과는 그 기대를 지지하지 않는다.
+이다.
+
+### 7.2 long-decode workload는 current hybrid를 살려주지 못했다
+
+B2가 기대했던 낙관적 시나리오는 이랬다.
+
+> "128/128에서는 CPU가 끼어들 자리가 없었지만, 16K/16K 같은 큰 workload로 가면 CPU shadow의 ROI가 드러날 수 있다."
+
+이번 결과는 그 기대를 지지하지 않는다.
 
 정확히는:
 
-**long-decode / high-KV-pressure workload 가 current hybrid 를 살려주지 못했다.**
+**long-decode / high-KV-pressure workload로 가도, 현재 구현된 hybrid는 상대적으로 좋아지지 않았다.**
 
-## 8. 하지만 여기서 "CPU shadow 전체 기각"으로 가면 안 되는 이유
+더 강하게 말하면:
 
-이 지점이 논리적으로 중요하다.
+**큰 workload는 current hybrid의 문제를 해결하지 못했고, 오히려 tail 위험을 더 크게 드러냈다.**
 
-이번 결과는 `CPU shadow 전체 개념` 을 기각하지 않는다.  
-기각하는 것은 다음 구조다.
+---
+
+## 8. 그런데 이것이 왜 `CPU shadow 전체 기각`은 아닌가
+
+이 지점에서 가장 많이 생기는 오해를 끊어야 한다.
+
+이번 결과가 기각하는 것은 다음이다.
 
 **현재의 request-level CPU decode 분기형 hybrid**
 
-즉, 지금 구조는:
+즉 구조적으로 보면:
 
-- 일부 요청을 CPU path 로 보냄
-- long-decode request 가 CPU tail hazard 로 변함
-- 그 straggler 가 전체 wall clock 을 잡아먹음
+- 일부 request를 CPU path로 보낸다
+- long-decode request가 CPU path에서 straggler가 된다
+- 그 straggler가 전체 benchmark wall clock을 잡아먹는다
 
-이 결과는 오히려 반대로 다음을 시사한다.
+반면 이번 결과가 곧바로 기각하지 못하는 것은 다음이다.
 
-**CPU는 main decode path 에 들어가면 안 되고, shadow plane 으로만 써야 한다.**
+**CPU shadow plane 개념 전체**
 
-즉 이번 B2 결과는 ideation 문서들의 공통 결론을 강화한다.
+왜냐하면 CPU shadow plane은 원래:
 
-## 9. Short-workload 보조 신호
+- CPU가 main decode를 직접 수행하는 것이 아니라
+- GPU의 임계 경로 밖에서
+- scheduler / KV / prefetch / hint / admission을 준비하는 구조
 
-128/128 short workload 쪽 hybrid 결과는 다음과 같다.
+이기 때문이다.
 
+즉 이번 결과는 CPU shadow 개념을 약화시키는 것이 아니라, 오히려 문서들의 공통 결론을 강화한다.
+
+**CPU는 main decode path에 들어가면 안 되고, shadow plane으로만 써야 한다.**
+
+---
+
+## 9. Control workload는 무엇을 보태주는가
+
+이제 short control workload를 본다.
+
+### 9.1 control 묶음의 핵심 숫자
+
+- seqs1: output throughput `738.86 tok/s`
+- seqs2: output throughput `749.73 tok/s`
 - seqs4: output throughput `609.39 tok/s`
 - seqs8: output throughput `794.75 tok/s`
 - seqs16: output throughput `575.99 tok/s`
 
-이 보조 신호가 말하는 것은:
+### 9.2 여기서 읽어야 할 것은 "절대값"이 아니라 "형태"다
 
-- batching 을 늘린다고 monotonic 하게 좋아지지 않는다
-- sweet spot 이 좁다
-- current hybrid 는 안정적인 scaling 구조가 아니다
+current hybrid가 안정적인 구조라면,  
+적어도 `seqs`를 올릴 때 성능은 비교적 예측 가능한 방향으로 움직여야 한다.
 
-즉, short workload 에서도 구조적 한계가 있고,  
-long workload 에서는 그 한계가 tail hazard 로 더 심하게 드러난다.
+그런데 control workload에서는:
 
-## 10. B2 가설 판정
+- seqs1 -> seqs2: 거의 변화 없음
+- seqs2 -> seqs4: 오히려 하락
+- seqs4 -> seqs8: 다시 상승
+- seqs8 -> seqs16: 다시 크게 하락
 
-### 9.1 판정 질문
+즉, scaling이 단조롭지 않고 sweet spot이 매우 좁다.
 
-B2의 원 질문:
+### 9.3 control 묶음이 heavy 해석에 주는 의미
 
-**"Workload 를 키우면 CPU shadow 의 ROI 가 살아나는가?"**
+이 보조 신호는 heavy workload에서 드러난 tail hazard가 우연이 아니라는 점을 뒷받침한다.  
+이미 short workload에서도 current hybrid는 **구조적으로 불안정한 scaling** 을 보이고 있었고,
+heavy workload로 가면서 그것이 **tail failure** 형태로 더 거칠게 드러난 것이다.
 
-### 9.2 현재 구현 기준 판정
+즉:
 
-현재 구현된 hybrid 기준으로는:
+- control workload는 current hybrid의 구조적 불안정을 보여주고
+- heavy workload는 그 불안정이 어떻게 catastrophic tail로 번지는지를 보여준다
+
+---
+
+## 10. B2 가설에 대한 최종 판정
+
+이제 원 질문으로 돌아간다.
+
+### 질문
+
+**"Workload를 키우면 CPU shadow의 ROI가 살아나는가?"**
+
+### current hybrid에 대한 판정
 
 **아니오.**
 
 더 정확히는:
 
-- large workload 가 current hybrid 의 구조적 약점을 덮어주지 못했다
-- 오히려 long-decode 에서 CPU-routed tail request 가 전체 결과를 붕괴시켰다
+- heavy long-decode workload는 current hybrid를 살려주지 못했다
+- bulk path의 뚜렷한 이득도 없었고
+- 소수 request의 catastrophic tail 때문에 전체 결과가 무너졌다
 
-### 9.3 개념 수준 판정
+### CPU shadow 개념 자체에 대한 판정
 
-하지만 CPU shadow 개념 전체에 대해서는:
+**보류**
 
-**판정 보류**
+이번 결과는 `CPU shadow 전체 기각`이 아니다.  
+이번 결과가 직접 겨누는 대상은:
 
-왜냐하면 지금 검증된 것은 shadow plane 자체가 아니라,  
-CPU가 일부 요청을 직접 decode 하는 구조의 실패이기 때문이다.
-
-## 11. 이번 결과가 다음 단계에 주는 의미
-
-이번 B2 결과는 다음 의사결정을 강하게 지지한다.
-
-### 10.1 다음 우선순위는 B1이다
-
-B2가 큰 workload 를 줘도 current hybrid 를 살려주지 못했다면,  
-이제 볼 것은 "어디서 tail 이 생기느냐"다.
-
-즉 다음 질문은 자연스럽게 B1이 된다.
-
-**host control-path / routing / request-level CPU 분기가 long-decode tail 을 만드는가?**
-
-### 10.2 B3는 아직 후순위다
-
-meta-scheduling gateway 는 구조적으로 흥미롭지만,  
-지금 먼저 봐야 할 것은 외부 orchestration 이 아니라:
-
-- current hybrid 내부에서
-- 왜 소수 request 가 6시간 straggler 로 남는지
+**CPU가 일부 요청을 직접 decode하는 현재 하이브리드 구조**
 
 이다.
 
-즉 B3는 현재 시점에선 장기 구조 후보이지,  
-이번 B2 직후의 직접 후속은 아니다.
+---
+
+## 11. 이번 결과가 다음 단계 선택에 주는 의미
+
+이번 B2 결과는 앞으로의 방향을 꽤 강하게 좁혀 준다.
+
+### 11.1 다음 우선순위는 B1이다
+
+B2가 "큰 workload를 줘도 current hybrid는 안 산다"는 결과를 냈다면,  
+그 다음 질문은 자연스럽게 이거다.
+
+**왜 tail이 생기는가?**
+
+즉:
+
+- request-level CPU routing이 문제인가
+- host control-path가 문제인가
+- scheduler / admission / ready-state 관리가 문제인가
+
+이건 바로 B1, 즉 **Inverted Control Plane** 가설의 영역이다.
+
+### 11.2 B3는 아직 후순위다
+
+Meta-scheduling Gateway는 장기 구조로는 의미가 있다.  
+하지만 지금 당장 필요한 답은 "vLLM 앞단 orchestration을 뺄까"가 아니라:
+
+**현재 hybrid 내부에서 long-decode straggler를 누가 만드는가**
+
+이다.
+
+따라서 지금 단계의 순서는:
+
+1. B2로 current hybrid가 heavy workload에서도 안 산다는 사실을 확정
+2. B1로 tail의 구조적 원인을 겨냥
+3. B3는 그 이후 시스템 외부화 후보로 검토
+
+가 맞다.
+
+---
 
 ## 12. 최종 결론
 
-이번 B2 결과는 다음 한 문장으로 요약된다.
+이번 B2 실험은 원래 기대했던 낙관적 시나리오를 지지하지 않았다.
 
-**큰 workload 는 current hybrid 를 살려주지 못했다. bulk path 는 GPU-only 와 비슷해 보이지만, CPU 경로로 빠진 소수 long-decode request 가 극단적인 tail hazard 가 되어 전체 결과를 무너뜨린다.**
+즉:
 
-따라서 이번 분석의 논리적 결론은:
+**"큰 workload를 주면 current hybrid의 ROI가 살아날 것"이라는 기대는 틀렸다.**
 
-1. `current hybrid` 는 long-decode 에서도 breakthrough 경로가 아니다  
-2. 이번 결과는 `CPU shadow 전체 기각` 이 아니라 `CPU decode 분기형 구조 기각` 으로 읽어야 한다  
-3. 다음은 B1, 즉 **inverted control plane / control-path 원인 규명** 으로 넘어가는 것이 맞다
+하지만 더 중요한 결론은 이것이다.
+
+**이번 결과는 CPU shadow 전체를 기각하는 것이 아니라, CPU가 일부 request를 직접 decode하는 현재 hybrid 구조를 사실상 기각한다.**
+
+이번 결과를 한 문장으로 요약하면:
+
+**heavy workload에서 current hybrid는 bulk를 개선하지 못했고, 오히려 CPU로 빠진 소수 long-decode request가 catastrophic tail을 만들어 전체 결과를 망친다.**
+
+따라서 다음 단계는 명확하다.
+
+**B2의 후속은 B1이다. 즉, 이제는 workload를 키워보는 단계가 아니라 control-path와 routing 구조 자체를 겨냥해야 한다.**
+
