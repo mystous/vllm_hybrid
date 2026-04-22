@@ -128,6 +128,9 @@ torch/lib/libgomp.so.1     ← 이것만
 
 Engine 2 는 거의 동일한 분포 (2표는 [phase3/engine_1162226_flame.svg](../../eval/diagnostics/b2_cpu_parallel/results/20260422_063129/phase3/engine_1162226_flame.svg) 참조).
 
+> **주의 — 소스 파일 위치에 대한 오해 방지.**
+> 표의 `gpu_model_runner.py:1483`, `_update_states (gpu_model_runner.py:*)` 항목은 **"CPU engine 이 GPU runner 를 잘못 실행한다"** 는 뜻이 아니다. `CPUModelRunner` 는 `class CPUModelRunner(GPUModelRunner):` 로 **의도된 상속** (`cpu_model_runner.py:48`) 이며, `execute_model` 을 override 하지 않기 때문에 부모 class 의 구현이 method-resolve 되어 실행된다. py-spy 는 그 method 의 **소스 파일 위치** (gpu_model_runner.py) 를 표시할 뿐, 실제 self 는 CPUModelRunner 인스턴스다. 즉 이건 공유 base class 의 로직이 heavy workload 에서 비싼 것이지, 아키텍처 버그가 아니다.
+
 ### 5.2 Inclusive vs self-time 해석
 
 `decorate_context` 가 32% 로 가장 높지만 이는 **inclusive time** — "이 함수가 stack 의 어딘가에 있었을 때의 총 시간". py-spy record 는 매 샘플마다 stack 전체를 기록하므로, `decorate_context` 처럼 stack 상위에 자주 등장하는 공통 frame 은 높게 나온다. 이것은 hot spot 이 아니라 단순 **"대부분의 호출이 `torch.no_grad()` 안에서 일어난다"** 는 뜻.
@@ -176,9 +179,12 @@ Light 는 blocks 적어서 탐색 빠르게 종료. Heavy 는 req 당 1024 hash 
 
 ### 6.3 CPU engine 에 특히 나쁜 이유
 
-- `find_longest_cache_hit` 는 순수 Python 코드 (C++ 가속 없음)
-- CPU engine 의 per-step compute 가 GPU 대비 상대적으로 작아 Python overhead 비중이 커짐
-- GPU 에서는 model forward (~수십 ms) 가 compute 를 지배하지만, CPU 에서는 schedule 이 compute 와 유사하거나 더 큼
+동일한 shared base class 의 로직 (scheduler + model runner) 이 GPU/CPU worker 모두에서 실행되지만, **상대적 비용이 크게 다르다**:
+
+- `find_longest_cache_hit` 는 순수 Python 코드 (C++ 가속 없음) — workload 와 무관하게 어디서든 동일한 절대 시간
+- GPU 의 model forward 는 HBM BW + tensor core 로 매우 빠름 → 전체 step 의 90% 이상이 compute, Python overhead 는 묻힘
+- CPU 의 model forward 는 memory-bound 에 latency-bound 요소까지 더해져 GPU 대비 10~100× 느림 → **절대적 compute 시간은 커도, Python overhead 의 상대 비중 역시 높아짐**
+- 결론: 동일 코드가 GPU 에선 무해한데 CPU 에선 dominant 가 됨. "GPU runner 가 잘못 실행" 이 아니라 "공유 base class 의 Python 비용이 CPU 에서 상대적으로 크게 보임"
 
 ### 6.4 원본 가설들 재평가
 
@@ -195,7 +201,9 @@ Light 는 blocks 적어서 탐색 빠르게 종료. Heavy 는 req 당 1024 hash 
 
 ### 7.1 기존 P1 — 범위 축소
 
-앞선 §12.2 에서 제시한 **"CPUModelRunner._update_states override"** 는 효과 상한이 ~9%. 단독으로는 의미있는 개선 어렵다. 후순위로 밀린다.
+앞선 B2 분석 §12.2 에서 제시한 **"CPUModelRunner.`_update_states` override"** 는 Python 상속 메커니즘 (CPUModelRunner 에서 부모의 `_update_states` 를 자체 구현으로 덮기) 으로 가능하지만, 실측 hot spot 비중이 ~9% 에 불과하므로 **단독으로는 의미있는 개선 어렵다**. 후순위로 밀린다.
+
+(참고: 이는 "CPU engine 이 GPU runner 를 쓰는 게 잘못" 이라는 뜻이 아니다. CPUModelRunner 는 `class CPUModelRunner(GPUModelRunner)` 로 **의도된 상속** 이다. override 는 상속된 메서드 중 CPU 에 특화한 fast path 를 제공하기 위한 정상적 Python 메커니즘.)
 
 ### 7.2 새 P1 후보
 
