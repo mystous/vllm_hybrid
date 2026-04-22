@@ -50,13 +50,30 @@ if [[ ${#PIDS[@]} -eq 0 ]]; then
 fi
 log "target: ${#PIDS[@]} engines (${PIDS[*]})"
 
-# 기본 정보 + py-spy 덤프 + kernel stack (engine 별 파일)
+# 기본 정보 + OMP 라이브러리 체크 + py-spy 덤프 + kernel stack
 for PID in "${PIDS[@]}"; do
     OUT="${OUT_DIR}/engine_${PID}_pyspy.txt"
     {
         echo "### PID ${PID} — $(ps -p ${PID} -o comm= 2>/dev/null)"
         echo "threads: $(grep -E '^Threads' /proc/${PID}/status 2>/dev/null | awk '{print $2}')"
         echo "cpus   : $(grep -E '^Cpus_allowed_list' /proc/${PID}/status 2>/dev/null | awk '{print $2}')"
+        echo
+        echo "### OMP/BLAS 라이브러리 로드 상태 (duplication 의심 — 318 thread 원인?)"
+        echo "# libgomp + libiomp5 양쪽 다 있으면 OMP runtime 중복 → pool 2~3배"
+        grep -E 'libomp|libgomp|libiomp|libmkl_|libopenblas|libblis' /proc/${PID}/maps 2>/dev/null \
+            | awk '{print $NF}' | sort -u | tee /tmp/phase3_omp_${PID}_$$.txt \
+            || echo "(maps 접근 실패)"
+        echo
+        echo "### Thread 이름 분포 (어느 pool 에서 왔는지)"
+        # ps -L 의 comm 은 15 char 잘림. /proc/<tid>/comm 이 정확.
+        for tid in $(ls /proc/${PID}/task/ 2>/dev/null); do
+            cat /proc/${PID}/task/${tid}/comm 2>/dev/null
+        done | sort | uniq -c | sort -rn | head -20
+        echo
+        echo "### OMP 환경변수 (subprocess 에 꽂힌 값)"
+        tr '\0' '\n' < /proc/${PID}/environ 2>/dev/null \
+            | grep -E '^(OMP_|MKL_|KMP_|IPEX_|OPENBLAS_|VLLM_CPU_|VLLM_HYBRID_)' \
+            | sort
         echo
         echo "### ps -L top-10 by %CPU (with state)"
         ps -L -p ${PID} -o tid,stat,psr,pcpu,comm --no-headers 2>/dev/null \
@@ -86,7 +103,7 @@ for PID in "${PIDS[@]}"; do
                 echo "stack: [/proc/${tid}/stack 읽기 권한 없음 (root 필요)]"
             fi
         done
-        rm -f /tmp/phase3_threads_${PID}_$$.txt
+        rm -f /tmp/phase3_threads_${PID}_$$.txt /tmp/phase3_omp_${PID}_$$.txt
     } > "${OUT}" 2>&1 &
 done
 wait
