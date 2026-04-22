@@ -72,6 +72,38 @@ log()     { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
 section() { echo; echo "════════════════════════════════════════════════════════════════"; log "$*"; echo "════════════════════════════════════════════════════════════════"; }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 철저한 server cleanup — GPU 메모리 + port + 잔여 프로세스까지 기다림
+# ─────────────────────────────────────────────────────────────────────────────
+cleanup_servers() {
+    # 1. 관련 프로세스 3 pass pkill (일부가 재생성되는 경우 대비)
+    for pass in 1 2 3; do
+        pkill -9 -f 'api_server|serve\.sh|bench\.sh|benchmark_serving|CPU_EngineCore|GPU_EngineCore|VllmWorker|vllm\.entrypoints|multiproc_executor' 2>/dev/null || true
+        sleep 2
+    done
+
+    # 2. Port ${PORT} TIME_WAIT 해제 대기 (최대 60s)
+    local waited=0
+    while ss -tln 2>/dev/null | grep -q ":${PORT} " && (( waited < 60 )); do
+        sleep 2; waited=$((waited + 2))
+    done
+    (( waited > 0 )) && log "  port ${PORT} 해제 대기 ${waited}s"
+
+    # 3. GPU memory 해제 대기 — 모든 GPU 가 <1GB 사용 상태가 되어야 (최대 60s)
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        waited=0
+        while (( waited < 60 )); do
+            local max_mb=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | sort -rn | head -1)
+            [[ -z "${max_mb}" ]] && break
+            (( max_mb < 1000 )) && break
+            sleep 3; waited=$((waited + 3))
+        done
+        (( waited > 0 )) && log "  GPU memory 해제 대기 ${waited}s"
+    fi
+
+    sleep 3
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 공통: 한 번의 run 을 수행 (mode=sync 또는 async)
 # ─────────────────────────────────────────────────────────────────────────────
 run_one() {
@@ -92,9 +124,9 @@ run_one() {
     fi
     cp "${RUN_ENV}" "${OUT_DIR}/env_used.env"
 
-    # 이전 서버 정리
-    pkill -9 -f 'api_server|serve\.sh|CPU_EngineCore|GPU_EngineCore|benchmark_serving' 2>/dev/null || true
-    sleep 5
+    # 이전 서버 정리 — 철저히 (GPU 메모리 + port 포함)
+    log "  이전 서버 cleanup 중..."
+    cleanup_servers
 
     # 서버 기동
     local BOOT_LOG="${OUT_DIR}/server_boot.log"
@@ -127,12 +159,11 @@ run_one() {
     local BENCH_WALL=$((T1 - T0))
     log "  bench 완료 (wall=${BENCH_WALL}s)"
 
-    # 서버 정리
+    # 서버 정리 — 철저히
     kill -TERM "${SPID}" 2>/dev/null || true
-    sleep 5
-    kill -9 "${SPID}" 2>/dev/null || true
-    pkill -9 -f 'api_server|serve\.sh|CPU_EngineCore|GPU_EngineCore|benchmark_serving' 2>/dev/null || true
     sleep 3
+    log "  [${MODE}] 서버 cleanup 중..."
+    cleanup_servers
 
     # 결과 파일 복사 — eval/results/ 의 최신 H_C_*_seqs* 디렉토리
     local RECENT=$(ls -td "${REPO_ROOT}/eval/results/"*_H_C_*_seqs* 2>/dev/null | head -1)
