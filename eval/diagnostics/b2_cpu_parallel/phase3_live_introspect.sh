@@ -16,7 +16,8 @@
 
 if [[ "${_PHASE3_WRAPPED:-0}" != "1" ]]; then
     export _PHASE3_WRAPPED=1
-    exec timeout --kill-after=5 --signal=TERM 90 bash "$0" "$@"
+    # record 60s + Step1/3 여유 → 120s hard timeout
+    exec timeout --kill-after=5 --signal=TERM 120 bash "$0" "$@"
 fi
 
 set -uo pipefail
@@ -28,11 +29,11 @@ if [[ -z "${OUT_DIR:-}" ]]; then
 fi
 mkdir -p "${OUT_DIR}"
 
-RECORD_DURATION="${RECORD_DURATION:-30}"
+RECORD_DURATION="${RECORD_DURATION:-60}"
 
 log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
 
-log "=== Phase 3 시작 (외부 timeout 90s) ==="
+log "=== Phase 3 시작 (외부 timeout 120s, record ${RECORD_DURATION}s) ==="
 log "결과: ${OUT_DIR}"
 
 if ! command -v py-spy >/dev/null 2>&1; then
