@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Phase 3 — 최소 구성: py-spy dump 만. 외부 timeout 30초 wrap.
+# Phase 3 — py-spy dump (snapshot) + record (30s flame graph)
 #
-# 목적은 CPU engine 의 Python stack 을 잡는 것 하나뿐. perf 제거, watchdog
-# 제거, 복잡한 trap 제거. 외부 timeout 이 process group 전체 kill 보장.
+# 목적: "어느 함수 / 어느 C 호출 chain 에서 시간 쓰는지" 를 30초 연속 샘플링
+# 으로 확정. 단일 dump 로는 1 순간 스냅샷 뿐이라 우연성 있음 → record 병행.
 #
-# 사용 (단독):
-#   bash eval/diagnostics/b2_cpu_parallel/phase3_live_introspect.sh
+# 수집물 (engine 별):
+#   engine_<pid>_pyspy.txt         dump snapshot + ps + kernel stack + OMP check
+#   engine_<pid>_flame.svg         Python flame graph (30s)
+#   engine_<pid>_flame_native.svg  Native + Python flame graph (30s, libtorch/IPEX/libgomp)
+#   engine_<pid>_raw.txt           Raw samples (greppable)
 #
-# OUT_DIR env 로 출력 위치 override (run_all.sh 에서 지정).
+# 외부 timeout 90s wrap. record 30s + 여유 60s.
 # =============================================================================
 
 # 최상위 timeout wrap — 재진입 시 skip
-# --foreground 는 쓰지 않음. --foreground 가 있으면 timeout 이 process group
-# 전체가 아니라 직계 자식에만 signal 을 보내서 손자 (py-spy 등) 가 살아남음.
-# 실측 확인됨 (테스트 3 vs 4): --foreground 없이 process group kill 이 유일한 보장.
+# --foreground 는 쓰지 않음 — process group kill 보장 위해.
 if [[ "${_PHASE3_WRAPPED:-0}" != "1" ]]; then
     export _PHASE3_WRAPPED=1
-    exec timeout --kill-after=5 --signal=TERM 30 bash "$0" "$@"
+    exec timeout --kill-after=5 --signal=TERM 90 bash "$0" "$@"
 fi
 
 set -uo pipefail
@@ -31,7 +32,9 @@ mkdir -p "${OUT_DIR}"
 
 log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
 
-log "=== Phase 3 시작 (외부 timeout 30s) ==="
+RECORD_DURATION="${RECORD_DURATION:-30}"
+
+log "=== Phase 3 시작 (외부 timeout 90s, record ${RECORD_DURATION}s) ==="
 log "결과: ${OUT_DIR}"
 
 # py-spy 확인
@@ -106,8 +109,35 @@ for PID in "${PIDS[@]}"; do
         rm -f /tmp/phase3_threads_${PID}_$$.txt /tmp/phase3_omp_${PID}_$$.txt
     } > "${OUT}" 2>&1 &
 done
+
+# -----------------------------------------------------------------------------
+# py-spy record — 30초 연속 샘플링 → flame graph (SVG) + raw (text)
+# dump (스냅샷) 과 병행. 모든 engine × 3 종 record 를 parallel 로 실행.
+# -----------------------------------------------------------------------------
+for PID in "${PIDS[@]}"; do
+    # Python-only flame graph
+    timeout --kill-after=5 $((RECORD_DURATION + 15)) \
+        py-spy record -p ${PID} -d ${RECORD_DURATION} \
+        -f flamegraph -o "${OUT_DIR}/engine_${PID}_flame.svg" \
+        > "${OUT_DIR}/engine_${PID}_flame.log" 2>&1 &
+
+    # Native + Python flame graph (C extensions: libtorch / IPEX / libgomp)
+    # --native 는 libunwind 를 사용. 디버깅 심볼 없으면 주소로 나올 수 있지만
+    # dso 이름 (libtorch.so 등) 은 식별됨.
+    timeout --kill-after=5 $((RECORD_DURATION + 15)) \
+        py-spy record -p ${PID} -d ${RECORD_DURATION} --native \
+        -f flamegraph -o "${OUT_DIR}/engine_${PID}_flame_native.svg" \
+        > "${OUT_DIR}/engine_${PID}_flame_native.log" 2>&1 &
+
+    # Raw samples (grep/sort 가능한 텍스트)
+    timeout --kill-after=5 $((RECORD_DURATION + 15)) \
+        py-spy record -p ${PID} -d ${RECORD_DURATION} \
+        -f raw -o "${OUT_DIR}/engine_${PID}_raw.txt" \
+        > "${OUT_DIR}/engine_${PID}_raw.log" 2>&1 &
+done
+
 wait
 
 log "=== Phase 3 완료 ==="
-log "파일: ${OUT_DIR}/engine_*_pyspy.txt"
-ls "${OUT_DIR}/"
+log "파일:"
+ls -la "${OUT_DIR}/"
