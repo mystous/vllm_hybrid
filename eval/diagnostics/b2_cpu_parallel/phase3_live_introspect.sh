@@ -1,21 +1,19 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Phase 3 — py-spy dump (snapshot) + record (30s flame graph)
+# Phase 3 — py-spy record (flame graph) + 프로세스 info
 #
-# 목적: "어느 함수 / 어느 C 호출 chain 에서 시간 쓰는지" 를 30초 연속 샘플링
-# 으로 확정. 단일 dump 로는 1 순간 스냅샷 뿐이라 우연성 있음 → record 병행.
+# 이전 버전 실패 원인:
+#   engine 1개에 py-spy dump + record 3종을 동시에 ptrace attach 시도 →
+#   ptrace 는 프로세스당 tracer 1개만 허용 → 모두 실패.
 #
-# 수집물 (engine 별):
-#   engine_<pid>_pyspy.txt         dump snapshot + ps + kernel stack + OMP check
-#   engine_<pid>_flame.svg         Python flame graph (30s)
-#   engine_<pid>_flame_native.svg  Native + Python flame graph (30s, libtorch/IPEX/libgomp)
-#   engine_<pid>_raw.txt           Raw samples (greppable)
+# 이 버전:
+#   Step 1  비-ptrace 정보 (ps / /proc / OMP) — 모든 engine 병렬, 즉시
+#   Step 2  py-spy record --native (engine 별 1개) — 다른 PID 들은 병렬 가능
+#   Step 3  py-spy dump --nonblocking — record 끝난 후 (ptrace 해제됨)
 #
-# 외부 timeout 90s wrap. record 30s + 여유 60s.
+# 외부 timeout 90s, record 30s + 여유 60s.
 # =============================================================================
 
-# 최상위 timeout wrap — 재진입 시 skip
-# --foreground 는 쓰지 않음 — process group kill 보장 위해.
 if [[ "${_PHASE3_WRAPPED:-0}" != "1" ]]; then
     export _PHASE3_WRAPPED=1
     exec timeout --kill-after=5 --signal=TERM 90 bash "$0" "$@"
@@ -30,21 +28,19 @@ if [[ -z "${OUT_DIR:-}" ]]; then
 fi
 mkdir -p "${OUT_DIR}"
 
-log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
-
 RECORD_DURATION="${RECORD_DURATION:-30}"
 
-log "=== Phase 3 시작 (외부 timeout 90s, record ${RECORD_DURATION}s) ==="
+log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
+
+log "=== Phase 3 시작 (외부 timeout 90s) ==="
 log "결과: ${OUT_DIR}"
 
-# py-spy 확인
 if ! command -v py-spy >/dev/null 2>&1; then
-    log "[WARN] py-spy 미설치. pip install py-spy 후 재시도"
+    log "[WARN] py-spy 미설치"
     echo "py-spy not installed" > "${OUT_DIR}/ERROR.txt"
     exit 0
 fi
 
-# CPU engine PID
 mapfile -t PIDS < <(pgrep -f CPU_EngineCore 2>/dev/null)
 if [[ ${#PIDS[@]} -eq 0 ]]; then
     log "[ERROR] CPU_EngineCore 프로세스 없음"
@@ -53,91 +49,126 @@ if [[ ${#PIDS[@]} -eq 0 ]]; then
 fi
 log "target: ${#PIDS[@]} engines (${PIDS[*]})"
 
-# 기본 정보 + OMP 라이브러리 체크 + py-spy 덤프 + kernel stack
-for PID in "${PIDS[@]}"; do
-    OUT="${OUT_DIR}/engine_${PID}_pyspy.txt"
+# =============================================================================
+# Step 1 — 비-ptrace 정보 수집 (engine 별 병렬, 즉시)
+# ps -L / /proc/maps (OMP libs) / /proc/task/comm / /proc/environ /
+# /proc/tid/{wchan,stack} — 모두 read-only 이며 ptrace 관여 없음.
+# =============================================================================
+log "Step 1: 비-ptrace 정보 수집 (parallel)"
+
+collect_info() {
+    local PID=$1 OUT="${OUT_DIR}/engine_${PID}_info.txt"
+    local TMP_THREADS="/tmp/phase3_threads_${PID}_$$.tmp"
     {
         echo "### PID ${PID} — $(ps -p ${PID} -o comm= 2>/dev/null)"
         echo "threads: $(grep -E '^Threads' /proc/${PID}/status 2>/dev/null | awk '{print $2}')"
         echo "cpus   : $(grep -E '^Cpus_allowed_list' /proc/${PID}/status 2>/dev/null | awk '{print $2}')"
         echo
-        echo "### OMP/BLAS 라이브러리 로드 상태 (duplication 의심 — 318 thread 원인?)"
-        echo "# libgomp + libiomp5 양쪽 다 있으면 OMP runtime 중복 → pool 2~3배"
+        echo "### OMP/BLAS 라이브러리 로드 상태 (duplication 체크)"
         grep -E 'libomp|libgomp|libiomp|libmkl_|libopenblas|libblis' /proc/${PID}/maps 2>/dev/null \
-            | awk '{print $NF}' | sort -u | tee /tmp/phase3_omp_${PID}_$$.txt \
+            | awk '{print $NF}' | sort -u \
             || echo "(maps 접근 실패)"
         echo
-        echo "### Thread 이름 분포 (어느 pool 에서 왔는지)"
-        # ps -L 의 comm 은 15 char 잘림. /proc/<tid>/comm 이 정확.
+        echo "### Thread 이름 분포"
         for tid in $(ls /proc/${PID}/task/ 2>/dev/null); do
             cat /proc/${PID}/task/${tid}/comm 2>/dev/null
         done | sort | uniq -c | sort -rn | head -20
         echo
-        echo "### OMP 환경변수 (subprocess 에 꽂힌 값)"
+        echo "### Subprocess env (/proc/environ 은 spawn 시점 값)"
         tr '\0' '\n' < /proc/${PID}/environ 2>/dev/null \
             | grep -E '^(OMP_|MKL_|KMP_|IPEX_|OPENBLAS_|VLLM_CPU_|VLLM_HYBRID_)' \
-            | sort
+            | sort \
+            || echo "(environ 접근 실패 또는 없음)"
         echo
-        echo "### ps -L top-10 by %CPU (with state)"
+        echo "### ps -L top-10 by %CPU"
         ps -L -p ${PID} -o tid,stat,psr,pcpu,comm --no-headers 2>/dev/null \
-            | sort -k4 -nr | tee /tmp/phase3_threads_${PID}_$$.txt | head -10
+            | sort -k4 -nr | tee "${TMP_THREADS}" | head -10
         echo
-        echo "### py-spy dump (without --nonblocking; SIGSTOP ~100ms for consistent read)"
-        echo "# 주의: Python 3.12 + --nonblocking 조합에서 'Failed to copy PyCodeObject'"
-        echo "# 발생 → --nonblocking 제거. ptrace 로 잠시 정지 후 정확한 Python stack 덤프."
-        if ! timeout --kill-after=2 12 py-spy dump --pid ${PID} 2>&1 ; then
-            echo
-            echo "### fallback — py-spy dump --nonblocking"
-            timeout --kill-after=2 10 py-spy dump --pid ${PID} --nonblocking 2>&1
-        fi
-        echo
-        echo "### kernel stack — top-5 by %CPU (from ps above)"
-        echo "# main thread 는 아마도 Rl+ state. 다른 thread 는 Sl+ (sleep) 에서"
-        echo "# 어떤 futex/lock/syscall 에서 대기 중인지 보여줌."
-        head -5 /tmp/phase3_threads_${PID}_$$.txt | while read tid stat psr pcpu comm; do
+        echo "### kernel wchan/stack — top-5 threads"
+        head -5 "${TMP_THREADS}" | while read tid stat psr pcpu comm; do
             echo
             echo "---- tid=${tid} stat=${stat} cpu${psr} pcpu=${pcpu} ----"
             wchan=$(cat "/proc/${tid}/wchan" 2>/dev/null | tr -d '\0' || echo '?')
             echo "wchan: ${wchan:-0}"
             if [[ -r "/proc/${tid}/stack" ]]; then
                 echo "stack:"
-                timeout --kill-after=1 3 awk '{print "  " $2}' "/proc/${tid}/stack" 2>/dev/null | head -15
-            else
-                echo "stack: [/proc/${tid}/stack 읽기 권한 없음 (root 필요)]"
+                timeout --kill-after=1 2 awk '{print "  " $2}' "/proc/${tid}/stack" 2>/dev/null | head -10
             fi
         done
-        rm -f /tmp/phase3_threads_${PID}_$$.txt /tmp/phase3_omp_${PID}_$$.txt
-    } > "${OUT}" 2>&1 &
-done
+        rm -f "${TMP_THREADS}"
+    } > "${OUT}" 2>&1
+}
 
-# -----------------------------------------------------------------------------
-# py-spy record — 30초 연속 샘플링 → flame graph (SVG) + raw (text)
-# dump (스냅샷) 과 병행. 모든 engine × 3 종 record 를 parallel 로 실행.
-# -----------------------------------------------------------------------------
 for PID in "${PIDS[@]}"; do
-    # Python-only flame graph
-    timeout --kill-after=5 $((RECORD_DURATION + 15)) \
-        py-spy record -p ${PID} -d ${RECORD_DURATION} \
-        -f flamegraph -o "${OUT_DIR}/engine_${PID}_flame.svg" \
-        > "${OUT_DIR}/engine_${PID}_flame.log" 2>&1 &
-
-    # Native + Python flame graph (C extensions: libtorch / IPEX / libgomp)
-    # --native 는 libunwind 를 사용. 디버깅 심볼 없으면 주소로 나올 수 있지만
-    # dso 이름 (libtorch.so 등) 은 식별됨.
-    timeout --kill-after=5 $((RECORD_DURATION + 15)) \
-        py-spy record -p ${PID} -d ${RECORD_DURATION} --native \
-        -f flamegraph -o "${OUT_DIR}/engine_${PID}_flame_native.svg" \
-        > "${OUT_DIR}/engine_${PID}_flame_native.log" 2>&1 &
-
-    # Raw samples (grep/sort 가능한 텍스트)
-    timeout --kill-after=5 $((RECORD_DURATION + 15)) \
-        py-spy record -p ${PID} -d ${RECORD_DURATION} \
-        -f raw -o "${OUT_DIR}/engine_${PID}_raw.txt" \
-        > "${OUT_DIR}/engine_${PID}_raw.log" 2>&1 &
+    collect_info "${PID}" &
 done
-
 wait
+log "  Step 1 완료"
 
+# =============================================================================
+# Step 2 — py-spy record --native (engine 별 1 회, 서로 다른 PID 는 병렬 가능)
+# 같은 PID 에 여러 ptrace 금지 → engine 당 하나만. --native 로 C 스택 포함.
+# --native 실패 시 (libunwind 등 이슈) --native 없이 fallback.
+# =============================================================================
+log "Step 2: py-spy record --native ${RECORD_DURATION}s (engine 간 parallel)"
+
+record_one() {
+    local PID=$1
+    local SVG="${OUT_DIR}/engine_${PID}_flame.svg"
+    local LOG="${OUT_DIR}/engine_${PID}_flame.log"
+    {
+        echo "=== py-spy record --native ${RECORD_DURATION}s ==="
+        if timeout --kill-after=5 $((RECORD_DURATION + 15)) \
+                py-spy record -p ${PID} -d ${RECORD_DURATION} --native \
+                -f flamegraph -o "${SVG}" 2>&1; then
+            echo "[ok] flame graph saved"
+        else
+            echo "[FAIL] --native. retry without --native..."
+            rm -f "${SVG}"
+            if timeout --kill-after=5 $((RECORD_DURATION + 15)) \
+                    py-spy record -p ${PID} -d ${RECORD_DURATION} \
+                    -f flamegraph -o "${SVG}" 2>&1; then
+                echo "[ok] flame graph (no native) saved"
+            else
+                echo "[FAIL] record without --native too"
+            fi
+        fi
+    } > "${LOG}" 2>&1
+}
+
+for PID in "${PIDS[@]}"; do
+    record_one "${PID}" &
+done
+wait
+log "  Step 2 완료"
+
+# =============================================================================
+# Step 3 — py-spy dump (record 끝난 후 — 이제 ptrace 해제됨)
+# 단일 snapshot. record 결과 (flame graph) 를 보완.
+# =============================================================================
+log "Step 3: py-spy dump (record 완료 후)"
+
+dump_one() {
+    local PID=$1 OUT="${OUT_DIR}/engine_${PID}_dump.txt"
+    {
+        echo "### py-spy dump (record 완료 후 — ptrace 해제 상태)"
+        if ! timeout --kill-after=2 10 py-spy dump --pid ${PID} 2>&1 ; then
+            echo
+            echo "### fallback: dump --nonblocking"
+            timeout --kill-after=2 8 py-spy dump --pid ${PID} --nonblocking 2>&1
+        fi
+    } > "${OUT}" 2>&1
+}
+
+for PID in "${PIDS[@]}"; do
+    dump_one "${PID}" &
+done
+wait
+log "  Step 3 완료"
+
+# =============================================================================
+# 결과 정리
+# =============================================================================
 log "=== Phase 3 완료 ==="
 log "파일:"
 ls -la "${OUT_DIR}/"
