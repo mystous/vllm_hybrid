@@ -1,0 +1,82 @@
+### PID 1880753 — VLLM::CPU_Engin
+threads: 374
+cpus   : 0
+
+### OMP/BLAS 라이브러리 로드 상태 (duplication 체크)
+/vllm_dev_prj/lib/python3.12/site-packages/opencv_python_headless.libs/libopenblasp-r0-59ffcd50.3.15.so
+/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libgomp.so.1
+
+### Thread 이름 분포
+    195 VLLM::CPU_Engin
+    173 python
+      2 ZMQbg/Reaper
+      2 ZMQbg/IO/0
+      1 pt_tcpstore_uv
+      1 cuda00002000009
+
+### Subprocess env (/proc/environ 은 spawn 시점 값)
+(environ 접근 실패 또는 없음)
+
+### ps -L top-10 by %CPU
+1880753 Sl+    0 17.1 VLLM::CPU_Engin
+1881887 Sl+   10 10.7 VLLM::CPU_Engin
+1881895 Sl+   18  9.9 VLLM::CPU_Engin
+1881897 Sl+   20  9.6 VLLM::CPU_Engin
+1881906 Sl+   29  9.3 VLLM::CPU_Engin
+1881896 Sl+   19  9.3 VLLM::CPU_Engin
+1881878 Sl+    1  9.3 VLLM::CPU_Engin
+1881925 Sl+   48  9.2 VLLM::CPU_Engin
+1881924 Sl+   47  9.2 VLLM::CPU_Engin
+1881923 Sl+   46  9.2 VLLM::CPU_Engin
+
+### kernel wchan/stack — top-5 threads
+
+---- tid=1880753 stat=Sl+ cpu0 pcpu=17.1 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1881887 stat=Sl+ cpu10 pcpu=10.7 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1881895 stat=Sl+ cpu18 pcpu=9.9 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1881897 stat=Sl+ cpu20 pcpu=9.6 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1881906 stat=Sl+ cpu29 pcpu=9.3 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
