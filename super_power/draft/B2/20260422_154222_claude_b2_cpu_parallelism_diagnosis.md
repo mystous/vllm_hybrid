@@ -7,7 +7,7 @@
 
 이 문서는 앞선 B2 분석 ([20260422_094528_claude_b2_longctx_32b_analysis.md](20260422_094528_claude_b2_longctx_32b_analysis.md)) 의 §8 (레이어 3) 에서 제기한 **"CPU 코어가 몇 개만 사용된다"** 의 원인을 실측으로 확정하는 후속 분석이다. 앞선 문서의 §8 가설 (IPEX / Python GIL / sdpa_loop) 은 전부 기각 또는 수정되었으며, 본 문서의 §5 결과가 대체 해답이다.
 
-> **후속 문서**: [`20260422_170451_claude_b2_async_executor_plan.md`](20260422_170451_claude_b2_async_executor_plan.md) — 본 문서에서 발견한 bottleneck 들을 **통합 backlog 로 정리** 하고, 그 중 단순 micro-fix 로는 풀리지 않는 **구조적 한계**에 대한 해결책 (**Pipelined Async CPU Executor, X**) 의 설계 및 실행 계획을 담음. 본 문서의 §7 P1 (prefix caching 비활성화) 은 X 의 micro-fix 중 하나 (A-1) 로 재정렬됨.
+> **후속 문서**: [`implementation/X_pipelined_async_cpu_executor/01_design_and_plan.md`](../../implementation/X_pipelined_async_cpu_executor/01_design_and_plan.md) — 본 문서에서 발견한 bottleneck 들을 **통합 backlog 로 정리** 하고, 그 중 단순 micro-fix 로는 풀리지 않는 **구조적 한계**에 대한 해결책 (**Pipelined Async CPU Executor, X**) 의 설계 및 실행 계획을 담음. 본 문서의 §7 P1 (prefix caching 비활성화) 은 X 의 micro-fix 중 하나 (A-1) 로 재정렬됨.
 
 ---
 
@@ -288,7 +288,7 @@ bash eval/diagnostics/b2_cpu_parallel/run_all.sh
 
 ## 11. 다음 단계
 
-본 문서 이후 후속 문서 [`20260422_170451_claude_b2_async_executor_plan.md`](20260422_170451_claude_b2_async_executor_plan.md) 에서 다음과 같이 재정렬되었다:
+본 문서 이후 후속 문서 [`implementation/X_pipelined_async_cpu_executor/01_design_and_plan.md`](../../implementation/X_pipelined_async_cpu_executor/01_design_and_plan.md) 에서 다음과 같이 재정렬되었다:
 
 1. 본 문서가 발견한 bottleneck 들은 후속 문서의 **§1 통합 backlog** 로 재정리 (A-1/A-2, B-1/B-2, C-1/C-2, D-1/D-2, E-1).
 2. 본 문서의 **P1 옵션 A** = 후속 문서의 **A-1** (CPU engine 에서 `--enable-prefix-caching` 비활성화).

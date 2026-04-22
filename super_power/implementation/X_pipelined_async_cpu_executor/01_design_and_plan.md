@@ -12,10 +12,10 @@
 
 ```mermaid
 flowchart TB
-    BT["Breakthrough 가설<br/>B1 / B2 / B3"]
-    B2A["B2 전체 평가<br/>20260422_094528"]
-    DIAG["CPU parallelism diagnosis<br/>20260422_154222<br/>prefix cache hot spot + 구조적 한계 발견"]
-    THIS["<b>20260422_170451 (본 문서)</b><br/>X 설계 및 실행"]
+    BT["Breakthrough 가설<br/>B1 / B2 / B3<br/>(draft/)"]
+    B2A["B2 전체 평가<br/>draft/B2/20260422_094528"]
+    DIAG["CPU parallelism diagnosis<br/>draft/B2/20260422_154222<br/>prefix cache hot spot + 구조적 한계 발견"]
+    THIS["<b>본 문서 = X 설계 + 실행 계획</b><br/>implementation/X_.../01_design_and_plan.md"]
 
     BT -->|drill-down| B2A
     B2A -->|heavy workload 한정 실측| DIAG
@@ -52,8 +52,10 @@ X 는 B2 (heavy long-context) drill-down 에서 발견됐지만, **해결 대상
 
 ### 0.4 관련 문서
 
-- [`20260422_094528_claude_b2_longctx_32b_analysis.md`](20260422_094528_claude_b2_longctx_32b_analysis.md) — B2 전체 평가 (B1/B2/B3 해석 포함)
-- [`20260422_154222_claude_b2_cpu_parallelism_diagnosis.md`](20260422_154222_claude_b2_cpu_parallelism_diagnosis.md) — flame graph 실측 진단 (본 문서 Part I 의 출처)
+- [`20260422_094528_claude_b2_longctx_32b_analysis.md`](../../draft/B2/20260422_094528_claude_b2_longctx_32b_analysis.md) — B2 전체 평가 (B1/B2/B3 해석 포함)
+- [`20260422_154222_claude_b2_cpu_parallelism_diagnosis.md`](../../draft/B2/20260422_154222_claude_b2_cpu_parallelism_diagnosis.md) — flame graph 실측 진단 (본 문서 Part I 의 출처)
+- [`02_phase1_dependency_analysis.md`](02_phase1_dependency_analysis.md) — **Phase 1 의존성 분석 (후속)**
+- [`03_phase2_3_impl_and_verification.md`](03_phase2_3_impl_and_verification.md) — **Phase 2+3 구현 + 검증 결과 (후속, Part A = 구현, Part B = 검증)**
 
 ---
 
@@ -65,7 +67,7 @@ X 는 B2 (heavy long-context) drill-down 에서 발견됐지만, **해결 대상
 
 ## 1. 실측으로 도출된 bottleneck Backlog
 
-출처: [`20260422_154222_claude_b2_cpu_parallelism_diagnosis.md`](20260422_154222_claude_b2_cpu_parallelism_diagnosis.md) §5 hot spot 분석 결과를 본 문서 scope 로 재정리.
+출처: [`20260422_154222_claude_b2_cpu_parallelism_diagnosis.md`](../../draft/B2/20260422_154222_claude_b2_cpu_parallelism_diagnosis.md) §5 hot spot 분석 결과를 본 문서 scope 로 재정리.
 
 Flame graph (60s, 6000 samples, prefill 구간) 에서 식별된 hot spot 을 영향 순으로 정리. 각 항목은 **접근 방식의 복수 옵션** 을 가진다.
 

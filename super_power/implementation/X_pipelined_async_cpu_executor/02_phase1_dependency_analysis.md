@@ -2,7 +2,7 @@
 
 작성일: 2026-04-22 (KST)
 작성자: Claude
-관련: [`20260422_170451_claude_b2_async_executor_plan.md`](20260422_170451_claude_b2_async_executor_plan.md) §4.1 Phase 1
+관련: [`01_design_and_plan.md`](01_design_and_plan.md) §4.1 Phase 1
 
 ---
 
