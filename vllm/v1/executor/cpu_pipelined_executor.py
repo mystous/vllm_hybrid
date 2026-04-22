@@ -32,6 +32,7 @@ infrastructure 를 CPU async pipeline 에 재활용.
 """
 from __future__ import annotations
 
+import dataclasses
 import os
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Optional, Union
@@ -147,6 +148,47 @@ class PipelinedCPUExecutor(UniProcExecutor):
         """EngineCore 에서 batch_queue 를 활성화하는 조건 (> 1)."""
         return 2
 
+    @staticmethod
+    def _snapshot_output(out):
+        """ModelRunnerOutput 의 input_batch 공유 mutable ref 를 snapshot.
+
+        GPUModelRunner.execute_model 은 `ModelRunnerOutput(req_ids=self.
+        input_batch.req_ids, req_id_to_index=self.input_batch.req_id_to_index,
+        ...)` 로 **input_batch 의 mutable list/dict 를 reference** 로 반환한다
+        (v1/worker/gpu_model_runner.py:1763-1764).
+
+        Sync 에서는 execute_model 직후 scheduler.update_from_output 이 호출돼서
+        다음 step 의 _update_states 가 input_batch 를 수정하기 전에 소비되므로
+        문제 없음.
+
+        Async (batch_queue) 에서는 step N 의 ModelRunnerOutput 이 batch_queue
+        에 머무는 동안 step N+1 의 _update_states 가 input_batch 를 덮어쓰면
+        step N 의 req_id_to_index 도 **동일 dict 로** 함께 변경되어 다음 race
+        가 발생:
+            main: batch_queue pop 해서 update_from_output 호출
+            → result_N.req_id_to_index 는 이미 N+1 용으로 수정됨
+            → KeyError: 원래 req_id 가 dict 에 없음 → EngineDeadError.
+
+        Fix: pool 에서 forward 결과 반환 전에 req_ids / req_id_to_index 만
+        shallow copy 로 스냅샷. 나머지 필드 (sampled_token_ids, logprobs 등)
+        는 매 step 새로 생성되는 local 데이터라 공유가 없음.
+        """
+        if out is None:
+            return out
+        return dataclasses.replace(
+            out,
+            req_ids=list(out.req_ids),
+            req_id_to_index=dict(out.req_id_to_index),
+        )
+
+    def _run_and_snapshot(self, scheduler_output):
+        # super(PipelinedCPUExecutor, self).execute_model 는 MRO 상
+        # Executor.execute_model → collective_rpc("execute_model") →
+        # WorkerWrapperBase → CPUWorker.execute_model → ModelRunnerOutput.
+        out = super(
+            PipelinedCPUExecutor, self).execute_model(scheduler_output)
+        return self._snapshot_output(out)
+
     def execute_model(
         self,
         scheduler_output,
@@ -158,9 +200,11 @@ class PipelinedCPUExecutor(UniProcExecutor):
         """
         self._init_compute_pool()
         assert self._compute_pool is not None
-        # UniProcExecutor.execute_model 은 collective_rpc 로 CPUWorker 호출
+        # _run_and_snapshot 이 CPUWorker.execute_model 호출 후 결과의 mutable
+        # reference 를 snapshot — step N+1 이 input_batch 를 수정해도 pending
+        # 된 step N 의 ModelRunnerOutput 이 오염되지 않도록.
         future: Future = self._compute_pool.submit(
-            super().execute_model, scheduler_output)
+            self._run_and_snapshot, scheduler_output)
         return future
 
     def shutdown(self) -> None:
