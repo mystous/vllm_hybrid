@@ -63,6 +63,8 @@ export VLLM_HYBRID_PROFILE_EVERY="${VLLM_HYBRID_PROFILE_EVERY:-0}"
 export VLLM_HYBRID_PROFILE_SUBLAYER="${VLLM_HYBRID_PROFILE_SUBLAYER:-0}"
 # §06 per-call kernel trace (observability, not a feature flag)
 export VLLM_HYBRID_KERNEL_TRACE="${VLLM_HYBRID_KERNEL_TRACE:-0}"
+# X Phase 3 feature flag — PipelinedCPUExecutor 활성 여부
+export HYBRID_CPU_ASYNC_EXECUTOR="${HYBRID_CPU_ASYNC_EXECUTOR:-0}"
 
 echo "============================================================"
 echo " vLLM server starting: MODE=${MODE}"

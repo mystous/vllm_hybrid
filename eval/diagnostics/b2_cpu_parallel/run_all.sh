@@ -6,36 +6,95 @@
 # 결과를 단일 디렉토리에 모아 FINAL_REPORT.md 를 생성.
 #
 # 사용:
-#   bash eval/diagnostics/b2_cpu_parallel/run_all.sh
+#   bash eval/diagnostics/b2_cpu_parallel/run_all.sh [OPTIONS]
 #
-# 선택 환경변수:
-#   SKIP_PHASE2=1   — Phase 2 (재실행) 를 건너뛰고 Phase 1 + Phase 3 만
-#   SKIP_PHASE3=1   — Phase 3 (live introspection) 생략
-#   OUTPUT_LEN=32   — Phase 2 의 decode 길이 (기본 32)
-#   PORT=8000       — server port
+# Options:
+#   --env PATH            env file path (기본: g0_h100x8_qwen32b_longctx_trace.env)
+#   --output-len N        OUTPUT_LEN override (기본: env 파일의 OUTPUT_LEN)
+#   --port N              server port (기본 8000)
+#   --ready-timeout N     server ready timeout seconds (기본 1200)
+#   --phase3-wait N       bench 시작 후 phase3 까지 대기 초 (기본 60)
+#   --perf-duration N     phase3 의 perf 샘플링 초 (기본 5)
+#   --skip-phase2         Phase 2 (server + bench) skip
+#   --skip-phase3         Phase 3 (live introspection) skip
+#   --help                사용법 출력
+#
+# 모든 옵션은 CLI 인자로 전달. 이전의 환경변수 방식은 드물게 전파 안 되는
+# 경우가 있어 제거. feature flag (예: HYBRID_CPU_ASYNC_EXECUTOR) 는
+# env file 안에 직접 기입하는 게 정석.
 #
 # 결과 저장 위치:
 #   eval/diagnostics/b2_cpu_parallel/results/<YYYYMMDD_HHMMSS>/
 #     FINAL_REPORT.md              ← 통합 보고서 (사람이 읽을 것)
-#     phase1/
-#       dispatch_static.txt        ← cpu_attn.py dispatch tree 추출
+#     phase1/dispatch_static.txt   ← cpu_attn.py dispatch tree
 #     phase2/
 #       server_boot.log            ← 서버 boot 로그
 #       server_run.log             ← 서버 run 로그 (copy from eval/results)
-#       hybrid.json                ← bench 결과 JSON (copy)
-#       trace_counters.txt         ← [HYBRID-CPU-ATTN] 라인 추출
+#       hybrid.json                ← bench 결과
+#       trace_counters.txt         ← [HYBRID-CPU-ATTN] 추출
 #       env_used.env               ← 사용한 env snapshot
 #     phase3/
-#       engine_<pid>_pyspy.txt     ← Python call stack
-#       engine_<pid>_perf.txt      ← native hot function
-#       engine_<pid>_threads.txt   ← thread state 분포
-#       summary.md                 ← phase3 판정 가이드
+#       engine_<pid>_flame.svg     ← flame graph (SVG)
+#       engine_<pid>_info.txt      ← ps/proc/OMP 정보
+#       engine_<pid>_dump.txt      ← py-spy dump snapshot
 # =============================================================================
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 cd "${REPO_ROOT}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 기본값
+# ─────────────────────────────────────────────────────────────────────────────
+ENV_SRC="${SCRIPT_DIR}/g0_h100x8_qwen32b_longctx_trace.env"
+OUTPUT_LEN=""
+PORT=8000
+READY_TIMEOUT=1200
+PHASE3_WAIT=60
+PERF_DURATION=5
+SKIP_PHASE2=0
+SKIP_PHASE3=0
+
+usage() {
+    grep -E '^# ' "$0" | sed 's/^# \?//' | head -40
+    exit 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI arg parsing
+# ─────────────────────────────────────────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --env)             ENV_SRC="$2"; shift 2 ;;
+        --output-len)      OUTPUT_LEN="$2"; shift 2 ;;
+        --port)            PORT="$2"; shift 2 ;;
+        --ready-timeout)   READY_TIMEOUT="$2"; shift 2 ;;
+        --phase3-wait)     PHASE3_WAIT="$2"; shift 2 ;;
+        --perf-duration)   PERF_DURATION="$2"; shift 2 ;;
+        --skip-phase2)     SKIP_PHASE2=1; shift ;;
+        --skip-phase3)     SKIP_PHASE3=1; shift ;;
+        -h|--help)         usage ;;
+        *) echo "[ERROR] unknown option: $1"; usage ;;
+    esac
+done
+
+# env file 경로 resolve (상대 / 절대 모두 허용)
+if [[ ! "${ENV_SRC}" = /* ]]; then
+    # 상대 경로면 REPO_ROOT 기준
+    if [[ -f "${REPO_ROOT}/${ENV_SRC}" ]]; then
+        ENV_SRC="${REPO_ROOT}/${ENV_SRC}"
+    elif [[ -f "${SCRIPT_DIR}/${ENV_SRC}" ]]; then
+        ENV_SRC="${SCRIPT_DIR}/${ENV_SRC}"
+    fi
+fi
+if [[ ! -f "${ENV_SRC}" ]]; then
+    echo "[ERROR] env file not found: ${ENV_SRC}"
+    exit 1
+fi
+
+# phase3 에서 참조하기 위해 export
+export PERF_DURATION
 
 TS=$(TZ=Asia/Seoul date '+%Y%m%d_%H%M%S')
 RESULTS_DIR="${SCRIPT_DIR}/results/${TS}"
@@ -44,16 +103,6 @@ PHASE2_DIR="${RESULTS_DIR}/phase2"
 PHASE3_DIR="${RESULTS_DIR}/phase3"
 mkdir -p "${PHASE1_DIR}" "${PHASE2_DIR}" "${PHASE3_DIR}"
 
-PORT="${PORT:-8000}"
-OUTPUT_LEN="${OUTPUT_LEN:-32}"
-SKIP_PHASE2="${SKIP_PHASE2:-0}"
-SKIP_PHASE3="${SKIP_PHASE3:-0}"
-READY_TIMEOUT=1200
-PHASE3_WAIT="${PHASE3_WAIT:-60}"        # bench 시작 후 몇 초 뒤 Phase 3 (prefill 통과 시간)
-PERF_DURATION="${PERF_DURATION:-5}"     # Phase 3 의 perf 기간 (초)
-export PERF_DURATION                    # phase3 script 에서 참조
-
-ENV_SRC="${SCRIPT_DIR}/g0_h100x8_qwen32b_longctx_trace.env"
 RUN_ENV="/tmp/run_phase2.env"
 
 log()  { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
@@ -84,11 +133,15 @@ else
     pkill -f 'serve\.sh' 2>/dev/null || true
     sleep 3
 
-    # env 준비 (OUTPUT_LEN override)
+    # env 준비 — ENV_SRC 복사. OUTPUT_LEN override 는 명시 시만.
     cp "${ENV_SRC}" "${RUN_ENV}"
-    sed -i "s/^OUTPUT_LEN=.*/OUTPUT_LEN=${OUTPUT_LEN}/" "${RUN_ENV}"
+    if [[ -n "${OUTPUT_LEN}" ]]; then
+        sed -i "s/^OUTPUT_LEN=.*/OUTPUT_LEN=${OUTPUT_LEN}/" "${RUN_ENV}"
+        log "  env OUTPUT_LEN override → ${OUTPUT_LEN}"
+    fi
     cp "${RUN_ENV}" "${PHASE2_DIR}/env_used.env"
-    log "  env (OUTPUT_LEN=${OUTPUT_LEN}) → ${PHASE2_DIR}/env_used.env"
+    log "  env file: ${ENV_SRC}"
+    log "  snapshot: ${PHASE2_DIR}/env_used.env"
 
     # 서버 기동
     BOOT_LOG="${PHASE2_DIR}/server_boot.log"
