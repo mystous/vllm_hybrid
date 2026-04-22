@@ -9,24 +9,33 @@
 
 ---
 
-## 0. TL;DR
+## 0. TL;DR — 시스템 성능 개선 관점에서 얻은 것
 
-> **B2 가설 (long-context / long-decode 에서 CPU offload 가 도움된다) 은 기각된다.** 다만 그 기각은 workload 가 원인이 아니다. 두 workload 전부에서 hybrid 가 GPU-only 대비 -93%~-96% throughput 붕괴를 일으켰고, 붕괴의 메커니즘은 **"CPU decode 가 너무 느려서 CPU 로 라우팅된 소수 요청이 전체 bench 의 tail 을 장악한다"** 는 동일한 구조적 실패다. 즉 이번 데이터가 거부하는 것은 "long-context 가 아직 안 맞다"가 아니라 "현재 CPU decode 분기형 hybrid 구현이 workload 와 무관하게 못 쓴다" 이다. B3 (meta-scheduling / CPU 를 추론이 아닌 다른 용도로) 로의 피벗을 보강하고, 그 전에 CPU 코어 활용도 문제 (현장 관찰: "코어 몇 개만 쓰고 있다") 를 독립 문제로 분리해 수정해야 한다.
+**최종 목표는 "시스템 추론 성능을 CPU 유휴 자원으로 높인다" 이며, 이번 heavy workload (16K in / 16K out) 실측이 그 목표를 향한 세 개의 구체적 방향을 갈라낸다.**
+
+| 가설 | heavy 데이터가 주는 판정 | 시스템 개선 방향으로의 영향 |
+|---|---|---|
+| **B1** (Inverted Control Plane — CPU 를 control-path 에서 빼기) | 보강됨 (indirect) | CPU 가 critical path 에 있으면 tail 을 장악하는 구조 확인. B1 의 "CPU 는 critical 하지 않은 곳에만" 원칙이 heavy 에서 더 강하게 정당화됨. |
+| **B2** (Heavy workload 에서 CPU decode shadow) | **전제 확정, 처방 기각** | GPU 가 실제로 압박 상태 (p99 TTFT 21s, prefill 큐잉) 라는 B2 의 전제는 확인. 그러나 현재 CPU decode 가 GPU 대비 52× 느려 "같은 역할을 나눠 갖기" 는 원리적으로 불가. B2 를 살리려면 "CPU 가 GPU 와 같은 일" 이 아니라 "CPU 만 할 수 있는 일 (prefix 재계산, speculative draft, K/V admission) " 으로 역할을 재정의해야 한다. |
+| **B3** (Meta-scheduling Gateway — CPU 는 routing/policy 전용) | 강하게 지지 | Heavy 에서 `completed = 100 − 2×cpu_max_seqs` 라는 닫힌 식이 정확히 성립 → routing 결정 자체는 예측대로 작동. CPU 가 decode 는 못 해도 "빠른 정책 엔진" 역할은 할 수 있음이 반증으로 드러남. |
+
+**한 줄 요약**: heavy 데이터는 B2 "원형" 을 기각하고, B1 을 보강하며, B3 로의 피벗을 정당화한다. 시스템 성능 개선의 다음 걸음은 "CPU 에게 decode 를 시키지 않고, 대신 GPU 의 tail 을 *만들지 않는 역할* 을 맡긴다" — 이 한 원칙의 구현이다.
 
 ---
 
-## 1. 질문 범위
+## 1. 이 문서가 답하는 질문
 
-B2 의 원래 주장:
+우리의 목표는 **"시스템 추론 성능을 CPU 유휴 자원으로 높인다"** 이고, 그 목표를 향한 세 가설이 있다:
 
-> 128/128 workload 에서 CPU shadow 가 의미 없는 것은 당연하다 (HBM 여유 99.5%, GPU 가 놀고 있으니 CPU 는 사족). 그러나 16K/16K 처럼 GPU 가 HBM 으로 밀리는 heavy 영역에서는 CPU 가 일부 요청을 흡수하여 전체 throughput 을 올릴 것이다.
+- **B1** — CPU 를 decode 가 아닌 **control/정책 경로에서 빼내는** 방향
+- **B2** — CPU 를 GPU 와 함께 **decode 를 나눠 갖는** 방향 (shadow)
+- **B3** — CPU 를 **상위 meta-scheduler / gateway** 로 쓰는 방향
 
-이 주장을 판정하려면 두 가지를 동시에 봐야 한다:
+이번 heavy workload (16K in / 16K out × 100 prompts × concurrency 55) 실측은 세 가설 중 **B2 의 직접 검증** 이며, 동시에 B1/B3 에 대한 간접 증거를 주는 실험이다. 이 문서는 다음 구조로 읽는다:
 
-1. **heavy 에서 hybrid 가 gpu_only 를 이기는가** — 절대 기준 검증
-2. **heavy ↔ light 의 상대 변화** — "이긴다" 가 아니라 "적어도 light 보다 더 잘한다" 도 B2 주장의 약한 버전
-
-1번이 부정되고 2번도 부정되면 B2 는 완전 기각. 이 문서는 그 구조로 전개한다.
+1. heavy 데이터를 해부해 B2 가설의 전제와 처방을 분리 검증한다
+2. light (128/128) 은 **control-only** 로 heavy 에서 도출된 메커니즘이 workload 독립적인지만 확인한다
+3. 최종적으로 B1/B2/B3 각각이 이번 실측으로 어떻게 다시 정렬되는지 — **시스템 성능 개선의 구체적 다음 단계** — 로 귀결한다
 
 ---
 
@@ -269,40 +278,98 @@ Light 묶음이 B2 판정의 **결정적 증거** 다. 이유:
 
 ---
 
-## 11. 판정
+## 11. B1 / B2 / B3 관점의 재정렬 — 시스템 성능 개선의 갈림길
 
-### 11.1 기각되는 것
-- **B2 가설 (현재 형태)**: workload 의 문제가 아니라 구현의 문제. workload sweep 을 계속 시도해서 "CPU 가 살아나는 영역" 을 찾는 경로는 닫혔다.
-- **`capacity + cpu-first` 라우팅 정책**: CPU 가 GPU 대비 동일 order 속도를 낼 때만 유효. 지금 50× 격차에서는 항상 tail hazard 를 생성한다.
+이번 heavy 실측은 하나의 가설만 판정하지 않는다. 같은 데이터가 세 가설에 각각 다른 신호를 준다. 그 신호를 분리해 정렬하는 것이 시스템 개선 방향을 정하는 작업이다.
 
-### 11.2 기각되지 않는 것 (중요)
-- **CPU shadow 라는 개념 전체는 기각되지 않는다**. 기각된 것은 "CPU 가 GPU 의 대체 decode 엔진" 이라는 형태뿐이다.
-- **CPU 가 non-decode 작업 — control-plane, routing 결정, speculative proposer, K/V admission, prefetch — 을 맡는 형태 (B3)** 는 이번 데이터와 충돌하지 않는다. 오히려 이번 데이터는 "CPU 에게 decode 를 시키지 마라" 를 강하게 지지한다.
+### 11.1 B1 — Inverted Control Plane (CPU 를 critical path 에서 빼기)
 
-### 11.3 판정의 정확한 범위
-```
-reject(B2 original form): hybrid decode branching helps in long-ctx workload
-reject(corollary):        capacity/cpu-first routing under current CPU decode speed
-preserve:                 CPU shadow as concept (non-decode roles → B3)
-preserve:                 Workload mismatch as hypothesis (needs fair CPU first)
-```
+**위치**: Blink 계열 통찰 ("host control-path 가 long decode 에서 병목이 된다").
+B1 은 "CPU 가 inference 자체에 참여하면 안 된다, 대신 해야 할 일은 *GPU 가 하기 싫은 control-path 잡무* 를 CPU 가 들고 가서 GPU 의 host 개입 횟수를 줄이는 것" 이다.
+
+**heavy 가 B1 에 주는 신호 — 강한 보강**:
+- 이번 실험은 B1 가설을 *반증* 하지 않는다. 오히려 §6 의 닫힌 식 `completed = 100 − 2×cpu_max_seqs` 는 "CPU 가 critical path 에 참여하면 전체 bench 종료 시각이 CPU 의 가장 느린 요청에 묶인다" 를 실증한다.
+- 즉 **"CPU 를 critical path 에서 빼내면 시스템 throughput 은 즉시 GPU-only 수준 (1,918 tok/s) 로 회복된다"** 가 heavy 데이터의 직접적 귀결이다.
+- 이것이 B1 의 "invert" 철학 — CPU 는 GPU 의 decode 에 끼지 말고, 대신 decode 가 끝나는 동안 다음 배치의 schedule, KV admission, prefix lookup 등을 선행해라 — 의 정량적 근거다.
+
+**시스템 개선 구현 방향**:
+1. 현재 `_route_capacity` 에서 cpu-first 기본값을 **gpu-first 로 전환** + CPU 는 정책 결정만 담당
+2. CPU 가 *pre-schedule* (다음 batch 구성, admission control, prefix cache eviction) 를 GPU 의 step 과 병렬로 수행 → GPU step 내 host sync 점 제거
+3. 측정축은 "throughput" 이 아니라 "GPU 가 host 기다리는 시간 (sync gap)" 으로 변경
+
+### 11.2 B2 — Heavy workload CPU decode shadow (**전제 확정, 처방 기각**)
+
+**위치**: "GPU 가 long-ctx 에서 HBM 으로 포화되니 CPU 가 일부 decode 를 떠맡아 보충하자" 는 가장 직관적 가설.
+
+**heavy 가 B2 에 주는 신호 — 갈라짐**:
+- **전제 확정**: §7.1~7.2 에서 GPU 가 실제로 압박 상태 임을 확인 (p99 TTFT 21s, prefill 큐잉, HBM 여유 10%). B2 가 "해결할 문제가 있다" 는 것은 참이다.
+- **처방 기각**: 그러나 §7.3 의 52× 속도비 부등식에 의해, CPU 를 GPU 의 decode 대체자로 쓰는 것은 *어떤 workload 에서도* 작동할 수 없다. bench 종료 조건이 tail 로 묶이는 구조가 workload-independent 이기 때문.
+
+**B2 를 살리는 유일한 방향 — 역할 재정의**:
+B2 의 "CPU 가 decode 를 나눠 갖자" 를 포기하되, heavy workload 의 문제 자체는 여전히 실재하므로 **"GPU 가 할 수 없는 일 중 long-ctx 에서 필요한 것" 을 CPU 가 맡는** 버전으로 재정의한다:
+1. **K/V tier offload**: decode 후반의 누적 KV (cold tier) 를 CPU DRAM 으로 이주시켜 GPU HBM 포화 완화 (LMCache / InfiniGen 계열). CPU 는 *데이터 저장자* 지 *decode 실행자* 가 아니므로 52× 격차와 무관.
+2. **Prefix re-materialization**: concurrency=55 × 16K input 의 prefill 중복 연산을 CPU 가 캐싱/재계산해 GPU prefill 큐 감축. CPU 의 한 번만 하는 재계산은 미리 병렬화 가능.
+3. **Speculative prefill draft**: CPU 가 짧은 draft prefix 를 먼저 만들고 GPU 가 검증 (DuoDecoding / Dovetail 계열의 prefill 버전).
+
+**시스템 개선 구현 방향**: 위 세 중 `K/V tier offload` 가 이번 데이터와 가장 정합 (heavy 에서 HBM 여유 10%, KV 462 GB 의 상위 20% 만 CPU 로 보내면 3~5 concurrency 추가 수용 가능, wall 14분 → 11분 수준으로 추정).
+
+### 11.3 B3 — Meta-scheduling Gateway (**강한 지지**)
+
+**위치**: Aegaeon 계열 통찰 — "CPU 는 느려서 decode 는 못 하지만, *정책 결정* 은 순식간이다". 시스템 전반의 admission, routing, batching 결정을 CPU 에 몰아넣고 GPU 는 executor 에 집중.
+
+**heavy 가 B3 에 주는 신호 — 강한 지지**:
+- §6 의 닫힌 식이 맞았다는 사실 자체가 "current router 의 routing 결정은 GPU 의 실행 속도와 무관하게 즉각적이다" 를 의미한다. 즉 CPU 가 내리는 *결정* 자체는 시스템의 bottleneck 이 아니다.
+- heavy 에서 GPU 가 14분에 완주한다는 것은 **"만약 CPU 가 그 14분 동안 next 100 prompt 의 routing plan 을 미리 세워 두면 end-to-end latency 가 감축된다"** 는 가능성을 열어둔다.
+- §8 의 light sweep 에서 p99 TTFT 가 seqs 에 따라 8.6× 악화된 것도, 역으로 "CPU 가 주도권을 가진 gateway 가 있었으면 그 tail 을 피할 routing 을 할 수 있었을 것" 이라는 지표.
+
+**시스템 개선 구현 방향**:
+1. CPU engine 을 *EngineCore* 가 아니라 *SchedulerCore* 로 재정의. GPU engine 은 순수 executor.
+2. Incoming request 는 CPU 에서 (a) admission 가능 여부, (b) 적정 GPU batch slot, (c) prefix cache hit 이력 — 세 가지를 결정 후 GPU 에 dispatch.
+3. 측정축: request 도착 → GPU step 진입까지의 latency (현재 cpu-first 라우팅이 만드는 추가 hop 을 없애는 방향).
 
 ---
 
-## 12. 다음으로 해야 할 일
+## 12. 시스템 성능 개선의 구체적 다음 단계
 
-### 12.1 우선순위 (변경됨)
-B2 결과를 반영해 TODO 재정렬이 필요함. 기존 우선순위는 "다양한 workload 에 대해 hybrid 를 측정" 이었는데 이제 그 경로는 닫혔다.
+§11 에서 도출된 세 방향을 우선순위로 정렬한다. 각 항목은 **검증 가능한 성능 지표** 와 함께 제시한다.
 
-1. **[P1] CPU 코어 활용 디버깅** — 레이어 3 가 풀리지 않으면 어느 후속 가설도 같은 결과로 끝남. `[HYBRID-CPU-WORKER]` thread config 로그가 안 찍히는 이유부터.
-2. **[P1] B3 (Meta-scheduling / Routing 지능화) 구조 설계** — CPU 에게 decode 를 시키지 않는 대안 아키텍처. 이번 데이터가 이 방향을 지지한다.
-3. **[P2] cpu-first 의 대체 정책 시뮬레이션** — 기존 실측 데이터로 "만약 GPU-first 고정 + CPU 를 speculative 로만 사용했다면?" 을 분석적으로 추정. 실험 없이 개념 검증 가능.
-4. **[P3] 현 구현의 tail fence** — router 에 "CPU 가 T 초 내 return 안 하면 GPU 로 migration" gate 를 추가해 적어도 tail hazard 는 차단. B3 까지의 bridge.
+### 12.1 P0 — 레이어 3 선결: CPU 코어 활용 진단
 
-### 12.2 하지 말아야 할 것
-- 더 큰 workload 로 B2 를 재시도 (레이어 2+3 이 그대로면 결과 같음)
-- cpu_max_seqs 를 더 올려 hybrid seqs=32/64 를 돌리는 것 (4차 증거가 이걸 배제)
-- "IPEX 가 이번에 안 맞았다" 류의 단일 버그 가설 (레이어 1+2 가 독립적으로 충분히 설명함)
+어떤 가설로 가든 CPU 가 실제 능력을 내지 못하면 결과는 같다. §8 레이어 3 의 "`[HYBRID-CPU-WORKER] thread config` 로그 부재 + 0.76 tok/s << 이론 5.5 tok/s" 의 8× 격차는 **다음 실험의 신뢰성 을 모두 갉아먹는** 독립 문제다.
+
+- **진단 실험**: hybrid_server_run.log 의 `[HYBRID-CPU-WORKER]` 마커가 찍히지 않는 원인 트레이싱, IPEX intra-op pool 의 `torch.get_num_threads()` 실측
+- **성공 지표**: CPU engine 의 per-request decode rate 가 이론 상한 (32B 에서 5.5 tok/s) 의 70% 이상 달성
+- **블로킹 조건**: P1/P2/P3 모두 이 선행에 묶임
+
+### 12.2 P1 — B3 구현 (SchedulerCore 분리)
+
+**가장 큰 기대 효과 + 가장 적은 리스크**. 이미 두 프로세스 구조가 있으므로 역할만 뒤집는다.
+
+- **최소 실험**: 기존 `CapacityAwareRouter` 의 결정 로직을 CPU engine 프로세스 안에서 실행, GPU 프로세스는 순수 executor. API endpoint 가 CPU 에 먼저 도달.
+- **성공 지표**: heavy workload 에서 p99 TTFT 가 21,311ms → 15,000ms 이하로 감축 (prefix hit rate 향상 효과 포함)
+- **실패 시 학습**: CPU 의 routing overhead 가 실측으로 관찰됨. 이 값이 1ms 단위라면 B3 설계 성립, 100ms 이상이면 B3 재설계 필요.
+
+### 12.3 P2 — B1 구현 (Inverted Control Plane, partial)
+
+B3 의 sub-case 로 점진적으로 가능. CPU 가 GPU step 과 병렬로 next-batch scheduling 을 미리 수행.
+
+- **최소 실험**: GPU step i 가 돌아가는 동안 CPU 가 step i+1 의 admission + batch 구성 결정. GPU 가 step 종료 시점에 결과만 가져가도록.
+- **성공 지표**: GPU step 간 host sync gap (GPU profile 의 idle time) 이 현재 대비 30% 감소
+- **실패 시 학습**: scheduler 가 미리 결정할 수 있는 정보가 생각보다 적다면, 이는 vllm v1 scheduler 의 구조적 제약 문제
+
+### 12.4 P3 — B2 재정의 버전 구현 (K/V tier offload)
+
+위 두 방향이 성과를 낸 뒤에 heavy workload 한정으로 추가 여유 확보.
+
+- **최소 실험**: `HYBRID_KV_OFFLOAD` flag 를 켜서 decode 후반 KV 를 CPU DRAM 으로 tier eviction. 검증은 동일 heavy workload (16K/16K × 100) 에서.
+- **성공 지표**: GPU HBM 사용량이 현재 대비 20% 감소 + `MAX_CONCURRENCY` 를 55 → 65 로 올릴 수 있음
+- **실패 시 학습**: CPU DRAM 에서 KV 를 다시 HBM 으로 가져올 때의 bandwidth 가 실제 decode step 간격 대비 너무 크다면 tier offload 자체가 성립 불가
+
+### 12.5 하지 말아야 할 것 (명시)
+
+- **workload 를 계속 바꿔 B2 원형을 다시 시도** — 이번 데이터가 layer-agnostic 하게 거부. 레이어 3 해결 없이 CoT reasoning / 70B / MoE 로 가도 같은 결과.
+- **`cpu_max_seqs` 를 계속 올려 hybrid seqs=32/64 를 돌리기** — §6.1/6.2 의 닫힌 식이 stragglers 만 늘어남을 예측.
+- **"이번엔 IPEX 가 안 맞아서" 류의 국소 버그 가설** — 레이어 1+2 가 독립적으로 문제를 설명하므로 단일 fix 로 안 풀림.
 
 ---
 
