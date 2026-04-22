@@ -204,25 +204,54 @@ REPORT="${RESULTS_DIR}/FINAL_REPORT.md"
     echo
     if [[ "${SKIP_PHASE3}" == "1" ]]; then
         echo "생략됨 (SKIP_PHASE3=1)"
-    elif [[ -f "${PHASE3_DIR}/summary.md" ]]; then
-        cat "${PHASE3_DIR}/summary.md"
-        echo
-        echo "### Thread 상태 요약"
-        for f in "${PHASE3_DIR}"/engine_*_threads.txt; do
-            [[ -f "${f}" ]] || continue
+    elif compgen -G "${PHASE3_DIR}/engine_*_flame.svg" > /dev/null \
+      || compgen -G "${PHASE3_DIR}/engine_*_info.txt"  > /dev/null; then
+        # 새 phase3 (flame.svg + info.txt + dump.txt)
+        for SVG in "${PHASE3_DIR}"/engine_*_flame.svg; do
+            [[ -f "${SVG}" ]] || continue
+            EPID=$(basename "${SVG}" | sed -E 's/engine_([0-9]+)_flame\.svg/\1/')
+            INFO="${PHASE3_DIR}/engine_${EPID}_info.txt"
+            DUMP="${PHASE3_DIR}/engine_${EPID}_dump.txt"
             echo
-            echo "#### $(basename ${f})"
+            echo "### Engine PID ${EPID}"
+            echo
+            echo "- Flame graph: [\`phase3/engine_${EPID}_flame.svg\`](phase3/engine_${EPID}_flame.svg) (브라우저에서 열기)"
+            [[ -f "${INFO}" ]] && echo "- Info: [\`phase3/engine_${EPID}_info.txt\`](phase3/engine_${EPID}_info.txt)"
+            [[ -f "${DUMP}" ]] && echo "- Dump: [\`phase3/engine_${EPID}_dump.txt\`](phase3/engine_${EPID}_dump.txt)"
+            echo
+
+            # Info 요약 — ps top 10 + OMP libs + thread 이름 분포
+            if [[ -f "${INFO}" ]]; then
+                echo "#### Process 요약"
+                echo "\`\`\`"
+                # 첫 3줄 (PID / threads / cpus) + OMP + Thread 이름 + ps top-10
+                sed -n '1,3p' "${INFO}"
+                echo
+                awk '/### OMP\/BLAS/,/^$/' "${INFO}" | head -10
+                awk '/### Thread 이름 분포/,/^$/' "${INFO}" | head -10
+                awk '/### ps -L top-10/,/^$/' "${INFO}" | head -15
+                echo "\`\`\`"
+                echo
+            fi
+
+            # Flame graph 에서 top hot functions 추출 (SVG <title> element)
+            echo "#### Top hot functions (flame graph 샘플 상위)"
             echo "\`\`\`"
-            head -30 "${f}"
+            grep -oE '<title>[^<]+\([0-9]+ samples,[^<]+</title>' "${SVG}" \
+                | sed -E 's/<\/?title>//g' \
+                | python3 -c "
+import sys, re
+rows = []
+for line in sys.stdin:
+    m = re.search(r'\((\d+) samples', line)
+    if m:
+        rows.append((int(m.group(1)), line.strip()))
+rows.sort(key=lambda r: -r[0])
+for n, line in rows[:20]:
+    print(f'{n:5d}  {line}')
+" 2>/dev/null || echo "(flame graph 파싱 실패)"
             echo "\`\`\`"
-        done
-        echo "### py-spy 첫 head 20 lines"
-        for f in "${PHASE3_DIR}"/engine_*_pyspy.txt; do
-            [[ -f "${f}" ]] || continue
-            echo "#### $(basename ${f})"
-            echo "\`\`\`"
-            head -30 "${f}" 2>/dev/null
-            echo "\`\`\`"
+            echo
         done
     else
         echo "Phase 3 결과 없음 (Phase 2 skip 또는 capture 실패)"
