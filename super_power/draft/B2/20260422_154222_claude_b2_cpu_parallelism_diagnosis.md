@@ -11,7 +11,7 @@
 
 ## 0. TL;DR
 
-> **Heavy workload (Qwen2.5-32B × 16K/16K) 에서 CPU engine 이 "1 master + 94 idle" 패턴을 보이는 원인은 IPEX/GIL/sdpa_loop 중 어느 것도 아니다.** Flame graph 60s 샘플링 결과 (6000 samples 집계) `scheduler.schedule()` 경로의 **prefix cache hit 탐색 — `find_longest_cache_hit` + `get_computed_blocks` — 이 실질 25% 시간을 점유**하는 것이 확인되었다. 원인은 `EXTRA_SERVE_ARGS` 의 `--enable-prefix-caching` 이 켜진 상태에서 16K prompt 의 1024 hash blocks 를 Python loop 로 cached pool 과 매칭하는 것이다. 앞서 main thread 단일 dump 에서 잡혔던 `_update_states` 는 실제로는 ~9% 에 불과하며, dominant hot spot 이 아니었다. 이에 따라 P1 의 범위를 "CPUModelRunner._update_states override" 에서 **"CPU engine 에서 prefix caching 선택적 비활성화"** 로 재정의한다.
+> **Heavy long-context prefill 구간에서 CPU engine flame graph 상 가장 큰 Python hot spot 은 prefix cache hit 탐색 (`find_longest_cache_hit` + `get_computed_blocks`, 실질 ~25%) 이었다.** 16K prompt 의 1024 hash blocks 를 `--enable-prefix-caching` 이 켜진 상태에서 Python loop 로 cached pool 과 매칭하는 것이 원인이다. 이는 앞선 B2 분석의 `_update_states` 단독 가설 (실측 ~9%) 보다 stronger evidence 이지만, **decode phase 를 포함한 heavy workload 전체의 최종 원인 확정은 아직 아니다** — 본 진단은 bench 가 CPU 16K prefill 에 고립된 60초 샘플이며, decode phase 의 hot spot 분포는 관찰되지 않았다 (§8 참조). 따라서 P1 은 **prefill 구간 개선** (CPU engine 에서 `--enable-prefix-caching` 선택적 비활성화) 으로 한정 재정의하고, decode phase 진단은 후속 작업으로 남긴다.
 
 ---
 
@@ -207,11 +207,13 @@ Light 는 blocks 적어서 탐색 빠르게 종료. Heavy 는 req 당 1024 hash 
 
 ### 7.2 새 P1 후보
 
-| 옵션 | 변경 범위 | 효과 상한 | 리스크 |
+효과 상한 "~25%" 는 **prefill 구간의 flame graph 샘플 점유율 기준**. decode phase 에 같은 비중이라는 보장은 없다.
+
+| 옵션 | 변경 범위 | prefill 단축 효과 상한 | 리스크 |
 |---|---|---|---|
-| **A. CPU engine 에서 `--enable-prefix-caching` 비활성화** | `_create_cpu_vllm_config` 에 1~2 line 추가 | ~25% | 낮음 (기능은 GPU engine 에 유지) |
-| B. `find_longest_cache_hit` 를 dict-based 로 최적화 | vllm core 수정, ~50 line | ~25% + GPU 에도 유리 | 중간 (vllm upstream 변경) |
-| C. `find_longest_cache_hit` 를 C++ 로 이전 | 새 extension 추가 | ~25% | 높음 (2-3주) |
+| **A. CPU engine 에서 `--enable-prefix-caching` 비활성화** | `_create_cpu_vllm_config` 에 1~2 line 추가 | ~25% (prefill 기준) | 낮음 (기능은 GPU engine 에 유지) |
+| B. `find_longest_cache_hit` 를 dict-based 로 최적화 | vllm core 수정, ~50 line | ~25% (prefill) + GPU 에도 유리 | 중간 (vllm upstream 변경) |
+| C. `find_longest_cache_hit` 를 C++ 로 이전 | 새 extension 추가 | ~25% (prefill) | 높음 (2-3주) |
 
 ### 7.3 권장
 
@@ -221,13 +223,15 @@ Light 는 blocks 적어서 탐색 빠르게 종료. Heavy 는 req 당 1024 hash 
 3. 실측 검증 쉬움 — phase3 재실행으로 before/after 비교
 4. 결과가 기대 이하면 B/C 로 escalation
 
+단, **A 가 개선해 줄 수 있는 것은 prefill 의 Python 오버헤드뿐**. decode phase 의 single-thread 현상은 별도 원인일 수 있어 A 만으로 B2 가설 전체가 해결되지 않을 가능성이 높다.
+
 ### 7.4 검증 방법
 
 P1 옵션 A 적용 후:
-1. phase3 재실행 (flame graph)
-2. `find_longest_cache_hit` / `get_computed_blocks` 의 sample 점유율이 25% → <5% 로 떨어지는지 확인
-3. `top-10 by %CPU` 에서 worker 코어 활성도 변화 관찰
-4. Heavy bench duration 단축 여부
+1. phase3 재실행 (flame graph, 동일 16K 조건)
+2. `find_longest_cache_hit` / `get_computed_blocks` 의 sample 점유율이 ~25% → <5% 로 떨어지는지 확인 (prefill 구간 개선 증거)
+3. `top-10 by %CPU` 에서 schedule 구간 동안의 worker 코어 활성도 변화 관찰
+4. **별도 실험 필요** — decode phase 의 hot spot 확인을 위해 short-input + long-output workload 로 재측정 (A 의 효과가 decode 까지 미치는지, 혹은 decode 에 별도 bottleneck 이 있는지)
 
 ---
 
@@ -283,9 +287,10 @@ bash eval/diagnostics/b2_cpu_parallel/run_all.sh
 ## 11. 다음 단계
 
 1. P1 옵션 A (CPU engine prefix caching off) 설계 + 구현 (1~2일)
-2. 동일 heavy workload 로 재측정
+2. 동일 heavy workload 로 재측정 — **prefill 구간** 에서 prefix cache hot spot 이 실제로 사라지는지 검증
 3. Flame graph 의 hot spot 분포 변화 확인
 4. 개선 정도에 따라:
-   - \>20% 개선 → P1 확정, 분석문서 갱신, B2 전체 재평가
-   - 10~20% 개선 → 옵션 B 추가 검토
-   - <10% 개선 → **decode phase 진단 먼저** (§8 한계 해결)
+   - prefill 구간에서 prefix cache 점유율 ~25% → <5% 로 감소 확인 → **P1 옵션 A 효과 확정 (prefill 한정)**
+   - 그 이후 **decode phase 진단** 을 별도로 진행 (short-input + long-output workload). B2 전체 원인 규명은 이 decode 진단 결과까지 본 뒤 판정.
+
+이 순서가 중요한 이유: P1 옵션 A 가 prefill 을 개선한다고 B2 전체가 해결되는 것은 아니다. decode phase 의 single-thread 현상이 별도 hot spot 에 의한 것이면 추가 조치가 필요하다.
