@@ -1390,8 +1390,22 @@ def run_cpu_engine_core(*args,
         # CPU 전용 executor_class: UniProcExecutor 강제
         # MultiprocExecutor는 추가 워커 프로세스를 spawn하여
         # OMP 스레드가 분산되고 CPU 성능이 극심하게 저하됨
+        #
+        # X Phase 3: HYBRID_CPU_ASYNC_EXECUTOR=1 이면 PipelinedCPUExecutor
+        # 사용 — max_concurrent_batches=2 로 EngineCore 의
+        # step_with_batch_queue 자동 활성 → main Python thread 와
+        # model.forward() 의 pipeline 가능. 기본 off (기존 UniProcExecutor
+        # 유지, 동작 불변).
         from vllm.v1.executor.abstract import UniProcExecutor
-        cpu_executor_class = UniProcExecutor
+        from vllm.v1.executor.cpu_pipelined_executor import (
+            PipelinedCPUExecutor, is_async_executor_enabled)
+        if is_async_executor_enabled():
+            cpu_executor_class = PipelinedCPUExecutor
+            logger.info(
+                "[HYBRID-CPU-EXEC-POOL] X Phase 3 ACTIVE — "
+                "PipelinedCPUExecutor 선택 (HYBRID_CPU_ASYNC_EXECUTOR=1)")
+        else:
+            cpu_executor_class = UniProcExecutor
 
         logger.info(
             "Starting CPU EngineCore (PID %d) with executor %s",
