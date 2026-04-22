@@ -50,7 +50,7 @@ if [[ ${#PIDS[@]} -eq 0 ]]; then
 fi
 log "target: ${#PIDS[@]} engines (${PIDS[*]})"
 
-# 기본 정보 + py-spy 덤프 (engine 별 파일)
+# 기본 정보 + py-spy 덤프 + kernel stack (engine 별 파일)
 for PID in "${PIDS[@]}"; do
     OUT="${OUT_DIR}/engine_${PID}_pyspy.txt"
     {
@@ -58,13 +58,36 @@ for PID in "${PIDS[@]}"; do
         echo "threads: $(grep -E '^Threads' /proc/${PID}/status 2>/dev/null | awk '{print $2}')"
         echo "cpus   : $(grep -E '^Cpus_allowed_list' /proc/${PID}/status 2>/dev/null | awk '{print $2}')"
         echo
-        echo "### ps -L top-10 by %CPU"
+        echo "### ps -L top-10 by %CPU (with state)"
         ps -L -p ${PID} -o tid,stat,psr,pcpu,comm --no-headers 2>/dev/null \
-            | sort -k4 -nr | head -10
+            | sort -k4 -nr | tee /tmp/phase3_threads_${PID}_$$.txt | head -10
         echo
-        echo "### py-spy dump --nonblocking"
-        timeout --kill-after=2 10 py-spy dump --pid ${PID} --nonblocking 2>&1
-    } > "${OUT}" &
+        echo "### py-spy dump (without --nonblocking; SIGSTOP ~100ms for consistent read)"
+        echo "# 주의: Python 3.12 + --nonblocking 조합에서 'Failed to copy PyCodeObject'"
+        echo "# 발생 → --nonblocking 제거. ptrace 로 잠시 정지 후 정확한 Python stack 덤프."
+        if ! timeout --kill-after=2 12 py-spy dump --pid ${PID} 2>&1 ; then
+            echo
+            echo "### fallback — py-spy dump --nonblocking"
+            timeout --kill-after=2 10 py-spy dump --pid ${PID} --nonblocking 2>&1
+        fi
+        echo
+        echo "### kernel stack — top-5 by %CPU (from ps above)"
+        echo "# main thread 는 아마도 Rl+ state. 다른 thread 는 Sl+ (sleep) 에서"
+        echo "# 어떤 futex/lock/syscall 에서 대기 중인지 보여줌."
+        head -5 /tmp/phase3_threads_${PID}_$$.txt | while read tid stat psr pcpu comm; do
+            echo
+            echo "---- tid=${tid} stat=${stat} cpu${psr} pcpu=${pcpu} ----"
+            wchan=$(cat "/proc/${tid}/wchan" 2>/dev/null | tr -d '\0' || echo '?')
+            echo "wchan: ${wchan:-0}"
+            if [[ -r "/proc/${tid}/stack" ]]; then
+                echo "stack:"
+                timeout --kill-after=1 3 awk '{print "  " $2}' "/proc/${tid}/stack" 2>/dev/null | head -15
+            else
+                echo "stack: [/proc/${tid}/stack 읽기 권한 없음 (root 필요)]"
+            fi
+        done
+        rm -f /tmp/phase3_threads_${PID}_$$.txt
+    } > "${OUT}" 2>&1 &
 done
 wait
 
