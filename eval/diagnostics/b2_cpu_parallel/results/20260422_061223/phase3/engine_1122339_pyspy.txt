@@ -1,0 +1,137 @@
+### PID 1122339 — VLLM::CPU_Engin
+threads: 318
+cpus   : 0
+
+### OMP/BLAS 라이브러리 로드 상태 (duplication 의심 — 318 thread 원인?)
+# libgomp + libiomp5 양쪽 다 있으면 OMP runtime 중복 → pool 2~3배
+/vllm_dev_prj/lib/python3.12/site-packages/opencv_python_headless.libs/libopenblasp-r0-59ffcd50.3.15.so
+/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libgomp.so.1
+
+### Thread 이름 분포 (어느 pool 에서 왔는지)
+    173 python
+    139 VLLM::CPU_Engin
+      2 ZMQbg/Reaper
+      2 ZMQbg/IO/0
+      1 pt_tcpstore_uv
+      1 cuda00002000009
+
+### OMP 환경변수 (subprocess 에 꽂힌 값)
+
+### ps -L top-10 by %CPU (with state)
+1122339 tl+    0 44.2 VLLM::CPU_Engin
+1123327 tl+   39  9.1 VLLM::CPU_Engin
+1123304 tl+   16  9.1 VLLM::CPU_Engin
+1123334 tl+   46  9.0 VLLM::CPU_Engin
+1123329 tl+   41  9.0 VLLM::CPU_Engin
+1123336 tl+   48  8.9 VLLM::CPU_Engin
+1123335 tl+   47  8.9 VLLM::CPU_Engin
+1123333 tl+   45  8.9 VLLM::CPU_Engin
+1123332 tl+   44  8.9 VLLM::CPU_Engin
+1123331 tl+   43  8.9 VLLM::CPU_Engin
+
+### py-spy dump (without --nonblocking; SIGSTOP ~100ms for consistent read)
+# 주의: Python 3.12 + --nonblocking 조합에서 'Failed to copy PyCodeObject'
+# 발생 → --nonblocking 제거. ptrace 로 잠시 정지 후 정확한 Python stack 덤프.
+Process 1122339: VLLM::CPU_EngineCore
+Python v3.12.13 (/root/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12)
+
+Error: Failed to suspend process
+Reason: EPERM: Operation not permitted
+Reason: EPERM: Operation not permitted
+
+### fallback — py-spy dump --nonblocking
+Process 1122339: VLLM::CPU_EngineCore
+Python v3.12.13 (/root/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12)
+
+Thread 1122339 (active+gil): "MainThread"
+    find_longest_cache_hit (vllm/v1/core/single_type_kv_cache_manager.py:275)
+    find_longest_cache_hit (vllm/v1/core/kv_cache_coordinator.py:231)
+    get_computed_blocks (vllm/v1/core/kv_cache_manager.py:181)
+    schedule (vllm/v1/core/sched/scheduler.py:380)
+    step (vllm/v1/engine/core.py:272)
+    _process_engine_step (vllm/v1/engine/core.py:731)
+    run_busy_loop (vllm/v1/engine/core.py:705)
+    run_cpu_engine_core (vllm/v1/engine/hybrid_core.py:1413)
+    run (multiprocessing/process.py:108)
+    _bootstrap (multiprocessing/process.py:314)
+    _main (multiprocessing/spawn.py:135)
+    spawn_main (multiprocessing/spawn.py:122)
+    <module> (<string>:1)
+Thread 1123378 (idle): "Thread-1"
+    wait (threading.py:359)
+    wait (threading.py:655)
+    run (tqdm/_monitor.py:60)
+    _bootstrap_inner (threading.py:1075)
+    _bootstrap (threading.py:1032)
+Thread 1123999 (idle): "Thread-2 (process_input_sockets)"
+    poll (zmq/sugar/poll.py:106)
+    process_input_sockets (vllm/v1/engine/core.py:840)
+    run (threading.py:1012)
+    _bootstrap_inner (threading.py:1075)
+    _bootstrap (threading.py:1032)
+Thread 1124000 (idle): "Thread-3 (process_output_sockets)"
+    wait (threading.py:355)
+    get (queue.py:171)
+    process_output_sockets (vllm/v1/engine/core.py:886)
+    run (threading.py:1012)
+    _bootstrap_inner (threading.py:1075)
+    _bootstrap (threading.py:1032)
+
+### kernel stack — top-5 by %CPU (from ps above)
+# main thread 는 아마도 Rl+ state. 다른 thread 는 Sl+ (sleep) 에서
+# 어떤 futex/lock/syscall 에서 대기 중인지 보여줌.
+
+---- tid=1122339 stat=tl+ cpu0 pcpu=44.2 ----
+wchan: ptrace_stop.part.0
+stack:
+  ptrace_stop.part.0+0x175/0x310
+  ptrace_do_notify+0x97/0xc0
+  get_signal+0x61e/0x8c0
+  arch_do_signal_or_restart+0x25/0x100
+  exit_to_user_mode_loop+0x9c/0x130
+  exit_to_user_mode_prepare+0xb6/0x100
+  irqentry_exit_to_user_mode+0x5/0x30
+  asm_sysvec_reschedule_ipi+0x16/0x20
+
+---- tid=1123327 stat=tl+ cpu39 pcpu=9.1 ----
+wchan: ptrace_stop.part.0
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1123304 stat=tl+ cpu16 pcpu=9.1 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1123334 stat=tl+ cpu46 pcpu=9.0 ----
+wchan: futex_wait_queue
+stack:
+  ptrace_stop.part.0+0x175/0x310
+  ptrace_do_notify+0x97/0xc0
+  get_signal+0x61e/0x8c0
+  arch_do_signal_or_restart+0x25/0x100
+  exit_to_user_mode_loop+0x9c/0x130
+  exit_to_user_mode_prepare+0xb6/0x100
+  syscall_exit_to_user_mode+0x12/0x40
+  do_syscall_64+0x69/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1123329 stat=tl+ cpu41 pcpu=9.0 ----
+wchan: ptrace_stop.part.0
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
