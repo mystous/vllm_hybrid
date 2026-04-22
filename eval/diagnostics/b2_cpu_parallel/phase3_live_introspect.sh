@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Phase 3 — stuck CPU engine 실시간 introspection (robust)
+# Phase 3 — stuck CPU engine introspection (hang-proof)
 #
-# 전 버전의 문제:
-#   - `perf top --stdio` 가 TTY 입력 대기로 hang
-#   - deadline `wait` 이 새 shell 에서 안 먹혀서 강제종료 안 됨
+# 원칙: hang 될 수 있는 모든 도구 제거.
+#   - perf record → 제거 (kernel 권한 / perf.data 크기로 hang 가능)
+#   - perf report → 제거 (symbol table 탐색이 수 분 가능)
+#   - perf stat   → 유지 (정확히 N초 후 exit 보장)
+#   - py-spy --nonblocking → 유지 (process 안 멈춤)
+#   - ps / /proc/<tid>/{stack,wchan} → 유지 (커널 read, 즉시)
 #
-# 이 버전:
-#   - perf record (-g 없이) + perf report → 확실히 exit
-#   - py-spy --nonblocking + 외부 timeout
-#   - 전체 script 시작 시 watchdog subshell 이 DEADLINE 후 pkill -P $$
-#   - trap EXIT 으로 어떤 종료 경로에서도 자식 정리
+# Deadline 방어:
+#   1. 모든 외부 명령에 `safe_timeout` (SIGTERM → 2초 → SIGKILL)
+#   2. 최상위 watchdog 이 DEADLINE 후 자손 재귀 kill
+#   3. trap EXIT/INT/TERM 으로 cleanup
 #
-# 사용: bash eval/diagnostics/b2_cpu_parallel/phase3_live_introspect.sh
+# 총 소요 예상: 10~15초. 최악 DEADLINE=30초에서 강제 종료.
 # =============================================================================
 set -uo pipefail
 
@@ -23,27 +25,45 @@ if [[ -z "${OUT_DIR:-}" ]]; then
 fi
 mkdir -p "${OUT_DIR}"
 
-PERF_DURATION="${PERF_DURATION:-5}"
-PYSPY_TIMEOUT="${PYSPY_TIMEOUT:-10}"
-DEADLINE="${DEADLINE:-60}"
+PERF_STAT_SECS="${PERF_STAT_SECS:-5}"
+PYSPY_TIMEOUT="${PYSPY_TIMEOUT:-8}"
+DEADLINE="${DEADLINE:-30}"
 
 log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
 
-# -----------------------------------------------------------------------------
-# Watchdog — DEADLINE 후 모든 자식 강제 종료
-# -----------------------------------------------------------------------------
+# safe_timeout: SIGTERM → 2초 후 SIGKILL
+safe_timeout() { timeout --kill-after=2 --signal=TERM "$@"; }
+
+# ----------------------------------------------------------------------------
+# 재귀 descendant kill — pkill -P 만으로는 grandchildren 놓침
+# ----------------------------------------------------------------------------
+kill_descendants() {
+    local pid=$1 kids
+    kids=$(pgrep -P "${pid}" 2>/dev/null) || true
+    for k in ${kids}; do
+        kill_descendants "${k}"
+    done
+    kill -9 "${pid}" 2>/dev/null || true
+}
+
+# ----------------------------------------------------------------------------
+# 최상위 watchdog — DEADLINE 후 자손 전체 강제 종료
+# ----------------------------------------------------------------------------
 (
     sleep "${DEADLINE}"
-    echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] [DEADLINE] ${DEADLINE}s 초과 — 강제 종료"
-    pkill -9 -P $$ 2>/dev/null
+    echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] [DEADLINE] ${DEADLINE}s 초과 — 자손 재귀 kill"
+    for k in $(pgrep -P $$); do
+        kill_descendants "${k}"
+    done
 ) &
 WATCHDOG_PID=$!
 
-# 종료 시 watchdog + 자식들 정리
 cleanup() {
-    kill "${WATCHDOG_PID}" 2>/dev/null
-    pkill -P $$ 2>/dev/null
-    rm -f /tmp/perf_$$.data /tmp/perf_*_$$.data /tmp/threads_*_$$.tmp
+    kill "${WATCHDOG_PID}" 2>/dev/null || true
+    for k in $(pgrep -P $$); do
+        [[ "${k}" == "${WATCHDOG_PID}" ]] && continue
+        kill_descendants "${k}"
+    done
 }
 trap cleanup EXIT INT TERM
 
@@ -57,7 +77,7 @@ command -v perf   >/dev/null 2>&1 && HAVE_PERF=1
 (( HAVE_PYSPY )) || log "[WARN] py-spy 없음"
 (( HAVE_PERF  )) || log "[WARN] perf 없음"
 
-# PID
+# 대상 PID
 mapfile -t PIDS < <(pgrep -f CPU_EngineCore 2>/dev/null)
 if [[ ${#PIDS[@]} -eq 0 ]]; then
     log "[ERROR] CPU_EngineCore 프로세스 없음"
@@ -65,122 +85,112 @@ if [[ ${#PIDS[@]} -eq 0 ]]; then
 fi
 log "CPU_EngineCore : ${#PIDS[@]} 개 ${PIDS[*]}"
 
-# -----------------------------------------------------------------------------
-# summary 시작
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# summary 헤더
+# ----------------------------------------------------------------------------
 SUMMARY="${OUT_DIR}/summary.md"
 {
     echo "# Phase 3 — $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST')"
     echo
     echo "## 대상"
     for PID in "${PIDS[@]}"; do
-        local_cmd=$(ps -p ${PID} -o comm= 2>/dev/null)
-        local_nthr=$(grep -E '^Threads' /proc/${PID}/status 2>/dev/null | awk '{print $2}')
-        local_aff=$(grep -E '^Cpus_allowed_list' /proc/${PID}/status 2>/dev/null | awk '{print $2}')
-        echo "- PID ${PID}  ${local_cmd}  threads=${local_nthr}  cpus=${local_aff}"
+        cmd=$(ps -p ${PID} -o comm= 2>/dev/null)
+        nthr=$(grep -E '^Threads' /proc/${PID}/status 2>/dev/null | awk '{print $2}')
+        aff=$(grep -E '^Cpus_allowed_list' /proc/${PID}/status 2>/dev/null | awk '{print $2}')
+        echo "- PID ${PID}  ${cmd}  threads=${nthr}  cpus=${aff}"
     done
 } > "${SUMMARY}"
 
-# -----------------------------------------------------------------------------
-# 각 엔진 capture — 엄격한 외부 timeout
-# -----------------------------------------------------------------------------
-# safe_timeout: SIGTERM 이후 2초 → SIGKILL
-safe_timeout() { timeout --kill-after=2 --signal=TERM "$@"; }
+# ----------------------------------------------------------------------------
+# 캡처 함수들 — 오직 hang-proof 도구만 사용
+# ----------------------------------------------------------------------------
 
+# (a) ps + /proc/<tid>/{stack,wchan} — 즉시 반환 보장 (kernel read)
 capture_threads() {
     local PID=$1 OUT="${OUT_DIR}/engine_${PID}_threads.txt"
     {
-        echo "### thread state + kernel wchan/stack (top-20 by %CPU)"
+        echo "### ps -L + kernel wchan/stack"
         ps -L -p ${PID} -o tid,stat,psr,pcpu,comm --no-headers 2>/dev/null \
-            | sort -k4 -nr > /tmp/threads_${PID}_$$.tmp
-        echo "전체 thread : $(wc -l < /tmp/threads_${PID}_$$.tmp)"
+            | sort -k4 -nr > "/tmp/_threads_${PID}_$$.tmp"
+        total=$(wc -l < "/tmp/_threads_${PID}_$$.tmp")
+        echo "전체 thread : ${total}"
         echo
         echo "상태별:"
-        awk '{print $2}' /tmp/threads_${PID}_$$.tmp | sort | uniq -c | sort -rn
+        awk '{print $2}' "/tmp/_threads_${PID}_$$.tmp" | sort | uniq -c | sort -rn
         echo
-        echo "%CPU > 30:"
-        awk '$4+0 > 30' /tmp/threads_${PID}_$$.tmp
+        echo "%CPU > 30 threads:"
+        awk '$4+0 > 30' "/tmp/_threads_${PID}_$$.tmp"
         echo
-        echo "Top-20 (+ kernel stack head-3):"
-        head -20 /tmp/threads_${PID}_$$.tmp | while read tid stat psr pcpu comm; do
-            wchan=$(cat "/proc/${tid}/wchan" 2>/dev/null || echo '?')
-            echo "  tid=${tid} ${stat} cpu${psr} ${pcpu}% ${comm}  wchan=${wchan}"
+        echo "Top-20 (+ wchan + kernel stack head-3):"
+        head -20 "/tmp/_threads_${PID}_$$.tmp" | while read tid stat psr pcpu comm; do
+            wchan=$(cat "/proc/${tid}/wchan" 2>/dev/null | tr -d '\0' || echo '?')
+            echo "  tid=${tid} ${stat} cpu${psr} ${pcpu}% ${comm}  wchan=${wchan:-0}"
             if [[ -r "/proc/${tid}/stack" ]]; then
-                awk '{printf "    %s\n", $2}' "/proc/${tid}/stack" 2>/dev/null | head -3
+                safe_timeout 2 awk '{printf "    %s\n", $2}' "/proc/${tid}/stack" 2>/dev/null | head -3
             fi
         done
-        rm -f /tmp/threads_${PID}_$$.tmp
+        rm -f "/tmp/_threads_${PID}_$$.tmp"
     } > "${OUT}" 2>&1
 }
 
+# (b) py-spy dump --nonblocking — process 안 멈춤 + 외부 timeout
 capture_pyspy() {
     local PID=$1 OUT="${OUT_DIR}/engine_${PID}_pyspy.txt"
     {
         echo "### py-spy dump --nonblocking (timeout ${PYSPY_TIMEOUT}s)"
         if (( HAVE_PYSPY )); then
             safe_timeout ${PYSPY_TIMEOUT} py-spy dump --pid ${PID} --nonblocking 2>&1 \
-                || echo "[FAIL or timed out]"
+                || echo "[FAIL or timeout]"
         else
             echo "[SKIP] py-spy 미설치"
         fi
     } > "${OUT}" 2>&1
 }
 
-capture_perf() {
+# (c) perf stat — 정확히 N초 후 exit. perf record/report 절대 사용 안 함.
+#     계수값만 수집 → compute-bound vs memory-bound 판별
+capture_perf_stat() {
     local PID=$1 OUT="${OUT_DIR}/engine_${PID}_perf.txt"
-    local DATA="/tmp/perf_${PID}_$$.data"
     {
-        echo "### perf record (no call-graph) + report — ${PERF_DURATION}s sampling"
+        echo "### perf stat (counters, ${PERF_STAT_SECS}s)"
+        echo "note: 심볼 해석 없이 counter 만 — compute/memory-bound 판별용"
+        echo
         if (( HAVE_PERF )); then
-            # -g 없이 PC 샘플만 → report 시 DWARF 해석 없음
-            safe_timeout $((PERF_DURATION + 5)) \
-                perf record -p ${PID} -F 99 -o "${DATA}" -- sleep ${PERF_DURATION} 2>&1 \
-                | tail -5
-            if [[ -f "${DATA}" ]]; then
-                echo
-                echo "--- top 30 symbols ---"
-                safe_timeout 10 \
-                    perf report -i "${DATA}" --stdio --no-children --sort symbol 2>&1 \
-                    | head -40 \
-                    || echo "[FAIL or timed out] perf report"
-                rm -f "${DATA}"
-            else
-                echo "[FAIL] perf record 결과 파일 없음"
-            fi
-            echo
-            echo "### perf stat (counters, $((PERF_DURATION / 2))s)"
-            safe_timeout $((PERF_DURATION / 2 + 5)) \
-                perf stat -p ${PID} -- sleep $((PERF_DURATION / 2)) 2>&1 \
-                || echo "[FAIL or timed out] perf stat"
+            safe_timeout $((PERF_STAT_SECS + 3)) \
+                perf stat -p ${PID} \
+                -e cycles,instructions,cache-references,cache-misses,branch-misses,context-switches,cpu-migrations,task-clock \
+                -- sleep ${PERF_STAT_SECS} 2>&1 \
+                || echo "[FAIL or timeout]"
         else
             echo "[SKIP] perf 미설치"
         fi
     } > "${OUT}" 2>&1
 }
 
-# -----------------------------------------------------------------------------
-# 실행 — engine 간 + engine 내부 병렬
-# -----------------------------------------------------------------------------
-log "=== 병렬 캡처 (perf=${PERF_DURATION}s, pyspy=${PYSPY_TIMEOUT}s) ==="
+# ----------------------------------------------------------------------------
+# 실행 — 모든 capture 를 최상위 shell 의 직계 자식으로 (pkill -P $$ 가 도달)
+# ----------------------------------------------------------------------------
+log "=== 병렬 캡처 시작 (perf_stat=${PERF_STAT_SECS}s, pyspy=${PYSPY_TIMEOUT}s) ==="
 T0=$(date +%s)
 
+CHILD_PIDS=()
 for PID in "${PIDS[@]}"; do
-    (
-        capture_threads "${PID}" &
-        capture_pyspy   "${PID}" &
-        capture_perf    "${PID}" &
-        wait
-        log "  PID ${PID} 완료"
-    ) &
+    capture_threads   "${PID}" & CHILD_PIDS+=($!)
+    capture_pyspy     "${PID}" & CHILD_PIDS+=($!)
+    capture_perf_stat "${PID}" & CHILD_PIDS+=($!)
 done
-wait
+
+# 각 child 에 개별 wait (watchdog 이 DEADLINE 후 모두 kill 하므로 hang 불가)
+for p in "${CHILD_PIDS[@]}"; do
+    wait "${p}" 2>/dev/null || true
+done
 
 T1=$(date +%s)
 log "=== 캡처 완료 ($((T1 - T0))s) ==="
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # summary 마무리
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 {
     echo
     echo "## 파일"
@@ -193,10 +203,10 @@ log "=== 캡처 완료 ($((T1 - T0))s) ==="
     done
     echo
     echo "## 판정"
-    echo "- py-spy 가 Python attention/block_table 에서 잡힘 → **B (GIL)**"
-    echo "- py-spy \`<native>\` + perf 상위 \`ipex_*paged_attention\` → **A (IPEX)**"
-    echo "- py-spy \`torch::sdpa\` 또는 perf \`at::native::sdpa\` → **C (sdpa_loop)**"
-    echo "- threads 대부분 S + 소수 R, R 스레드의 wchan 이 futex/mutex → native lock"
+    echo "- py-spy 가 Python attention / block_table 함수 → **B (GIL)**"
+    echo "- py-spy \`<native>\` + threads 상위 tid 의 wchan 이 \`futex_wait\` → native lock 경쟁"
+    echo "- perf stat 의 \`instructions/cycles\` (IPC) < 0.5 → memory-bound 확정"
+    echo "- perf stat 의 \`cache-misses/cache-references\` > 20% → cache unfriendly (긴 KV 지목)"
     echo
     echo "**소요: $((T1 - T0))s**"
 } >> "${SUMMARY}"
@@ -204,5 +214,5 @@ log "=== 캡처 완료 ($((T1 - T0))s) ==="
 log "=== Phase 3 완료 ==="
 log "summary : ${SUMMARY}"
 
-# watchdog 정리
-kill "${WATCHDOG_PID}" 2>/dev/null
+# 정상 종료 → watchdog 수동 중단
+kill "${WATCHDOG_PID}" 2>/dev/null || true
