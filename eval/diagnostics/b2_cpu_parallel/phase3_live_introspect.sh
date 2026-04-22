@@ -25,8 +25,11 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TS=$(TZ=Asia/Seoul date '+%Y%m%d_%H%M%S')
-OUT_DIR="${SCRIPT_DIR}/snapshots/${TS}"
+# OUT_DIR 을 env 에서 override 가능 (run_all.sh 에서 통합 results 디렉토리 지정)
+if [[ -z "${OUT_DIR:-}" ]]; then
+    TS=$(TZ=Asia/Seoul date '+%Y%m%d_%H%M%S')
+    OUT_DIR="${SCRIPT_DIR}/results/${TS}/phase3"
+fi
 mkdir -p "${OUT_DIR}"
 
 log() { echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }

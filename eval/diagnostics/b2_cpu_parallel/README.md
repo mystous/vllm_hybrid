@@ -20,7 +20,60 @@ Qwen2.5-32B × 16K/16K heavy workload 의 hybrid seqs=1 run 에서:
 | **B** | Python-level critical section (block table walk, KV index) 에서 GIL serialize |
 | **C** | `sdpa_loop` / 유사 fallback path 가 선택되어 per-seq 순회 |
 
-## 3-Phase 검증 워크플로우
+## 단일 명령 실행 (권장)
+
+**한 줄로 Phase 1 + Phase 2 + Phase 3 전체 실행** — 결과는 모두 `results/<ts>/` 에 모임:
+
+```bash
+bash eval/diagnostics/b2_cpu_parallel/run_all.sh
+```
+
+소요 시간: 약 **8~12분** (32B 서버 boot 4~5분 + CPU 짧은 decode 2~3분 + Phase 3 30초 + 리포트 생성).
+
+### 선택 옵션
+
+```bash
+# 최단 경로 — Phase 1 + 3 만 (heavy 서버 이미 실행 중일 때)
+SKIP_PHASE2=1 bash eval/diagnostics/b2_cpu_parallel/run_all.sh
+
+# 재실행 필요하지만 live capture 불필요
+SKIP_PHASE3=1 bash eval/diagnostics/b2_cpu_parallel/run_all.sh
+
+# OUTPUT_LEN 조정 (기본 32 — 더 많은 decode call 찍고 싶으면 128)
+OUTPUT_LEN=128 bash eval/diagnostics/b2_cpu_parallel/run_all.sh
+```
+
+### 결과 저장 위치 (통합)
+
+```
+eval/diagnostics/b2_cpu_parallel/results/<YYYYMMDD_HHMMSS>/
+├── FINAL_REPORT.md              ← 이 파일 하나만 읽어도 전체 판정 됨
+├── phase1/
+│   └── dispatch_static.txt
+├── phase2/
+│   ├── server_boot.log
+│   ├── server_run.log            ← 원본 eval/results 에서 copy
+│   ├── bench.log
+│   ├── hybrid.json
+│   ├── trace_counters.txt        ← [HYBRID-CPU-ATTN] 자동 추출
+│   ├── applied_features.json
+│   └── env_used.env
+└── phase3/
+    ├── engine_<pid>_pyspy.txt
+    ├── engine_<pid>_perf.txt
+    ├── engine_<pid>_threads.txt
+    └── summary.md
+```
+
+읽기 순서: `FINAL_REPORT.md` → 판정 애매하면 phase2/3 raw 파일.
+
+`results/` 는 `.gitignore` 되어 있어 commit 되지 않습니다 (raw 데이터는 필요시 수동 mv).
+
+---
+
+## 개별 Phase 직접 실행 (필요시)
+
+run_all.sh 이 내부적으로 이 스크립트들을 호출합니다.
 
 ### Phase 1 — 정적 코드 분석 (서버 불필요, 즉시)
 
