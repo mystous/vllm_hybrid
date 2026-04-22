@@ -67,7 +67,7 @@ eval/diagnostics/b2_cpu_parallel/results/<YYYYMMDD_HHMMSS>/
 
 읽기 순서: `FINAL_REPORT.md` → 판정 애매하면 phase2/3 raw 파일.
 
-`results/` 는 `.gitignore` 되어 있어 commit 되지 않습니다 (raw 데이터는 필요시 수동 mv).
+`results/` 는 **git 에 포함**됩니다 — 재현성 / 재검토 / 분석문서 반영을 위해 raw data 를 같이 올립니다. 커지는 유일한 파일은 `server_run.log` 정도로 수백 KB 수준이라 문제 없음. `*.data` (perf 바이너리) 는 제외.
 
 ---
 

@@ -261,3 +261,7 @@ echo
 ls -la "${RESULTS_DIR}"/
 echo
 log "보고서를 보려면: cat ${REPORT}"
+log ""
+log "raw data 도 git 에 포함하려면:"
+log "  git add eval/diagnostics/b2_cpu_parallel/results/${TS}/"
+log "  git commit -m \"diag(b2): ${TS} run 결과\" && git push"
