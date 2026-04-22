@@ -7,6 +7,8 @@
 
 이 문서는 앞선 B2 분석 ([20260422_094528_claude_b2_longctx_32b_analysis.md](20260422_094528_claude_b2_longctx_32b_analysis.md)) 의 §8 (레이어 3) 에서 제기한 **"CPU 코어가 몇 개만 사용된다"** 의 원인을 실측으로 확정하는 후속 분석이다. 앞선 문서의 §8 가설 (IPEX / Python GIL / sdpa_loop) 은 전부 기각 또는 수정되었으며, 본 문서의 §5 결과가 대체 해답이다.
 
+> **후속 문서**: [`20260422_170451_claude_b2_async_executor_plan.md`](20260422_170451_claude_b2_async_executor_plan.md) — 본 문서에서 발견한 bottleneck 들을 **통합 backlog 로 정리** 하고, 그 중 단순 micro-fix 로는 풀리지 않는 **구조적 한계**에 대한 해결책 (**Pipelined Async CPU Executor, X**) 의 설계 및 실행 계획을 담음. 본 문서의 §7 P1 (prefix caching 비활성화) 은 X 의 micro-fix 중 하나 (A-1) 로 재정렬됨.
+
 ---
 
 ## 0. TL;DR
@@ -286,11 +288,11 @@ bash eval/diagnostics/b2_cpu_parallel/run_all.sh
 
 ## 11. 다음 단계
 
-1. P1 옵션 A (CPU engine prefix caching off) 설계 + 구현 (1~2일)
-2. 동일 heavy workload 로 재측정 — **prefill 구간** 에서 prefix cache hot spot 이 실제로 사라지는지 검증
-3. Flame graph 의 hot spot 분포 변화 확인
-4. 개선 정도에 따라:
-   - prefill 구간에서 prefix cache 점유율 ~25% → <5% 로 감소 확인 → **P1 옵션 A 효과 확정 (prefill 한정)**
-   - 그 이후 **decode phase 진단** 을 별도로 진행 (short-input + long-output workload). B2 전체 원인 규명은 이 decode 진단 결과까지 본 뒤 판정.
+본 문서 이후 후속 문서 [`20260422_170451_claude_b2_async_executor_plan.md`](20260422_170451_claude_b2_async_executor_plan.md) 에서 다음과 같이 재정렬되었다:
 
-이 순서가 중요한 이유: P1 옵션 A 가 prefill 을 개선한다고 B2 전체가 해결되는 것은 아니다. decode phase 의 single-thread 현상이 별도 hot spot 에 의한 것이면 추가 조치가 필요하다.
+1. 본 문서가 발견한 bottleneck 들은 후속 문서의 **§1 통합 backlog** 로 재정리 (A-1/A-2, B-1/B-2, C-1/C-2, D-1/D-2, E-1).
+2. 본 문서의 **P1 옵션 A** = 후속 문서의 **A-1** (CPU engine 에서 `--enable-prefix-caching` 비활성화).
+3. 후속 문서는 micro-fix 로 해결되지 않는 **구조적 한계** (sync executor) 를 별도 진단하고, 그 해결책으로 **X — Pipelined Async CPU Executor** 를 제안 + 실행 계획 (Phase 0~5).
+4. **Decode phase 진단** (본 문서 §8 의 한계) 은 여전히 별도 follow-up 으로 남아있음. X 구현 후 또는 X 와 독립적으로 진행 예정.
+
+이 순서가 중요한 이유: P1 옵션 A (= A-1) 가 prefill 을 개선한다고 B2 전체가 해결되는 것은 아니다. decode phase 의 single-thread 현상이 별도 hot spot 에 의한 것이면 추가 조치가 필요하고, 구조적 한계는 A-1 단독으로 풀리지 않아 X 가 필요하다.
