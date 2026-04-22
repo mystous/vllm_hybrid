@@ -1,0 +1,79 @@
+[12:46:40] ============================================================
+[12:46:40]  Benchmark: MODE=hybrid
+[12:46:40]  Model          : Qwen/Qwen2.5-32B-Instruct
+[12:46:40]  Port           : 8000
+[12:46:40]  Routing        : capacity (cpu-first)
+[12:46:40]  CPU max seqs   : 2
+[12:46:40]  Num prompts    : 8
+[12:46:40]  Input/Output   : 128/512
+[12:46:40]  Request rate   : inf
+[12:46:40]  ENV_FILE       : /tmp/run_compare_async.env
+[12:46:40]  Results        : /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2
+[12:46:40] ============================================================
+[12:46:40] Collecting system info...
+System info saved: /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/system_info.json
+[12:46:45] Starting monitor (interval=1s)
+[12:46:45] --- Running benchmark ---
+DEBUG_AG: Process 1970906 importing vllm.config
+DEBUG_AG: Process 1970906 importing vllm.distributed
+DEBUG_AG: Process 1970906 importing vllm.distributed.communication_op
+DEBUG_AG: Process 1970906 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 1970906 importing vllm.distributed.utils
+DEBUG_AG: Process 1970906 finished importing vllm.distributed.utils
+DEBUG_AG: Process 1970906 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 1970906 importing vllm.platforms
+DEBUG_AG: Process 1970906 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 1970906 checking plugin heterogeneous
+DEBUG_AG: Process 1970906 checking plugin tpu
+DEBUG_AG: Process 1970906 checking plugin cuda
+DEBUG_AG: Process 1970906 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 1970906 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 1970906 importing vllm.platforms.cuda
+DEBUG_AG: Process 1970906 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 1970906 finished importing vllm.distributed
+DEBUG_AG: Process 1970906 finished importing vllm.config
+/vllm_hybrid/benchmarks/benchmark_serving.py:1298: DeprecationWarning: benchmark_serving.py is deprecated and will be removed in a future version. Please use 'vllm bench serve' instead.
+  main(args)
+Namespace(backend='vllm', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='random', dataset_path=None, no_stream=False, max_concurrency=8, model='Qwen/Qwen2.5-32B-Instruct', tokenizer=None, use_beam_search=False, num_prompts=8, logprobs=None, request_rate=inf, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/hybrid.json', ignore_eos=False, percentile_metrics='ttft,tpot,itl', metric_percentiles='99', goodput=None, custom_output_len=256, custom_skip_chat_template=False, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=128, random_output_len=512, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None)
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: inf RPS.
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: 8
+  0%|          | 0/8 [00:00<?, ?it/s] 12%|█▎        | 1/8 [00:03<00:21,  3.06s/it] 25%|██▌       | 2/8 [00:04<00:12,  2.02s/it] 62%|██████▎   | 5/8 [31:12<22:19, 446.51s/it]100%|██████████| 8/8 [31:12<00:00, 234.10s/it]
+============ Serving Benchmark Result ============
+Successful requests:                     4         
+Maximum request concurrency:             8         
+Benchmark duration (s):                  1872.82   
+Total input tokens:                      512       
+Total generated tokens:                  1894      
+Request throughput (req/s):              0.00      
+Output token throughput (tok/s):         1.01      
+Total Token throughput (tok/s):          1.28      
+---------------Time to First Token----------------
+Mean TTFT (ms):                          41.22     
+Median TTFT (ms):                        44.82     
+P99 TTFT (ms):                           45.44     
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          8.45      
+Median TPOT (ms):                        8.45      
+P99 TPOT (ms):                           8.46      
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           8.45      
+Median ITL (ms):                         8.24      
+P99 ITL (ms):                            11.48     
+==================================================
+[13:18:11] Stopping monitor
+[13:18:12] Server run log: 7886 bytes → hybrid_server_run.log
+[13:18:12] Server boot log: 14 lines → hybrid_server_boot.log
+[13:18:12] Profile manifest: applied_features.json → /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/
+[13:18:12] Profile manifest: env_snapshot.txt → /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/
+[13:18:12] Profile manifest: git_sha.txt → /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/
+[13:18:12] ============================================================
+[13:18:12]  Done!  (wall time: 1886.67s)
+[13:18:12]  Results : /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2
+[13:18:12]  Benchmark: /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/hybrid.json
+[13:18:12]  Monitor  : /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/hybrid_monitor_gpu.csv
+[13:18:12]             /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/hybrid_monitor_cpu.csv
+[13:18:12]  Server   : /vllm_hybrid/eval/results/20260422_124640_H_C_H100_80GB_HBM3_x8_Qwen2.5-32B-Instruct_seqs2/hybrid_server.log
+[13:18:12] ============================================================
