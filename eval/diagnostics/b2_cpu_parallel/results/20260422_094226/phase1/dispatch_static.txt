@@ -1,0 +1,76 @@
+
+=== Phase 1 — CPU attention dispatch 정적 분석 ================================
+Target file : vllm/v1/attention/backends/cpu_attn.py
+Heavy shape : {'batch_size': 1, 'num_tokens': 1, 'num_seqs': 1, 'num_kv_heads': 8, 'num_query_heads': 40, 'head_dim': 128, 'ctx_len': 16384, 'block_size': 16}
+Light shape : {'batch_size': 1, 'num_tokens': 1, 'num_seqs': 1, 'num_kv_heads': 8, 'num_query_heads': 40, 'head_dim': 128, 'ctx_len': 128, 'block_size': 16}
+파일 줄 수  : 1314
+
+=== Section A — _trace_decode_path 호출 site (각 path 의 gating) ==============
+  총 4 개 path site 발견: ['custom_avx', 'sdpa_loop', 'sdpa_batched', 'ipex']
+
+  [custom_avx]  called at line 986
+  ----------------------------------------------------------------------------
+  L  958 |             if _PagedAttention._fallback_count <= 3:
+  L  967 |             if (_USE_CUSTOM_CPU_ATTN
+  L  971 |                 try:
+  L  986 |                     _trace_decode_path("custom_avx", num_seqs, num_tokens)
+
+  [sdpa_loop]  called at line 997
+  ----------------------------------------------------------------------------
+  L  967 |             if (_USE_CUSTOM_CPU_ATTN
+  L  971 |                 try:
+  L  986 |                     _trace_decode_path("custom_avx", num_seqs, num_tokens)
+  L  987 |                     return
+  L  988 |                 except Exception as e:
+  L  996 |             if num_tokens != num_seqs:
+  L  997 |                 _trace_decode_path("sdpa_loop", num_seqs, num_tokens)
+
+  [sdpa_batched]  called at line 1077
+  ----------------------------------------------------------------------------
+  L 1056 |                     if num_kv_heads != num_heads:
+  L 1064 |                     for t in range(tokens_for_seq):
+  L 1075 |                 return
+  L 1077 |             _trace_decode_path("sdpa_batched", num_seqs, num_tokens)
+
+  [ipex]  called at line 1266
+  ----------------------------------------------------------------------------
+  L 1266 |         _trace_decode_path("ipex", context_lens.shape[0], query.shape[0])
+
+=== Section B — IPEX entry point 언급 =======================================
+  L 1204 | class _IPEXPagedAttention(_PagedAttention):
+  L 1274 |         if not hasattr(_IPEXPagedAttention, '_decode_call_count'):
+  L 1275 |             _IPEXPagedAttention._decode_call_count = 0
+  L 1276 |             _IPEXPagedAttention._decode_total_ms = 0.0
+  L 1277 |             _IPEXPagedAttention._decode_batch_histogram = {}
+  L 1278 |         _IPEXPagedAttention._decode_call_count += 1
+  L 1279 |         _IPEXPagedAttention._decode_total_ms += _elapsed * 1000
+  L 1283 |         hist = _IPEXPagedAttention._decode_batch_histogram
+  L 1291 |                          and _IPEXPagedAttention._decode_call_count
+  L 1294 |             avg_ms = (_IPEXPagedAttention._decode_total_ms
+  L 1295 |                       / _IPEXPagedAttention._decode_call_count)
+  L 1299 |                 _IPEXPagedAttention._decode_call_count,
+  L 1301 |         elif _IPEXPagedAttention._decode_call_count <= 5 or \
+  L 1302 |                 _IPEXPagedAttention._decode_call_count % 100 == 0:
+  L 1305 |                 _IPEXPagedAttention._decode_call_count,
+  L 1312 |         return _IPEXPagedAttention
+
+=== Section C — num_tokens / num_seqs / context_lens branching ============
+  L  996 |             if num_tokens != num_seqs:
+  L 1004 |                 if num_tokens < num_seqs:
+
+=== Section D — Heavy shape 추론 ============================================
+  추론 기준:
+    num_tokens == num_seqs == 1  → sdpa_loop edge case 아님
+    num_seqs == 1                → batch 일괄 처리 이점 없음
+    ctx_len == 16384 (vs 128 light) → KV cache 크기 차이
+    num_kv_heads == 8            → per-head parallel 상한 8
+
+  주의: 이 스크립트는 조건을 자동으로 완전히 해석하지 못함.
+        code 를 직접 읽어서 IPEX entry 조건 (is_ipex_available() 등)
+        이 heavy/light 에서 어떻게 달라지는지 확인 필요.
+
+——— Next ——————————————————————————————————————————————————————————————————
+  Phase 2: VLLM_HYBRID_TRACE=1 로 재실행해 counter 실측
+    → eval/diagnostics/b2_cpu_parallel/g0_h100x8_qwen32b_longctx_trace.env
+  Phase 3: stuck 프로세스 실시간 introspection
+    → eval/diagnostics/b2_cpu_parallel/phase3_live_introspect.sh

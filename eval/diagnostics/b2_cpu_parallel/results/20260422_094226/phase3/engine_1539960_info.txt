@@ -1,0 +1,76 @@
+### PID 1539960 — VLLM::CPU_Engin
+threads: 318
+cpus   : 56
+
+### OMP/BLAS 라이브러리 로드 상태 (duplication 체크)
+/vllm_dev_prj/lib/python3.12/site-packages/opencv_python_headless.libs/libopenblasp-r0-59ffcd50.3.15.so
+/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libgomp.so.1
+
+### Thread 이름 분포
+    173 python
+    139 VLLM::CPU_Engin
+      2 ZMQbg/Reaper
+      2 ZMQbg/IO/0
+      1 pt_tcpstore_uv
+      1 cuda00002000009
+
+### Subprocess env (/proc/environ 은 spawn 시점 값)
+(environ 접근 실패 또는 없음)
+
+### ps -L top-10 by %CPU
+1539960 Rl+   56 43.6 VLLM::CPU_Engin
+1540918 Sl+   84 10.5 VLLM::CPU_Engin
+1540905 Sl+   71 10.5 VLLM::CPU_Engin
+1540891 Sl+   57 10.5 VLLM::CPU_Engin
+1540901 Sl+   67 10.1 VLLM::CPU_Engin
+1540892 Sl+   58  9.7 VLLM::CPU_Engin
+1540933 Sl+   99  9.5 VLLM::CPU_Engin
+1540926 Sl+   92  9.5 VLLM::CPU_Engin
+1540944 Sl+  110  9.3 VLLM::CPU_Engin
+1540923 Sl+   89  9.2 VLLM::CPU_Engin
+
+### kernel wchan/stack — top-5 threads
+
+---- tid=1539960 stat=Rl+ cpu56 pcpu=43.6 ----
+wchan: 0
+stack:
+
+---- tid=1540918 stat=Sl+ cpu84 pcpu=10.5 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1540905 stat=Sl+ cpu71 pcpu=10.5 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1540891 stat=Sl+ cpu57 pcpu=10.5 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
+
+---- tid=1540901 stat=Sl+ cpu67 pcpu=10.1 ----
+wchan: futex_wait_queue
+stack:
+  futex_wait_queue+0x70/0xd0
+  futex_wait+0x175/0x260
+  do_futex+0x12d/0x1d0
+  __x64_sys_futex+0x73/0x1d0
+  do_syscall_64+0x59/0x90
+  entry_SYSCALL_64_after_hwframe+0x72/0xdc
