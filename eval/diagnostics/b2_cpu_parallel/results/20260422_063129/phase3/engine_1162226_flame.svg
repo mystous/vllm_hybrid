@@ -1,0 +1,491 @@
+<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg version="1.1" width="1200" height="426" onload="init(evt)" viewBox="0 0 1200 426" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:fg="http://github.com/jonhoo/inferno"><!--Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples.--><!--NOTES: --><defs><linearGradient id="background" y1="0" y2="1" x1="0" x2="0"><stop stop-color="#eeeeee" offset="5%"/><stop stop-color="#eeeeb0" offset="95%"/></linearGradient></defs><style type="text/css">
+text { font-family:monospace; font-size:12px }
+#title { text-anchor:middle; font-size:17px; }
+#matched { text-anchor:end; }
+#search { text-anchor:end; opacity:0.1; cursor:pointer; }
+#search:hover, #search.show { opacity:1; }
+#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+#unzoom { cursor:pointer; }
+#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+.hide { display:none; }
+.parent { opacity:0.5; }
+</style><script type="text/ecmascript"><![CDATA[
+        var nametype = 'Function:';
+        var fontsize = 12;
+        var fontwidth = 0.59;
+        var xpad = 10;
+        var inverted = true;
+        var searchcolor = 'rgb(230,0,230)';
+        var fluiddrawing = true;
+        var truncate_text_right = false;
+    ]]><![CDATA["use strict";
+var details, searchbtn, unzoombtn, matchedtxt, svg, searching, frames, known_font_width;
+function init(evt) {
+    details = document.getElementById("details").firstChild;
+    searchbtn = document.getElementById("search");
+    unzoombtn = document.getElementById("unzoom");
+    matchedtxt = document.getElementById("matched");
+    svg = document.getElementsByTagName("svg")[0];
+    frames = document.getElementById("frames");
+    known_font_width = get_monospace_width(frames);
+    total_samples = parseInt(frames.attributes.total_samples.value);
+    searching = 0;
+
+    // Use GET parameters to restore a flamegraph's state.
+    var restore_state = function() {
+        var params = get_params();
+        if (params.x && params.y)
+            zoom(find_group(document.querySelector('[*|x="' + params.x + '"][y="' + params.y + '"]')));
+        if (params.s)
+            search(params.s);
+    };
+
+    if (fluiddrawing) {
+        // Make width dynamic so the SVG fits its parent's width.
+        svg.removeAttribute("width");
+        // Edge requires us to have a viewBox that gets updated with size changes.
+        var isEdge = /Edge\/\d./i.test(navigator.userAgent);
+        if (!isEdge) {
+            svg.removeAttribute("viewBox");
+        }
+        var update_for_width_change = function() {
+            if (isEdge) {
+                svg.attributes.viewBox.value = "0 0 " + svg.width.baseVal.value + " " + svg.height.baseVal.value;
+            }
+
+            // Keep consistent padding on left and right of frames container.
+            frames.attributes.width.value = svg.width.baseVal.value - xpad * 2;
+
+            // Text truncation needs to be adjusted for the current width.
+            update_text_for_elements(frames.children);
+
+            // Keep search elements at a fixed distance from right edge.
+            var svgWidth = svg.width.baseVal.value;
+            searchbtn.attributes.x.value = svgWidth - xpad;
+            matchedtxt.attributes.x.value = svgWidth - xpad;
+        };
+        window.addEventListener('resize', function() {
+            update_for_width_change();
+        });
+        // This needs to be done asynchronously for Safari to work.
+        setTimeout(function() {
+            unzoom();
+            update_for_width_change();
+            restore_state();
+        }, 0);
+    } else {
+        restore_state();
+    }
+}
+// event listeners
+window.addEventListener("click", function(e) {
+    var target = find_group(e.target);
+    if (target) {
+        if (target.nodeName == "a") {
+            if (e.ctrlKey === false) return;
+            e.preventDefault();
+        }
+        if (target.classList.contains("parent")) unzoom();
+        zoom(target);
+
+        // set parameters for zoom state
+        var el = target.querySelector("rect");
+        if (el && el.attributes && el.attributes.y && el.attributes["fg:x"]) {
+            var params = get_params()
+            params.x = el.attributes["fg:x"].value;
+            params.y = el.attributes.y.value;
+            history.replaceState(null, null, parse_params(params));
+        }
+    }
+    else if (e.target.id == "unzoom") {
+        unzoom();
+
+        // remove zoom state
+        var params = get_params();
+        if (params.x) delete params.x;
+        if (params.y) delete params.y;
+        history.replaceState(null, null, parse_params(params));
+    }
+    else if (e.target.id == "search") search_prompt();
+}, false)
+// mouse-over for info
+// show
+window.addEventListener("mouseover", function(e) {
+    var target = find_group(e.target);
+    if (target) details.nodeValue = nametype + " " + g_to_text(target);
+}, false)
+// clear
+window.addEventListener("mouseout", function(e) {
+    var target = find_group(e.target);
+    if (target) details.nodeValue = ' ';
+}, false)
+// ctrl-F for search
+window.addEventListener("keydown",function (e) {
+    if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+        e.preventDefault();
+        search_prompt();
+    }
+}, false)
+// functions
+function get_params() {
+    var params = {};
+    var paramsarr = window.location.search.substr(1).split('&');
+    for (var i = 0; i < paramsarr.length; ++i) {
+        var tmp = paramsarr[i].split("=");
+        if (!tmp[0] || !tmp[1]) continue;
+        params[tmp[0]]  = decodeURIComponent(tmp[1]);
+    }
+    return params;
+}
+function parse_params(params) {
+    var uri = "?";
+    for (var key in params) {
+        uri += key + '=' + encodeURIComponent(params[key]) + '&';
+    }
+    if (uri.slice(-1) == "&")
+        uri = uri.substring(0, uri.length - 1);
+    if (uri == '?')
+        uri = window.location.href.split('?')[0];
+    return uri;
+}
+function find_child(node, selector) {
+    var children = node.querySelectorAll(selector);
+    if (children.length) return children[0];
+    return;
+}
+function find_group(node) {
+    var parent = node.parentElement;
+    if (!parent) return;
+    if (parent.id == "frames") return node;
+    return find_group(parent);
+}
+function orig_save(e, attr, val) {
+    if (e.attributes["fg:orig_" + attr] != undefined) return;
+    if (e.attributes[attr] == undefined) return;
+    if (val == undefined) val = e.attributes[attr].value;
+    e.setAttribute("fg:orig_" + attr, val);
+}
+function orig_load(e, attr) {
+    if (e.attributes["fg:orig_"+attr] == undefined) return;
+    e.attributes[attr].value = e.attributes["fg:orig_" + attr].value;
+    e.removeAttribute("fg:orig_" + attr);
+}
+function g_to_text(e) {
+    var text = find_child(e, "title").firstChild.nodeValue;
+    return (text)
+}
+function g_to_func(e) {
+    var func = g_to_text(e);
+    // if there's any manipulation we want to do to the function
+    // name before it's searched, do it here before returning.
+    return (func);
+}
+function get_monospace_width(frames) {
+    // Given the id="frames" element, return the width of text characters if
+    // this is a monospace font, otherwise return 0.
+    text = find_child(frames.children[0], "text");
+    originalContent = text.textContent;
+    text.textContent = "!";
+    bangWidth = text.getComputedTextLength();
+    text.textContent = "W";
+    wWidth = text.getComputedTextLength();
+    text.textContent = originalContent;
+    if (bangWidth === wWidth) {
+        return bangWidth;
+    } else {
+        return 0;
+    }
+}
+function update_text_for_elements(elements) {
+    // In order to render quickly in the browser, you want to do one pass of
+    // reading attributes, and one pass of mutating attributes. See
+    // https://web.dev/avoid-large-complex-layouts-and-layout-thrashing/ for details.
+
+    // Fall back to inefficient calculation, if we're variable-width font.
+    // TODO This should be optimized somehow too.
+    if (known_font_width === 0) {
+        for (var i = 0; i < elements.length; i++) {
+            update_text(elements[i]);
+        }
+        return;
+    }
+
+    var textElemNewAttributes = [];
+    for (var i = 0; i < elements.length; i++) {
+        var e = elements[i];
+        var r = find_child(e, "rect");
+        var t = find_child(e, "text");
+        var w = parseFloat(r.attributes.width.value) * frames.attributes.width.value / 100 - 3;
+        var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+        var newX = format_percent((parseFloat(r.attributes.x.value) + (100 * 3 / frames.attributes.width.value)));
+
+        // Smaller than this size won't fit anything
+        if (w < 2 * known_font_width) {
+            textElemNewAttributes.push([newX, ""]);
+            continue;
+        }
+
+        // Fit in full text width
+        if (txt.length * known_font_width < w) {
+            textElemNewAttributes.push([newX, txt]);
+            continue;
+        }
+
+        var substringLength = Math.floor(w / known_font_width) - 2;
+        if (truncate_text_right) {
+            // Truncate the right side of the text.
+            textElemNewAttributes.push([newX, txt.substring(0, substringLength) + ".."]);
+            continue;
+        } else {
+            // Truncate the left side of the text.
+            textElemNewAttributes.push([newX, ".." + txt.substring(txt.length - substringLength, txt.length)]);
+            continue;
+        }
+    }
+
+    console.assert(textElemNewAttributes.length === elements.length, "Resize failed, please file a bug at https://github.com/jonhoo/inferno/");
+
+    // Now that we know new textContent, set it all in one go so we don't refresh a bazillion times.
+    for (var i = 0; i < elements.length; i++) {
+        var e = elements[i];
+        var values = textElemNewAttributes[i];
+        var t = find_child(e, "text");
+        t.attributes.x.value = values[0];
+        t.textContent = values[1];
+    }
+}
+
+function update_text(e) {
+    var r = find_child(e, "rect");
+    var t = find_child(e, "text");
+    var w = parseFloat(r.attributes.width.value) * frames.attributes.width.value / 100 - 3;
+    var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+    t.attributes.x.value = format_percent((parseFloat(r.attributes.x.value) + (100 * 3 / frames.attributes.width.value)));
+
+    // Smaller than this size won't fit anything
+    if (w < 2 * fontsize * fontwidth) {
+        t.textContent = "";
+        return;
+    }
+    t.textContent = txt;
+    // Fit in full text width
+    if (t.getComputedTextLength() < w)
+        return;
+    if (truncate_text_right) {
+        // Truncate the right side of the text.
+        for (var x = txt.length - 2; x > 0; x--) {
+            if (t.getSubStringLength(0, x + 2) <= w) {
+                t.textContent = txt.substring(0, x) + "..";
+                return;
+            }
+        }
+    } else {
+        // Truncate the left side of the text.
+        for (var x = 2; x < txt.length; x++) {
+            if (t.getSubStringLength(x - 2, txt.length) <= w) {
+                t.textContent = ".." + txt.substring(x, txt.length);
+                return;
+            }
+        }
+    }
+    t.textContent = "";
+}
+// zoom
+function zoom_reset(e) {
+    if (e.tagName == "rect") {
+        e.attributes.x.value = format_percent(100 * parseInt(e.attributes["fg:x"].value) / total_samples);
+        e.attributes.width.value = format_percent(100 * parseInt(e.attributes["fg:w"].value) / total_samples);
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_reset(c[i]);
+    }
+}
+function zoom_child(e, x, zoomed_width_samples) {
+    if (e.tagName == "text") {
+        var parent_x = parseFloat(find_child(e.parentNode, "rect[x]").attributes.x.value);
+        e.attributes.x.value = format_percent(parent_x + (100 * 3 / frames.attributes.width.value));
+    } else if (e.tagName == "rect") {
+        e.attributes.x.value = format_percent(100 * (parseInt(e.attributes["fg:x"].value) - x) / zoomed_width_samples);
+        e.attributes.width.value = format_percent(100 * parseInt(e.attributes["fg:w"].value) / zoomed_width_samples);
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_child(c[i], x, zoomed_width_samples);
+    }
+}
+function zoom_parent(e) {
+    if (e.attributes) {
+        if (e.attributes.x != undefined) {
+            e.attributes.x.value = "0.0%";
+        }
+        if (e.attributes.width != undefined) {
+            e.attributes.width.value = "100.0%";
+        }
+    }
+    if (e.childNodes == undefined) return;
+    for(var i = 0, c = e.childNodes; i < c.length; i++) {
+        zoom_parent(c[i]);
+    }
+}
+function zoom(node) {
+    var attr = find_child(node, "rect").attributes;
+    var width = parseInt(attr["fg:w"].value);
+    var xmin = parseInt(attr["fg:x"].value);
+    var xmax = xmin + width;
+    var ymin = parseFloat(attr.y.value);
+    unzoombtn.classList.remove("hide");
+    var el = frames.children;
+    var to_update_text = [];
+    for (var i = 0; i < el.length; i++) {
+        var e = el[i];
+        var a = find_child(e, "rect").attributes;
+        var ex = parseInt(a["fg:x"].value);
+        var ew = parseInt(a["fg:w"].value);
+        // Is it an ancestor
+        if (!inverted) {
+            var upstack = parseFloat(a.y.value) > ymin;
+        } else {
+            var upstack = parseFloat(a.y.value) < ymin;
+        }
+        if (upstack) {
+            // Direct ancestor
+            if (ex <= xmin && (ex+ew) >= xmax) {
+                e.classList.add("parent");
+                zoom_parent(e);
+                to_update_text.push(e);
+            }
+            // not in current path
+            else
+                e.classList.add("hide");
+        }
+        // Children maybe
+        else {
+            // no common path
+            if (ex < xmin || ex >= xmax) {
+                e.classList.add("hide");
+            }
+            else {
+                zoom_child(e, xmin, width);
+                to_update_text.push(e);
+            }
+        }
+    }
+    update_text_for_elements(to_update_text);
+}
+function unzoom() {
+    unzoombtn.classList.add("hide");
+    var el = frames.children;
+    for(var i = 0; i < el.length; i++) {
+        el[i].classList.remove("parent");
+        el[i].classList.remove("hide");
+        zoom_reset(el[i]);
+    }
+    update_text_for_elements(el);
+}
+// search
+function reset_search() {
+    var el = document.querySelectorAll("#frames rect");
+    for (var i = 0; i < el.length; i++) {
+        orig_load(el[i], "fill")
+    }
+    var params = get_params();
+    delete params.s;
+    history.replaceState(null, null, parse_params(params));
+}
+function search_prompt() {
+    if (!searching) {
+        var term = prompt("Enter a search term (regexp " +
+            "allowed, eg: ^ext4_)", "");
+        if (term != null) {
+            search(term)
+        }
+    } else {
+        reset_search();
+        searching = 0;
+        searchbtn.classList.remove("show");
+        searchbtn.firstChild.nodeValue = "Search"
+        matchedtxt.classList.add("hide");
+        matchedtxt.firstChild.nodeValue = ""
+    }
+}
+function search(term) {
+    var re = new RegExp(term);
+    var el = frames.children;
+    var matches = new Object();
+    var maxwidth = 0;
+    for (var i = 0; i < el.length; i++) {
+        var e = el[i];
+        // Skip over frames which are either not visible, or below the zoomed-to frame
+        if (e.classList.contains("hide") || e.classList.contains("parent")) {
+            continue;
+        }
+        var func = g_to_func(e);
+        var rect = find_child(e, "rect");
+        if (func == null || rect == null)
+            continue;
+        // Save max width. Only works as we have a root frame
+        var w = parseInt(rect.attributes["fg:w"].value);
+        if (w > maxwidth)
+            maxwidth = w;
+        if (func.match(re)) {
+            // highlight
+            var x = parseInt(rect.attributes["fg:x"].value);
+            orig_save(rect, "fill");
+            rect.attributes.fill.value = searchcolor;
+            // remember matches
+            if (matches[x] == undefined) {
+                matches[x] = w;
+            } else {
+                if (w > matches[x]) {
+                    // overwrite with parent
+                    matches[x] = w;
+                }
+            }
+            searching = 1;
+        }
+    }
+    if (!searching)
+        return;
+    var params = get_params();
+    params.s = term;
+    history.replaceState(null, null, parse_params(params));
+
+    searchbtn.classList.add("show");
+    searchbtn.firstChild.nodeValue = "Reset Search";
+    // calculate percent matched, excluding vertical overlap
+    var count = 0;
+    var lastx = -1;
+    var lastw = 0;
+    var keys = Array();
+    for (k in matches) {
+        if (matches.hasOwnProperty(k))
+            keys.push(k);
+    }
+    // sort the matched frames by their x location
+    // ascending, then width descending
+    keys.sort(function(a, b){
+        return a - b;
+    });
+    // Step through frames saving only the biggest bottom-up frames
+    // thanks to the sort order. This relies on the tree property
+    // where children are always smaller than their parents.
+    for (var k in keys) {
+        var x = parseInt(keys[k]);
+        var w = matches[keys[k]];
+        if (x >= lastx + lastw) {
+            count += w;
+            lastx = x;
+            lastw = w;
+        }
+    }
+    // display matched percent
+    matchedtxt.classList.remove("hide");
+    var pct = 100 * count / maxwidth;
+    if (pct != 100) pct = pct.toFixed(1);
+    matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+}
+function format_percent(n) {
+    return n.toFixed(4) + "%";
+}
+]]></script><rect x="0" y="0" width="100%" height="426" fill="url(#background)"/><text id="title" fill="rgb(0,0,0)" x="50.0000%" y="24.00">py-spy record -p 1162226 -d 60 -f flamegraph -o /vllm_hybrid/eval/diagnostics/b2_cpu_parallel/results/20260422_063129/phase3/engine_1162226_flame.svg</text><text id="details" fill="rgb(0,0,0)" x="10" y="40.00"> </text><text id="unzoom" class="hide" fill="rgb(0,0,0)" x="10" y="24.00">Reset Zoom</text><text id="search" fill="rgb(0,0,0)" x="1190" y="24.00">Search</text><text id="matched" fill="rgb(0,0,0)" x="1190" y="415.00"> </text><svg id="frames" x="10" width="1180" total_samples="2918"><g><title>_process_input_queue (vllm/v1/engine/core.py:711) (5 samples, 0.17%)</title><rect x="0.1371%" y="180" width="0.1714%" height="15" fill="rgb(227,0,7)" fg:x="4" fg:w="5"/><text x="0.3871%" y="190.50"></text></g><g><title>__len__ (vllm/v1/core/sched/request_queue.py:126) (4 samples, 0.14%)</title><rect x="1.7820%" y="244" width="0.1371%" height="15" fill="rgb(217,0,24)" fg:x="52" fg:w="4"/><text x="2.0320%" y="254.50"></text></g><g><title>_process_input_queue (vllm/v1/engine/core.py:712) (57 samples, 1.95%)</title><rect x="0.3084%" y="180" width="1.9534%" height="15" fill="rgb(221,193,54)" fg:x="9" fg:w="57"/><text x="0.5584%" y="190.50">_..</text></g><g><title>has_requests (vllm/v1/core/sched/interface.py:121) (46 samples, 1.58%)</title><rect x="0.6854%" y="196" width="1.5764%" height="15" fill="rgb(248,212,6)" fg:x="20" fg:w="46"/><text x="0.9354%" y="206.50"></text></g><g><title>has_unfinished_requests (vllm/v1/core/sched/interface.py:101) (42 samples, 1.44%)</title><rect x="0.8225%" y="212" width="1.4393%" height="15" fill="rgb(208,68,35)" fg:x="24" fg:w="42"/><text x="1.0725%" y="222.50"></text></g><g><title>get_num_unfinished_requests (vllm/v1/core/sched/scheduler.py:1033) (33 samples, 1.13%)</title><rect x="1.1309%" y="228" width="1.1309%" height="15" fill="rgb(232,128,0)" fg:x="33" fg:w="33"/><text x="1.3809%" y="238.50"></text></g><g><title>__len__ (vllm/v1/core/sched/request_queue.py:128) (10 samples, 0.34%)</title><rect x="1.9191%" y="244" width="0.3427%" height="15" fill="rgb(207,160,47)" fg:x="56" fg:w="10"/><text x="2.1691%" y="254.50"></text></g><g><title>empty (queue.py:108) (34 samples, 1.17%)</title><rect x="2.5703%" y="196" width="1.1652%" height="15" fill="rgb(228,23,34)" fg:x="75" fg:w="34"/><text x="2.8203%" y="206.50"></text></g><g><title>empty (queue.py:109) (13 samples, 0.45%)</title><rect x="3.7354%" y="196" width="0.4455%" height="15" fill="rgb(218,30,26)" fg:x="109" fg:w="13"/><text x="3.9854%" y="206.50"></text></g><g><title>_qsize (queue.py:210) (7 samples, 0.24%)</title><rect x="3.9411%" y="212" width="0.2399%" height="15" fill="rgb(220,122,19)" fg:x="115" fg:w="7"/><text x="4.1911%" y="222.50"></text></g><g><title>run_busy_loop (vllm/v1/engine/core.py:703) (123 samples, 4.22%)</title><rect x="0.0000%" y="164" width="4.2152%" height="15" fill="rgb(250,228,42)" fg:x="0" fg:w="123"/><text x="0.2500%" y="174.50">run_b..</text></g><g><title>_process_input_queue (vllm/v1/engine/core.py:723) (55 samples, 1.88%)</title><rect x="2.3304%" y="180" width="1.8849%" height="15" fill="rgb(240,193,28)" fg:x="68" fg:w="55"/><text x="2.5804%" y="190.50">_..</text></g><g><title>_process_engine_step (vllm/v1/engine/core.py:727) (3 samples, 0.10%)</title><rect x="4.3180%" y="180" width="0.1028%" height="15" fill="rgb(216,20,37)" fg:x="126" fg:w="3"/><text x="4.5680%" y="190.50"></text></g><g><title>step (vllm/v1/engine/core.py:269) (29 samples, 0.99%)</title><rect x="5.5860%" y="196" width="0.9938%" height="15" fill="rgb(206,188,39)" fg:x="163" fg:w="29"/><text x="5.8360%" y="206.50"></text></g><g><title>has_requests (vllm/v1/core/sched/interface.py:121) (27 samples, 0.93%)</title><rect x="5.6546%" y="212" width="0.9253%" height="15" fill="rgb(217,207,13)" fg:x="165" fg:w="27"/><text x="5.9046%" y="222.50"></text></g><g><title>has_unfinished_requests (vllm/v1/core/sched/interface.py:101) (27 samples, 0.93%)</title><rect x="5.6546%" y="228" width="0.9253%" height="15" fill="rgb(231,73,38)" fg:x="165" fg:w="27"/><text x="5.9046%" y="238.50"></text></g><g><title>get_num_unfinished_requests (vllm/v1/core/sched/scheduler.py:1033) (20 samples, 0.69%)</title><rect x="5.8944%" y="244" width="0.6854%" height="15" fill="rgb(225,20,46)" fg:x="172" fg:w="20"/><text x="6.1444%" y="254.50"></text></g><g><title>__len__ (vllm/v1/core/sched/request_queue.py:128) (6 samples, 0.21%)</title><rect x="6.3742%" y="260" width="0.2056%" height="15" fill="rgb(210,31,41)" fg:x="186" fg:w="6"/><text x="6.6242%" y="270.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:200) (8 samples, 0.27%)</title><rect x="8.8074%" y="212" width="0.2742%" height="15" fill="rgb(221,200,47)" fg:x="257" fg:w="8"/><text x="9.0574%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:204) (8 samples, 0.27%)</title><rect x="9.1158%" y="212" width="0.2742%" height="15" fill="rgb(226,26,5)" fg:x="266" fg:w="8"/><text x="9.3658%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:320) (5 samples, 0.17%)</title><rect x="9.3900%" y="212" width="0.1714%" height="15" fill="rgb(249,33,26)" fg:x="274" fg:w="5"/><text x="9.6400%" y="222.50"></text></g><g><title>create_request_queue (vllm/v1/core/sched/request_queue.py:219) (4 samples, 0.14%)</title><rect x="9.8698%" y="228" width="0.1371%" height="15" fill="rgb(235,183,28)" fg:x="288" fg:w="4"/><text x="10.1198%" y="238.50"></text></g><g><title>create_request_queue (vllm/v1/core/sched/request_queue.py:221) (6 samples, 0.21%)</title><rect x="10.0411%" y="228" width="0.2056%" height="15" fill="rgb(221,5,38)" fg:x="293" fg:w="6"/><text x="10.2911%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:329) (25 samples, 0.86%)</title><rect x="9.6299%" y="212" width="0.8568%" height="15" fill="rgb(247,18,42)" fg:x="281" fg:w="25"/><text x="9.8799%" y="222.50"></text></g><g><title>create_request_queue (vllm/v1/core/sched/request_queue.py:222) (7 samples, 0.24%)</title><rect x="10.2467%" y="228" width="0.2399%" height="15" fill="rgb(241,131,45)" fg:x="299" fg:w="7"/><text x="10.4967%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:332) (3 samples, 0.10%)</title><rect x="10.4866%" y="212" width="0.1028%" height="15" fill="rgb(249,31,29)" fg:x="306" fg:w="3"/><text x="10.7366%" y="222.50"></text></g><g><title>__bool__ (vllm/v1/core/sched/request_queue.py:122) (3 samples, 0.10%)</title><rect x="11.4805%" y="228" width="0.1028%" height="15" fill="rgb(225,111,53)" fg:x="335" fg:w="3"/><text x="11.7305%" y="238.50"></text></g><g><title>__len__ (vllm/v1/core/sched/request_queue.py:126) (5 samples, 0.17%)</title><rect x="12.2687%" y="244" width="0.1714%" height="15" fill="rgb(238,160,17)" fg:x="358" fg:w="5"/><text x="12.5187%" y="254.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:333) (74 samples, 2.54%)</title><rect x="10.5894%" y="212" width="2.5360%" height="15" fill="rgb(214,148,48)" fg:x="309" fg:w="74"/><text x="10.8394%" y="222.50">sc..</text></g><g><title>__bool__ (vllm/v1/core/sched/request_queue.py:124) (45 samples, 1.54%)</title><rect x="11.5833%" y="228" width="1.5422%" height="15" fill="rgb(232,36,49)" fg:x="338" fg:w="45"/><text x="11.8333%" y="238.50"></text></g><g><title>__len__ (vllm/v1/core/sched/request_queue.py:128) (20 samples, 0.69%)</title><rect x="12.4400%" y="244" width="0.6854%" height="15" fill="rgb(209,103,24)" fg:x="363" fg:w="20"/><text x="12.6900%" y="254.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:334) (10 samples, 0.34%)</title><rect x="13.1254%" y="212" width="0.3427%" height="15" fill="rgb(229,88,8)" fg:x="383" fg:w="10"/><text x="13.3754%" y="222.50"></text></g><g><title>peek_request (vllm/v1/core/sched/request_queue.py:94) (30 samples, 1.03%)</title><rect x="13.8451%" y="228" width="1.0281%" height="15" fill="rgb(213,181,19)" fg:x="404" fg:w="30"/><text x="14.0951%" y="238.50"></text></g><g><title>__bool__ (vllm/v1/core/sched/request_queue.py:124) (20 samples, 0.69%)</title><rect x="14.1878%" y="244" width="0.6854%" height="15" fill="rgb(254,191,54)" fg:x="414" fg:w="20"/><text x="14.4378%" y="254.50"></text></g><g><title>__len__ (vllm/v1/core/sched/request_queue.py:128) (8 samples, 0.27%)</title><rect x="14.5990%" y="260" width="0.2742%" height="15" fill="rgb(241,83,37)" fg:x="426" fg:w="8"/><text x="14.8490%" y="270.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:337) (45 samples, 1.54%)</title><rect x="13.4681%" y="212" width="1.5422%" height="15" fill="rgb(233,36,39)" fg:x="393" fg:w="45"/><text x="13.7181%" y="222.50"></text></g><g><title>peek_request (vllm/v1/core/sched/request_queue.py:96) (3 samples, 0.10%)</title><rect x="14.9075%" y="228" width="0.1028%" height="15" fill="rgb(226,3,54)" fg:x="435" fg:w="3"/><text x="15.1575%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:340) (19 samples, 0.65%)</title><rect x="15.0103%" y="212" width="0.6511%" height="15" fill="rgb(245,192,40)" fg:x="438" fg:w="19"/><text x="15.2603%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:354) (11 samples, 0.38%)</title><rect x="15.7300%" y="212" width="0.3770%" height="15" fill="rgb(238,167,29)" fg:x="459" fg:w="11"/><text x="15.9800%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:365) (4 samples, 0.14%)</title><rect x="16.1069%" y="212" width="0.1371%" height="15" fill="rgb(232,182,51)" fg:x="470" fg:w="4"/><text x="16.3569%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:374) (3 samples, 0.10%)</title><rect x="16.3125%" y="212" width="0.1028%" height="15" fill="rgb(231,60,39)" fg:x="476" fg:w="3"/><text x="16.5625%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:377) (5 samples, 0.17%)</title><rect x="16.4154%" y="212" width="0.1714%" height="15" fill="rgb(208,69,12)" fg:x="479" fg:w="5"/><text x="16.6654%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:379) (17 samples, 0.58%)</title><rect x="16.5867%" y="212" width="0.5826%" height="15" fill="rgb(235,93,37)" fg:x="484" fg:w="17"/><text x="16.8367%" y="222.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:159) (3 samples, 0.10%)</title><rect x="17.8204%" y="228" width="0.1028%" height="15" fill="rgb(213,116,39)" fg:x="520" fg:w="3"/><text x="18.0704%" y="238.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:160) (4 samples, 0.14%)</title><rect x="17.9232%" y="228" width="0.1371%" height="15" fill="rgb(222,207,29)" fg:x="523" fg:w="4"/><text x="18.1732%" y="238.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:166) (9 samples, 0.31%)</title><rect x="18.1289%" y="228" width="0.3084%" height="15" fill="rgb(206,96,30)" fg:x="529" fg:w="9"/><text x="18.3789%" y="238.50"></text></g><g><title>num_tokens (vllm/v1/request.py:152) (3 samples, 0.10%)</title><rect x="18.5744%" y="244" width="0.1028%" height="15" fill="rgb(218,138,4)" fg:x="542" fg:w="3"/><text x="18.8244%" y="254.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:179) (11 samples, 0.38%)</title><rect x="18.4373%" y="228" width="0.3770%" height="15" fill="rgb(250,191,14)" fg:x="538" fg:w="11"/><text x="18.6873%" y="238.50"></text></g><g><title>num_tokens (vllm/v1/request.py:154) (4 samples, 0.14%)</title><rect x="18.6772%" y="244" width="0.1371%" height="15" fill="rgb(239,60,40)" fg:x="545" fg:w="4"/><text x="18.9272%" y="254.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/single_type_kv_cache_manager.py:265) (11 samples, 0.38%)</title><rect x="21.0418%" y="260" width="0.3770%" height="15" fill="rgb(206,27,48)" fg:x="614" fg:w="11"/><text x="21.2918%" y="270.50"></text></g><g><title>&lt;genexpr&gt; (vllm/v1/core/single_type_kv_cache_manager.py:268) (16 samples, 0.55%)</title><rect x="22.9609%" y="276" width="0.5483%" height="15" fill="rgb(225,35,8)" fg:x="670" fg:w="16"/><text x="23.2109%" y="286.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/single_type_kv_cache_manager.py:268) (66 samples, 2.26%)</title><rect x="21.4188%" y="260" width="2.2618%" height="15" fill="rgb(250,213,24)" fg:x="625" fg:w="66"/><text x="21.6688%" y="270.50">f..</text></g><g><title>&lt;genexpr&gt; (vllm/v1/core/single_type_kv_cache_manager.py:269) (5 samples, 0.17%)</title><rect x="23.5093%" y="276" width="0.1714%" height="15" fill="rgb(247,123,22)" fg:x="686" fg:w="5"/><text x="23.7593%" y="286.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/single_type_kv_cache_manager.py:269) (11 samples, 0.38%)</title><rect x="23.6806%" y="260" width="0.3770%" height="15" fill="rgb(231,138,38)" fg:x="691" fg:w="11"/><text x="23.9306%" y="270.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/single_type_kv_cache_manager.py:270) (14 samples, 0.48%)</title><rect x="24.0576%" y="260" width="0.4798%" height="15" fill="rgb(231,145,46)" fg:x="702" fg:w="14"/><text x="24.3076%" y="270.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/single_type_kv_cache_manager.py:271) (41 samples, 1.41%)</title><rect x="24.5374%" y="260" width="1.4051%" height="15" fill="rgb(251,118,11)" fg:x="716" fg:w="41"/><text x="24.7874%" y="270.50"></text></g><g><title>get_cached_block (vllm/v1/core/block_pool.py:87) (5 samples, 0.17%)</title><rect x="26.3879%" y="276" width="0.1714%" height="15" fill="rgb(217,147,25)" fg:x="770" fg:w="5"/><text x="26.6379%" y="286.50"></text></g><g><title>get_cached_block (vllm/v1/core/block_pool.py:88) (8 samples, 0.27%)</title><rect x="26.5593%" y="276" width="0.2742%" height="15" fill="rgb(247,81,37)" fg:x="775" fg:w="8"/><text x="26.8093%" y="286.50"></text></g><g><title>get_cached_block (vllm/v1/core/block_pool.py:89) (116 samples, 3.98%)</title><rect x="26.8334%" y="276" width="3.9753%" height="15" fill="rgb(209,12,38)" fg:x="783" fg:w="116"/><text x="27.0834%" y="286.50">get_..</text></g><g><title>&lt;lambda&gt; (&lt;string&gt;:1) (50 samples, 1.71%)</title><rect x="29.0953%" y="292" width="1.7135%" height="15" fill="rgb(227,1,9)" fg:x="849" fg:w="50"/><text x="29.3453%" y="302.50"></text></g><g><title>get_cached_block (vllm/v1/core/block_pool.py:90) (6 samples, 0.21%)</title><rect x="30.8088%" y="276" width="0.2056%" height="15" fill="rgb(248,47,43)" fg:x="899" fg:w="6"/><text x="31.0588%" y="286.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/single_type_kv_cache_manager.py:275) (150 samples, 5.14%)</title><rect x="25.9424%" y="260" width="5.1405%" height="15" fill="rgb(221,10,30)" fg:x="757" fg:w="150"/><text x="26.1924%" y="270.50">find_l..</text></g><g><title>find_longest_cache_hit (vllm/v1/core/single_type_kv_cache_manager.py:277) (3 samples, 0.10%)</title><rect x="31.1515%" y="260" width="0.1028%" height="15" fill="rgb(210,229,1)" fg:x="909" fg:w="3"/><text x="31.4015%" y="270.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/kv_cache_coordinator.py:231) (353 samples, 12.10%)</title><rect x="19.2598%" y="244" width="12.0973%" height="15" fill="rgb(222,148,37)" fg:x="562" fg:w="353"/><text x="19.5098%" y="254.50">find_longest_cache..</text></g><g><title>find_longest_cache_hit (vllm/v1/core/kv_cache_coordinator.py:234) (4 samples, 0.14%)</title><rect x="31.3914%" y="244" width="0.1371%" height="15" fill="rgb(234,67,33)" fg:x="916" fg:w="4"/><text x="31.6414%" y="254.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/kv_cache_coordinator.py:235) (5 samples, 0.17%)</title><rect x="31.5284%" y="244" width="0.1714%" height="15" fill="rgb(247,98,35)" fg:x="920" fg:w="5"/><text x="31.7784%" y="254.50"></text></g><g><title>find_longest_cache_hit (vllm/v1/core/kv_cache_coordinator.py:236) (3 samples, 0.10%)</title><rect x="31.6998%" y="244" width="0.1028%" height="15" fill="rgb(247,138,52)" fg:x="925" fg:w="3"/><text x="31.9498%" y="254.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:181) (397 samples, 13.61%)</title><rect x="18.8828%" y="228" width="13.6052%" height="15" fill="rgb(213,79,30)" fg:x="551" fg:w="397"/><text x="19.1328%" y="238.50">get_computed_blocks (..</text></g><g><title>find_longest_cache_hit (vllm/v1/core/kv_cache_coordinator.py:239) (18 samples, 0.62%)</title><rect x="31.8711%" y="244" width="0.6169%" height="15" fill="rgb(246,177,23)" fg:x="930" fg:w="18"/><text x="32.1211%" y="254.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:182) (4 samples, 0.14%)</title><rect x="32.4880%" y="228" width="0.1371%" height="15" fill="rgb(230,62,27)" fg:x="948" fg:w="4"/><text x="32.7380%" y="238.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:184) (3 samples, 0.10%)</title><rect x="32.6251%" y="228" width="0.1028%" height="15" fill="rgb(216,154,8)" fg:x="952" fg:w="3"/><text x="32.8751%" y="238.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:186) (20 samples, 0.69%)</title><rect x="32.7964%" y="228" width="0.6854%" height="15" fill="rgb(244,35,45)" fg:x="957" fg:w="20"/><text x="33.0464%" y="238.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:187) (29 samples, 0.99%)</title><rect x="33.4818%" y="228" width="0.9938%" height="15" fill="rgb(251,115,12)" fg:x="977" fg:w="29"/><text x="33.7318%" y="238.50"></text></g><g><title>num_tokens (vllm/v1/request.py:154) (8 samples, 0.27%)</title><rect x="34.2015%" y="244" width="0.2742%" height="15" fill="rgb(240,54,50)" fg:x="998" fg:w="8"/><text x="34.4515%" y="254.50"></text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:188) (16 samples, 0.55%)</title><rect x="34.4757%" y="228" width="0.5483%" height="15" fill="rgb(233,84,52)" fg:x="1006" fg:w="16"/><text x="34.7257%" y="238.50"></text></g><g><title>__init__ (&lt;string&gt;:2) (3 samples, 0.10%)</title><rect x="36.0178%" y="244" width="0.1028%" height="15" fill="rgb(207,117,47)" fg:x="1051" fg:w="3"/><text x="36.2678%" y="254.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:380) (555 samples, 19.02%)</title><rect x="17.1693%" y="212" width="19.0199%" height="15" fill="rgb(249,43,39)" fg:x="501" fg:w="555"/><text x="17.4193%" y="222.50">schedule (vllm/v1/core/sched/s..</text></g><g><title>get_computed_blocks (vllm/v1/core/kv_cache_manager.py:190) (34 samples, 1.17%)</title><rect x="35.0240%" y="228" width="1.1652%" height="15" fill="rgb(209,38,44)" fg:x="1022" fg:w="34"/><text x="35.2740%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:384) (6 samples, 0.21%)</title><rect x="36.1892%" y="212" width="0.2056%" height="15" fill="rgb(236,212,23)" fg:x="1056" fg:w="6"/><text x="36.4392%" y="222.50"></text></g><g><title>num_tokens (vllm/v1/request.py:152) (3 samples, 0.10%)</title><rect x="36.8746%" y="228" width="0.1028%" height="15" fill="rgb(242,79,21)" fg:x="1076" fg:w="3"/><text x="37.1246%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:412) (18 samples, 0.62%)</title><rect x="36.5319%" y="212" width="0.6169%" height="15" fill="rgb(211,96,35)" fg:x="1066" fg:w="18"/><text x="36.7819%" y="222.50"></text></g><g><title>num_tokens (vllm/v1/request.py:154) (5 samples, 0.17%)</title><rect x="36.9774%" y="228" width="0.1714%" height="15" fill="rgb(253,215,40)" fg:x="1079" fg:w="5"/><text x="37.2274%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:413) (13 samples, 0.45%)</title><rect x="37.1487%" y="212" width="0.4455%" height="15" fill="rgb(211,81,21)" fg:x="1084" fg:w="13"/><text x="37.3987%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:420) (3 samples, 0.10%)</title><rect x="37.6285%" y="212" width="0.1028%" height="15" fill="rgb(208,190,38)" fg:x="1098" fg:w="3"/><text x="37.8785%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:422) (31 samples, 1.06%)</title><rect x="37.7656%" y="212" width="1.0624%" height="15" fill="rgb(235,213,38)" fg:x="1102" fg:w="31"/><text x="38.0156%" y="222.50"></text></g><g><title>pop_request (vllm/v1/core/sched/request_queue.py:90) (19 samples, 0.65%)</title><rect x="38.1768%" y="228" width="0.6511%" height="15" fill="rgb(237,122,38)" fg:x="1114" fg:w="19"/><text x="38.4268%" y="238.50"></text></g><g><title>prepend_request (vllm/v1/core/sched/request_queue.py:100) (9 samples, 0.31%)</title><rect x="39.0679%" y="228" width="0.3084%" height="15" fill="rgb(244,218,35)" fg:x="1140" fg:w="9"/><text x="39.3179%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:423) (20 samples, 0.69%)</title><rect x="38.8280%" y="212" width="0.6854%" height="15" fill="rgb(240,68,47)" fg:x="1133" fg:w="20"/><text x="39.0780%" y="222.50"></text></g><g><title>prepend_request (vllm/v1/core/sched/request_queue.py:98) (4 samples, 0.14%)</title><rect x="39.3763%" y="228" width="0.1371%" height="15" fill="rgb(210,16,53)" fg:x="1149" fg:w="4"/><text x="39.6263%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:510) (11 samples, 0.38%)</title><rect x="39.5134%" y="212" width="0.3770%" height="15" fill="rgb(235,124,12)" fg:x="1153" fg:w="11"/><text x="39.7634%" y="222.50"></text></g><g><title>__bool__ (vllm/v1/core/sched/request_queue.py:124) (5 samples, 0.17%)</title><rect x="39.7190%" y="228" width="0.1714%" height="15" fill="rgb(224,169,11)" fg:x="1159" fg:w="5"/><text x="39.9690%" y="238.50"></text></g><g><title>__len__ (vllm/v1/core/sched/request_queue.py:128) (3 samples, 0.10%)</title><rect x="39.7875%" y="244" width="0.1028%" height="15" fill="rgb(250,166,2)" fg:x="1161" fg:w="3"/><text x="40.0375%" y="254.50"></text></g><g><title>__reversed__ (vllm/v1/core/sched/request_queue.py:134) (3 samples, 0.10%)</title><rect x="41.0212%" y="244" width="0.1028%" height="15" fill="rgb(242,216,29)" fg:x="1197" fg:w="3"/><text x="41.2712%" y="254.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:511) (53 samples, 1.82%)</title><rect x="39.8903%" y="212" width="1.8163%" height="15" fill="rgb(230,116,27)" fg:x="1164" fg:w="53"/><text x="40.1403%" y="222.50">s..</text></g><g><title>prepend_requests (vllm/v1/core/sched/request_queue.py:105) (43 samples, 1.47%)</title><rect x="40.2330%" y="228" width="1.4736%" height="15" fill="rgb(228,99,48)" fg:x="1174" fg:w="43"/><text x="40.4830%" y="238.50"></text></g><g><title>__reversed__ (vllm/v1/core/sched/request_queue.py:136) (17 samples, 0.58%)</title><rect x="41.1241%" y="244" width="0.5826%" height="15" fill="rgb(253,11,6)" fg:x="1200" fg:w="17"/><text x="41.3741%" y="254.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:516) (3 samples, 0.10%)</title><rect x="41.8437%" y="212" width="0.1028%" height="15" fill="rgb(247,143,39)" fg:x="1221" fg:w="3"/><text x="42.0937%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:517) (6 samples, 0.21%)</title><rect x="41.9465%" y="212" width="0.2056%" height="15" fill="rgb(236,97,10)" fg:x="1224" fg:w="6"/><text x="42.1965%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:521) (7 samples, 0.24%)</title><rect x="42.1522%" y="212" width="0.2399%" height="15" fill="rgb(233,208,19)" fg:x="1230" fg:w="7"/><text x="42.4022%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:526) (9 samples, 0.31%)</title><rect x="42.4606%" y="212" width="0.3084%" height="15" fill="rgb(216,164,2)" fg:x="1239" fg:w="9"/><text x="42.7106%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:528) (3 samples, 0.10%)</title><rect x="42.8376%" y="212" width="0.1028%" height="15" fill="rgb(220,129,5)" fg:x="1250" fg:w="3"/><text x="43.0876%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:534) (8 samples, 0.27%)</title><rect x="42.9404%" y="212" width="0.2742%" height="15" fill="rgb(242,17,10)" fg:x="1253" fg:w="8"/><text x="43.1904%" y="222.50"></text></g><g><title>grammar_bitmask (vllm/v1/structured_output/__init__.py:161) (3 samples, 0.10%)</title><rect x="43.1117%" y="228" width="0.1028%" height="15" fill="rgb(242,107,0)" fg:x="1258" fg:w="3"/><text x="43.3617%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:540) (4 samples, 0.14%)</title><rect x="43.3173%" y="212" width="0.1371%" height="15" fill="rgb(251,28,31)" fg:x="1264" fg:w="4"/><text x="43.5673%" y="222.50"></text></g><g><title>_make_cached_request_data (vllm/v1/core/sched/scheduler.py:617) (3 samples, 0.10%)</title><rect x="43.7629%" y="228" width="0.1028%" height="15" fill="rgb(233,223,10)" fg:x="1277" fg:w="3"/><text x="44.0129%" y="238.50"></text></g><g><title>_make_cached_request_data (vllm/v1/core/sched/scheduler.py:631) (26 samples, 0.89%)</title><rect x="43.9685%" y="228" width="0.8910%" height="15" fill="rgb(215,21,27)" fg:x="1283" fg:w="26"/><text x="44.2185%" y="238.50"></text></g><g><title>_make_cached_request_data (vllm/v1/core/sched/scheduler.py:654) (15 samples, 0.51%)</title><rect x="44.8595%" y="228" width="0.5141%" height="15" fill="rgb(232,23,21)" fg:x="1309" fg:w="15"/><text x="45.1095%" y="238.50"></text></g><g><title>_make_cached_request_data (vllm/v1/core/sched/scheduler.py:655) (13 samples, 0.45%)</title><rect x="45.3735%" y="228" width="0.4455%" height="15" fill="rgb(244,5,23)" fg:x="1324" fg:w="13"/><text x="45.6235%" y="238.50"></text></g><g><title>__init__ (&lt;string&gt;:3) (6 samples, 0.21%)</title><rect x="47.0185%" y="244" width="0.2056%" height="15" fill="rgb(226,81,46)" fg:x="1372" fg:w="6"/><text x="47.2685%" y="254.50"></text></g><g><title>_make_cached_request_data (vllm/v1/core/sched/scheduler.py:657) (46 samples, 1.58%)</title><rect x="45.8191%" y="228" width="1.5764%" height="15" fill="rgb(247,70,30)" fg:x="1337" fg:w="46"/><text x="46.0691%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:545) (114 samples, 3.91%)</title><rect x="43.5230%" y="212" width="3.9068%" height="15" fill="rgb(212,68,19)" fg:x="1270" fg:w="114"/><text x="43.7730%" y="222.50">sche..</text></g><g><title>__init__ (&lt;string&gt;:14) (3 samples, 0.10%)</title><rect x="50.0000%" y="228" width="0.1028%" height="15" fill="rgb(240,187,13)" fg:x="1459" fg:w="3"/><text x="50.2500%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:552) (86 samples, 2.95%)</title><rect x="47.4640%" y="212" width="2.9472%" height="15" fill="rgb(223,113,26)" fg:x="1385" fg:w="86"/><text x="47.7140%" y="222.50">sc..</text></g><g><title>get_freed_ids (vllm/v1/core/encoder_cache_manager.py:167) (4 samples, 0.14%)</title><rect x="50.7539%" y="228" width="0.1371%" height="15" fill="rgb(206,192,2)" fg:x="1481" fg:w="4"/><text x="51.0039%" y="238.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:565) (11 samples, 0.38%)</title><rect x="50.5483%" y="212" width="0.3770%" height="15" fill="rgb(241,108,4)" fg:x="1475" fg:w="11"/><text x="50.7983%" y="222.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:578) (17 samples, 0.58%)</title><rect x="50.9938%" y="212" width="0.5826%" height="15" fill="rgb(247,173,49)" fg:x="1488" fg:w="17"/><text x="51.2438%" y="222.50"></text></g><g><title>take_events (vllm/v1/core/kv_cache_manager.py:390) (8 samples, 0.27%)</title><rect x="51.3023%" y="228" width="0.2742%" height="15" fill="rgb(224,114,35)" fg:x="1497" fg:w="8"/><text x="51.5523%" y="238.50"></text></g><g><title>take_events (vllm/v1/core/block_pool.py:350) (3 samples, 0.10%)</title><rect x="51.4736%" y="244" width="0.1028%" height="15" fill="rgb(245,159,27)" fg:x="1502" fg:w="3"/><text x="51.7236%" y="254.50"></text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:579) (3 samples, 0.10%)</title><rect x="51.5764%" y="212" width="0.1028%" height="15" fill="rgb(245,172,44)" fg:x="1505" fg:w="3"/><text x="51.8264%" y="222.50"></text></g><g><title>_update_after_schedule (vllm/v1/core/sched/scheduler.py:600) (9 samples, 0.31%)</title><rect x="51.8849%" y="228" width="0.3084%" height="15" fill="rgb(236,23,11)" fg:x="1514" fg:w="9"/><text x="52.1349%" y="238.50"></text></g><g><title>step (vllm/v1/engine/core.py:272) (1,342 samples, 45.99%)</title><rect x="6.5798%" y="196" width="45.9904%" height="15" fill="rgb(205,117,38)" fg:x="192" fg:w="1342"/><text x="6.8298%" y="206.50">step (vllm/v1/engine/core.py:272)</text></g><g><title>schedule (vllm/v1/core/sched/scheduler.py:583) (26 samples, 0.89%)</title><rect x="51.6792%" y="212" width="0.8910%" height="15" fill="rgb(237,72,25)" fg:x="1508" fg:w="26"/><text x="51.9292%" y="222.50"></text></g><g><title>_update_after_schedule (vllm/v1/core/sched/scheduler.py:615) (11 samples, 0.38%)</title><rect x="52.1933%" y="228" width="0.3770%" height="15" fill="rgb(244,70,9)" fg:x="1523" fg:w="11"/><text x="52.4433%" y="238.50"></text></g><g><title>collective_rpc (vllm/executor/uniproc_executor.py:57) (5 samples, 0.17%)</title><rect x="53.7354%" y="244" width="0.1714%" height="15" fill="rgb(217,125,39)" fg:x="1568" fg:w="5"/><text x="53.9854%" y="254.50"></text></g><g><title>run_method (vllm/utils/__init__.py:2929) (3 samples, 0.10%)</title><rect x="54.1124%" y="260" width="0.1028%" height="15" fill="rgb(235,36,10)" fg:x="1579" fg:w="3"/><text x="54.3624%" y="270.50"></text></g><g><title>run_method (vllm/utils/__init__.py:2938) (5 samples, 0.17%)</title><rect x="54.2152%" y="260" width="0.1714%" height="15" fill="rgb(251,123,47)" fg:x="1582" fg:w="5"/><text x="54.4652%" y="270.50"></text></g><g><title>run_method (vllm/utils/__init__.py:2940) (3 samples, 0.10%)</title><rect x="54.3866%" y="260" width="0.1028%" height="15" fill="rgb(221,13,13)" fg:x="1587" fg:w="3"/><text x="54.6366%" y="270.50"></text></g><g><title>run_method (vllm/utils/__init__.py:2942) (22 samples, 0.75%)</title><rect x="54.5579%" y="260" width="0.7539%" height="15" fill="rgb(238,131,9)" fg:x="1592" fg:w="22"/><text x="54.8079%" y="270.50"></text></g><g><title>__getattr__ (vllm/worker/worker_base.py:676) (13 samples, 0.45%)</title><rect x="54.8663%" y="276" width="0.4455%" height="15" fill="rgb(211,50,8)" fg:x="1601" fg:w="13"/><text x="55.1163%" y="286.50"></text></g><g><title>decorate_context (torch/utils/_contextlib.py:117) (5 samples, 0.17%)</title><rect x="55.8944%" y="276" width="0.1714%" height="15" fill="rgb(245,182,24)" fg:x="1631" fg:w="5"/><text x="56.1444%" y="286.50"></text></g><g><title>__enter__ (torch/autograd/grad_mode.py:284) (58 samples, 1.99%)</title><rect x="57.7450%" y="292" width="1.9877%" height="15" fill="rgb(242,14,37)" fg:x="1685" fg:w="58"/><text x="57.9950%" y="302.50">_..</text></g><g><title>__enter__ (torch/autograd/grad_mode.py:285) (38 samples, 1.30%)</title><rect x="59.7327%" y="292" width="1.3023%" height="15" fill="rgb(246,228,12)" fg:x="1743" fg:w="38"/><text x="59.9827%" y="302.50"></text></g><g><title>__exit__ (torch/autograd/grad_mode.py:287) (3 samples, 0.10%)</title><rect x="61.0350%" y="292" width="0.1028%" height="15" fill="rgb(213,55,15)" fg:x="1781" fg:w="3"/><text x="61.2850%" y="302.50"></text></g><g><title>__exit__ (torch/autograd/grad_mode.py:288) (48 samples, 1.64%)</title><rect x="61.1378%" y="292" width="1.6450%" height="15" fill="rgb(209,9,3)" fg:x="1784" fg:w="48"/><text x="61.3878%" y="302.50"></text></g><g><title>__init__ (torch/autograd/grad_mode.py:274) (14 samples, 0.48%)</title><rect x="63.3310%" y="308" width="0.4798%" height="15" fill="rgb(230,59,30)" fg:x="1848" fg:w="14"/><text x="63.5810%" y="318.50"></text></g><g><title>__init__ (torch/autograd/grad_mode.py:275) (8 samples, 0.27%)</title><rect x="63.8108%" y="308" width="0.2742%" height="15" fill="rgb(209,121,21)" fg:x="1862" fg:w="8"/><text x="64.0608%" y="318.50"></text></g><g><title>__new__ (torch/autograd/grad_mode.py:278) (5 samples, 0.17%)</title><rect x="64.1535%" y="308" width="0.1714%" height="15" fill="rgb(220,109,13)" fg:x="1872" fg:w="5"/><text x="64.4035%" y="318.50"></text></g><g><title>__new__ (torch/autograd/grad_mode.py:279) (5 samples, 0.17%)</title><rect x="64.3249%" y="308" width="0.1714%" height="15" fill="rgb(232,18,1)" fg:x="1877" fg:w="5"/><text x="64.5749%" y="318.50"></text></g><g><title>decorate_context (torch/utils/_contextlib.py:119) (259 samples, 8.88%)</title><rect x="56.0658%" y="276" width="8.8759%" height="15" fill="rgb(215,41,42)" fg:x="1636" fg:w="259"/><text x="56.3158%" y="286.50">decorate_cont..</text></g><g><title>clone (torch/autograd/grad_mode.py:294) (63 samples, 2.16%)</title><rect x="62.7827%" y="292" width="2.1590%" height="15" fill="rgb(224,123,36)" fg:x="1832" fg:w="63"/><text x="63.0327%" y="302.50">c..</text></g><g><title>__new__ (torch/autograd/grad_mode.py:280) (13 samples, 0.45%)</title><rect x="64.4962%" y="308" width="0.4455%" height="15" fill="rgb(240,125,3)" fg:x="1882" fg:w="13"/><text x="64.7462%" y="318.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:650) (21 samples, 0.72%)</title><rect x="65.4901%" y="292" width="0.7197%" height="15" fill="rgb(205,98,50)" fg:x="1911" fg:w="21"/><text x="65.7401%" y="302.50"></text></g><g><title>encode (&lt;frozen os&gt;:791) (3 samples, 0.10%)</title><rect x="67.5463%" y="356" width="0.1028%" height="15" fill="rgb(205,185,37)" fg:x="1971" fg:w="3"/><text x="67.7963%" y="366.50"></text></g><g><title>__getitem__ (&lt;frozen os&gt;:711) (29 samples, 0.99%)</title><rect x="66.9637%" y="340" width="0.9938%" height="15" fill="rgb(238,207,15)" fg:x="1954" fg:w="29"/><text x="67.2137%" y="350.50"></text></g><g><title>encode (&lt;frozen os&gt;:794) (8 samples, 0.27%)</title><rect x="67.6833%" y="356" width="0.2742%" height="15" fill="rgb(213,199,42)" fg:x="1975" fg:w="8"/><text x="67.9333%" y="366.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:651) (67 samples, 2.30%)</title><rect x="66.2097%" y="292" width="2.2961%" height="15" fill="rgb(235,201,11)" fg:x="1932" fg:w="67"/><text x="66.4597%" y="302.50">e..</text></g><g><title>_hybrid_profile_enabled (vllm/v1/worker/cpu_worker.py:50) (65 samples, 2.23%)</title><rect x="66.2783%" y="308" width="2.2276%" height="15" fill="rgb(207,46,11)" fg:x="1934" fg:w="65"/><text x="66.5283%" y="318.50">_..</text></g><g><title>get (&lt;frozen _collections_abc&gt;:807) (50 samples, 1.71%)</title><rect x="66.7923%" y="324" width="1.7135%" height="15" fill="rgb(241,35,35)" fg:x="1949" fg:w="50"/><text x="67.0423%" y="334.50"></text></g><g><title>__getitem__ (&lt;frozen os&gt;:715) (16 samples, 0.55%)</title><rect x="67.9575%" y="340" width="0.5483%" height="15" fill="rgb(243,32,47)" fg:x="1983" fg:w="16"/><text x="68.2075%" y="350.50"></text></g><g><title>decode (&lt;frozen os&gt;:796) (11 samples, 0.38%)</title><rect x="68.1289%" y="356" width="0.3770%" height="15" fill="rgb(247,202,23)" fg:x="1988" fg:w="11"/><text x="68.3789%" y="366.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:653) (7 samples, 0.24%)</title><rect x="68.5401%" y="292" width="0.2399%" height="15" fill="rgb(219,102,11)" fg:x="2000" fg:w="7"/><text x="68.7901%" y="302.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:654) (3 samples, 0.10%)</title><rect x="68.7800%" y="292" width="0.1028%" height="15" fill="rgb(243,110,44)" fg:x="2007" fg:w="3"/><text x="69.0300%" y="302.50"></text></g><g><title>__getitem__ (&lt;frozen os&gt;:711) (25 samples, 0.86%)</title><rect x="69.7053%" y="324" width="0.8568%" height="15" fill="rgb(222,74,54)" fg:x="2034" fg:w="25"/><text x="69.9553%" y="334.50"></text></g><g><title>encode (&lt;frozen os&gt;:794) (6 samples, 0.21%)</title><rect x="70.3564%" y="340" width="0.2056%" height="15" fill="rgb(216,99,12)" fg:x="2053" fg:w="6"/><text x="70.6064%" y="350.50"></text></g><g><title>decode (&lt;frozen os&gt;:795) (3 samples, 0.10%)</title><rect x="70.6306%" y="340" width="0.1028%" height="15" fill="rgb(226,22,26)" fg:x="2061" fg:w="3"/><text x="70.8806%" y="350.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:657) (62 samples, 2.12%)</title><rect x="68.9513%" y="292" width="2.1247%" height="15" fill="rgb(217,163,10)" fg:x="2012" fg:w="62"/><text x="69.2013%" y="302.50">e..</text></g><g><title>get (&lt;frozen _collections_abc&gt;:807) (44 samples, 1.51%)</title><rect x="69.5682%" y="308" width="1.5079%" height="15" fill="rgb(213,25,53)" fg:x="2030" fg:w="44"/><text x="69.8182%" y="318.50"></text></g><g><title>__getitem__ (&lt;frozen os&gt;:715) (15 samples, 0.51%)</title><rect x="70.5620%" y="324" width="0.5141%" height="15" fill="rgb(252,105,26)" fg:x="2059" fg:w="15"/><text x="70.8120%" y="334.50"></text></g><g><title>decode (&lt;frozen os&gt;:796) (10 samples, 0.34%)</title><rect x="70.7334%" y="340" width="0.3427%" height="15" fill="rgb(220,39,43)" fg:x="2064" fg:w="10"/><text x="70.9834%" y="350.50"></text></g><g><title>__getitem__ (&lt;frozen os&gt;:711) (27 samples, 0.93%)</title><rect x="71.4873%" y="324" width="0.9253%" height="15" fill="rgb(229,68,48)" fg:x="2086" fg:w="27"/><text x="71.7373%" y="334.50"></text></g><g><title>encode (&lt;frozen os&gt;:794) (8 samples, 0.27%)</title><rect x="72.1385%" y="340" width="0.2742%" height="15" fill="rgb(252,8,32)" fg:x="2105" fg:w="8"/><text x="72.3885%" y="350.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:670) (44 samples, 1.51%)</title><rect x="71.1789%" y="292" width="1.5079%" height="15" fill="rgb(223,20,43)" fg:x="2077" fg:w="44"/><text x="71.4289%" y="302.50"></text></g><g><title>get (&lt;frozen _collections_abc&gt;:807) (39 samples, 1.34%)</title><rect x="71.3502%" y="308" width="1.3365%" height="15" fill="rgb(229,81,49)" fg:x="2082" fg:w="39"/><text x="71.6002%" y="318.50"></text></g><g><title>__getitem__ (&lt;frozen os&gt;:715) (8 samples, 0.27%)</title><rect x="72.4126%" y="324" width="0.2742%" height="15" fill="rgb(236,28,36)" fg:x="2113" fg:w="8"/><text x="72.6626%" y="334.50"></text></g><g><title>decode (&lt;frozen os&gt;:796) (3 samples, 0.10%)</title><rect x="72.5840%" y="340" width="0.1028%" height="15" fill="rgb(249,185,26)" fg:x="2118" fg:w="3"/><text x="72.8340%" y="350.50"></text></g><g><title>get_pp_group (vllm/distributed/parallel_state.py:1101) (3 samples, 0.10%)</title><rect x="73.0637%" y="308" width="0.1028%" height="15" fill="rgb(249,174,33)" fg:x="2132" fg:w="3"/><text x="73.3137%" y="318.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:713) (14 samples, 0.48%)</title><rect x="72.9952%" y="292" width="0.4798%" height="15" fill="rgb(233,201,37)" fg:x="2130" fg:w="14"/><text x="73.2452%" y="302.50"></text></g><g><title>is_first_rank (vllm/distributed/parallel_state.py:373) (6 samples, 0.21%)</title><rect x="73.2694%" y="308" width="0.2056%" height="15" fill="rgb(221,78,26)" fg:x="2138" fg:w="6"/><text x="73.5194%" y="318.50"></text></g><g><title>first_rank (vllm/distributed/parallel_state.py:363) (5 samples, 0.17%)</title><rect x="73.3036%" y="324" width="0.1714%" height="15" fill="rgb(250,127,30)" fg:x="2139" fg:w="5"/><text x="73.5536%" y="334.50"></text></g><g><title>decorate_context (torch/utils/_contextlib.py:117) (4 samples, 0.14%)</title><rect x="74.0576%" y="308" width="0.1371%" height="15" fill="rgb(230,49,44)" fg:x="2161" fg:w="4"/><text x="74.3076%" y="318.50"></text></g><g><title>__enter__ (torch/autograd/grad_mode.py:284) (61 samples, 2.09%)</title><rect x="75.8396%" y="324" width="2.0905%" height="15" fill="rgb(229,67,23)" fg:x="2213" fg:w="61"/><text x="76.0896%" y="334.50">_..</text></g><g><title>__enter__ (torch/autograd/grad_mode.py:285) (31 samples, 1.06%)</title><rect x="77.9301%" y="324" width="1.0624%" height="15" fill="rgb(249,83,47)" fg:x="2274" fg:w="31"/><text x="78.1801%" y="334.50"></text></g><g><title>__exit__ (torch/autograd/grad_mode.py:288) (45 samples, 1.54%)</title><rect x="78.9925%" y="324" width="1.5422%" height="15" fill="rgb(215,43,3)" fg:x="2305" fg:w="45"/><text x="79.2425%" y="334.50"></text></g><g><title>__init__ (torch/autograd/grad_mode.py:273) (3 samples, 0.10%)</title><rect x="80.8773%" y="340" width="0.1028%" height="15" fill="rgb(238,154,13)" fg:x="2360" fg:w="3"/><text x="81.1273%" y="350.50"></text></g><g><title>__init__ (torch/autograd/grad_mode.py:274) (11 samples, 0.38%)</title><rect x="80.9801%" y="340" width="0.3770%" height="15" fill="rgb(219,56,2)" fg:x="2363" fg:w="11"/><text x="81.2301%" y="350.50"></text></g><g><title>__init__ (torch/autograd/grad_mode.py:275) (10 samples, 0.34%)</title><rect x="81.3571%" y="340" width="0.3427%" height="15" fill="rgb(233,0,4)" fg:x="2374" fg:w="10"/><text x="81.6071%" y="350.50"></text></g><g><title>__new__ (torch/autograd/grad_mode.py:278) (4 samples, 0.14%)</title><rect x="81.6998%" y="340" width="0.1371%" height="15" fill="rgb(235,30,7)" fg:x="2384" fg:w="4"/><text x="81.9498%" y="350.50"></text></g><g><title>decorate_context (torch/utils/_contextlib.py:119) (236 samples, 8.09%)</title><rect x="74.1947%" y="308" width="8.0877%" height="15" fill="rgb(250,79,13)" fg:x="2165" fg:w="236"/><text x="74.4447%" y="318.50">decorate_co..</text></g><g><title>clone (torch/autograd/grad_mode.py:294) (50 samples, 1.71%)</title><rect x="80.5689%" y="324" width="1.7135%" height="15" fill="rgb(211,146,34)" fg:x="2351" fg:w="50"/><text x="80.8189%" y="334.50"></text></g><g><title>__new__ (torch/autograd/grad_mode.py:280) (12 samples, 0.41%)</title><rect x="81.8711%" y="340" width="0.4112%" height="15" fill="rgb(228,22,38)" fg:x="2389" fg:w="12"/><text x="82.1211%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:414) (9 samples, 0.31%)</title><rect x="83.2077%" y="340" width="0.3084%" height="15" fill="rgb(235,168,5)" fg:x="2428" fg:w="9"/><text x="83.4577%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:423) (10 samples, 0.34%)</title><rect x="83.5161%" y="340" width="0.3427%" height="15" fill="rgb(221,155,16)" fg:x="2437" fg:w="10"/><text x="83.7661%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:427) (4 samples, 0.14%)</title><rect x="83.8588%" y="340" width="0.1371%" height="15" fill="rgb(215,215,53)" fg:x="2447" fg:w="4"/><text x="84.1088%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:439) (3 samples, 0.10%)</title><rect x="83.9959%" y="340" width="0.1028%" height="15" fill="rgb(223,4,10)" fg:x="2451" fg:w="3"/><text x="84.2459%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:440) (11 samples, 0.38%)</title><rect x="84.0987%" y="340" width="0.3770%" height="15" fill="rgb(234,103,6)" fg:x="2454" fg:w="11"/><text x="84.3487%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:441) (11 samples, 0.38%)</title><rect x="84.4757%" y="340" width="0.3770%" height="15" fill="rgb(227,97,0)" fg:x="2465" fg:w="11"/><text x="84.7257%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:446) (8 samples, 0.27%)</title><rect x="84.8526%" y="340" width="0.2742%" height="15" fill="rgb(234,150,53)" fg:x="2476" fg:w="8"/><text x="85.1026%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:451) (10 samples, 0.34%)</title><rect x="85.1268%" y="340" width="0.3427%" height="15" fill="rgb(228,201,54)" fg:x="2484" fg:w="10"/><text x="85.3768%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:525) (16 samples, 0.55%)</title><rect x="85.4695%" y="340" width="0.5483%" height="15" fill="rgb(222,22,37)" fg:x="2494" fg:w="16"/><text x="85.7195%" y="350.50"></text></g><g><title>is_last_rank (vllm/distributed/parallel_state.py:378) (12 samples, 0.41%)</title><rect x="85.6066%" y="356" width="0.4112%" height="15" fill="rgb(237,53,32)" fg:x="2498" fg:w="12"/><text x="85.8566%" y="366.50"></text></g><g><title>last_rank (vllm/distributed/parallel_state.py:368) (6 samples, 0.21%)</title><rect x="85.8122%" y="372" width="0.2056%" height="15" fill="rgb(233,25,53)" fg:x="2504" fg:w="6"/><text x="86.0622%" y="382.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:526) (5 samples, 0.17%)</title><rect x="86.0178%" y="340" width="0.1714%" height="15" fill="rgb(210,40,34)" fg:x="2510" fg:w="5"/><text x="86.2678%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:527) (20 samples, 0.69%)</title><rect x="86.1892%" y="340" width="0.6854%" height="15" fill="rgb(241,220,44)" fg:x="2515" fg:w="20"/><text x="86.4392%" y="350.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:603) (5 samples, 0.17%)</title><rect x="86.8746%" y="340" width="0.1714%" height="15" fill="rgb(235,28,35)" fg:x="2535" fg:w="5"/><text x="87.1246%" y="350.50"></text></g><g><title>_ensure_removed_sorted (vllm/v1/sample/logits_processor.py:103) (6 samples, 0.21%)</title><rect x="87.8684%" y="388" width="0.2056%" height="15" fill="rgb(210,56,17)" fg:x="2564" fg:w="6"/><text x="88.1184%" y="398.50"></text></g><g><title>removed (vllm/v1/sample/logits_processor.py:110) (9 samples, 0.31%)</title><rect x="87.7999%" y="372" width="0.3084%" height="15" fill="rgb(224,130,29)" fg:x="2562" fg:w="9"/><text x="88.0499%" y="382.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:608) (33 samples, 1.13%)</title><rect x="87.0459%" y="340" width="1.1309%" height="15" fill="rgb(235,212,8)" fg:x="2540" fg:w="33"/><text x="87.2959%" y="350.50"></text></g><g><title>condense (vllm/v1/worker/gpu_input_batch.py:507) (25 samples, 0.86%)</title><rect x="87.3201%" y="356" width="0.8568%" height="15" fill="rgb(223,33,50)" fg:x="2548" fg:w="25"/><text x="87.5701%" y="366.50"></text></g><g><title>_may_reorder_batch (vllm/v1/worker/cpu_model_runner.py:105) (6 samples, 0.21%)</title><rect x="88.4167%" y="356" width="0.2056%" height="15" fill="rgb(219,149,13)" fg:x="2580" fg:w="6"/><text x="88.6667%" y="366.50"></text></g><g><title>_may_reorder_batch (vllm/v1/worker/cpu_model_runner.py:108) (7 samples, 0.24%)</title><rect x="88.6566%" y="356" width="0.2399%" height="15" fill="rgb(250,156,29)" fg:x="2587" fg:w="7"/><text x="88.9066%" y="366.50"></text></g><g><title>reorder_batch (vllm/v1/attention/backends/cpu_attn.py:408) (11 samples, 0.38%)</title><rect x="89.5134%" y="372" width="0.3770%" height="15" fill="rgb(216,193,19)" fg:x="2612" fg:w="11"/><text x="89.7634%" y="382.50"></text></g><g><title>reorder_batch (vllm/v1/attention/backends/cpu_attn.py:418) (4 samples, 0.14%)</title><rect x="89.8903%" y="372" width="0.1371%" height="15" fill="rgb(216,135,14)" fg:x="2623" fg:w="4"/><text x="90.1403%" y="382.50"></text></g><g><title>reorder_batch (vllm/v1/attention/backends/cpu_attn.py:424) (8 samples, 0.27%)</title><rect x="90.0960%" y="372" width="0.2742%" height="15" fill="rgb(241,47,5)" fg:x="2629" fg:w="8"/><text x="90.3460%" y="382.50"></text></g><g><title>_may_reorder_batch (vllm/v1/worker/cpu_model_runner.py:115) (40 samples, 1.37%)</title><rect x="89.0336%" y="356" width="1.3708%" height="15" fill="rgb(233,42,35)" fg:x="2598" fg:w="40"/><text x="89.2836%" y="366.50"></text></g><g><title>_may_reorder_batch (vllm/v1/worker/cpu_model_runner.py:116) (4 samples, 0.14%)</title><rect x="90.4044%" y="356" width="0.1371%" height="15" fill="rgb(231,13,6)" fg:x="2638" fg:w="4"/><text x="90.6544%" y="366.50"></text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:610) (72 samples, 2.47%)</title><rect x="88.1768%" y="340" width="2.4674%" height="15" fill="rgb(207,181,40)" fg:x="2573" fg:w="72"/><text x="88.4268%" y="350.50">_u..</text></g><g><title>_may_reorder_batch (vllm/v1/worker/cpu_model_runner.py:88) (3 samples, 0.10%)</title><rect x="90.5415%" y="356" width="0.1028%" height="15" fill="rgb(254,173,49)" fg:x="2642" fg:w="3"/><text x="90.7915%" y="366.50"></text></g><g><title>get_and_reset (vllm/v1/sample/logits_processor.py:158) (25 samples, 0.86%)</title><rect x="91.1241%" y="372" width="0.8568%" height="15" fill="rgb(221,1,38)" fg:x="2659" fg:w="25"/><text x="91.3741%" y="382.50"></text></g><g><title>refresh_metadata (vllm/v1/worker/gpu_input_batch.py:599) (37 samples, 1.27%)</title><rect x="90.8156%" y="356" width="1.2680%" height="15" fill="rgb(206,124,46)" fg:x="2650" fg:w="37"/><text x="91.0656%" y="366.50"></text></g><g><title>refresh_metadata (vllm/v1/worker/gpu_input_batch.py:600) (33 samples, 1.13%)</title><rect x="92.0836%" y="356" width="1.1309%" height="15" fill="rgb(249,21,11)" fg:x="2687" fg:w="33"/><text x="92.3336%" y="366.50"></text></g><g><title>all (vllm/v1/sample/logits_processor.py:219) (7 samples, 0.24%)</title><rect x="92.9746%" y="372" width="0.2399%" height="15" fill="rgb(222,201,40)" fg:x="2713" fg:w="7"/><text x="93.2246%" y="382.50"></text></g><g><title>update_state (vllm/v1/sample/logits_processor.py:422) (4 samples, 0.14%)</title><rect x="94.1056%" y="372" width="0.1371%" height="15" fill="rgb(235,61,29)" fg:x="2746" fg:w="4"/><text x="94.3556%" y="382.50"></text></g><g><title>refresh_metadata (vllm/v1/worker/gpu_input_batch.py:601) (34 samples, 1.17%)</title><rect x="93.2145%" y="356" width="1.1652%" height="15" fill="rgb(219,207,3)" fg:x="2720" fg:w="34"/><text x="93.4645%" y="366.50"></text></g><g><title>execute_model (vllm/v1/worker/gpu_model_runner.py:1483) (342 samples, 11.72%)</title><rect x="82.6936%" y="324" width="11.7204%" height="15" fill="rgb(222,56,46)" fg:x="2413" fg:w="342"/><text x="82.9436%" y="334.50">execute_model (vl..</text></g><g><title>_update_states (vllm/v1/worker/gpu_model_runner.py:612) (110 samples, 3.77%)</title><rect x="90.6443%" y="340" width="3.7697%" height="15" fill="rgb(239,76,54)" fg:x="2645" fg:w="110"/><text x="90.8943%" y="350.50">_upd..</text></g><g><title>execute_model (vllm/v1/worker/gpu_model_runner.py:1484) (6 samples, 0.21%)</title><rect x="94.4140%" y="324" width="0.2056%" height="15" fill="rgb(231,124,27)" fg:x="2755" fg:w="6"/><text x="94.6640%" y="334.50"></text></g><g><title>execute_model (vllm/v1/worker/gpu_model_runner.py:1485) (7 samples, 0.24%)</title><rect x="94.6196%" y="324" width="0.2399%" height="15" fill="rgb(249,195,6)" fg:x="2761" fg:w="7"/><text x="94.8696%" y="334.50"></text></g><g><title>has_kv_transfer_group (vllm/distributed/kv_transfer/kv_transfer_state.py:24) (4 samples, 0.14%)</title><rect x="94.7224%" y="340" width="0.1371%" height="15" fill="rgb(237,174,47)" fg:x="2764" fg:w="4"/><text x="94.9724%" y="350.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:718) (625 samples, 21.42%)</title><rect x="73.4750%" y="292" width="21.4188%" height="15" fill="rgb(206,201,31)" fg:x="2144" fg:w="625"/><text x="73.7250%" y="302.50">execute_model (vllm/v1/worker/cpu_..</text></g><g><title>decorate_context (torch/utils/_contextlib.py:120) (368 samples, 12.61%)</title><rect x="82.2824%" y="308" width="12.6114%" height="15" fill="rgb(231,57,52)" fg:x="2401" fg:w="368"/><text x="82.5324%" y="318.50">decorate_context (t..</text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:757) (3 samples, 0.10%)</title><rect x="94.8938%" y="292" width="0.1028%" height="15" fill="rgb(248,177,22)" fg:x="2769" fg:w="3"/><text x="95.1438%" y="302.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:766) (3 samples, 0.10%)</title><rect x="94.9966%" y="292" width="0.1028%" height="15" fill="rgb(215,211,37)" fg:x="2772" fg:w="3"/><text x="95.2466%" y="302.50"></text></g><g><title>execute_model (vllm/v1/worker/cpu_worker.py:768) (16 samples, 0.55%)</title><rect x="95.0994%" y="292" width="0.5483%" height="15" fill="rgb(241,128,51)" fg:x="2775" fg:w="16"/><text x="95.3494%" y="302.50"></text></g><g><title>is_last_rank (vllm/distributed/parallel_state.py:378) (7 samples, 0.24%)</title><rect x="95.4078%" y="308" width="0.2399%" height="15" fill="rgb(227,165,31)" fg:x="2784" fg:w="7"/><text x="95.6578%" y="318.50"></text></g><g><title>last_rank (vllm/distributed/parallel_state.py:368) (3 samples, 0.10%)</title><rect x="95.5449%" y="324" width="0.1028%" height="15" fill="rgb(228,167,24)" fg:x="2788" fg:w="3"/><text x="95.7949%" y="334.50"></text></g><g><title>collective_rpc (vllm/executor/uniproc_executor.py:58) (1,222 samples, 41.88%)</title><rect x="53.9068%" y="244" width="41.8780%" height="15" fill="rgb(228,143,12)" fg:x="1573" fg:w="1222"/><text x="54.1568%" y="254.50">collective_rpc (vllm/executor/uniproc_executor.py:58)</text></g><g><title>run_method (vllm/utils/__init__.py:2948) (1,180 samples, 40.44%)</title><rect x="55.3461%" y="260" width="40.4387%" height="15" fill="rgb(249,149,8)" fg:x="1615" fg:w="1180"/><text x="55.5961%" y="270.50">run_method (vllm/utils/__init__.py:2948)</text></g><g><title>decorate_context (torch/utils/_contextlib.py:120) (900 samples, 30.84%)</title><rect x="64.9417%" y="276" width="30.8430%" height="15" fill="rgb(243,35,44)" fg:x="1895" fg:w="900"/><text x="65.1917%" y="286.50">decorate_context (torch/utils/_contextlib.py:120)</text></g><g><title>execute_model (vllm/v1/executor/abstract.py:87) (1,243 samples, 42.60%)</title><rect x="53.2557%" y="228" width="42.5977%" height="15" fill="rgb(246,89,9)" fg:x="1554" fg:w="1243"/><text x="53.5057%" y="238.50">execute_model (vllm/v1/executor/abstract.py:87)</text></g><g><title>step (vllm/v1/engine/core.py:273) (1,267 samples, 43.42%)</title><rect x="52.5703%" y="196" width="43.4202%" height="15" fill="rgb(233,213,13)" fg:x="1534" fg:w="1267"/><text x="52.8203%" y="206.50">step (vllm/v1/engine/core.py:273)</text></g><g><title>execute_model_with_error_logging (vllm/v1/engine/core.py:249) (1,259 samples, 43.15%)</title><rect x="52.8444%" y="212" width="43.1460%" height="15" fill="rgb(233,141,41)" fg:x="1542" fg:w="1259"/><text x="53.0944%" y="222.50">execute_model_with_error_logging (vllm/v1/engine/core.py:249)</text></g><g><title>execute_model (vllm/v1/executor/abstract.py:89) (3 samples, 0.10%)</title><rect x="95.8876%" y="228" width="0.1028%" height="15" fill="rgb(239,167,4)" fg:x="2798" fg:w="3"/><text x="96.1376%" y="238.50"></text></g><g><title>step (vllm/v1/engine/core.py:274) (6 samples, 0.21%)</title><rect x="95.9904%" y="196" width="0.2056%" height="15" fill="rgb(209,217,16)" fg:x="2801" fg:w="6"/><text x="96.2404%" y="206.50"></text></g><g><title>update_from_output (vllm/v1/core/sched/scheduler.py:759) (7 samples, 0.24%)</title><rect x="97.3269%" y="212" width="0.2399%" height="15" fill="rgb(219,88,35)" fg:x="2840" fg:w="7"/><text x="97.5769%" y="222.50"></text></g><g><title>update_from_output (vllm/v1/core/sched/scheduler.py:761) (9 samples, 0.31%)</title><rect x="97.5668%" y="212" width="0.3084%" height="15" fill="rgb(220,193,23)" fg:x="2847" fg:w="9"/><text x="97.8168%" y="222.50"></text></g><g><title>update_from_output (vllm/v1/core/sched/scheduler.py:767) (6 samples, 0.21%)</title><rect x="97.8753%" y="212" width="0.2056%" height="15" fill="rgb(230,90,52)" fg:x="2856" fg:w="6"/><text x="98.1253%" y="222.50"></text></g><g><title>update_from_output (vllm/v1/core/sched/scheduler.py:768) (5 samples, 0.17%)</title><rect x="98.0809%" y="212" width="0.1714%" height="15" fill="rgb(252,106,19)" fg:x="2862" fg:w="5"/><text x="98.3309%" y="222.50"></text></g><g><title>update_from_output (vllm/v1/core/sched/scheduler.py:769) (11 samples, 0.38%)</title><rect x="98.2522%" y="212" width="0.3770%" height="15" fill="rgb(206,74,20)" fg:x="2867" fg:w="11"/><text x="98.5022%" y="222.50"></text></g><g><title>update_from_output (vllm/v1/core/sched/scheduler.py:887) (3 samples, 0.10%)</title><rect x="98.7320%" y="212" width="0.1028%" height="15" fill="rgb(230,138,44)" fg:x="2881" fg:w="3"/><text x="98.9820%" y="222.50"></text></g><g><title>update_from_output (vllm/v1/core/sched/scheduler.py:893) (8 samples, 0.27%)</title><rect x="98.8348%" y="212" width="0.2742%" height="15" fill="rgb(235,182,43)" fg:x="2884" fg:w="8"/><text x="99.0848%" y="222.50"></text></g><g><title>update_from_output (vllm/v1/core/sched/scheduler.py:895) (9 samples, 0.31%)</title><rect x="99.1090%" y="212" width="0.3084%" height="15" fill="rgb(242,16,51)" fg:x="2892" fg:w="9"/><text x="99.3590%" y="222.50"></text></g><g><title>step (vllm/v1/engine/core.py:276) (98 samples, 3.36%)</title><rect x="96.1960%" y="196" width="3.3585%" height="15" fill="rgb(248,9,4)" fg:x="2807" fg:w="98"/><text x="96.4460%" y="206.50">ste..</text></g><g><title>_process_engine_step (vllm/v1/engine/core.py:731) (2,781 samples, 95.31%)</title><rect x="4.4208%" y="180" width="95.3050%" height="15" fill="rgb(210,31,22)" fg:x="129" fg:w="2781"/><text x="4.6708%" y="190.50">_process_engine_step (vllm/v1/engine/core.py:731)</text></g><g><title>step (vllm/v1/engine/core.py:280) (3 samples, 0.10%)</title><rect x="99.6230%" y="196" width="0.1028%" height="15" fill="rgb(239,54,39)" fg:x="2907" fg:w="3"/><text x="99.8730%" y="206.50"></text></g><g><title>all (2,918 samples, 100%)</title><rect x="0.0000%" y="52" width="100.0000%" height="15" fill="rgb(230,99,41)" fg:x="0" fg:w="2918"/><text x="0.2500%" y="62.50"></text></g><g><title>&lt;module&gt; (&lt;string&gt;:1) (2,918 samples, 100.00%)</title><rect x="0.0000%" y="68" width="100.0000%" height="15" fill="rgb(253,106,12)" fg:x="0" fg:w="2918"/><text x="0.2500%" y="78.50">&lt;module&gt; (&lt;string&gt;:1)</text></g><g><title>spawn_main (multiprocessing/spawn.py:122) (2,918 samples, 100.00%)</title><rect x="0.0000%" y="84" width="100.0000%" height="15" fill="rgb(213,46,41)" fg:x="0" fg:w="2918"/><text x="0.2500%" y="94.50">spawn_main (multiprocessing/spawn.py:122)</text></g><g><title>_main (multiprocessing/spawn.py:135) (2,918 samples, 100.00%)</title><rect x="0.0000%" y="100" width="100.0000%" height="15" fill="rgb(215,133,35)" fg:x="0" fg:w="2918"/><text x="0.2500%" y="110.50">_main (multiprocessing/spawn.py:135)</text></g><g><title>_bootstrap (multiprocessing/process.py:314) (2,918 samples, 100.00%)</title><rect x="0.0000%" y="116" width="100.0000%" height="15" fill="rgb(213,28,5)" fg:x="0" fg:w="2918"/><text x="0.2500%" y="126.50">_bootstrap (multiprocessing/process.py:314)</text></g><g><title>run (multiprocessing/process.py:108) (2,918 samples, 100.00%)</title><rect x="0.0000%" y="132" width="100.0000%" height="15" fill="rgb(215,77,49)" fg:x="0" fg:w="2918"/><text x="0.2500%" y="142.50">run (multiprocessing/process.py:108)</text></g><g><title>run_cpu_engine_core (vllm/v1/engine/hybrid_core.py:1413) (2,918 samples, 100.00%)</title><rect x="0.0000%" y="148" width="100.0000%" height="15" fill="rgb(248,100,22)" fg:x="0" fg:w="2918"/><text x="0.2500%" y="158.50">run_cpu_engine_core (vllm/v1/engine/hybrid_core.py:1413)</text></g><g><title>run_busy_loop (vllm/v1/engine/core.py:705) (2,795 samples, 95.78%)</title><rect x="4.2152%" y="164" width="95.7848%" height="15" fill="rgb(208,67,9)" fg:x="123" fg:w="2795"/><text x="4.4652%" y="174.50">run_busy_loop (vllm/v1/engine/core.py:705)</text></g><g><title>_process_engine_step (vllm/v1/engine/core.py:733) (8 samples, 0.27%)</title><rect x="99.7258%" y="180" width="0.2742%" height="15" fill="rgb(219,133,21)" fg:x="2910" fg:w="8"/><text x="99.9758%" y="190.50"></text></g></svg></svg>
