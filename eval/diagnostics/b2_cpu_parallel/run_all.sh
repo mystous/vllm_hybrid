@@ -131,17 +131,21 @@ else
         log "  Phase 3 완료 → ${PHASE3_DIR}/"
     fi
 
-    # bench 완료 대기
-    log "  bench 완료 대기..."
-    wait "${BENCH_PID}" 2>/dev/null
-    log "  bench 종료"
-
-    # 서버 정리
-    kill "${SPID}" 2>/dev/null
-    wait "${SPID}" 2>/dev/null || true
-    pkill -f api_server 2>/dev/null || true
-    pkill -f 'serve\.sh' 2>/dev/null || true
-    sleep 5
+    # =========================================================================
+    # Phase 3 캡처가 완료되면 bench 완료를 기다리지 않고 즉시 종료.
+    # Phase 3 의 py-spy stack 이 핵심 증거이므로 이미 확보됐으면 충분.
+    # 16K prefill on CPU 는 req 당 수십 분 걸려 bench 완료 기다리면 run_all 이
+    # 1시간+ 걸림. 기존 "wait ${BENCH_PID}" 가 이 문제의 원인이었음.
+    # =========================================================================
+    log "  bench + 서버 즉시 종료 (Phase 3 증거 확보 완료)"
+    kill -TERM "${BENCH_PID}" 2>/dev/null || true
+    kill -TERM "${SPID}"      2>/dev/null || true
+    # bench 가 SIGTERM 에 반응 안 하면 3초 후 KILL
+    sleep 3
+    kill -9 "${BENCH_PID}" 2>/dev/null || true
+    kill -9 "${SPID}"      2>/dev/null || true
+    pkill -9 -f 'api_server|serve\.sh|benchmark_serving|CPU_EngineCore|GPU_EngineCore' 2>/dev/null || true
+    sleep 2
 
     # Phase 2 결과물 수집
     section "Phase 2 결과물 수집"
