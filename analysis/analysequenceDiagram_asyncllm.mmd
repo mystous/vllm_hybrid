@@ -1,0 +1,90 @@
+sequenceDiagram
+    participant User
+    participant AsyncLLMEngine
+    participant _AsyncLLMEngine
+    participant RequestTracker
+    participant LLMEngine
+    participant ModelExecutor
+    participant Scheduler
+
+    %% 1. generate
+    User->>AsyncLLMEngine: generate(prompt, sampling_params, request_id, ...)
+    AsyncLLMEngine->>AsyncLLMEngine: add_request(...)
+    AsyncLLMEngine->>RequestTracker: add_request(...)
+    AsyncLLMEngine->>AsyncLLMEngine: start_background_loop() (if needed)
+    AsyncLLMEngine->>AsyncLLMEngine: run_engine_loop()
+    AsyncLLMEngine->>AsyncLLMEngine: engine_step(virtual_engine)
+    AsyncLLMEngine->>_AsyncLLMEngine: step_async(virtual_engine)
+    _AsyncLLMEngine->>LLMEngine: schedule()
+    LLMEngine->>Scheduler: schedule()
+    Scheduler-->>LLMEngine: SchedulerOutputs
+    LLMEngine->>ModelExecutor: execute_model_async(ExecuteModelRequest)
+    ModelExecutor-->>LLMEngine: outputs
+    LLMEngine-->>_AsyncLLMEngine: outputs
+    _AsyncLLMEngine-->>AsyncLLMEngine: outputs
+    AsyncLLMEngine->>RequestTracker: process_request_output(...)
+    AsyncLLMEngine-->>User: yield RequestOutput
+
+    %% 2. encode
+    User->>AsyncLLMEngine: encode(prompt, pooling_params, request_id, ...)
+    AsyncLLMEngine->>AsyncLLMEngine: add_request(...)
+    AsyncLLMEngine->>RequestTracker: add_request(...)
+    AsyncLLMEngine->>AsyncLLMEngine: start_background_loop() (if needed)
+    AsyncLLMEngine->>AsyncLLMEngine: run_engine_loop()
+    AsyncLLMEngine->>AsyncLLMEngine: engine_step(virtual_engine)
+    AsyncLLMEngine->>_AsyncLLMEngine: step_async(virtual_engine)
+    _AsyncLLMEngine->>LLMEngine: schedule()
+    LLMEngine->>Scheduler: schedule()
+    Scheduler-->>LLMEngine: SchedulerOutputs
+    LLMEngine->>ModelExecutor: execute_model_async(ExecuteModelRequest)
+    ModelExecutor-->>LLMEngine: outputs
+    LLMEngine-->>_AsyncLLMEngine: outputs
+    _AsyncLLMEngine-->>AsyncLLMEngine: outputs
+    AsyncLLMEngine->>RequestTracker: process_request_output(...)
+    AsyncLLMEngine-->>User: yield PoolingRequestOutput
+
+    %% 3. abort
+    User->>AsyncLLMEngine: abort(request_id)
+    AsyncLLMEngine->>AsyncLLMEngine: _abort(request_id)
+    AsyncLLMEngine->>RequestTracker: abort_request(request_id, ...)
+
+    %% 4. add_request
+    User->>AsyncLLMEngine: add_request(request_id, prompt, params, ...)
+    AsyncLLMEngine->>RequestTracker: add_request(...)
+    AsyncLLMEngine-->>User: AsyncStream.generator()
+
+    %% 5. engine_step
+    AsyncLLMEngine->>RequestTracker: get_new_and_aborted_requests()
+    AsyncLLMEngine->>_AsyncLLMEngine: add_request_async(...) (for each new)
+    AsyncLLMEngine->>_AsyncLLMEngine: abort_request(...) (if aborted)
+    AsyncLLMEngine->>_AsyncLLMEngine: step_async(virtual_engine)
+    _AsyncLLMEngine-->>AsyncLLMEngine: outputs
+    AsyncLLMEngine->>RequestTracker: process_request_output(...)
+    AsyncLLMEngine-->>AsyncLLMEngine: all_finished
+
+    %% 6. run_engine_loop (background)
+    AsyncLLMEngine->>AsyncLLMEngine: run_engine_loop(engine_ref)
+    loop while True
+        AsyncLLMEngine->>AsyncLLMEngine: engine_step(virtual_engine)
+        AsyncLLMEngine->>AsyncLLMEngine: wait_for_new_requests() (if idle)
+    end
+
+    %% 7. 기타 관리 함수
+    User->>AsyncLLMEngine: get_vllm_config()/get_model_config()/...
+    AsyncLLMEngine->>_AsyncLLMEngine: get_vllm_config()/get_model_config()/...
+    _AsyncLLMEngine-->>AsyncLLMEngine: config
+
+    User->>AsyncLLMEngine: start_profile()/stop_profile()
+    AsyncLLMEngine->>_AsyncLLMEngine: start_profile()/stop_profile()
+
+    User->>AsyncLLMEngine: sleep()/wake_up()/is_sleeping()
+    AsyncLLMEngine->>_AsyncLLMEngine: sleep()/wake_up()/is_sleeping()
+
+    User->>AsyncLLMEngine: add_lora(lora_request)
+    AsyncLLMEngine->>_AsyncLLMEngine: add_lora(lora_request)
+
+    User->>AsyncLLMEngine: check_health()
+    AsyncLLMEngine->>_AsyncLLMEngine: check_health_async()
+
+    User->>AsyncLLMEngine: do_log_stats(...)
+    AsyncLLMEngine->>_AsyncLLMEngine: do_log_stats(...)

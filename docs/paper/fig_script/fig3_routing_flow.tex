@@ -1,0 +1,65 @@
+% Figure 3: Routing Strategy Decision Flow
+% Standalone compilable: pdflatex fig3_routing_flow.tex
+\documentclass[border=5pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, backgrounds}
+
+\begin{document}
+\begin{tikzpicture}[
+    >=Stealth,
+    node distance=0.7cm,
+    start/.style={draw, rounded corners=8pt, fill=blue!10, minimum width=2.5cm, minimum height=0.6cm, align=center, font=\footnotesize\bfseries},
+    decision/.style={draw, diamond, aspect=2.2, fill=yellow!15, minimum width=2cm, align=center, font=\footnotesize, inner sep=1pt},
+    result/.style={draw, rounded corners=5pt, minimum width=1.8cm, minimum height=0.6cm, align=center, font=\footnotesize\bfseries},
+    gpu/.style={result, fill=green!25},
+    cpu/.style={result, fill=orange!25},
+    phase/.style={draw, dashed, rounded corners=8pt, inner sep=8pt},
+    plabel/.style={font=\scriptsize\bfseries, text=gray},
+    arrow/.style={->, thick},
+    yeslabel/.style={font=\scriptsize, anchor=east},
+    nolabel/.style={font=\scriptsize, anchor=west},
+  ]
+
+  % --- Entry ---
+  \node[start] (entry) {Request $r$ arrives};
+
+  % --- Phase 1: Throughput-Adaptive ---
+  \node[decision, below=0.8cm of entry] (adaptive) {Throughput-\\Adaptive?};
+  \node[draw, fill=blue!5, rounded corners=3pt, right=2cm of adaptive, minimum width=2.5cm, minimum height=0.6cm, align=center, font=\scriptsize] (ema) {Update $N$ via EMA:\\$N^{(t)} = \lfloor N_{\max} \cdot \frac{\hat{T}_C}{\hat{T}_G + \hat{T}_C} \rfloor$};
+
+  % --- Phase 2: Length-Aware ---
+  \node[decision, below=1.2cm of adaptive] (length) {$|r| > \tau$ ?};
+
+  % --- Phase 3: Capacity ---
+  \node[decision, below=1.2cm of length] (capacity) {$C < N$ ?};
+
+  % --- Results ---
+  \node[gpu, right=2.5cm of length] (gpu1) {GPU};
+  \node[cpu, below left=1cm and 0.3cm of capacity] (cpu1) {CPU};
+  \node[gpu, below right=1cm and 0.3cm of capacity] (gpu2) {GPU};
+
+  % --- Arrows ---
+  \draw[arrow] (entry) -- (adaptive);
+  \draw[arrow] (adaptive) -- node[yeslabel, xshift=-0.2cm] {Yes} (ema);
+  \draw[arrow] (ema.south) |- ([yshift=0.3cm]length.north) -- (length.north);
+  \draw[arrow] (adaptive) -- node[nolabel, xshift=0.5cm] {No (fixed $N$)} (length);
+
+  \draw[arrow] (length) -- node[above, font=\scriptsize] {Yes} (gpu1);
+  \draw[arrow] (length) -- node[nolabel, xshift=0.5cm] {No} (capacity);
+
+  \draw[arrow] (capacity) -- node[above left, font=\scriptsize] {Yes} (cpu1);
+  \draw[arrow] (capacity) -- node[above right, font=\scriptsize] {No} (gpu2);
+
+  % --- Phase labels (background boxes) ---
+  \begin{scope}[on background layer]
+    \node[phase, fill=purple!5, fit=(adaptive)(ema), label={[plabel]above left:Throughput-Adaptive}] {};
+    \node[phase, fill=cyan!5, fit=(length)(gpu1), label={[plabel]above left:Length-Aware (HEFT)}] {};
+    \node[phase, fill=yellow!5, fit=(capacity)(cpu1)(gpu2), label={[plabel]above left:Capacity (Work Stealing)}] {};
+  \end{scope}
+
+  % --- Annotations ---
+  \node[font=\scriptsize\itshape, text=gray, anchor=west] at ([xshift=0.1cm]cpu1.east) {$C \gets C+1$};
+  \node[font=\scriptsize\itshape, text=gray, anchor=north] at (gpu1.south) {Long prefill\\$\to$ GPU faster};
+
+\end{tikzpicture}
+\end{document}

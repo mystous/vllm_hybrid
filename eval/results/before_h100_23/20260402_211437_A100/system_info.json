@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-04-02T12:14:38.136613+00:00",
+  "hostname": "cloud-J1O17M",
+  "os": {
+    "system": "Linux",
+    "release": "5.15.0-174-generic",
+    "version": "#184-Ubuntu SMP Fri Mar 13 18:41:50 UTC 2026",
+    "distro": "Ubuntu 22.04.5 LTS"
+  },
+  "cpu": {
+    "model_name": "Intel(R) Xeon(R) Gold 6338 CPU @ 2.00GHz",
+    "architecture": "x86_64",
+    "sockets": 1,
+    "cores_per_socket": 16,
+    "threads_per_core": 1,
+    "total_cpus": 16,
+    "cpu_max_mhz": "",
+    "cpu_min_mhz": "",
+    "l1d_cache": "512 KiB (16 instances)",
+    "l1i_cache": "512 KiB (16 instances)",
+    "l2_cache": "64 MiB (16 instances)",
+    "l3_cache": "16 MiB (1 instance)",
+    "flags": [
+      "avx",
+      "avx2",
+      "avx512f",
+      "avx512bw",
+      "avx512vl",
+      "avx512_vnni",
+      "sse4_1",
+      "sse4_2",
+      "fma"
+    ]
+  },
+  "numa": {
+    "raw": "available: 1 nodes (0)\nnode 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15\nnode 0 size: 193218 MB\nnode 0 free: 147947 MB\nnode distances:\nnode   0 \n  0:  10",
+    "nodes": [
+      {
+        "node": 0,
+        "size_mb": 193218
+      }
+    ],
+    "num_nodes": 1
+  },
+  "memory": {
+    "total": "197855972 kB",
+    "available": "195395456 kB",
+    "swap_total": "0 kB",
+    "hugepages_total": "0",
+    "hugepage_size": "2048 kB"
+  },
+  "gpu": {
+    "count": 1,
+    "devices": [
+      {
+        "index": 0,
+        "name": "NVIDIA A100 80GB PCIe",
+        "uuid": "GPU-e2ae3b06-5c60-32ec-99e1-8a9eb09d5c60",
+        "memory_total_mib": "81920",
+        "memory_free_mib": "81152",
+        "driver_version": "580.126.09",
+        "pci_bus_id": "00000000:03:00.0",
+        "power_limit_w": "300.00",
+        "max_sm_clock_mhz": "1410",
+        "max_mem_clock_mhz": "1512",
+        "temperature_c": "44",
+        "compute_mode": "Default"
+      }
+    ],
+    "cuda_version": "12.8",
+    "driver_version": "580.126.09",
+    "topology": "\u001b[4mGPU0\tCPU Affinity\tNUMA Affinity\tGPU NUMA ID\u001b[0m\nGPU0\t X \t0-15\t0\t\tN/A\n\nLegend:\n\n  X    = Self\n  SYS  = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)\n  NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node\n  PHB  = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)\n  PXB  = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)\n  PIX  = Connection traversing at most a single PCIe bridge\n  NV#  = Connection traversing a bonded set of # NVLinks"
+  },
+  "software": {
+    "python_version": "3.12.13",
+    "torch_version": "2.7.1+cu128",
+    "torch_cuda_available": true,
+    "torch_cuda_version": "12.8",
+    "cudnn_version": "90701",
+    "vllm_version": "0.1.dev8402+gdac8e0e5d",
+    "ipex_version": "2.7.0+cpu"
+  },
+  "disk": {
+    "filesystem": "overlay",
+    "size": "485G",
+    "used": "154G",
+    "available": "332G"
+  },
+  "kernel": {
+    "vm.swappiness": "60",
+    "vm.nr_hugepages": "0",
+    "vm.overcommit_memory": "0",
+    "kernel.numa_balancing": "0"
+  },
+  "eval_env": "# =============================================================================\n# a100x1.env — A100 SXM 80GB x1, Xeon Gold 6338 1S/16C (KVM)\n# =============================================================================\n\n# --- Model ---\nMODEL=Qwen/Qwen2.5-7B-Instruct\nPORT=8000\n\n# --- Server common ---\nGPU_MEMORY_UTIL=0.9\nTENSOR_PARALLEL_SIZE=1\n\n# --- Benchmark ---\nNUM_PROMPTS=500\nINPUT_LEN=512\nOUTPUT_LEN=512\nREQUEST_RATE=inf\n\n# --- Hybrid settings ---\n# Xeon Gold 6338: 1 socket, 16 cores, no HT, AVX-512 + VNNI, no AMX\n# KVM VM, 188GB RAM (available ~92GB), GPU already uses ~74GB VRAM\nHYBRID_CPU_MAX_SEQS=2            # 16 cores too few for more concurrent seqs\nHYBRID_CPU_KVCACHE_GB=32         # Conservative — leave headroom for OS + GPU host mem\nHYBRID_CPU_THREADS=12            # Reserve 4 cores for OS/GPU host threads\nHYBRID_CPU_MAX_BATCHED_TOKENS=1024  # 2 seqs × 512 tokens\nHYBRID_NUMA_AWARE=false          # Single socket — no NUMA optimization needed\nHYBRID_NUM_CPU_ENGINES=1         # Single CPU engine\nHYBRID_STATS_LOG_INTERVAL=50\nHYBRID_ROUTING_STRATEGY=capacity\n\n# --- Monitoring ---\nMONITOR_INTERVAL=1\n\n# --- Results ---\nRESULTS_DIR=results\n\n# --- Server startup wait ---\nSERVER_READY_TIMEOUT=300\nSERVER_READY_POLL=5\n"
+}

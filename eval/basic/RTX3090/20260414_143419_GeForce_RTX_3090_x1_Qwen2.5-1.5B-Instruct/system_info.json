@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-04-14T14:34:19.871721+00:00",
+  "hostname": "mystousUbuntu",
+  "os": {
+    "system": "Linux",
+    "release": "6.8.0-90-generic",
+    "version": "#91~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Nov 20 15:20:45 UTC 2",
+    "distro": "PRETTY_NAME=\"Ubuntu 22.04.5 LTS\""
+  },
+  "cpu": {
+    "model_name": "12th Gen Intel(R) Core(TM) i9-12900KF",
+    "architecture": "x86_64",
+    "sockets": 1,
+    "cores_per_socket": 16,
+    "threads_per_core": 2,
+    "total_cpus": 24,
+    "cpu_max_mhz": "5200.0000",
+    "cpu_min_mhz": "800.0000",
+    "l1d_cache": "640 KiB (16 instances)",
+    "l1i_cache": "768 KiB (16 instances)",
+    "l2_cache": "14 MiB (10 instances)",
+    "l3_cache": "30 MiB (1 instance)",
+    "flags": [
+      "avx",
+      "avx2",
+      "sse4_1",
+      "sse4_2",
+      "fma"
+    ]
+  },
+  "numa": {
+    "raw": "available: 1 nodes (0)\nnode 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23\nnode 0 size: 64158 MB\nnode 0 free: 40097 MB\nnode distances:\nnode   0 \n  0:  10",
+    "nodes": [
+      {
+        "node": 0,
+        "size_mb": 64158
+      }
+    ],
+    "num_nodes": 1
+  },
+  "memory": {
+    "total": "65698684 kB",
+    "available": "61759548 kB",
+    "swap_total": "0 kB",
+    "hugepages_total": "0",
+    "hugepage_size": "2048 kB"
+  },
+  "gpu": {
+    "count": 1,
+    "devices": [
+      {
+        "index": 0,
+        "name": "NVIDIA GeForce RTX 3090",
+        "uuid": "GPU-1153aa8c-1dd4-0fa5-e50d-3ec56cc9ce0f",
+        "memory_total_mib": "24576",
+        "memory_free_mib": "24087",
+        "driver_version": "580.126.09",
+        "pci_bus_id": "00000000:01:00.0",
+        "power_limit_w": "390.00",
+        "max_sm_clock_mhz": "2130",
+        "max_mem_clock_mhz": "9751",
+        "temperature_c": "45",
+        "compute_mode": "Default"
+      }
+    ],
+    "cuda_version": "13.0",
+    "driver_version": "580.126.09",
+    "topology": "\u001b[4mGPU0\tCPU Affinity\tNUMA Affinity\tGPU NUMA ID\u001b[0m\nGPU0\t X \t0-23\t0\t\tN/A\n\nLegend:\n\n  X    = Self\n  SYS  = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)\n  NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node\n  PHB  = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)\n  PXB  = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)\n  PIX  = Connection traversing at most a single PCIe bridge\n  NV#  = Connection traversing a bonded set of # NVLinks"
+  },
+  "software": {
+    "python_version": "3.12.13",
+    "torch_version": "2.9.0+cu130",
+    "torch_cuda_available": true,
+    "torch_cuda_version": "13.0",
+    "cudnn_version": "91300",
+    "vllm_version": "0.1.dev8475+g78fa48cb8",
+    "ipex_version": "2.8.0+gitcb81bf2"
+  },
+  "disk": {
+    "filesystem": "overlay",
+    "size": "768G",
+    "used": "648G",
+    "available": "82G"
+  },
+  "kernel": {
+    "vm.swappiness": "60",
+    "vm.nr_hugepages": "0",
+    "vm.overcommit_memory": "0",
+    "kernel.numa_balancing": "0"
+  },
+  "eval_env": "# =============================================================================\n# dev_rtx3090_qwen1.5b_hybrid_wave.env\n#\n# 머신: i9-12900KF (8 P-core + 8 E-core = 16 physical, 24 logical, 1 NUMA)\n#       RTX 3090 24 GB, DDR5, L3 30 MB (single)\n#       AVX2 + AVX-VNNI (AVX-512 없음, AMX 없음)\n#\n# 이 env 는 dev 머신 특성에 맞춰 설정됨:\n#   - AVX-512/AMX 없음 → 모든 matmul 이 AVX2 경로\n#   - L3 30 MB 단일 → 7B weight (14 GB) 는 절대 안 맞음, 1.5B (3 GB) 도 부분만\n#   - 1 NUMA → num_cpu_engines=1 고정\n#   - E-core 포함 여부는 실측 비교 필요 (아래 주석 참고)\n# =============================================================================\n\nMODEL=Qwen/Qwen2.5-1.5B-Instruct\nPORT=8000\n\nGPU_MEMORY_UTIL=0.85\nTENSOR_PARALLEL_SIZE=1\nTRANSFORMERS_OFFLINE=1\nHF_DATASETS_OFFLINE=1\n# max_model_len 은 실제 bench shape (128/128) 대비 약간 여유만. KV cache\n# 할당 최소화 → L3 여유 확보.\nEXTRA_SERVE_ARGS=\"--max-model-len 512\"\n\nNUM_PROMPTS=500\nINPUT_LEN=128\nOUTPUT_LEN=128\nREQUEST_RATE=inf\n\n# -----------------------------------------------------------------------------\n# CPU engine — 단일 NUMA 1 engine\n# -----------------------------------------------------------------------------\nHYBRID_NUM_CPU_ENGINES=1\nHYBRID_NUMA_AWARE=true\n\n# -----------------------------------------------------------------------------\n# Thread 수 — cpu_profile_dev.sh Section 6 실측 기반 (2026-04-14)\n#\n# 실측 tps (Qwen2.5-1.5B CPU decode, 64 tokens, 3-run avg):\n#   threads= 4: 10.56 tps\n#   threads= 8: 10.64 tps (+0.7%)\n#   threads=12: 11.35 tps (+7.5%)\n#   threads=16: 11.62 tps (+10.0%)  ⭐ peak (8P+8E 전부)\n#   threads=24: 11.20 tps (−3.6%)   SMT 오버서브 하락\n#\n# E-core 가 P-core 를 못 따라가 barrier stall 의 우려는 있었으나, 실측\n# 에서는 16 까지 monotonic 증가. dev i9-12900KF 의 physical core 16개\n# 전부 사용이 최적.\n# -----------------------------------------------------------------------------\nHYBRID_CPU_THREADS=16\nHYBRID_CPU_MAX_SEQS=4           # solo decode (IPEX batch>1 penalty 회피)\nHYBRID_CPU_CORE_RATIO=1.0\nHYBRID_CPU_KVCACHE_GB=0\n\n# -----------------------------------------------------------------------------\n# Routing\n#\n# cpu-first 는 현재 workload (500 req × 128/128, GPU saturated 아님) 에서\n# CPU 에 불필요한 부하. 하지만 CPU 경로 실측 목적으로 cpu-first 유지.\n# gpu_only 대비 hybrid 효과 비교가 아닌 \"CPU path 작동 확인\" 이 이 env 의 목적.\n# -----------------------------------------------------------------------------\nHYBRID_ROUTING_STRATEGY=wave-batch\nHYBRID_ROUTING_PRIORITY=cpu-first\nHYBRID_CPU_PREFILL_THRESHOLD=1024\nHYBRID_WARMUP_REQUESTS=0\nHYBRID_STATS_LOG_INTERVAL=50\n\n# -----------------------------------------------------------------------------\n# Intel OpenMP 튜닝 (dev 환경에서 효과 있는 것들)\n#\n# 현재 init_cpu_threads_env (C++) 가 sched_setaffinity 로 pin 하므로\n# KMP_AFFINITY 는 중복이지만 KMP_BLOCKTIME=0 은 의미 있음.\n# spin-wait 대신 즉시 sleep → burst 간 간섭 감소.\n# -----------------------------------------------------------------------------\nexport KMP_BLOCKTIME=0\nexport OMP_PROC_BIND=close\nexport OMP_PLACES=cores\n\n# -----------------------------------------------------------------------------\n# Diagnostic\n# -----------------------------------------------------------------------------\nVLLM_HYBRID_TRACE=0\nVLLM_HYBRID_TRACE_EVERY=0\n# 처음엔 PROFILE 켜서 병목 확인. 실측 run 에선 0 으로 끄기 (hook overhead 제거)\nVLLM_HYBRID_PROFILE=0\nVLLM_HYBRID_PROFILE_EVERY=0\n\nMONITOR_INTERVAL=1\nRESULTS_DIR=results\nSERVER_READY_TIMEOUT=300\nSERVER_READY_POLL=5\n",
+  "hybrid_config": {
+    "routing_strategy": "wave-batch",
+    "routing_priority": "cpu-first",
+    "cpu_max_seqs": "4",
+    "cpu_kvcache_gb": "0",
+    "cpu_threads": "16",
+    "numa_aware": "true",
+    "num_cpu_engines": "1",
+    "stats_log_interval": "50"
+  }
+}

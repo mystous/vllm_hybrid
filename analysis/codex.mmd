@@ -1,0 +1,34 @@
+
+graph LR 
+subgraph Frontend 
+    LLMEngine --> Processor 
+    LLMEngine --> OutputProcessor 
+    LLMEngine --> EngineCoreClient 
+    Processor -->|"EngineCoreRequest"| EngineCoreClient 
+    OutputProcessor -->|"RequestOutput / PoolingOutput"| User 
+end
+
+subgraph IPC
+    EngineCoreClient <-->|"ZMQ (requests/responses)"| EngineCoreProc
+    EngineCoreClient <-->|"Stats / wave sync"| DPCoordinator
+end
+
+subgraph EngineCoreProcess
+    EngineCoreProc --> EngineCore
+    EngineCoreProc -->|"I/O threads"| ZMQSockets
+    EngineCore -->|"schedule/execute/update"| V1Scheduler
+    EngineCore --> Executor
+    EngineCore --> StructuredOutputManager
+    EngineCore --> MultiModalInputCacheServer
+    EngineCore -->|"KV cache config"| KVCacheConfig
+end
+
+subgraph DataParallel
+    DPEngineCoreProc ---|inherits| EngineCoreProc
+    DPEngineCoreProc <-->|"all-reduce unfinished"| DPGroup
+    DPEngineCoreProc <-->|"wave events / stats"| DPCoordinator
+    DPEngineCoreActor ---|Ray actor| DPEngineCoreProc
+end
+
+classDef proc fill:#f6f6f6,stroke:#555;
+class EngineCoreProc,DPEngineCoreProc,DPEngineCoreActor proc;

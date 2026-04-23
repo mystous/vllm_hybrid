@@ -1,0 +1,89 @@
+====================================================================================================
+  vLLM Benchmark Comparison Report
+  Generated: 2026-04-09 22:09:15 KST
+  Comparing 3 runs
+====================================================================================================
+
+  [0] gpu_only | Qwen2.5-1.5B
+       Dir: 20260409_125810_G_GeForce_RTX_3090_x1_Qwen2.5-1.5B  |  500/500 completed
+  [1] hybrid capacity(cpu-first) seqs=1 | Qwen2.5-1.5B
+       Dir: 20260409_130021_H_C_GeForce_RTX_3090_x1_Qwen2.5-1.5B  |  500/500 completed
+  [2] hybrid throughput-adaptive(cpu-first) seqs=1 | Qwen2.5-1.5B
+       Dir: 20260409_130732_H_C_GeForce_RTX_3090_x1_Qwen2.5-1.5B  |  500/500 completed
+
+----------------------------------------------------------------------------------------------------
+  Metric                              [0]            [1]            [2]
+----------------------------------------------------------------------------------------------------
+  Wall Time (s)                      32.7           80.1           79.0
+  Req TP (req/s)                    20.01          19.07          19.09
+  Out TP (tok/s)                     9969           9498           9509
+  Total TP (tok/s)                  12518          11927          11941
+  Duration (s)                       25.0           26.2           26.2
+  Mean TTFT (ms)                   6940.9         8221.3         8182.2
+  Median TTFT (ms)                 1807.7         3099.1         3082.7
+  P99 TTFT (ms)                   14445.5        15699.9        15688.9
+  Mean TPOT (ms)                    25.15          25.11          25.15
+  Median TPOT (ms)                  24.24          24.18          24.19
+  P99 TPOT (ms)                    100.54          98.31         101.26
+  Mean ITL (ms)                     23.34          23.29          23.28
+  Median ITL (ms)                   21.16          21.08          21.10
+  P99 ITL (ms)                     110.98         109.54         109.55
+----------------------------------------------------------------------------------------------------
+
+  [vs [0] Comparison]
+  [1] hybrid capacity(cpu-first) seqs=1 | Qwen2.5-1.5B
+    Wall Time (s)                  32.7 →       80.1  +144.9% ▼
+    Req TP (req/s)                20.01 →      19.07    -4.7% ▼
+    Out TP (tok/s)                 9969 →       9498    -4.7% ▼
+    Total TP (tok/s)              12518 →      11927    -4.7% ▼
+    Duration (s)                   25.0 →       26.2    +4.9% ▼
+    Mean TTFT (ms)               6940.9 →     8221.3   +18.4% ▼
+    Median TTFT (ms)             1807.7 →     3099.1   +71.4% ▼
+    P99 TTFT (ms)               14445.5 →    15699.9    +8.7% ▼
+    Mean TPOT (ms)                25.15 →      25.11    -0.2% ~
+    Median TPOT (ms)              24.24 →      24.18    -0.2% ~
+    P99 TPOT (ms)                100.54 →      98.31    -2.2% ▲
+    Mean ITL (ms)                 23.34 →      23.29    -0.2% ~
+    Median ITL (ms)               21.16 →      21.08    -0.4% ~
+    P99 ITL (ms)                 110.98 →     109.54    -1.3% ▲
+
+  [2] hybrid throughput-adaptive(cpu-first) seqs=1 | Qwen2.5-1.5B
+    Wall Time (s)                  32.7 →       79.0  +141.6% ▼
+    Req TP (req/s)                20.01 →      19.09    -4.6% ▼
+    Out TP (tok/s)                 9969 →       9509    -4.6% ▼
+    Total TP (tok/s)              12518 →      11941    -4.6% ▼
+    Duration (s)                   25.0 →       26.2    +4.8% ▼
+    Mean TTFT (ms)               6940.9 →     8182.2   +17.9% ▼
+    Median TTFT (ms)             1807.7 →     3082.7   +70.5% ▼
+    P99 TTFT (ms)               14445.5 →    15688.9    +8.6% ▼
+    Mean TPOT (ms)                25.15 →      25.15    -0.0% ~
+    Median TPOT (ms)              24.24 →      24.19    -0.2% ~
+    P99 TPOT (ms)                100.54 →     101.26    +0.7% ~
+    Mean ITL (ms)                 23.34 →      23.28    -0.3% ~
+    Median ITL (ms)               21.16 →      21.10    -0.3% ~
+    P99 ITL (ms)                 110.98 →     109.55    -1.3% ▲
+
+----------------------------------------------------------------------------------------------------
+
+  [Key Summary]
+  [0] 20.01 req/s  |  9969 tok/s  |  TTFT 6941ms  |  wall 32.7s
+  [1] 19.07 req/s  |  9498 tok/s  |  TTFT 8221ms  |  wall 80.1s
+  [2] 19.09 req/s  |  9509 tok/s  |  TTFT 8182ms  |  wall 79.0s
+
+----------------------------------------------------------------------------------------------------
+  [GPU Utilization]
+  [0] avg=79.2%  max=98%  |  Power avg=339W  (31 samples, 31s)
+  [1] avg=29.4%  max=98%  |  Power avg=153W  (77 samples, 78s)
+  [2] avg=29.7%  max=100%  |  Power avg=171W  (76 samples, 77s)
+
+  [CPU Utilization]
+  [0] avg=5.5%  max=12%  (31 samples, 31s)
+  [1] avg=48.5%  max=71%  (77 samples, 78s)
+  [2] avg=47.7%  max=71%  (76 samples, 77s)
+
+  [Power Efficiency]
+  [0] 339W avg  |  29.4 tok/s/W  |  2.4 Wh consumed  |  105931 tok/Wh
+  [1] 153W avg  |  62.0 tok/s/W  |  1.1 Wh consumed  |  223359 tok/Wh
+  [2] 171W avg  |  55.6 tok/s/W  |  1.2 Wh consumed  |  200187 tok/Wh
+
+====================================================================================================
