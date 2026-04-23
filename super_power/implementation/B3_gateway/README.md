@@ -17,6 +17,18 @@ X (Pipelined Async CPU Executor) 는 실측으로 기각됐다. single CPU engin
 
 단일 모델 관점의 throughput 개선은 B1 이 더 직접적이지만, **범용 배포 상품성**이라는 축에서는 B3 의 가치가 지배적이다. X 기각 이후 우리가 우선할 것은 이쪽이다.
 
+### 1.3 불가침 원칙
+
+설계의 최상위 제약:
+
+**기존 GPU 경로 / vLLM 엔진 내부 / 기존 hybrid 경로는 건드리지 않는다.**
+
+- 현재 GPU-only 로 vLLM 을 쓰는 사용자는 gateway 를 알 필요도, 쓸 필요도 없다. 코드 경로, 바이너리, 엔드포인트, 설정 모두 **unchanged** 여야 한다.
+- Gateway 는 **선택적 앞단 레이어**다. 기존 엔진을 **감싸는 래퍼**가 아니라 **여러 엔진을 조율하고 싶을 때만 추가로 얹는 층**.
+- 기존 `CapacityAwareRouter` 같은 hybrid 내부 로직을 gateway 로 "승격" 한다고 하더라도, hybrid 엔진 자체는 gateway 없이 단독으로 기존과 동일하게 동작해야 한다.
+
+이 원칙이 무너지는 설계는 B3 아래서 허용하지 않는다. X 의 실패는 "멀쩡한 sync 경로를 async 로 대체하려 한" 결정에서 비롯됐고, 같은 종류의 과몰입을 Gateway 에서 반복하지 않는다.
+
 ---
 
 ## Part II · 설계
@@ -24,49 +36,68 @@ X (Pipelined Async CPU Executor) 는 실측으로 기각됐다. single CPU engin
 ### 2.1 목표와 비목표
 
 **목표**
-- vLLM 을 compute engine 으로 단순화하고, 앞단에 gateway 프로세스가 request classification / routing / admission 을 담당하는 구조로 분리한다.
+- vLLM 을 compute engine 으로 유지한 채, 그 **앞단에 옵션으로 올릴 수 있는** coordination 계층 (gateway) 을 제공한다.
 - 여러 엔진 (GPU-only, hybrid, 서로 다른 모델) 을 하나의 gateway 뒤에 세워 운영할 수 있다.
 - prefix locality 를 gateway 가 의식해 라우팅에 반영한다.
 - priority tier 간 SLO 를 gateway 수준에서 관리한다.
 
 **비목표**
+- **기존 GPU 경로 / 단일 vLLM 엔진 / 기존 hybrid 엔진의 동작을 변경하지 않는다.** Gateway 미사용 시 바이너리 차이, 엔드포인트 차이, 설정 차이 0.
 - 단일 엔진 내부 scheduler 를 수정하지 않는다 (B1 영역).
 - 단일 모델 단일 엔진 환경의 throughput 개선을 추구하지 않는다.
 - vLLM core.py 를 건드리지 않는다 (CLAUDE.md 원칙).
 
 ### 2.2 책임 분리
 
-| 영역 | 현재 위치 | B3 이후 |
+Gateway 가 존재하는 구성에서만 다음 책임이 gateway 로 이전된다. 미사용 구성에서는 기존 위치가 그대로 유지된다.
+
+| 영역 | 단일 엔진 (gateway off) | multi-engine (gateway on) |
 |---|---|---|
-| Request 수신 / OpenAI API 호환 | APIServer (vLLM 내부) | **Gateway** |
-| 엔진 선택 (capacity / length-aware 등) | `CapacityAwareRouter` (`hybrid_core.py` 내부) | **Gateway** |
-| prefix hash 계산 / 매칭 | 엔진 내부 scheduler | **Gateway 가 hint, 엔진이 소유** |
+| Request 수신 / OpenAI API 호환 | APIServer (변경 없음) | **Gateway → Engine APIServer** |
+| 엔진 선택 | N/A (단일) | **Gateway** |
+| capacity / priority routing | N/A | **Gateway** |
+| prefix hash 계산 / 매칭 | 엔진 내부 scheduler (변경 없음) | 엔진 (변경 없음) + Gateway 가 hint 만 관리 |
 | admission control / queue shaping | 없음 | **Gateway** |
 | 모델 / priority tier 분리 | 없음 | **Gateway** |
-| KV cache 관리 | 엔진 | 엔진 (변경 없음) |
-| scheduler.schedule / model.forward | 엔진 | 엔진 (변경 없음) |
+| KV cache 관리 | 엔진 (변경 없음) | 엔진 (변경 없음) |
+| scheduler.schedule / model.forward | 엔진 (변경 없음) | 엔진 (변경 없음) |
+| hybrid 내부 (GPU + CPU 엔진 조합) | `hybrid_core.py` (변경 없음) | 하나의 engine 단위로 gateway 에 노출, 내부 구조 불가시 |
 
-설계의 핵심은 **엔진은 compute 에 집중하고, 그 외 모든 결정은 gateway 에서 일어난다**는 것이다. 현재 `CapacityAwareRouter` 가 이미 이 역할의 축소판이므로, 이를 gateway 로 승격하는 것이 Phase 1 의 중심이다.
+핵심: gateway 는 엔진에 **아무 것도 요구하지 않는다**. 엔진 입장에서 gateway 는 단지 또 하나의 OpenAI 클라이언트일 뿐이다. 이 대칭성이 "기존 경로 unchanged" 를 구조적으로 보장한다.
 
 ### 2.3 구조 개요
 
+Gateway 는 **옵션 레이어**다. 같은 코드베이스에서 두 배치 형태를 모두 지원한다.
+
 ```
-┌─────────────────────────────────────────────┐
-│  Gateway (단일 프로세스, CPU-only)          │
-│  - OpenAI API 호환 엔드포인트              │
-│  - Request classifier / router             │
-│  - Prefix index (global hash → engine)     │
-│  - Admission & priority queue              │
-│  - Engine pool manager (health, capacity)  │
-└────┬────────┬────────┬──────────────────────┘
-     │        │        │
-  ┌──▼──┐  ┌──▼──┐  ┌──▼──┐
-  │ Eng │  │ Eng │  │ Eng │   … vLLM 엔진들
-  │  A  │  │  B  │  │  C  │   (모델별 / tier별 / GPU구성별)
-  └─────┘  └─────┘  └─────┘
+[A] 기존 구성 (gateway 없음, 단일 엔진)
+    ─────────────────────────────────
+    Client ──► vLLM 엔진 (APIServer + engine)
+                   (GPU-only 또는 기존 hybrid)
+    * 현재 사용자의 경로. 변경 없음.
+
+[B] Gateway 구성 (multi-engine / multi-model / priority 용)
+    ─────────────────────────────────
+    ┌─────────────────────────────────────────────┐
+    │  Gateway (CPU-only, 옵션 프로세스)          │
+    │  - OpenAI API 호환 엔드포인트              │
+    │  - Request classifier / router             │
+    │  - Prefix index (global hash → engine)     │
+    │  - Admission & priority queue              │
+    │  - Engine pool manager (health, capacity)  │
+    └────┬────────┬────────┬──────────────────────┘
+         │        │        │
+      ┌──▼──┐  ┌──▼──┐  ┌──▼──┐
+      │ Eng │  │ Eng │  │ Eng │   … vLLM 엔진들 (변경 없음)
+      │  A  │  │  B  │  │  C  │     A/B 중 어떤 구성으로 기동하든
+      └─────┘  └─────┘  └─────┘     엔진은 [A] 의 엔진과 동일 바이너리
 ```
 
-엔진은 완결적 vLLM 프로세스 (OpenAI API 포함) 로 두거나, gateway 가 내부 API 로 직접 proxy 한다. 전자가 결합도가 낮고 후자가 latency 가 작다. 초기엔 전자로 시작해 필요시 후자로 이행한다.
+Gateway 는 엔진을 **OpenAI 호환 API 클라이언트** 로만 대한다. 엔진 입장에서 gateway 가 존재하는지 알 필요 없다. 그래서 gateway 를 끄면 [A] 경로가 그대로 남는다 — 새 코드 경로가 끼어드는 일 없다.
+
+구현 형태는 두 단계로 간다:
+1. **Phase 1**: gateway = 독립 프로세스 (HTTP proxy). 엔진은 기존 `vllm serve` 를 변경 없이 띄우고, gateway 가 앞에 붙는다.
+2. **후속 단계** (필요 시): 같은 머신에서 latency 가 문제되면 in-process plugin 형태도 추가 제공. 단 이것도 gateway 를 **기동한 경우에만** 활성.
 
 ### 2.4 평가 지표 재설정
 
@@ -77,7 +108,7 @@ X (Pipelined Async CPU Executor) 는 실측으로 기각됐다. single CPU engin
 - **Priority SLO 달성률** — tier 별 TTFT / TPOT 상한 준수율
 - **Router overhead** — gateway 추가 hop 의 p50 / p99 latency
 
-단일 모델 baseline 은 regression 감시용으로만 둔다 (gateway 붙여도 단일 모델 tput 이 5% 이상 떨어지면 안 됨).
+**Regression 상한 (불가침 원칙의 측정적 보장)**: gateway 미사용 구성 ([A] 경로) 의 throughput / latency 는 B3 도입 전후 차이 0%. 단일 엔진에 gateway 를 얹은 구성 ([B] 의 단일 engine 특수 케이스) 에서는 hop 오버헤드가 p99 +5ms 이하, tput -5% 이하.
 
 ---
 
@@ -101,21 +132,21 @@ X (Pipelined Async CPU Executor) 는 실측으로 기각됐다. single CPU engin
 
 ### Phase 1 · Gateway skeleton
 
-**목적.** `CapacityAwareRouter` 를 별도 프로세스로 승격. 단일 엔진을 proxy 하는 최소 gateway 를 만들어 기존 동작을 재현한다.
+**목적.** 독립 프로세스 gateway 를 세우고 단일 엔진을 pass-through 한다. 기존 경로에는 손대지 않는다.
 
 **범위.**
 - OpenAI 호환 프런트엔드 (chat/completions, completions)
 - 단일 engine 대상 pass-through
-- capacity-based routing (현재 `hybrid_core.py` 의 router 로직을 이식)
+- capacity-based routing (현재 `hybrid_core.py` 의 router 로직을 **복제해서** gateway 쪽에 독립 구현. 기존 `hybrid_core.py` 는 변경 없음)
 - health check / engine registry
 
 **검증 기준.**
-- 단일 Qwen 엔진에 gateway 를 얹은 상태에서 baseline 과 tput/latency 차이 5% 이내
-- gateway 우회 대비 p99 latency overhead < 5ms
+- **[A] 경로 regression 0** — gateway 를 기동하지 않은 상태에서 기존 vLLM 엔진의 tput/latency/엔드포인트 응답이 B3 도입 이전과 동일 (byte-level 응답 diff)
+- [B] 단일 engine 구성에서 tput/latency 차이 5% 이내, p99 hop overhead < 5ms
 
-**산출물.** `03_phase1_skeleton.md` + `gateway/` 코드
+**산출물.** `03_phase1_skeleton.md` + `gateway/` 코드 (vLLM 와 분리된 모듈)
 
-**Exit 조건 (가치 있는 실패).** overhead 가 5% 를 크게 초과하면 프로세스 분리 대신 in-process 플러그인 구조로 전환 고려.
+**Exit 조건 (가치 있는 실패).** [B] overhead 가 5% 를 크게 초과하면 in-process plugin 형태도 옵션으로 추가.
 
 ### Phase 2 · Multi-engine capacity + priority routing
 
@@ -173,25 +204,25 @@ X (Pipelined Async CPU Executor) 는 실측으로 기각됐다. single CPU engin
 
 ### 4.1 설계 결정이 필요한 지점
 
-**D1. Gateway ↔ Engine 간 인터페이스.** OpenAI API over HTTP 로 할지, ZMQ 로 custom protocol 을 둘지. 전자는 재사용성, 후자는 latency. 초기 Phase 1 은 HTTP 로 시작해 overhead 측정 후 결정.
+**D1. Gateway 구현 형태의 기본값.** 독립 프로세스 (HTTP proxy) 와 in-process plugin 중 기본을 정한다. 독립 프로세스가 기존 경로 ([A]) 에 영향이 0 이라 **초기 기본값**. in-process 는 overhead 가 문제될 때 옵션으로 추가 — 기본 경로는 건드리지 않는다.
 
-**D2. 현재 `HybridAsyncMPClient` / `CapacityAwareRouter` 를 어떻게 다룰지.** Gateway 로 이전할 때 기존 코드를 리팩터하되 hybrid 기능 (GPU+CPU 이중 엔진) 은 **하나의 engine 단위** 로 gateway 에게 제시한다. 즉 gateway 는 hybrid 내부 구조를 몰라도 된다.
+**D2. Gateway 용 routing 로직의 소스.** 기존 `hybrid_core.CapacityAwareRouter` 를 **그대로 옮기지 않고 복제 후 분리**한다. 기존 hybrid 경로는 `CapacityAwareRouter` 를 계속 사용 (내부 용도). gateway 는 독자 구현. 공용 추상화는 두 경로가 안정화된 후에만 고려.
 
 **D3. prefix index 의 gateway-local 저장 vs 분산.** 단일 gateway 에서는 local 이 단순하고 충분. 나중에 gateway 를 scale out 할 때만 분산 문제가 생긴다 — 그때 다시 본다.
 
 ### 4.2 리스크
 
-**R1. Gateway 가 추가 hop 이 되어 latency regression.** Phase 1 검증 기준에서 5% / 5ms 상한을 명시했다. 초과 시 in-process 구조 검토.
+**R1. Gateway 가 추가 hop 이 되어 [B] 경로 latency regression.** Phase 1 검증 기준에서 5% / 5ms 상한을 명시했다. 초과 시 in-process plugin 옵션 추가. [A] 경로 regression 은 불가침이며 0 을 유지.
 
 **R2. vLLM 의 prefix hashing 이 버전 변경으로 깨질 수 있음.** prefix hit feedback loop (엔진이 실제 hit 여부를 gateway 로 알려줌) 를 두어 예측이 틀려도 자기교정 가능하게 한다.
 
 **R3. multi-model 환경에서 KV 메모리 overcommit.** 같은 GPU 에 여러 모델이 로드되는 상황은 Phase 4 의 범위 밖 (하드웨어 풀링 문제). 초기엔 엔진 ↔ GPU 고정 매핑.
 
-**R4. 기존 CLAUDE.md 의 `core.py` 무수정 원칙과의 충돌.** B3 는 vLLM 외부 계층이라 원칙 준수에 유리. 단, engine 내부 prefix hash 접근이 필요할 경우 `hybrid_core.py` 확장으로만 해결하고 core.py 는 손대지 않는다.
+**R4. 기존 CLAUDE.md 의 `core.py` 무수정 원칙 및 GPU 경로 불가침 원칙.** B3 는 vLLM 외부 계층이라 구조적으로 유리. 그래도 엔진 내부 prefix hash 같은 정보가 필요해지면 `hybrid_core.py` 확장으로만 해결하고 core.py 는 손대지 않는다. GPU 경로 (기존 `vllm serve` 경로) 는 어떤 Phase 에서도 코드 변경 대상이 아니다.
 
 ### 4.3 Phase 간 재사용 / 기각 조건
 
-- Phase 1 통과 = gateway 구조가 성립 → 진행
+- Phase 1 통과 = gateway 구조 성립 + [A] 경로 regression 0 확인 → 진행
 - Phase 2 실패 (10% 이하 개선) 시 Phase 3 의 prefix locality 쪽으로 pivot. gateway 구조는 유지
 - Phase 3 도 실패하면 B3 재검토 — coordination 가치가 이 시나리오에서는 낮다는 결론
 - Phase 4 는 Phase 2/3 중 하나라도 성공한 뒤에만 진입
