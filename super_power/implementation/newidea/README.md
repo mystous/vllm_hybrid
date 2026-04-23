@@ -1,0 +1,133 @@
+# CPU Shadow Assists — New Idea 통합 설계
+
+## Part I · 왜 이 문서가 다시 필요한가
+
+세 번의 기각이 쌓였다. X (CPU async executor) 는 same-req 중복 compute 로 sync 대비 절반 throughput, B2 (heavy workload CPU decode shadow) 는 -96%, B3 (Meta-scheduling Gateway) 는 우리 포크의 차별점과 직교, B1 (Inverted Control Plane) 은 Blink 논문의 재구성에 가까워 독자 기여가 얇았다. 네 시도의 공통 실패 원인은 "가설이 크지만 우리만의 고유 지점이 없었다" 는 것이다.
+
+`super_power/ideation/cpu_idle_acceleration_ideation_20260421.md` 를 다시 읽으면 이 문제의 해결 단서가 §2 (새 아이디어 8가지) 와 §4 (논문 지형의 빈 공간 4가지) 에 이미 놓여 있다. 이 문서는 그 8가지를 한 곳에 묶되, **직접 대응 논문이 없어 우리만의 독자 기여가 되는 것**과 **기존 연구의 적용·조합·역전으로 가치가 나는 것** 두 축으로 분리해 정리한다. 어느 쪽이 옳은지는 지금 판정할 수 없다. 각 축의 성격이 다르고, 추진 순서도 다르다.
+
+## Part II · 축 분류
+
+```mermaid
+flowchart TB
+    subgraph NOVEL["독창 — 직접 대응 논문 없음 (ideation §4 빈 공간)"]
+        N1["2-1 · CPU-assisted<br/>동적 배치 planner"]
+        N6["2-6 · CPU prefill-assist<br/>for medium context"]
+        N7["2-7 · CPU Background Compiler<br/>online incremental quantization"]
+        N8["2-8 · GPU-idle-phase CPU Burst<br/>phase-aware sublayer pipeline"]
+    end
+    subgraph APPLIED["선행 연구 적용 — 기존 기법 재조합"]
+        A2["2-2 · CPU drafter + GPU verifier<br/>Dovetail 역전 / DuoDecoding"]
+        A3["2-3 · Cold KV staging<br/>InfiniGen / LMCache / Mooncake"]
+        A4["2-4 · Speculative logits rerank<br/>EAGLE / Medusa 역방향"]
+        A5["2-5 · Constrained decoding worker<br/>XGrammar / llama.cpp grammar"]
+    end
+```
+
+독창 쪽은 **돌파 가치가 크나 근거가 얇다**. 선행 연구 적용 쪽은 **이득 범위가 알려져 있으나 우리 포크에서 고유성이 낮다**. 두 축을 동시에 운영하되, 공통 전제인 profile (현재 workload 에서 어느 CPU 유휴 구간이 실재하는지) 을 먼저 확정한 뒤 각 아이디어의 진입/기각이 결정된다.
+
+## Part III · 독창 축 — 직접 대응 논문 없음
+
+### 3.1 · CPU-assisted 동적 배치 planner (`2-1`)
+
+vLLM scheduler 는 GPU 주 프로세스의 Python thread 에서 돈다. 매 step `scheduler.schedule` + metadata 조립 (position ids, attention mask, rope cache) 이 GPU forward 의 앞에 걸린다. 유휴 CPU engine 이 **다음 step 의 batch 구성과 metadata** 를 미리 만들어 GPU 에 건네면 scheduler 비용을 hide 한다. 방향은 Blink 와 같지만, **scheduler 오프로드 타깃을 hybrid 포크의 CPU engine 으로 특정**한다는 점이 차별점.
+
+- 이론적 근거 — [vLLM anatomy blog (2025-09-05)](https://blog.vllm.ai/2025/09/05/anatomy-of-vllm.html) 의 "CPU-bound output processing" 지적, [APEX (arXiv 2506.03296)](https://arxiv.org/abs/2506.03296) async overlap 원리
+- 리스크 — X 의 실패 패턴 (lookahead 중복 dispatch) 을 반복하지 않으려면 정확성 계약 선행
+- 진입 조건 — sync hybrid 의 step total 에서 scheduler+metadata 구간이 ≥ 10% 확인
+
+### 3.2 · CPU prefill-assist for medium context (`2-6`)
+
+128 토큰 단문에선 GPU prefill 이 빠르다. 그러나 512~2K 중간 구간에선 GPU 가 prefill-compute-bound 가 되고 CPU 는 유휴로 남는다. 이 구간에 CPU 가 **초기 1~2 layer embedding / position encoding / rope table** 을 미리 준비해 GPU prefill TTFT 를 단축한다. prefill disaggregation 자체는 [DistServe (arXiv 2401.09670)](https://arxiv.org/abs/2401.09670) 에 있지만 GPU-GPU 분리만 다루고, **CPU 가 GPU prefill 을 보조하는 구조는 공개 연구에 직접 대응이 없다**.
+
+- 리스크 — 근거 등급 D. 실측 전에는 이득 크기 불명
+- 진입 조건 — medium context workload (512~2K) 에서 GPU prefill 이 실제로 compute-bound 이고 CPU 가 유휴임을 프로파일로 확인
+
+### 3.3 · CPU Background Compiler (`2-7`)
+
+§06 의 load-time Q8_0 변환은 이미 있지만, runtime 중에도 CPU 는 대부분 유휴다. 이 유휴 시간에 다음 layer 의 weight layout 을 **AMX-friendly tile packing** 하거나, activation 범위 통계를 계속 수집해 **다음 batch 의 동적 quantization scale** 을 업데이트한다. 공개 연구의 quantization 파이프라인은 "offline pre-pack" 이거나 "일회성 calibration" 이며, **runtime 중 CPU 가 지속적으로 다음 단계를 준비하는 online incremental 구조는 직접 대응이 없다**.
+
+- 이론적 근거 — [APEX](https://arxiv.org/abs/2506.03296), [Async KV Prefetch (arXiv 2504.06319)](https://arxiv.org/abs/2504.06319) 의 "PCIe prefetch" 원리를 compute 쪽으로 확장
+- 리스크 — D. quantization 정합성 유지 비용이 이득을 초과할 수 있음
+
+### 3.4 · GPU-idle-phase CPU Burst (`2-8`)
+
+Decode step 내부에서 GPU 는 phase 를 번갈아 탄다. attention (memory-bound) 구간에선 GPU 연산기가 놀고, linear matmul (compute-bound) 구간에선 memory 가 논다. 이 **sublayer phase 에 맞춰 CPU 가 서로 다른 보조 작업** 을 수행한다.
+
+| GPU phase | CPU 작업 후보 |
+|---|---|
+| attention (memory-bound) | 다음 step scheduling, detokenize, grammar update |
+| linear (compute-bound) | KV prefetch/evict, speculative draft, logits post-process |
+
+[NEO (arXiv 2411.01142)](https://arxiv.org/abs/2411.01142) 의 asymmetric pipeline 을 **sublayer phase 단위로 세분화** 하는 연구는 공개된 것이 없다.
+
+- 리스크 — D. sublayer 수준 정확한 phase 경계 검출과 CPU 작업 스위칭 오버헤드 필요
+- 진입 조건 — GPU phase timing 을 step 내부에서 안정적으로 감지 가능한지 프로파일로 확인
+
+## Part IV · 선행 연구 적용 축
+
+### 4.1 · CPU drafter + GPU verifier (`2-2`)
+
+[Dovetail (arXiv 2412.18934)](https://arxiv.org/abs/2412.18934) 은 약한 GPU + 강한 CPU 환경에서 "CPU=target / GPU=drafter" 로 갔다. 우리는 정반대 — 강한 GPU + 유휴 CPU. 동일 논리를 역전해 CPU 가 작은 drafter (예: Qwen2.5-0.5B Q8_0) 를 돌리고 GPU 가 32B verifier 를 돌린다. single-request 로 보면 CPU drafter 가 느려 이득 없다는 것이 기존 §18 NinjaGap 에서의 판정이었고, 여기서 새 각도는 **여러 request 를 큐로 다중화**해 CPU drafter 의 느림을 request 수로 상쇄한다.
+
+- 선행 연구 — [Leviathan et al. (arXiv 2211.17192)](https://arxiv.org/abs/2211.17192) spec decode 원전, [EAGLE (arXiv 2401.15077)](https://arxiv.org/abs/2401.15077) / [Medusa (arXiv 2401.10774)](https://arxiv.org/abs/2401.10774) tree draft, [DuoDecoding (arXiv 2503.00784)](https://arxiv.org/abs/2503.00784)
+- 리스크 — 근거 B. 우리 hybrid 구조로 옮길 때 정확도 영향과 수락률이 측정 필요
+
+### 4.2 · CPU-side "Cold KV" staging (`2-3`)
+
+long-context (8K/32K/100K) 시나리오에선 KV 메모리가 지배적이 된다. [InfiniGen (OSDI'24, arXiv 2406.19707)](https://arxiv.org/abs/2406.19707), [LMCache (arXiv 2510.09665)](https://arxiv.org/abs/2510.09665), [Mooncake (arXiv 2407.00079)](https://arxiv.org/abs/2407.00079) 가 이미 CPU DRAM 을 cold KV 저장소로 쓰는 구조를 production 에서 검증했다. 우리 포크에 **"cold KV pool"** 을 구성해 context 길이가 threshold 초과 시 old KV block 을 CPU 로 eviction + prefetch 한다.
+
+- 독자 기여 — 논문은 각자 특정 구조에 붙었고, hybrid (GPU+CPU 이중 엔진) 위의 통합된 구현은 공개된 것이 없다
+- 현재 workload (128/128) 기여 — 0. 오버헤드도 0 (코드 경로 안 탐)
+- 가치 성격 — 장기 인프라. workload 가 long-context 로 전환될 때 즉시 작동
+
+### 4.3 · CPU Speculative Logits Rerank (`2-4`)
+
+GPU 가 top-k logits 를 출력하고 sampling 직전에, CPU 가 **양자화된 보조 모델의 last few layers** 만으로 logits 를 재평가. 두 결과가 합의하면 빠른 sampling, 불일치면 GPU 재확인. [EAGLE / Medusa](https://arxiv.org/abs/2401.15077) 계열 draft model 의 역방향.
+
+- 리스크 — D. 정확도 영향 평가 필수. 근거 약함
+- 우선순위 — 하위. 실측 전 진입 불가
+
+### 4.4 · Constrained Decoding 전담 CPU Worker (`2-5`)
+
+JSON mode / 함수 호출 / regex 제약 같은 **constrained decoding** 에서는 매 step grammar state update + token mask 계산이 CPU-bound 다. hybrid engine 의 CPU engine 1개를 "grammar/constraint 전용 워커" 로 재정의하고 일반 요청은 GPU, constrained 요청은 CPU 가 mask 계산 + GPU 가 masked sampling 으로 처리.
+
+- 선행 연구 — [XGrammar](https://blog.mlc.ai/2024/11/22/achieving-efficient-flexible-portable-structured-generation-with-xgrammar), [Guiding LLMs The Right Way (arXiv 2403.06988)](https://arxiv.org/abs/2403.06988), [llama.cpp grammar](https://github.com/ggml-org/llama.cpp)
+- 한계 — workload 특이. 일반 텍스트 생성엔 기여 0
+- 가치 성격 — 특정 워크로드 전용의 운영 기능
+
+## Part V · 우선순위 판단
+
+| 아이디어 | 축 | 근거 등급 | 현재 workload 기여 | 장기 가치 | 진입 조건 |
+|---|---|:---:|:---:|:---:|---|
+| 3.1 CPU-assisted planner | 독창 | C | 가능성 있음 | 중 | profile 에서 scheduler+metadata 비중 ≥ 10% |
+| 3.2 CPU prefill-assist (medium) | 독창 | D | medium ctx 한정 | 중 | 512~2K 에서 GPU compute-bound 확인 |
+| 3.3 CPU Background Compiler | 독창 | D | 불명 | 중 | quantization 정합성 유지 가능성 확인 |
+| 3.4 Phase-aware CPU Burst | 독창 | D | 불명 | 높음 | sublayer phase 경계 감지 가능성 확인 |
+| 4.1 CPU drafter + GPU verifier | 적용 | B | 가능성 있음 | 높음 (구조적) | 다중화 request 큐 가정 성립 확인 |
+| 4.2 Cold KV staging | 적용 | A | 0 (128/128) | 높음 (long-ctx) | workload 전환 시점 |
+| 4.3 Speculative logits rerank | 적용 | D | 불명 | 낮음 | 정확도 영향 측정 |
+| 4.4 Constrained decoding worker | 적용 | B | workload 특이 | 중 (특수) | constrained workload 시점 |
+
+두 축은 다른 순서로 진행한다. **독창 축은 profile 을 선행 관문으로 공유**한다 (3.1 의 scheduler 비중, 3.2 의 medium-ctx GPU compute 비중, 3.4 의 sublayer phase 감지 가능성). 한 번의 profile run 이 세 아이디어의 진입 여부를 동시에 판정한다. **선행 연구 적용 축은 workload 와 운영 요건에 따라 트리거**된다 — 4.1 은 spec decode 수락률 측정이, 4.2 는 long-context 전환이, 4.4 는 JSON/tool-calling 수요가 진입 조건이다.
+
+## Part VI · 경계선
+
+- **기존 GPU 경로, 기존 vLLM 엔진, 기존 hybrid 엔진은 무변경이 기본값**이다. 여기의 어떤 아이디어도 활성화되지 않은 구성에서는 현재 바이너리·동작 그대로.
+- **vLLM core.py 는 건드리지 않는다** (CLAUDE.md 원칙).
+- 각 아이디어는 **숫자로 진입·기각**이 결정된다. D 급 근거는 profile 없이 진입하지 않는다.
+- 기각된 과거 축 (X, B1, B2, B3) 의 교훈을 반복하지 않는다. 특히 X 의 "lookahead 중복 dispatch" 패턴이 3.1 에서 재발할 위험을 의식한다.
+
+## Part VII · 지금 할 일
+
+Phase 0 으로 **한 번의 profile run** 만 돌린다. 이 run 이 독창 축 4개의 진입 조건을 동시에 관측하도록 구성한다.
+
+1. sync hybrid 에서 `VLLM_HYBRID_PROFILE=1` + sublayer breakdown 을 켜고 light / medium (512~2K) / heavy 세 workload 돌린다.
+2. 수집 대상:
+   - scheduler.schedule + metadata 조립의 step total 비중 (3.1 진입 조건)
+   - medium context 에서 GPU prefill 의 compute vs memory 구간 구분 (3.2)
+   - decode step 내 sublayer phase 경계 감지 가능성 (3.4)
+   - CPU engine 의 idle 비중 — 어느 phase 에서 얼마나 유휴인지 (3.3 의 quantization preparation 에 쓸 시간 창 존재 확인)
+3. 결과를 `01_phase0_profile.md` 로 기록하고 4개 독창 아이디어의 진입 여부를 동시에 판정한다.
+
+Phase 0 이 끝난 뒤에야 이 디렉토리에 `02_*`, `03_*` 가 생긴다. 판정 결과에 따라 어떤 아이디어는 즉시 기각되고 어떤 아이디어는 설계 상세 문서가 따라 붙는다.
