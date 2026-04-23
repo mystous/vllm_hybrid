@@ -1,0 +1,36 @@
+=== PyTorch ===
+torch: 2.9.0+cu130
+mkldnn available: True
+num_threads: 16
+num_interop_threads: 16
+
+=== IPEX ===
+ipex: 2.8.0+gitcb81bf2
+
+=== oneDNN ===
+ONEDNN_MAX_CPU_ISA: not set
+MKL_ENABLE_INSTRUCTIONS: not set
+KMP_AFFINITY: not set
+KMP_BLOCKTIME: not set
+
+=== CPU Features ===
+DEBUG_AG: Process 2598766 importing vllm.platforms
+DEBUG_AG: Process 2598766 vllm.platforms import step 1 (torch)
+INFO 04-14 05:28:59 [intel_cpu_utils.py:483] CPU detected: 12th Gen Intel(R) Core(TM) i9-12900KF
+INFO 04-14 05:28:59 [intel_cpu_utils.py:493]   AVX-512: No (AVX2 available)
+INFO 04-14 05:28:59 [intel_cpu_utils.py:502]   AMX: No (requires Sapphire Rapids or newer)
+Model: 12th Gen Intel(R) Core(TM) i9-12900KF
+Sockets: 1, Cores/Socket: 16, Threads/Core: 2
+AVX-512F: False, VNNI: False, BF16: False
+AMX-BF16: False, AMX-INT8: False
+
+=== vLLM CPU ops ===
+DEBUG_AG: Process 2598766 checking plugin heterogeneous
+DEBUG_AG: Process 2598766 checking plugin tpu
+DEBUG_AG: Process 2598766 checking plugin cuda
+DEBUG_AG: Process 2598766 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 2598766 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 2598766 importing vllm.platforms.cuda
+DEBUG_AG: Process 2598766 finished importing vllm.platforms.cuda
+HAS_CPU_OPS: True
+HAS_CPU_UTILS: True

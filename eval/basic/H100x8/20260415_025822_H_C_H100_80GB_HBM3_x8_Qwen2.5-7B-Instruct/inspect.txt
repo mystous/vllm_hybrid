@@ -1,0 +1,52 @@
+════════════════════════════════════════════════════════════════════════════════
+  vLLM Hybrid — Hardware Utilization Inspect
+  Dir  : 20260415_025822_H_C_H100_80GB_HBM3_x8_Qwen2.5-7B-Instruct
+  Time : 2026-04-15 14:17:02 KST
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+  [System]
+────────────────────────────────────────────────────────────────────────────────
+  CPU  : Intel(R) Xeon(R) Platinum 8480+
+         2 sockets × 56 cores/socket × 2 threads = 224 logical CPUs
+         phys_threshold=112  (CPU < 112 → physical primary)
+  GPU  : NVIDIA H100 80GB HBM3 × 8
+  NUMA 0: 1006GB  phys=0~55  ht=112~167
+  NUMA 1: 1007GB  phys=56~111  ht=168~223
+
+────────────────────────────────────────────────────────────────────────────────
+  [CPU Pinning  — from hybrid_server_boot.log]
+────────────────────────────────────────────────────────────────────────────────
+    CPU_EngineCore_1        NUMA 0  CPUs 0~55  (56 threads, physical primary ✓)
+    CPU_EngineCore_2        NUMA 1  CPUs 56~111  (56 threads, physical primary ✓)
+
+────────────────────────────────────────────────────────────────────────────────
+  [CPU Utilization — per NUMA node]
+────────────────────────────────────────────────────────────────────────────────
+    NUMA 0  (phys CPUs 0~55 [28 cols]  ht CPUs 112~167 [28 cols])
+      physical  : mean= 72.5%  max= 92.8%  min=  0.4%
+      HT sibling: mean=  3.0%  max=  9.4%  min=  1.4%
+      combined  : mean= 37.8%  max= 48.3%  min=  1.2%
+
+    NUMA 1  (phys CPUs 56~111 [28 cols]  ht CPUs 168~223 [28 cols])
+      physical  : mean= 69.4%  max= 94.0%  min=  0.0%
+      HT sibling: mean=  5.8%  max= 12.8%  min=  2.1%
+      combined  : mean= 37.6%  max= 50.6%  min=  2.0%
+
+    overall: mean= 37.7%  max= 48.1%   (354 samples)
+
+────────────────────────────────────────────────────────────────────────────────
+  [GPU Utilization]
+────────────────────────────────────────────────────────────────────────────────
+    GPU0: util mean=  0.2%  max= 43.0%  | power mean=   118W  max=   461W
+    GPU1: util mean=  0.2%  max= 42.0%  | power mean=   118W  max=   467W
+    GPU2: util mean=  0.3%  max= 46.0%  | power mean=   116W  max=   463W
+    GPU3: util mean=  0.2%  max= 44.0%  | power mean=   124W  max=   480W
+    GPU4: util mean=  0.0%  max=  0.0%  | power mean=    75W  max=    75W
+    GPU5: util mean=  0.0%  max=  0.0%  | power mean=    69W  max=    69W
+    GPU6: util mean=  0.0%  max=  0.0%  | power mean=    68W  max=    68W
+    GPU7: util mean=  0.0%  max=  0.0%  | power mean=    69W  max=    69W
+
+    avg: mean=  0.1%  max= 21.8%  (354 samples, 415s)
+
+════════════════════════════════════════════════════════════════════════════════

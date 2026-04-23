@@ -1,0 +1,39 @@
+=== PyTorch ===
+torch: 2.9.0+cu130
+mkldnn available: True
+num_threads: 112
+num_interop_threads: 112
+
+=== IPEX ===
+ipex: 2.8.0+gitcb81bf2
+
+=== oneDNN ===
+ONEDNN_MAX_CPU_ISA: not set
+MKL_ENABLE_INSTRUCTIONS: not set
+KMP_AFFINITY: not set
+KMP_BLOCKTIME: not set
+
+=== CPU Features ===
+DEBUG_AG: Process 3085102 importing vllm.platforms
+DEBUG_AG: Process 3085102 vllm.platforms import step 1 (torch)
+INFO 04-13 03:23:10 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+INFO 04-13 03:23:10 [intel_cpu_utils.py:487]   AVX-512: Yes
+INFO 04-13 03:23:10 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+INFO 04-13 03:23:10 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+INFO 04-13 03:23:10 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+INFO 04-13 03:23:10 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+Model: Intel(R) Xeon(R) Platinum 8480+
+Sockets: 2, Cores/Socket: 56, Threads/Core: 2
+AVX-512F: True, VNNI: True, BF16: True
+AMX-BF16: True, AMX-INT8: True
+
+=== vLLM CPU ops ===
+DEBUG_AG: Process 3085102 checking plugin heterogeneous
+DEBUG_AG: Process 3085102 checking plugin tpu
+DEBUG_AG: Process 3085102 checking plugin cuda
+DEBUG_AG: Process 3085102 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 3085102 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 3085102 importing vllm.platforms.cuda
+DEBUG_AG: Process 3085102 finished importing vllm.platforms.cuda
+HAS_CPU_OPS: True
+HAS_CPU_UTILS: True

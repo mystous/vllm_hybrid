@@ -1,0 +1,36 @@
+
+--- GEMM: decode_qkv [16x3584] × [3584x3584] ---
+  threads=  1: 4.752 ms  (86.5 GFLOPS)
+  threads=  2: 2.791 ms  (147.3 GFLOPS)
+  threads=  4: 1.751 ms  (234.7 GFLOPS)
+  threads=  8: 1.615 ms  (254.5 GFLOPS)
+  threads= 12: 1.025 ms  (401.0 GFLOPS)
+  threads= 16: 0.962 ms  (427.4 GFLOPS)
+  threads= 24: 1.047 ms  (392.8 GFLOPS)
+
+--- GEMM: decode_ffn_up [16x3584] × [3584x9728] ---
+  threads=  1: 15.573 ms  (71.6 GFLOPS)
+  threads=  2: 8.812 ms  (126.6 GFLOPS)
+  threads=  4: 5.015 ms  (222.5 GFLOPS)
+  threads=  8: 3.706 ms  (301.0 GFLOPS)
+  threads= 12: 4.312 ms  (258.7 GFLOPS)
+  threads= 16: 4.339 ms  (257.1 GFLOPS)
+  threads= 24: 8.054 ms  (138.5 GFLOPS)
+
+--- GEMM: decode_ffn_dn [16x9728] × [9728x3584] ---
+  threads=  1: 15.019 ms  (74.3 GFLOPS)
+  threads=  2: 8.688 ms  (128.4 GFLOPS)
+  threads=  4: 5.021 ms  (222.2 GFLOPS)
+  threads=  8: 3.530 ms  (316.1 GFLOPS)
+  threads= 12: 4.257 ms  (262.1 GFLOPS)
+  threads= 16: 4.165 ms  (267.9 GFLOPS)
+  threads= 24: 4.336 ms  (257.3 GFLOPS)
+
+--- GEMM: decode_single [1x3584] × [3584x9728] ---
+  threads=  1: 4.303 ms  (16.2 GFLOPS)
+  threads=  2: 3.407 ms  (20.5 GFLOPS)
+  threads=  4: 3.258 ms  (21.4 GFLOPS)
+  threads=  8: 3.219 ms  (21.7 GFLOPS)
+  threads= 12: 3.582 ms  (19.5 GFLOPS)
+  threads= 16: 3.734 ms  (18.7 GFLOPS)
+  threads= 24: 3.708 ms  (18.8 GFLOPS)

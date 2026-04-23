@@ -1,0 +1,90 @@
+sequenceDiagram
+AsyncLLM->>+Executor: Executor::get_class(engine_args)
+    %% MultiprocExecutor로 만들어 진다고 가정
+    create participant MultiprocExecutor
+    %% vllm/v1/executor/multiproc_executor.py
+    Executor->>+MultiprocExecutor: __init__()
+        MultiprocExecutor->>Executor: __init__()
+            create participant ExecutorBase
+            %% vllm/executor/executor_base.py
+            Executor->>ExecutorBase: __init__()
+                %% vllm/v1/executor/multiproc_executor.py
+                ExecutorBase->>MultiprocExecutor: _init_executor()
+                activate MultiprocExecutor
+                    create participant MessageQueue
+                    MultiprocExecutor->>+MessageQueue: __init__()
+                    MessageQueue->>MultiprocExecutor: return MessageQueue<br>self.rpc_broadcast_mq = MessageQueue
+                    create participant WorkerProc
+                    %% vllm/v1/executor/multiproc_executor.py
+                    MultiprocExecutor->>+WorkerProc: make_worker_process()
+                        WorkerProc->>WorkerProc: worker_main()
+                            WorkerProc->>WorkerProc: __init__()
+                                create participant WorkerWrapperBase
+                                %% vllm/worker/worker_base.py
+                                WorkerProc->>WorkerWrapperBase: __init__()
+                                    WorkerWrapperBase->vllm.utils: init_cached_hf_modules()
+                                    vllm.utils->>WorkerWrapperBase:
+                                WorkerWrapperBase->>WorkerProc: return WorkerWrapperBase<br>wrapper = WorkerWrapperBase
+                                WorkerProc->>WorkerWrapperBase: init_worker()
+                                    create participant Worker
+                                    WorkerWrapperBase->>+Worker: __init__()
+                                        create participant WorkerBase
+                                        Worker->>+WorkerBase: __init__()
+                                        WorkerBase->>Worker:
+
+                                        alt model_config.runner_type == "pooling"
+                                            Worker->>PoolingModelRunner:
+                                            PoolingModelRunner->>Worker: ModelRunnerClass = PoolingModelRunner
+                                        else
+                                            Worker->>EncoderDecoderModelRunner:
+                                            EncoderDecoderModelRunner->>Worker: ModelRunnerClass = EncoderDecoderModelRunner
+                                        end
+                                        %% vllm/worker/model_runner.py
+                                        create participant GPUModelRunnerBase
+                                        Worker->>+GPUModelRunnerBase: __init__()
+                                        %% vllm/worker/model_runner_base.py
+                                            create participant ModelRunnerBase
+                                            GPUModelRunnerBase->>+ModelRunnerBase: __init__()
+                                            ModelRunnerBase->>GPUModelRunnerBase:
+
+                                            GPUModelRunnerBase->>GPUModelRunnerBase: self.graph_runners : List[Dict[Tuple[int, bool], CUDAGraphRunner]] = [ {} for _ in range(self.parallel_config.pipeline_parallel_size)]
+                                        %%TODO
+                                        GPUModelRunnerBase->>Worker: return GPUModelRunnerBase<br>model_runner = GPUModelRunnerBase
+                                    Worker->>WorkerWrapperBase: return WorkerBase<br>self.worker = WorkerBase
+                                WorkerWrapperBase->>WorkerProc:
+                                WorkerProc->>WorkerProc: self.worker = wrapper
+
+                                WorkerProc->>WorkerWrapperBase: init_device()
+                                    WorkerWrapperBase->>WorkerBase: init_device()
+                                        WorkerBase->>Worker: Init_device()
+                                        Worker->>WorkerBase:
+                                    WorkerBase->>WorkerWrapperBase:
+                                WorkerWrapperBase->>WorkerProc:
+                                WorkerProc->>WorkerWrapperBase: load_model()
+                                    WorkerWrapperBase->>WorkerBase: load_model()
+                                        WorkerBase->>Worker: load_model()
+                                        Worker->>WorkerBase:
+                                    WorkerBase->>WorkerWrapperBase:
+                                WorkerWrapperBase->>WorkerProc:
+                            WorkerProc->>WorkerProc: return WorkProc<br>worker = WorkerProc
+                            WorkerProc->>WorkerProc: worker.worker_busy_loop()
+                        WorkerProc->>WorkerProc: return WorkerProc<br>proc = WorkerProc
+                        WorkerProc->>WorkerProc: proc.start()
+                        
+                    WorkerProc->>MultiprocExecutor: return WorkerProc<br>unready_workers.append(WorkerProc)
+                    MultiprocExecutor->>WorkerProc: wait_for_ready(unready_workers)
+                    WorkerProc->>MultiprocExecutor: return WorkerProc<br>self.workers = WorkerProc
+                    alt self.max_concurrent_batches > 1
+                        create participant ThreadPoolExecutor
+                        MultiprocExecutor->>+ThreadPoolExecutor: __init__()
+                        ThreadPoolExecutor->>MultiprocExecutor: return ThreadPoolExecutor<br>self.io_thread_pool = ThreadPoolExecutor 
+                    end
+                    create participant KVOutputAggregator
+                    MultiprocExecutor->>+KVOutputAggregator: __init__()
+                    KVOutputAggregator->>MultiprocExecutor: return KVOutputAggregator<br>self.kv_output_aggregator = KVOutputAggregator
+                MultiprocExecutor->>ExecutorBase:
+                deactivate MultiprocExecutor
+            ExecutorBase->>Executor:
+        Executor->>MultiprocExecutor:
+    MultiprocExecutor->>Executor:
+Executor->>AsyncLLM: return type["Executor"]<br>executor_class = type["Executor"]

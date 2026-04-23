@@ -1,0 +1,268 @@
+======================================================================
+  vLLM Hybrid Benchmark Comparison Report
+  Generated: 2026-04-07 16:07:08 KST
+======================================================================
+
+  GPU-only  : model=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B, prompts=500
+  Hybrid    : model=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B, prompts=500
+
+----------------------------------------------------------------------
+  Metric                                     GPU Only     Hybrid     Diff
+----------------------------------------------------------------------
+  Request throughput (req/s)                     36.5       37.1 +1.8% ▲
+  Output token throughput (tok/s)             17327.1    17565.0 +1.4% ▲
+  Total token throughput (tok/s)              35914.8    36479.0 +1.6% ▲
+  Benchmark duration (s)                        13.70      13.46 -1.7% ▲
+  Mean TTFT (ms)                              1642.65    1704.18 +3.7% ▼
+  Median TTFT (ms)                            1595.21    1688.29 +5.8% ▼
+  P99 TTFT (ms)                               2775.94    2879.34 +3.7% ▼
+  Mean TPOT (ms)                                24.47      23.96 -2.1% ▲
+  Median TPOT (ms)                              23.44      22.92 -2.2% ▲
+  P99 TPOT (ms)                                 52.85      55.57 +5.1% ▼
+  Mean ITL (ms)                                 23.37      22.87 -2.1% ▲
+  Median ITL (ms)                               21.21      20.76 -2.1% ▲
+  P99 ITL (ms)                                  76.76      79.48 +3.5% ▼
+----------------------------------------------------------------------
+
+  [Key Summary]
+  Request throughput: 36.49 → 37.13 req/s  (101.8%)
+  Output tok/s:       17327 → 17565 tok/s  (101.4%)
+  Mean TTFT gain:     -3.7%
+
+----------------------------------------------------------------------
+  [GPU Utilization]
+  GPU-only (24 samples, 24.7s):
+    gpu_avg_util_pct               avg= 28.1%  max= 87.8%  min=  0.0%
+    gpu_avg_mem_util_pct           avg= 13.1%  max= 41.5%  min=  0.0%
+    gpu0_mem_util_pct              avg= 13.1%  max= 42.0%
+    gpu0_util_pct                  avg= 27.8%  max= 88.0%
+    gpu1_mem_util_pct              avg= 13.1%  max= 41.0%
+    gpu1_util_pct                  avg= 28.2%  max= 88.0%
+    gpu2_mem_util_pct              avg= 13.0%  max= 41.0%
+    gpu2_util_pct                  avg= 28.3%  max= 87.0%
+    gpu3_mem_util_pct              avg= 13.1%  max= 42.0%
+    gpu3_util_pct                  avg= 28.1%  max= 88.0%
+    gpu0_power_w                   avg= 272.6W  max= 617.0W
+    gpu1_power_w                   avg= 268.5W  max= 630.4W
+    gpu2_power_w                   avg= 278.2W  max= 623.4W
+    gpu3_power_w                   avg= 286.8W  max= 637.3W
+    gpu_avg_power_w                avg=1106.1W  max=2508.1W
+
+  Hybrid   (26 samples, 26.8s):
+    gpu_avg_util_pct               avg= 36.0%  max= 85.5%  min=  0.0%
+    gpu_avg_mem_util_pct           avg= 14.6%  max= 40.0%  min=  0.0%
+    gpu0_mem_util_pct              avg= 14.2%  max= 41.0%
+    gpu0_util_pct                  avg= 29.5%  max= 88.0%
+    gpu1_mem_util_pct              avg= 14.8%  max= 40.0%
+    gpu1_util_pct                  avg= 32.2%  max= 85.0%
+    gpu2_mem_util_pct              avg= 14.8%  max= 40.0%
+    gpu2_util_pct                  avg= 41.1%  max= 86.0%
+    gpu3_mem_util_pct              avg= 14.6%  max= 43.0%
+    gpu3_util_pct                  avg= 41.3%  max= 92.0%
+    gpu0_power_w                   avg= 261.4W  max= 616.2W
+    gpu1_power_w                   avg= 261.9W  max= 635.3W
+    gpu2_power_w                   avg= 269.6W  max= 637.4W
+    gpu3_power_w                   avg= 279.2W  max= 639.0W
+    gpu_avg_power_w                avg=1072.1W  max=2527.9W
+
+----------------------------------------------------------------------
+  [CPU Utilization]
+  GPU-only (24 samples, 24.7s):
+    cpu_avg_util_pct               avg=  6.5%  max= 13.5%  min=  4.7%
+    core0_util_pct                 avg=  0.7%  max= 12.4%
+    core10_util_pct                avg=100.0%  max=100.0%
+    core11_util_pct                avg=  0.8%  max= 12.3%
+    core12_util_pct                avg=100.0%  max=100.0%
+    core13_util_pct                avg=  0.8%  max= 12.3%
+    core14_util_pct                avg=  0.8%  max= 13.0%
+    core15_util_pct                avg=  0.3%  max=  1.9%
+    core16_util_pct                avg=  0.7%  max= 12.1%
+    core17_util_pct                avg=  0.1%  max=  0.9%
+    core18_util_pct                avg=  0.8%  max= 13.1%
+    core19_util_pct                avg=  0.8%  max= 12.1%
+    core1_util_pct                 avg=  0.2%  max=  0.9%
+    core20_util_pct                avg=  0.8%  max= 13.0%
+    core21_util_pct                avg=  0.8%  max= 13.1%
+    core22_util_pct                avg=  0.7%  max= 12.1%
+    core23_util_pct                avg=  0.1%  max=  2.7%
+    core24_util_pct                avg=  0.8%  max= 12.3%
+    core25_util_pct                avg=  0.8%  max= 12.1%
+    core26_util_pct                avg=  0.8%  max= 12.1%
+    core27_util_pct                avg=  0.8%  max= 13.0%
+    core28_util_pct                avg=  0.8%  max= 13.1%
+    core29_util_pct                avg=  0.1%  max=  1.8%
+    core2_util_pct                 avg=100.0%  max=100.0%
+    core30_util_pct                avg=  0.1%  max=  0.9%
+    core31_util_pct                avg=  0.7%  max= 12.1%
+    core32_util_pct                avg=  0.1%  max=  0.9%
+    core33_util_pct                avg=  0.8%  max= 13.1%
+    core34_util_pct                avg=  0.9%  max= 13.0%
+    core35_util_pct                avg=  0.8%  max= 13.0%
+    core36_util_pct                avg=  0.2%  max=  1.8%
+    core37_util_pct                avg=  0.1%  max=  1.8%
+    core38_util_pct                avg=  0.0%  max=  0.9%
+    core39_util_pct                avg= 52.6%  max=100.0%
+    core3_util_pct                 avg=  1.8%  max=  6.2%
+    core40_util_pct                avg=  0.1%  max=  0.9%
+    core41_util_pct                avg= 44.6%  max=100.0%
+    core42_util_pct                avg=  0.6%  max= 10.1%
+    core43_util_pct                avg=  2.3%  max= 12.0%
+    core44_util_pct                avg=  0.1%  max=  1.9%
+    core45_util_pct                avg=  0.7%  max= 10.1%
+    core46_util_pct                avg=  4.6%  max= 15.5%
+    core47_util_pct                avg= 31.9%  max=100.0%
+    core48_util_pct                avg= 24.8%  max= 58.5%
+    core49_util_pct                avg=  0.9%  max= 12.1%
+    core4_util_pct                 avg=  0.1%  max=  0.9%
+    core50_util_pct                avg=  0.9%  max= 12.1%
+    core51_util_pct                avg=  0.6%  max= 12.1%
+    core52_util_pct                avg=  4.2%  max= 76.3%
+    core53_util_pct                avg=  1.3%  max= 12.1%
+    core54_util_pct                avg=  1.1%  max= 12.1%
+    core55_util_pct                avg=  1.2%  max= 12.1%
+    core56_util_pct                avg=  1.1%  max= 13.0%
+    core57_util_pct                avg=  1.1%  max= 12.1%
+    core58_util_pct                avg=  0.7%  max= 13.1%
+    core59_util_pct                avg=  1.1%  max= 13.0%
+    core5_util_pct                 avg=  0.8%  max= 12.1%
+    core60_util_pct                avg=  1.1%  max= 12.1%
+    core61_util_pct                avg=  0.1%  max=  0.9%
+    core62_util_pct                avg=  1.1%  max= 12.1%
+    core63_util_pct                avg=  2.6%  max= 12.3%
+    core64_util_pct                avg=  1.1%  max= 12.1%
+    core65_util_pct                avg=  1.5%  max= 13.1%
+    core66_util_pct                avg=  1.1%  max= 12.1%
+    core67_util_pct                avg=  1.3%  max= 13.0%
+    core68_util_pct                avg=  1.1%  max= 13.0%
+    core69_util_pct                avg=  1.5%  max= 12.0%
+    core6_util_pct                 avg=  0.8%  max= 13.0%
+    core70_util_pct                avg=  1.0%  max= 12.3%
+    core71_util_pct                avg=  0.2%  max=  1.8%
+    core72_util_pct                avg=  1.0%  max= 12.1%
+    core73_util_pct                avg=  1.2%  max= 13.0%
+    core74_util_pct                avg=  0.9%  max= 12.1%
+    core75_util_pct                avg=  0.9%  max= 13.0%
+    core76_util_pct                avg=  0.1%  max=  1.8%
+    core77_util_pct                avg=  0.9%  max= 12.3%
+    core78_util_pct                avg=  0.1%  max=  1.8%
+    core79_util_pct                avg=  0.8%  max= 13.0%
+    core7_util_pct                 avg=  0.7%  max= 12.1%
+    core80_util_pct                avg=  0.9%  max= 12.1%
+    core81_util_pct                avg=  0.9%  max= 12.1%
+    core82_util_pct                avg=  0.2%  max=  4.6%
+    core83_util_pct                avg=  0.1%  max=  1.8%
+    core84_util_pct                avg=  0.8%  max= 12.1%
+    core85_util_pct                avg=  0.9%  max= 13.0%
+    core86_util_pct                avg=  0.8%  max= 12.3%
+    core87_util_pct                avg=  0.9%  max= 12.3%
+    core88_util_pct                avg=  0.8%  max= 13.0%
+    core89_util_pct                avg=  0.8%  max= 12.1%
+    core8_util_pct                 avg=  0.8%  max= 12.1%
+    core90_util_pct                avg=  0.8%  max= 12.1%
+    core91_util_pct                avg=  0.1%  max=  1.9%
+    core92_util_pct                avg=  0.8%  max= 12.1%
+    core93_util_pct                avg=  0.8%  max= 13.1%
+    core94_util_pct                avg=  0.8%  max= 12.1%
+    core95_util_pct                avg=100.0%  max=100.0%
+    core9_util_pct                 avg=  0.8%  max= 12.1%
+
+  Hybrid   (26 samples, 26.8s):
+    cpu_avg_util_pct               avg=  7.5%  max= 14.6%  min=  5.7%
+    core0_util_pct                 avg=  2.5%  max= 12.4%
+    core10_util_pct                avg=  1.1%  max= 12.3%
+    core11_util_pct                avg=  0.3%  max=  4.5%
+    core12_util_pct                avg=  0.9%  max= 13.0%
+    core13_util_pct                avg=  0.2%  max=  0.9%
+    core14_util_pct                avg=  0.2%  max=  0.9%
+    core15_util_pct                avg=  0.1%  max=  0.9%
+    core16_util_pct                avg=  0.2%  max=  4.1%
+    core17_util_pct                avg=  1.1%  max= 12.7%
+    core18_util_pct                avg=  0.2%  max=  1.8%
+    core19_util_pct                avg=  1.1%  max= 12.3%
+    core1_util_pct                 avg=  1.2%  max= 15.3%
+    core20_util_pct                avg=  0.3%  max=  8.3%
+    core21_util_pct                avg=  0.7%  max= 12.3%
+    core22_util_pct                avg=  0.5%  max= 12.3%
+    core23_util_pct                avg=  0.2%  max=  1.9%
+    core24_util_pct                avg=  0.1%  max=  1.8%
+    core25_util_pct                avg=  0.7%  max=  8.3%
+    core26_util_pct                avg=  0.8%  max= 12.1%
+    core27_util_pct                avg=  1.1%  max= 13.1%
+    core28_util_pct                avg=  1.2%  max= 12.3%
+    core29_util_pct                avg=100.0%  max=100.0%
+    core2_util_pct                 avg=100.0%  max=100.0%
+    core30_util_pct                avg=100.0%  max=100.0%
+    core31_util_pct                avg=100.0%  max=100.0%
+    core32_util_pct                avg=  2.0%  max= 12.3%
+    core33_util_pct                avg=  0.8%  max= 13.0%
+    core34_util_pct                avg=  0.7%  max= 13.1%
+    core35_util_pct                avg=  2.1%  max= 10.0%
+    core36_util_pct                avg=  0.3%  max=  4.6%
+    core37_util_pct                avg=  0.5%  max=  4.7%
+    core38_util_pct                avg=  1.4%  max= 12.3%
+    core39_util_pct                avg=  1.2%  max=  4.7%
+    core3_util_pct                 avg=  1.0%  max= 12.1%
+    core40_util_pct                avg=  0.9%  max= 13.0%
+    core41_util_pct                avg=  0.9%  max= 13.0%
+    core42_util_pct                avg= 12.0%  max= 68.3%
+    core43_util_pct                avg=  1.3%  max= 12.3%
+    core44_util_pct                avg=  1.1%  max= 12.3%
+    core45_util_pct                avg=  1.1%  max= 12.1%
+    core46_util_pct                avg=  0.1%  max=  1.9%
+    core47_util_pct                avg=  1.0%  max= 12.3%
+    core48_util_pct                avg=  3.8%  max= 74.2%
+    core49_util_pct                avg=  0.8%  max= 12.3%
+    core4_util_pct                 avg= 14.5%  max= 60.4%
+    core50_util_pct                avg=  0.9%  max= 13.1%
+    core51_util_pct                avg=  0.9%  max= 13.1%
+    core52_util_pct                avg=  0.9%  max= 13.1%
+    core53_util_pct                avg=  0.9%  max= 12.3%
+    core54_util_pct                avg=  0.8%  max= 13.1%
+    core55_util_pct                avg=  0.8%  max= 13.1%
+    core56_util_pct                avg=  0.8%  max= 13.1%
+    core57_util_pct                avg=  0.8%  max= 12.3%
+    core58_util_pct                avg=  0.9%  max= 13.1%
+    core59_util_pct                avg=  0.7%  max= 12.3%
+    core5_util_pct                 avg=  0.7%  max= 12.3%
+    core60_util_pct                avg=  0.7%  max= 12.3%
+    core61_util_pct                avg=  0.8%  max= 12.1%
+    core62_util_pct                avg=  0.8%  max= 12.1%
+    core63_util_pct                avg=  0.7%  max= 13.1%
+    core64_util_pct                avg=  0.7%  max= 12.1%
+    core65_util_pct                avg=  0.8%  max= 12.3%
+    core66_util_pct                avg=  0.8%  max= 13.1%
+    core67_util_pct                avg=  0.8%  max= 13.1%
+    core68_util_pct                avg=  0.7%  max= 13.1%
+    core69_util_pct                avg=  0.7%  max= 13.0%
+    core6_util_pct                 avg=  0.1%  max=  0.9%
+    core70_util_pct                avg=  0.7%  max= 12.1%
+    core71_util_pct                avg=  0.7%  max= 13.0%
+    core72_util_pct                avg=  0.7%  max= 12.3%
+    core73_util_pct                avg=  0.7%  max= 13.1%
+    core74_util_pct                avg=  0.7%  max= 12.3%
+    core75_util_pct                avg=  0.6%  max= 13.1%
+    core76_util_pct                avg=  0.7%  max= 13.1%
+    core77_util_pct                avg=  0.7%  max= 13.1%
+    core78_util_pct                avg=  0.7%  max= 13.1%
+    core79_util_pct                avg=  0.8%  max= 12.3%
+    core7_util_pct                 avg=  0.2%  max=  1.9%
+    core80_util_pct                avg=  0.7%  max= 13.0%
+    core81_util_pct                avg=  0.7%  max= 12.3%
+    core82_util_pct                avg=  0.7%  max= 12.1%
+    core83_util_pct                avg=  0.7%  max= 13.1%
+    core84_util_pct                avg=  0.7%  max= 13.0%
+    core85_util_pct                avg=  0.7%  max= 12.1%
+    core86_util_pct                avg=  0.3%  max=  4.1%
+    core87_util_pct                avg=  0.3%  max=  4.1%
+    core88_util_pct                avg=  0.1%  max=  3.1%
+    core89_util_pct                avg= 59.5%  max=100.0%
+    core8_util_pct                 avg=  0.7%  max= 12.3%
+    core90_util_pct                avg=  0.1%  max=  3.1%
+    core91_util_pct                avg=  0.2%  max=  4.1%
+    core92_util_pct                avg=  1.8%  max= 22.4%
+    core93_util_pct                avg=  0.3%  max=  3.6%
+    core94_util_pct                avg=  0.7%  max= 12.7%
+    core95_util_pct                avg= 69.2%  max=100.0%
+    core9_util_pct                 avg=100.0%  max=100.0%
+
+======================================================================

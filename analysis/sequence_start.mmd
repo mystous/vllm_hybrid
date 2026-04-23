@@ -1,0 +1,60 @@
+sequenceDiagram
+    participant Client
+    participant AsyncLLMEngine
+    participant RequestTracker
+    participant _AsyncLLMEngine
+    participant ExecutorBase
+    participant WorkerBase
+
+    %% Request flow
+    Client->>AsyncLLMEngine: generate()/encode()/add_request()
+    AsyncLLMEngine->>AsyncLLMEngine: start_background_loop() (if needed)
+    AsyncLLMEngine->>RequestTracker: add_request()
+    AsyncLLMEngine->>AsyncLLMEngine: run_engine_loop()
+    loop Engine Loop
+        AsyncLLMEngine->>AsyncLLMEngine: engine_step()
+        AsyncLLMEngine->>RequestTracker: get_new_and_aborted_requests()
+        alt New Requests
+            AsyncLLMEngine->>_AsyncLLMEngine: add_request_async()
+            _AsyncLLMEngine->>InputPreprocessor: preprocess_async()
+            _AsyncLLMEngine->>_AsyncLLMEngine: _add_processed_request()
+        end
+        alt Aborted Requests
+            AsyncLLMEngine->>_AsyncLLMEngine: abort_request()
+        end
+        AsyncLLMEngine->>_AsyncLLMEngine: step_async()
+        _AsyncLLMEngine->>Scheduler: schedule()
+        _AsyncLLMEngine->>ExecutorBase: execute_model_async()
+        ExecutorBase->>WorkerBase: execute_model()
+        WorkerBase->>WorkerBase: prepare_input()
+        WorkerBase->>WorkerBase: execute_worker()
+        WorkerBase->>ModelRunnerBase: execute_model()
+        ExecutorBase->>_AsyncLLMEngine: return outputs
+        _AsyncLLMEngine->>_AsyncLLMEngine: process outputs, finish_step()
+        _AsyncLLMEngine->>AsyncLLMEngine: return outputs
+        AsyncLLMEngine->>RequestTracker: process_request_outputs()
+        RequestTracker->>AsyncStream: put()/finish()
+        AsyncStream->>Client: generator() yields outputs
+    end
+
+    %% Management/Control flows
+    Client->>AsyncLLMEngine: abort()
+    AsyncLLMEngine->>RequestTracker: abort_request()
+    Client->>AsyncLLMEngine: check_health()/get_config()
+    AsyncLLMEngine->>_AsyncLLMEngine: check_health_async()/get_*_config()
+    _AsyncLLMEngine->>ExecutorBase: check_health()
+    Client->>AsyncLLMEngine: start_profile()/stop_profile()/sleep()/wake_up()
+    AsyncLLMEngine->>_AsyncLLMEngine: start_profile()/stop_profile()/sleep()/wake_up()
+    _AsyncLLMEngine->>ExecutorBase: start_profile()/stop_profile()/sleep()/wake_up()
+    ExecutorBase->>WorkerBase: corresponding method
+
+    %% LoRA management
+    Client->>AsyncLLMEngine: add_lora()/remove_lora()/pin_lora()/list_loras()
+    AsyncLLMEngine->>_AsyncLLMEngine: add_lora()/remove_lora()/pin_lora()/list_loras()
+    _AsyncLLMEngine->>ExecutorBase: add_lora()/remove_lora()/pin_lora()/list_loras()
+    ExecutorBase->>WorkerBase: corresponding method
+
+    %% Worker initialization
+    AsyncLLMEngine->>WorkerWrapperBase: init_worker()
+    WorkerWrapperBase->>WorkerBase: __init__()
+    WorkerWrapperBase->>WorkerBase: init_device()

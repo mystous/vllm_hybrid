@@ -1,0 +1,90 @@
+======================================================================
+  vLLM Hybrid Benchmark Comparison Report
+  Generated: 2026-03-29 10:09:34 KST
+======================================================================
+
+  GPU-only  : model=Qwen/Qwen2.5-7B-Instruct, prompts=500
+  Hybrid    : model=Qwen/Qwen2.5-7B-Instruct, prompts=500
+
+----------------------------------------------------------------------
+  Metric                                     GPU Only     Hybrid     Diff
+----------------------------------------------------------------------
+  Request throughput (req/s)                      9.3        2.0 -78.9% ▼
+  Output token throughput (tok/s)              4545.9      970.7 -78.6% ▼
+  Total token throughput (tok/s)               9292.2     1972.6 -78.8% ▼
+  Benchmark duration (s)                        53.76     254.67 +373.7% ▼
+  Mean TTFT (ms)                             18369.64   19500.11 +6.2% ▼
+  Median TTFT (ms)                           11011.20   11551.62 +4.9% ▼
+  P99 TTFT (ms)                              38339.47   40217.49 +4.9% ▼
+  Mean TPOT (ms)                                48.11      51.19 +6.4% ▼
+  Median TPOT (ms)                              51.11      53.62 +4.9% ▼
+  P99 TPOT (ms)                                 92.81      85.65 -7.7% ▲
+  Mean ITL (ms)                                 47.03      50.41 +7.2% ▼
+  Median ITL (ms)                               31.24      33.34 +6.7% ▼
+  P99 ITL (ms)                                 194.27     203.91 +5.0% ▼
+----------------------------------------------------------------------
+
+  [Key Summary]
+  Request throughput: 9.30 → 1.96 req/s  (21.1%)
+  Output tok/s:       4546 → 971 tok/s  (21.4%)
+  Mean TTFT gain:     -6.2%
+
+----------------------------------------------------------------------
+  [GPU Utilization]
+  GPU-only (109 samples, 112.6s):
+    gpu_avg_util_pct               avg= 50.0%  max= 99.0%  min=  0.0%
+    gpu_avg_mem_util_pct           avg= 28.5%  max= 80.0%  min=  0.0%
+    gpu0_mem_util_pct              avg= 28.5%  max= 80.0%
+    gpu0_util_pct                  avg= 50.0%  max= 99.0%
+    gpu0_power_w                   avg= 182.7W  max= 355.5W
+    gpu_avg_power_w                avg= 182.7W  max= 355.5W
+
+  Hybrid   (344 samples, 355.0s):
+    gpu_avg_util_pct               avg= 15.8%  max= 98.0%  min=  0.0%
+    gpu_avg_mem_util_pct           avg=  9.2%  max= 79.0%  min=  0.0%
+    gpu0_mem_util_pct              avg=  9.2%  max= 79.0%
+    gpu0_util_pct                  avg= 15.8%  max= 98.0%
+    gpu0_power_w                   avg= 107.3W  max= 342.6W
+    gpu_avg_power_w                avg= 107.3W  max= 342.6W
+
+----------------------------------------------------------------------
+  [CPU Utilization]
+  GPU-only (109 samples, 112.6s):
+    cpu_avg_util_pct               avg=  9.7%  max= 26.9%  min=  0.6%
+    core0_util_pct                 avg=  2.2%  max= 45.5%
+    core10_util_pct                avg= 13.9%  max= 51.9%
+    core11_util_pct                avg=  1.6%  max= 26.4%
+    core12_util_pct                avg=  1.9%  max= 50.5%
+    core13_util_pct                avg=  1.6%  max= 21.0%
+    core14_util_pct                avg=  2.1%  max= 26.7%
+    core15_util_pct                avg= 93.1%  max=100.0%
+    core1_util_pct                 avg=  3.0%  max= 68.3%
+    core2_util_pct                 avg=  1.8%  max= 41.6%
+    core3_util_pct                 avg= 18.8%  max= 62.5%
+    core4_util_pct                 avg=  1.4%  max= 19.6%
+    core5_util_pct                 avg=  2.4%  max= 42.3%
+    core6_util_pct                 avg=  2.7%  max= 25.0%
+    core7_util_pct                 avg=  1.6%  max= 26.2%
+    core8_util_pct                 avg=  2.8%  max= 76.2%
+    core9_util_pct                 avg=  3.6%  max= 56.7%
+
+  Hybrid   (344 samples, 355.0s):
+    cpu_avg_util_pct               avg= 71.3%  max= 93.1%  min=  6.3%
+    core0_util_pct                 avg= 84.6%  max=100.0%
+    core10_util_pct                avg= 57.5%  max=100.0%
+    core11_util_pct                avg= 82.2%  max=100.0%
+    core12_util_pct                avg= 17.8%  max=100.0%
+    core13_util_pct                avg= 89.8%  max=100.0%
+    core14_util_pct                avg= 71.2%  max=100.0%
+    core15_util_pct                avg= 83.7%  max=100.0%
+    core1_util_pct                 avg= 84.6%  max=100.0%
+    core2_util_pct                 avg= 84.3%  max=100.0%
+    core3_util_pct                 avg= 84.5%  max=100.0%
+    core4_util_pct                 avg= 67.9%  max=100.0%
+    core5_util_pct                 avg= 75.9%  max=100.0%
+    core6_util_pct                 avg= 22.1%  max=100.0%
+    core7_util_pct                 avg= 56.3%  max=100.0%
+    core8_util_pct                 avg= 94.3%  max=100.0%
+    core9_util_pct                 avg= 85.0%  max=100.0%
+
+======================================================================

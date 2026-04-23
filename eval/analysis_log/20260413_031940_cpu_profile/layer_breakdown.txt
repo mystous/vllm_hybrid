@@ -1,0 +1,44 @@
+
+=== Layer Breakdown: 24 threads ===
+Loading model with 24 threads...
+Warmup...
+Measuring...
+  Total:     96.3 ms
+  Attention: 30.4 ms (31.6%)
+  MLP (FFN): 43.2 ms (44.8%)
+  Other:     22.8 ms (23.6%)
+
+=== Layer Breakdown: 76 threads ===
+Loading model with 76 threads...
+Warmup...
+Measuring...
+  Total:     154.9 ms
+  Attention: 42.6 ms (27.5%)
+  MLP (FFN): 80.4 ms (51.9%)
+  Other:     31.9 ms (20.6%)
+
+=== Layer Breakdown: 96 threads ===
+Loading model with 96 threads...
+Warmup...
+Measuring...
+  Total:     258.3 ms
+  Attention: 48.3 ms (18.7%)
+  MLP (FFN): 179.4 ms (69.5%)
+  Other:     30.6 ms (11.8%)
+
+=== Layer Breakdown: 112 threads ===
+Loading model with 112 threads...
+Warmup...
+Measuring...
+  Total:     229.7 ms
+  Attention: 50.2 ms (21.9%)
+  MLP (FFN): 147.5 ms (64.2%)
+  Other:     32.0 ms (13.9%)
+
+=== Comparison: 24 vs 76 threads ===
+  Total:  96.3 → 154.9 ms (1.61×)
+  Attn:   30.4 → 42.6 ms (1.40×)
+  MLP:    43.2 → 80.4 ms (1.86×)
+  Other:  22.8 → 31.9 ms
+
+  → Bottleneck: MLP/FFN

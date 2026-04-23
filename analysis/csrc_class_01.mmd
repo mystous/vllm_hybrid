@@ -1,0 +1,163 @@
+classDiagram
+    %% 글로벌 함수 예시
+    class GlobalFunctions {
+        +int get_cuda_max_shared_memory_per_block_opt_in(int device)
+        +int32_t get_sm_version_num()
+        +void cache_op()
+        +void quantize()
+        +void compute_attention()
+        +void dnnl_op()
+        +void cuda_helper()
+    }
+
+    %% 구조체/클래스/템플릿 예시
+    class CacheKernels {
+        +int cache_size
+        +void cache_op()
+        -float* private_buffer
+        #int protected_flag
+    }
+    class CustomAllReduce {
+        +float* buffer
+        +void reduce()
+        +void sync()
+        -int private_rank
+        #bool protected_ready
+    }
+    class Sampler {
+        +int sample_count
+        +void sample()
+        -double* private_samples
+        #int protected_seed
+    }
+    class CudaUtils {
+        +int device_id
+        +void cuda_helper()
+        +int get_device()
+        -void* private_handle
+        #bool protected_status
+    }
+    class QuickReduce {
+        +double result
+        +void quick_reduce()
+        -int private_val
+        #float protected_factor
+    }
+    class CutlassKernelTag
+    class VLLMCollectiveBuilder {
+        +CollectiveOp
+        +void build()
+        -int private_param
+        #bool protected_flag
+    }
+    VLLMCollectiveBuilder o-- CutlassKernelTag : aggregation
+
+    %% Quantization 예시
+    class GGMLCommon {
+        +int paramA
+        +float paramB
+        +void init()
+        -uint8_t* private_data
+        #int protected_state
+    }
+    class PerTokenGroupQuant8Bit {
+        +uint8_t* data
+        +void quantize()
+        -int private_bits
+        #float protected_scale
+    }
+    class MarlinDenseBase {
+        +float* data
+        +void process()
+        -int private_size
+        #bool protected_flag
+    }
+    class MarlinSparseBase {
+        +float* data
+        +void process()
+        -int private_size
+        #bool protected_flag
+    }
+    MarlinDenseBase <|-- GGMLCommon : inheritance
+    MarlinSparseBase <|-- GGMLCommon : inheritance
+    PerTokenGroupQuant8Bit ..> GGMLCommon : uses
+
+    %% Attention 예시
+    class AttentionUtils {
+        +float* attn_weights
+        +void compute_attention()
+        -int private_dim
+        #bool protected_flag
+    }
+    class AttentionKernels {
+        +int kernel_id
+        +void kernel_op()
+        -float* private_buffer
+        #int protected_state
+    }
+    AttentionUtils *-- AttentionKernels : composition
+
+    %% CPU 예시
+    class DNNLHelper {
+        +void dnnl_op()
+        +int helper_id
+        -float* private_mem
+        #int protected_flag
+    }
+    class CPUTypeX86 {
+        +int x86_param
+        +void set_x86()
+        -int private_val
+        #bool protected_flag
+    }
+    class CPUTypeARM {
+        +int arm_param
+        +void set_arm()
+        -int private_val
+        #bool protected_flag
+    }
+    DNNLHelper o-- CPUTypeX86 : aggregation
+    DNNLHelper o-- CPUTypeARM : aggregation
+
+    %% QuickReduce 예시
+    class QuickReduceBase {
+        +int base_val
+        +void base_reduce()
+        -float* private_data
+        #int protected_flag
+    }
+    class QuickReduceImpl {
+        +int impl_val
+        +void impl_reduce()
+        -float* private_data
+        #int protected_flag
+    }
+    QuickReduceImpl <|-- QuickReduceBase : inheritance
+
+    %% 기타 예시
+    class IntegerSubbyte {
+        +Storage
+        +xint_t
+        +void set_storage()
+        -int private_bits
+        #bool protected_flag
+    }
+    class VLLMBiasedIntegerSubbyte {
+        +Base
+        +Storage
+        +xint_t
+        +void vllm_biased_integer_subbyte()
+        +void convert(int value)
+        -int private_bias
+        #bool protected_flag
+    }
+    VLLMBiasedIntegerSubbyte <|-- IntegerSubbyte : inheritance
+
+    %% 관계 예시
+    AttentionUtils "1" *-- "1" AttentionKernels : composition
+    VLLMCollectiveBuilder "1" o-- "1" CutlassKernelTag : aggregation
+    MarlinDenseBase <|-- GGMLCommon : inheritance
+    MarlinSparseBase <|-- GGMLCommon : inheritance
+    QuickReduceImpl <|-- QuickReduceBase : inheritance
+    VLLMBiasedIntegerSubbyte <|-- IntegerSubbyte : inheritance
+    PerTokenGroupQuant8Bit ..> GGMLCommon : uses

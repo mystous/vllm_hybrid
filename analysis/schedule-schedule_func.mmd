@@ -1,0 +1,84 @@
+sequenceDiagram
+participant Scheduler
+participant time
+participant self._schedule
+participant SchedulerOutputs
+participant now
+participant seq_group_metadata_list
+participant scheduled_seq_group
+participant seq_group
+participant seq_group_metadata
+participant self._seq_group_metadata_cache
+participant self.block_manager
+
+Scheduler->>time: perf_counter()
+Scheduler->>self._schedule: _schedule()
+self._schedule-->>Scheduler: SchedulerOutputs
+Scheduler->>time: time()
+alt not self.cache_config.enable_prefix_caching
+    Scheduler->>Scheduler: common_computed_block_nums = []
+end
+Scheduler->>Scheduler: allow_async_output_proc = self.use_async_output_proc
+loop for scheduled_seq_group in scheduler_outputs.scheduled_seq_groups
+    Scheduler->>scheduled_seq_group: .seq_group
+    Scheduler->>scheduled_seq_group: .token_chunk_size
+    scheduled_seq_group->>seq_group: maybe_set_first_scheduled_time(now)
+    Scheduler->>self._seq_group_metadata_cache: get_object()
+    self._seq_group_metadata_cache-->>Scheduler: seq_group_metadata
+    Scheduler->>seq_group_metadata: .seq_data.clear()
+    Scheduler->>seq_group_metadata: .block_tables.clear()
+    alt seq_group.is_encoder_decoder()
+        seq_group->>seq_group: get_encoder_seq()
+        seq_group->>seq_group: encoder_seq_data
+        self.block_manager->>seq_group: get_cross_block_table(seq_group)
+    else
+        Scheduler->>Scheduler: encoder_seq_data = None
+        Scheduler->>Scheduler: cross_block_table = None
+    end
+    loop for seq in seq_group.get_seqs(status=RUNNING)
+        seq->>seq: seq_id
+        seq->>seq: data
+        self.block_manager->>seq: get_block_table(seq)
+        self.block_manager->>seq: access_all_blocks_in_seq(seq, now)
+    end
+    alt self.cache_config.enable_prefix_caching
+        self.block_manager->>seq_group: get_common_computed_block_ids()
+    end
+    Scheduler->>Scheduler: do_sample = True
+    Scheduler->>seq_group: is_prefill()
+    alt is_prompt
+        seq_group->>seq_group: get_seqs()
+        seq_group->>seq_group: num_computed_tokens
+        alt token_chunk_size + num_computed_tokens < seqs[0].data.get_len()
+            Scheduler->>Scheduler: do_sample = False
+        end
+    end
+    alt is_first_prefill or not self.scheduler_config.send_delta_data
+        Scheduler->>seq_group_metadata: SequenceGroupMetadata(...)
+    else
+        loop for id, data in seq_data.items()
+            data->>data: get_delta_and_reset()
+        end
+        Scheduler->>seq_group_metadata: SequenceGroupMetadataDelta(...)
+    end
+    Scheduler->>seq_group_metadata_list: append(seq_group_metadata)
+    alt allow_async_output_proc
+        Scheduler->>Scheduler: allow_async_output_proc = self._allow_async_output_proc(seq_group)
+    end
+end
+loop for scheduled_seq_group in scheduler_outputs.scheduled_seq_groups
+    self.block_manager->>scheduled_seq_group: mark_blocks_as_computed(seq_group, token_chunk_size)
+end
+self._seq_group_metadata_cache->>Scheduler: reset()
+Scheduler->>time: perf_counter() - scheduler_start_time
+loop for seq_group in self.running
+    alt seq_group.metrics is not None
+        alt seq_group.metrics.scheduler_time is not None
+            Scheduler->>seq_group.metrics: scheduler_time += scheduler_time
+        else
+            Scheduler->>seq_group.metrics: scheduler_time = scheduler_time
+        end
+    end
+end
+Scheduler->>Scheduler: self.cache_id = self.next_cache_id
+Scheduler-->>Caller: return (seq_group_metadata_list, scheduler_outputs, allow_async_output_proc)

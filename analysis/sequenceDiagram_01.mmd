@@ -1,0 +1,173 @@
+sequenceDiagram
+    participant Client
+    participant OpenAIServingEmbedding
+    participant EmbeddingMixin
+    participant ServeContext
+    participant EngineClient
+    participant AsyncLLMEngine
+    participant LLMEngine
+    participant Scheduler
+    participant SequenceGroupOutputProcessor
+    participant Worker
+    participant CacheEngine
+    participant BlockManager
+    participant CpuGpuBlockAllocator
+    participant ModelLoader
+    participant Model
+    participant Detokenizer
+    participant StopChecker
+
+    %% Embedding API 호출 흐름
+    Client->>OpenAIServingEmbedding: create_embedding(request)
+    OpenAIServingEmbedding->>EmbeddingMixin: handle(ctx)
+    EmbeddingMixin->>EmbeddingMixin: _preprocess(ctx)
+    EmbeddingMixin->>EngineClient: get_tokenizer(lora_request)
+    EmbeddingMixin->>EmbeddingMixin: _preprocess_chat/_preprocess_completion
+    EmbeddingMixin->>ServeContext: set request_prompts, engine_prompts
+    EmbeddingMixin->>EmbeddingMixin: _build_response(ctx)
+    EmbeddingMixin->>ServeContext: access final_res_batch
+    EmbeddingMixin->>EmbeddingMixin: _get_embedding(output, encoding_format)
+    EmbeddingMixin->>EmbeddingMixin: build EmbeddingResponse
+    EmbeddingMixin-->>Client: EmbeddingResponse
+
+    %% LLMEngine 요청 처리 흐름
+    Client->>AsyncLLMEngine: generate(prompt, sampling_params, request_id)
+    AsyncLLMEngine->>LLMEngine: add_request(...)
+    LLMEngine->>InputPreprocessor: preprocess(prompt, ...)
+    InputPreprocessor->>TokenizerGroup: encode/decode
+    LLMEngine->>LLMEngine: _add_processed_request(...)
+    LLMEngine->>Scheduler: add_seq_group(seq_group)
+    LLMEngine->>LLMEngine: step()
+    LLMEngine->>Scheduler: schedule()
+    Scheduler->>BlockManager: can_allocate(seq_group)
+    BlockManager->>CpuGpuBlockAllocator: get_num_free_blocks(Device.GPU)
+    Scheduler->>BlockManager: allocate(seq_group)
+    BlockManager->>CpuGpuBlockAllocator: allocate_mutable_block(...)
+    Scheduler->>Scheduler: update internal queues
+    Scheduler->>Scheduler: _update_after_schedule(scheduler_output)
+    LLMEngine->>Worker: execute_worker(worker_input)
+    Worker->>CacheEngine: prepare_worker_input(execute_model_req)
+    Worker->>ModelRunner: forward(...)
+    ModelRunner->>Model: forward(...)
+    Model->>Model: forward(...)
+    Model->>Detokenizer: decode_sequence_inplace(...)
+    Worker->>Worker: _process_model_outputs(...)
+    Worker->>SequenceGroupOutputProcessor: process_outputs(...)
+    SequenceGroupOutputProcessor->>Detokenizer: decode_sequence_inplace(...)
+    SequenceGroupOutputProcessor->>StopChecker: maybe_stop_sequence(...)
+    SequenceGroupOutputProcessor->>Scheduler: free_seq(seq)
+    LLMEngine->>LLMEngine: _advance_to_next_step(...)
+    LLMEngine->>LLMEngine: _process_model_outputs(...)
+    LLMEngine->>LLMEngine: validate_outputs(...)
+    LLMEngine-->>AsyncLLMEngine: RequestOutput
+
+    %% KV Cache 및 블록 관리
+    Worker->>CacheEngine: initialize_cache(num_gpu_blocks, num_cpu_blocks)
+    CacheEngine->>CacheEngine: _allocate_kv_cache(...)
+    CacheEngine->>CacheEngine: swap_in(src_to_dst)
+    CacheEngine->>CacheEngine: swap_out(src_to_dst)
+    CacheEngine->>CacheEngine: copy(src_to_dsts)
+    CacheEngine->>BlockManager: get_cache_block_size(...)
+    BlockManager->>CpuGpuBlockAllocator: swap(blocks, src_device, dst_device)
+    CpuGpuBlockAllocator->>CpuGpuBlockAllocator: allocate_mutable_block(...)
+    CpuGpuBlockAllocator->>CpuGpuBlockAllocator: allocate_immutable_block(...)
+    CpuGpuBlockAllocator->>CpuGpuBlockAllocator: free(block)
+    CpuGpuBlockAllocator->>CpuGpuBlockAllocator: fork(last_block)
+    CpuGpuBlockAllocator->>CpuGpuBlockAllocator: get_num_free_blocks(device)
+    CpuGpuBlockAllocator->>CpuGpuBlockAllocator: get_num_total_blocks(device)
+
+    %% 모델 로딩 및 weight 처리
+    LLMEngine->>ModelLoader: load_model(vllm_config, model_config)
+    ModelLoader->>ModelLoader: _prepare_weights(model_name_or_path)
+    ModelLoader->>ModelLoader: _get_weights_iterator(...)
+    ModelLoader->>Model: load_weights(weights)
+    Model->>Model: load_weights(weights)
+    Model->>Model: named_parameters()
+    Model->>Model: weight_loader(param, loaded_weight)
+    ModelLoader->>ModelLoader: process_weights_after_loading(model, model_config, target_device)
+
+    %% 스케줄러 내부 처리
+    Scheduler->>Scheduler: _schedule_running(...)
+    Scheduler->>Scheduler: _schedule_prefills(...)
+    Scheduler->>Scheduler: _schedule_swapped(...)
+    Scheduler->>Scheduler: _order_finishing_prefills_first(...)
+    Scheduler->>Scheduler: _schedule(...)
+    Scheduler->>Scheduler: _can_append_slots(...)
+    Scheduler->>Scheduler: _allow_async_output_proc(...)
+    Scheduler->>Scheduler: fork_seq(parent_seq, child_seq)
+    Scheduler->>Scheduler: free_seq(seq)
+    Scheduler->>Scheduler: remove_seq_from_computed_blocks_tracker(...)
+    Scheduler->>Scheduler: free_finished_seq_groups()
+    Scheduler->>Scheduler: _allocate_and_set_running(seq_group)
+    Scheduler->>Scheduler: _append_slots(seq_group, blocks_to_copy)
+    Scheduler->>Scheduler: _preempt(seq_group, blocks_to_swap_out)
+    Scheduler->>Scheduler: _preempt_by_recompute(seq_group)
+    Scheduler->>Scheduler: _preempt_by_swap(seq_group, blocks_to_swap_out)
+    Scheduler->>Scheduler: _swap_in(seq_group, blocks_to_swap_in)
+    Scheduler->>Scheduler: _swap_out(seq_group, blocks_to_swap_out)
+    Scheduler->>Scheduler: _get_num_lookahead_slots(...)
+    Scheduler->>Scheduler: _get_num_new_uncached_and_cached_tokens(...)
+    Scheduler->>Scheduler: get_prefix_cache_hit_rate(device)
+    Scheduler->>Scheduler: reset_prefix_cache(device)
+
+    %% OutputProcessor 내부 처리
+    SequenceGroupOutputProcessor->>SingleStepOutputProcessor: process_outputs(...)
+    SingleStepOutputProcessor->>SingleStepOutputProcessor: _process_sequence_group_outputs(...)
+    SingleStepOutputProcessor->>Detokenizer: decode_sequence_inplace(...)
+    SingleStepOutputProcessor->>StopChecker: maybe_stop_sequence(...)
+    SingleStepOutputProcessor->>Scheduler: free_seq(seq)
+    SequenceGroupOutputProcessor->>SingleStepOutputProcessor: process_prompt_logprob(...)
+    SingleStepOutputProcessor->>SingleStepOutputProcessor: single_step_process_prompt_logprob(...)
+    SingleStepOutputProcessor->>Detokenizer: decode_prompt_logprobs_inplace(...)
+
+    %% Worker 내부 처리
+    Worker->>Worker: start_profile()
+    Worker->>Worker: stop_profile()
+    Worker->>Worker: sleep(level)
+    Worker->>Worker: wake_up(tags)
+    Worker->>Worker: init_device()
+    Worker->>Worker: load_model()
+    Worker->>Worker: save_sharded_state(path, pattern, max_size)
+    Worker->>Worker: save_tensorized_model(tensorizer_config)
+    Worker->>Worker: determine_num_available_blocks()
+    Worker->>Worker: initialize_cache(num_gpu_blocks, num_cpu_blocks)
+    Worker->>Worker: _init_cache_engine()
+    Worker->>Worker: _warm_up_model()
+    Worker->>Worker: prepare_worker_input(execute_model_req)
+    Worker->>Worker: execute_worker(worker_input)
+    Worker->>Worker: _get_cached_seq_group_metadata(...)
+    Worker->>Worker: _execute_model_spmd(...)
+    Worker->>Worker: add_lora(lora_request)
+    Worker->>Worker: remove_lora(lora_id)
+    Worker->>Worker: pin_lora(lora_id)
+    Worker->>Worker: list_loras()
+    Worker->>Worker: get_cache_block_size_bytes()
+
+    %% 기타 호출
+    LLMEngine->>LLMEngine: abort_request(request_id)
+    LLMEngine->>LLMEngine: get_vllm_config()
+    LLMEngine->>LLMEngine: get_model_config()
+    LLMEngine->>LLMEngine: get_parallel_config()
+    LLMEngine->>LLMEngine: get_decoding_config()
+    LLMEngine->>LLMEngine: get_scheduler_config()
+    LLMEngine->>LLMEngine: get_lora_config()
+    LLMEngine->>LLMEngine: get_num_unfinished_requests()
+    LLMEngine->>LLMEngine: has_unfinished_requests()
+    LLMEngine->>LLMEngine: reset_mm_cache()
+    LLMEngine->>LLMEngine: reset_prefix_cache(device)
+    LLMEngine->>LLMEngine: add_lora(lora_request)
+    LLMEngine->>LLMEngine: remove_lora(lora_id)
+    LLMEngine->>LLMEngine: list_loras()
+    LLMEngine->>LLMEngine: pin_lora(lora_id)
+    LLMEngine->>LLMEngine: start_profile()
+    LLMEngine->>LLMEngine: stop_profile()
+    LLMEngine->>LLMEngine: sleep(level)
+    LLMEngine->>LLMEngine: wake_up(tags)
+    LLMEngine->>LLMEngine: is_sleeping()
+    LLMEngine->>LLMEngine: check_health()
+    LLMEngine->>LLMEngine: is_tracing_enabled()
+    LLMEngine->>LLMEngine: do_tracing(scheduler_outputs)
+    LLMEngine->>LLMEngine: create_trace_span(seq_group)
+    LLMEngine->>LLMEngine: _validate_model_inputs(inputs, lora_request)
+    LLMEngine->>LLMEngine: _build_logits_processors(sampling_params, lora_request)
+    LLMEngine->>LLMEngine: collective_rpc(method, timeout, args, kwargs)

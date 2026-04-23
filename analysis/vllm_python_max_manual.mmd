@@ -1,0 +1,586 @@
+sequenceDiagram
+    participant Global
+    %%participant OpenAIServingCompletion
+    participant Client
+
+    Global->>vllm.env: set environment_variables
+    vllm.env->>Global:
+    Global->>vllm.config:
+        vllm.config->>vllm.platforms: set builtin_platform_plugins
+        note right of vllm.platforms: Setting Plugins package string
+        vllm.platforms->>vllm.config:
+        vllm.config->>vllm.config: Setting Literal for<br>DistributedExecutorBackend,<br>PreemptionMode,<br>SchedulerPolicy,<br>Device,<br>KVProducer, KVConsumer, KVRole
+    vllm.config->>Global:
+    
+
+    Global-->>Global: build_async_engine_client()
+    Global-->>Global: build_async_engine_client_from_engine_args()
+    
+
+    %% AsyncMPClient의 resource의 output_socket을 지속 감시
+    %% EngineCoreProc의 input, output socket을 지속 감시, 이 둘간은 zmq를 통해서 통신
+    %% EngineCore은 ENgineCoreProc의 부모클래스로 실제 LLM 엔진을 관장
+    %% Initialization Start
+    note right of Global: Initialization Start
+    %% vllm/entrpypoints/openai/api_server.py
+    Global->>Global: build_async_engine_client()
+        create participant AsyncEngineArgs
+        Global->>+AsyncEngineArgs: from_cli_args()
+        %%create actor AsyncEngineArgs as Global
+        AsyncEngineArgs->>Global: return AsyncEngineArgs<br>engine_args = AsyncEngineArgs
+        %% vllm/engine/arg_utils.py
+            create participant EngineArgs
+            AsyncEngineArgs->>+EngineArgs: __post_init__()
+            EngineArgs->>vllm.plugins: load_general_plugins()
+            vllm.plugins->>vllm.plugins: load_plugins_by_group()
+        AsyncEngineArgs->>Global: return AsyncEngineArgs<br>engine_args = AsyncEngineArgs()
+        Global->>Global: build_async_engine_client_from_engine_args(engine_args)
+            Global->>EngineArgs: create_engine_config()
+                %% vllm/platforms/__init__.py
+                EngineArgs->>vllm.platforms: __getattr__('current_platform')
+                    vllm.platforms->>vllm.platforms: resolve_current_platform_cls_qualname()
+                    vllm.platforms->>vllm.plugins: load_plugins_by_group('vllm.platform_plugins')
+                    vllm.plugins->>vllm.platforms: return dict[str, Callable[[], Any]]<br>platform_plugins = dict[str, Callable[[], Any]]
+                    vllm.platforms->>vllm.platforms: return str<br>platform_cls_qualname = str
+                    %% 목적:
+                    %% 문자열로 주어진 "fully qualified name"(예: "vllm.platforms.cuda.CudaPlatform")을
+                    %% 실제 Python 객체(클래스, 함수, 변수 등)로 변환합니다.
+                    %% 
+                    %% 동작:
+                    %% 
+                    %% qualname을 마지막 점(.) 기준으로 분리하여
+                    %% module_name: 모듈 경로(예: "vllm.platforms.cuda")
+                    %% obj_name: 객체 이름(예: "CudaPlatform")
+                    %% importlib.import_module(module_name)로 해당 모듈을 동적으로 import
+                    %% getattr(module, obj_name)로 모듈에서 객체를 가져옴
+                    %% 결과적으로, 문자열로 지정된 객체를 실제 Python 객체로 반환
+                    note right of vllm.platforms: 문자열을 기반으로 Platform 객체 생성
+                    vllm.platforms->>vllm.platforms: resolve_obj_by_qualname(platform_cls_qualname)
+                    vllm.platforms->>vllm.platforms: return Platforms<br>_current_platform = Platforms
+                vllm.platforms->>EngineArgs: return Platforms<br>current_platform = Platforms
+                create participant DeviceConfig  
+                %% vllm/config.py   
+                EngineArgs->>+DeviceConfig:__init__(device)
+                    %% # Set device with device type
+                    %% self.device = torch.device(self.device_type)
+                    DeviceConfig->>DeviceConfig:__post_init__
+                    DeviceConfig->>DeviceConfig:
+                DeviceConfig->>EngineArgs: return DeviceConfig<br>device_config = DeviceConfig
+                EngineArgs->>EngineArgs: create_model_config()
+                EngineArgs->>EngineArgs: return ModelConfig<br>model_config = ModelConfig
+            EngineArgs->>Global: return VLLmConfig<br>vllm_config = VLLmConfig
+            %% vllm/v1/engine/async_llm.py
+            create participant AsyncLLM
+            Global->>AsyncLLM: from_vllm_config(engine_args)
+            activate AsyncLLM
+                AsyncLLM->>AsyncEngineArgs: create_engine_config()
+                AsyncEngineArgs->>AsyncLLM: return VllmConfig<br>vllm_config = VllmConfig
+                %% vllm/v1/executor/abstract.py
+                %% 클래스 객체 생성이 아니라 클래스 형태만 가져오는 코드
+                AsyncLLM->>+Executor: Executor::get_class(engine_args)
+                    %% MultiprocExecutor로 만들어 진다고 가정
+                    create participant MultiprocExecutor
+                    %% vllm/v1/executor/multiproc_executor.py
+                    Executor->>+MultiprocExecutor: __init__()
+                        MultiprocExecutor->>Executor: __init__()
+                            create participant ExecutorBase
+                            %% vllm/executor/executor_base.py
+                            Executor->>ExecutorBase: __init__()
+                                %% vllm/v1/executor/multiproc_executor.py
+                                ExecutorBase->>MultiprocExecutor: _init_executor()
+                                activate MultiprocExecutor
+                                    MultiprocExecutor->>MessageQueue: __init__()
+                                    MessageQueue->>MultiprocExecutor: return MessageQueue<br>self.rpc_broadcast_mq = MessageQueue
+                                    create participant WorkerProc
+                                    %% vllm/v1/executor/multiproc_executor.py
+                                    MultiprocExecutor->>+WorkerProc: make_worker_process()
+                                        WorkerProc->>WorkerProc: worker_main()
+                                            WorkerProc->>WorkerProc: __init__()
+                                                create participant WorkerWrapperBase
+                                                %% vllm/worker/worker_base.py
+                                                WorkerProc->>WorkerWrapperBase: __init__()
+                                                    WorkerWrapperBase->vllm.utils: init_cached_hf_modules()
+                                                    vllm.utils->>WorkerWrapperBase:
+                                                WorkerWrapperBase->>WorkerProc: return WorkerWrapperBase<br>wrapper = WorkerWrapperBase
+                                                WorkerProc->>WorkerWrapperBase: init_worker()
+                                                    create participant Worker
+                                                    WorkerWrapperBase->>+Worker: __init__()
+                                                        create participant WorkerBase
+                                                        Worker->>+WorkerBase: __init__()
+                                                        WorkerBase->>Worker:
+
+                                                        alt model_config.runner_type == "pooling"
+                                                            Worker->>PoolingModelRunner:
+                                                            PoolingModelRunner->>Worker: ModelRunnerClass = PoolingModelRunner
+                                                        else
+                                                            Worker->>EncoderDecoderModelRunner:
+                                                            EncoderDecoderModelRunner->>Worker: ModelRunnerClass = EncoderDecoderModelRunner
+                                                        end
+                                                        create participant GPUModelRunnerBase
+                                                        Worker->>+GPUModelRunnerBase: __init__()
+                                                            create participant ModelRunnerBase
+                                                            GPUModelRunnerBase->>+ModelRunnerBase: __init__()
+                                                            ModelRunnerBase->>GPUModelRunnerBase:
+
+                                                            GPUModelRunnerBase->>GPUModelRunnerBase: self.graph_runners : List[Dict[Tuple[int, bool], CUDAGraphRunner]] = [ {} for _ in range(self.parallel_config.pipeline_parallel_size)]
+                                                        %%TODO
+                                                        GPUModelRunnerBase->>Worker: return GPUModelRunnerBase<br>model_runner = GPUModelRunnerBase
+                                                    Worker->>WorkerWrapperBase: return WorkerBase<br>self.worker = WorkerBase
+                                                WorkerWrapperBase->>WorkerProc:
+                                                WorkerProc->>WorkerProc: self.worker = wrapper
+
+                                                WorkerProc->>WorkerWrapperBase: init_device()
+                                                    WorkerWrapperBase->>WorkerBase: init_device()
+                                                        WorkerBase->>Worker: init_device()
+                                                        Worker->>WorkerBase:
+                                                    WorkerBase->>WorkerWrapperBase:
+                                                WorkerWrapperBase->>WorkerProc:
+                                                WorkerProc->>WorkerWrapperBase: load_model()
+                                                    WorkerWrapperBase->>WorkerBase: load_model()
+                                                        WorkerBase->>Worker: load_model()
+                                                        Worker->>WorkerBase:
+                                                    WorkerBase->>WorkerWrapperBase:
+                                                WorkerWrapperBase->>WorkerProc:
+                                            WorkerProc->>WorkerProc: return WorkProc<br>worker = WorkerProc
+                                            WorkerProc->>WorkerProc: worker.worker_busy_loop()
+                                        WorkerProc->>WorkerProc: return WorkerProc<br>proc = WorkerProc
+                                        WorkerProc->>WorkerProc: proc.start()
+                                        
+                                    WorkerProc->>MultiprocExecutor: return WorkerProc<br>unready_workers.append(WorkerProc)
+                                    MultiprocExecutor->>WorkerProc: wait_for_ready(unready_workers)
+                                    WorkerProc->>MultiprocExecutor: return WorkerProc<br>self.workers = WorkerProc
+                                    alt self.max_concurrent_batches > 1
+                                        MultiprocExecutor->>+ThreadPoolExecutor: __init__()
+                                        ThreadPoolExecutor->>MultiprocExecutor: return ThreadPoolExecutor<br>self.io_thread_pool = ThreadPoolExecutor 
+                                    end
+                                    MultiprocExecutor->>+KVOutputAggregator: __init__()
+                                    KVOutputAggregator->>MultiprocExecutor: return KVOutputAggregator<br>self.kv_output_aggregator = KVOutputAggregator
+                                MultiprocExecutor->>ExecutorBase:
+                                deactivate MultiprocExecutor
+                            ExecutorBase->>Executor:
+                        Executor->>MultiprocExecutor:
+                    MultiprocExecutor->>Executor:
+                Executor->>AsyncLLM: return type["Executor"]<br>executor_class = type["Executor"]
+                AsyncLLM->>AsyncLLM:__init__(vllm_config, executor_class)
+                activate AsyncLLM
+                    create participant TokenizerGroup
+                    AsyncLLM->>+TokenizerGroup: init_tokenizer_from_configs()
+                    TokenizerGroup->>AsyncLLM: return TokenizerGroup<br>self.tokenizer = return TokenizerGroup
+                    create participant Processor
+                    AsyncLLM->>+Processor:__init__()
+                        create participant InputPreprocessor
+                        Processor->>+InputPreprocessor:__init__()
+                        InputPreprocessor->>Processor: return InputPreprocessor<br>self.input_processor = InputPreprocessor 
+                    Processor->>AsyncLLM: return Processor<br>self.processor = Processor
+                    create participant OutputProcessor
+                    %% vllm/v1/engine/output_processor
+                    AsyncLLM->>+OutputProcessor:__init__(tokenizer,log_stats)
+                        create participant LoRARequestStates   
+                        OutputProcessor->>+LoRARequestStates:__init__()
+                        LoRARequestStates->>OutputProcessor: return LoRARequestStates<br>self.lora_states = LoRARequestStates
+                    OutputProcessor->>AsyncLLM: return OutputProcessor<br>self.output_processor = OutputProcessor
+                    %% vllm/v1/engine/core_client.py
+                    create participant EngineCoreClient
+                    AsyncLLM->>+EngineCoreClient: make_async_mp_client(vllm_config, executor_class)
+                    activate EngineCoreClient
+                        create participant AsyncMPClient                    
+                        EngineCoreClient->>AsyncMPClient:__init__()
+                        activate AsyncMPClient
+                            create participant MPClient
+                            %% vllm/v1/engine/core_client.py
+                            AsyncMPClient->>MPClient: __init__(vllm_config, executor_class)
+                            activate MPClient
+                                create participant MsgpackEncoder
+                                MPClient->>MsgpackEncoder: __init__()
+                                MsgpackEncoder->>MPClient: return MsgpackEncoder<br>self.encoder = MsgpackEncoder
+                                create participant MsgpackDecoder
+                                MPClient->>MsgpackDecoder: __init__()
+                                MsgpackDecoder->>MPClient: return MsgpackDecoder<br>self.decoder = MsgpackDecoder
+                                %% vllm/v1/engine/utils.py
+                                MPClient->>vllm.v1.engine: launch_core_engines(vllm_config, executor_class)
+                                activate vllm.v1.engine
+                                    create participant CoreEngineProcManager
+                                    %% vllm/v1/engine/utils.py
+                                    vllm.v1.engine->>+CoreEngineProcManager: __init__(EngineCoreProc.run_engine_core, vllm_config, executor_class)
+                                    activate CoreEngineProcManager
+                                    
+                                        CoreEngineProcManager->>vllm.utils: get_mp_context()
+                                        vllm.utils->>CoreEngineProcManager: return BaseContext<br>context = BaseContext
+                                        loop index in local_engine_count Loop
+                                           CoreEngineProcManager-->>BaseProcess: append(context.Process()) : EngineCoreProc.run_engine_core
+                                        end
+
+                                        loop proc in self.processes Loop
+                                           CoreEngineProcManager-->>BaseProcess: start()
+                                                %% vllm/v1/engine/core.py
+                                                BaseProcess->>EngineCoreProc: run_engine_core() : static
+                                                create participant DPEnigneProc 
+                                                activate DPEnigneProc
+                                                EngineCoreProc->>+DPEnigneProc: __init__()
+
+                                                    activate DPEngineCoreProc
+                                                        %% ZMQ-wrapper running, 상세 분석 필요 - v1/core/engine/core.py
+                                                        %%create participant EngineCoreProc
+                                                        activate EngineCoreProc
+                                                        DPEngineCoreProc->>+EngineCoreProc: __init__(vllm_config, executor_class)
+                                                        
+                                                            EngineCoreProc->>EngineCoreProc:_perform_handshakes(vllm_config)
+                                                                EngineCoreProc->>EngineCoreProc:_perform_handshakes(zmq.context, vllm_config)
+                                                                    EngineCoreProc->>vllm.ray.utils: make_zmq_socket()
+                                                                    vllm.ray.utils->>EngineCoreProc: return Union[zmq.Socket, zmq.asyncio.Socket]
+                                                                EngineCoreProc->>VllmConfig: __post_init__()
+                                                            VllmConfig->>EngineCoreProc:
+                                                            %% Inner loop of vLLM's Engine.
+                                                            %% vllm/v1/engine/core.py
+                                                            create participant EngineCore
+                                                            EngineCoreProc->>+EngineCore: __init__(vllm_config, executor_class)
+                                                            activate EngineCore
+                                                                EngineCore->>vllm.plugins: load_general_plugins()
+                                                                vllm.plugins->>vllm.plugins: load_plugins_by_group()
+                                                                vllm.plugins->>EngineCore:
+                                                                EngineCore->>EngineCore: _initialize_kv_caches()
+                                                                EngineCore->>EngineCore: return tuple[int, int, KVCacheConfig]<br>num_gpu_blocks, num_cpu_blocks, kv_cache_config = tuple[int, int, KVCacheConfig]
+                                                                EngineCore->>EngineCore: collective_rpc()
+                                                                    EngineCore->>Executor: collective_rpc()
+                                                                Executor->>EngineCore:
+                                                                %% vllm/v1/core/sched/scheduler.py
+                                                                create participant Scheduler
+                                                                EngineCore->>+Scheduler: __init__(vllm_config, kv_cache_config)
+                                                                    %% vllm/v1/core/kv_cache_manager.py
+                                                                    create participant KVCacheManager
+                                                                    Scheduler->>+KVCacheManager: __init__(kv_cache_config)
+                                                                        %% vllm/v1/core/kv_cache_coordinator.py
+                                                                        KVCacheManager->>vllm.v1.core: get_kv_cache_coordinator()
+                                                                            %% vllm/v1/core/kv_cache_coordinator.py
+                                                                            create participant KVCacheCoordinator 
+                                                                            vllm.v1.core->>+KVCacheCoordinator: __init__()
+                                                                                %% vllm/v1/core/block_pool.py
+                                                                                create participant BlockPool
+                                                                                KVCacheCoordinator->>+BlockPool: __init__()
+                                                                                    loop idx in range(num_gpu_blocks) Loop
+                                                                                        create participant KVCacheBlock
+                                                                                        BlockPool->>+KVCacheBlock: __init__(idx)
+                                                                                        note right of KVCacheBlock: GPU Block에 맞게 KVCacheBlock 생성하고<br>KVCacheCoordinator 멤버에 저장
+                                                                                        KVCacheBlock->>BlockPool: return KVCacheBlock<br>self.blocks[idx] = KVCacheBlock
+                                                                                    end
+                                                                                BlockPool->>KVCacheCoordinator: return BlockPool<br>self.block_pool = BlockPool
+                                                                            KVCacheCoordinator->>vllm.v1.core:
+                                                                        vllm.v1.core->>KVCacheManager: return KVCacheCoordinator<br>self.coordinator = KVCacheCoordinator
+                                                                    KVCacheManager->>Scheduler: return KVCacheManager<br>kv_cache_manager = KVCacheManager
+                                                                Scheduler->>EngineCore:return SchedulerInterface<br>scheduler = SchedulerInterface
+                                                            EngineCore->>EngineCoreProc:
+                                                            deactivate EngineCore
+
+                                                            EngineCoreProc-->>threading.Thread: start()
+                                                            alt Seperated Process 
+                                                                threading.Thread->>EngineCoreProc: process_input_sockets()
+                                                                    loop Loop
+                                                                        loop input_sokcet in zmq poll() Loop
+                                                                            EngineCoreProc->>zmq: recv_multipart()
+                                                                            zmq->>EngineCoreProc: return RequestType, RequestData
+                                                                            EngineCoreProc->>queue.Queue: self.inputqueue.put_nowait()
+                                                                        end
+                                                                    end
+                                                            end
+                                                            EngineCoreProc-->>threading.Thread: start() : EngineCoreProc::process_output_sockets
+                                                        EngineCoreProc->>DPEngineCoreProc:
+                                                        deactivate EngineCoreProc
+                                                
+                                                    deactivate DPEngineCoreProc
+                                                DPEngineCoreProc->>DPEnigneProc:
+                                                DPEnigneProc->>EngineCoreProc: return DPEnigneProc<br>engine_core = DPEnigneProc
+                                                deactivate DPEnigneProc
+                                                %% vllm/v1/engine/core.py
+                                                EngineCoreProc->>DPEngineCoreProc: run_busy_loop()
+                                                activate DPEngineCoreProc
+                                                    DPEngineCoreProc->>EngineCoreProc: _process_input_queue()
+                                                        EngineCoreProc->>EngineCoreProc: _handle_client_request()
+                                                            alt request_type == EngineCoreRequestType.ADD 
+                                                                EngineCoreProc->>EngineCoreProc: add_request(req, request=request_wave)
+                                                                    EngineCoreProc->>Scheduler: add_requst(request)
+                                                                        Scheduler->>RequestQueue: add_request()
+                                                                        RequestQueue->>Scheduler:
+                                                                    Scheduler->>EngineCoreProc:
+                                                            end
+                                                    DPEngineCoreProc->>EngineCoreProc: _process_engine_step()
+                                                        %% vllm/v1/engine/core.py
+                                                        activate EngineCore
+                                                        EngineCoreProc->>EngineCore: step_with_batch_queue()
+                                                            %% vllm/v1/core.sched/scheduler.py
+                                                            EngineCore->>Scheduler: schedule()
+                                                            activate Scheduler
+                                                                loop req_index < len(self.running) Loop
+                                                                    Scheduler->>Scheduler: _try_schedule_encoder_inputs()
+                                                                    Scheduler->>KVCacheManager: allocate_slots()
+                                                                        KVCacheManager->>Scheduler: return KVCacheBlocks<br>new_blocks = KVCacheBlocks
+                                                                end 
+                                                                Scheduler->>List: append(request)
+                                                                List->>Scheduler:
+                                                                Scheduler->>KVCacheBlocks: get_block_ids()
+                                                            Scheduler->>EngineCore: return SchedulerOutput<br>scheduler_output = SchedulerOutput
+                                                            alt scheduler_output.total_num_scheduled_tokens > 0
+                                                                EngineCore->>MultiprocExecutor: execute_model(scheduler_output)
+                                                                    MultiprocExecutor->>MultiprocExecutor: collective_rpc()
+                                                                    MultiprocExecutor->>KVOutputAggregator: aggregate()
+                                                                    KVOutputAggregator->>MultiprocExecutor: return ModelRunnerOutput 
+                                                                MultiprocExecutor->>EngineCore: return Union[ModelRunnerOutput, Future[ModelRunnerOutput]]<br>future =Union[ModelRunnerOutput, Future[ModelRunnerOutput]] 
+                                                                EngineCore->>queue.Queue: put_nowait(future, scheduler_output)
+                                                                queue.Queue->>EngineCore:
+                                                            end
+                                                            deactivate Scheduler
+                                                        EngineCore->>EngineCoreProc: return tuple[Optional[dict[int, EngineCoreOutputs]], bool]<br>outputs, model_executed = tuple[Optional[dict[int, EngineCoreOutputs]], bool]
+                                                        EngineCoreProc->>queue.Queue: put_nowait(output)
+                                                        queue.Queue->>EngineCoreProc:
+                                                        deactivate EngineCore
+
+                                                    EngineCoreProc->>DPEngineCoreProc:
+
+                                                    DPEngineCoreProc->>EngineCoreProc:
+                                                
+                                                deactivate DPEngineCoreProc
+                                                EngineCoreProc->>BaseProcess:
+                                       end
+                                    CoreEngineProcManager->>vllm.v1.engine: return CoreEngineProcManager<br>engine_actor_manager = CoreEngineProcManager
+                                    deactivate CoreEngineProcManager
+                                    
+
+                                    %%create participant CoreEngineActorManager
+                                    %% Start LLM Engine on Node and GPU - v1/core/engine/util.py
+                                    %% vllm.v1.engine->>+CoreEngineActorManager: __init__(vllm_config, executor_class)
+                                    %% activate CoreEngineActorManager
+                                    %%    CoreEngineActorManager->>CoreEngineActorManager: create_dp_placement_groups()
+                                    %%    CoreEngineActorManager->>CoreEngineActorManager: return tuple[list["PlacementGroup"], list[int]]<br> placement_groups, local_dp_ranks =<br> tuple[list["PlacementGroup"], list[int]]
+                                    %%    create participant DPEngineCoreActor
+                                    %%    CoreEngineActorManager->>+DPEngineCoreActor: __init__(vllm_config, executor_class)
+                                    %%    activate DPEngineCoreActor
+                                    %%        create participant DPEngineCoreProc
+                                            
+                                            
+                                            
+                                    %%        deactivate DPEngineCoreProc
+                                    %%        DPEngineCoreProc->>DPEngineCoreActor:
+                                    %%    DPEngineCoreActor->>CoreEngineActorManager:
+                                    %%    deactivate DPEngineCoreActor
+                                    %%CoreEngineActorManager->>vllm.v1.engine: return CoreEngineActorManager<br>engine_actor_manager = CoreEngineActorManager
+                                    %%deactivate CoreEngineActorManager
+                                    %% vllm/v1/engine/utils.py
+                                    %% Not for Ray, Ray가 동작한다고 가정하면 진행하지 않는 코드 임
+                                    %% create participant CoreEngineProcManager
+                                    %% vllm.v1.utils->>+CoreEngineProcManager: __init__()
+                                    %% activate CoreEngineProcManager
+                                    %%     CoreEngineProcManager->>vllm.utils: get_mp_context()
+                                    %%     vllm.utils->>CoreEngineProcManager: return BaseContext<br>context = BaseContext
+                                    %%     loop proc in self.processes Loop
+                                    %%         CoreEngineProcManager-->>BaseProcess: start()
+                                    %%             BaseProcess->>EngineCoreProc: run_engine_core() : static
+                                    %%             EngineCoreProc->>+DPEngineCoreProc:__init__()
+                                    %%         BaseProcess->>CoreEngineProcManager:
+                                    %%     end
+                                    %% CoreEngineProcManager->>vllm.v1.utils: return CoreEngineProcManager<br>local_engine_manager = CoreEngineProcManager
+                                    %% deactivate CoreEngineProcManager
+                                %%deactivate vllm.v1.engine
+                                %%vllm.v1.engine->>MPClient: return Union[CoreEngineProcManager, CoreEngineActorManager],<br>DPCoordinator, EngineZmqAddresses<br>self.resources.coordinator = coordinator<br>self.resources.engine_manager = engine_manager
+                                %% engine_manager:
+                                %% 엔진 프로세스/액터를 관리하는 객체
+                                %% 예: CoreEngineProcManager 또는 CoreEngineActorManager
+                                %% coordinator:
+                                %% 분산 환경에서 rank, 통신, 상태를 관리하는 객체
+                                %% 예: DPCoordinator
+                                %% addresses:
+                                %% 엔진과 클라이언트 간 통신에 필요한 소켓 주소 정보
+                                %% 예: input/output/stats 소켓 주소 등
+                                MPClient->>vllm.ray.utils: make_zmq_socket()
+                                vllm.ray.utils->>MPClient: reeturn Union[zmq.Socket, zmq.asyncio.Socket]<br> self.input_socket =<br>self.resources.input_socket =<br>Union[zmq.Socket, zmq.asyncio.Socket]
+                            MPClient->>AsyncMPClient:
+                            deactivate MPClient
+                            
+                            AsyncMPClient->>asyncio.Queue: __init__()
+                            asyncio.Queue->>AsyncMPClient: return asyncio.Queue[EngineCoreOutputs]<br>self.outputs_queue = asyncio.Queue[EngineCoreOutputs]
+                            AsyncMPClient->>AsyncMPClient: _ensure_output_queue_task()
+                                AsyncMPClient-->>AsyncMPClient: process_outputs_socket()
+                                note right of AsyncMPClient: zmp로 들어 오는 결과를 Output Queue에 넣어두는 Loop
+                                loop inf Loop
+                                    AsyncMPClient->>zmq: recv_multipart()
+                                    zmq->>AsyncMPClient: return frames
+                                    AsyncMPClient->>MsgpackDecoder: decode(frames)
+                                    MsgpackDecoder->>AsyncMPClient: return EngineCoreOutputs<br>outputs = EngineCoreOutputs
+                                    AsyncMPClient->>asyncio.Queue: put_nowait(outputs)
+                                end
+                            AsyncMPClient->>AsyncMPClient:
+                        AsyncMPClient->>EngineCoreClient:
+                        deactivate AsyncMPClient
+                    deactivate EngineCoreClient
+
+                    EngineCoreClient->>AsyncLLM: return MPClient<br>self.engine_core = MPClient
+                    %% 별도의 Task에서 EngineCore의 결과물을 Pulling 한다.
+                    AsyncLLM->>AsyncLLM: _run_output_handler()
+                    alt self.output_handler is not None loop
+                        activate AsyncLLM
+                            AsyncLLM-->>AsyncLLM: create_task(output_handler())
+                            loop Background output_handler Loop
+                                AsyncLLM->>AsyncMPClient: get_output_async()
+                                activate AsyncMPClient
+                                    AsyncMPClient->>AsyncMPClient: _ensure_output_queue_task()
+                                    AsyncMPClient->>asyncio.Queue: get()
+                                    asyncio.Queue->>AsyncMPClient: return EngineCoreOutputs<br>output = EngineCoreOutputs
+                                    AsyncMPClient->>AsyncLLM: return EngineCoreOutputs<br>outputs = EngineCoreOutputs
+                                deactivate AsyncMPClient
+                            end
+                        deactivate AsyncLLM
+                        AsyncLLM->>AsyncLLM: return task<br>self.output_handler = output_handler()
+                    end
+                    AsyncLLM->>Global: return AsyncLLM<br>engine_client = AsyncLLM()
+                deactivate AsyncLLM
+            deactivate AsyncLLM
+        Global->>Global: return EngineClient<br>as engine
+    Global->>Global: return EngineClient<br>as engine_client
+    note right of Global: Initialization Finish
+    %% Initialization Finish
+    
+    note left of Client: Start OpenAI<br>Completions Request
+
+
+    Client->>Client: create_completion()
+    %% vllm/entrypoints/openai/serving_completion.py
+    create participant OpenAIServingCompletion
+    Client->>+OpenAIServingCompletion: __init__()
+        activate OpenAIServingCompletion
+        create participant OpenAIServing
+        OpenAIServingCompletion->>OpenAIServing: __init__()
+        OpenAIServing->>OpenAIServingCompletion:
+        deactivate OpenAIServingCompletion
+    OpenAIServingCompletion->>Client: return OpenAIServingCompletion<br>handler = OpenAIServingCompletion
+    Client->>OpenAIServingCompletion: completion() -> OpenAIServingCompletion
+    OpenAIServingCompletion->>Client: return OpenAIServingCompletion<br>handler = OpenAIServingCompletion
+    Client->>OpenAIServingCompletion: create_completion(request)
+    activate OpenAIServingCompletion
+        OpenAIServingCompletion->>OpenAIServingCompletion: _base_request_id()<br>return str<br>request_id = str
+        %% vllm/entrypoints/openai/serving_engine.py
+        OpenAIServingCompletion->>OpenAIServing: _maybe_get_adapters(request)
+        OpenAIServing->>OpenAIServingCompletion: return LoRARequest<br>lora_request = LoRARequest 
+        OpenAIServingCompletion->>AsyncLLM: get_tokenizer()
+        AsyncLLM->>OpenAIServingCompletion: return AnyTokenizer<br>tokenizer = AnyTokenizer
+        OpenAIServingCompletion->>OpenAIServingCompletion: _preprocess_completion()<br>return Union, list<br>request_prompts, engine_prompts = Union, list
+
+        loop engine_prompt in engine_prompts
+            OpenAIServingCompletion->>AsyncLLM: generate(reqeust_id_time, lora_request)
+            activate AsyncLLM
+                AsyncLLM->>AsyncLLM: _run_output_handler()
+                alt self.output_handler is not None loop
+                        AsyncLLM->>AsyncLLM: create_task(output_handler())
+                        loop Background output_handler Loop
+                            AsyncLLM-->>AsyncMPClient: get_output_async()
+                            activate AsyncMPClient
+                                AsyncMPClient->>AsyncMPClient: _ensure_output_queue_task()
+                                AsyncMPClient->>asyncio.Queue: get()
+                                asyncio.Queue->>AsyncMPClient: return EngineCoreOutputs<br>output = EngineCoreOutputs
+                                AsyncMPClient->>AsyncLLM: return EngineCoreOutputs<br>outputs = EngineCoreOutputs
+                            deactivate AsyncMPClient
+                        end
+                    AsyncLLM->>AsyncLLM: return task<br>self.output_handler = output_handler()
+                end
+                AsyncLLM-->>AsyncLLM: add_request(lora_request)
+                activate AsyncLLM
+                    create participant RequestOutputCollector
+                    AsyncLLM->>RequestOutputCollector:__init__()
+                    RequestOutputCollector-->>AsyncLLM: return RequestOutputCollector<br>queue = RequestOutputCollector
+                    AsyncLLM->>Processor: process_inputs()
+                    Processor->>AsyncLLM: return tuple[Optional[str], EngineCoreRequest]<br>prompt_str, request = tuple[Optional[str], EngineCoreRequest]
+                    create participant ParentRequest
+                    AsyncLLM->>+ParentRequest:__init__()
+                    ParentRequest->>AsyncLLM: return ParentRequest<br>parent_request = ParentRequest
+                    alt param.n == 1
+                        AsyncLLM->>AsyncLLM:_add_request(0)
+                    else param.n > 1
+                        loop Child request in Requests
+                            AsyncLLM-->>AsyncLLM:_add_request(idx)
+                        end
+                    end
+                    activate AsyncLLM
+                        %% Add the request to OutputProcessor (this process).
+                        AsyncLLM->>OutputProcessor: add_request(request,prompt,parent_req, index,queue)
+                        activate OutputProcessor
+                            %% vllm/v1/engine/output_processor.py
+                            OutputProcessor->>TokenizerGroup: get_lora_tokenizer()
+                            TokenizerGroup->>OutputProcessor: return AnyTokenizer<br>tokenizer = AnyTokenizer
+                            %% vllm/v1/engine/output_processor.py
+                            create participant RequestState
+                            OutputProcessor->>RequestState: from_new_request()
+                                RequestState->>+RequestState: __init__()
+                                RequestState->>RequestState:
+                            RequestState->>OutputProcessor: return RequestState<br>req_state = RequestState
+                            OutputProcessor->>LoRARequestStates: add_request(req_state)
+                            activate LoRARequestStates
+                                LoRARequestStates->>LoRARequestStates: get_stats(req_state)
+                                LoRARequestStates->>LoRARequestStates: return LoRAStats<br>lora_stats := LoRAStats
+                                alt req_stat.lora_name not in self.lora_name_to_stats
+                                    LoRARequestStates->>+LoRAStats: __init__()
+                                    LoRAStats->>LoRARequestStates: return LoRAStats<br>self.lora_name_to_stats[req_state.lora_name] = LoRAStats()
+                                end   
+                                LoRARequestStates->>LoRARequestStates: lora_stats.waiting_requests.add(req_state.request_id)
+                            LoRARequestStates->>OutputProcessor:
+                            deactivate LoRARequestStates
+                        OutputProcessor->>AsyncLLM:
+                        deactivate OutputProcessor
+                        
+                        %% Add the EngineCoreRequest to EngineCore (separate process).
+                        AsyncLLM-->>AsyncMPClient: add_request_async()
+                        activate AsyncMPClient
+                            AsyncMPClient->>AsyncMPClient: _send_input()
+                        deactivate AsyncMPClient
+                    
+                    
+                    deactivate AsyncLLM
+                    AsyncLLM->>AsyncLLM: return RequestOutputCollector<br>q = RequestOutputCollector
+                AsyncLLM->>AsyncLLM: return RequestOutputCollector<br>q = RequestOutputCollector
+                deactivate AsyncLLM
+                         
+                loop Request Queue processing finishing
+                    AsyncLLM->>RequestOutputCollector: get()
+                end           
+            
+            AsyncLLM->>OpenAIServingCompletion: return AsyncGenerator<br>generator = AsyncGenerator
+
+            deactivate AsyncLLM
+            OpenAIServingCompletion->>OpenAIServingCompletion: generators.append(generator)
+        end
+        OpenAIServingCompletion->>vllm.utils: merge_async_iterators()
+
+        alt stream is true
+            OpenAIServingCompletion->>OpenAIServingCompletion: completion_stream_generator(request, result_+generator, tokenizer)
+        else
+            OpenAIServingCompletion->>OpenAIServingCompletion: request_output_to_completion_response(request, tokenizer)
+        end
+
+    OpenAIServingCompletion->>Client: return Union[AsyncGenerator[str, None],<br>CompletionResponse, ErrorResponse]<br>generator = Union[AsyncGenerator[str, None],<br>CompletionResponse, ErrorResponse]
+    deactivate OpenAIServingCompletion
+
+    note right of Client: Finish OpenAI Completions Request
+
+    %% Pair: Client->>+OpenAIServingCompletion: completion() -> OpenAIServingCompletion<br>handler = OpenAIServingCompletion
+    deactivate OpenAIServingCompletion
+
+    %% Pair: vllm.v1.utils->>+CoreEngineActorManager: __init()__
+    %%deactivate CoreEngineActorManager
+    
+    %% Pair: AsyncLLM->>+EngineCoreClient: make_async_mp_client(vllm_config, executor_class)
+    deactivate EngineCoreClient
+
+    %% Pair: AsyncLLM->>+OutputProcessor:__init()__
+    deactivate OutputProcessor
+
+    %% Pair: AsyncLLM->>+Processor:__init()__
+    deactivate Processor
+
+    %% Pair: AsyncLLM->>+TokenizerGroup: init_tokenizer_from_configs()
+    deactivate TokenizerGroup
+    
+    %% Pair: AsyncLLM->>+Executor: get_class(engine_args)
+    deactivate Executor
+    
+    %% Pair: AsyncEngineArgs->>+EngineArgs: __post_init__()
+    deactivate EngineArgs
+
+    %% Pair: Client->>+AsyncEngineArgs: from_cli_args()
+    deactivate AsyncEngineArgs
+    

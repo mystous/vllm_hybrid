@@ -1,0 +1,1459 @@
+DEBUG_AG: Process 3110402 importing vllm.config
+DEBUG_AG: Process 3110402 importing vllm.distributed
+DEBUG_AG: Process 3110402 importing vllm.distributed.communication_op
+DEBUG_AG: Process 3110402 importing vllm.distributed.parallel_state
+DEBUG_AG: Process 3110402 importing vllm.distributed.utils
+DEBUG_AG: Process 3110402 finished importing vllm.distributed.utils
+DEBUG_AG: Process 3110402 finished importing vllm.distributed.parallel_state
+DEBUG_AG: Process 3110402 importing vllm.platforms
+DEBUG_AG: Process 3110402 vllm.platforms import step 1 (torch)
+DEBUG_AG: Process 3110402 checking plugin heterogeneous
+DEBUG_AG: Process 3110402 checking plugin tpu
+DEBUG_AG: Process 3110402 checking plugin cuda
+DEBUG_AG: Process 3110402 finished nvmlShutdown in cuda_platform_plugin
+DEBUG_AG: Process 3110402 selected platform vllm.platforms.cuda.CudaPlatform
+DEBUG_AG: Process 3110402 importing vllm.platforms.cuda
+DEBUG_AG: Process 3110402 finished importing vllm.platforms.cuda
+DEBUG_AG: Process 3110402 finished importing vllm.distributed
+DEBUG_AG: Process 3110402 finished importing vllm.config
+DEBUG_AG: Process 3110402 importing vllm.worker.worker_base
+
+--- vLLM CPU decode: 8 threads, 1.5B, 1 request ---
+INFO 04-13 03:38:22 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'dtype': 'bfloat16', 'max_model_len': 512, 'device': 'cpu', 'disable_log_stats': True, 'enforce_eager': True}
+INFO 04-13 03:38:30 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+INFO 04-13 03:38:30 [config.py:1807] Using max model len 512
+INFO 04-13 03:38:31 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=16384.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:31 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:31 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8504+gfb8d11dba) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":0,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:31 [worker_base.py:603] Rank 0 is assigned to CPU (available GPUs: 0). Switching to CPUWorker.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:487]   AVX-512: Yes
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:577]   AMX enabled: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:609] CPU optimization configured: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:611]   Features: AMX-BF16=True, AMX-INT8=True, AVX-512=True
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:618]   Topology: 2 socket(s) x 56 cores x 2 threads
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:689] PyTorch threads set to 8 (from OMP_NUM_THREADS, physical=112)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:33 [intel_cpu_utils.py:759] Configuring PyTorch for AMX acceleration...
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [intel_cpu_utils.py:799]   AMX configuration complete: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [intel_cpu_utils.py:733] Inductor configured for AMX + AVX-512 (simdlen=16)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [intel_cpu_utils.py:119] NUMA initialized: 2 nodes available
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [intel_cpu_utils.py:978] Rank 0 bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [intel_cpu_utils.py:821] IPEX available: version 2.8.0+gitcb81bf2
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [intel_cpu_utils.py:827]   IPEX AMX optimization: Available
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:95] CPUWorker[0] Intel optimization initialized:
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:96]   NUMA node: 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:97]   AVX-512: True
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:98]   IPEX: True
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:101]   CPU: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:102]   Topology: 2 sockets x 56 cores
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:105]   AMX-BF16: Enabled (Sapphire Rapids)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:156] Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:173] [HYBRID-CPU-WORKER] Forcing device_config.device_type 'heterogeneous' → 'cpu' (heterogeneous flag was set by WorkerBase heuristic because CUDA is hidden in this process).
+[1;36m(EngineCore_0 pid=3110921)[0;0m WARNING 04-13 03:38:34 [cpu.py:113] Environment variable VLLM_CPU_KVCACHE_SPACE (GiB) for CPU backend is not set, using 4 by default.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu.py:315] MKL configured for AVX-512
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:185] Updated vllm_config for CPU platform via check_and_update_config (device_type='cpu').
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:208] CPU Worker: Using eager mode (torch.compile disabled)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:315] CPUWorker: Thread count set to 56 (NUMA node 0, 112 total cores, 2 nodes)
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:729] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:780] auto thread-binding list (id, physical core): [(112, 0), (113, 1), (114, 2), (115, 3), (116, 4), (117, 5), (118, 6), (119, 7), (120, 8), (121, 9), (122, 10), (123, 11), (124, 12), (125, 13), (126, 14), (127, 15), (128, 16), (129, 17), (130, 18), (131, 19), (132, 20), (133, 21), (134, 22), (135, 23), (136, 24), (137, 25), (138, 26), (139, 27), (140, 28), (141, 29), (142, 30), (143, 31), (144, 32), (145, 33), (146, 34), (147, 35), (148, 36), (149, 37), (150, 38), (151, 39), (152, 40), (153, 41), (154, 42), (155, 43), (156, 44), (157, 45), (158, 46), (159, 47), (160, 48), (161, 49), (162, 50), (163, 51), (164, 52), (165, 53), (166, 54), (167, 55)]
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167' (rank=0, local_rank=0)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] OMP threads binding of Process 3110921:
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3110921, core 112
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111009, core 113
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111010, core 114
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111011, core 115
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111012, core 116
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111013, core 117
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111014, core 118
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111015, core 119
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111016, core 120
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111017, core 121
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111018, core 122
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111019, core 123
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111020, core 124
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111021, core 125
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111022, core 126
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111023, core 127
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111024, core 128
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111025, core 129
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111026, core 130
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111027, core 131
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111028, core 132
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111029, core 133
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111030, core 134
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111031, core 135
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111032, core 136
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111033, core 137
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111034, core 138
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111035, core 139
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111036, core 140
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111037, core 141
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111038, core 142
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111039, core 143
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111040, core 144
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111041, core 145
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111042, core 146
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111043, core 147
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111044, core 148
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111045, core 149
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111046, core 150
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111047, core 151
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111048, core 152
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111049, core 153
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111050, core 154
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111051, core 155
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111052, core 156
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111053, core 157
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111054, core 158
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111055, core 159
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111056, core 160
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111057, core 161
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111058, core 162
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111059, core 163
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111060, core 164
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111061, core 165
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111062, core 166
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 	OMP tid: 3111063, core 167
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:447] 
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=56 process_threads=72 cpu_affinity=1 cores [112]
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=gloo init_method=tcp://211.115.75.82:38019
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu_model_runner.py:70] CPUModelRunner bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m WARNING 04-13 03:38:34 [cpu.py:392] Pin memory is not supported on CPU.
+[1;36m(EngineCore_0 pid=3110921)[0;0m WARNING 04-13 03:38:34 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=3110921)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [cpu.py:100] Using Torch SDPA backend.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:34 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:35 [default_loader.py:262] Loading weights took 0.28 seconds
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:35 [intel_cpu_utils.py:888] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:35 [cpu_model_runner.py:216] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:35 [cpu_worker.py:533] DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:35 [cpu_model_runner.py:249] CPUModelRunner profile_run start. device=cpu
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:35 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=16384
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:38 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:38 [cpu_model_runner.py:255] CPUModelRunner profile_run dummy_run finished.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_worker.py:535] DEBUG_AG: CPUWorker determine_available_memory profile_run done.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [kv_cache_utils.py:829] GPU KV cache size: 149,792 tokens
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [kv_cache_utils.py:833] Maximum concurrency for 512 tokens per request: 292.56x
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_worker.py:561] CPUWorker: Entering compile_or_warm_up_model
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_worker.py:566] CPUWorker: set_random_seed completed
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=1024
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:45 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:51 [core.py:198] init engine (profile, create kv cache, warmup model) took 16.27 seconds
+[1;36m(EngineCore_0 pid=3110921)[0;0m INFO 04-13 03:38:51 [cpu.py:315] MKL configured for AVX-512
+INFO 04-13 03:38:52 [llm.py:290] Supported_tasks: ['generate']
+  tokens=64 elapsed=2.90s tps=22.06
+
+--- vLLM CPU decode: 16 threads, 1.5B, 1 request ---
+INFO 04-13 03:38:58 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'dtype': 'bfloat16', 'max_model_len': 512, 'device': 'cpu', 'disable_log_stats': True, 'enforce_eager': True}
+INFO 04-13 03:38:58 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+INFO 04-13 03:38:58 [config.py:1807] Using max model len 512
+INFO 04-13 03:38:58 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=16384.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:38:59 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:38:59 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8504+gfb8d11dba) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":0,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:38:59 [worker_base.py:603] Rank 0 is assigned to CPU (available GPUs: 0). Switching to CPUWorker.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:487]   AVX-512: Yes
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:577]   AMX enabled: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:609] CPU optimization configured: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:611]   Features: AMX-BF16=True, AMX-INT8=True, AVX-512=True
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:618]   Topology: 2 socket(s) x 56 cores x 2 threads
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:689] PyTorch threads set to 16 (from OMP_NUM_THREADS, physical=112)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:759] Configuring PyTorch for AMX acceleration...
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:799]   AMX configuration complete: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:733] Inductor configured for AMX + AVX-512 (simdlen=16)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:119] NUMA initialized: 2 nodes available
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:978] Rank 0 bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:821] IPEX available: version 2.8.0+gitcb81bf2
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [intel_cpu_utils.py:827]   IPEX AMX optimization: Available
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:95] CPUWorker[0] Intel optimization initialized:
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:96]   NUMA node: 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:97]   AVX-512: True
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:98]   IPEX: True
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:101]   CPU: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:102]   Topology: 2 sockets x 56 cores
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:105]   AMX-BF16: Enabled (Sapphire Rapids)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:156] Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:173] [HYBRID-CPU-WORKER] Forcing device_config.device_type 'heterogeneous' → 'cpu' (heterogeneous flag was set by WorkerBase heuristic because CUDA is hidden in this process).
+[1;36m(EngineCore_0 pid=3111948)[0;0m WARNING 04-13 03:39:01 [cpu.py:113] Environment variable VLLM_CPU_KVCACHE_SPACE (GiB) for CPU backend is not set, using 4 by default.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu.py:315] MKL configured for AVX-512
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:185] Updated vllm_config for CPU platform via check_and_update_config (device_type='cpu').
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:208] CPU Worker: Using eager mode (torch.compile disabled)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:315] CPUWorker: Thread count set to 56 (NUMA node 0, 112 total cores, 2 nodes)
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:729] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:780] auto thread-binding list (id, physical core): [(112, 0), (113, 1), (114, 2), (115, 3), (116, 4), (117, 5), (118, 6), (119, 7), (120, 8), (121, 9), (122, 10), (123, 11), (124, 12), (125, 13), (126, 14), (127, 15), (128, 16), (129, 17), (130, 18), (131, 19), (132, 20), (133, 21), (134, 22), (135, 23), (136, 24), (137, 25), (138, 26), (139, 27), (140, 28), (141, 29), (142, 30), (143, 31), (144, 32), (145, 33), (146, 34), (147, 35), (148, 36), (149, 37), (150, 38), (151, 39), (152, 40), (153, 41), (154, 42), (155, 43), (156, 44), (157, 45), (158, 46), (159, 47), (160, 48), (161, 49), (162, 50), (163, 51), (164, 52), (165, 53), (166, 54), (167, 55)]
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167' (rank=0, local_rank=0)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] OMP threads binding of Process 3111948:
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3111948, core 112
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112014, core 113
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112015, core 114
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112016, core 115
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112017, core 116
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112018, core 117
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112019, core 118
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112020, core 119
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112021, core 120
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112022, core 121
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112023, core 122
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112024, core 123
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112025, core 124
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112026, core 125
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112027, core 126
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112028, core 127
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112029, core 128
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112030, core 129
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112031, core 130
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112032, core 131
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112033, core 132
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112034, core 133
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112035, core 134
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112036, core 135
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112037, core 136
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112038, core 137
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112039, core 138
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112040, core 139
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112041, core 140
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112042, core 141
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112043, core 142
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112044, core 143
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112045, core 144
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112046, core 145
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112047, core 146
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112048, core 147
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112049, core 148
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112050, core 149
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112051, core 150
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112052, core 151
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112053, core 152
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112054, core 153
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112055, core 154
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112056, core 155
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112057, core 156
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112058, core 157
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112059, core 158
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112060, core 159
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112061, core 160
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112062, core 161
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112063, core 162
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112064, core 163
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112065, core 164
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112066, core 165
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112067, core 166
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 	OMP tid: 3112068, core 167
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:447] 
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=56 process_threads=80 cpu_affinity=1 cores [112]
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=gloo init_method=tcp://211.115.75.82:57009
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:01 [cpu_model_runner.py:70] CPUModelRunner bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m WARNING 04-13 03:39:01 [cpu.py:392] Pin memory is not supported on CPU.
+[1;36m(EngineCore_0 pid=3111948)[0;0m WARNING 04-13 03:39:01 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=3111948)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [cpu.py:100] Using Torch SDPA backend.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [default_loader.py:262] Loading weights took 0.28 seconds
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [intel_cpu_utils.py:888] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [cpu_model_runner.py:216] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [cpu_worker.py:533] DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [cpu_model_runner.py:249] CPUModelRunner profile_run start. device=cpu
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:02 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=16384
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:05 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:05 [cpu_model_runner.py:255] CPUModelRunner profile_run dummy_run finished.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_worker.py:535] DEBUG_AG: CPUWorker determine_available_memory profile_run done.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [kv_cache_utils.py:829] GPU KV cache size: 149,792 tokens
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [kv_cache_utils.py:833] Maximum concurrency for 512 tokens per request: 292.56x
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_worker.py:561] CPUWorker: Entering compile_or_warm_up_model
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_worker.py:566] CPUWorker: set_random_seed completed
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=1024
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:12 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:18 [core.py:198] init engine (profile, create kv cache, warmup model) took 16.28 seconds
+[1;36m(EngineCore_0 pid=3111948)[0;0m INFO 04-13 03:39:19 [cpu.py:315] MKL configured for AVX-512
+INFO 04-13 03:39:19 [llm.py:290] Supported_tasks: ['generate']
+  tokens=64 elapsed=2.98s tps=21.47
+
+--- vLLM CPU decode: 24 threads, 1.5B, 1 request ---
+INFO 04-13 03:39:25 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'dtype': 'bfloat16', 'max_model_len': 512, 'device': 'cpu', 'disable_log_stats': True, 'enforce_eager': True}
+INFO 04-13 03:39:25 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+INFO 04-13 03:39:25 [config.py:1807] Using max model len 512
+INFO 04-13 03:39:25 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=16384.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:26 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:26 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8504+gfb8d11dba) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":0,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:26 [worker_base.py:603] Rank 0 is assigned to CPU (available GPUs: 0). Switching to CPUWorker.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:487]   AVX-512: Yes
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:577]   AMX enabled: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:609] CPU optimization configured: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:611]   Features: AMX-BF16=True, AMX-INT8=True, AVX-512=True
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:618]   Topology: 2 socket(s) x 56 cores x 2 threads
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:689] PyTorch threads set to 24 (from OMP_NUM_THREADS, physical=112)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:759] Configuring PyTorch for AMX acceleration...
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:799]   AMX configuration complete: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:733] Inductor configured for AMX + AVX-512 (simdlen=16)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:119] NUMA initialized: 2 nodes available
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:978] Rank 0 bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:821] IPEX available: version 2.8.0+gitcb81bf2
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [intel_cpu_utils.py:827]   IPEX AMX optimization: Available
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:95] CPUWorker[0] Intel optimization initialized:
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:96]   NUMA node: 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:97]   AVX-512: True
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:98]   IPEX: True
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:101]   CPU: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:102]   Topology: 2 sockets x 56 cores
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:105]   AMX-BF16: Enabled (Sapphire Rapids)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:156] Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:173] [HYBRID-CPU-WORKER] Forcing device_config.device_type 'heterogeneous' → 'cpu' (heterogeneous flag was set by WorkerBase heuristic because CUDA is hidden in this process).
+[1;36m(EngineCore_0 pid=3112654)[0;0m WARNING 04-13 03:39:28 [cpu.py:113] Environment variable VLLM_CPU_KVCACHE_SPACE (GiB) for CPU backend is not set, using 4 by default.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu.py:315] MKL configured for AVX-512
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:185] Updated vllm_config for CPU platform via check_and_update_config (device_type='cpu').
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:208] CPU Worker: Using eager mode (torch.compile disabled)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:28 [cpu_worker.py:315] CPUWorker: Thread count set to 56 (NUMA node 0, 112 total cores, 2 nodes)
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:729] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:780] auto thread-binding list (id, physical core): [(112, 0), (113, 1), (114, 2), (115, 3), (116, 4), (117, 5), (118, 6), (119, 7), (120, 8), (121, 9), (122, 10), (123, 11), (124, 12), (125, 13), (126, 14), (127, 15), (128, 16), (129, 17), (130, 18), (131, 19), (132, 20), (133, 21), (134, 22), (135, 23), (136, 24), (137, 25), (138, 26), (139, 27), (140, 28), (141, 29), (142, 30), (143, 31), (144, 32), (145, 33), (146, 34), (147, 35), (148, 36), (149, 37), (150, 38), (151, 39), (152, 40), (153, 41), (154, 42), (155, 43), (156, 44), (157, 45), (158, 46), (159, 47), (160, 48), (161, 49), (162, 50), (163, 51), (164, 52), (165, 53), (166, 54), (167, 55)]
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167' (rank=0, local_rank=0)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] OMP threads binding of Process 3112654:
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112654, core 112
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112786, core 113
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112787, core 114
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112788, core 115
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112789, core 116
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112790, core 117
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112791, core 118
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112792, core 119
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112793, core 120
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112794, core 121
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112795, core 122
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112796, core 123
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112797, core 124
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112798, core 125
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112799, core 126
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112800, core 127
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112801, core 128
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112802, core 129
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112803, core 130
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112804, core 131
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112805, core 132
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112806, core 133
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112807, core 134
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112808, core 135
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112809, core 136
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112810, core 137
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112811, core 138
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112812, core 139
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112813, core 140
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112814, core 141
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112815, core 142
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112816, core 143
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112817, core 144
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112818, core 145
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112819, core 146
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112820, core 147
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112821, core 148
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112822, core 149
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112823, core 150
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112824, core 151
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112825, core 152
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112826, core 153
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112827, core 154
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112828, core 155
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112829, core 156
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112830, core 157
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112831, core 158
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112832, core 159
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112833, core 160
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112834, core 161
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112835, core 162
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112836, core 163
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112837, core 164
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112838, core 165
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112839, core 166
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 	OMP tid: 3112840, core 167
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:447] 
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=56 process_threads=88 cpu_affinity=1 cores [112]
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=gloo init_method=tcp://211.115.75.82:45253
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_model_runner.py:70] CPUModelRunner bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m WARNING 04-13 03:39:29 [cpu.py:392] Pin memory is not supported on CPU.
+[1;36m(EngineCore_0 pid=3112654)[0;0m WARNING 04-13 03:39:29 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=3112654)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu.py:100] Using Torch SDPA backend.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [default_loader.py:262] Loading weights took 0.27 seconds
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [intel_cpu_utils.py:888] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_model_runner.py:216] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_worker.py:533] DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_model_runner.py:249] CPUModelRunner profile_run start. device=cpu
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:29 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=16384
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:32 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:32 [cpu_model_runner.py:255] CPUModelRunner profile_run dummy_run finished.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_worker.py:535] DEBUG_AG: CPUWorker determine_available_memory profile_run done.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [kv_cache_utils.py:829] GPU KV cache size: 149,792 tokens
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [kv_cache_utils.py:833] Maximum concurrency for 512 tokens per request: 292.56x
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_worker.py:561] CPUWorker: Entering compile_or_warm_up_model
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_worker.py:566] CPUWorker: set_random_seed completed
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=1024
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:39 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:45 [core.py:198] init engine (profile, create kv cache, warmup model) took 16.11 seconds
+[1;36m(EngineCore_0 pid=3112654)[0;0m INFO 04-13 03:39:46 [cpu.py:315] MKL configured for AVX-512
+INFO 04-13 03:39:46 [llm.py:290] Supported_tasks: ['generate']
+  tokens=64 elapsed=2.90s tps=22.05
+
+--- vLLM CPU decode: 32 threads, 1.5B, 1 request ---
+INFO 04-13 03:39:52 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'dtype': 'bfloat16', 'max_model_len': 512, 'device': 'cpu', 'disable_log_stats': True, 'enforce_eager': True}
+INFO 04-13 03:39:52 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+INFO 04-13 03:39:52 [config.py:1807] Using max model len 512
+INFO 04-13 03:39:52 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=16384.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:53 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:53 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8504+gfb8d11dba) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":0,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:53 [worker_base.py:603] Rank 0 is assigned to CPU (available GPUs: 0). Switching to CPUWorker.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:487]   AVX-512: Yes
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:577]   AMX enabled: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:609] CPU optimization configured: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:611]   Features: AMX-BF16=True, AMX-INT8=True, AVX-512=True
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:618]   Topology: 2 socket(s) x 56 cores x 2 threads
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:689] PyTorch threads set to 32 (from OMP_NUM_THREADS, physical=112)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:759] Configuring PyTorch for AMX acceleration...
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:799]   AMX configuration complete: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:733] Inductor configured for AMX + AVX-512 (simdlen=16)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:119] NUMA initialized: 2 nodes available
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:978] Rank 0 bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:821] IPEX available: version 2.8.0+gitcb81bf2
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [intel_cpu_utils.py:827]   IPEX AMX optimization: Available
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:95] CPUWorker[0] Intel optimization initialized:
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:96]   NUMA node: 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:97]   AVX-512: True
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:98]   IPEX: True
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:101]   CPU: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:102]   Topology: 2 sockets x 56 cores
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:105]   AMX-BF16: Enabled (Sapphire Rapids)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:156] Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:173] [HYBRID-CPU-WORKER] Forcing device_config.device_type 'heterogeneous' → 'cpu' (heterogeneous flag was set by WorkerBase heuristic because CUDA is hidden in this process).
+[1;36m(EngineCore_0 pid=3113461)[0;0m WARNING 04-13 03:39:55 [cpu.py:113] Environment variable VLLM_CPU_KVCACHE_SPACE (GiB) for CPU backend is not set, using 4 by default.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu.py:315] MKL configured for AVX-512
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:185] Updated vllm_config for CPU platform via check_and_update_config (device_type='cpu').
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:208] CPU Worker: Using eager mode (torch.compile disabled)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:315] CPUWorker: Thread count set to 56 (NUMA node 0, 112 total cores, 2 nodes)
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:729] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:780] auto thread-binding list (id, physical core): [(112, 0), (113, 1), (114, 2), (115, 3), (116, 4), (117, 5), (118, 6), (119, 7), (120, 8), (121, 9), (122, 10), (123, 11), (124, 12), (125, 13), (126, 14), (127, 15), (128, 16), (129, 17), (130, 18), (131, 19), (132, 20), (133, 21), (134, 22), (135, 23), (136, 24), (137, 25), (138, 26), (139, 27), (140, 28), (141, 29), (142, 30), (143, 31), (144, 32), (145, 33), (146, 34), (147, 35), (148, 36), (149, 37), (150, 38), (151, 39), (152, 40), (153, 41), (154, 42), (155, 43), (156, 44), (157, 45), (158, 46), (159, 47), (160, 48), (161, 49), (162, 50), (163, 51), (164, 52), (165, 53), (166, 54), (167, 55)]
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167' (rank=0, local_rank=0)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] OMP threads binding of Process 3113461:
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113461, core 112
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113543, core 113
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113544, core 114
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113545, core 115
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113546, core 116
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113547, core 117
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113548, core 118
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113549, core 119
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113550, core 120
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113551, core 121
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113552, core 122
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113553, core 123
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113554, core 124
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113555, core 125
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113556, core 126
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113557, core 127
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113558, core 128
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113559, core 129
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113560, core 130
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113561, core 131
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113562, core 132
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113563, core 133
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113564, core 134
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113565, core 135
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113566, core 136
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113567, core 137
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113568, core 138
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113569, core 139
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113570, core 140
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113571, core 141
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113572, core 142
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113573, core 143
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113574, core 144
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113575, core 145
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113576, core 146
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113577, core 147
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113578, core 148
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113579, core 149
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113580, core 150
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113581, core 151
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113582, core 152
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113583, core 153
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113584, core 154
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113585, core 155
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113586, core 156
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113587, core 157
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113588, core 158
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113589, core 159
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113590, core 160
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113591, core 161
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113592, core 162
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113593, core 163
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113594, core 164
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113595, core 165
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113596, core 166
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 	OMP tid: 3113597, core 167
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:447] 
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:55 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=56 process_threads=96 cpu_affinity=1 cores [112]
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=gloo init_method=tcp://211.115.75.82:60247
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [cpu_model_runner.py:70] CPUModelRunner bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m WARNING 04-13 03:39:56 [cpu.py:392] Pin memory is not supported on CPU.
+[1;36m(EngineCore_0 pid=3113461)[0;0m WARNING 04-13 03:39:56 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=3113461)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [cpu.py:100] Using Torch SDPA backend.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [default_loader.py:262] Loading weights took 0.27 seconds
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [intel_cpu_utils.py:888] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [cpu_model_runner.py:216] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [cpu_worker.py:533] DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [cpu_model_runner.py:249] CPUModelRunner profile_run start. device=cpu
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:39:56 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=16384
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:00 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:00 [cpu_model_runner.py:255] CPUModelRunner profile_run dummy_run finished.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_worker.py:535] DEBUG_AG: CPUWorker determine_available_memory profile_run done.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [kv_cache_utils.py:829] GPU KV cache size: 149,792 tokens
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [kv_cache_utils.py:833] Maximum concurrency for 512 tokens per request: 292.56x
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_worker.py:561] CPUWorker: Entering compile_or_warm_up_model
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_worker.py:566] CPUWorker: set_random_seed completed
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=1024
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:06 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:12 [core.py:198] init engine (profile, create kv cache, warmup model) took 16.50 seconds
+[1;36m(EngineCore_0 pid=3113461)[0;0m INFO 04-13 03:40:13 [cpu.py:315] MKL configured for AVX-512
+INFO 04-13 03:40:13 [llm.py:290] Supported_tasks: ['generate']
+  tokens=64 elapsed=2.95s tps=21.71
+
+--- vLLM CPU decode: 48 threads, 1.5B, 1 request ---
+INFO 04-13 03:40:19 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'dtype': 'bfloat16', 'max_model_len': 512, 'device': 'cpu', 'disable_log_stats': True, 'enforce_eager': True}
+INFO 04-13 03:40:19 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+INFO 04-13 03:40:19 [config.py:1807] Using max model len 512
+INFO 04-13 03:40:20 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=16384.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:20 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:20 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8504+gfb8d11dba) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":0,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:20 [worker_base.py:603] Rank 0 is assigned to CPU (available GPUs: 0). Switching to CPUWorker.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:487]   AVX-512: Yes
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:577]   AMX enabled: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:609] CPU optimization configured: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:611]   Features: AMX-BF16=True, AMX-INT8=True, AVX-512=True
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:618]   Topology: 2 socket(s) x 56 cores x 2 threads
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:689] PyTorch threads set to 48 (from OMP_NUM_THREADS, physical=112)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:22 [intel_cpu_utils.py:759] Configuring PyTorch for AMX acceleration...
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [intel_cpu_utils.py:799]   AMX configuration complete: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [intel_cpu_utils.py:733] Inductor configured for AMX + AVX-512 (simdlen=16)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [intel_cpu_utils.py:119] NUMA initialized: 2 nodes available
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [intel_cpu_utils.py:978] Rank 0 bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [intel_cpu_utils.py:821] IPEX available: version 2.8.0+gitcb81bf2
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [intel_cpu_utils.py:827]   IPEX AMX optimization: Available
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:95] CPUWorker[0] Intel optimization initialized:
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:96]   NUMA node: 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:97]   AVX-512: True
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:98]   IPEX: True
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:101]   CPU: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:102]   Topology: 2 sockets x 56 cores
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:105]   AMX-BF16: Enabled (Sapphire Rapids)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:156] Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:173] [HYBRID-CPU-WORKER] Forcing device_config.device_type 'heterogeneous' → 'cpu' (heterogeneous flag was set by WorkerBase heuristic because CUDA is hidden in this process).
+[1;36m(EngineCore_0 pid=3114202)[0;0m WARNING 04-13 03:40:23 [cpu.py:113] Environment variable VLLM_CPU_KVCACHE_SPACE (GiB) for CPU backend is not set, using 4 by default.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu.py:315] MKL configured for AVX-512
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:185] Updated vllm_config for CPU platform via check_and_update_config (device_type='cpu').
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:208] CPU Worker: Using eager mode (torch.compile disabled)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:315] CPUWorker: Thread count set to 56 (NUMA node 0, 112 total cores, 2 nodes)
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:729] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:780] auto thread-binding list (id, physical core): [(112, 0), (113, 1), (114, 2), (115, 3), (116, 4), (117, 5), (118, 6), (119, 7), (120, 8), (121, 9), (122, 10), (123, 11), (124, 12), (125, 13), (126, 14), (127, 15), (128, 16), (129, 17), (130, 18), (131, 19), (132, 20), (133, 21), (134, 22), (135, 23), (136, 24), (137, 25), (138, 26), (139, 27), (140, 28), (141, 29), (142, 30), (143, 31), (144, 32), (145, 33), (146, 34), (147, 35), (148, 36), (149, 37), (150, 38), (151, 39), (152, 40), (153, 41), (154, 42), (155, 43), (156, 44), (157, 45), (158, 46), (159, 47), (160, 48), (161, 49), (162, 50), (163, 51), (164, 52), (165, 53), (166, 54), (167, 55)]
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167' (rank=0, local_rank=0)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] OMP threads binding of Process 3114202:
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114202, core 112
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114369, core 113
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114370, core 114
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114371, core 115
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114372, core 116
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114373, core 117
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114374, core 118
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114375, core 119
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114376, core 120
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114377, core 121
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114378, core 122
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114379, core 123
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114380, core 124
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114381, core 125
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114382, core 126
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114383, core 127
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114384, core 128
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114385, core 129
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114386, core 130
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114387, core 131
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114388, core 132
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114389, core 133
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114390, core 134
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114391, core 135
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114392, core 136
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114393, core 137
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114394, core 138
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114395, core 139
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114396, core 140
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114397, core 141
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114398, core 142
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114399, core 143
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114400, core 144
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114401, core 145
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114402, core 146
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114403, core 147
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114404, core 148
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114405, core 149
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114406, core 150
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114407, core 151
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114408, core 152
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114409, core 153
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114410, core 154
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114411, core 155
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114412, core 156
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114413, core 157
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114414, core 158
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114415, core 159
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114416, core 160
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114417, core 161
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114418, core 162
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114419, core 163
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114420, core 164
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114421, core 165
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114422, core 166
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 	OMP tid: 3114423, core 167
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:447] 
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=56 process_threads=112 cpu_affinity=1 cores [112]
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=gloo init_method=tcp://211.115.75.82:46995
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_model_runner.py:70] CPUModelRunner bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m WARNING 04-13 03:40:23 [cpu.py:392] Pin memory is not supported on CPU.
+[1;36m(EngineCore_0 pid=3114202)[0;0m WARNING 04-13 03:40:23 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=3114202)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu.py:100] Using Torch SDPA backend.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [default_loader.py:262] Loading weights took 0.29 seconds
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [intel_cpu_utils.py:888] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_model_runner.py:216] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_worker.py:533] DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_model_runner.py:249] CPUModelRunner profile_run start. device=cpu
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:23 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=16384
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:27 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:27 [cpu_model_runner.py:255] CPUModelRunner profile_run dummy_run finished.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_worker.py:535] DEBUG_AG: CPUWorker determine_available_memory profile_run done.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [kv_cache_utils.py:829] GPU KV cache size: 149,792 tokens
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [kv_cache_utils.py:833] Maximum concurrency for 512 tokens per request: 292.56x
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_worker.py:561] CPUWorker: Entering compile_or_warm_up_model
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_worker.py:566] CPUWorker: set_random_seed completed
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=1024
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:33 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:39 [core.py:198] init engine (profile, create kv cache, warmup model) took 16.03 seconds
+[1;36m(EngineCore_0 pid=3114202)[0;0m INFO 04-13 03:40:40 [cpu.py:315] MKL configured for AVX-512
+INFO 04-13 03:40:40 [llm.py:290] Supported_tasks: ['generate']
+  tokens=64 elapsed=2.91s tps=22.03
+
+--- vLLM CPU decode: 76 threads, 1.5B, 1 request ---
+INFO 04-13 03:40:46 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'dtype': 'bfloat16', 'max_model_len': 512, 'device': 'cpu', 'disable_log_stats': True, 'enforce_eager': True}
+INFO 04-13 03:40:46 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+INFO 04-13 03:40:46 [config.py:1807] Using max model len 512
+INFO 04-13 03:40:46 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=16384.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:47 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:47 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8504+gfb8d11dba) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":0,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:47 [worker_base.py:603] Rank 0 is assigned to CPU (available GPUs: 0). Switching to CPUWorker.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:487]   AVX-512: Yes
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:577]   AMX enabled: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:609] CPU optimization configured: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:611]   Features: AMX-BF16=True, AMX-INT8=True, AVX-512=True
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:618]   Topology: 2 socket(s) x 56 cores x 2 threads
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:689] PyTorch threads set to 76 (from OMP_NUM_THREADS, physical=112)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:49 [intel_cpu_utils.py:759] Configuring PyTorch for AMX acceleration...
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [intel_cpu_utils.py:799]   AMX configuration complete: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [intel_cpu_utils.py:733] Inductor configured for AMX + AVX-512 (simdlen=16)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [intel_cpu_utils.py:119] NUMA initialized: 2 nodes available
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [intel_cpu_utils.py:978] Rank 0 bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [intel_cpu_utils.py:821] IPEX available: version 2.8.0+gitcb81bf2
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [intel_cpu_utils.py:827]   IPEX AMX optimization: Available
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:95] CPUWorker[0] Intel optimization initialized:
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:96]   NUMA node: 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:97]   AVX-512: True
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:98]   IPEX: True
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:101]   CPU: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:102]   Topology: 2 sockets x 56 cores
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:105]   AMX-BF16: Enabled (Sapphire Rapids)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:156] Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:173] [HYBRID-CPU-WORKER] Forcing device_config.device_type 'heterogeneous' → 'cpu' (heterogeneous flag was set by WorkerBase heuristic because CUDA is hidden in this process).
+[1;36m(EngineCore_0 pid=3115000)[0;0m WARNING 04-13 03:40:50 [cpu.py:113] Environment variable VLLM_CPU_KVCACHE_SPACE (GiB) for CPU backend is not set, using 4 by default.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu.py:315] MKL configured for AVX-512
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:185] Updated vllm_config for CPU platform via check_and_update_config (device_type='cpu').
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:208] CPU Worker: Using eager mode (torch.compile disabled)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:315] CPUWorker: Thread count set to 56 (NUMA node 0, 112 total cores, 2 nodes)
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:729] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:780] auto thread-binding list (id, physical core): [(112, 0), (113, 1), (114, 2), (115, 3), (116, 4), (117, 5), (118, 6), (119, 7), (120, 8), (121, 9), (122, 10), (123, 11), (124, 12), (125, 13), (126, 14), (127, 15), (128, 16), (129, 17), (130, 18), (131, 19), (132, 20), (133, 21), (134, 22), (135, 23), (136, 24), (137, 25), (138, 26), (139, 27), (140, 28), (141, 29), (142, 30), (143, 31), (144, 32), (145, 33), (146, 34), (147, 35), (148, 36), (149, 37), (150, 38), (151, 39), (152, 40), (153, 41), (154, 42), (155, 43), (156, 44), (157, 45), (158, 46), (159, 47), (160, 48), (161, 49), (162, 50), (163, 51), (164, 52), (165, 53), (166, 54), (167, 55)]
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167' (rank=0, local_rank=0)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] OMP threads binding of Process 3115000:
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115000, core 112
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115156, core 113
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115157, core 114
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115158, core 115
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115159, core 116
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115160, core 117
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115161, core 118
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115162, core 119
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115163, core 120
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115164, core 121
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115165, core 122
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115166, core 123
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115167, core 124
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115168, core 125
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115169, core 126
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115170, core 127
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115171, core 128
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115172, core 129
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115173, core 130
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115174, core 131
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115175, core 132
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115176, core 133
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115177, core 134
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115178, core 135
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115179, core 136
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115180, core 137
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115181, core 138
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115182, core 139
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115183, core 140
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115184, core 141
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115185, core 142
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115186, core 143
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115187, core 144
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115188, core 145
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115189, core 146
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115190, core 147
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115191, core 148
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115192, core 149
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115193, core 150
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115194, core 151
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115195, core 152
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115196, core 153
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115197, core 154
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115198, core 155
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115199, core 156
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115200, core 157
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115201, core 158
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115202, core 159
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115203, core 160
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115204, core 161
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115205, core 162
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115206, core 163
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115207, core 164
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115208, core 165
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115209, core 166
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 	OMP tid: 3115210, core 167
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:447] 
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=56 process_threads=140 cpu_affinity=1 cores [112]
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=gloo init_method=tcp://211.115.75.82:34233
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_model_runner.py:70] CPUModelRunner bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m WARNING 04-13 03:40:50 [cpu.py:392] Pin memory is not supported on CPU.
+[1;36m(EngineCore_0 pid=3115000)[0;0m WARNING 04-13 03:40:50 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=3115000)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu.py:100] Using Torch SDPA backend.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [default_loader.py:262] Loading weights took 0.29 seconds
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [intel_cpu_utils.py:888] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_model_runner.py:216] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_worker.py:533] DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_model_runner.py:249] CPUModelRunner profile_run start. device=cpu
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:50 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=16384
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:54 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:40:54 [cpu_model_runner.py:255] CPUModelRunner profile_run dummy_run finished.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_worker.py:535] DEBUG_AG: CPUWorker determine_available_memory profile_run done.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [kv_cache_utils.py:829] GPU KV cache size: 149,792 tokens
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [kv_cache_utils.py:833] Maximum concurrency for 512 tokens per request: 292.56x
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_worker.py:561] CPUWorker: Entering compile_or_warm_up_model
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_worker.py:566] CPUWorker: set_random_seed completed
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=1024
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:01 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:07 [core.py:198] init engine (profile, create kv cache, warmup model) took 16.90 seconds
+[1;36m(EngineCore_0 pid=3115000)[0;0m INFO 04-13 03:41:08 [cpu.py:315] MKL configured for AVX-512
+INFO 04-13 03:41:08 [llm.py:290] Supported_tasks: ['generate']
+  tokens=64 elapsed=2.94s tps=21.80
+
+--- vLLM CPU decode: 96 threads, 1.5B, 1 request ---
+INFO 04-13 03:41:14 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'dtype': 'bfloat16', 'max_model_len': 512, 'device': 'cpu', 'disable_log_stats': True, 'enforce_eager': True}
+INFO 04-13 03:41:14 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+INFO 04-13 03:41:14 [config.py:1807] Using max model len 512
+INFO 04-13 03:41:14 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=16384.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:15 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:15 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8504+gfb8d11dba) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":0,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:15 [worker_base.py:603] Rank 0 is assigned to CPU (available GPUs: 0). Switching to CPUWorker.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:487]   AVX-512: Yes
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:577]   AMX enabled: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:609] CPU optimization configured: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:611]   Features: AMX-BF16=True, AMX-INT8=True, AVX-512=True
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:618]   Topology: 2 socket(s) x 56 cores x 2 threads
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:689] PyTorch threads set to 96 (from OMP_NUM_THREADS, physical=112)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:759] Configuring PyTorch for AMX acceleration...
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:799]   AMX configuration complete: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:733] Inductor configured for AMX + AVX-512 (simdlen=16)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:119] NUMA initialized: 2 nodes available
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:978] Rank 0 bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:821] IPEX available: version 2.8.0+gitcb81bf2
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [intel_cpu_utils.py:827]   IPEX AMX optimization: Available
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:95] CPUWorker[0] Intel optimization initialized:
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:96]   NUMA node: 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:97]   AVX-512: True
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:98]   IPEX: True
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:101]   CPU: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:102]   Topology: 2 sockets x 56 cores
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:105]   AMX-BF16: Enabled (Sapphire Rapids)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:156] Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:173] [HYBRID-CPU-WORKER] Forcing device_config.device_type 'heterogeneous' → 'cpu' (heterogeneous flag was set by WorkerBase heuristic because CUDA is hidden in this process).
+[1;36m(EngineCore_0 pid=3115843)[0;0m WARNING 04-13 03:41:17 [cpu.py:113] Environment variable VLLM_CPU_KVCACHE_SPACE (GiB) for CPU backend is not set, using 4 by default.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu.py:315] MKL configured for AVX-512
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:185] Updated vllm_config for CPU platform via check_and_update_config (device_type='cpu').
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:208] CPU Worker: Using eager mode (torch.compile disabled)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:315] CPUWorker: Thread count set to 56 (NUMA node 0, 112 total cores, 2 nodes)
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:729] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:780] auto thread-binding list (id, physical core): [(112, 0), (113, 1), (114, 2), (115, 3), (116, 4), (117, 5), (118, 6), (119, 7), (120, 8), (121, 9), (122, 10), (123, 11), (124, 12), (125, 13), (126, 14), (127, 15), (128, 16), (129, 17), (130, 18), (131, 19), (132, 20), (133, 21), (134, 22), (135, 23), (136, 24), (137, 25), (138, 26), (139, 27), (140, 28), (141, 29), (142, 30), (143, 31), (144, 32), (145, 33), (146, 34), (147, 35), (148, 36), (149, 37), (150, 38), (151, 39), (152, 40), (153, 41), (154, 42), (155, 43), (156, 44), (157, 45), (158, 46), (159, 47), (160, 48), (161, 49), (162, 50), (163, 51), (164, 52), (165, 53), (166, 54), (167, 55)]
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:17 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167' (rank=0, local_rank=0)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] OMP threads binding of Process 3115843:
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3115843, core 112
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116006, core 113
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116007, core 114
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116008, core 115
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116009, core 116
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116010, core 117
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116011, core 118
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116012, core 119
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116013, core 120
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116014, core 121
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116015, core 122
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116016, core 123
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116017, core 124
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116018, core 125
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116019, core 126
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116020, core 127
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116021, core 128
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116022, core 129
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116023, core 130
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116024, core 131
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116025, core 132
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116026, core 133
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116027, core 134
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116028, core 135
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116029, core 136
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116030, core 137
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116031, core 138
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116032, core 139
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116033, core 140
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116034, core 141
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116035, core 142
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116036, core 143
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116037, core 144
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116038, core 145
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116039, core 146
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116040, core 147
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116041, core 148
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116042, core 149
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116043, core 150
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116044, core 151
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116045, core 152
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116046, core 153
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116047, core 154
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116048, core 155
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116049, core 156
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116050, core 157
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116051, core 158
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116052, core 159
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116053, core 160
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116054, core 161
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116055, core 162
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116057, core 163
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116058, core 164
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116059, core 165
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116060, core 166
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 	OMP tid: 3116061, core 167
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:447] 
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=56 process_threads=160 cpu_affinity=1 cores [112]
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=gloo init_method=tcp://211.115.75.82:57181
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_model_runner.py:70] CPUModelRunner bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m WARNING 04-13 03:41:18 [cpu.py:392] Pin memory is not supported on CPU.
+[1;36m(EngineCore_0 pid=3115843)[0;0m WARNING 04-13 03:41:18 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=3115843)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu.py:100] Using Torch SDPA backend.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [default_loader.py:262] Loading weights took 0.27 seconds
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [intel_cpu_utils.py:888] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_model_runner.py:216] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_worker.py:533] DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_model_runner.py:249] CPUModelRunner profile_run start. device=cpu
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:18 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=16384
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:22 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:22 [cpu_model_runner.py:255] CPUModelRunner profile_run dummy_run finished.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_worker.py:535] DEBUG_AG: CPUWorker determine_available_memory profile_run done.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [kv_cache_utils.py:829] GPU KV cache size: 149,792 tokens
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [kv_cache_utils.py:833] Maximum concurrency for 512 tokens per request: 292.56x
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_worker.py:561] CPUWorker: Entering compile_or_warm_up_model
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_worker.py:566] CPUWorker: set_random_seed completed
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=1024
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:28 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:34 [core.py:198] init engine (profile, create kv cache, warmup model) took 16.40 seconds
+[1;36m(EngineCore_0 pid=3115843)[0;0m INFO 04-13 03:41:35 [cpu.py:315] MKL configured for AVX-512
+INFO 04-13 03:41:35 [llm.py:290] Supported_tasks: ['generate']
+  tokens=64 elapsed=2.88s tps=22.23
+
+--- vLLM CPU decode: 112 threads, 1.5B, 1 request ---
+INFO 04-13 03:41:41 [utils.py:326] non-default args: {'model': 'Qwen/Qwen2.5-1.5B-Instruct', 'dtype': 'bfloat16', 'max_model_len': 512, 'device': 'cpu', 'disable_log_stats': True, 'enforce_eager': True}
+INFO 04-13 03:41:41 [config.py:735] Resolved architecture: Qwen2ForCausalLM
+INFO 04-13 03:41:41 [config.py:1807] Using max model len 512
+INFO 04-13 03:41:42 [config.py:2638] Chunked prefill is enabled with max_num_batched_tokens=16384.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:42 [core.py:621] Waiting for init message from front-end.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:42 [core.py:71] Initializing a V1 LLM engine (v0.1.dev8504+gfb8d11dba) with config: model='Qwen/Qwen2.5-1.5B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-1.5B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=512, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto, device_config=cuda, decoding_config=DecodingConfig(backend='auto', disable_fallback=False, disable_any_whitespace=False, disable_additional_properties=False, reasoning_backend=''), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None), seed=0, served_model_name=Qwen/Qwen2.5-1.5B-Instruct, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, pooler_config=None, compilation_config={"level":0,"debug_dump_path":"","cache_dir":"","backend":"","custom_ops":[],"splitting_ops":[],"use_inductor":true,"compile_sizes":[],"inductor_compile_config":{"enable_auto_functionalized_v2":false},"inductor_passes":{},"use_cudagraph":true,"cudagraph_num_of_warmups":0,"cudagraph_capture_sizes":[],"cudagraph_copy_inputs":false,"full_cuda_graph":false,"pass_config":{},"max_capture_size":0,"local_cache_dir":null}
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:42 [worker_base.py:603] Rank 0 is assigned to CPU (available GPUs: 0). Switching to CPUWorker.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:483] CPU detected: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:487]   AVX-512: Yes
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:489]   AVX-512 VNNI: Yes (INT8 acceleration)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:491]   AVX-512 BF16: Yes
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:498]   AMX-BF16: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:500]   AMX-INT8: Yes (Sapphire Rapids+)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:577]   AMX enabled: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:609] CPU optimization configured: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:611]   Features: AMX-BF16=True, AMX-INT8=True, AVX-512=True
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:618]   Topology: 2 socket(s) x 56 cores x 2 threads
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:689] PyTorch threads set to 112 (from OMP_NUM_THREADS, physical=112)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:44 [intel_cpu_utils.py:759] Configuring PyTorch for AMX acceleration...
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [intel_cpu_utils.py:799]   AMX configuration complete: BF16=True, INT8=True
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [intel_cpu_utils.py:733] Inductor configured for AMX + AVX-512 (simdlen=16)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [intel_cpu_utils.py:119] NUMA initialized: 2 nodes available
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [intel_cpu_utils.py:978] Rank 0 bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [intel_cpu_utils.py:821] IPEX available: version 2.8.0+gitcb81bf2
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [intel_cpu_utils.py:827]   IPEX AMX optimization: Available
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:95] CPUWorker[0] Intel optimization initialized:
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:96]   NUMA node: 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:97]   AVX-512: True
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:98]   IPEX: True
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:101]   CPU: Intel(R) Xeon(R) Platinum 8480+
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:102]   Topology: 2 sockets x 56 cores
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:105]   AMX-BF16: Enabled (Sapphire Rapids)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:156] Forced vllm.platforms._current_platform to CpuPlatform for CPUWorker.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:173] [HYBRID-CPU-WORKER] Forcing device_config.device_type 'heterogeneous' → 'cpu' (heterogeneous flag was set by WorkerBase heuristic because CUDA is hidden in this process).
+[1;36m(EngineCore_0 pid=3116665)[0;0m WARNING 04-13 03:41:45 [cpu.py:113] Environment variable VLLM_CPU_KVCACHE_SPACE (GiB) for CPU backend is not set, using 4 by default.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu.py:315] MKL configured for AVX-512
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:185] Updated vllm_config for CPU platform via check_and_update_config (device_type='cpu').
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:208] CPU Worker: Using eager mode (torch.compile disabled)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:315] CPUWorker: Thread count set to 56 (NUMA node 0, 112 total cores, 2 nodes)
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: WorkerWrapperBase.init_device start rank=0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:729] [HYBRID-CPU-WORKER] _get_autobind_cpu_ids: local_rank=0 → node_idx=0 → NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:780] auto thread-binding list (id, physical core): [(112, 0), (113, 1), (114, 2), (115, 3), (116, 4), (117, 5), (118, 6), (119, 7), (120, 8), (121, 9), (122, 10), (123, 11), (124, 12), (125, 13), (126, 14), (127, 15), (128, 16), (129, 17), (130, 18), (131, 19), (132, 20), (133, 21), (134, 22), (135, 23), (136, 24), (137, 25), (138, 26), (139, 27), (140, 28), (141, 29), (142, 30), (143, 31), (144, 32), (145, 33), (146, 34), (147, 35), (148, 36), (149, 37), (150, 38), (151, 39), (152, 40), (153, 41), (154, 42), (155, 43), (156, 44), (157, 45), (158, 46), (159, 47), (160, 48), (161, 49), (162, 50), (163, 51), (164, 52), (165, 53), (166, 54), (167, 55)]
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:436] [HYBRID-CPU-WORKER] init_device: VLLM_CPU_OMP_THREADS_BIND='auto' → local_omp_cpuid='112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167' (rank=0, local_rank=0)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] [HYBRID-CPU-WORKER] init_cpu_threads_env (C++) returned:
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] OMP threads binding of Process 3116665:
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116665, core 112
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116872, core 113
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116873, core 114
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116874, core 115
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116875, core 116
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116876, core 117
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116877, core 118
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116878, core 119
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116879, core 120
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116880, core 121
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116881, core 122
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116882, core 123
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116883, core 124
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116884, core 125
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116885, core 126
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116886, core 127
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116887, core 128
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116888, core 129
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116889, core 130
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116890, core 131
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116891, core 132
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116892, core 133
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116893, core 134
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116894, core 135
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116895, core 136
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116896, core 137
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116897, core 138
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116898, core 139
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116899, core 140
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116900, core 141
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116901, core 142
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116902, core 143
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116903, core 144
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116904, core 145
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116905, core 146
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116906, core 147
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116907, core 148
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116908, core 149
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116909, core 150
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116910, core 151
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116911, core 152
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116912, core 153
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116913, core 154
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116914, core 155
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116915, core 156
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116916, core 157
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116917, core 158
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116918, core 159
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116919, core 160
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116920, core 161
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116921, core 162
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116922, core 163
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116923, core 164
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116924, core 165
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116925, core 166
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 	OMP tid: 3116926, core 167
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:447] 
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:479] [HYBRID-CPU-WORKER] thread binding established via: C++ (init_cpu_threads_env)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:494] [HYBRID-CPU-WORKER] post-init: torch_threads=56 process_threads=176 cpu_affinity=1 cores [112]
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: Initializing process group rank=0 world_size=1 backend=gloo init_method=tcp://211.115.75.82:50371
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: Finished init_process_group rank=0
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: Calling init_world_group rank=0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: Calling _node_count rank=0
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: Finished _node_count rank=0
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: init_distributed_environment end rank=0
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: init_model_parallel_group start
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [parallel_state.py:1319] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: init_model_parallel_group end
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_model_runner.py:70] CPUModelRunner bound to NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m WARNING 04-13 03:41:45 [cpu.py:392] Pin memory is not supported on CPU.
+[1;36m(EngineCore_0 pid=3116665)[0;0m WARNING 04-13 03:41:45 [topk_topp_sampler.py:61] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.
+[1;36m(EngineCore_0 pid=3116665)[0;0m DEBUG_AG: WorkerWrapperBase.init_device end rank=0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu.py:100] Using Torch SDPA backend.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [weight_utils.py:296] Using model weights format ['*.safetensors', '*.bin', '*.pt']
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [weight_utils.py:347] No model.safetensors.index.json found in local cache.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [default_loader.py:262] Loading weights took 0.28 seconds
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [intel_cpu_utils.py:888] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_model_runner.py:216] Model optimized with IPEX (dtype=torch.bfloat16)
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_worker.py:533] DEBUG_AG: CPUWorker determine_available_memory start. Syncing profile_run.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_model_runner.py:249] CPUModelRunner profile_run start. device=cpu
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:45 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=16384
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:49 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:49 [cpu_model_runner.py:255] CPUModelRunner profile_run dummy_run finished.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_worker.py:535] DEBUG_AG: CPUWorker determine_available_memory profile_run done.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [kv_cache_utils.py:829] GPU KV cache size: 149,792 tokens
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [kv_cache_utils.py:833] Maximum concurrency for 512 tokens per request: 292.56x
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:164] Allocated KVCache (0.14 GiB) on NUMA node 0
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_worker.py:561] CPUWorker: Entering compile_or_warm_up_model
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_worker.py:566] CPUWorker: set_random_seed completed
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:55 [cpu_model_runner.py:289] CPUModelRunner _dummy_run start. device=cpu num_tokens=1024
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:41:56 [cpu_model_runner.py:346] CPUModelRunner _dummy_run model execution finished.
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:42:02 [core.py:198] init engine (profile, create kv cache, warmup model) took 16.43 seconds
+[1;36m(EngineCore_0 pid=3116665)[0;0m INFO 04-13 03:42:02 [cpu.py:315] MKL configured for AVX-512
+INFO 04-13 03:42:02 [llm.py:290] Supported_tasks: ['generate']
+  tokens=64 elapsed=2.93s tps=21.86

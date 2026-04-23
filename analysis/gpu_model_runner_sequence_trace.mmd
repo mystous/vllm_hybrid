@@ -1,0 +1,116 @@
+
+sequenceDiagram
+    participant Caller
+    participant ModelRunner
+    participant AttentionState
+    participant KVConnectorBase
+    participant torch.cuda.Event
+    participant CUDAGraphRunner
+    participant torch.nn.Module
+    participant Sampler
+
+    Note over ModelRunner: Class: ModelRunner (vllm/worker/model_runner.py)
+    Caller->>ModelRunner: execute_model(model_input, kv_caches, intermediate_tensors, num_steps, kwargs)
+    
+    %% LoRA Setup
+    opt LoRA Enabled
+        ModelRunner->>ModelRunner: set_active_loras(model_input.lora_requests, model_input.lora_mapping)
+    end
+
+    %% Attention State
+    ModelRunner->>AttentionState: begin_forward(model_input)
+
+    %% CUDA Graph Selection
+    Note over ModelRunner: Select Model Executable
+    alt Pre-fill Metadata is None AND Decode Metadata use_cuda_graph
+        ModelRunner->>ModelRunner: Select graph_runner from self.graph_runners[virtual_engine]
+        Note over ModelRunner, CUDAGraphRunner: model_executable = CUDAGraphRunner
+        
+        opt Previous Hidden States present
+            ModelRunner->>ModelRunner: Concat previous_hidden_states with empty tensor (padding)
+        end
+    else Default (Prefill or Eager)
+        Note over ModelRunner, torch.nn.Module: model_executable = self.model (torch.nn.Module)
+    end
+
+    %% KV Transfer Receive
+    opt KV Transfer Receive Needed
+        Note over ModelRunner, KVConnectorBase: Check need_recv_kv()
+        ModelRunner->>KVConnectorBase: recv_kv_caches_and_hidden_states(model_executable, model_input, kv_caches)
+        KVConnectorBase-->>ModelRunner: (hidden_or_intermediate_states, bypass_model_exec, model_input)
+    end
+
+    %% Observability Start
+    opt Trace Model Forward Time
+        ModelRunner->>torch.cuda.Event: record()
+    end
+
+    %% Model Execution
+    alt Not Bypass Model Exec
+        alt Using CUDA Graph
+            ModelRunner->>CUDAGraphRunner: forward(input_ids, positions, intermediate_tensors, ...)
+            Note right of CUDAGraphRunner: Core Model Forward Pass (Graph Replay)
+            CUDAGraphRunner-->>ModelRunner: hidden_or_intermediate_states
+        else Using Eager Mode
+            ModelRunner->>torch.nn.Module: forward(input_ids, positions, intermediate_tensors, ...)
+            Note right of torch.nn.Module: Core Model Forward Pass (Eager)
+            torch.nn.Module-->>ModelRunner: hidden_or_intermediate_states
+        end
+    end
+
+    %% Observability End
+    opt Trace Model Forward Time
+        ModelRunner->>torch.cuda.Event: record()
+    end
+
+    %% KV Transfer Send
+    opt KV Transfer Send Needed
+        Note over ModelRunner, KVConnectorBase: Check need_send_kv()
+        ModelRunner->>KVConnectorBase: send_kv_caches_and_hidden_states(model_executable, model_input, kv_caches, hidden_states)
+        Note over KVConnectorBase: Non-blocking send
+    end
+
+    %% Pipeline Parallelism Intermediate
+    alt Not Last Pipeline Rank
+        ModelRunner-->>Caller: Returns hidden_or_intermediate_states
+    else Last Pipeline Rank
+        %% Logits
+        ModelRunner->>torch.nn.Module: compute_logits(hidden_states, sampling_metadata)
+        torch.nn.Module-->>ModelRunner: logits
+
+        opt Is Driver Worker
+            %% Async Callback
+            opt Async Callback Present
+                ModelRunner->>Caller: model_input.async_callback()
+            end
+            
+            %% Sampling
+            ModelRunner->>Sampler: __call__(logits, sampling_metadata)
+            Sampler-->>ModelRunner: output (SamplerOutput)
+
+            %% Observability Sampling Time
+            opt Trace Model Forward Time (Sampling)
+                ModelRunner->>torch.cuda.Event: synchronize()
+                Note over torch.cuda.Event: Calculate total model_forward_time
+                ModelRunner->>ModelRunner: output.model_forward_time = total_time
+            end
+
+            %% Sampled Token Embeddings for Spec Decode
+            opt Return Sampled Token Embeddings
+                ModelRunner->>ModelRunner: Broadcast sampled_token_ids
+                opt has sampled_token_ids
+                    ModelRunner->>torch.nn.Module: get_input_embeddings(sampled_token_ids)
+                    torch.nn.Module-->>ModelRunner: sampled_token_embeds
+                    ModelRunner->>Sampler: Update output.samples with output_embed
+                end
+            end
+        end
+
+        %% Return Hidden States
+        opt Return Hidden States
+            ModelRunner->>ModelRunner: Index/Select hidden_states based on sampling_metadata
+            ModelRunner->>ModelRunner: output.prefill_hidden_states / output.hidden_states = ...
+        end
+
+        ModelRunner-->>Caller: Returns [output]
+    end
