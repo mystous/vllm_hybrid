@@ -64,6 +64,20 @@ class PipelinedCPUExecutor(UniProcExecutor):
 
     _compute_pool: Optional[ThreadPoolExecutor] = None
 
+    def _get_pool_cpu_ids_str(self) -> Optional[str]:
+        """driver_worker.local_omp_cpuid range string ("0-47" 등) 반환.
+
+        `init_cpu_threads_env` (C++) 가 이 형식 그대로 받음. "all" 이거나
+        비어있으면 None.
+        """
+        try:
+            s = getattr(self.driver_worker, "local_omp_cpuid", None)
+        except Exception:
+            return None
+        if isinstance(s, str) and s and s != "all":
+            return s
+        return None
+
     def _get_pool_cpu_set(self) -> Optional[set]:
         """Pool thread 에 적용할 CPU affinity set 계산.
 
@@ -116,21 +130,40 @@ class PipelinedCPUExecutor(UniProcExecutor):
         """Lazy 초기화. Subclass `__init__` 호출 순서 민감하지 않도록."""
         if self._compute_pool is None:
             cpu_set = self._get_pool_cpu_set()
+            cpu_ids_str = self._get_pool_cpu_ids_str()
 
             def _initializer():
+                # 1) pool thread 의 affinity 를 NUMA 전체로 일단 확장.
+                #    main 이 pinned cpu_ids[0] 에 갇혀있고 pool thread 는 이를
+                #    상속한 상태 — init_cpu_threads_env 가 parallel for 로
+                #    워커들을 각 core 에 pin 하려면 그 core 들에 접근 가능해야.
                 if cpu_set:
                     import os as _os
                     try:
                         _os.sched_setaffinity(0, cpu_set)
-                        logger.info(
-                            "[HYBRID-CPU-EXEC-POOL] pool thread affinity "
-                            "확장 → %d cores (OMP team 이 NUMA 전체 core "
-                            "에 spread)", len(cpu_set))
                     except Exception as e:
                         logger.warning(
                             "[HYBRID-CPU-EXEC-POOL] pool thread "
-                            "sched_setaffinity failed: %s. OMP team 이 main "
-                            "의 pinned core 에 갇힐 수 있음.", e)
+                            "sched_setaffinity failed: %s", e)
+
+                # 2) C++ init_cpu_threads_env 를 pool thread 에서 호출해
+                #    **pool thread 의 새 OMP team 을 1:1 pin**.
+                #    sync 경로의 team 은 main thread 가 master 인 별개 team
+                #    이므로 영향 없음. pool 이 master 인 team 만 이 호출로
+                #    pin 됨 → sync 와 동일한 pinning.
+                if cpu_ids_str:
+                    try:
+                        import torch as _t
+                        _t.ops._C_utils.init_cpu_threads_env(cpu_ids_str)
+                        logger.info(
+                            "[HYBRID-CPU-EXEC-POOL] pool thread OMP team "
+                            "1:1 pinned via init_cpu_threads_env(%r)",
+                            cpu_ids_str)
+                    except Exception as e:
+                        logger.warning(
+                            "[HYBRID-CPU-EXEC-POOL] init_cpu_threads_env "
+                            "on pool thread failed: %s. OMP team 은 "
+                            "unpinned (affinity 확장만 적용).", e)
 
             self._compute_pool = ThreadPoolExecutor(
                 max_workers=1,
@@ -139,9 +172,10 @@ class PipelinedCPUExecutor(UniProcExecutor):
             logger.info(
                 "[HYBRID-CPU-EXEC-POOL] Pipelined CPU executor ACTIVE "
                 "(max_concurrent_batches=%d, compute pool max_workers=1, "
-                "cpu_set_size=%s)",
+                "cpu_set_size=%s, cpu_ids=%r)",
                 self.max_concurrent_batches,
-                len(cpu_set) if cpu_set else "None")
+                len(cpu_set) if cpu_set else "None",
+                cpu_ids_str)
 
     @property
     def max_concurrent_batches(self) -> int:
