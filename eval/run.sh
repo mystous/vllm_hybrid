@@ -46,8 +46,12 @@ set +a
 : "${SERVER_READY_POLL:=3}"
 
 MODEL_SHORT="${MODEL##*/}"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/_hwtag.sh"
+
 TS="$(date '+%Y%m%d_%H%M%S')"
-RUN_DIR="${SCRIPT_DIR}/${RESULTS_DIR}/${TS}_${MODEL_SHORT}"
+RUN_DIR="${SCRIPT_DIR}/${RESULTS_DIR}/${TS}_${HW_TAG}_${MODEL_SHORT}"
 mkdir -p "${RUN_DIR}"
 cp "${ENV_FILE}" "${RUN_DIR}/env.snapshot"
 

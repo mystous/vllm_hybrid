@@ -46,16 +46,20 @@ set +a
 
 MODEL_SHORT="${MODEL##*/}"
 
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/_hwtag.sh"
+
 if [[ -n "${RESULT_DIR_ARG}" ]]; then
     RUN_DIR="${RESULT_DIR_ARG}"
 else
     TS="$(date '+%Y%m%d_%H%M%S')"
-    RUN_DIR="${SCRIPT_DIR}/${RESULTS_DIR}/${TS}_${MODEL_SHORT}"
+    RUN_DIR="${SCRIPT_DIR}/${RESULTS_DIR}/${TS}_${HW_TAG}_${MODEL_SHORT}"
 fi
 mkdir -p "${RUN_DIR}"
 
 RESULT_FILE="${RUN_DIR}/bench.json"
 LOG_FILE="${RUN_DIR}/bench.log"
+SYSINFO_FILE="${RUN_DIR}/system_info.json"
 
 echo "============================================================"
 echo " vLLM bench"
@@ -67,6 +71,9 @@ echo "   RESULT → ${RESULT_FILE}"
 echo "============================================================"
 
 PYTHON="${PYTHON:-/workspace/vllm_dev_prj/bin/python}"
+
+# Collect host/CPU/GPU/software info
+"${PYTHON}" "${SCRIPT_DIR}/sysinfo.py" "${SYSINFO_FILE}" || true
 
 "${PYTHON}" -m vllm.entrypoints.cli.main bench serve \
     --backend "${BACKEND}" \
