@@ -1,7 +1,8 @@
 @AGENTS.md
 # Ground RULE
-- git commit, git push는 반드시 사용자의 허락을 받은 후에 진행함
+- git commit, git push는 반드시 사용자의 허락을 받은 후에 진행한다.
 - 단위 기능은 shadow_assists 디렉토리 하위에 있는 shadow_assists/features 하위 디렉토리에 있는 feature 별로 구현한다.
+- 대답은 늘 한글로 존칭을 사용한다.
 
 # Method
  - 기능 구현은 shadow_assists/features 하위 디렉토리 내에 다음과 같은 구조로 구성된다.
