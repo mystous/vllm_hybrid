@@ -10,6 +10,8 @@
   4. Depth가 깊어 질테니 좌우가 아니라 위 아래로 깊어지게 만들어
   5. Tree 는 Mermaid 로 작성한다 (위→아래 방향: `flowchart TB` 또는 `graph TD`).
   6. 사용된 영문3글자 prefix(줄임말)에 대한 Legend 를 Tree 와 함께 둔다. prefix 가 추가될 때마다 Legend 도 갱신한다.
+  7. prefix 별 넘버링 규칙과 ID 할당 현황은 `shadow_assists/id_registry.md` 에서 단일 출처로 관리한다. 번호는 prefix 별 독립 카운터 / 1 부터 1씩 증가 / 3자리 zero-padding / 재사용 금지가 기본이며, 상태값은 `활성`·`대기`·`재정의`·`기각`·`완료` 중 하나를 사용한다.
+  8. 새 ID 부여 시 `id_registry.md` 의 해당 prefix 섹션에서 "다음 부여 번호" 를 가져오고, 동일 파일 표에 새 항목을 즉시 추가한 뒤 "다음 부여 번호" 를 +1 한다. 본문에서 사용은 그 이후.
 
 # Method
  - 기능 구현은 shadow_assists/features 하위 디렉토리 내에 다음과 같은 구조로 구성된다.
