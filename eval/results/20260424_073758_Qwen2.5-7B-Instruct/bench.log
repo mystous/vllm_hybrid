@@ -1,0 +1,35 @@
+Namespace(subparser='bench', bench_type='serve', dispatch_function=<function BenchmarkServingSubcommand.cmd at 0x7f596aa78680>, trust_remote_code=False, seed=0, num_prompts=200, dataset_name='random', no_stream=False, dataset_path=None, no_oversample=False, skip_chat_template=False, enable_multimodal_chat=False, disable_shuffle=False, custom_output_len=256, spec_bench_output_len=256, spec_bench_category=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, blazedit_min_distance=0.0, blazedit_max_distance=1.0, asr_max_audio_len_sec=inf, asr_min_audio_len_sec=0.0, random_input_len=512, random_output_len=256, random_range_ratio='0.0', random_prefix_len=0, random_batch_size=1, no_reranker=False, random_mm_base_items_per_request=1, random_mm_num_mm_items_range_ratio=0.0, random_mm_limit_mm_per_prompt={'image': 255, 'video': 1}, random_mm_bucket_config={(256, 256, 1): 0.5, (720, 1280, 1): 0.5, (720, 1280, 16): 0.0}, hf_subset=None, hf_split=None, hf_name=None, hf_output_len=None, prefix_repetition_prefix_len=256, prefix_repetition_suffix_len=256, prefix_repetition_num_prefixes=10, prefix_repetition_output_len=128, speed_bench_dataset_subset='qualitative', speed_bench_output_len=4096, speed_bench_category=None, label=None, backend='vllm', base_url='http://127.0.0.1:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', header=None, max_concurrency=None, model='Qwen/Qwen2.5-7B-Instruct', input_len=None, output_len=None, tokenizer=None, tokenizer_mode='auto', use_beam_search=False, logprobs=None, request_rate=inf, burstiness=1.0, disable_tqdm=False, num_warmups=0, profile=False, save_result=True, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename='/workspace/vllm_hybrid/eval/results/20260424_073758_Qwen2.5-7B-Instruct/bench.json', ignore_eos=False, percentile_metrics=None, metric_percentiles='99', goodput=None, request_id_prefix='bench-58e45fc5-', top_p=None, top_k=None, min_p=None, temperature=None, frequency_penalty=None, presence_penalty=None, repetition_penalty=None, served_model_name=None, lora_modules=None, lora_assignment='random', ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None, ready_check_timeout_sec=0, extra_body=None, skip_tokenizer_init=False, insecure=False, plot_timeline=False, timeline_itl_thresholds=[25.0, 50.0], plot_dataset_stats=False)
+INFO 04-24 07:38:40 [utils.py:90] Sampling input_len from [512, 512] and output_len from [256, 256]
+WARNING: vllm bench serve no longer sets temperature==0 (greedy) in requests by default. The default will be determined on the server side and can be model/API specific. For the old behavior, include --temperature=0.
+Starting initial single prompt test run...
+Skipping endpoint ready check.
+Starting main benchmark run...
+Traffic request rate: inf
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+  0%|          | 0/200 [00:00<?, ?it/s]  0%|          | 1/200 [00:38<2:07:43, 38.51s/it]  2%|▎         | 5/200 [00:38<18:47,  5.78s/it]    4%|▍         | 9/200 [00:39<08:30,  2.67s/it]  6%|▋         | 13/200 [00:39<04:49,  1.55s/it]  8%|▊         | 17/200 [00:40<03:01,  1.01it/s] 10%|█         | 21/200 [00:40<02:01,  1.47it/s] 12%|█▎        | 25/200 [00:40<01:25,  2.05it/s] 14%|█▍        | 29/200 [00:41<01:02,  2.74it/s] 16%|█▋        | 33/200 [00:41<00:47,  3.52it/s] 18%|█▊        | 37/200 [00:42<00:37,  4.35it/s] 20%|██        | 41/200 [00:42<00:30,  5.18it/s] 22%|██▎       | 45/200 [00:43<00:25,  5.97it/s] 24%|██▍       | 49/200 [00:43<00:22,  6.67it/s] 26%|██▋       | 53/200 [00:44<00:20,  7.26it/s] 28%|██▊       | 57/200 [00:44<00:18,  7.73it/s] 30%|███       | 61/200 [00:44<00:17,  8.12it/s] 32%|███▎      | 65/200 [00:45<00:14,  9.21it/s] 36%|███▌      | 72/200 [00:45<00:08, 14.50it/s] 42%|████▏     | 84/200 [00:45<00:04, 26.02it/s] 48%|████▊     | 95/200 [00:45<00:02, 36.93it/s] 54%|█████▎    | 107/200 [00:45<00:01, 49.71it/s] 59%|█████▉    | 118/200 [00:45<00:01, 60.24it/s] 64%|██████▍   | 129/200 [00:45<00:01, 69.00it/s] 72%|███████▏  | 144/200 [00:45<00:00, 85.70it/s] 78%|███████▊  | 157/200 [00:46<00:00, 70.83it/s] 83%|████████▎ | 166/200 [00:47<00:01, 27.70it/s] 86%|████████▋ | 173/200 [00:47<00:01, 19.75it/s] 89%|████████▉ | 178/200 [00:48<00:01, 17.45it/s] 91%|█████████ | 182/200 [00:48<00:01, 16.03it/s] 92%|█████████▎| 185/200 [00:48<00:00, 15.26it/s] 94%|█████████▍| 188/200 [00:49<00:00, 15.11it/s] 96%|█████████▌| 191/200 [00:49<00:00, 14.70it/s] 96%|█████████▋| 193/200 [00:49<00:00, 14.25it/s] 98%|█████████▊| 195/200 [00:49<00:00, 14.22it/s] 98%|█████████▊| 197/200 [00:49<00:00, 14.24it/s]100%|█████████▉| 199/200 [00:50<00:00, 11.30it/s]100%|██████████| 200/200 [00:50<00:00,  3.99it/s]
+tip: install termplotlib and gnuplot to plot the metrics
+============ Serving Benchmark Result ============
+Successful requests:                     200       
+Failed requests:                         0         
+Benchmark duration (s):                  50.14     
+Total input tokens:                      102400    
+Total generated tokens:                  51200     
+Request throughput (req/s):              3.99      
+Output token throughput (tok/s):         1021.08   
+Peak output token throughput (tok/s):    2966.00   
+Peak concurrent requests:                200.00    
+Total token throughput (tok/s):          3063.24   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          14030.99  
+Median TTFT (ms):                        13800.14  
+P99 TTFT (ms):                           24999.83  
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          121.18    
+Median TPOT (ms):                        124.55    
+P99 TPOT (ms):                           137.87    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           121.18    
+Median ITL (ms):                         63.87     
+P99 ITL (ms):                            445.21    
+==================================================
