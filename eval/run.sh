@@ -6,8 +6,9 @@
 #   ./run.sh [env_file]
 #
 # Examples:
-#   ./run.sh
-#   ./run.sh envs/default.env
+#   ./run.sh                              # uses envs/vllm_original.env
+#   ./run.sh envs/vllm_original.env       # baseline GPU-only
+#   ./run.sh envs/ide006_cold_kv.env      # IDE_006 cold-tier KV offload on
 #
 # Outputs (under results/<timestamp>_<model>/):
 #   server.log            vLLM server stdout/stderr
@@ -21,7 +22,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${1:-${SCRIPT_DIR}/envs/default.env}"
+ENV_FILE="${1:-${SCRIPT_DIR}/envs/vllm_original.env}"
 
 if [[ ! "${ENV_FILE}" = /* ]]; then
     ENV_FILE="${SCRIPT_DIR}/${ENV_FILE}"
