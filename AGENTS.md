@@ -3,6 +3,10 @@
 > These instructions apply to **all** AI-assisted contributions to `vllm-project/vllm`.
 > Breaching these guidelines can result in automatic banning.
 
+## Local Context
+
+- Codex agents must also read the repository-root `CLAUDE.md` before starting work, when it exists. Treat it as additional local context; if it conflicts with `AGENTS.md`, `AGENTS.md` takes precedence.
+
 ## 1. Contribution Policy (Mandatory)
 
 ### Duplicate-work checks
