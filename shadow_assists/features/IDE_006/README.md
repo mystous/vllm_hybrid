@@ -263,7 +263,7 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 3 | [`TSK_002`](TSK_002.md) | scheduler / attention metadata 의 hot/cold partition 통합 | `대기` (`TSK_001` 후속) |
 | 4 | [`TST_001`](TST_001.md) | 정확도 검증 (KVViewAdapter / kernel cross-check / wrapper dispatch / e2e) | `대기` (`TSK_001` + `TSK_002` 후) |
 | 5 | [`TST_002`](TST_002.md) | throughput / overlap profile (net-win 영역 + critical path 측정) | `대기` (`TST_001` 통과 후 권장) |
-| 6 | `FEA_###` | 통합 기능 (PLN/TST 통과 후, `feat:ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
+| 6 | `FEA_###` | 통합 기능 (PLN/TST 통과 후, `feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
 
 각 ID 의 상세 명세는 위 표의 링크 (`PLN_001.md`, `TSK_001.md`, `TSK_002.md`) 가 단일 출처. 미할당 ID 들은 PLN 결과에 따라 발급. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수.
 

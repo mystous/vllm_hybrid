@@ -22,7 +22,7 @@
   3. task.md: 해당 feature를 구현하기 위한 단계별 구현 내용
   4. test.md: 해당 feature를 테스트 하기 위한 테스트 코드, 방법, 예상되는 결과
   5. test 코드들
- - featue는 반드시 feat:{feature_desc} 로 branch를 만들어서 테스트 후 문제가 없을 때 사용자 동의 후 main으로 merge 한다.
+ - feature 는 반드시 `feat/{feature_desc}` 형식 branch 를 만들어서 테스트 후 문제가 없을 때 사용자 동의 후 main 으로 merge 한다 (git branch 이름에 `:` 사용 불가하므로 `/` 구분자 사용).
 
 # Objective
  - vLLM을 수정하여 CPU의 활용률을 극도로 끌어 올려 GPU가 아닌 GPU가 포함된 서버 또는 Cluster 전체의 성능을 향상 시킨다.
