@@ -125,11 +125,15 @@ CLAUDE.md Ground RULE 에 따라 본 저장소에서 사용되는 모든 ID 를 
 
 ### Legend (prefix)
 
-| Prefix | 의미 | 비고 |
-|---|---|---|
-| `IDE` | Idea | 구현 후보 단계. profile / 측정 결과로 진입·기각 판정 후에야 다음 단계 ID 로 파생된다. |
+| Prefix | 의미 |
+|---|---|
+| `IDE` | Idea — 구현 후보 |
+| `PLN` | Plan — PoC / microbench 플랜 |
+| `TSK` | Task — feature 구현 작업 단위 |
+| `TST` | Test — 정확도·throughput·통합성 검증 단위 |
+| `FEA` | Feature — 본 코드 베이스 단위 기능 |
 
-> 추후 단계가 진행되면서 사용되는 prefix 는 본 표에 추가한다 (예: `FEA` Feature, `PLN` Plan, `TSK` Task, `TST` Test 등).
+> 넘버링 규칙·할당 현황·상태값은 [`shadow_assists/id_registry.md`](id_registry.md) 가 단일 출처. 본 Legend 는 prefix 의미 요약일 뿐이며, 새 prefix 추가 시 양쪽을 함께 갱신한다.
 
 ### Trace Tree
 
