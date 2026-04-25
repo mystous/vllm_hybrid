@@ -1,4 +1,4 @@
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md)
 
 ---
 
@@ -261,8 +261,8 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 1 | [`PLN_001`](PLN_001.md) | Cold-KV CPU Partial Attention PoC 플랜 | `대기` (문서 적재 완료. (a) long-context 전환 후 `활성`) |
 | 2 | [`TSK_001`](TSK_001.md) | LSE-반환 CPU partial-attention kernel 구현 | `대기` (PLN 임계 충족 후) |
 | 3 | [`TSK_002`](TSK_002.md) | scheduler / attention metadata 의 hot/cold partition 통합 | `대기` (`TSK_001` 후속) |
-| 4 | `TST_###` | 정확도 검증 (LSE merge → final output) | 미할당 |
-| 5 | `TST_###` | throughput microbench | 미할당 |
+| 4 | [`TST_001`](TST_001.md) | 정확도 검증 (KVViewAdapter / kernel cross-check / wrapper dispatch / e2e) | `대기` (`TSK_001` + `TSK_002` 후) |
+| 5 | [`TST_002`](TST_002.md) | throughput / overlap profile (net-win 영역 + critical path 측정) | `대기` (`TST_001` 통과 후 권장) |
 | 6 | `FEA_###` | 통합 기능 (PLN/TST 통과 후, `feat:ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
 
 각 ID 의 상세 명세는 위 표의 링크 (`PLN_001.md`, `TSK_001.md`, `TSK_002.md`) 가 단일 출처. 미할당 ID 들은 PLN 결과에 따라 발급. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수.
@@ -314,6 +314,7 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 날짜 | 변경 | 사유 |
 |---|---|---|
 | 2026-04-25 | 본 README 초안 작성 | IDE_006 2차 정의 기준 상세 설계 문서 적재. 파생 ID 생성은 진입 조건 (a) 충족 후 |
+| 2026-04-25 | TST_001 / TST_002 적재 반영 | (1) 최상단/최하단 nav 의 자식 목록에 `TST_001` / `TST_002` 추가. (2) §11 표의 step 4·5 generic `TST_###` 행을 적재된 [`TST_001`](TST_001.md) / [`TST_002`](TST_002.md) 링크로 갱신. step 4 = "정확도 검증 (KVViewAdapter / kernel cross-check / wrapper dispatch / e2e)", step 5 = "throughput / overlap profile". 상태 모두 `대기`. |
 | 2026-04-25 | §11 표 PLN_001 상태 정합 | id_registry / PLN_001 본문은 `대기` 인데 §11 표만 `활성 (적재 완료)` 로 stale. `대기 (문서 적재 완료. (a) long-context 전환 후 활성)` 으로 통일. |
 | 2026-04-25 | 디렉토리 단계 박스 갱신 (issue 7) | "현재 README.md 만 존재" 표기가 평탄화 후 stale. `README.md` + `PLN_001.md` + `TSK_001.md` + `TSK_002.md` 평탄 배치 명시로 갱신. |
 | 2026-04-25 | 이론·계획 재검증 반영 | (1) §5.1 Data Flow 를 ASCII art → Mermaid sequenceDiagram 으로 변환 (CLAUDE.md Ground RULE 신규 항목 "Diagram 은 ascii 가 아닌 Mermaid …" 충족). (2) §4.1 에 LSE-rescaling 표준 출처 [arXiv 2501.01005 §2.2](https://arxiv.org/abs/2501.01005) 인용 추가 — vLLM 내부 `merge_attn_states` docstring 이 명시 인용하는 표준 출처와 정합. (3) §11 파생 ID 생성 순서를 `PLN → TSK → TST → FEA` 의 자연스러운 구현 흐름으로 재배열 (이전: PLN → TST → TST → TSK → TSK → FEA). 코드 인용 라인 번호 (cpu_attn.py:251/261, kv_offload/worker/cpu_gpu.py:139, flash_attn.py:967/1214) 는 재 grep 결과 모두 현 코드와 일치 — 변경 없음. |
@@ -324,4 +325,4 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 
 ---
 
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md)
