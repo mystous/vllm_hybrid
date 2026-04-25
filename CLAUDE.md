@@ -30,3 +30,9 @@
 
 # Constraint
  - GPU만 사용 했을 때와 결과 값이 달라져서는 안됨
+
+# Hardware Targets
+ - **개발 머신** (현재 작업 머신): NVIDIA RTX 3090 (24 GB) + Intel Core i9-12900KF + 시스템 RAM. 빠른 iteration / 정확도 검증 / 인터페이스·빌드 검증 / 소규모 microbench 용. CPU SIMD 면에서 AVX-512 가 microcode 로 fuse-off 될 수 있으므로 BIOS·microcode 점검 필요. AMX 는 hardware 미지원 (Alder Lake 비대상).
+ - **프로덕션 / 실험 타깃**: Intel Xeon (Sapphire Rapids 이상, AVX-512 + AMX 둘 다 native) + NVIDIA H100 × 8. 실제 실험·적용·throughput sweep·overlap profile·최종 net-win 판정의 기준 머신. CPU 가속 경로의 본격 검증·튜닝은 본 머신에서 진행.
+ - **CPU 가속 경로 우선순위**: **AVX-512 와 AMX 둘 다 main 경로** (AMX 는 prod 타깃의 native ISA. 어느 쪽도 후순위·deferred 가 아님). 개발 머신에서는 AVX-512 만 직접 실행 가능하나, AMX 코드도 cross-compile / 단위 테스트 / 사양 시뮬레이터로 dev 단계에서 함께 진행한다.
+ - 두 머신 분리 의미: 개발 머신은 **SW 정확성 / 인터페이스 / 빌드** 검증. 프로덕션 머신은 **성능·최종 판정**. 따라서 PLN/TSK 산출물은 (Phase 1 dev) → (Phase 2 prod) 두 단계로 누적될 수 있다.
