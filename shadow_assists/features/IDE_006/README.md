@@ -1,4 +1,4 @@
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md)
 
 ---
 
@@ -261,10 +261,12 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 1 | [`PLN_001`](PLN_001.md) | Cold-KV CPU Partial Attention PoC 플랜 | `대기` (문서 적재 완료. (a) long-context 전환 후 `활성`) |
 | 2 | [`TSK_001`](TSK_001.md) | LSE-반환 CPU partial-attention kernel 구현 | `대기` (PLN 임계 충족 후) |
 | 3 | [`TSK_002`](TSK_002.md) | scheduler / attention metadata 의 hot/cold partition 통합 | `대기` (`TSK_001` 후속) |
-| 4 | [`TST_001`](TST_001.md) | **kernel 정확도 검증** (KVViewAdapter / kernel cross-check / wrapper dispatch — TSK_001 단독) | `활성` (Phase 1 dev — A·B(i)·C 통과) |
-| 5 | [`TST_003`](TST_003.md) | **e2e 통합 정확도 검증** (D-i token divergence + D-ii logprob/PPL diff — TSK_001 + TSK_002) | `대기` (`TSK_002` 후) |
-| 6 | [`TST_002`](TST_002.md) | throughput / overlap profile (net-win 영역 + critical path 측정) | `대기` (`TST_001` + `TST_003` 통과 후 권장) |
-| 7 | `FEA_###` | 통합 기능 (PLN/TST 통과 후, `feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
+| 4 | [`TSK_003`](TSK_003.md) | **prod SIMD kernels** (AVX-512 + AMX C++) | `대기` (Phase 2 prod 사용자 직접) |
+| 5 | [`TST_001`](TST_001.md) | TSK_001 dev kernel 정확도 (A · B(i) · C) | `활성` (Phase 1 dev — 통과) |
+| 6 | [`TST_004`](TST_004.md) | TSK_003 prod SIMD cross-check (B(ii) AVX-512 + B(iii) AMX) | `대기` (`TSK_003` 후) |
+| 7 | [`TST_003`](TST_003.md) | e2e 통합 정확도 (D-i + D-ii) | `대기` (`TSK_002` 후) |
+| 8 | [`TST_002`](TST_002.md) | throughput / overlap profile | `대기` (다른 TST 통과 후) |
+| 9 | `FEA_###` | 통합 기능 (`feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
 
 각 ID 의 상세 명세는 위 표의 링크 (`PLN_001.md`, `TSK_001.md`, `TSK_002.md`) 가 단일 출처. 미할당 ID 들은 PLN 결과에 따라 발급. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수.
 
@@ -327,4 +329,4 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 
 ---
 
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md)

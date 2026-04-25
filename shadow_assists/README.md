@@ -156,19 +156,24 @@ flowchart TB
 
     IDE_006 --> PLN_001["PLN_001<br/>Cold-KV CPU Partial Attention<br/>PoC 플랜"]
 
-    PLN_001 --> TSK_001["TSK_001<br/>LSE-반환 CPU partial-attention<br/>kernel 구현"]
+    PLN_001 --> TSK_001["TSK_001<br/>dev kernel<br/>(KVViewAdapter / Python ref<br/>/ portable C++ / wrapper)"]
     PLN_001 --> TSK_002["TSK_002<br/>scheduler / attention metadata<br/>hot/cold partition 통합"]
-    PLN_001 --> TST_001["TST_001<br/>kernel 정확도<br/>(A KVViewAdapter / B kernel cross-check<br/>/ C wrapper dispatch)"]
-    PLN_001 --> TST_003["TST_003<br/>e2e 통합 정확도<br/>(D-i token divergence<br/>+ D-ii logprob/PPL diff)"]
+    PLN_001 --> TSK_003["TSK_003<br/>prod SIMD kernels<br/>(AVX-512 + AMX C++)"]
+    PLN_001 --> TST_001["TST_001<br/>TSK_001 정확도<br/>(A · B(i) · C)"]
+    PLN_001 --> TST_004["TST_004<br/>TSK_003 prod SIMD cross-check<br/>(B(ii) AVX-512 + B(iii) AMX)"]
+    PLN_001 --> TST_003["TST_003<br/>e2e 통합 정확도<br/>(D-i + D-ii)"]
     PLN_001 --> TST_002["TST_002<br/>throughput / overlap profile"]
 
     TSK_001 --> TSK_002
-    TSK_001 --> TST_001
-    TSK_001 --> TST_003
-    TSK_002 --> TST_003
-    TSK_001 --> TST_002
-    TSK_002 --> TST_002
+    TSK_001 --> TSK_003
+
+    TSK_001 -.검증.-> TST_001
+    TSK_003 -.검증.-> TST_004
+    TSK_002 -.검증.-> TST_003
+
+    TST_001 --> TST_004
     TST_001 --> TST_003
+    TST_004 --> TST_002
     TST_003 --> TST_002
 ```
 

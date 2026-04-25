@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
-# run_prod_smoke.sh — prod 서버에서 TSK_001 / TST_001 의 dev-passable 부분 +
-#   IDE_006 long-context e2e 시나리오를 한 번에 실행하고 결과를 저장한다.
+# run_prod_smoke.sh — prod 서버에서 다음을 한 번에 실행하고 결과를 저장한다:
+#   - TST_001 (TSK_001 dev kernel: A · B(i) · C) — 87 case 재현
+#   - TST_004 (TSK_003 prod SIMD cross-check: B(ii) AVX-512 + B(iii) AMX) —
+#       TSK_003 §4.2a/§4.2b kernel 빌드 + wrapper enable 후 자동 활성. pytest
+#       collection 이 `tests/v1/cpu_partial_attention/test_avx512_cross_check.py`
+#       와 `test_amx_cross_check.py` 를 자동 포함. 미빌드 시에는 skipif 마커로
+#       skip 되어 0 fail.
+#   - IDE_006 long-context e2e 시나리오 (vllm_original / ide006_cold_kv 두 env)
 #
 # Usage:
 #   bash eval/run_prod_smoke.sh             # 실행 + 결과 저장 (push 는 직접)
@@ -9,7 +15,7 @@
 #
 # 출력 위치:
 #   eval/results/prod_smoke_<TS>_<HW_TAG>/
-#     ├── pytest.log              # pytest stdout
+#     ├── pytest.log              # pytest stdout (TST_001 + TST_004)
 #     ├── pytest_junit.xml        # pytest JUnit (CI/툴 호환)
 #     ├── isa_info.txt            # /proc/cpuinfo + nvidia-smi snapshot
 #     └── README.md               # 메타 (git rev, vllm version, 실행 환경)
@@ -53,7 +59,9 @@ log "writing meta to ${SMOKE_DIR}/README.md"
     echo "- vllm:      $(${PYTHON} -c 'import vllm; print(vllm.__version__)' 2>&1 | tail -1)"
     echo
     echo "## components"
-    echo "- pytest TST_001 (단계 A · B(i) · C — dev 에서 통과한 87 testcase 재현)"
+    echo "- pytest TST_001 (TSK_001 dev kernel: 단계 A · B(i) · C — dev 에서 통과한 87 testcase 재현)"
+    echo "- pytest TST_004 (TSK_003 prod SIMD: B(ii) portable vs AVX-512 + B(iii) portable vs AMX)"
+    echo "    └─ TSK_003 §4.2a/§4.2b kernel 미빌드 시 skipif 마커로 skip"
     echo "- eval/run.sh envs/vllm_original_long_ctx.env (split-off long-context baseline)"
     echo "- eval/run.sh envs/ide006_cold_kv_long_ctx.env (cold-tier KV offload)"
     echo
@@ -74,7 +82,7 @@ log "capturing CPU/GPU snapshot to ${SMOKE_DIR}/isa_info.txt"
 
 # --------------------------------------------------------------------- 1) pytest
 
-log "[1/3] pytest TST_001"
+log "[1/3] pytest TST_001 (TSK_001 dev kernel) + TST_004 (TSK_003 prod SIMD, skip if unbuilt)"
 PYTEST_RC=0
 "${PYTHON}" -m pytest tests/v1/cpu_partial_attention/ -v \
     --junit-xml="${SMOKE_DIR}/pytest_junit.xml" \
