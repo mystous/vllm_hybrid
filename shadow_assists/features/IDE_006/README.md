@@ -1,3 +1,7 @@
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md)
+
+---
+
 # IDE_006 — Cold-KV CPU Partial Attention
 
 | 항목 | 값 |
@@ -13,7 +17,7 @@
 
 > **용어 주의**: 본 문서는 **vLLM CPU attention backend (`vllm/v1/attention/backends/cpu_attn.py`)** 와 그 위에 올릴 **신규 CPU partial-attention worker / kernel** 조합을 전제로 한다. 별칭은 "worker-side CPU compute path". 이 외의 표기 (예: "CPU engine") 는 쓰지 않는다.
 
-> **디렉토리 단계 주의**: 본 디렉토리는 경로상 `shadow_assists/features/IDE_006/` 에 있지만, 현재 단계는 **아이디어 상세 문서 (pre-FEA)** 다. CLAUDE.md Method 가 정의한 feature 디렉토리 구조 (`CLAUDE.md` / `task.md` / `test.md` / test 코드) 는 **§9 진입 조건 충족 후 PLN/TST/FEA 진입 시점에 보강** 한다. 현재 `README.md` 만 존재하는 것은 의도된 단계이며, IDE 단계에서 features/ 하위에 배치한 것은 ID 별 단일 디렉토리 컨벤션을 따르기 위함이다.
+> **디렉토리 단계 주의**: 본 디렉토리 (`shadow_assists/features/IDE_006/`) 의 현 단계는 **IDE 상세 + PLN/TSK 명세 (pre-FEA)** 다. `README.md` (IDE_006 spec) 와 함께 `PLN_001.md`, `TSK_001.md`, `TSK_002.md` 가 **평탄 배치** (별도 하위 디렉토리 미사용). CLAUDE.md Method 가 정의한 feature 디렉토리 구조 (`CLAUDE.md` / `task.md` / `test.md` / test 코드) 는 **`FEA_###` 진입 시점에 별도 디렉토리로 보강** 한다.
 
 ---
 
@@ -250,32 +254,18 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 
 ## 11. 다음 단계 — 파생 ID 계획
 
-본 README 시점에서는 아래 파생이 아직 만들어지지 않았다 (ID 미할당 상태). 진입 조건 (a) 가 발생하면 `shadow_assists/id_registry.md` 의 해당 prefix "다음 부여 번호" 를 가져와 아래 **구현 흐름** 순서로 생성한다 (PLN → TSK → TST → FEA).
+진입 조건 (a) 가 발생한 후 `shadow_assists/id_registry.md` 의 해당 prefix "다음 부여 번호" 를 가져와 **구현 흐름** 순서 (PLN → TSK → TST → FEA) 로 적재한다.
 
-1. **`PLN_###` — Cold-KV CPU Partial Attention PoC 플랜**
-    - microbench 범위: context length ∈ {2K, 4K, 8K, 16K, 32K}, cold ratio ∈ {0.25, 0.5, 0.75}, batch ∈ {1, 2, 4}
-    - tolerance 실험: `rtol / atol` 의 운영 후보값 2~3 개를 놓고 PPL·logit 차이 측정
-    - GQA 옵션 A/B 비교
-    - owner/layout 계약 초안 (§5.2)
-    - **overlap profile**: Q transfer / CPU partial / 결과 전송 / GPU hot attention 의 time breakdown (리스크 vii, 조건 (g))
-    - **초기 scope 재확인**: 조건 (f) 의 BF16/FP16 · single KV group · non-MLA · full attention 범위로 고정
-2. **`TSK_###` — LSE-반환 CPU partial-attention kernel 구현 (feature branch 전제)**
-    - AVX-512 / AMX 경로 선택
-    - paged KV layout 준수
-    - `cpu_attn.py` 의 기존 `forward()` 를 교체하지 않고 **별도 entry point** 로 추가
-3. **`TSK_###` — scheduler / attention metadata 의 hot/cold partition 통합**
-    - flash_attn backend 호출부의 hot-subset block_table 경로 확보
-4. **`TST_###` — 정확도 검증 (LSE merge → final output)**
-    - dense (non-GQA), GQA 두 레이아웃 모두
-    - GPU-only eager vs GPU-only FlashAttention vs IDE_006 hot/cold split path 의 3-way 비교
-    - tolerance 정책을 고정한 뒤 pass/fail 자동화
-5. **`TST_###` — throughput microbench**
-    - PLN 수집 데이터의 net-win 영역 가시화
-6. **`FEA_###` — 통합 기능 (PLN/TST 통과 후)**
-    - `feat:ide006-cold-kv-cpu-partial-attention` 브랜치에서 구현
-    - **기존 GPU 경로·다른 attention backend 는 비활성 시 무변경 유지**. 활성화 시에만 hot/cold 분기 적용. 기본값 비활성
+| 단계 | ID | 제목 | 상태 |
+|---|---|---|---|
+| 1 | [`PLN_001`](PLN_001.md) | Cold-KV CPU Partial Attention PoC 플랜 | `대기` (문서 적재 완료. (a) long-context 전환 후 `활성`) |
+| 2 | [`TSK_001`](TSK_001.md) | LSE-반환 CPU partial-attention kernel 구현 | `대기` (PLN 임계 충족 후) |
+| 3 | [`TSK_002`](TSK_002.md) | scheduler / attention metadata 의 hot/cold partition 통합 | `대기` (`TSK_001` 후속) |
+| 4 | `TST_###` | 정확도 검증 (LSE merge → final output) | 미할당 |
+| 5 | `TST_###` | throughput microbench | 미할당 |
+| 6 | `FEA_###` | 통합 기능 (PLN/TST 통과 후, `feat:ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
 
-위 ID 들은 **본 README 단계에서 선점하지 않는다**. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수를 위해, 실제 할당은 PLN 착수 시점에 한다.
+각 ID 의 상세 명세는 위 표의 링크 (`PLN_001.md`, `TSK_001.md`, `TSK_002.md`) 가 단일 출처. 미할당 ID 들은 PLN 결과에 따라 발급. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수.
 
 ---
 
@@ -324,8 +314,14 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 날짜 | 변경 | 사유 |
 |---|---|---|
 | 2026-04-25 | 본 README 초안 작성 | IDE_006 2차 정의 기준 상세 설계 문서 적재. 파생 ID 생성은 진입 조건 (a) 충족 후 |
+| 2026-04-25 | §11 표 PLN_001 상태 정합 | id_registry / PLN_001 본문은 `대기` 인데 §11 표만 `활성 (적재 완료)` 로 stale. `대기 (문서 적재 완료. (a) long-context 전환 후 활성)` 으로 통일. |
+| 2026-04-25 | 디렉토리 단계 박스 갱신 (issue 7) | "현재 README.md 만 존재" 표기가 평탄화 후 stale. `README.md` + `PLN_001.md` + `TSK_001.md` + `TSK_002.md` 평탄 배치 명시로 갱신. |
 | 2026-04-25 | 이론·계획 재검증 반영 | (1) §5.1 Data Flow 를 ASCII art → Mermaid sequenceDiagram 으로 변환 (CLAUDE.md Ground RULE 신규 항목 "Diagram 은 ascii 가 아닌 Mermaid …" 충족). (2) §4.1 에 LSE-rescaling 표준 출처 [arXiv 2501.01005 §2.2](https://arxiv.org/abs/2501.01005) 인용 추가 — vLLM 내부 `merge_attn_states` docstring 이 명시 인용하는 표준 출처와 정합. (3) §11 파생 ID 생성 순서를 `PLN → TSK → TST → FEA` 의 자연스러운 구현 흐름으로 재배열 (이전: PLN → TST → TST → TSK → TSK → FEA). 코드 인용 라인 번호 (cpu_attn.py:251/261, kv_offload/worker/cpu_gpu.py:139, flash_attn.py:967/1214) 는 재 grep 결과 모두 현 코드와 일치 — 변경 없음. |
 | 2026-04-25 | 잔존 표현 정리 | 본 README 와 상위 README 양쪽에서 잔존하던 deprecated 가설/식별자 관련 표현·인용을 모두 제거 (식별자 prefix 가 코드에 남아 있더라도 문서에서 이름으로 노출하지 않음). 본문 중립화. |
 | 2026-04-25 | 추가 검토 반영 (정합성) | (1) NEO 비교 문구에서 근거가 약한 표현 제거 — 안전한 표현 "vLLM native OffloadingConnector / LMCache cold-tier lifecycle 및 기존 LSE merge path 와의 통합은 다루지 않음" 으로 교체. (2) 출처 불명확한 "FastDecode 계열" 행 §7 표에서 제거. (3) §11 step 2 의 비교 대상 표기를 "IDE_006 hot/cold split path" 로 명확화. (4) 디렉토리 단계 주의 박스 추가 — features/IDE_006/ 가 pre-FEA 아이디어 상세 단계임을 명시 (CLAUDE.md / task.md / test.md 부재는 의도된 단계). |
 | 2026-04-25 | 검토 반영 개정 | (1) "CPU engine / CPU compute engine" 표기 제거 — "vLLM CPU attention backend" / "CPU partial-attention worker" / "worker-side CPU compute path" 로 교체. (2) §6 "어느 하나도 수정 전제로 하지 않는다" 문장을 현실에 맞게 조정 — merge 커널은 재사용하되 scheduler / attention metadata / attention backend 호출 경로 / 신규 LSE-반환 CPU kernel 의 네 축 통합이 필요함을 명시. (3) 기존 `cpu_attn.py:261-293` 의 `forward()` 가 LSE 를 반환하지 않아 as-is 재사용 불가임을 §3.2·§6 에 반영. (4) 진입 조건 (f) 초기 scope 잠금 (BF16/FP16, non-FP8, non-MLA, full attention, 단일 KV group) 과 (g) overlap 가능성 추가. 근거: `cpu_attn.py:250-251`, `kv_offload/worker/cpu_gpu.py:138-139`. (5) 리스크 vii (mid-layer synchronization — layer 내부 critical path 에 CPU 통신·계산이 직렬화되면 순 지연) 신설. |
 | (이전) | `shadow_assists/README.md` §3.2 재정의 (commit `8f50eeb2a4`) | 1차 정의 "Cold KV staging" 이 업스트림 중복이라 기각, CPU partial attention 으로 재정의 |
+
+---
+
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md)

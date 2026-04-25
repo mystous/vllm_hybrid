@@ -153,6 +153,13 @@ flowchart TB
     AXIS_B --> IDE_006["IDE_006<br/>Cold-KV CPU Partial Attention"]
     AXIS_B --> IDE_007["IDE_007<br/>CPU Speculative Logits Rerank"]
     AXIS_B --> IDE_008["IDE_008<br/>Constrained Decoding 전담 CPU Worker"]
+
+    IDE_006 --> PLN_001["PLN_001<br/>Cold-KV CPU Partial Attention<br/>PoC 플랜"]
+
+    PLN_001 --> TSK_001["TSK_001<br/>LSE-반환 CPU partial-attention<br/>kernel 구현"]
+    PLN_001 --> TSK_002["TSK_002<br/>scheduler / attention metadata<br/>hot/cold partition 통합"]
+
+    TSK_001 --> TSK_002
 ```
 
 > 축 노드(`독창 축`, `선행 연구 적용 축`)는 분류용 가상 노드이며 ID 를 가지지 않는다. 진입 판정 후 각 IDE 노드 아래로 후속 prefix(예: `FEA_###` → `TSK_###` → `TST_###`)가 매달리며 Tree 가 아래로 깊어진다.
