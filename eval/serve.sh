@@ -6,15 +6,15 @@
 #   ./serve.sh [env_file]
 #
 # Examples:
-#   ./serve.sh                         # uses envs/default.env
-#   ./serve.sh envs/dev_rtx3090.env
+#   ./serve.sh                            # uses envs/vllm_original.env
+#   ./serve.sh envs/ide006_cold_kv.env    # IDE_006 cold-tier KV offload on
 #
 # Tip: run in foreground to watch logs, or via run.sh for full pipeline.
 # =============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${1:-${SCRIPT_DIR}/envs/default.env}"
+ENV_FILE="${1:-${SCRIPT_DIR}/envs/vllm_original.env}"
 
 if [[ ! "${ENV_FILE}" = /* ]]; then
     ENV_FILE="${SCRIPT_DIR}/${ENV_FILE}"

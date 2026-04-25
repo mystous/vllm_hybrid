@@ -6,17 +6,17 @@
 #   ./bench.sh [env_file] [result_dir]
 #
 # Args (all optional):
-#   env_file    path to .env (default: envs/default.env)
+#   env_file    path to .env (default: envs/vllm_original.env)
 #   result_dir  output directory (default: results/<timestamp>_<model>)
 #
 # Examples:
-#   ./bench.sh
-#   ./bench.sh envs/default.env
+#   ./bench.sh                              # baseline GPU-only
+#   ./bench.sh envs/ide006_cold_kv.env      # IDE_006 cold-tier KV offload on
 # =============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${1:-${SCRIPT_DIR}/envs/default.env}"
+ENV_FILE="${1:-${SCRIPT_DIR}/envs/vllm_original.env}"
 RESULT_DIR_ARG="${2:-}"
 
 if [[ ! "${ENV_FILE}" = /* ]]; then
