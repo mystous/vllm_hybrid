@@ -3,6 +3,7 @@
 - git commit, git push는 반드시 사용자의 허락을 받은 후에 진행한다.
 - 단위 기능은 shadow_assists 디렉토리 하위에 있는 shadow_assists/features 하위 디렉토리에 있는 feature 별로 구현한다.
 - 대답은 늘 한글로 존칭을 사용한다.
+- Diagram은 ascii가 아닌 Mermaid를 사용하거나 복잡한 Diagram은 SVG로 빌드하여 embedding 한다.
 - 신규로 개발되는 feature, plan, task, test둘을 전역에서 구별되는 ID를 만들어 관리 할꺼야.
   1. 영문3글자_### 형식으로 만들꺼야.
   2. sahdow_assists/README.md 하단에 모든 ID에 대해서 Trace 할꺼야.
