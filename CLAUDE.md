@@ -8,6 +8,8 @@
   2. sahdow_assists/README.md 하단에 모든 ID에 대해서 Trace 할꺼야.
   3. 해당 ID가 어디에서 파생되었는지와 어떤 ID를 파생시켰는지 등등 Tree 구조로 만들꺼야.
   4. Depth가 깊어 질테니 좌우가 아니라 위 아래로 깊어지게 만들어
+  5. Tree 는 Mermaid 로 작성한다 (위→아래 방향: `flowchart TB` 또는 `graph TD`).
+  6. 사용된 영문3글자 prefix(줄임말)에 대한 Legend 를 Tree 와 함께 둔다. prefix 가 추가될 때마다 Legend 도 갱신한다.
 
 # Method
  - 기능 구현은 shadow_assists/features 하위 디렉토리 내에 다음과 같은 구조로 구성된다.
