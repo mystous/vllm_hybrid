@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: Apache-2.0
+// Cold-KV CPU Partial Attention — portable C++ fallback (TSK_001 §4.2c).
+//
+// Pure C++ scalar/auto-vectorized partial attention with online softmax
+// LSE return. Works on any x86 / ARM / etc. machine (no SIMD intrinsics
+// — relies on `-O3 -ftree-vectorize` for the compiler to vectorize the
+// inner head_dim dot product).
+//
+// Built via torch.utils.cpp_extension.load (JIT) — see
+// vllm/v1/attention/ops/cpu_partial_attention.py.
+
+#include <torch/extension.h>
+#include <vector>
+#include <cmath>
+#include <limits>
+#include <cstdint>
+
+namespace cpu_partial_attn {
+
+template <typename T>
+static std::vector<torch::Tensor> forward_partial_impl(
+    torch::Tensor query,           // [num_tokens, num_q_heads, head_dim], T
+    torch::Tensor cold_kv_cache,   // [num_blocks, page_size_bytes],     int8
+    int64_t block_size,
+    int64_t num_kv_heads,
+    int64_t head_dim,
+    int64_t kv_block_bytes,        // bytes used by ONE of {K, V} per page
+    torch::Tensor cold_block_ids,  // [num_seqs, max_cold_blocks], int32
+    torch::Tensor cold_block_lens, // [num_seqs], int32
+    torch::Tensor cu_seqlens_q,    // [num_seqs + 1], int32
+    torch::Tensor query_positions, // [num_tokens], int32
+    double softmax_scale,
+    bool causal) {
+  TORCH_CHECK(query.is_contiguous(), "query must be contiguous");
+  TORCH_CHECK(cold_kv_cache.is_contiguous(), "cold_kv_cache must be contiguous");
+  TORCH_CHECK(cold_kv_cache.scalar_type() == torch::kInt8,
+              "cold_kv_cache must be int8");
+  TORCH_CHECK(query.dim() == 3, "query must be 3D");
+
+  const int64_t num_tokens = query.size(0);
+  const int64_t num_q_heads = query.size(1);
+  TORCH_CHECK(query.size(2) == head_dim,
+              "query head_dim mismatch");
+  TORCH_CHECK(num_q_heads % num_kv_heads == 0,
+              "num_q_heads must be divisible by num_kv_heads");
+  const int64_t q_per_kv = num_q_heads / num_kv_heads;
+  const int64_t num_seqs = cu_seqlens_q.size(0) - 1;
+  const int64_t page_size_bytes = cold_kv_cache.size(1);
+
+  TORCH_CHECK(page_size_bytes >= 2 * kv_block_bytes,
+              "page too small for K + V");
+  TORCH_CHECK(static_cast<size_t>(kv_block_bytes) % sizeof(T) == 0,
+              "kv_block_bytes not aligned to dtype itemsize");
+  const int64_t elements_per_page =
+      page_size_bytes / static_cast<int64_t>(sizeof(T));
+  const int64_t elements_per_kv_block =
+      kv_block_bytes / static_cast<int64_t>(sizeof(T));
+
+  // Reinterpret canonical int8 storage as typed T pointer.
+  const T* kv_data = reinterpret_cast<const T*>(cold_kv_cache.data_ptr<int8_t>());
+
+  auto O = torch::zeros({num_tokens, num_q_heads, head_dim}, query.options());
+  auto LSE = torch::full(
+      {num_q_heads, num_tokens},
+      -std::numeric_limits<float>::infinity(),
+      query.options().dtype(torch::kFloat32));
+
+  // Accessors (CPU only).
+  auto query_a = query.accessor<T, 3>();
+  auto O_a = O.accessor<T, 3>();
+  auto LSE_a = LSE.accessor<float, 2>();
+  auto cold_block_ids_a = cold_block_ids.accessor<int32_t, 2>();
+  auto cold_block_lens_a = cold_block_lens.accessor<int32_t, 1>();
+  auto cu_seqlens_q_a = cu_seqlens_q.accessor<int32_t, 1>();
+  auto query_positions_a = query_positions.accessor<int32_t, 1>();
+
+  const float scale_f = static_cast<float>(softmax_scale);
+  const float NEG_INF = -std::numeric_limits<float>::infinity();
+
+  for (int64_t s = 0; s < num_seqs; ++s) {
+    const int64_t q_start = cu_seqlens_q_a[s];
+    const int64_t q_end = cu_seqlens_q_a[s + 1];
+    const int64_t n_cold_blocks = cold_block_lens_a[s];
+    if (q_end <= q_start || n_cold_blocks <= 0) continue;
+    const int64_t n_cold_kv = n_cold_blocks * block_size;
+
+    // Per-token reusable score buffer. Allocated once per sequence to
+    // avoid repeated heap allocation in the inner loop.
+    std::vector<float> scores(static_cast<size_t>(n_cold_kv));
+
+    for (int64_t t = q_start; t < q_end; ++t) {
+      const int64_t q_pos = query_positions_a[t];
+
+      for (int64_t h = 0; h < num_q_heads; ++h) {
+        const int64_t kv_h = h / q_per_kv;
+
+        // ---- Pass 1: compute scores, track max ----
+        float m_val = NEG_INF;
+        for (int64_t k = 0; k < n_cold_kv; ++k) {
+          const int64_t block_idx_in_seq = k / block_size;
+          const int64_t token_in_block = k % block_size;
+          const int64_t real_block_id =
+              cold_block_ids_a[s][block_idx_in_seq];
+
+          if (causal && q_pos < k) {
+            scores[k] = NEG_INF;
+            continue;
+          }
+
+          const T* k_ptr = kv_data
+              + real_block_id * elements_per_page
+              + token_in_block * num_kv_heads * head_dim
+              + kv_h * head_dim;
+
+          // Inner head_dim dot product. Compiler should auto-vectorize
+          // this loop with `-O3 -ftree-vectorize`.
+          float dot = 0.0f;
+          for (int64_t d = 0; d < head_dim; ++d) {
+            dot += static_cast<float>(query_a[t][h][d])
+                 * static_cast<float>(k_ptr[d]);
+          }
+          const float score = dot * scale_f;
+          scores[k] = score;
+          if (score > m_val) m_val = score;
+        }
+
+        if (m_val == NEG_INF) {
+          // All entries were masked; LSE stays -inf and O stays zero.
+          continue;
+        }
+
+        // ---- Pass 2: exp(score - m), accumulate sum ----
+        float sum_exp = 0.0f;
+        for (int64_t k = 0; k < n_cold_kv; ++k) {
+          if (scores[k] == NEG_INF) {
+            scores[k] = 0.0f;  // re-purpose as exp value (0 here)
+            continue;
+          }
+          const float ex = std::exp(scores[k] - m_val);
+          scores[k] = ex;
+          sum_exp += ex;
+        }
+
+        // ---- Pass 3: weighted V sum ----
+        // O[t, h, :] = sum_k (scores[k] / sum_exp) * V[real_block, tok, kv_h, :]
+        float out[1024];  // head_dim cap (Qwen2.5-7B uses 128). Defensive.
+        TORCH_CHECK(head_dim <= 1024, "head_dim too large for stack buffer");
+        for (int64_t d = 0; d < head_dim; ++d) out[d] = 0.0f;
+
+        const float inv_sum = 1.0f / sum_exp;
+        for (int64_t k = 0; k < n_cold_kv; ++k) {
+          const float w = scores[k] * inv_sum;
+          if (w == 0.0f) continue;
+          const int64_t block_idx_in_seq = k / block_size;
+          const int64_t token_in_block = k % block_size;
+          const int64_t real_block_id =
+              cold_block_ids_a[s][block_idx_in_seq];
+          const T* v_ptr = kv_data
+              + real_block_id * elements_per_page
+              + elements_per_kv_block
+              + token_in_block * num_kv_heads * head_dim
+              + kv_h * head_dim;
+          for (int64_t d = 0; d < head_dim; ++d) {
+            out[d] += w * static_cast<float>(v_ptr[d]);
+          }
+        }
+
+        for (int64_t d = 0; d < head_dim; ++d) {
+          O_a[t][h][d] = static_cast<T>(out[d]);
+        }
+        LSE_a[h][t] = m_val + std::log(sum_exp);
+      }
+    }
+  }
+
+  return {O, LSE};
+}
+
+std::vector<torch::Tensor> forward_partial_with_lse_portable(
+    torch::Tensor query,
+    torch::Tensor cold_kv_cache,
+    int64_t block_size,
+    int64_t num_kv_heads,
+    int64_t head_dim,
+    int64_t kv_block_bytes,
+    torch::Tensor cold_block_ids,
+    torch::Tensor cold_block_lens,
+    torch::Tensor cu_seqlens_q,
+    torch::Tensor query_positions,
+    double softmax_scale,
+    bool causal) {
+  const auto dt = query.scalar_type();
+  if (dt == torch::kBFloat16) {
+    return forward_partial_impl<at::BFloat16>(
+        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
+        kv_block_bytes, cold_block_ids, cold_block_lens,
+        cu_seqlens_q, query_positions, softmax_scale, causal);
+  } else if (dt == torch::kHalf) {
+    return forward_partial_impl<at::Half>(
+        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
+        kv_block_bytes, cold_block_ids, cold_block_lens,
+        cu_seqlens_q, query_positions, softmax_scale, causal);
+  } else if (dt == torch::kFloat) {
+    return forward_partial_impl<float>(
+        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
+        kv_block_bytes, cold_block_ids, cold_block_lens,
+        cu_seqlens_q, query_positions, softmax_scale, causal);
+  } else {
+    TORCH_CHECK(false,
+                "forward_partial_with_lse_portable: unsupported dtype ",
+                dt);
+  }
+}
+
+}  // namespace cpu_partial_attn
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  m.def("forward_partial_with_lse_portable",
+        &cpu_partial_attn::forward_partial_with_lse_portable,
+        "Cold-KV CPU Partial Attention (portable C++)");
+}

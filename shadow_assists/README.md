@@ -158,15 +158,18 @@ flowchart TB
 
     PLN_001 --> TSK_001["TSK_001<br/>LSE-반환 CPU partial-attention<br/>kernel 구현"]
     PLN_001 --> TSK_002["TSK_002<br/>scheduler / attention metadata<br/>hot/cold partition 통합"]
-    PLN_001 --> TST_001["TST_001<br/>정확도 검증<br/>(KVViewAdapter / kernel cross-check<br/>/ wrapper dispatch / e2e)"]
+    PLN_001 --> TST_001["TST_001<br/>kernel 정확도<br/>(A KVViewAdapter / B kernel cross-check<br/>/ C wrapper dispatch)"]
+    PLN_001 --> TST_003["TST_003<br/>e2e 통합 정확도<br/>(D-i token divergence<br/>+ D-ii logprob/PPL diff)"]
     PLN_001 --> TST_002["TST_002<br/>throughput / overlap profile"]
 
     TSK_001 --> TSK_002
     TSK_001 --> TST_001
-    TSK_002 --> TST_001
+    TSK_001 --> TST_003
+    TSK_002 --> TST_003
     TSK_001 --> TST_002
     TSK_002 --> TST_002
-    TST_001 --> TST_002
+    TST_001 --> TST_003
+    TST_003 --> TST_002
 ```
 
 > 축 노드(`독창 축`, `선행 연구 적용 축`)는 분류용 가상 노드이며 ID 를 가지지 않는다. 진입 판정 후 각 IDE 노드 아래로 후속 prefix(예: `FEA_###` → `TSK_###` → `TST_###`)가 매달리며 Tree 가 아래로 깊어진다.

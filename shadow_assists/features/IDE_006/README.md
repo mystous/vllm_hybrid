@@ -1,4 +1,4 @@
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md)
 
 ---
 
@@ -261,9 +261,10 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 1 | [`PLN_001`](PLN_001.md) | Cold-KV CPU Partial Attention PoC 플랜 | `대기` (문서 적재 완료. (a) long-context 전환 후 `활성`) |
 | 2 | [`TSK_001`](TSK_001.md) | LSE-반환 CPU partial-attention kernel 구현 | `대기` (PLN 임계 충족 후) |
 | 3 | [`TSK_002`](TSK_002.md) | scheduler / attention metadata 의 hot/cold partition 통합 | `대기` (`TSK_001` 후속) |
-| 4 | [`TST_001`](TST_001.md) | 정확도 검증 (KVViewAdapter / kernel cross-check / wrapper dispatch / e2e) | `대기` (`TSK_001` + `TSK_002` 후) |
-| 5 | [`TST_002`](TST_002.md) | throughput / overlap profile (net-win 영역 + critical path 측정) | `대기` (`TST_001` 통과 후 권장) |
-| 6 | `FEA_###` | 통합 기능 (PLN/TST 통과 후, `feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
+| 4 | [`TST_001`](TST_001.md) | **kernel 정확도 검증** (KVViewAdapter / kernel cross-check / wrapper dispatch — TSK_001 단독) | `활성` (Phase 1 dev — A·B(i)·C 통과) |
+| 5 | [`TST_003`](TST_003.md) | **e2e 통합 정확도 검증** (D-i token divergence + D-ii logprob/PPL diff — TSK_001 + TSK_002) | `대기` (`TSK_002` 후) |
+| 6 | [`TST_002`](TST_002.md) | throughput / overlap profile (net-win 영역 + critical path 측정) | `대기` (`TST_001` + `TST_003` 통과 후 권장) |
+| 7 | `FEA_###` | 통합 기능 (PLN/TST 통과 후, `feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
 
 각 ID 의 상세 명세는 위 표의 링크 (`PLN_001.md`, `TSK_001.md`, `TSK_002.md`) 가 단일 출처. 미할당 ID 들은 PLN 결과에 따라 발급. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수.
 
@@ -314,6 +315,7 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 날짜 | 변경 | 사유 |
 |---|---|---|
 | 2026-04-25 | 본 README 초안 작성 | IDE_006 2차 정의 기준 상세 설계 문서 적재. 파생 ID 생성은 진입 조건 (a) 충족 후 |
+| 2026-04-25 | TST_003 신규 적재 (책임 분리) | TST_001 의 단계 D (e2e 통합 정확도) 가 TSK_002 의존이라 TSK_001 단독 검증과 책임이 섞여 있던 것을 분리 — 신규 [`TST_003`](TST_003.md) 발급 + TST_001 의 D 섹션 일괄 제거. (1) §11 표 step 5 = `TST_003` (e2e 정확도, D-i + D-ii) 신규 행 + step 6 = `TST_002` (throughput) 이동 + step 7 = `FEA_###`. (2) 최상단/최하단 nav 자식 목록에 `TST_003` 추가. (3) TST_001 의 검증 대상은 `TSK_001` 단독, TST_003 은 `TSK_001 + TSK_002` 통합 e2e. |
 | 2026-04-25 | TST_001 / TST_002 적재 반영 | (1) 최상단/최하단 nav 의 자식 목록에 `TST_001` / `TST_002` 추가. (2) §11 표의 step 4·5 generic `TST_###` 행을 적재된 [`TST_001`](TST_001.md) / [`TST_002`](TST_002.md) 링크로 갱신. step 4 = "정확도 검증 (KVViewAdapter / kernel cross-check / wrapper dispatch / e2e)", step 5 = "throughput / overlap profile". 상태 모두 `대기`. |
 | 2026-04-25 | §11 표 PLN_001 상태 정합 | id_registry / PLN_001 본문은 `대기` 인데 §11 표만 `활성 (적재 완료)` 로 stale. `대기 (문서 적재 완료. (a) long-context 전환 후 활성)` 으로 통일. |
 | 2026-04-25 | 디렉토리 단계 박스 갱신 (issue 7) | "현재 README.md 만 존재" 표기가 평탄화 후 stale. `README.md` + `PLN_001.md` + `TSK_001.md` + `TSK_002.md` 평탄 배치 명시로 갱신. |
@@ -325,4 +327,4 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 
 ---
 
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md)
