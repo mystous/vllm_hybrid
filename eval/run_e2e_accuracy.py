@@ -74,34 +74,89 @@ from pathlib import Path
 from typing import Any
 
 
-# ---- 기본 prompt 셋 -----------------------------------------------------
-# 짧은 prompt (smoke) + 긴 prompt (cold KV 발생 영역) 혼합. 갯수는 적게 — 모든
-# 프롬프트가 두 번씩 generate 되어 dev 에서도 합리적인 시간 안에 끝나야 함.
-_DEFAULT_PROMPTS: list[str] = [
-    # short smoke
-    "Explain the difference between mutex and semaphore in three sentences.",
-    "Translate to Korean: 'The early bird catches the worm.'",
-    # medium
-    (
-        "Write a Python function that takes a list of integers and returns the "
-        "longest strictly increasing subsequence. Include type hints and a "
-        "short docstring."
-    ),
-    # long-context style — repeated context to fill KV
-    (
-        "Summarize the following passage in two bullet points.\n\n"
-        + (
-            "The Roman aqueducts were arguably the most influential engineering "
-            "achievement of the ancient world. Stretching across hundreds of "
-            "kilometres of varied terrain, they delivered fresh water to public "
-            "fountains, baths, and private homes alike. Their construction "
-            "demanded mastery of gradients, pressure, masonry, and the use of "
-            "inverted siphons and arched bridges, setting design standards that "
-            "would persist for over a thousand years.\n"
+# ---- prompt 생성 -------------------------------------------------------
+# 결정적 long prompts. 같은 (input_len, num_prompts, seed) 조합은 항상 동일
+# 텍스트 → baseline / split_on 양쪽 실행에서 동일 입력 보장. 별도 파일 없이
+# 코드에 self-contained.
+
+# Base passage — 한 단락이 ~200 단어 / ~270 토큰 (BPE 추정). 반복으로
+# 임의 길이까지 채움.
+_BASE_PASSAGE = (
+    "The Roman aqueducts were arguably the most influential engineering "
+    "achievement of the ancient world. Stretching across hundreds of "
+    "kilometres of varied terrain, they delivered fresh water to public "
+    "fountains, baths, and private homes alike. Their construction "
+    "demanded mastery of gradients, pressure, masonry, and the use of "
+    "inverted siphons and arched bridges, setting design standards that "
+    "would persist for over a thousand years. Even after the Western "
+    "Empire's decline, fragments continued to function for centuries, "
+    "while later civilisations built upon Roman techniques without "
+    "fundamentally improving them. The Pont du Gard in southern France, "
+    "built in the first century, still stands as a striking example of "
+    "their durability and aesthetic ambition. Beyond the engineering "
+    "feat, the aqueducts shaped Roman urban life: cities chose their "
+    "locations partly based on water availability, public hygiene "
+    "improved, and the rise of public baths became a defining cultural "
+    "feature. Some historians argue that no other ancient work of "
+    "infrastructure had as enduring an influence on the cities that "
+    "succeeded Rome. As we examine the surviving plans and physical "
+    "remains today, the precision of measurement and the long-term "
+    "planning evident in their layout continue to surprise modern "
+    "engineers, even as the larger empire that produced them passed "
+    "into history.\n\n"
+)
+
+
+def _build_prompt(
+    *, prompt_idx: int, target_chars: int, header_template: str
+) -> str:
+    """Build a deterministic prompt of approximately ``target_chars`` chars.
+
+    Different ``prompt_idx`` values produce slightly different headers so the
+    LLM does not see N copies of the same input (which would also confound
+    OffloadingConnector's prefix caching). The body is the same base passage
+    repeated to length, which keeps token count / vocabulary stable.
+    """
+    header = header_template.format(idx=prompt_idx)
+    body_target = max(target_chars - len(header), 0)
+    if body_target == 0:
+        return header
+    repetitions = (body_target // len(_BASE_PASSAGE)) + 1
+    body = (_BASE_PASSAGE * repetitions)[:body_target]
+    return header + body
+
+
+def _generate_prompts(
+    *, num_prompts: int, input_len_tokens: int
+) -> list[str]:
+    """Generate ``num_prompts`` deterministic prompts targeting roughly
+    ``input_len_tokens`` tokens each.
+
+    Uses a char-to-token heuristic (~3.7 chars / token for English) so prompts
+    are slightly LONGER than target — vLLM tokenizer truncates to the model's
+    max if necessary, but that's fine for our use case since baseline and
+    split_on apply the same truncation.
+    """
+    # English BPE typically yields ~3.7 chars / token; round up for safety.
+    target_chars = int(input_len_tokens * 4)
+    headers = [
+        "[Document #{idx}] Summarise the following passage in three concise bullet points, focusing on its long-term influence.\n\n",
+        "[Document #{idx}] Identify the three most important engineering principles described and explain why each matters today.\n\n",
+        "[Document #{idx}] Compare the cultural impact described to a modern infrastructure system you are familiar with.\n\n",
+        "[Document #{idx}] Extract the chronology of key events implied in the text and present it as a timeline.\n\n",
+        "[Document #{idx}] Critique one aspect of the engineering or cultural claims and back your critique with reasoning.\n\n",
+    ]
+    prompts: list[str] = []
+    for i in range(num_prompts):
+        header_template = headers[i % len(headers)]
+        prompts.append(
+            _build_prompt(
+                prompt_idx=i,
+                target_chars=target_chars,
+                header_template=header_template,
+            )
         )
-        * 8
-    ),
-]
+    return prompts
 
 
 # ---- 데이터 형 ----------------------------------------------------------
@@ -109,13 +164,21 @@ _DEFAULT_PROMPTS: list[str] = [
 
 @dataclass
 class EnvConfig:
-    """eval/envs/*.env 파일에서 추출한 vLLM 서버 구성."""
+    """eval/envs/*.env 파일에서 추출한 vLLM 서버 + 워크로드 구성."""
 
     env_path: Path
     model: str
     tensor_parallel_size: int
     gpu_memory_util: float
     max_model_len: int
+    # Workload sizing keys — same as run.sh / bench.sh consume. e2e
+    # accuracy reuses these so the test workload matches the env's
+    # intended scale (e.g. prod long_ctx env → 10 prompts × 8K input ×
+    # 128 output, which is enough on Llama-70B + TP=8 to actually
+    # trigger cold KV eviction during the split_on run).
+    num_prompts: int
+    input_len: int
+    output_len: int
     # extra_serve_args is the full string after ``EXTRA_SERVE_ARGS=`` (with
     # quoting already stripped by bash). Currently only the
     # ``--kv-transfer-config={...}`` form is parsed; everything else is
@@ -265,13 +328,16 @@ def _load_env_config(env_path: Path) -> EnvConfig:
         tensor_parallel_size=int(_need("TENSOR_PARALLEL_SIZE")),
         gpu_memory_util=float(_need("GPU_MEMORY_UTIL")),
         max_model_len=int(_need("MAX_MODEL_LEN")),
+        num_prompts=int(_need("NUM_PROMPTS")),
+        input_len=int(_need("INPUT_LEN")),
+        output_len=int(_need("OUTPUT_LEN")),
         extra_serve_args=extra_serve_args,
         kv_transfer_dict=kv_transfer_dict,
     )
 
 
 def _validate_baseline_split_pair(baseline: EnvConfig, split_on: EnvConfig) -> None:
-    """두 config 가 같은 모델/TP/max_model_len 인지 — 정확도 비교의 전제."""
+    """두 config 가 같은 모델/TP/max_model_len/워크로드 인지 — 정확도 비교의 전제."""
     mismatches: list[str] = []
     if baseline.model != split_on.model:
         mismatches.append(f"MODEL: {baseline.model!r} vs {split_on.model!r}")
@@ -284,10 +350,23 @@ def _validate_baseline_split_pair(baseline: EnvConfig, split_on: EnvConfig) -> N
         mismatches.append(
             f"MAX_MODEL_LEN: {baseline.max_model_len} vs {split_on.max_model_len}"
         )
+    if baseline.num_prompts != split_on.num_prompts:
+        mismatches.append(
+            f"NUM_PROMPTS: {baseline.num_prompts} vs {split_on.num_prompts}"
+        )
+    if baseline.input_len != split_on.input_len:
+        mismatches.append(
+            f"INPUT_LEN: {baseline.input_len} vs {split_on.input_len}"
+        )
+    if baseline.output_len != split_on.output_len:
+        mismatches.append(
+            f"OUTPUT_LEN: {baseline.output_len} vs {split_on.output_len}"
+        )
     if mismatches:
         raise ValueError(
             "baseline / split_on env mismatch — token-divergence comparison "
-            "requires the same model and shape:\n  - " + "\n  - ".join(mismatches)
+            "requires identical model / TP / shape / workload:\n  - "
+            + "\n  - ".join(mismatches)
         )
 
 
@@ -321,6 +400,9 @@ def _harmonise_gpu_memory_util(
             tensor_parallel_size=baseline.tensor_parallel_size,
             gpu_memory_util=target,
             max_model_len=baseline.max_model_len,
+            num_prompts=baseline.num_prompts,
+            input_len=baseline.input_len,
+            output_len=baseline.output_len,
             extra_serve_args=baseline.extra_serve_args,
             kv_transfer_dict=baseline.kv_transfer_dict,
         )
@@ -597,15 +679,25 @@ def _parse_args() -> argparse.Namespace:
             "in EXTRA_SERVE_ARGS."
         ),
     )
-    p.add_argument("--max-tokens", type=int, default=64)
+    p.add_argument(
+        "--max-tokens",
+        type=int,
+        default=None,
+        help="override OUTPUT_LEN from the env file (default: use env's OUTPUT_LEN)",
+    )
+    p.add_argument(
+        "--max-prompts",
+        type=int,
+        default=None,
+        help=(
+            "cap on the number of prompts to run, regardless of NUM_PROMPTS "
+            "in the env file. Useful on dev where the env's NUM_PROMPTS is "
+            "tuned for benchmarking and would take too long to compare twice. "
+            "Default: use env's NUM_PROMPTS."
+        ),
+    )
     p.add_argument("--logprobs", type=int, default=10, help="0 disables logprob collection")
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument(
-        "--prompts-file",
-        type=Path,
-        default=None,
-        help="optional UTF-8 text file with one prompt per line; default uses _DEFAULT_PROMPTS",
-    )
     p.add_argument(
         "--output-dir",
         type=Path,
@@ -621,14 +713,15 @@ def _parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def _load_prompts(args: argparse.Namespace) -> list[str]:
-    if args.prompts_file is None:
-        return list(_DEFAULT_PROMPTS)
-    return [
-        line.rstrip()
-        for line in args.prompts_file.read_text().splitlines()
-        if line.strip()
-    ]
+def _resolve_workload(
+    args: argparse.Namespace, env: EnvConfig
+) -> tuple[int, int, int]:
+    """Apply --max-prompts / --max-tokens overrides on top of the env."""
+    num_prompts = env.num_prompts
+    if args.max_prompts is not None and args.max_prompts < num_prompts:
+        num_prompts = max(args.max_prompts, 1)
+    max_tokens = args.max_tokens if args.max_tokens is not None else env.output_len
+    return num_prompts, env.input_len, max_tokens
 
 
 def _resolve_output_dir(args: argparse.Namespace) -> Path:
@@ -652,6 +745,7 @@ def main() -> int:
     split_on_env = _load_env_config(args.split_on_env)
     _validate_baseline_split_pair(baseline_env, split_on_env)
     baseline_env, _harmonised = _harmonise_gpu_memory_util(baseline_env, split_on_env)
+    num_prompts, input_len, max_tokens = _resolve_workload(args, split_on_env)
 
     if (
         split_on_env.kv_transfer_dict is None
@@ -667,15 +761,20 @@ def main() -> int:
             "split_on env (e.g. ide006_cold_kv_split_on_long_ctx.env)."
         )
 
-    prompts = _load_prompts(args)
-    print(f"prompts: {len(prompts)}", flush=True)
+    prompts = _generate_prompts(num_prompts=num_prompts, input_len_tokens=input_len)
+    print(
+        f"workload: {num_prompts} prompts × ~{input_len} input tokens × "
+        f"{max_tokens} max generated tokens (env NUM_PROMPTS={split_on_env.num_prompts}, "
+        f"INPUT_LEN={split_on_env.input_len}, OUTPUT_LEN={split_on_env.output_len})",
+        flush=True,
+    )
 
     # 1) baseline
     baseline = _run_one_config(
         config_name="baseline",
         env=baseline_env,
         prompts=prompts,
-        max_tokens=args.max_tokens,
+        max_tokens=max_tokens,
         logprobs_k=args.logprobs,
         seed=args.seed,
     )
@@ -686,7 +785,7 @@ def main() -> int:
         config_name="split_on",
         env=split_on_env,
         prompts=prompts,
-        max_tokens=args.max_tokens,
+        max_tokens=max_tokens,
         logprobs_k=args.logprobs,
         seed=args.seed,
     )
@@ -701,6 +800,7 @@ def main() -> int:
         rtol_ppl=args.rtol_ppl,
     )
     _save_comparison(out_dir / "comparison.json", comparison)
+    # max_tokens used (after override) is reflected in baseline.max_tokens already
     _write_readme(
         out_dir / "README.md",
         baseline=baseline,

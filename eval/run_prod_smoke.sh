@@ -128,12 +128,15 @@ log "[5/5] e2e accuracy (TST_003: D-i token divergence + D-ii logprob/PPL)"
 ACC_RC=0
 ACC_OUT_DIR="${SCRIPT_DIR}/results/${TS}_${HW_TAG}_e2e_accuracy"
 mkdir -p "${ACC_OUT_DIR}"
-# baseline / split_on env 는 [2] / [4] 에서 사용한 동일한 env 파일을 그대로
-# 재사용. 모델·TP·max_model_len·EXTRA_SERVE_ARGS 가 단일 source of truth.
+# baseline / split_on env 는 [2] / [4] 에서 사용한 동일한 long_ctx env 파일을
+# 그대로 재사용. 모델 · TP · max_model_len · EXTRA_SERVE_ARGS 와 워크로드
+# 사이즈 (NUM_PROMPTS / INPUT_LEN / OUTPUT_LEN) 까지 같은 source of truth →
+# 정확도 비교가 [4] 가 throughput sweep 한 *바로 그* 워크로드 위에서
+# 수행되므로 cold path 가 실제로 활성된 상태에서의 알고리즘 정합성이
+# 측정됨. logprobs 만 e2e accuracy specific 이라 CLI 로 지정.
 HW_TAG="${HW_TAG}" "${PYTHON}" "${SCRIPT_DIR}/run_e2e_accuracy.py" \
     --baseline-env "${SCRIPT_DIR}/envs/vllm_original_long_ctx.env" \
     --split-on-env "${SCRIPT_DIR}/envs/ide006_cold_kv_split_on_long_ctx.env" \
-    --max-tokens 64 \
     --logprobs 20 \
     --output-dir "${ACC_OUT_DIR}" \
     2>&1 | tee "${ACC_OUT_DIR}/run_e2e_accuracy.log" || ACC_RC=$?
