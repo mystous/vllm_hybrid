@@ -12,6 +12,10 @@
 #   - IDE_006 long-context e2e scenarios (vllm_original / ide006_cold_kv /
 #     ide006_cold_kv_split_on envs — all on meta-llama/Llama-3.3-70B-Instruct
 #     with TP=8).
+#   - TST_003 e2e accuracy gate (run_e2e_accuracy.py) — D-i token divergence
+#     + D-ii logprob / PPL diff between baseline and Phase 4c split_on. Same
+#     model + TP, just enough prompts and max_tokens to surface algorithmic
+#     correctness without dominating the smoke wall time.
 #
 # Usage:
 #   bash eval/run_prod_smoke.sh             # run + save (push manually)
@@ -72,6 +76,7 @@ log "writing meta to ${SMOKE_DIR}/README.md"
     echo "- eval/run.sh envs/vllm_original_long_ctx.env (split-off baseline, Llama-3.3-70B + TP=8)"
     echo "- eval/run.sh envs/ide006_cold_kv_long_ctx.env (OffloadingConnector only)"
     echo "- eval/run.sh envs/ide006_cold_kv_split_on_long_ctx.env (full Cold-KV CPU partial attention — TSK_002 Phase 4c)"
+    echo "- eval/run_e2e_accuracy.py (TST_003 D-i token divergence + D-ii logprob/PPL — TSK_002 검증 게이트)"
     echo
     echo "Result subdirs (run.sh): see eval/results/<TS>_<HW_TAG>_<MODEL>/"
 } > "${SMOKE_DIR}/README.md"
@@ -90,7 +95,7 @@ log "capturing CPU/GPU snapshot to ${SMOKE_DIR}/isa_info.txt"
 
 # --------------------------------------------------------------------- 1) pytest
 
-log "[1/4] pytest TST_001 (TSK_001 dev kernel) + TST_004 (TSK_003 prod SIMD, skip if unbuilt)"
+log "[1/5] pytest TST_001 (TSK_001 dev kernel) + TST_004 (TSK_003 prod SIMD, skip if unbuilt)"
 PYTEST_RC=0
 "${PYTHON}" -m pytest tests/v1/cpu_partial_attention/ -v \
     --junit-xml="${SMOKE_DIR}/pytest_junit.xml" \
@@ -98,24 +103,43 @@ PYTEST_RC=0
 
 # --------------------------------------------------------------------- 2) baseline scenario
 
-log "[2/4] scenario: vllm_original_long_ctx (split-off baseline, Llama-3.3-70B + TP=8)"
+log "[2/5] scenario: vllm_original_long_ctx (split-off baseline, Llama-3.3-70B + TP=8)"
 SCEN1_RC=0
 bash "${SCRIPT_DIR}/run.sh" envs/vllm_original_long_ctx.env || SCEN1_RC=$?
 log "  scenario 1 exit=${SCEN1_RC}"
 
 # --------------------------------------------------------------------- 3) cold-tier scenario
 
-log "[3/4] scenario: ide006_cold_kv_long_ctx (OffloadingConnector only)"
+log "[3/5] scenario: ide006_cold_kv_long_ctx (OffloadingConnector only)"
 SCEN2_RC=0
 bash "${SCRIPT_DIR}/run.sh" envs/ide006_cold_kv_long_ctx.env || SCEN2_RC=$?
 log "  scenario 2 exit=${SCEN2_RC}"
 
 # --------------------------------------------------------------------- 4) cold-tier + split-on (TSK_002 Phase 4c)
 
-log "[4/4] scenario: ide006_cold_kv_split_on_long_ctx (Cold-KV CPU partial attention — TSK_002 §4.5 Phase 4c)"
+log "[4/5] scenario: ide006_cold_kv_split_on_long_ctx (Cold-KV CPU partial attention — TSK_002 §4.5 Phase 4c)"
 SCEN3_RC=0
 bash "${SCRIPT_DIR}/run.sh" envs/ide006_cold_kv_split_on_long_ctx.env || SCEN3_RC=$?
 log "  scenario 3 exit=${SCEN3_RC}"
+
+# --------------------------------------------------------------------- 5) e2e accuracy (TST_003 D-i + D-ii)
+
+log "[5/5] e2e accuracy (TST_003: D-i token divergence + D-ii logprob/PPL)"
+ACC_RC=0
+ACC_OUT_DIR="${SCRIPT_DIR}/results/${TS}_${HW_TAG}_e2e_accuracy"
+HW_TAG="${HW_TAG}" "${PYTHON}" "${SCRIPT_DIR}/run_e2e_accuracy.py" \
+    --model meta-llama/Llama-3.3-70B-Instruct \
+    --tensor-parallel 8 \
+    --gpu-memory-util 0.85 \
+    --max-model-len 8192 \
+    --max-tokens 64 \
+    --logprobs 20 \
+    --cpu-bytes 17179869184 \
+    --output-dir "${ACC_OUT_DIR}" \
+    2>&1 | tee "${ACC_OUT_DIR}.log" || ACC_RC=$?
+# Move the .log next to the JSONs so the run dir is self-contained.
+mv -f "${ACC_OUT_DIR}.log" "${ACC_OUT_DIR}/run_e2e_accuracy.log" 2>/dev/null || true
+log "  e2e accuracy exit=${ACC_RC}"
 
 # --------------------------------------------------------------------- summary
 
@@ -126,6 +150,7 @@ log "  scenario 3 exit=${SCEN3_RC}"
     echo "- scenario baseline:            ${SCEN1_RC}"
     echo "- scenario cold_kv (offload):   ${SCEN2_RC}"
     echo "- scenario cold_kv split-on:    ${SCEN3_RC}"
+    echo "- e2e accuracy (TST_003):       ${ACC_RC}"
 } >> "${SMOKE_DIR}/README.md"
 
 log "smoke artifacts -> ${SMOKE_DIR}"
@@ -156,4 +181,4 @@ EOF
 fi
 
 # overall exit
-[[ ${PYTEST_RC} -eq 0 && ${SCEN1_RC} -eq 0 && ${SCEN2_RC} -eq 0 && ${SCEN3_RC} -eq 0 ]] && exit 0 || exit 1
+[[ ${PYTEST_RC} -eq 0 && ${SCEN1_RC} -eq 0 && ${SCEN2_RC} -eq 0 && ${SCEN3_RC} -eq 0 && ${ACC_RC} -eq 0 ]] && exit 0 || exit 1
