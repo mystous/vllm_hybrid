@@ -1254,6 +1254,10 @@ def hot_cold_attention(
     q_descale: torch.Tensor | None = None,
     k_descale: torch.Tensor | None = None,
     v_descale: torch.Tensor | None = None,
+    cpu_kv_cache: torch.Tensor | None = None,
+    cold_kv_layout: "KVPageLayout | None" = None,  # noqa: F821
+    cold_block_ids: torch.Tensor | None = None,
+    query_positions: torch.Tensor | None = None,
 ) -> None:
     """Per-sequence variable-length cold-prefix attention (IDE_006 / TSK_002 §4.4).
 
@@ -1284,21 +1288,52 @@ def hot_cold_attention(
 
     descale_shape = (cu_query_lens.shape[0] - 1, key_cache.shape[-2])
 
-    # Hot block_table: drop the first max_num_cold_blocks columns. Sequences
-    # with fewer cold blocks than the batch max get padded out by the
-    # per-sequence seqused_k clipping below — flash_attn ignores entries past
-    # seqused_k for that sequence, so left-over cold rows in their hot slice
-    # are harmless.
-    hot_block_table = (
-        block_table if max_num_cold_blocks == 0 else block_table[:, max_num_cold_blocks:]
-    )
+    # Hot block_table: per-sequence shift to drop the cold prefix.
+    # A naive column slice `block_table[:, max_num_cold_blocks:]` only works
+    # when every sequence in the batch has the same cold count; if seq i
+    # has num_cold_blocks[i] < max_num_cold_blocks, the slice would drop
+    # `max_num_cold_blocks - num_cold_blocks[i]` valid hot blocks for that
+    # sequence. The per-row gather below shifts each row by exactly its own
+    # num_cold_blocks[i] and pads the tail with the original block_table's
+    # padding (NULL block IDs) — flash_attn never reads past seqused_k, so
+    # that pad is harmless.
+    if max_num_cold_blocks == 0:
+        hot_block_table = block_table
+    else:
+        # We allocate the full original block_table width as the hot column
+        # budget. A naive `max_blocks - max_num_cold_blocks` width fails when
+        # one sequence is 100% cold (max_num_cold_blocks == max_blocks) but
+        # another sequence has 0 cold and therefore needs the full width of
+        # hot blocks; that case would compute width 0 and lose every
+        # sequence's hot KV. Using the full width is safe because
+        # hot_seqused_k clips the kernel's reach per-sequence and any slot
+        # that ends up beyond the row's real hot region is harmless.
+        num_seqs_bt, max_blocks_bt = block_table.shape
+        max_hot_blocks_bt = max_blocks_bt
+        row_idx = torch.arange(
+            num_seqs_bt, device=block_table.device
+        ).unsqueeze(1)
+        col_offsets = torch.arange(
+            max_hot_blocks_bt, device=block_table.device
+        ).unsqueeze(0)
+        # Cast num_cold_blocks to the same dtype as the index arange so the
+        # broadcast add doesn't materialise a different (larger) dtype.
+        col_idx = num_cold_blocks.to(col_offsets.dtype).unsqueeze(1) + col_offsets
+        col_idx_clamped = col_idx.clamp_max(max_blocks_bt - 1)
+        hot_block_table = block_table[row_idx, col_idx_clamped]
 
     # Per-sequence hot KV length = total seq KV length − cold KV tokens.
     # clamp to 0 so a sequence with all-hot (num_cold_blocks[i]==0) is unaffected.
     cold_kv_tokens = num_cold_blocks * block_size
     hot_seqused_k = (seqused_k - cold_kv_tokens).clamp_(min=0)
 
-    hot_max_seqlen_k = max_seqlen_k - max_num_cold_blocks * block_size
+    # Hot path's max KV length must be ≥ the maximum hot_seqused_k across the
+    # batch, which is `max_seqlen_k - min(num_cold_blocks) * block_size`.
+    # Computing `min(num_cold_blocks)` on-device would force a sync; instead
+    # we conservatively use the original `max_seqlen_k` as the upper bound.
+    # The flash_attn kernel respects per-sequence seqused_k so the only cost
+    # of the looser bound is a slightly larger kernel workspace allocation.
+    hot_max_seqlen_k = max_seqlen_k
 
     hot_output, hot_lse = flash_attn_varlen_func(
         q=query,
@@ -1328,17 +1363,69 @@ def hot_cold_attention(
         output.copy_(hot_output)
         return
 
-    # Phase 3b TODO — wire the CPU cold path here:
-    #   1) D2H copy of query (synchronous for first cut; Phase 5 may pipeline).
-    #   2) cold_O, cold_LSE = forward_partial_with_lse(query_cpu,
-    #          cpu_kv_cache, cold_block_ids, num_cold_blocks_cpu,
-    #          cu_query_lens_cpu, seq_positions_cpu, ...)
-    #   3) cold_O_gpu = cold_O.to(device, non_blocking=True);
-    #      cold_LSE_gpu = cold_LSE.to(device, non_blocking=True)
-    #   4) merge_attn_states(output, hot_output, hot_lse,
-    #                        cold_O_gpu, cold_LSE_gpu)
-    raise NotImplementedError(
-        "Cold path (CPU partial-attention via TSK_001's "
-        "forward_partial_with_lse) is not yet wired — Phase 3b. Reached "
-        f"with max_num_cold_blocks={max_num_cold_blocks}."
+    # ----- Phase 3b: cold path on CPU + LSE merge on GPU ---------------
+    # Required cold inputs (caller — Phase 4 — supplies them from the
+    # OffloadingConnector worker state and the kv_cache_spec).
+    if (
+        cpu_kv_cache is None
+        or cold_kv_layout is None
+        or cold_block_ids is None
+        or query_positions is None
+    ):
+        raise ValueError(
+            "hot_cold_attention requires cpu_kv_cache, cold_kv_layout, "
+            "cold_block_ids, and query_positions when max_num_cold_blocks "
+            f"> 0 (got max_num_cold_blocks={max_num_cold_blocks}). These "
+            "are populated by the model_runner dispatcher (Phase 4) from "
+            "the OffloadingConnector worker state and kv_cache_spec."
+        )
+
+    # Local import — TSK_001's user-facing entry point. Lazy to keep the
+    # module import-time cost bounded and avoid a hard top-level coupling
+    # between flash_attn backend and the cpu_partial_attention op.
+    from vllm.v1.attention.ops.cpu_partial_attention import (
+        forward_partial_with_lse,
+    )
+
+    # D2H of GPU-side host inputs that the CPU kernel reads. The CPU kernel
+    # itself runs on host memory, so any tensor on `query.device` must be
+    # mirrored to CPU before the call. Phase 5 may pipeline these with an
+    # async stream; Phase 3b accepts a synchronous D2H for first-cut
+    # correctness.
+    def _to_cpu(t: torch.Tensor) -> torch.Tensor:
+        return t if t.device.type == "cpu" else t.detach().cpu()
+
+    query_cpu = _to_cpu(query)
+    cu_query_lens_cpu = _to_cpu(cu_query_lens)
+    seq_lens_total_cpu = _to_cpu(seqused_k)
+    num_cold_blocks_cpu = _to_cpu(num_cold_blocks)
+    cold_block_ids_cpu = _to_cpu(cold_block_ids)
+    query_positions_cpu = _to_cpu(query_positions)
+
+    cold_output_cpu, cold_lse_cpu = forward_partial_with_lse(
+        query=query_cpu,
+        cold_kv_cache=cpu_kv_cache,
+        cold_kv_layout=cold_kv_layout,
+        cold_block_ids=cold_block_ids_cpu,
+        cold_block_lens=num_cold_blocks_cpu,
+        cu_seqlens_q=cu_query_lens_cpu,
+        seq_lens_total=seq_lens_total_cpu,
+        query_positions=query_positions_cpu,
+        softmax_scale=softmax_scale,
+        causal=causal,
+    )
+
+    # H2D of (O_cold, LSE_cold) onto the same device as the hot outputs
+    # so merge_attn_states can fuse them. non_blocking is fine because the
+    # subsequent merge_attn_states call serialises against the same stream
+    # that consumes these tensors.
+    device = hot_output.device
+    cold_output_gpu = cold_output_cpu.to(device=device, non_blocking=True)
+    cold_lse_gpu = cold_lse_cpu.to(device=device, non_blocking=True)
+
+    # Online-softmax merge of hot suffix + cold prefix. Sequences whose
+    # cold_block_lens were 0 receive LSE_cold == -inf for those positions
+    # (per TSK_001's reference behaviour), which the merge naturally drops.
+    merge_attn_states(
+        output, hot_output, hot_lse, cold_output_gpu, cold_lse_gpu
     )

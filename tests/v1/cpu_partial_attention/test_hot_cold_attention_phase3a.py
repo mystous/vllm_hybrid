@@ -156,9 +156,11 @@ def test_hot_cold_zero_matches_flash_attn_direct_call(kv_dtype):
 
 
 @cuda_required
-def test_hot_cold_nonzero_raises_phase3b_notimplemented():
-    """`max_num_cold_blocks > 0` 케이스는 Phase 3b 가 처리할 cold path 가 없으므로
-    NotImplementedError 로 명시적 실패 — 안내 메시지에 'Phase 3b' 포함."""
+def test_hot_cold_nonzero_without_cold_inputs_raises_value_error():
+    """`max_num_cold_blocks > 0` 일 때 cold path 가 필요로 하는 인자
+    (cpu_kv_cache / cold_kv_layout / cold_block_ids / query_positions) 중
+    하나라도 빠지면 ValueError. Phase 4 dispatcher 가 이 인자들을 전부
+    공급해야 한다는 invariant 를 잠그는 가드."""
 
     from vllm.v1.attention.backends.fa_utils import get_flash_attn_version
     from vllm.v1.attention.backends.flash_attn import hot_cold_attention
@@ -182,7 +184,7 @@ def test_hot_cold_nonzero_raises_phase3b_notimplemented():
     output = torch.empty(
         inputs["query"].shape, dtype=torch.bfloat16, device=device
     )
-    with pytest.raises(NotImplementedError, match="Phase 3b"):
+    with pytest.raises(ValueError, match="cpu_kv_cache"):
         hot_cold_attention(
             output=output,
             query=inputs["query"],
@@ -201,4 +203,6 @@ def test_hot_cold_nonzero_raises_phase3b_notimplemented():
             max_num_cold_blocks=2,
             fa_version=get_flash_attn_version(),
             causal=True,
+            # cpu_kv_cache / cold_kv_layout / cold_block_ids / query_positions
+            # 일부러 모두 None — 가드가 정확히 발화하는지 확인.
         )
