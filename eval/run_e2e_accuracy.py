@@ -3,52 +3,57 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """TST_003 — e2e accuracy gate orchestration script (IDE_006 / TSK_002).
 
-Runs the two vLLM configurations sequentially on the same prompts and
-compares the generated outputs:
+Runs two vLLM configurations sequentially on the same prompts and compares
+the generated outputs:
 
-  baseline:        no kv_transfer_config (default forward path)
-  split_on:        OffloadingConnector + enable_cpu_partial_attention=True
-                   (TSK_002 Phase 4c dispatcher live)
+  baseline:        spec'd by --baseline-env  (typically vllm_original_long_ctx.env)
+  split_on:        spec'd by --split-on-env  (typically ide006_cold_kv_split_on
+                   _long_ctx.env — Phase 4c dispatcher live)
 
-Two metrics — both must pass for TST_003 to count as 통과:
+Two metrics, both must pass for TST_003 to count as 통과:
 
-  D-i  Token-id divergence    : greedy decoding, count of mismatched tokens
-                                  between baseline and split_on per prompt
-  D-ii Logprob / PPL diff      : per-position max abs logprob diff and
-                                  relative PPL diff (sequence average)
+  D-i  Token-id divergence  greedy decoding, count of mismatched tokens
+                            between baseline and split_on per prompt
+  D-ii Logprob / PPL diff   per-position max abs logprob diff and
+                            relative PPL diff (sequence average)
 
 Why a script and not a pytest test (the TST_003 spec form):
-  the spec wires both LLM instances as session fixtures, which fits the
-  prod box (H100x8 + Llama-3.3-70B) but cannot fit two Qwen-7B copies on
-  the dev RTX 3090 (14 GB x 2 = 28 GB > 24 GB). This script loads ONE
-  LLM at a time, frees it (gc + cuda.empty_cache), then loads the next —
-  works on dev for smoke development AND on prod for the real run.
+  the spec wires both LLM instances as session fixtures simultaneously,
+  which fits the prod box (H100x8 + Llama-3.3-70B) but cannot fit two
+  Qwen-7B copies on the dev RTX 3090 (14 GB x 2 = 28 GB > 24 GB). This
+  script loads ONE LLM at a time, frees it (gc + cuda.empty_cache),
+  then loads the next — works on dev for smoke development AND on prod
+  for the real run.
 
-Usage examples:
+Usage:
 
-  # dev smoke (Qwen-7B, RTX 3090):
+  # dev smoke (single GPU):
   python eval/run_e2e_accuracy.py \\
-      --model Qwen/Qwen2.5-7B-Instruct \\
-      --tensor-parallel 1 \\
+      --baseline-env eval/envs/vllm_original.env \\
+      --split-on-env eval/envs/ide006_cold_kv_split_on.env \\
       --max-tokens 32 --logprobs 10
 
-  # prod (Llama-3.3-70B + H100 x 8):
+  # prod (long-context + Llama-3.3-70B + TP=8):
   python eval/run_e2e_accuracy.py \\
-      --model meta-llama/Llama-3.3-70B-Instruct \\
-      --tensor-parallel 8 \\
-      --max-tokens 64 --logprobs 20 \\
-      --gpu-memory-util 0.85
+      --baseline-env eval/envs/vllm_original_long_ctx.env \\
+      --split-on-env eval/envs/ide006_cold_kv_split_on_long_ctx.env \\
+      --max-tokens 64 --logprobs 20
+
+Both env files are sourced via bash and the same MODEL / TENSOR_PARALLEL_SIZE
+/ GPU_MEMORY_UTIL / MAX_MODEL_LEN / EXTRA_SERVE_ARGS keys are read that
+run.sh / serve.sh use — single source of truth. Decoding controls
+(max-tokens, logprobs, prompts, tolerances) stay as script CLI args because
+they are e2e-accuracy-specific and don't belong in the bench env.
 
 Output layout (under --output-dir):
 
-  baseline.json        per-prompt generated token_ids + per-position top-K logprobs
-  split_on.json        same fields, generated with feature on
-  comparison.json      D-i (token divergence) + D-ii (max abs logprob, PPL rel) per
-                       prompt + aggregate verdict
-  README.md            run metadata + verdict summary
+  baseline.json    per-prompt token_ids + per-position chosen logprobs
+  split_on.json    same fields, generated with feature on
+  comparison.json  D-i + D-ii per prompt and aggregate verdict
+  README.md        run metadata + verdict summary
 
-Exit code: 0 if BOTH D-i and D-ii pass under the configured tolerances,
-non-zero otherwise — suitable for CI / run_prod_smoke.sh.
+Exit code 0 iff both D-i and D-ii pass under the configured tolerances —
+suitable for CI / run_prod_smoke.sh.
 """
 
 from __future__ import annotations
@@ -58,6 +63,9 @@ import gc
 import json
 import math
 import os
+import re
+import shlex
+import subprocess
 import sys
 import time
 from collections.abc import Sequence
@@ -100,33 +108,46 @@ _DEFAULT_PROMPTS: list[str] = [
 
 
 @dataclass
+class EnvConfig:
+    """eval/envs/*.env 파일에서 추출한 vLLM 서버 구성."""
+
+    env_path: Path
+    model: str
+    tensor_parallel_size: int
+    gpu_memory_util: float
+    max_model_len: int
+    # extra_serve_args is the full string after ``EXTRA_SERVE_ARGS=`` (with
+    # quoting already stripped by bash). Currently only the
+    # ``--kv-transfer-config={...}`` form is parsed; everything else is
+    # treated as opaque and not forwarded (LLM(...) does not accept
+    # arbitrary serve flags). The parsed kv_transfer_dict is what we use.
+    extra_serve_args: str
+    kv_transfer_dict: dict[str, Any] | None
+
+
+@dataclass
 class PromptOutputs:
     """단일 prompt 의 generation 결과 — 두 config 간 비교 단위."""
 
     prompt_index: int
     prompt: str
     token_ids: list[int]
-    # per-token top-K logprobs as list[dict[token_id, logprob]] (or None when
-    # logprobs were not collected). The dict captures the top-K entries —
-    # downstream comparison only needs the chosen-token logprob.
+    # per-token chosen logprobs (or None if logprobs were not collected)
     chosen_logprobs: list[float] | None
-    # Wall-clock for this prompt's generation only (seconds).
     generation_seconds: float
 
 
 @dataclass
 class ConfigOutputs:
     config_name: str  # "baseline" or "split_on"
-    model: str
-    tensor_parallel_size: int
+    env: EnvConfig
     max_tokens: int
     logprobs_k: int
-    extra_serve_args: dict[str, Any] | None
     prompts: list[PromptOutputs]
     total_seconds: float
 
 
-# ---- D-i / D-ii helpers (TST_003 §4.4) ---------------------------------
+# ---- D-i / D-ii helpers (TST_003 §4.4 spec 시그니처) -------------------
 
 
 def count_token_divergence(
@@ -176,59 +197,190 @@ def logprob_ppl_diff(
     return max_abs, ppl_rel
 
 
+# ---- env 파싱 ----------------------------------------------------------
+
+
+_KV_TRANSFER_RE = re.compile(r"--kv-transfer-config=(\{.*\})")
+
+
+def _source_env_dump(env_path: Path) -> dict[str, str]:
+    """``env`` 출력에서 본 env 파일이 set 한 변수들만 추출.
+
+    bash subshell 에서 ``set -a; source <env>; env`` 실행 후 결과 parse.
+    이미 부모 환경에 있던 변수는 (어차피 동일하게 다시 set 되므로) 그대로
+    들어와도 무관 — ``EnvConfig`` 추출은 특정 키만 읽음.
+    """
+    cmd = f"set -a; source {shlex.quote(str(env_path))}; env -0"
+    proc = subprocess.run(
+        ["bash", "-c", cmd],
+        capture_output=True,
+        check=True,
+        text=False,
+    )
+    out: dict[str, str] = {}
+    for record in proc.stdout.split(b"\x00"):
+        if not record:
+            continue
+        key, sep, value = record.partition(b"=")
+        if not sep:
+            continue
+        out[key.decode("utf-8", errors="replace")] = value.decode(
+            "utf-8", errors="replace"
+        )
+    return out
+
+
+def _parse_kv_transfer(extra_serve_args: str) -> dict[str, Any] | None:
+    """``EXTRA_SERVE_ARGS`` 안의 ``--kv-transfer-config={...}`` JSON 추출."""
+    if not extra_serve_args:
+        return None
+    m = _KV_TRANSFER_RE.search(extra_serve_args)
+    if not m:
+        return None
+    try:
+        return json.loads(m.group(1))
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"failed to parse --kv-transfer-config JSON from EXTRA_SERVE_ARGS:\n"
+            f"  raw: {m.group(1)!r}\n"
+            f"  error: {exc}"
+        ) from exc
+
+
+def _load_env_config(env_path: Path) -> EnvConfig:
+    raw = _source_env_dump(env_path)
+
+    def _need(key: str) -> str:
+        if key not in raw or not raw[key]:
+            raise ValueError(
+                f"{env_path}: missing required key {key} (set in env file)"
+            )
+        return raw[key]
+
+    extra_serve_args = raw.get("EXTRA_SERVE_ARGS", "") or ""
+    kv_transfer_dict = _parse_kv_transfer(extra_serve_args)
+    return EnvConfig(
+        env_path=env_path,
+        model=_need("MODEL"),
+        tensor_parallel_size=int(_need("TENSOR_PARALLEL_SIZE")),
+        gpu_memory_util=float(_need("GPU_MEMORY_UTIL")),
+        max_model_len=int(_need("MAX_MODEL_LEN")),
+        extra_serve_args=extra_serve_args,
+        kv_transfer_dict=kv_transfer_dict,
+    )
+
+
+def _validate_baseline_split_pair(baseline: EnvConfig, split_on: EnvConfig) -> None:
+    """두 config 가 같은 모델/TP/max_model_len 인지 — 정확도 비교의 전제."""
+    mismatches: list[str] = []
+    if baseline.model != split_on.model:
+        mismatches.append(f"MODEL: {baseline.model!r} vs {split_on.model!r}")
+    if baseline.tensor_parallel_size != split_on.tensor_parallel_size:
+        mismatches.append(
+            f"TENSOR_PARALLEL_SIZE: {baseline.tensor_parallel_size} vs "
+            f"{split_on.tensor_parallel_size}"
+        )
+    if baseline.max_model_len != split_on.max_model_len:
+        mismatches.append(
+            f"MAX_MODEL_LEN: {baseline.max_model_len} vs {split_on.max_model_len}"
+        )
+    if mismatches:
+        raise ValueError(
+            "baseline / split_on env mismatch — token-divergence comparison "
+            "requires the same model and shape:\n  - " + "\n  - ".join(mismatches)
+        )
+
+
+def _harmonise_gpu_memory_util(
+    baseline: EnvConfig, split_on: EnvConfig
+) -> tuple[EnvConfig, float]:
+    """두 config 의 GPU_MEMORY_UTIL 을 동일값으로 맞춰 반환.
+
+    baseline env 는 보통 OffloadingConnector 가 없어 더 높은 GPU_MEMORY_UTIL
+    (예: 0.9) 을 쓰고, split_on env 는 connector 의 staging 영역을 위해 더
+    낮은 값 (예: 0.85) 을 씁니다. 그대로 비교하면 두 config 가 받는 num_gpu_
+    blocks 가 달라져 batch / scheduling 패턴 변화로 greedy decoding 결과가
+    토큰 단위로 발산할 수 있음 — 알고리즘 변화 (Phase 4c cold path) 와
+    독립된 noise. 따라서 e2e 정확도 비교에서는 *둘 중 더 작은 값* 으로
+    baseline 을 클램프해 fair 비교를 강제합니다.
+    """
+    target = min(baseline.gpu_memory_util, split_on.gpu_memory_util)
+    if baseline.gpu_memory_util != target or split_on.gpu_memory_util != target:
+        print(
+            f"[harmonise] aligning GPU_MEMORY_UTIL → {target:.3f} "
+            f"(baseline env had {baseline.gpu_memory_util:.3f}, "
+            f"split_on env had {split_on.gpu_memory_util:.3f}). The lower "
+            "value is used for both so KV block budget is identical and "
+            "any divergence is attributable to the cold path itself.",
+            flush=True,
+        )
+    if baseline.gpu_memory_util != target:
+        baseline = EnvConfig(
+            env_path=baseline.env_path,
+            model=baseline.model,
+            tensor_parallel_size=baseline.tensor_parallel_size,
+            gpu_memory_util=target,
+            max_model_len=baseline.max_model_len,
+            extra_serve_args=baseline.extra_serve_args,
+            kv_transfer_dict=baseline.kv_transfer_dict,
+        )
+    return baseline, target
+
+
 # ---- vLLM 호출 ----------------------------------------------------------
 
 
-def _build_kv_transfer_config(*, enable_split: bool, cpu_bytes: int):
-    """split_on 에서만 OffloadingConnector + enable_cpu_partial_attention 활성화."""
-    if not enable_split:
-        return None
+def _kv_transfer_config_from_dict(d: dict[str, Any]):
+    """env JSON dict → KVTransferConfig instance (lazy import)."""
     from vllm.config import KVTransferConfig
 
     return KVTransferConfig(
-        kv_connector="OffloadingConnector",
-        kv_role="kv_both",
-        enable_cpu_partial_attention=True,
-        kv_connector_extra_config={"cpu_bytes_to_use": int(cpu_bytes)},
+        kv_connector=d.get("kv_connector"),
+        kv_role=d.get("kv_role"),
+        enable_cpu_partial_attention=bool(
+            d.get("enable_cpu_partial_attention", False)
+        ),
+        kv_connector_extra_config=dict(d.get("kv_connector_extra_config") or {}),
     )
 
 
 def _run_one_config(
     *,
     config_name: str,
-    enable_split: bool,
-    model: str,
-    tensor_parallel_size: int,
-    gpu_memory_util: float,
-    max_model_len: int,
-    cpu_bytes: int,
+    env: EnvConfig,
     prompts: list[str],
     max_tokens: int,
     logprobs_k: int,
     seed: int,
 ) -> ConfigOutputs:
-    """한 config (baseline 또는 split_on) 으로 LLM 을 띄우고 모든 prompt 를 generate."""
-    print(f"\n[{config_name}] loading {model} (TP={tensor_parallel_size})...", flush=True)
+    """한 config 로 LLM 을 띄우고 모든 prompt 를 generate."""
+    print(
+        f"\n[{config_name}] env={env.env_path.name} model={env.model} "
+        f"TP={env.tensor_parallel_size} max_model_len={env.max_model_len}",
+        flush=True,
+    )
+    print(
+        f"[{config_name}]   kv_transfer_config="
+        + ("None" if env.kv_transfer_dict is None else json.dumps(env.kv_transfer_dict)),
+        flush=True,
+    )
+
     t0_total = time.monotonic()
 
     # Lazy import — script 가 vLLM 없이도 --help 동작 가능.
     from vllm import LLM, SamplingParams
 
-    kv_transfer_config = _build_kv_transfer_config(
-        enable_split=enable_split, cpu_bytes=cpu_bytes
-    )
     llm_kwargs: dict[str, Any] = dict(
-        model=model,
-        tensor_parallel_size=tensor_parallel_size,
-        gpu_memory_utilization=gpu_memory_util,
-        max_model_len=max_model_len,
+        model=env.model,
+        tensor_parallel_size=env.tensor_parallel_size,
+        gpu_memory_utilization=env.gpu_memory_util,
+        max_model_len=env.max_model_len,
         seed=seed,
-        # disable async scheduling to keep step ordering deterministic for the
-        # purpose of the divergence comparison (greedy + same seed should still
-        # match either way, but determinism is strictly better here).
     )
-    if kv_transfer_config is not None:
-        llm_kwargs["kv_transfer_config"] = kv_transfer_config
+    if env.kv_transfer_dict is not None:
+        llm_kwargs["kv_transfer_config"] = _kv_transfer_config_from_dict(
+            env.kv_transfer_dict
+        )
 
     llm = LLM(**llm_kwargs)
 
@@ -243,18 +395,14 @@ def _run_one_config(
     prompt_outputs: list[PromptOutputs] = []
     for idx, prompt in enumerate(prompts):
         t0 = time.monotonic()
-        # vLLM v1: LLM.generate accepts a list, returns list of RequestOutput.
         results = llm.generate([prompt], sampling_params, use_tqdm=False)
         t1 = time.monotonic()
-        result = results[0]
-        completion = result.outputs[0]
+        completion = results[0].outputs[0]
         token_ids = list(completion.token_ids)
         chosen_logprobs: list[float] | None = None
         if logprobs_k > 0 and getattr(completion, "logprobs", None):
             chosen_logprobs = []
             for pos, lp_dict in enumerate(completion.logprobs):
-                # lp_dict is dict[token_id, Logprob(.logprob, .rank, .decoded_token)]
-                # find the chosen token's logprob
                 if pos < len(token_ids):
                     tok_id = token_ids[pos]
                     lp_obj = lp_dict.get(tok_id) if lp_dict is not None else None
@@ -272,37 +420,24 @@ def _run_one_config(
             )
         )
         print(
-            f"  prompt {idx}: {len(token_ids)} tok in {t1 - t0:.2f}s",
+            f"  [{config_name}] prompt {idx}: {len(token_ids)} tok in {t1 - t0:.2f}s",
             flush=True,
         )
 
     total = time.monotonic() - t0_total
     print(f"[{config_name}] done in {total:.1f}s", flush=True)
 
-    extra_args: dict[str, Any] | None = None
-    if kv_transfer_config is not None:
-        extra_args = dict(
-            kv_connector=kv_transfer_config.kv_connector,
-            enable_cpu_partial_attention=(
-                kv_transfer_config.enable_cpu_partial_attention
-            ),
-            kv_connector_extra_config=dict(
-                kv_transfer_config.kv_connector_extra_config
-            ),
-        )
     out = ConfigOutputs(
         config_name=config_name,
-        model=model,
-        tensor_parallel_size=tensor_parallel_size,
+        env=env,
         max_tokens=max_tokens,
         logprobs_k=logprobs_k,
-        extra_serve_args=extra_args,
         prompts=prompt_outputs,
         total_seconds=total,
     )
 
-    # Free the GPU resident model before the next load. CRITICAL on dev where
-    # two 7B models would not fit.
+    # Free GPU resident model before the next load — critical on dev where
+    # two large models would not fit.
     del llm
     gc.collect()
     try:
@@ -376,8 +511,19 @@ def _compare_outputs(
 # ---- I/O ---------------------------------------------------------------
 
 
+def _serializable(obj: Any) -> Any:
+    """asdict 산출물에서 Path 등 비-JSON-serializable 인 항목을 변환."""
+    if isinstance(obj, Path):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_serializable(v) for v in obj]
+    return obj
+
+
 def _save_config_outputs(path: Path, outputs: ConfigOutputs) -> None:
-    payload = asdict(outputs)
+    payload = _serializable(asdict(outputs))
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
 
 
@@ -388,25 +534,25 @@ def _save_comparison(path: Path, comparison: dict[str, Any]) -> None:
 def _write_readme(
     path: Path,
     *,
+    baseline: ConfigOutputs,
+    split_on: ConfigOutputs,
     args: argparse.Namespace,
-    baseline_seconds: float,
-    split_on_seconds: float,
     comparison: dict[str, Any],
 ) -> None:
     lines = [
-        f"# TST_003 e2e accuracy run — {args.model}",
+        f"# TST_003 e2e accuracy run",
         "",
         f"- timestamp:           {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        f"- model:               {args.model}",
-        f"- tensor_parallel:     {args.tensor_parallel}",
-        f"- gpu_memory_util:     {args.gpu_memory_util}",
-        f"- max_model_len:       {args.max_model_len}",
+        f"- baseline env:        {baseline.env.env_path}",
+        f"- split_on env:        {split_on.env.env_path}",
+        f"- model:               {baseline.env.model}",
+        f"- tensor_parallel:     {baseline.env.tensor_parallel_size}",
+        f"- max_model_len:       {baseline.env.max_model_len}",
         f"- max_tokens:          {args.max_tokens}",
         f"- logprobs_k:          {args.logprobs}",
-        f"- cpu_bytes_to_use:    {args.cpu_bytes}",
-        f"- num_prompts:         {len(_DEFAULT_PROMPTS) if args.prompts_file is None else 'from file'}",
-        f"- baseline duration:   {baseline_seconds:.1f}s",
-        f"- split_on duration:   {split_on_seconds:.1f}s",
+        f"- num_prompts:         {len(baseline.prompts)}",
+        f"- baseline duration:   {baseline.total_seconds:.1f}s",
+        f"- split_on duration:   {split_on.total_seconds:.1f}s",
         "",
         "## Tolerance",
         f"- MAX_DIVERGING_TOKENS: {args.max_diverging_tokens}",
@@ -435,18 +581,24 @@ def _write_readme(
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    p.add_argument("--model", required=True, help="HF model id")
-    p.add_argument("--tensor-parallel", type=int, default=1)
-    p.add_argument("--gpu-memory-util", type=float, default=0.85)
-    p.add_argument("--max-model-len", type=int, default=8192)
+    p.add_argument(
+        "--baseline-env",
+        type=Path,
+        required=True,
+        help="path to env file for the baseline (typically vllm_original*.env)",
+    )
+    p.add_argument(
+        "--split-on-env",
+        type=Path,
+        required=True,
+        help=(
+            "path to env file for the split_on case (typically "
+            "ide006_cold_kv_split_on*.env). Must enable_cpu_partial_attention=true "
+            "in EXTRA_SERVE_ARGS."
+        ),
+    )
     p.add_argument("--max-tokens", type=int, default=64)
     p.add_argument("--logprobs", type=int, default=10, help="0 disables logprob collection")
-    p.add_argument(
-        "--cpu-bytes",
-        type=int,
-        default=1 * 1024 ** 3,
-        help="cpu_bytes_to_use for OffloadingConnector (split_on only)",
-    )
     p.add_argument("--seed", type=int, default=0)
     p.add_argument(
         "--prompts-file",
@@ -484,7 +636,6 @@ def _resolve_output_dir(args: argparse.Namespace) -> Path:
         out = args.output_dir
     else:
         ts = time.strftime("%Y%m%d_%H%M%S")
-        # _hwtag.sh exports HW_TAG; fall back to "unknown_hw" if absent.
         hw_tag = os.environ.get("HW_TAG", "unknown_hw")
         eval_dir = Path(__file__).resolve().parent
         out = eval_dir / "results" / f"{ts}_{hw_tag}_e2e_accuracy"
@@ -497,18 +648,32 @@ def main() -> int:
     out_dir = _resolve_output_dir(args)
     print(f"output dir: {out_dir}", flush=True)
 
+    baseline_env = _load_env_config(args.baseline_env)
+    split_on_env = _load_env_config(args.split_on_env)
+    _validate_baseline_split_pair(baseline_env, split_on_env)
+    baseline_env, _harmonised = _harmonise_gpu_memory_util(baseline_env, split_on_env)
+
+    if (
+        split_on_env.kv_transfer_dict is None
+        or not split_on_env.kv_transfer_dict.get("enable_cpu_partial_attention", False)
+    ):
+        # Defence in depth — TST_003 only makes sense when split is actually
+        # on for the split_on env. Misconfigured env should fail loudly.
+        raise ValueError(
+            f"--split-on-env {args.split_on_env} does not have "
+            "enable_cpu_partial_attention=true in its EXTRA_SERVE_ARGS "
+            "kv-transfer-config — the e2e accuracy gate would compare "
+            "two equivalent configurations and trivially pass. Use the "
+            "split_on env (e.g. ide006_cold_kv_split_on_long_ctx.env)."
+        )
+
     prompts = _load_prompts(args)
     print(f"prompts: {len(prompts)}", flush=True)
 
     # 1) baseline
     baseline = _run_one_config(
         config_name="baseline",
-        enable_split=False,
-        model=args.model,
-        tensor_parallel_size=args.tensor_parallel,
-        gpu_memory_util=args.gpu_memory_util,
-        max_model_len=args.max_model_len,
-        cpu_bytes=args.cpu_bytes,
+        env=baseline_env,
         prompts=prompts,
         max_tokens=args.max_tokens,
         logprobs_k=args.logprobs,
@@ -519,12 +684,7 @@ def main() -> int:
     # 2) split_on (TSK_002 Phase 4c feature on)
     split_on = _run_one_config(
         config_name="split_on",
-        enable_split=True,
-        model=args.model,
-        tensor_parallel_size=args.tensor_parallel,
-        gpu_memory_util=args.gpu_memory_util,
-        max_model_len=args.max_model_len,
-        cpu_bytes=args.cpu_bytes,
+        env=split_on_env,
         prompts=prompts,
         max_tokens=args.max_tokens,
         logprobs_k=args.logprobs,
@@ -543,9 +703,9 @@ def main() -> int:
     _save_comparison(out_dir / "comparison.json", comparison)
     _write_readme(
         out_dir / "README.md",
+        baseline=baseline,
+        split_on=split_on,
         args=args,
-        baseline_seconds=baseline.total_seconds,
-        split_on_seconds=split_on.total_seconds,
         comparison=comparison,
     )
 

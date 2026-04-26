@@ -127,18 +127,16 @@ log "  scenario 3 exit=${SCEN3_RC}"
 log "[5/5] e2e accuracy (TST_003: D-i token divergence + D-ii logprob/PPL)"
 ACC_RC=0
 ACC_OUT_DIR="${SCRIPT_DIR}/results/${TS}_${HW_TAG}_e2e_accuracy"
+mkdir -p "${ACC_OUT_DIR}"
+# baseline / split_on env 는 [2] / [4] 에서 사용한 동일한 env 파일을 그대로
+# 재사용. 모델·TP·max_model_len·EXTRA_SERVE_ARGS 가 단일 source of truth.
 HW_TAG="${HW_TAG}" "${PYTHON}" "${SCRIPT_DIR}/run_e2e_accuracy.py" \
-    --model meta-llama/Llama-3.3-70B-Instruct \
-    --tensor-parallel 8 \
-    --gpu-memory-util 0.85 \
-    --max-model-len 8192 \
+    --baseline-env "${SCRIPT_DIR}/envs/vllm_original_long_ctx.env" \
+    --split-on-env "${SCRIPT_DIR}/envs/ide006_cold_kv_split_on_long_ctx.env" \
     --max-tokens 64 \
     --logprobs 20 \
-    --cpu-bytes 17179869184 \
     --output-dir "${ACC_OUT_DIR}" \
-    2>&1 | tee "${ACC_OUT_DIR}.log" || ACC_RC=$?
-# Move the .log next to the JSONs so the run dir is self-contained.
-mv -f "${ACC_OUT_DIR}.log" "${ACC_OUT_DIR}/run_e2e_accuracy.log" 2>/dev/null || true
+    2>&1 | tee "${ACC_OUT_DIR}/run_e2e_accuracy.log" || ACC_RC=$?
 log "  e2e accuracy exit=${ACC_RC}"
 
 # --------------------------------------------------------------------- summary
