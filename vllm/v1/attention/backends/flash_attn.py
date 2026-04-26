@@ -799,6 +799,39 @@ class FlashAttentionImpl(AttentionImpl):
         # standard hot path so we avoid the extra dispatch overhead and
         # the hot_cold_attention internal `output.copy_(hot_output)`
         # short-circuit.
+        # IDE_006 / TSK_002 Phase 4c diagnostic — count layer-level cold
+        # path firings on the *first* layer of the model so we can confirm
+        # in prod logs whether the dispatcher actually entered the
+        # partial-attention branch. Layer-name suffix '.0.' (i.e. layer 0)
+        # is checked to avoid 80 × duplication on Llama-70B.
+        if "layers.0." in getattr(layer, "layer_name", ""):
+            global _cold_dispatch_layer0_counter, _cold_dispatch_layer0_fired
+            try:
+                _cold_dispatch_layer0_counter
+            except NameError:
+                _cold_dispatch_layer0_counter = 0
+                _cold_dispatch_layer0_fired = 0
+            _cold_dispatch_layer0_counter += 1
+            fires = (
+                attn_metadata.enable_hot_cold_split
+                and attn_metadata.max_num_cold_blocks_host > 0
+            )
+            if fires:
+                _cold_dispatch_layer0_fired += 1
+            if _cold_dispatch_layer0_counter <= 3 or (
+                _cold_dispatch_layer0_counter % 200 == 0
+            ):
+                from vllm.logger import init_logger as _ilog
+                _ilog(__name__).info(
+                    "[IDE_006 diag layer0 step=%d] enable_hot_cold_split=%s "
+                    "max_num_cold_blocks_host=%d fired_so_far=%d/%d",
+                    _cold_dispatch_layer0_counter,
+                    attn_metadata.enable_hot_cold_split,
+                    attn_metadata.max_num_cold_blocks_host,
+                    _cold_dispatch_layer0_fired,
+                    _cold_dispatch_layer0_counter,
+                )
+
         if (
             attn_metadata.enable_hot_cold_split
             and attn_metadata.max_num_cold_blocks_host > 0

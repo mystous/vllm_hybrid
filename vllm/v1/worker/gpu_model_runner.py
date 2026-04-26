@@ -2292,6 +2292,29 @@ class GPUModelRunner(
                 max_num_cold_blocks_host=max_cold_per_req,
             )
 
+            # IDE_006 / TSK_002 Phase 4c diagnostics. Emit a one-shot
+            # summary every 200 steps so we can confirm from prod logs
+            # whether the connector is actually surfacing cold blocks
+            # (i.e. partial-attention is being asked to fire). Without
+            # this, a "PASS by no-fire" failure mode looks identical to
+            # a real PASS in TST_003 results.
+            if not hasattr(self, "_cold_dispatch_counter"):
+                self._cold_dispatch_counter = 0
+            self._cold_dispatch_counter += 1
+            if self._cold_dispatch_counter <= 3 or (
+                self._cold_dispatch_counter % 200 == 0
+            ):
+                num_with_cold = int(np.count_nonzero(num_cold_blocks_np))
+                logger.info(
+                    "[IDE_006 diag step=%d] reqs_with_cold_blocks=%d/%d "
+                    "max_cold_per_req=%d total_cold_blocks=%d",
+                    self._cold_dispatch_counter,
+                    num_with_cold,
+                    num_reqs,
+                    max_cold_per_req,
+                    int(num_cold_blocks_np.sum()),
+                )
+
         # Cache attention metadata builds across hybrid KV-cache groups
         # The only thing that changes between different hybrid KV-cache groups when the
         # same metadata builder and KVCacheSpec is the same is the block table, so we
