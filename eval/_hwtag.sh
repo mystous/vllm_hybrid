@@ -30,8 +30,18 @@ _cpu_short=$(_sanitize "${_cpu_raw:-unknownCPU}")
 CPU_TAG="${_cpu_short}x${_cpu_sockets}"
 
 if command -v nvidia-smi &>/dev/null; then
-    _gpu_raw=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
-    _gpu_count=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | wc -l)
+    # Capture all GPU rows once, then slice locally — avoid `nvidia-smi | head`
+    # which races on multi-GPU hosts: head closes stdout after the first line,
+    # nvidia-smi gets SIGPIPE on its next write (exit 141), and under the
+    # caller's `set -o pipefail` the whole pipeline fails silently.
+    _gpu_all=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null || true)
+    if [[ -n "${_gpu_all}" ]]; then
+        _gpu_raw=$(printf '%s\n' "${_gpu_all}" | sed -n '1p')
+        _gpu_count=$(printf '%s\n' "${_gpu_all}" | wc -l)
+    else
+        _gpu_raw=""
+        _gpu_count=0
+    fi
     _gpu_short=$(_sanitize "${_gpu_raw/NVIDIA /}")
     GPU_TAG="${_gpu_short:-unknownGPU}x${_gpu_count:-0}"
 else
