@@ -119,6 +119,29 @@ class OffloadingConnectorScheduler:
         self.config = SchedulerOffloadConfig.from_spec(spec)
         self.manager: OffloadingManager = spec.get_manager()
 
+        # Cold-KV CPU partial attention (IDE_006 / TSK_002 Phase 4c) is
+        # currently scope-locked to block_size_factor == 1 (one offloaded
+        # block == one GPU block). When factor > 1 the partial-attention
+        # kernel — which works at GPU-block granularity — has no way to
+        # address sub-block slices of a CPU canonical buffer. Refuse the
+        # combination at config time so the user gets a clear message
+        # instead of an opaque failure deep inside model_runner.
+        kv_cfg = spec.vllm_config.kv_transfer_config
+        if (
+            kv_cfg is not None
+            and kv_cfg.enable_cpu_partial_attention
+            and self.config.block_size_factor != 1
+        ):
+            raise ValueError(
+                "enable_cpu_partial_attention=True requires "
+                "block_size_factor == 1 (offloaded_block_size must equal "
+                "gpu_block_size). Got block_size_factor="
+                f"{self.config.block_size_factor}. Either drop "
+                "kv_connector_extra_config['block_size'] (the default "
+                "matches gpu_block_size) or set it to the GPU block size "
+                "of the current model."
+            )
+
         self._req_status: dict[ReqId, RequestOffloadState] = {}
         # requests to load for the current scheduler step
         self._reqs_to_load: dict[ReqId, TransferSpec] = {}
@@ -385,21 +408,44 @@ class OffloadingConnectorScheduler:
         cold_factor_one = self.config.block_size_factor == 1
         for req_id, req_status in self._req_status.items():
             next_idx = req_status.group_states[0].next_stored_block_idx
-            if next_idx > 0:
+            if next_idx == 0:
+                continue
+            if cold_factor_one:
+                # Reconcile num count and CPU IDs from a single source —
+                # the longest contiguous prefix of ready (data has been
+                # transferred to CPU) blocks. `next_stored_block_idx` is
+                # an *optimistic* counter that increments at prepare_store
+                # time (block allocated, not yet ready). The Cold-KV CPU
+                # partial attention path can only safely read READY
+                # blocks, so we trim back to that prefix here. Otherwise
+                # num_cold_blocks and cold_cpu_block_ids would race and
+                # the dispatcher would invoke the kernel with stale CPU
+                # block IDs (or none at all) → garbage output / CUDA
+                # illegal memory access.
+                cold_offload_keys = (
+                    req_status.group_states[0].offload_keys[:next_idx]
+                )
+                peeked = self.manager.peek_block_ids(
+                    cold_offload_keys, req_status.req_context
+                )
+                ready_prefix = 0
+                for b in peeked:
+                    if b is None:
+                        break
+                    ready_prefix += 1
+                if ready_prefix > 0:
+                    num_cold_gpu_blocks_per_req[req_id] = ready_prefix
+                    cold_cpu_block_ids[req_id] = [
+                        int(b) for b in peeked[:ready_prefix]
+                    ]
+            else:
+                # factor != 1 → cold attention path is not supported (we
+                # validate and reject this combination at __init__ when
+                # enable_cpu_partial_attention is on). Still publish the
+                # GPU-block count for any other consumer.
                 num_cold_gpu_blocks_per_req[req_id] = (
                     next_idx * self.config.block_size_factor
                 )
-                if cold_factor_one:
-                    cold_offload_keys = (
-                        req_status.group_states[0].offload_keys[:next_idx]
-                    )
-                    peeked = self.manager.peek_block_ids(
-                        cold_offload_keys, req_status.req_context
-                    )
-                    if all(b is not None for b in peeked):
-                        # Cast: peek returned `list[int | None]`; we just
-                        # confirmed all are int, narrow for the dict type.
-                        cold_cpu_block_ids[req_id] = [int(b) for b in peeked]
 
         meta = OffloadingConnectorMetadata(
             reqs_to_load=self._reqs_to_load,

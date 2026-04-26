@@ -46,6 +46,10 @@ from vllm.config import (
     get_layers_from_vllm_config,
 )
 from vllm.config.cache import CacheDType
+from vllm.distributed.kv_transfer import (
+    get_kv_transfer_group,
+    has_kv_transfer_group,
+)
 from vllm.distributed.parallel_state import get_dcp_group
 from vllm.logger import init_logger
 from vllm.platforms.interface import DeviceCapability
@@ -259,6 +263,19 @@ class FlashAttentionMetadata:
     # pre-IDE_006 path.
     enable_hot_cold_split: bool = False
     num_cold_blocks: torch.Tensor | None = None
+    # Phase 4c additions — populated by FlashAttentionMetadataBuilder
+    # only when enable_hot_cold_split is True. cold_cpu_block_ids
+    # carries each request's CPU canonical-buffer block IDs for its
+    # cold prefix (padded to max_cold_blocks_per_req), aligned with
+    # the same per-request order as block_table / num_cold_blocks.
+    # query_positions is the absolute sequence position of each query
+    # token, used by the CPU partial-attention kernel's causal mask.
+    # max_num_cold_blocks_host is the host-side max of num_cold_blocks
+    # captured once at build time; the per-layer dispatcher uses this
+    # to skip a per-call GPU→CPU sync.
+    cold_cpu_block_ids: torch.Tensor | None = None
+    query_positions: torch.Tensor | None = None
+    max_num_cold_blocks_host: int = 0
 
 
 def _get_sliding_window_configs(
@@ -392,15 +409,18 @@ class FlashAttentionMetadataBuilder(AttentionMetadataBuilder[FlashAttentionMetad
         fast_build: bool = False,
         num_cold_blocks: torch.Tensor | None = None,
         enable_hot_cold_split: bool = False,
+        cold_cpu_block_ids: torch.Tensor | None = None,
+        query_positions: torch.Tensor | None = None,
+        max_num_cold_blocks_host: int = 0,
     ) -> FlashAttentionMetadata:
         """
         fast_build disables AOT scheduling, used when there will be few
         iterations i.e. spec-decode
 
-        num_cold_blocks / enable_hot_cold_split are the IDE_006 / TSK_002
-        Cold-KV CPU partial attention inputs; both default-off so existing
-        callers are unchanged. They are forwarded directly to
-        FlashAttentionMetadata.
+        num_cold_blocks / enable_hot_cold_split / cold_cpu_block_ids /
+        query_positions are the IDE_006 / TSK_002 Cold-KV CPU partial
+        attention inputs; all default-off so existing callers are
+        unchanged. They are forwarded directly to FlashAttentionMetadata.
         """
         num_reqs = common_attn_metadata.num_reqs
         num_actual_tokens = common_attn_metadata.num_actual_tokens
@@ -582,6 +602,9 @@ class FlashAttentionMetadataBuilder(AttentionMetadataBuilder[FlashAttentionMetad
             causal=causal,
             enable_hot_cold_split=enable_hot_cold_split,
             num_cold_blocks=num_cold_blocks,
+            cold_cpu_block_ids=cold_cpu_block_ids,
+            query_positions=query_positions,
+            max_num_cold_blocks_host=max_num_cold_blocks_host,
         )
         return attn_metadata
 
@@ -765,6 +788,95 @@ class FlashAttentionImpl(AttentionImpl):
             )
             key_cache = key_cache.view(dtype)
             value_cache = value_cache.view(dtype)
+
+        # Cold-KV CPU partial attention dispatcher (IDE_006 / TSK_002
+        # Phase 4c). Active only when (a) the metadata builder set
+        # `enable_hot_cold_split=True` (requires
+        # `KVTransferConfig.enable_cpu_partial_attention` opt-in plus a
+        # populated OffloadingConnectorMetadata) AND (b) at least one
+        # request in the batch actually has a cold prefix. When the
+        # batch happens to have no cold blocks, fall through to the
+        # standard hot path so we avoid the extra dispatch overhead and
+        # the hot_cold_attention internal `output.copy_(hot_output)`
+        # short-circuit.
+        if (
+            attn_metadata.enable_hot_cold_split
+            and attn_metadata.max_num_cold_blocks_host > 0
+        ):
+            from vllm.v1.attention.ops.kv_view_adapter import KVPageLayout
+
+            if not has_kv_transfer_group():
+                raise RuntimeError(
+                    "enable_hot_cold_split is True but no KV transfer "
+                    "group is registered; check kv_transfer_config / "
+                    "KVConnector setup."
+                )
+            connector = get_kv_transfer_group()
+            cpu_kv_cache = connector.get_cpu_kv_buffer_for_layer(layer.layer_name)
+            if cpu_kv_cache is None:
+                raise RuntimeError(
+                    "Connector did not surface CPU KV buffer for layer "
+                    f"{layer.layer_name!r}; cold path cannot proceed. "
+                    "Either disable enable_cpu_partial_attention or use "
+                    "a connector that overrides "
+                    "get_cpu_kv_buffer_for_layer (e.g. OffloadingConnector)."
+                )
+
+            block_size_value = key_cache.shape[1]
+            cold_kv_layout = KVPageLayout(
+                head_dim=self.head_size,
+                num_kv_heads=self.num_kv_heads,
+                block_size=block_size_value,
+                dtype=key_cache.dtype,
+            )
+
+            cu_seqlens_q = attn_metadata.query_start_loc
+            seqused_k = attn_metadata.seq_lens
+            num_cold_blocks_t = attn_metadata.num_cold_blocks
+            # Use the host-side max captured by the metadata builder so
+            # per-layer dispatch avoids a GPU→CPU sync. The builder
+            # records this in `max_num_cold_blocks_host` from the same
+            # numpy array it builds `num_cold_blocks` from. When the
+            # tensor is None / empty, fall back to 0 — the dispatcher
+            # below short-circuits to the standard hot path then.
+            max_num_cold_blocks = attn_metadata.max_num_cold_blocks_host
+
+            descale_shape = (cu_seqlens_q.shape[0] - 1, self.num_kv_heads)
+            q_descale = (
+                layer._q_scale.expand(descale_shape)
+                if self.supports_quant_query_input
+                else None
+            )
+            k_descale = layer._k_scale.expand(descale_shape)
+            v_descale = layer._v_scale.expand(descale_shape)
+
+            hot_cold_attention(
+                output=output[:num_actual_tokens],
+                query=query[:num_actual_tokens],
+                key_cache=key_cache,
+                value_cache=value_cache,
+                cu_query_lens=cu_seqlens_q,
+                max_query_len=attn_metadata.max_query_len,
+                seqused_k=seqused_k,
+                max_seqlen_k=attn_metadata.max_seq_len,
+                softmax_scale=self.scale,
+                sliding_window=self.sliding_window,
+                logits_soft_cap=self.logits_soft_cap,
+                block_table=attn_metadata.block_table,
+                block_size=block_size_value,
+                num_cold_blocks=num_cold_blocks_t,
+                max_num_cold_blocks=max_num_cold_blocks,
+                fa_version=self.vllm_flash_attn_version,
+                causal=attn_metadata.causal,
+                q_descale=q_descale,
+                k_descale=k_descale,
+                v_descale=v_descale,
+                cpu_kv_cache=cpu_kv_cache,
+                cold_kv_layout=cold_kv_layout,
+                cold_block_ids=attn_metadata.cold_cpu_block_ids,
+                query_positions=attn_metadata.query_positions,
+            )
+            return output
 
         if not attn_metadata.use_cascade:
             cu_seqlens_q = attn_metadata.query_start_loc
@@ -1254,7 +1366,7 @@ def hot_cold_attention(
     q_descale: torch.Tensor | None = None,
     k_descale: torch.Tensor | None = None,
     v_descale: torch.Tensor | None = None,
-    cpu_kv_cache: torch.Tensor | None = None,
+    cpu_kv_cache: list[torch.Tensor] | None = None,
     cold_kv_layout: "KVPageLayout | None" = None,  # noqa: F821
     cold_block_ids: torch.Tensor | None = None,
     query_positions: torch.Tensor | None = None,
@@ -1380,6 +1492,24 @@ def hot_cold_attention(
             "the OffloadingConnector worker state and kv_cache_spec."
         )
 
+    # cpu_kv_cache is a list of canonical int8 buffers per layer.
+    # len == 1 → combined K+V layout (e.g. mamba). len == 2 → split K
+    # and V (FlashAttention's OffloadingConnector mirror — first entry
+    # is K-only, second is V-only). Any other length is a bug in the
+    # caller's plumbing.
+    if len(cpu_kv_cache) == 1:
+        cold_kv_combined = cpu_kv_cache[0]
+        cold_kv_v_split = None
+    elif len(cpu_kv_cache) == 2:
+        cold_kv_combined = cpu_kv_cache[0]
+        cold_kv_v_split = cpu_kv_cache[1]
+    else:
+        raise ValueError(
+            "cpu_kv_cache must be a list of 1 (combined K+V) or 2 (split "
+            "K, V) int8 canonical buffers; got list of length "
+            f"{len(cpu_kv_cache)}."
+        )
+
     # Local import — TSK_001's user-facing entry point. Lazy to keep the
     # module import-time cost bounded and avoid a hard top-level coupling
     # between flash_attn backend and the cpu_partial_attention op.
@@ -1404,7 +1534,7 @@ def hot_cold_attention(
 
     cold_output_cpu, cold_lse_cpu = forward_partial_with_lse(
         query=query_cpu,
-        cold_kv_cache=cpu_kv_cache,
+        cold_kv_cache=cold_kv_combined,
         cold_kv_layout=cold_kv_layout,
         cold_block_ids=cold_block_ids_cpu,
         cold_block_lens=num_cold_blocks_cpu,
@@ -1413,6 +1543,7 @@ def hot_cold_attention(
         query_positions=query_positions_cpu,
         softmax_scale=softmax_scale,
         causal=causal,
+        cold_kv_cache_v=cold_kv_v_split,
     )
 
     # H2D of (O_cold, LSE_cold) onto the same device as the hot outputs

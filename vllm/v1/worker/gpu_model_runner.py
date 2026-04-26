@@ -2232,9 +2232,64 @@ class GPUModelRunner(
             num_cold_blocks_tensor = torch.from_numpy(num_cold_blocks_np).to(
                 device=self.device, non_blocking=True
             )
+
+            # Phase 4c: build cold_cpu_block_ids tensor [num_reqs_padded,
+            # max_cold_per_req] aligned with input_batch.req_ids order.
+            # Padding slots beyond num_cold_blocks[i] hold 0 (the kernel
+            # only reads up to num_cold_blocks[i] anyway).
+            cold_ids_per_req = kv_connector_metadata.cold_cpu_block_ids
+            max_cold_per_req = int(num_cold_blocks_np.max(initial=0))
+            if max_cold_per_req > 0:
+                cold_ids_np = np.zeros(
+                    (num_reqs_padded, max_cold_per_req), dtype=np.int32
+                )
+                for i, req_id in enumerate(
+                    self.input_batch.req_ids[:num_reqs]
+                ):
+                    ids = cold_ids_per_req.get(req_id)
+                    if ids:
+                        cold_ids_np[i, :len(ids)] = ids
+                cold_cpu_block_ids_tensor = torch.from_numpy(cold_ids_np)
+            else:
+                cold_cpu_block_ids_tensor = torch.zeros(
+                    (num_reqs_padded, 0), dtype=torch.int32
+                )
+
+            # Phase 4c: build query_positions tensor [num_actual_tokens]
+            # — absolute position of each query token within its
+            # request's full sequence. Decode (query_len == 1) gives
+            # query_positions[token_i] = seq_lens[req] - 1; mixed
+            # prefill/decode is handled by the per-token loop below.
+            query_positions_np = np.zeros(num_tokens, dtype=np.int32)
+            cu_q_cpu = (
+                self.query_start_loc.cpu[: num_reqs_padded + 1]
+                .numpy()
+            )
+            seq_lens_np = self.optimistic_seq_lens_cpu.numpy()[:num_reqs]
+            for i in range(num_reqs):
+                q_start = int(cu_q_cpu[i])
+                q_end = int(cu_q_cpu[i + 1])
+                q_len = q_end - q_start
+                if q_len <= 0:
+                    continue
+                seq_len_i = int(seq_lens_np[i])
+                # query token j (0-indexed within request) lives at
+                # absolute position (seq_len - q_len + j).
+                base = seq_len_i - q_len
+                for j in range(q_len):
+                    if q_start + j < num_tokens:
+                        query_positions_np[q_start + j] = base + j
+            query_positions_tensor = torch.from_numpy(query_positions_np)
+
             hot_cold_split_kwargs = dict(
                 num_cold_blocks=num_cold_blocks_tensor,
                 enable_hot_cold_split=True,
+                cold_cpu_block_ids=cold_cpu_block_ids_tensor,
+                query_positions=query_positions_tensor,
+                # Phase 4c host-side max — captured here once so the
+                # per-layer attention dispatcher avoids a GPU→CPU sync
+                # (`num_cold_blocks.max().item()`) on every layer.
+                max_num_cold_blocks_host=max_cold_per_req,
             )
 
         # Cache attention metadata builds across hybrid KV-cache groups

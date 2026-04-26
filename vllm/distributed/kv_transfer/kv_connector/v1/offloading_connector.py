@@ -44,6 +44,20 @@ from vllm.v1.request import Request
 class OffloadingConnector(KVConnectorBase_V1):
     @property
     def prefer_cross_layer_blocks(self) -> bool:
+        # The Cold-KV CPU partial attention path (IDE_006 / TSK_002 Phase
+        # 4c) requires per-layer registration so the worker can resolve
+        # layer_name → CPU canonical buffer slice via
+        # `OffloadingConnectorWorker._block_data_refs`. The cross-layers
+        # registration path (worker.register_cross_layers_kv_cache)
+        # builds a single shared canonical tensor that does not currently
+        # carry per-layer offsets in `_block_data_refs`. When the user
+        # has opted in via `enable_cpu_partial_attention=True`, we
+        # therefore opt OUT of cross-layer blocks for this connector
+        # instance. With the flag off (the default) the historical
+        # cross-layer behaviour is preserved.
+        kv_cfg = self._kv_transfer_config
+        if kv_cfg is not None and kv_cfg.enable_cpu_partial_attention:
+            return False
         return True
 
     def __init__(

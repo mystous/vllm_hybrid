@@ -106,7 +106,63 @@ class KVViewAdapter:
             )
 
         self._canonical = canonical
+        # Combined mode: K and V are packed inside `_canonical`. Split
+        # mode populates `_v_canonical` and treats `_canonical` as the
+        # K-only buffer (each page = one K block, V lives in
+        # `_v_canonical`). Combined mode keeps `_v_canonical` as None.
+        self._v_canonical: torch.Tensor | None = None
         self.layout = layout
+
+    @classmethod
+    def from_split_kv(
+        cls,
+        k_canonical: torch.Tensor,
+        v_canonical: torch.Tensor,
+        layout: KVPageLayout,
+    ) -> "KVViewAdapter":
+        """Build an adapter for layouts where K and V live in two
+        separate canonical int8 tensors (e.g. FlashAttention's
+        ``(2, num_blocks, ...)`` GPU storage maps to two CPU mirror
+        buffers — one K and one V — when offloaded by
+        :class:`OffloadingConnector`).
+
+        Each input is shape ``(num_blocks, kv_block_bytes)`` with
+        ``kv_block_bytes >= layout.kv_block_bytes``. The returned
+        adapter exposes :meth:`k_view` and :meth:`v_view` with the
+        same semantics as the combined-mode constructor; the only
+        difference is that the two views index into different storage.
+        """
+        for tag, t in (("k_canonical", k_canonical), ("v_canonical", v_canonical)):
+            if t.dtype is not torch.int8:
+                raise TypeError(f"{tag} must be int8, got {t.dtype}")
+            if t.dim() != 2:
+                raise ValueError(
+                    f"{tag} must be a 2D tensor of shape "
+                    "(num_blocks, kv_block_bytes); got shape "
+                    f"{tuple(t.shape)}"
+                )
+            if not t.is_contiguous():
+                raise ValueError(
+                    f"{tag} must be contiguous so K/V views can share "
+                    "storage without copying"
+                )
+            if t.shape[1] < layout.kv_block_bytes:
+                raise ValueError(
+                    f"{tag} page is too small: got {t.shape[1]} bytes, "
+                    f"need at least {layout.kv_block_bytes} bytes for "
+                    f"layout {layout!r}"
+                )
+        if k_canonical.shape[0] != v_canonical.shape[0]:
+            raise ValueError(
+                "k_canonical and v_canonical must have the same "
+                "num_blocks; got "
+                f"{k_canonical.shape[0]} vs {v_canonical.shape[0]}"
+            )
+        instance = cls.__new__(cls)
+        instance._canonical = k_canonical
+        instance._v_canonical = v_canonical
+        instance.layout = layout
+        return instance
 
     # ------------------------------------------------------------------
     # Properties
@@ -124,17 +180,29 @@ class KVViewAdapter:
     # Views
     # ------------------------------------------------------------------
 
-    def _slice_typed_block(self, byte_offset: int) -> torch.Tensor:
+    def _slice_typed_block(
+        self,
+        byte_offset: int,
+        source: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Extract a ``(num_blocks, block_size, num_kv_heads, head_dim)``
-        view starting at ``byte_offset`` in each page.
+        view starting at ``byte_offset`` in each page of ``source``.
 
-        Implementation note: K and V are interleaved within each page
-        (K block followed by V block), so a slice on dim=1 of canonical
-        is **non-contiguous** across pages — a naive ``.contiguous()``
-        would copy. To preserve zero-copy semantics (writes through the
-        view must reach ``canonical``) we build the view explicitly via
-        :func:`torch.as_strided` over the int8-→typed reinterpretation.
+        ``source`` defaults to ``self._canonical`` (combined mode);
+        split mode passes ``self._v_canonical`` for the V view.
+
+        Implementation note: in combined mode K and V are interleaved
+        within each page (K block followed by V block), so a slice on
+        dim=1 of canonical is **non-contiguous** across pages — a naive
+        ``.contiguous()`` would copy. To preserve zero-copy semantics
+        (writes through the view must reach ``canonical``) we build the
+        view explicitly via :func:`torch.as_strided` over the
+        int8-→typed reinterpretation. Split mode uses the same machinery
+        with ``elements_per_page`` derived from a smaller (K-or-V-only)
+        ``source``, naturally yielding the correct stride.
         """
+        if source is None:
+            source = self._canonical
         layout = self.layout
         dtype = layout.dtype
         if byte_offset % dtype.itemsize != 0:
@@ -144,7 +212,7 @@ class KVViewAdapter:
             )
         # Reinterpret canonical (int8) as the target dtype. Shape becomes
         # (num_blocks, page_size_bytes / itemsize), still contiguous.
-        typed = self._canonical.view(dtype)
+        typed = source.view(dtype)
         elements_per_page = typed.shape[1]
         offset_in_elements = byte_offset // dtype.itemsize
         # Strides (in elements) of the resulting view:
@@ -173,7 +241,9 @@ class KVViewAdapter:
         """Return the K view of all blocks.
 
         Shape ``(num_blocks, block_size, num_kv_heads, head_dim)`` in
-        the layout dtype. K occupies the first half of each page.
+        the layout dtype. In combined mode K occupies the first half
+        of each page; in split mode K is the entirety of
+        ``_canonical``.
         """
         return self._slice_typed_block(0)
 
@@ -181,10 +251,33 @@ class KVViewAdapter:
         """Return the V view of all blocks.
 
         Shape ``(num_blocks, block_size, num_kv_heads, head_dim)`` in
-        the layout dtype. V occupies the second half of each page.
+        the layout dtype. In combined mode V occupies the second half
+        of each page; in split mode V is the entirety of
+        ``_v_canonical``.
         """
+        if self._v_canonical is not None:
+            # Split mode: V lives in its own canonical tensor — read
+            # from offset 0 there rather than the second half of the
+            # combined page.
+            return self._slice_typed_block(0, source=self._v_canonical)
         return self._slice_typed_block(self.layout.kv_block_bytes)
 
     def as_canonical(self) -> torch.Tensor:
-        """Return the underlying int8 tensor (no copy)."""
+        """Return the underlying int8 tensor (no copy).
+
+        In split mode this returns the K canonical tensor only; the V
+        canonical tensor is accessible via :meth:`as_v_canonical`.
+        Callers that previously assumed combined-mode (single buffer
+        contains both K and V) must check :meth:`is_split_kv` first.
+        """
         return self._canonical
+
+    def as_v_canonical(self) -> torch.Tensor | None:
+        """Return the V canonical tensor in split mode, ``None``
+        otherwise."""
+        return self._v_canonical
+
+    def is_split_kv(self) -> bool:
+        """``True`` iff this adapter was built from two separate K and V
+        canonical tensors (e.g. via :meth:`from_split_kv`)."""
+        return self._v_canonical is not None

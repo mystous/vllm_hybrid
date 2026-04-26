@@ -196,7 +196,7 @@ def test_hot_cold_split_matches_full_attention(kv_dtype, atol):
         fa_version=fa_version,
         causal=True,
         # ---- Phase 3b cold path inputs ----
-        cpu_kv_cache=cpu_canonical,
+        cpu_kv_cache=[cpu_canonical],
         cold_kv_layout=layout,
         cold_block_ids=cold_block_ids_cpu,
         query_positions=query_positions,
@@ -334,7 +334,7 @@ def test_hot_cold_split_all_cold_one_seq_others_zero():
         ),
         max_num_cold_blocks=max_cold,
         fa_version=fa_version, causal=True,
-        cpu_kv_cache=cpu_canonical, cold_kv_layout=layout,
+        cpu_kv_cache=[cpu_canonical], cold_kv_layout=layout,
         cold_block_ids=cold_block_ids, query_positions=query_positions,
     )
     torch.cuda.synchronize()
