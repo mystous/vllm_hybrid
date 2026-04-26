@@ -37,6 +37,10 @@ from vllm.distributed.ec_transfer import get_ec_transfer, has_ec_transfer
 from vllm.distributed.eplb.eplb_state import EplbState
 from vllm.distributed.kv_transfer import get_kv_transfer_group, has_kv_transfer_group
 from vllm.distributed.kv_transfer.kv_connector.utils import copy_kv_blocks
+from vllm.distributed.kv_transfer.kv_connector.v1.base import KVConnectorMetadata
+from vllm.distributed.kv_transfer.kv_connector.v1.offloading.common import (
+    OffloadingConnectorMetadata,
+)
 from vllm.distributed.parallel_state import (
     get_dcp_group,
     get_pp_group,
@@ -123,6 +127,7 @@ from vllm.v1.attention.backend import (
     AttentionType,
     CommonAttentionMetadata,
 )
+from vllm.v1.attention.backends.flash_attn import FlashAttentionMetadataBuilder
 from vllm.v1.attention.backends.gdn_attn import GDNAttentionMetadataBuilder
 from vllm.v1.attention.backends.mamba2_attn import Mamba2AttentionMetadataBuilder
 from vllm.v1.attention.backends.utils import (
@@ -2096,6 +2101,7 @@ class GPUModelRunner(
         num_scheduled_tokens: dict[str, int] | None = None,
         cascade_attn_prefix_lens: list[list[int]] | None = None,
         slot_mappings: dict[int, torch.Tensor] | None = None,
+        kv_connector_metadata: KVConnectorMetadata | None = None,
     ) -> tuple[PerLayerAttnMetadata, CommonAttentionMetadata | None]:
         """
         :return: tuple[attn_metadata, spec_decode_common_attn_metadata]
@@ -2203,6 +2209,34 @@ class GPUModelRunner(
                 logits_indices
             )
 
+        # Cold-KV CPU partial attention input (IDE_006 / TSK_002 Phase 2b).
+        # Build a per-request int32 tensor aligned with seq_lens / block_table
+        # carrying the GPU-block count of each request's cold prefix. Default
+        # off: only fires when (a) the user has opted in via
+        # KVTransferConfig.enable_cpu_partial_attention, (b) the connector
+        # actually surfaced its per-req cold counts as
+        # OffloadingConnectorMetadata. Padded slots default to 0 (no cold).
+        # Forwarded to FlashAttentionMetadataBuilder.build via
+        # extra_attn_metadata_args below; ignored by all other builders.
+        hot_cold_split_kwargs: dict[str, Any] = {}
+        kv_transfer_config = self.vllm_config.kv_transfer_config
+        if (
+            kv_transfer_config is not None
+            and kv_transfer_config.enable_cpu_partial_attention
+            and isinstance(kv_connector_metadata, OffloadingConnectorMetadata)
+        ):
+            num_cold_blocks_np = np.zeros(num_reqs_padded, dtype=np.int32)
+            cold_per_req = kv_connector_metadata.num_cold_gpu_blocks_per_req
+            for i, req_id in enumerate(self.input_batch.req_ids[:num_reqs]):
+                num_cold_blocks_np[i] = cold_per_req.get(req_id, 0)
+            num_cold_blocks_tensor = torch.from_numpy(num_cold_blocks_np).to(
+                device=self.device, non_blocking=True
+            )
+            hot_cold_split_kwargs = dict(
+                num_cold_blocks=num_cold_blocks_tensor,
+                enable_hot_cold_split=True,
+            )
+
         # Cache attention metadata builds across hybrid KV-cache groups
         # The only thing that changes between different hybrid KV-cache groups when the
         # same metadata builder and KVCacheSpec is the same is the block table, so we
@@ -2242,6 +2276,13 @@ class GPUModelRunner(
                         :num_reqs_padded
                     ],
                 )
+            # IDE_006 / TSK_002 Phase 2b: only FlashAttentionMetadataBuilder
+            # accepts these kwargs today; PLN_001 §3 scope locks the integration
+            # to that backend. Other builders ignore the flag (they never see it).
+            if hot_cold_split_kwargs and isinstance(
+                builder, FlashAttentionMetadataBuilder
+            ):
+                extra_attn_metadata_args.update(hot_cold_split_kwargs)
 
             if for_cudagraph_capture:
                 attn_metadata_i = builder.build_for_cudagraph_capture(
@@ -3980,6 +4021,7 @@ class GPUModelRunner(
                     num_scheduled_tokens=scheduler_output.num_scheduled_tokens,
                     cascade_attn_prefix_lens=cascade_attn_prefix_lens,
                     slot_mappings=slot_mappings_by_group,
+                    kv_connector_metadata=scheduler_output.kv_connector_metadata,
                 )
             )
 

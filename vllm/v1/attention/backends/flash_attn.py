@@ -390,10 +390,17 @@ class FlashAttentionMetadataBuilder(AttentionMetadataBuilder[FlashAttentionMetad
         common_prefix_len: int,
         common_attn_metadata: CommonAttentionMetadata,
         fast_build: bool = False,
+        num_cold_blocks: torch.Tensor | None = None,
+        enable_hot_cold_split: bool = False,
     ) -> FlashAttentionMetadata:
         """
         fast_build disables AOT scheduling, used when there will be few
         iterations i.e. spec-decode
+
+        num_cold_blocks / enable_hot_cold_split are the IDE_006 / TSK_002
+        Cold-KV CPU partial attention inputs; both default-off so existing
+        callers are unchanged. They are forwarded directly to
+        FlashAttentionMetadata.
         """
         num_reqs = common_attn_metadata.num_reqs
         num_actual_tokens = common_attn_metadata.num_actual_tokens
@@ -573,6 +580,8 @@ class FlashAttentionMetadataBuilder(AttentionMetadataBuilder[FlashAttentionMetad
             prefix_scheduler_metadata=prefix_scheduler_metadata,
             max_num_splits=max_num_splits,
             causal=causal,
+            enable_hot_cold_split=enable_hot_cold_split,
+            num_cold_blocks=num_cold_blocks,
         )
         return attn_metadata
 
