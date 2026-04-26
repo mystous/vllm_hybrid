@@ -25,6 +25,15 @@ Why a script and not a pytest test (the TST_003 spec form):
   then loads the next — works on dev for smoke development AND on prod
   for the real run.
 
+Why batched submission:
+  prompts are fed to ``llm.generate`` as a single list so the V1
+  scheduler keeps many in flight. Sequential per-prompt submission
+  would never put more than one prompt's KV in the GPU pool at a time,
+  which on prod (1.2 M-token GPU KV pool) leaves the cold-tier offload
+  path dormant — the run would silently revert to a no-op comparison.
+  On dev the batched mode also matches what bench.sh does, so dev and
+  prod exercise the same scheduler / prefix-caching behaviour.
+
 Usage:
 
   # dev smoke (single GPU):
@@ -474,12 +483,31 @@ def _run_one_config(
         logprobs=logprobs_k if logprobs_k > 0 else None,
     )
 
+    # Batched submission — feed *all* prompts to llm.generate at once so the
+    # V1 scheduler queues them concurrently. Sequential per-prompt calls keep
+    # only one prompt's KV resident at a time, which on prod (H100×8 + Llama-
+    # 3.3-70B + TP=8) leaves the 1.2 M-token GPU KV pool 95 %+ empty and the
+    # cold-tier offload path never fires — the very thing we are trying to
+    # validate. With batched submission and prefix caching, cumulative KV
+    # demand crosses the pool threshold and partial-attention actually
+    # activates during the split_on run.
+    print(
+        f"  [{config_name}] batched generate: {len(prompts)} prompts in flight",
+        flush=True,
+    )
+    t0_gen = time.monotonic()
+    results = llm.generate(prompts, sampling_params, use_tqdm=True)
+    t1_gen = time.monotonic()
+    gen_seconds = t1_gen - t0_gen
+
+    # results may not be in input order on all backends — re-sort by request_id
+    # is unnecessary for V1 LLM (preserves input order), but defensively map by
+    # index using the prompt string. The V1 LLM in fact returns in input order
+    # so we can rely on enumerate.
     prompt_outputs: list[PromptOutputs] = []
-    for idx, prompt in enumerate(prompts):
-        t0 = time.monotonic()
-        results = llm.generate([prompt], sampling_params, use_tqdm=False)
-        t1 = time.monotonic()
-        completion = results[0].outputs[0]
+    avg_per_prompt = gen_seconds / max(len(prompts), 1)
+    for idx, request_output in enumerate(results):
+        completion = request_output.outputs[0]
         token_ids = list(completion.token_ids)
         chosen_logprobs: list[float] | None = None
         if logprobs_k > 0 and getattr(completion, "logprobs", None):
@@ -495,16 +523,21 @@ def _run_one_config(
         prompt_outputs.append(
             PromptOutputs(
                 prompt_index=idx,
-                prompt=prompt,
+                prompt=request_output.prompt,
                 token_ids=token_ids,
                 chosen_logprobs=chosen_logprobs,
-                generation_seconds=t1 - t0,
+                # Per-prompt timing is not directly observable in batched
+                # mode; report the avg as a coarse hint. Total wall is the
+                # meaningful number — use ``total_seconds`` on ConfigOutputs.
+                generation_seconds=avg_per_prompt,
             )
         )
-        print(
-            f"  [{config_name}] prompt {idx}: {len(token_ids)} tok in {t1 - t0:.2f}s",
-            flush=True,
-        )
+    print(
+        f"  [{config_name}] batched generate complete: "
+        f"{len(prompts)} prompts in {gen_seconds:.1f}s "
+        f"(avg {avg_per_prompt:.2f}s/prompt)",
+        flush=True,
+    )
 
     total = time.monotonic() - t0_total
     print(f"[{config_name}] done in {total:.1f}s", flush=True)
