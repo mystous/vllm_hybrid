@@ -1230,3 +1230,115 @@ def cascade_attention(
 
     # Merge prefix and suffix outputs, and store the result in output.
     merge_attn_states(output, prefix_output, prefix_lse, suffix_output, suffix_lse)
+
+
+def hot_cold_attention(
+    output: torch.Tensor,
+    query: torch.Tensor,
+    key_cache: torch.Tensor,
+    value_cache: torch.Tensor,
+    cu_query_lens: torch.Tensor,
+    max_query_len: int,
+    seqused_k: torch.Tensor,
+    max_seqlen_k: int,
+    softmax_scale: float,
+    sliding_window: tuple[int, int],
+    logits_soft_cap: float,
+    block_table: torch.Tensor,
+    block_size: int,
+    num_cold_blocks: torch.Tensor,
+    max_num_cold_blocks: int,
+    fa_version: int,
+    causal: bool = True,
+    suffix_scheduler_metadata: torch.Tensor | None = None,
+    q_descale: torch.Tensor | None = None,
+    k_descale: torch.Tensor | None = None,
+    v_descale: torch.Tensor | None = None,
+) -> None:
+    """Per-sequence variable-length cold-prefix attention (IDE_006 / TSK_002 §4.4).
+
+    The "cold" prefix of each request's block_table has been evicted to
+    CPU by the OffloadingConnector; the corresponding GPU block_table
+    rows are no longer valid. The "hot" suffix stays on GPU. This
+    function runs the hot part via flash_attn_varlen_func with the
+    block_table sliced to drop the cold columns and seqused_k clipped
+    to drop the cold KV tokens, and (Phase 3b) runs the cold part via
+    TSK_001's forward_partial_with_lse on CPU. The two outputs are
+    merged via merge_attn_states.
+
+    Phase 3a (current): GPU hot path only. When max_num_cold_blocks
+    is 0, this is bit-identical to a plain flash_attn_varlen_func
+    call (no merge needed). When max_num_cold_blocks > 0, the cold
+    path is not yet wired and the function raises
+    NotImplementedError — Phase 3b will fill that in.
+
+    The caller is expected to compute max_num_cold_blocks on the host
+    side (e.g. from the OffloadingConnectorMetadata dict before
+    building the device tensor) so this function does not introduce
+    a GPU→CPU sync.
+    """
+    assert max_num_cold_blocks >= 0
+    assert sliding_window == (-1, -1), (
+        "hot_cold_attention does not support sliding window yet."
+    )
+
+    descale_shape = (cu_query_lens.shape[0] - 1, key_cache.shape[-2])
+
+    # Hot block_table: drop the first max_num_cold_blocks columns. Sequences
+    # with fewer cold blocks than the batch max get padded out by the
+    # per-sequence seqused_k clipping below — flash_attn ignores entries past
+    # seqused_k for that sequence, so left-over cold rows in their hot slice
+    # are harmless.
+    hot_block_table = (
+        block_table if max_num_cold_blocks == 0 else block_table[:, max_num_cold_blocks:]
+    )
+
+    # Per-sequence hot KV length = total seq KV length − cold KV tokens.
+    # clamp to 0 so a sequence with all-hot (num_cold_blocks[i]==0) is unaffected.
+    cold_kv_tokens = num_cold_blocks * block_size
+    hot_seqused_k = (seqused_k - cold_kv_tokens).clamp_(min=0)
+
+    hot_max_seqlen_k = max_seqlen_k - max_num_cold_blocks * block_size
+
+    hot_output, hot_lse = flash_attn_varlen_func(
+        q=query,
+        k=key_cache,
+        v=value_cache,
+        cu_seqlens_q=cu_query_lens,
+        seqused_k=hot_seqused_k,
+        max_seqlen_q=max_query_len,
+        max_seqlen_k=hot_max_seqlen_k,
+        softmax_scale=softmax_scale,
+        causal=causal,
+        window_size=list(sliding_window),
+        block_table=hot_block_table,
+        softcap=logits_soft_cap,
+        return_softmax_lse=True,
+        scheduler_metadata=suffix_scheduler_metadata,
+        fa_version=fa_version,
+        q_descale=q_descale.expand(descale_shape) if q_descale is not None else None,
+        k_descale=k_descale.expand(descale_shape) if k_descale is not None else None,
+        v_descale=v_descale.expand(descale_shape) if v_descale is not None else None,
+    )
+
+    if max_num_cold_blocks == 0:
+        # Degenerate: no cold blocks across the batch. The hot path produced
+        # the full attention; copy into output and return. merge_attn_states
+        # is not needed because there is no second tensor to merge.
+        output.copy_(hot_output)
+        return
+
+    # Phase 3b TODO — wire the CPU cold path here:
+    #   1) D2H copy of query (synchronous for first cut; Phase 5 may pipeline).
+    #   2) cold_O, cold_LSE = forward_partial_with_lse(query_cpu,
+    #          cpu_kv_cache, cold_block_ids, num_cold_blocks_cpu,
+    #          cu_query_lens_cpu, seq_positions_cpu, ...)
+    #   3) cold_O_gpu = cold_O.to(device, non_blocking=True);
+    #      cold_LSE_gpu = cold_LSE.to(device, non_blocking=True)
+    #   4) merge_attn_states(output, hot_output, hot_lse,
+    #                        cold_O_gpu, cold_LSE_gpu)
+    raise NotImplementedError(
+        "Cold path (CPU partial-attention via TSK_001's "
+        "forward_partial_with_lse) is not yet wired — Phase 3b. Reached "
+        f"with max_num_cold_blocks={max_num_cold_blocks}."
+    )
