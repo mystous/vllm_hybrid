@@ -207,3 +207,27 @@ class CPUOffloadingManager(OffloadingManager):
         if self.events is not None:
             yield from self.events
             self.events.clear()
+
+    def peek_block_ids(
+        self,
+        keys: Iterable[OffloadKey],
+        req_context: ReqContext,
+    ) -> list[int | None]:
+        """Read-only lookup of CPU block IDs (no ref-count change, no LRU
+        recency update). Used by the Cold-KV CPU partial attention path
+        (IDE_006 / TSK_002) to map each request's offloaded prefix keys to
+        the CPU canonical buffer block IDs that the partial-attention
+        kernel will read in place.
+
+        For keys not currently in the cache (or not yet ready), the
+        corresponding entry is ``None`` — the caller is responsible for
+        the policy decision (skip, defer, etc.).
+        """
+        result: list[int | None] = []
+        for key in keys:
+            block = self._policy.get(key)
+            if block is not None and block.is_ready:
+                result.append(block.block_id)
+            else:
+                result.append(None)
+        return result

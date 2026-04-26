@@ -198,6 +198,32 @@ class OffloadingManager(ABC):
         """
         return ()
 
+    def peek_block_ids(
+        self,
+        keys: Iterable[OffloadKey],
+        req_context: ReqContext,
+    ) -> list[int | None]:
+        """
+        Return the block ID for each key without any side effect.
+
+        Unlike :meth:`prepare_load`, this does NOT increment ref-counts and
+        does NOT update LRU recency. It is intended for callers that need
+        to know the storage location of an already-stored block without
+        triggering eviction protection — e.g. the Cold-KV CPU partial
+        attention path (IDE_006 / TSK_002), which reads cold blocks
+        in-place from the worker-side buffer during a single attention
+        forward without taking a load lock.
+
+        Returns:
+            A list with one entry per input key. Each entry is the block
+            ID (an integer in the manager's storage block-id space) for
+            keys that are currently offloaded and ready, or ``None`` for
+            keys that are not in the cache. Default implementation returns
+            ``None`` for every key — managers that do not support the
+            Cold-KV CPU partial attention path simply leave it that way.
+        """
+        return [None for _ in keys]
+
     def shutdown(self) -> None:
         """Shutdown the manager and release any resources."""
         return

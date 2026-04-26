@@ -366,19 +366,47 @@ class OffloadingConnectorScheduler:
         # by attention kernels) by multiplying by `block_size_factor`.
         # Single-KV-group is enforced elsewhere (line 169-170, 233-234,
         # 275-276); we read group_states[0] accordingly.
+        #
+        # Phase 4a additionally surfaces the CPU canonical-buffer block
+        # IDs for each request's cold prefix via
+        # `manager.peek_block_ids(...)` — a no-side-effect lookup that
+        # returns the cache-side block ID per offload key. The kernel
+        # (TSK_001's forward_partial_with_lse) reads cold KV in place
+        # using these IDs, no transfer involved.
+        #
+        # block_size_factor > 1 is currently not supported on the cold
+        # path (one offloaded block would map to multiple GPU blocks but
+        # the partial-attention kernel works at GPU-block granularity);
+        # we populate cold_cpu_block_ids only when factor == 1, otherwise
+        # leave it empty so the worker side falls back to the standard
+        # non-cold-split path.
         num_cold_gpu_blocks_per_req: dict[ReqId, int] = {}
+        cold_cpu_block_ids: dict[ReqId, list[int]] = {}
+        cold_factor_one = self.config.block_size_factor == 1
         for req_id, req_status in self._req_status.items():
             next_idx = req_status.group_states[0].next_stored_block_idx
             if next_idx > 0:
                 num_cold_gpu_blocks_per_req[req_id] = (
                     next_idx * self.config.block_size_factor
                 )
+                if cold_factor_one:
+                    cold_offload_keys = (
+                        req_status.group_states[0].offload_keys[:next_idx]
+                    )
+                    peeked = self.manager.peek_block_ids(
+                        cold_offload_keys, req_status.req_context
+                    )
+                    if all(b is not None for b in peeked):
+                        # Cast: peek returned `list[int | None]`; we just
+                        # confirmed all are int, narrow for the dict type.
+                        cold_cpu_block_ids[req_id] = [int(b) for b in peeked]
 
         meta = OffloadingConnectorMetadata(
             reqs_to_load=self._reqs_to_load,
             reqs_to_store=reqs_to_store,
             reqs_to_flush=scheduler_output.preempted_req_ids,
             num_cold_gpu_blocks_per_req=num_cold_gpu_blocks_per_req,
+            cold_cpu_block_ids=cold_cpu_block_ids,
         )
         self._reqs_to_load = {}
 
