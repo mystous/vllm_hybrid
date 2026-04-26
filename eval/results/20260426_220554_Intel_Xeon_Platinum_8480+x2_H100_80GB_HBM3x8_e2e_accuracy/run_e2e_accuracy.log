@@ -1,0 +1,6 @@
+output dir: /workspace/vllm_hybrid/eval/results/20260426_220554_Intel_Xeon_Platinum_8480+x2_H100_80GB_HBM3x8_e2e_accuracy
+[harmonise] aligning GPU_MEMORY_UTIL → 0.850 (baseline env had 0.900, split_on env had 0.850). The lower value is used for both so KV block budget is identical and any divergence is attributable to the cold path itself.
+workload: 100 prompts × ~14336 input tokens × 128 max generated tokens (env NUM_PROMPTS=100, INPUT_LEN=14336, OUTPUT_LEN=128)
+
+[baseline] env=vllm_original_long_ctx.env model=meta-llama/Llama-3.3-70B-Instruct TP=8 max_model_len=16384
+[baseline]   kv_transfer_config=None

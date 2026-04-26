@@ -1,0 +1,825 @@
+============================================================
+ vLLM serve
+   MODEL = meta-llama/Llama-3.3-70B-Instruct
+   HOST:PORT = 127.0.0.1:8000
+   TP = 8, GPU_MEM_UTIL = 0.85
+   MAX_MODEL_LEN = 16384
+   ENV_FILE = /workspace/vllm_hybrid/eval/envs/ide006_cold_kv_split_on_long_ctx.env
+============================================================
+(APIServer pid=2309711) INFO 04-26 22:15:15 [utils.py:299] 
+(APIServer pid=2309711) INFO 04-26 22:15:15 [utils.py:299]        █     █     █▄   ▄█
+(APIServer pid=2309711) INFO 04-26 22:15:15 [utils.py:299]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.1.dev15917+g0a6396b45
+(APIServer pid=2309711) INFO 04-26 22:15:15 [utils.py:299]   █▄█▀ █     █     █     █  model   meta-llama/Llama-3.3-70B-Instruct
+(APIServer pid=2309711) INFO 04-26 22:15:15 [utils.py:299]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=2309711) INFO 04-26 22:15:15 [utils.py:299] 
+(APIServer pid=2309711) INFO 04-26 22:15:15 [utils.py:233] non-default args: {'host': '127.0.0.1', 'model': 'meta-llama/Llama-3.3-70B-Instruct', 'max_model_len': 16384, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.85, 'kv_transfer_config': KVTransferConfig(kv_connector='OffloadingConnector', engine_id='419442e9-2fe6-4331-9889-8a4bfd73d517', kv_buffer_device='cuda', kv_buffer_size=1000000000.0, kv_role='kv_both', kv_rank=None, kv_parallel_size=1, kv_ip='127.0.0.1', kv_port=14579, kv_connector_extra_config={'cpu_bytes_to_use': 549755813888}, kv_connector_module_path=None, enable_permute_local_kv=False, kv_load_failure_policy='fail', enable_cpu_partial_attention=True)}
+(APIServer pid=2309711) INFO 04-26 22:15:16 [model.py:554] Resolved architecture: LlamaForCausalLM
+(APIServer pid=2309711) INFO 04-26 22:15:16 [model.py:1685] Using max model len 16384
+(APIServer pid=2309711) INFO 04-26 22:15:16 [scheduler.py:239] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=2309711) INFO 04-26 22:15:16 [vllm.py:834] Asynchronous scheduling is enabled.
+(APIServer pid=2309711) INFO 04-26 22:15:16 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+(APIServer pid=2309711) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(APIServer pid=2309711) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(APIServer pid=2309711) WARNING 04-26 22:15:22 [vllm.py:1294] Turning off hybrid kv cache manager because `--kv-transfer-config` is set. This will reduce the performance of vLLM on LLMs with sliding window attention or Mamba attention. If you are a developer of kv connector, please consider supporting hybrid kv cache manager for your connector by making sure your connector is a subclass of `SupportsHMA` defined in kv_connector/v1/base.py and use --no-disable-hybrid-kv-cache-manager to start vLLM.
+(APIServer pid=2309711) INFO 04-26 22:15:22 [compilation.py:294] Enabled custom fusions: allreduce_rms
+(EngineCore pid=2311524) INFO 04-26 22:15:32 [core.py:107] Initializing a V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='meta-llama/Llama-3.3-70B-Instruct', speculative_config=None, tokenizer='meta-llama/Llama-3.3-70B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=meta-llama/Llama-3.3-70B-Instruct, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::plamo2_mamba_mixer', 'vllm::gdn_attention_core', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::kda_attention', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 512, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=2311524) WARNING 04-26 22:15:32 [multiproc_executor.py:1029] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=2311524) INFO 04-26 22:15:32 [multiproc_executor.py:139] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=211.115.75.82 (local), world_size=8, local_world_size=8
+(Worker pid=2311957) INFO 04-26 22:15:47 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:40437 backend=nccl
+(Worker pid=2311964) INFO 04-26 22:15:47 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:40437 backend=nccl
+(Worker pid=2311963) INFO 04-26 22:15:47 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:40437 backend=nccl
+(Worker pid=2311959) INFO 04-26 22:15:48 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:40437 backend=nccl
+(Worker pid=2311962) INFO 04-26 22:15:48 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:40437 backend=nccl
+(Worker pid=2311960) INFO 04-26 22:15:48 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:40437 backend=nccl
+(Worker pid=2311961) INFO 04-26 22:15:48 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:40437 backend=nccl
+(Worker pid=2311958) INFO 04-26 22:15:48 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:40437 backend=nccl
+(Worker pid=2311959) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2311963) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2311959) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2311963) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2311962) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2311962) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2311961) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2311961) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2311957) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2311957) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2311960) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2311960) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2311957) INFO 04-26 22:15:49 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=2311964) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2311964) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2311958) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2311958) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2311957) INFO 04-26 22:15:52 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(Worker_TP0 pid=2311957) INFO 04-26 22:15:53 [gpu_model_runner.py:4872] Starting to load model meta-llama/Llama-3.3-70B-Instruct...
+(Worker_TP0 pid=2311957) INFO 04-26 22:15:53 [cuda.py:368] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(Worker_TP0 pid=2311957) INFO 04-26 22:15:53 [flash_attn.py:678] Using FlashAttention version 3
+(Worker_TP0 pid=2311957) INFO 04-26 22:15:59 [weight_utils.py:904] Filesystem type for checkpoints: XFS. Checkpoint size: 131.42 GiB. Available RAM: 1949.23 GiB.
+(Worker_TP0 pid=2311957) INFO 04-26 22:15:59 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:   0% Completed | 0/30 [00:00<?, ?it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:   3% Completed | 1/30 [00:00<00:05,  4.95it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:   7% Completed | 2/30 [00:00<00:06,  4.00it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  10% Completed | 3/30 [00:00<00:07,  3.84it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  13% Completed | 4/30 [00:01<00:06,  3.72it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  17% Completed | 5/30 [00:01<00:06,  3.71it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  20% Completed | 6/30 [00:01<00:06,  3.63it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  23% Completed | 7/30 [00:01<00:06,  3.66it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  27% Completed | 8/30 [00:02<00:06,  3.58it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  30% Completed | 9/30 [00:02<00:06,  3.47it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  33% Completed | 10/30 [00:02<00:05,  3.47it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  37% Completed | 11/30 [00:03<00:05,  3.48it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  40% Completed | 12/30 [00:03<00:05,  3.44it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  43% Completed | 13/30 [00:03<00:04,  3.44it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  47% Completed | 14/30 [00:03<00:04,  3.27it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  50% Completed | 15/30 [00:04<00:04,  3.33it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  53% Completed | 16/30 [00:04<00:04,  3.37it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  57% Completed | 17/30 [00:04<00:03,  3.35it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  60% Completed | 18/30 [00:05<00:03,  3.36it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  63% Completed | 19/30 [00:05<00:03,  3.36it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  67% Completed | 20/30 [00:05<00:02,  3.50it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  70% Completed | 21/30 [00:05<00:02,  3.54it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  73% Completed | 22/30 [00:06<00:02,  3.55it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  77% Completed | 23/30 [00:06<00:01,  3.56it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  80% Completed | 24/30 [00:06<00:01,  3.56it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  83% Completed | 25/30 [00:07<00:01,  3.69it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  87% Completed | 26/30 [00:07<00:01,  3.70it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  90% Completed | 27/30 [00:07<00:00,  3.66it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  93% Completed | 28/30 [00:07<00:00,  3.64it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards:  97% Completed | 29/30 [00:08<00:00,  3.60it/s]
+(Worker_TP0 pid=2311957) Loading safetensors checkpoint shards: 100% Completed | 30/30 [00:08<00:00,  3.63it/s]
+(Worker_TP0 pid=2311957) 
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:07 [default_loader.py:384] Loading weights took 8.27 seconds
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:08 [gpu_model_runner.py:4957] Model loading took 16.46 GiB memory and 13.787778 seconds
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:15 [backends.py:1077] Using cache directory: /root/.cache/vllm/torch_compile_cache/b195d306ad/rank_0_0/backbone for vLLM's torch.compile
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:15 [backends.py:1137] Dynamo bytecode transform time: 6.85 s
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:15 [flashinfer_all_reduce.py:109] Auto-selected flashinfer allreduce backend: trtllm
+(Worker_TP0 pid=2311957) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+(Worker_TP0 pid=2311957)   return func(*args, **kwargs)
+(Worker_TP0 pid=2311957) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+(Worker_TP0 pid=2311957)   return func(*args, **kwargs)
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:17 [flashinfer_all_reduce.py:149] Initialized FlashInfer Allreduce norm fusion workspace with backend=trtllm
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:28 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/f0b7065ab684f70f80315f6355baf82ace9322021c42628112d9a117d27a5665/rank_7_0/model
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:28 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/f0b7065ab684f70f80315f6355baf82ace9322021c42628112d9a117d27a5665/rank_5_0/model
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:28 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/f0b7065ab684f70f80315f6355baf82ace9322021c42628112d9a117d27a5665/rank_6_0/model
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:28 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/f0b7065ab684f70f80315f6355baf82ace9322021c42628112d9a117d27a5665/rank_2_0/model
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:28 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/f0b7065ab684f70f80315f6355baf82ace9322021c42628112d9a117d27a5665/rank_4_0/model
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:28 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/f0b7065ab684f70f80315f6355baf82ace9322021c42628112d9a117d27a5665/rank_1_0/model
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:28 [backends.py:290] Directly load the compiled graph(s) for compile range (1, 32) from the cache, took 10.477 s
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:28 [backends.py:290] Directly load the compiled graph(s) for compile range (33, 8192) from the cache, took 10.508 s
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:29 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/f0b7065ab684f70f80315f6355baf82ace9322021c42628112d9a117d27a5665/rank_0_0/model
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:29 [monitor.py:48] torch.compile took 20.19 s in total
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:29 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/f0b7065ab684f70f80315f6355baf82ace9322021c42628112d9a117d27a5665/rank_3_0/model
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:29 [monitor.py:76] Initial profiling/warmup run took 0.94 s
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:30 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:30 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:30 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:30 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:30 [gpu_model_runner.py:6036] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:30 [gpu_model_runner.py:6036] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:30 [gpu_model_runner.py:6036] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:30 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:30 [gpu_model_runner.py:6036] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:30 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:30 [utils.py:44] Connectors do not specify a kv cache layout, defaulting to NHD.
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:30 [gpu_model_runner.py:6036] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:30 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:30 [gpu_model_runner.py:6036] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:30 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:30 [gpu_model_runner.py:6036] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:30 [gpu_model_runner.py:6036] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=1] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/1
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=1] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/1
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=1] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/1
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=1] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/1
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=1] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/1
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=1] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/1
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=1] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/1
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=1] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/1
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=2] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/2
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=2] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/2
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=2] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/2
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=2] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/2
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=2] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/2
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=2] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/2
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=2] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/2
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=2] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/2
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=3] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/3
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=3] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/3
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=3] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/3
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=3] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/3
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=3] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/3
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=3] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/3
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=3] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/3
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:31 [flash_attn.py:825] [IDE_006 diag layer0 step=3] enable_hot_cold_split=False max_num_cold_blocks_host=0 fired_so_far=0/3
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:31 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:31 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:31 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:31 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:31 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:31 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:31 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:31 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:32 [gpu_model_runner.py:6115] Estimated CUDA graph memory: 0.91 GiB total
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:32 [gpu_model_runner.py:6115] Estimated CUDA graph memory: 0.91 GiB total
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:32 [gpu_model_runner.py:6115] Estimated CUDA graph memory: 0.91 GiB total
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:32 [gpu_model_runner.py:6115] Estimated CUDA graph memory: 0.91 GiB total
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:32 [gpu_model_runner.py:6115] Estimated CUDA graph memory: 0.91 GiB total
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:32 [gpu_model_runner.py:6115] Estimated CUDA graph memory: 0.91 GiB total
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:32 [gpu_model_runner.py:6115] Estimated CUDA graph memory: 0.91 GiB total
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:32 [gpu_model_runner.py:6115] Estimated CUDA graph memory: 0.91 GiB total
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:32 [gpu_worker.py:474] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8615 to maintain the same effective KV cache size.
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:32 [gpu_worker.py:474] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8615 to maintain the same effective KV cache size.
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:32 [gpu_worker.py:474] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8615 to maintain the same effective KV cache size.
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:32 [gpu_worker.py:474] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8615 to maintain the same effective KV cache size.
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:32 [gpu_worker.py:474] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8615 to maintain the same effective KV cache size.
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:32 [gpu_worker.py:474] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8615 to maintain the same effective KV cache size.
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:32 [gpu_worker.py:474] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8615 to maintain the same effective KV cache size.
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:32 [gpu_worker.py:440] Available KV cache memory: 46.52 GiB
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:32 [gpu_worker.py:474] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8615 to maintain the same effective KV cache size.
+(EngineCore pid=2311524) INFO 04-26 22:16:32 [kv_cache_utils.py:1319] GPU KV cache size: 1,219,536 tokens
+(EngineCore pid=2311524) INFO 04-26 22:16:32 [kv_cache_utils.py:1324] Maximum concurrency for 16,384 tokens per request: 74.43x
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:32 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:32 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(Worker_TP7 pid=2311964) WARNING 04-26 22:16:32 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:32 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:32 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:32 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:32 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(Worker_TP3 pid=2311960) WARNING 04-26 22:16:32 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP1 pid=2311958) WARNING 04-26 22:16:32 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:32 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:32 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(Worker_TP6 pid=2311963) WARNING 04-26 22:16:32 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP0 pid=2311957) WARNING 04-26 22:16:32 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP4 pid=2311961) WARNING 04-26 22:16:32 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP5 pid=2311962) WARNING 04-26 22:16:32 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP2 pid=2311959) WARNING 04-26 22:16:32 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:32 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(Worker_TP3 pid=2311960) WARNING 04-26 22:16:32 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:32 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:32 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:32 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:32 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(Worker_TP5 pid=2311962) WARNING 04-26 22:16:32 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP6 pid=2311963) WARNING 04-26 22:16:32 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP1 pid=2311958) WARNING 04-26 22:16:32 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:32 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(Worker_TP4 pid=2311961) WARNING 04-26 22:16:32 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:32 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(Worker_TP0 pid=2311957) WARNING 04-26 22:16:32 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP7 pid=2311964) WARNING 04-26 22:16:32 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:32 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(Worker_TP2 pid=2311959) WARNING 04-26 22:16:32 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(Worker_TP6 pid=2311963) INFO 04-26 22:16:33 [cpu_gpu.py:332] Allocating 160 CPU tensors...
+(Worker_TP2 pid=2311959) INFO 04-26 22:16:33 [cpu_gpu.py:332] Allocating 160 CPU tensors...
+(Worker_TP4 pid=2311961) INFO 04-26 22:16:33 [cpu_gpu.py:332] Allocating 160 CPU tensors...
+(Worker_TP5 pid=2311962) INFO 04-26 22:16:33 [cpu_gpu.py:332] Allocating 160 CPU tensors...
+(Worker_TP3 pid=2311960) INFO 04-26 22:16:33 [cpu_gpu.py:332] Allocating 160 CPU tensors...
+(Worker_TP7 pid=2311964) INFO 04-26 22:16:33 [cpu_gpu.py:332] Allocating 160 CPU tensors...
+(Worker_TP0 pid=2311957) INFO 04-26 22:16:33 [cpu_gpu.py:332] Allocating 160 CPU tensors...
+(Worker_TP1 pid=2311958) INFO 04-26 22:16:33 [cpu_gpu.py:332] Allocating 160 CPU tensors...
+(Worker_TP3 pid=2311960) 2026-04-26 22:17:19,098 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP2 pid=2311959) 2026-04-26 22:17:19,098 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP5 pid=2311962) 2026-04-26 22:17:19,098 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP7 pid=2311964) 2026-04-26 22:17:19,098 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP6 pid=2311963) 2026-04-26 22:17:19,098 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=2311958) 2026-04-26 22:17:19,098 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=2311961) 2026-04-26 22:17:19,098 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=2311957) 2026-04-26 22:17:19,098 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=2311957) 2026-04-26 22:17:19,149 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP1 pid=2311958) 2026-04-26 22:17:19,149 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP7 pid=2311964) 2026-04-26 22:17:19,149 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP2 pid=2311959) 2026-04-26 22:17:19,149 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP3 pid=2311960) 2026-04-26 22:17:19,149 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP6 pid=2311963) 2026-04-26 22:17:19,149 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP4 pid=2311961) 2026-04-26 22:17:19,149 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP5 pid=2311962) 2026-04-26 22:17:19,149 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP0 pid=2311957) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   2%|▏         | 1/51 [00:00<00:06,  8.25it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   4%|▍         | 2/51 [00:00<00:05,  8.57it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   6%|▌         | 3/51 [00:00<00:06,  7.62it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   8%|▊         | 4/51 [00:00<00:06,  7.63it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  10%|▉         | 5/51 [00:00<00:05,  7.80it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  12%|█▏        | 6/51 [00:00<00:05,  7.61it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  14%|█▎        | 7/51 [00:00<00:05,  7.46it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  16%|█▌        | 8/51 [00:01<00:05,  7.40it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  18%|█▊        | 9/51 [00:01<00:05,  7.35it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  20%|█▉        | 10/51 [00:01<00:05,  7.10it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  22%|██▏       | 11/51 [00:01<00:05,  7.03it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  24%|██▎       | 12/51 [00:01<00:05,  6.75it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  25%|██▌       | 13/51 [00:01<00:05,  6.79it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  27%|██▋       | 14/51 [00:01<00:05,  6.86it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  29%|██▉       | 15/51 [00:02<00:05,  6.95it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  31%|███▏      | 16/51 [00:02<00:04,  7.01it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  33%|███▎      | 17/51 [00:02<00:04,  6.95it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  35%|███▌      | 18/51 [00:02<00:04,  7.00it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  37%|███▋      | 19/51 [00:02<00:04,  6.62it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  39%|███▉      | 20/51 [00:02<00:04,  6.70it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  41%|████      | 21/51 [00:02<00:04,  6.86it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  43%|████▎     | 22/51 [00:03<00:04,  6.85it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  45%|████▌     | 23/51 [00:03<00:04,  6.81it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  47%|████▋     | 24/51 [00:03<00:03,  6.82it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  49%|████▉     | 25/51 [00:03<00:03,  6.94it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  51%|█████     | 26/51 [00:03<00:03,  7.03it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  53%|█████▎    | 27/51 [00:03<00:03,  6.91it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  55%|█████▍    | 28/51 [00:03<00:03,  6.85it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  57%|█████▋    | 29/51 [00:04<00:03,  6.68it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  59%|█████▉    | 30/51 [00:04<00:03,  6.68it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  61%|██████    | 31/51 [00:04<00:03,  6.62it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  63%|██████▎   | 32/51 [00:04<00:02,  6.62it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  65%|██████▍   | 33/51 [00:04<00:02,  6.51it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  67%|██████▋   | 34/51 [00:04<00:02,  6.56it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  69%|██████▊   | 35/51 [00:05<00:02,  6.53it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  71%|███████   | 36/51 [00:05<00:02,  6.42it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  73%|███████▎  | 37/51 [00:05<00:02,  6.41it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  75%|███████▍  | 38/51 [00:05<00:02,  6.39it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  76%|███████▋  | 39/51 [00:05<00:01,  6.37it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  78%|███████▊  | 40/51 [00:05<00:01,  6.36it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  80%|████████  | 41/51 [00:05<00:01,  6.38it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  82%|████████▏ | 42/51 [00:06<00:01,  6.47it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  84%|████████▍ | 43/51 [00:06<00:01,  6.46it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  86%|████████▋ | 44/51 [00:06<00:01,  6.33it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  88%|████████▊ | 45/51 [00:06<00:00,  6.46it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  90%|█████████ | 46/51 [00:06<00:00,  6.68it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  92%|█████████▏| 47/51 [00:06<00:00,  6.82it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  94%|█████████▍| 48/51 [00:07<00:00,  6.89it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  96%|█████████▌| 49/51 [00:07<00:00,  7.17it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  98%|█████████▊| 50/51 [00:07<00:00,  7.27it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 51/51 [00:07<00:00,  7.12it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 51/51 [00:07<00:00,  6.85it/s]
+(Worker_TP0 pid=2311957) Capturing CUDA graphs (decode, FULL):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):   2%|▏         | 1/51 [00:00<00:06,  7.44it/s]Capturing CUDA graphs (decode, FULL):   4%|▍         | 2/51 [00:00<00:05,  8.36it/s]Capturing CUDA graphs (decode, FULL):   6%|▌         | 3/51 [00:00<00:05,  9.03it/s]Capturing CUDA graphs (decode, FULL):   8%|▊         | 4/51 [00:00<00:05,  9.33it/s]Capturing CUDA graphs (decode, FULL):  10%|▉         | 5/51 [00:00<00:04,  9.52it/s]Capturing CUDA graphs (decode, FULL):  12%|█▏        | 6/51 [00:00<00:04,  9.68it/s]Capturing CUDA graphs (decode, FULL):  14%|█▎        | 7/51 [00:00<00:04,  9.73it/s]Capturing CUDA graphs (decode, FULL):  16%|█▌        | 8/51 [00:00<00:04,  9.53it/s]Capturing CUDA graphs (decode, FULL):  18%|█▊        | 9/51 [00:00<00:04,  9.37it/s]Capturing CUDA graphs (decode, FULL):  20%|█▉        | 10/51 [00:01<00:04,  9.50it/s]Capturing CUDA graphs (decode, FULL):  24%|██▎       | 12/51 [00:01<00:04,  9.30it/s]Capturing CUDA graphs (decode, FULL):  27%|██▋       | 14/51 [00:01<00:03,  9.58it/s]Capturing CUDA graphs (decode, FULL):  29%|██▉       | 15/51 [00:01<00:03,  9.64it/s]Capturing CUDA graphs (decode, FULL):  31%|███▏      | 16/51 [00:01<00:03,  9.69it/s]Capturing CUDA graphs (decode, FULL):  35%|███▌      | 18/51 [00:01<00:03,  9.77it/s]Capturing CUDA graphs (decode, FULL):  39%|███▉      | 20/51 [00:02<00:03,  9.89it/s]Capturing CUDA graphs (decode, FULL):  41%|████      | 21/51 [00:02<00:03,  9.49it/s]Capturing CUDA graphs (decode, FULL):  43%|████▎     | 22/51 [00:02<00:03,  9.37it/s]Capturing CUDA graphs (decode, FULL):  45%|████▌     | 23/51 [00:02<00:03,  9.25it/s]Capturing CUDA graphs (decode, FULL):  47%|████▋     | 24/51 [00:02<00:02,  9.33it/s]Capturing CUDA graphs (decode, FULL):  51%|█████     | 26/51 [00:02<00:02,  9.69it/s]Capturing CUDA graphs (decode, FULL):  55%|█████▍    | 28/51 [00:02<00:02,  9.94it/s]Capturing CUDA graphs (decode, FULL):  59%|█████▉    | 30/51 [00:03<00:02, 10.05it/s]Capturing CUDA graphs (decode, FULL):  61%|██████    | 31/51 [00:03<00:02,  9.99it/s]Capturing CUDA graphs (decode, FULL):  63%|██████▎   | 32/51 [00:03<00:01,  9.81it/s]Capturing CUDA graphs (decode, FULL):  65%|██████▍   | 33/51 [00:03<00:01,  9.85it/s]Capturing CUDA graphs (decode, FULL):  67%|██████▋   | 34/51 [00:03<00:01,  9.82it/s]Capturing CUDA graphs (decode, FULL):  69%|██████▊   | 35/51 [00:03<00:01,  9.13it/s]Capturing CUDA graphs (decode, FULL):  71%|███████   | 36/51 [00:03<00:01,  9.06it/s]Capturing CUDA graphs (decode, FULL):  73%|███████▎  | 37/51 [00:03<00:01,  9.28it/s]Capturing CUDA graphs (decode, FULL):  76%|███████▋  | 39/51 [00:04<00:01,  9.72it/s]Capturing CUDA graphs (decode, FULL):  78%|███████▊  | 40/51 [00:04<00:01,  9.77it/s]Capturing CUDA graphs (decode, FULL):  80%|████████  | 41/51 [00:04<00:01,  9.82it/s]Capturing CUDA graphs (decode, FULL):  82%|████████▏ | 42/51 [00:04<00:00,  9.79it/s]Capturing CUDA graphs (decode, FULL):  84%|████████▍ | 43/51 [00:04<00:00,  9.29it/s]Capturing CUDA graphs (decode, FULL):  88%|████████▊ | 45/51 [00:04<00:00,  9.87it/s]Capturing CUDA graphs (decode, FULL):  92%|█████████▏| 47/51 [00:04<00:00, 10.16it/s]Capturing CUDA graphs (decode, FULL):  96%|█████████▌| 49/51 [00:05<00:00, 10.67it/s](Worker_TP7 pid=2311964) INFO 04-26 22:17:32 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP6 pid=2311963) INFO 04-26 22:17:32 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP3 pid=2311960) INFO 04-26 22:17:32 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP2 pid=2311959) INFO 04-26 22:17:32 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+Capturing CUDA graphs (decode, FULL): 100%|██████████| 51/51 [00:05<00:00, 10.31it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 51/51 [00:05<00:00,  9.70it/s]
+(Worker_TP4 pid=2311961) INFO 04-26 22:17:32 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP0 pid=2311957) INFO 04-26 22:17:32 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP5 pid=2311962) INFO 04-26 22:17:32 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP1 pid=2311958) INFO 04-26 22:17:32 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP0 pid=2311957) INFO 04-26 22:17:33 [gpu_model_runner.py:6206] Graph capturing finished in 14 secs, took 0.95 GiB
+(Worker_TP6 pid=2311963) INFO 04-26 22:17:33 [gpu_worker.py:601] CUDA graph pool memory: 0.95 GiB (actual), 0.91 GiB (estimated), difference: 0.04 GiB (4.1%).
+(Worker_TP0 pid=2311957) INFO 04-26 22:17:33 [gpu_worker.py:601] CUDA graph pool memory: 0.95 GiB (actual), 0.91 GiB (estimated), difference: 0.04 GiB (4.1%).
+(Worker_TP1 pid=2311958) INFO 04-26 22:17:33 [gpu_worker.py:601] CUDA graph pool memory: 0.95 GiB (actual), 0.91 GiB (estimated), difference: 0.04 GiB (4.1%).
+(Worker_TP7 pid=2311964) INFO 04-26 22:17:33 [gpu_worker.py:601] CUDA graph pool memory: 0.95 GiB (actual), 0.91 GiB (estimated), difference: 0.04 GiB (4.1%).
+(Worker_TP5 pid=2311962) INFO 04-26 22:17:33 [gpu_worker.py:601] CUDA graph pool memory: 0.95 GiB (actual), 0.91 GiB (estimated), difference: 0.04 GiB (4.1%).
+(Worker_TP2 pid=2311959) INFO 04-26 22:17:33 [gpu_worker.py:601] CUDA graph pool memory: 0.95 GiB (actual), 0.91 GiB (estimated), difference: 0.04 GiB (4.1%).
+(Worker_TP3 pid=2311960) INFO 04-26 22:17:33 [gpu_worker.py:601] CUDA graph pool memory: 0.95 GiB (actual), 0.91 GiB (estimated), difference: 0.04 GiB (4.1%).
+(Worker_TP4 pid=2311961) INFO 04-26 22:17:33 [gpu_worker.py:601] CUDA graph pool memory: 0.95 GiB (actual), 0.91 GiB (estimated), difference: 0.04 GiB (4.1%).
+(EngineCore pid=2311524) INFO 04-26 22:17:33 [core.py:299] init engine (profile, create kv cache, warmup model) took 84.80 s (compilation: 27.83 s)
+(EngineCore pid=2311524) INFO 04-26 22:17:37 [factory.py:64] Creating v1 connector with name: OffloadingConnector and engine_id: 419442e9-2fe6-4331-9889-8a4bfd73d517
+(EngineCore pid=2311524) WARNING 04-26 22:17:37 [base.py:189] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+(EngineCore pid=2311524) INFO 04-26 22:17:37 [factory.py:51] Creating offloading spec with name: CPUOffloadingSpec
+(EngineCore pid=2311524) WARNING 04-26 22:17:37 [spec.py:75] Initializing OffloadingSpec. This API is experimental and subject to change in the future as we iterate the design.
+(EngineCore pid=2311524) INFO 04-26 22:17:38 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=2311524) INFO 04-26 22:17:38 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+(EngineCore pid=2311524) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=2311524) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=2311524) INFO 04-26 22:17:38 [compilation.py:294] Enabled custom fusions: allreduce_rms
+(APIServer pid=2309711) INFO 04-26 22:17:38 [api_server.py:598] Supported tasks: ['generate']
+(APIServer pid=2309711) WARNING 04-26 22:17:39 [model.py:1442] Default vLLM sampling parameters have been overridden by the model's `generation_config.json`: `{'temperature': 0.6, 'top_p': 0.9}`. If this is not intended, please relaunch vLLM instance with `--generation-config vllm`.
+(APIServer pid=2309711) INFO 04-26 22:17:43 [hf.py:314] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=2309711) INFO 04-26 22:17:43 [api_server.py:602] Starting vLLM server on http://127.0.0.1:8000
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:37] Available routes are:
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /openapi.json, Methods: HEAD, GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /docs, Methods: HEAD, GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /redoc, Methods: HEAD, GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /tokenize, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /detokenize, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /load, Methods: GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /version, Methods: GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /health, Methods: GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /metrics, Methods: GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/models, Methods: GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /ping, Methods: GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /ping, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /invocations, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/chat/completions/batch, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/responses, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/completions, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/messages, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/messages/count_tokens, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /inference/v1/generate, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /generative_scoring, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/chat/completions/render, Methods: POST
+(APIServer pid=2309711) INFO 04-26 22:17:43 [launcher.py:46] Route: /v1/completions/render, Methods: POST
+(APIServer pid=2309711) INFO:     Started server process [2309711]
+(APIServer pid=2309711) INFO:     Waiting for application startup.
+(APIServer pid=2309711) INFO:     Application startup complete.
+(APIServer pid=2309711) INFO:     127.0.0.1:60388 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33260 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33260 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=2311524) INFO 04-26 22:18:15 [scheduler.py:454] [IDE_006 diag scheduler call=1] num_reqs_total=1 factor=1 sampled=cmpl-ben:next=512,ready=0/512
+(EngineCore pid=2311524) INFO 04-26 22:18:15 [scheduler.py:454] [IDE_006 diag scheduler call=2] num_reqs_total=1 factor=1 sampled=cmpl-ben:next=896,ready=0/896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:15 [gpu_model_runner.py:2308] [IDE_006 diag step=1] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:15 [gpu_model_runner.py:2308] [IDE_006 diag step=1] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:15 [gpu_model_runner.py:2308] [IDE_006 diag step=1] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:15 [gpu_model_runner.py:2308] [IDE_006 diag step=1] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:15 [gpu_model_runner.py:2308] [IDE_006 diag step=1] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:15 [gpu_model_runner.py:2308] [IDE_006 diag step=1] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:15 [gpu_model_runner.py:2308] [IDE_006 diag step=1] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:15 [gpu_model_runner.py:2308] [IDE_006 diag step=1] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(EngineCore pid=2311524) INFO 04-26 22:18:16 [scheduler.py:454] [IDE_006 diag scheduler call=3] num_reqs_total=1 factor=1 sampled=cmpl-ben:next=896,ready=0/896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=2] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=2] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=2] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=2] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=2] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=2] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=2] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=2] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(EngineCore pid=2311524) INFO 04-26 22:18:16 [scheduler.py:454] [IDE_006 diag scheduler call=4] num_reqs_total=1 factor=1 sampled=cmpl-ben:next=896,ready=512/896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=3] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=3] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=3] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=3] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=3] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=3] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=3] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=4] reqs_with_cold_blocks=1/1 max_cold_per_req=512 total_cold_blocks=512
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=4] reqs_with_cold_blocks=1/1 max_cold_per_req=512 total_cold_blocks=512
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=4] reqs_with_cold_blocks=1/1 max_cold_per_req=512 total_cold_blocks=512
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=4] reqs_with_cold_blocks=1/1 max_cold_per_req=512 total_cold_blocks=512
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=3] reqs_with_cold_blocks=0/1 max_cold_per_req=0 total_cold_blocks=0
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=4] reqs_with_cold_blocks=1/1 max_cold_per_req=512 total_cold_blocks=512
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=4] reqs_with_cold_blocks=1/1 max_cold_per_req=512 total_cold_blocks=512
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=4] reqs_with_cold_blocks=1/1 max_cold_per_req=512 total_cold_blocks=512
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=4] reqs_with_cold_blocks=1/1 max_cold_per_req=512 total_cold_blocks=512
+(EngineCore pid=2311524) INFO 04-26 22:18:16 [scheduler.py:454] [IDE_006 diag scheduler call=5] num_reqs_total=1 factor=1 sampled=cmpl-ben:next=896,ready=896/896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=5] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=5] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=5] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=5] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=5] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=5] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=5] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=5] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=6] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=6] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=6] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=6] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=6] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=6] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=6] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=6] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=7] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=7] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=7] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=7] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=7] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=7] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=7] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=7] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=8] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=8] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=8] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=8] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=8] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=8] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=8] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=8] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=9] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=9] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=9] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=9] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=9] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=9] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=9] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=9] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=10] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=10] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=10] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=10] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=10] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=10] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=10] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=10] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=15] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=15] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=15] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=15] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=15] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=15] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=15] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=15] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=20] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=20] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=20] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=20] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=20] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=20] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=20] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=20] reqs_with_cold_blocks=1/1 max_cold_per_req=896 total_cold_blocks=896
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=25] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=25] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=25] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=25] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=25] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=25] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=25] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:16 [gpu_model_runner.py:2308] [IDE_006 diag step=25] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=30] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=30] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=30] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=30] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=30] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=30] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=30] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=30] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=35] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=35] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=35] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=35] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=35] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=35] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=35] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=35] reqs_with_cold_blocks=1/1 max_cold_per_req=897 total_cold_blocks=897
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=40] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=40] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=40] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=40] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=40] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=40] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=40] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=40] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=45] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=45] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=45] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=45] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=45] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=45] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=45] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=45] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(APIServer pid=2309711) INFO:     127.0.0.1:33270 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=2311524) INFO 04-26 22:18:17 [scheduler.py:454] [IDE_006 diag scheduler call=50] num_reqs_total=1 factor=1 sampled=cmpl-ben:next=898,ready=898/898
+(APIServer pid=2309711) INFO:     127.0.0.1:33266 - "POST /v1/completions HTTP/1.1" 200 OK
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=50] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=50] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=50] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=50] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=50] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=50] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=50] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:17 [gpu_model_runner.py:2308] [IDE_006 diag step=50] reqs_with_cold_blocks=1/1 max_cold_per_req=898 total_cold_blocks=898
+(APIServer pid=2309711) INFO:     127.0.0.1:33274 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33282 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33286 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33288 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33298 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33302 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33314 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33320 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33342 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33358 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33382 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33388 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33400 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33412 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33424 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33440 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33446 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33462 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33466 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33478 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33494 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33514 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33528 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33532 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33544 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33560 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33562 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33568 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33576 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33586 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33596 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33602 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33608 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33622 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33624 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33640 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33652 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33670 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33682 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33692 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33718 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33728 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33738 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33756 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33760 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33800 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33810 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33812 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33826 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33330 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33374 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33390 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33402 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33420 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33452 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33468 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33470 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33482 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33502 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33664 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33708 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33748 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33776 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33780 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33788 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33820 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33828 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33848 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33856 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33872 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33898 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33918 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33928 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33944 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33948 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33954 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33960 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33968 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33986 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33992 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34006 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34008 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34018 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34026 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34048 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34062 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34072 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34082 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33838 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33868 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33886 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33904 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33978 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:33988 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34038 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34044 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO:     127.0.0.1:34092 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=2309711) INFO 04-26 22:18:24 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 5.0 tokens/s, Running: 3 reqs, Waiting: 30 reqs, GPU KV cache usage: 2.5%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:18:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=4708106240, GPU_to_CPU_total_time=0.8117031392157077
+(APIServer pid=2309711) INFO 04-26 22:18:34 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 0.2 tokens/s, Running: 3 reqs, Waiting: 97 reqs, GPU KV cache usage: 3.2%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:18:34 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.5362178889960051
+(Worker_TP1 pid=2311958) INFO 04-26 22:18:42 [gpu_model_runner.py:2308] [IDE_006 diag step=55] reqs_with_cold_blocks=3/4 max_cold_per_req=899 total_cold_blocks=1922
+(Worker_TP4 pid=2311961) INFO 04-26 22:18:42 [gpu_model_runner.py:2308] [IDE_006 diag step=55] reqs_with_cold_blocks=3/4 max_cold_per_req=899 total_cold_blocks=1922
+(Worker_TP6 pid=2311963) INFO 04-26 22:18:42 [gpu_model_runner.py:2308] [IDE_006 diag step=55] reqs_with_cold_blocks=3/4 max_cold_per_req=899 total_cold_blocks=1922
+(Worker_TP7 pid=2311964) INFO 04-26 22:18:42 [gpu_model_runner.py:2308] [IDE_006 diag step=55] reqs_with_cold_blocks=3/4 max_cold_per_req=899 total_cold_blocks=1922
+(Worker_TP3 pid=2311960) INFO 04-26 22:18:42 [gpu_model_runner.py:2308] [IDE_006 diag step=55] reqs_with_cold_blocks=3/4 max_cold_per_req=899 total_cold_blocks=1922
+(Worker_TP2 pid=2311959) INFO 04-26 22:18:42 [gpu_model_runner.py:2308] [IDE_006 diag step=55] reqs_with_cold_blocks=3/4 max_cold_per_req=899 total_cold_blocks=1922
+(Worker_TP5 pid=2311962) INFO 04-26 22:18:42 [gpu_model_runner.py:2308] [IDE_006 diag step=55] reqs_with_cold_blocks=3/4 max_cold_per_req=899 total_cold_blocks=1922
+(Worker_TP0 pid=2311957) INFO 04-26 22:18:42 [gpu_model_runner.py:2308] [IDE_006 diag step=55] reqs_with_cold_blocks=3/4 max_cold_per_req=899 total_cold_blocks=1922
+(APIServer pid=2309711) INFO 04-26 22:18:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 0.5 tokens/s, Running: 4 reqs, Waiting: 96 reqs, GPU KV cache usage: 4.5%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:18:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=5368709120, GPU_to_CPU_total_time=1.0665880346298218
+(APIServer pid=2309711) INFO 04-26 22:18:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.3 tokens/s, Running: 5 reqs, Waiting: 95 reqs, GPU KV cache usage: 5.2%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:18:54 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.5249216957092285
+(APIServer pid=2309711) INFO 04-26 22:19:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 5 reqs, Waiting: 95 reqs, GPU KV cache usage: 5.2%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:19:14 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.5 tokens/s, Avg generation throughput: 0.4 tokens/s, Running: 5 reqs, Waiting: 95 reqs, GPU KV cache usage: 5.9%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:19:14 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.4707719688415528
+(APIServer pid=2309711) INFO 04-26 22:19:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.4 tokens/s, Running: 6 reqs, Waiting: 94 reqs, GPU KV cache usage: 6.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:19:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.4532696676254272
+(APIServer pid=2309711) INFO 04-26 22:19:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 6 reqs, Waiting: 94 reqs, GPU KV cache usage: 6.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:19:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 0.5 tokens/s, Running: 7 reqs, Waiting: 93 reqs, GPU KV cache usage: 7.2%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:19:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.5106735038757325
+(APIServer pid=2309711) INFO 04-26 22:19:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 7 reqs, Waiting: 93 reqs, GPU KV cache usage: 7.2%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(Worker_TP1 pid=2311958) INFO 04-26 22:19:59 [gpu_model_runner.py:2308] [IDE_006 diag step=60] reqs_with_cold_blocks=5/7 max_cold_per_req=899 total_cold_blocks=4482
+(Worker_TP4 pid=2311961) INFO 04-26 22:19:59 [gpu_model_runner.py:2308] [IDE_006 diag step=60] reqs_with_cold_blocks=5/7 max_cold_per_req=899 total_cold_blocks=4482
+(Worker_TP0 pid=2311957) INFO 04-26 22:19:59 [gpu_model_runner.py:2308] [IDE_006 diag step=60] reqs_with_cold_blocks=5/7 max_cold_per_req=899 total_cold_blocks=4482
+(Worker_TP2 pid=2311959) INFO 04-26 22:19:59 [gpu_model_runner.py:2308] [IDE_006 diag step=60] reqs_with_cold_blocks=5/7 max_cold_per_req=899 total_cold_blocks=4482
+(Worker_TP6 pid=2311963) INFO 04-26 22:19:59 [gpu_model_runner.py:2308] [IDE_006 diag step=60] reqs_with_cold_blocks=5/7 max_cold_per_req=899 total_cold_blocks=4482
+(Worker_TP7 pid=2311964) INFO 04-26 22:19:59 [gpu_model_runner.py:2308] [IDE_006 diag step=60] reqs_with_cold_blocks=5/7 max_cold_per_req=899 total_cold_blocks=4482
+(Worker_TP5 pid=2311962) INFO 04-26 22:19:59 [gpu_model_runner.py:2308] [IDE_006 diag step=60] reqs_with_cold_blocks=5/7 max_cold_per_req=899 total_cold_blocks=4482
+(Worker_TP3 pid=2311960) INFO 04-26 22:19:59 [gpu_model_runner.py:2308] [IDE_006 diag step=60] reqs_with_cold_blocks=5/7 max_cold_per_req=899 total_cold_blocks=4482
+(APIServer pid=2309711) INFO 04-26 22:20:04 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 0.6 tokens/s, Running: 7 reqs, Waiting: 93 reqs, GPU KV cache usage: 7.9%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:20:04 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.4448954946100713
+(APIServer pid=2309711) INFO 04-26 22:20:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 7 reqs, Waiting: 93 reqs, GPU KV cache usage: 7.9%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:20:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.6 tokens/s, Running: 8 reqs, Waiting: 92 reqs, GPU KV cache usage: 8.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:20:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.4355378873348237
+(APIServer pid=2309711) INFO 04-26 22:20:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 8 reqs, Waiting: 92 reqs, GPU KV cache usage: 8.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:20:54 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.7 tokens/s, Avg generation throughput: 0.7 tokens/s, Running: 8 reqs, Waiting: 92 reqs, GPU KV cache usage: 9.2%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:20:54 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.46300889205932616
+(APIServer pid=2309711) INFO 04-26 22:21:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 8 reqs, Waiting: 92 reqs, GPU KV cache usage: 9.2%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:21:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.7 tokens/s, Running: 9 reqs, Waiting: 91 reqs, GPU KV cache usage: 9.9%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:21:14 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.5360894107818603
+(APIServer pid=2309711) INFO 04-26 22:21:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 9 reqs, Waiting: 91 reqs, GPU KV cache usage: 9.9%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:21:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.5 tokens/s, Avg generation throughput: 0.8 tokens/s, Running: 9 reqs, Waiting: 91 reqs, GPU KV cache usage: 10.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:21:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.4537629432678223
+(APIServer pid=2309711) INFO 04-26 22:21:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 9 reqs, Waiting: 91 reqs, GPU KV cache usage: 10.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(Worker_TP4 pid=2311961) INFO 04-26 22:22:14 [gpu_model_runner.py:2308] [IDE_006 diag step=65] reqs_with_cold_blocks=8/10 max_cold_per_req=899 total_cold_blocks=7040
+(Worker_TP1 pid=2311958) INFO 04-26 22:22:14 [gpu_model_runner.py:2308] [IDE_006 diag step=65] reqs_with_cold_blocks=8/10 max_cold_per_req=899 total_cold_blocks=7040
+(Worker_TP2 pid=2311959) INFO 04-26 22:22:14 [gpu_model_runner.py:2308] [IDE_006 diag step=65] reqs_with_cold_blocks=8/10 max_cold_per_req=899 total_cold_blocks=7040
+(Worker_TP6 pid=2311963) INFO 04-26 22:22:14 [gpu_model_runner.py:2308] [IDE_006 diag step=65] reqs_with_cold_blocks=8/10 max_cold_per_req=899 total_cold_blocks=7040
+(Worker_TP7 pid=2311964) INFO 04-26 22:22:14 [gpu_model_runner.py:2308] [IDE_006 diag step=65] reqs_with_cold_blocks=8/10 max_cold_per_req=899 total_cold_blocks=7040
+(Worker_TP0 pid=2311957) INFO 04-26 22:22:14 [gpu_model_runner.py:2308] [IDE_006 diag step=65] reqs_with_cold_blocks=8/10 max_cold_per_req=899 total_cold_blocks=7040
+(Worker_TP5 pid=2311962) INFO 04-26 22:22:14 [gpu_model_runner.py:2308] [IDE_006 diag step=65] reqs_with_cold_blocks=8/10 max_cold_per_req=899 total_cold_blocks=7040
+(Worker_TP3 pid=2311960) INFO 04-26 22:22:14 [gpu_model_runner.py:2308] [IDE_006 diag step=65] reqs_with_cold_blocks=8/10 max_cold_per_req=899 total_cold_blocks=7040
+(APIServer pid=2309711) INFO 04-26 22:22:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.8 tokens/s, Running: 10 reqs, Waiting: 90 reqs, GPU KV cache usage: 11.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:22:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.5289899864196779
+(APIServer pid=2309711) INFO 04-26 22:22:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 10 reqs, Waiting: 90 reqs, GPU KV cache usage: 11.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:22:54 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.5 tokens/s, Avg generation throughput: 0.9 tokens/s, Running: 11 reqs, Waiting: 89 reqs, GPU KV cache usage: 11.9%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:22:54 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.4155153846740723
+(APIServer pid=2309711) INFO 04-26 22:23:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 11 reqs, Waiting: 89 reqs, GPU KV cache usage: 11.9%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:23:24 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 1.0 tokens/s, Running: 11 reqs, Waiting: 89 reqs, GPU KV cache usage: 12.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:23:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.41445289355516435
+(APIServer pid=2309711) INFO 04-26 22:23:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 11 reqs, Waiting: 89 reqs, GPU KV cache usage: 12.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:24:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1.0 tokens/s, Running: 12 reqs, Waiting: 88 reqs, GPU KV cache usage: 13.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:24:04 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.3466568270921707
+(APIServer pid=2309711) INFO 04-26 22:24:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 12 reqs, Waiting: 88 reqs, GPU KV cache usage: 13.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:24:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 1.1 tokens/s, Running: 12 reqs, Waiting: 88 reqs, GPU KV cache usage: 14.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:24:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.3913027181178331
+(APIServer pid=2309711) INFO 04-26 22:24:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 12 reqs, Waiting: 88 reqs, GPU KV cache usage: 14.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(Worker_TP4 pid=2311961) INFO 04-26 22:25:26 [gpu_model_runner.py:2308] [IDE_006 diag step=70] reqs_with_cold_blocks=11/13 max_cold_per_req=900 total_cold_blocks=9598
+(Worker_TP1 pid=2311958) INFO 04-26 22:25:26 [gpu_model_runner.py:2308] [IDE_006 diag step=70] reqs_with_cold_blocks=11/13 max_cold_per_req=900 total_cold_blocks=9598
+(Worker_TP2 pid=2311959) INFO 04-26 22:25:26 [gpu_model_runner.py:2308] [IDE_006 diag step=70] reqs_with_cold_blocks=11/13 max_cold_per_req=900 total_cold_blocks=9598
+(Worker_TP6 pid=2311963) INFO 04-26 22:25:26 [gpu_model_runner.py:2308] [IDE_006 diag step=70] reqs_with_cold_blocks=11/13 max_cold_per_req=900 total_cold_blocks=9598
+(Worker_TP0 pid=2311957) INFO 04-26 22:25:26 [gpu_model_runner.py:2308] [IDE_006 diag step=70] reqs_with_cold_blocks=11/13 max_cold_per_req=900 total_cold_blocks=9598
+(Worker_TP3 pid=2311960) INFO 04-26 22:25:26 [gpu_model_runner.py:2308] [IDE_006 diag step=70] reqs_with_cold_blocks=11/13 max_cold_per_req=900 total_cold_blocks=9598
+(Worker_TP7 pid=2311964) INFO 04-26 22:25:26 [gpu_model_runner.py:2308] [IDE_006 diag step=70] reqs_with_cold_blocks=11/13 max_cold_per_req=900 total_cold_blocks=9598
+(Worker_TP5 pid=2311962) INFO 04-26 22:25:26 [gpu_model_runner.py:2308] [IDE_006 diag step=70] reqs_with_cold_blocks=11/13 max_cold_per_req=900 total_cold_blocks=9598
+(APIServer pid=2309711) INFO 04-26 22:25:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1.1 tokens/s, Running: 13 reqs, Waiting: 87 reqs, GPU KV cache usage: 14.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:25:34 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.3897776622772217
+(APIServer pid=2309711) INFO 04-26 22:25:44 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 13 reqs, Waiting: 87 reqs, GPU KV cache usage: 14.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:26:14 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 1.2 tokens/s, Running: 13 reqs, Waiting: 87 reqs, GPU KV cache usage: 15.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:26:14 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.42798710877448315
+(APIServer pid=2309711) INFO 04-26 22:26:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 13 reqs, Waiting: 87 reqs, GPU KV cache usage: 15.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:27:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1.2 tokens/s, Running: 14 reqs, Waiting: 86 reqs, GPU KV cache usage: 16.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:27:04 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.43327737617492673
+(APIServer pid=2309711) INFO 04-26 22:27:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 14 reqs, Waiting: 86 reqs, GPU KV cache usage: 16.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:27:54 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.7 tokens/s, Avg generation throughput: 1.3 tokens/s, Running: 15 reqs, Waiting: 85 reqs, GPU KV cache usage: 16.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:27:54 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.4416358674988151
+(APIServer pid=2309711) INFO 04-26 22:28:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 15 reqs, Waiting: 85 reqs, GPU KV cache usage: 16.6%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:28:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.5 tokens/s, Avg generation throughput: 1.4 tokens/s, Running: 15 reqs, Waiting: 85 reqs, GPU KV cache usage: 17.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:28:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.3867934065461159
+(APIServer pid=2309711) INFO 04-26 22:28:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 15 reqs, Waiting: 85 reqs, GPU KV cache usage: 17.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(Worker_TP4 pid=2311961) INFO 04-26 22:29:35 [gpu_model_runner.py:2308] [IDE_006 diag step=75] reqs_with_cold_blocks=14/16 max_cold_per_req=900 total_cold_blocks=12157
+(Worker_TP1 pid=2311958) INFO 04-26 22:29:35 [gpu_model_runner.py:2308] [IDE_006 diag step=75] reqs_with_cold_blocks=14/16 max_cold_per_req=900 total_cold_blocks=12157
+(Worker_TP2 pid=2311959) INFO 04-26 22:29:35 [gpu_model_runner.py:2308] [IDE_006 diag step=75] reqs_with_cold_blocks=14/16 max_cold_per_req=900 total_cold_blocks=12157
+(Worker_TP5 pid=2311962) INFO 04-26 22:29:35 [gpu_model_runner.py:2308] [IDE_006 diag step=75] reqs_with_cold_blocks=14/16 max_cold_per_req=900 total_cold_blocks=12157
+(Worker_TP7 pid=2311964) INFO 04-26 22:29:35 [gpu_model_runner.py:2308] [IDE_006 diag step=75] reqs_with_cold_blocks=14/16 max_cold_per_req=900 total_cold_blocks=12157
+(Worker_TP6 pid=2311963) INFO 04-26 22:29:35 [gpu_model_runner.py:2308] [IDE_006 diag step=75] reqs_with_cold_blocks=14/16 max_cold_per_req=900 total_cold_blocks=12157
+(Worker_TP0 pid=2311957) INFO 04-26 22:29:35 [gpu_model_runner.py:2308] [IDE_006 diag step=75] reqs_with_cold_blocks=14/16 max_cold_per_req=900 total_cold_blocks=12157
+(Worker_TP3 pid=2311960) INFO 04-26 22:29:35 [gpu_model_runner.py:2308] [IDE_006 diag step=75] reqs_with_cold_blocks=14/16 max_cold_per_req=900 total_cold_blocks=12157
+(APIServer pid=2309711) INFO 04-26 22:29:44 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1.4 tokens/s, Running: 16 reqs, Waiting: 84 reqs, GPU KV cache usage: 18.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:29:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.4221042900644243
+(APIServer pid=2309711) INFO 04-26 22:29:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 16 reqs, Waiting: 84 reqs, GPU KV cache usage: 18.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:30:34 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 1.5 tokens/s, Running: 16 reqs, Waiting: 84 reqs, GPU KV cache usage: 18.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:30:34 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.4066531181335449
+(APIServer pid=2309711) INFO 04-26 22:30:44 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 16 reqs, Waiting: 84 reqs, GPU KV cache usage: 18.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:31:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1.5 tokens/s, Running: 17 reqs, Waiting: 83 reqs, GPU KV cache usage: 19.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:31:34 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.5558858572244645
+(APIServer pid=2309711) INFO 04-26 22:31:44 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 17 reqs, Waiting: 83 reqs, GPU KV cache usage: 19.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:32:31 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:32:34 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.5 tokens/s, Avg generation throughput: 1.6 tokens/s, Running: 17 reqs, Waiting: 83 reqs, GPU KV cache usage: 20.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:32:34 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.39551497508585454
+(APIServer pid=2309711) INFO 04-26 22:32:44 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 17 reqs, Waiting: 83 reqs, GPU KV cache usage: 20.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:33:33 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:33:44 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1.6 tokens/s, Running: 18 reqs, Waiting: 82 reqs, GPU KV cache usage: 20.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:33:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.5330980777740478
+(APIServer pid=2309711) INFO 04-26 22:33:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 18 reqs, Waiting: 82 reqs, GPU KV cache usage: 20.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:34:36 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(Worker_TP6 pid=2311963) INFO 04-26 22:34:40 [gpu_model_runner.py:2308] [IDE_006 diag step=80] reqs_with_cold_blocks=17/19 max_cold_per_req=900 total_cold_blocks=14715
+(Worker_TP4 pid=2311961) INFO 04-26 22:34:40 [gpu_model_runner.py:2308] [IDE_006 diag step=80] reqs_with_cold_blocks=17/19 max_cold_per_req=900 total_cold_blocks=14715
+(Worker_TP7 pid=2311964) INFO 04-26 22:34:40 [gpu_model_runner.py:2308] [IDE_006 diag step=80] reqs_with_cold_blocks=17/19 max_cold_per_req=900 total_cold_blocks=14715
+(Worker_TP5 pid=2311962) INFO 04-26 22:34:40 [gpu_model_runner.py:2308] [IDE_006 diag step=80] reqs_with_cold_blocks=17/19 max_cold_per_req=900 total_cold_blocks=14715
+(Worker_TP1 pid=2311958) INFO 04-26 22:34:40 [gpu_model_runner.py:2308] [IDE_006 diag step=80] reqs_with_cold_blocks=17/19 max_cold_per_req=900 total_cold_blocks=14715
+(Worker_TP0 pid=2311957) INFO 04-26 22:34:40 [gpu_model_runner.py:2308] [IDE_006 diag step=80] reqs_with_cold_blocks=17/19 max_cold_per_req=900 total_cold_blocks=14715
+(Worker_TP2 pid=2311959) INFO 04-26 22:34:40 [gpu_model_runner.py:2308] [IDE_006 diag step=80] reqs_with_cold_blocks=17/19 max_cold_per_req=900 total_cold_blocks=14715
+(Worker_TP3 pid=2311960) INFO 04-26 22:34:40 [gpu_model_runner.py:2308] [IDE_006 diag step=80] reqs_with_cold_blocks=17/19 max_cold_per_req=900 total_cold_blocks=14715
+(APIServer pid=2309711) INFO 04-26 22:34:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 1.7 tokens/s, Running: 19 reqs, Waiting: 81 reqs, GPU KV cache usage: 21.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:34:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.410798523209989
+(APIServer pid=2309711) INFO 04-26 22:34:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 19 reqs, Waiting: 81 reqs, GPU KV cache usage: 21.3%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:35:41 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:35:54 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 1.8 tokens/s, Running: 19 reqs, Waiting: 81 reqs, GPU KV cache usage: 22.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:35:54 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.38790086382627487
+(APIServer pid=2309711) INFO 04-26 22:36:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 19 reqs, Waiting: 81 reqs, GPU KV cache usage: 22.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:36:48 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:37:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1.8 tokens/s, Running: 20 reqs, Waiting: 80 reqs, GPU KV cache usage: 22.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:37:04 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.3817800343073905
+(APIServer pid=2309711) INFO 04-26 22:37:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 20 reqs, Waiting: 80 reqs, GPU KV cache usage: 22.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:37:58 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:38:14 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.7 tokens/s, Avg generation throughput: 1.9 tokens/s, Running: 20 reqs, Waiting: 80 reqs, GPU KV cache usage: 23.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:38:14 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.42874726104736327
+(APIServer pid=2309711) INFO 04-26 22:38:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 20 reqs, Waiting: 80 reqs, GPU KV cache usage: 23.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:39:11 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:39:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1.9 tokens/s, Running: 21 reqs, Waiting: 79 reqs, GPU KV cache usage: 24.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:39:34 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.425043932363391
+(APIServer pid=2309711) INFO 04-26 22:39:44 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 21 reqs, Waiting: 79 reqs, GPU KV cache usage: 24.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:40:25 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(Worker_TP4 pid=2311961) INFO 04-26 22:40:42 [gpu_model_runner.py:2308] [IDE_006 diag step=85] reqs_with_cold_blocks=20/21 max_cold_per_req=900 total_cold_blocks=17273
+(Worker_TP6 pid=2311963) INFO 04-26 22:40:42 [gpu_model_runner.py:2308] [IDE_006 diag step=85] reqs_with_cold_blocks=20/21 max_cold_per_req=900 total_cold_blocks=17273
+(Worker_TP1 pid=2311958) INFO 04-26 22:40:42 [gpu_model_runner.py:2308] [IDE_006 diag step=85] reqs_with_cold_blocks=20/21 max_cold_per_req=900 total_cold_blocks=17273
+(Worker_TP2 pid=2311959) INFO 04-26 22:40:42 [gpu_model_runner.py:2308] [IDE_006 diag step=85] reqs_with_cold_blocks=20/21 max_cold_per_req=900 total_cold_blocks=17273
+(Worker_TP7 pid=2311964) INFO 04-26 22:40:42 [gpu_model_runner.py:2308] [IDE_006 diag step=85] reqs_with_cold_blocks=20/21 max_cold_per_req=900 total_cold_blocks=17273
+(Worker_TP0 pid=2311957) INFO 04-26 22:40:42 [gpu_model_runner.py:2308] [IDE_006 diag step=85] reqs_with_cold_blocks=20/21 max_cold_per_req=900 total_cold_blocks=17273
+(Worker_TP5 pid=2311962) INFO 04-26 22:40:42 [gpu_model_runner.py:2308] [IDE_006 diag step=85] reqs_with_cold_blocks=20/21 max_cold_per_req=900 total_cold_blocks=17273
+(Worker_TP3 pid=2311960) INFO 04-26 22:40:42 [gpu_model_runner.py:2308] [IDE_006 diag step=85] reqs_with_cold_blocks=20/21 max_cold_per_req=900 total_cold_blocks=17273
+(APIServer pid=2309711) INFO 04-26 22:40:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 2.0 tokens/s, Running: 21 reqs, Waiting: 79 reqs, GPU KV cache usage: 24.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:40:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2689597440, GPU_to_CPU_total_time=0.42087817743793143
+(APIServer pid=2309711) INFO 04-26 22:40:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 21 reqs, Waiting: 79 reqs, GPU KV cache usage: 24.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:41:43 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:42:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2.0 tokens/s, Running: 22 reqs, Waiting: 78 reqs, GPU KV cache usage: 25.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:42:04 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.4265065307617188
+(APIServer pid=2309711) INFO 04-26 22:42:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 22 reqs, Waiting: 78 reqs, GPU KV cache usage: 25.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:43:02 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:43:24 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 2.1 tokens/s, Running: 23 reqs, Waiting: 77 reqs, GPU KV cache usage: 26.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:43:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.44507849517092113
+(APIServer pid=2309711) INFO 04-26 22:43:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 23 reqs, Waiting: 77 reqs, GPU KV cache usage: 26.0%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:44:24 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:44:54 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 2.2 tokens/s, Running: 23 reqs, Waiting: 77 reqs, GPU KV cache usage: 26.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:44:54 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.4068828186988831
+(APIServer pid=2309711) INFO 04-26 22:45:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 23 reqs, Waiting: 77 reqs, GPU KV cache usage: 26.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:45:48 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:46:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2.2 tokens/s, Running: 24 reqs, Waiting: 76 reqs, GPU KV cache usage: 27.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:46:14 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2689597440, GPU_to_CPU_total_time=0.3407286067567766
+(APIServer pid=2309711) INFO 04-26 22:46:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 24 reqs, Waiting: 76 reqs, GPU KV cache usage: 27.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:47:13 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(Worker_TP6 pid=2311963) INFO 04-26 22:47:40 [gpu_model_runner.py:2308] [IDE_006 diag step=90] reqs_with_cold_blocks=23/24 max_cold_per_req=901 total_cold_blocks=19833
+(Worker_TP4 pid=2311961) INFO 04-26 22:47:40 [gpu_model_runner.py:2308] [IDE_006 diag step=90] reqs_with_cold_blocks=23/24 max_cold_per_req=901 total_cold_blocks=19833
+(Worker_TP1 pid=2311958) INFO 04-26 22:47:40 [gpu_model_runner.py:2308] [IDE_006 diag step=90] reqs_with_cold_blocks=23/24 max_cold_per_req=901 total_cold_blocks=19833
+(Worker_TP7 pid=2311964) INFO 04-26 22:47:40 [gpu_model_runner.py:2308] [IDE_006 diag step=90] reqs_with_cold_blocks=23/24 max_cold_per_req=901 total_cold_blocks=19833
+(Worker_TP5 pid=2311962) INFO 04-26 22:47:40 [gpu_model_runner.py:2308] [IDE_006 diag step=90] reqs_with_cold_blocks=23/24 max_cold_per_req=901 total_cold_blocks=19833
+(Worker_TP2 pid=2311959) INFO 04-26 22:47:40 [gpu_model_runner.py:2308] [IDE_006 diag step=90] reqs_with_cold_blocks=23/24 max_cold_per_req=901 total_cold_blocks=19833
+(Worker_TP0 pid=2311957) INFO 04-26 22:47:40 [gpu_model_runner.py:2308] [IDE_006 diag step=90] reqs_with_cold_blocks=23/24 max_cold_per_req=901 total_cold_blocks=19833
+(Worker_TP3 pid=2311960) INFO 04-26 22:47:40 [gpu_model_runner.py:2308] [IDE_006 diag step=90] reqs_with_cold_blocks=23/24 max_cold_per_req=901 total_cold_blocks=19833
+(APIServer pid=2309711) INFO 04-26 22:47:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.5 tokens/s, Avg generation throughput: 2.3 tokens/s, Running: 24 reqs, Waiting: 76 reqs, GPU KV cache usage: 28.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:47:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2673868800, GPU_to_CPU_total_time=0.4118847045898437
+(APIServer pid=2309711) INFO 04-26 22:47:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 24 reqs, Waiting: 76 reqs, GPU KV cache usage: 28.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:48:41 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:49:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2.3 tokens/s, Running: 25 reqs, Waiting: 75 reqs, GPU KV cache usage: 28.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:49:14 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2689597440, GPU_to_CPU_total_time=0.3827129295319319
+(APIServer pid=2309711) INFO 04-26 22:49:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 25 reqs, Waiting: 75 reqs, GPU KV cache usage: 28.7%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:50:11 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:50:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 2.4 tokens/s, Running: 25 reqs, Waiting: 75 reqs, GPU KV cache usage: 29.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:50:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.45554684939235446
+(APIServer pid=2309711) INFO 04-26 22:50:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 25 reqs, Waiting: 75 reqs, GPU KV cache usage: 29.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:51:44 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:52:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2.4 tokens/s, Running: 26 reqs, Waiting: 74 reqs, GPU KV cache usage: 30.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:52:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.5672752050720156
+(APIServer pid=2309711) INFO 04-26 22:52:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 26 reqs, Waiting: 74 reqs, GPU KV cache usage: 30.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:53:20 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:54:04 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 2.5 tokens/s, Running: 27 reqs, Waiting: 73 reqs, GPU KV cache usage: 30.8%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:54:04 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2689597440, GPU_to_CPU_total_time=0.450347651090473
+(APIServer pid=2309711) INFO 04-26 22:54:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 27 reqs, Waiting: 73 reqs, GPU KV cache usage: 30.8%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:54:57 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(Worker_TP5 pid=2311962) INFO 04-26 22:55:36 [gpu_model_runner.py:2308] [IDE_006 diag step=95] reqs_with_cold_blocks=25/27 max_cold_per_req=901 total_cold_blocks=22392
+(Worker_TP1 pid=2311958) INFO 04-26 22:55:36 [gpu_model_runner.py:2308] [IDE_006 diag step=95] reqs_with_cold_blocks=25/27 max_cold_per_req=901 total_cold_blocks=22392
+(Worker_TP2 pid=2311959) INFO 04-26 22:55:36 [gpu_model_runner.py:2308] [IDE_006 diag step=95] reqs_with_cold_blocks=25/27 max_cold_per_req=901 total_cold_blocks=22392
+(Worker_TP4 pid=2311961) INFO 04-26 22:55:36 [gpu_model_runner.py:2308] [IDE_006 diag step=95] reqs_with_cold_blocks=25/27 max_cold_per_req=901 total_cold_blocks=22392
+(Worker_TP6 pid=2311963) INFO 04-26 22:55:36 [gpu_model_runner.py:2308] [IDE_006 diag step=95] reqs_with_cold_blocks=25/27 max_cold_per_req=901 total_cold_blocks=22392
+(Worker_TP7 pid=2311964) INFO 04-26 22:55:36 [gpu_model_runner.py:2308] [IDE_006 diag step=95] reqs_with_cold_blocks=25/27 max_cold_per_req=901 total_cold_blocks=22392
+(Worker_TP0 pid=2311957) INFO 04-26 22:55:36 [gpu_model_runner.py:2308] [IDE_006 diag step=95] reqs_with_cold_blocks=25/27 max_cold_per_req=901 total_cold_blocks=22392
+(Worker_TP3 pid=2311960) INFO 04-26 22:55:36 [gpu_model_runner.py:2308] [IDE_006 diag step=95] reqs_with_cold_blocks=25/27 max_cold_per_req=901 total_cold_blocks=22392
+(APIServer pid=2309711) INFO 04-26 22:55:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.5 tokens/s, Avg generation throughput: 2.6 tokens/s, Running: 27 reqs, Waiting: 73 reqs, GPU KV cache usage: 31.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:55:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2673868800, GPU_to_CPU_total_time=0.380737952709198
+(APIServer pid=2309711) INFO 04-26 22:55:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 27 reqs, Waiting: 73 reqs, GPU KV cache usage: 31.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:56:37 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:57:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2.6 tokens/s, Running: 28 reqs, Waiting: 72 reqs, GPU KV cache usage: 32.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:57:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2689597440, GPU_to_CPU_total_time=0.35038406052812926
+(APIServer pid=2309711) INFO 04-26 22:57:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 28 reqs, Waiting: 72 reqs, GPU KV cache usage: 32.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 22:58:18 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 22:59:04 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 2.7 tokens/s, Running: 28 reqs, Waiting: 72 reqs, GPU KV cache usage: 32.8%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 22:59:04 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2673868800, GPU_to_CPU_total_time=0.39765936279296876
+(APIServer pid=2309711) INFO 04-26 22:59:14 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 28 reqs, Waiting: 72 reqs, GPU KV cache usage: 32.8%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 23:00:02 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 23:00:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2.7 tokens/s, Running: 29 reqs, Waiting: 71 reqs, GPU KV cache usage: 33.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 23:00:54 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.3767565368860961
+(APIServer pid=2309711) INFO 04-26 23:01:04 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 29 reqs, Waiting: 71 reqs, GPU KV cache usage: 33.4%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 23:01:49 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(EngineCore pid=2311524) INFO 04-26 23:02:37 [scheduler.py:454] [IDE_006 diag scheduler call=100] num_reqs_total=30 factor=1 sampled=cmpl-ben:next=902,ready=901/902, cmpl-ben:next=898,ready=898/898, cmpl-ben:next=898,ready=898/898, cmpl-ben:next=898,ready=898/898, cmpl-ben:next=898,ready=898/898
+(APIServer pid=2309711) INFO 04-26 23:02:44 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.6 tokens/s, Avg generation throughput: 2.8 tokens/s, Running: 29 reqs, Waiting: 71 reqs, GPU KV cache usage: 34.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 23:02:44 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2684354560, GPU_to_CPU_total_time=0.4307151058912277
+(APIServer pid=2309711) INFO 04-26 23:02:54 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 29 reqs, Waiting: 71 reqs, GPU KV cache usage: 34.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 23:03:38 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(Worker_TP1 pid=2311958) INFO 04-26 23:04:28 [gpu_model_runner.py:2308] [IDE_006 diag step=100] reqs_with_cold_blocks=28/30 max_cold_per_req=901 total_cold_blocks=24949
+(Worker_TP4 pid=2311961) INFO 04-26 23:04:28 [gpu_model_runner.py:2308] [IDE_006 diag step=100] reqs_with_cold_blocks=28/30 max_cold_per_req=901 total_cold_blocks=24949
+(Worker_TP6 pid=2311963) INFO 04-26 23:04:28 [gpu_model_runner.py:2308] [IDE_006 diag step=100] reqs_with_cold_blocks=28/30 max_cold_per_req=901 total_cold_blocks=24949
+(Worker_TP5 pid=2311962) INFO 04-26 23:04:28 [gpu_model_runner.py:2308] [IDE_006 diag step=100] reqs_with_cold_blocks=28/30 max_cold_per_req=901 total_cold_blocks=24949
+(Worker_TP2 pid=2311959) INFO 04-26 23:04:28 [gpu_model_runner.py:2308] [IDE_006 diag step=100] reqs_with_cold_blocks=28/30 max_cold_per_req=901 total_cold_blocks=24949
+(Worker_TP0 pid=2311957) INFO 04-26 23:04:28 [gpu_model_runner.py:2308] [IDE_006 diag step=100] reqs_with_cold_blocks=28/30 max_cold_per_req=901 total_cold_blocks=24949
+(Worker_TP7 pid=2311964) INFO 04-26 23:04:28 [gpu_model_runner.py:2308] [IDE_006 diag step=100] reqs_with_cold_blocks=28/30 max_cold_per_req=901 total_cold_blocks=24949
+(Worker_TP3 pid=2311960) INFO 04-26 23:04:28 [gpu_model_runner.py:2308] [IDE_006 diag step=100] reqs_with_cold_blocks=28/30 max_cold_per_req=901 total_cold_blocks=24949
+(APIServer pid=2309711) INFO 04-26 23:04:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2.8 tokens/s, Running: 30 reqs, Waiting: 70 reqs, GPU KV cache usage: 34.8%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 23:04:34 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2679111680, GPU_to_CPU_total_time=0.42273388556391
+(APIServer pid=2309711) INFO 04-26 23:04:44 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 30 reqs, Waiting: 70 reqs, GPU KV cache usage: 34.8%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 23:05:29 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 23:06:24 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.2 tokens/s, Avg generation throughput: 2.9 tokens/s, Running: 31 reqs, Waiting: 69 reqs, GPU KV cache usage: 35.5%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 23:06:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2689597440, GPU_to_CPU_total_time=0.41050812502205375
+(APIServer pid=2309711) INFO 04-26 23:06:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 31 reqs, Waiting: 69 reqs, GPU KV cache usage: 35.5%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 23:07:22 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 23:08:24 [loggers.py:271] Engine 000: Avg prompt throughput: 1433.5 tokens/s, Avg generation throughput: 3.0 tokens/s, Running: 31 reqs, Waiting: 69 reqs, GPU KV cache usage: 36.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 23:08:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2673868800, GPU_to_CPU_total_time=0.40016921043396003
+(APIServer pid=2309711) INFO 04-26 23:08:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 31 reqs, Waiting: 69 reqs, GPU KV cache usage: 36.1%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 23:09:18 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(APIServer pid=2309711) INFO 04-26 23:10:24 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 3.0 tokens/s, Running: 32 reqs, Waiting: 68 reqs, GPU KV cache usage: 36.8%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(APIServer pid=2309711) INFO 04-26 23:10:24 [metrics.py:103] KV Transfer metrics: GPU_to_CPU_total_bytes=2694840320, GPU_to_CPU_total_time=0.38010134573653337
+(APIServer pid=2309711) INFO 04-26 23:10:34 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 32 reqs, Waiting: 68 reqs, GPU KV cache usage: 36.8%, Prefix cache hit rate: 0.0%, External prefix cache hit rate: 0.0%
+(EngineCore pid=2311524) INFO 04-26 23:11:15 [shm_broadcast.py:681] No available shared memory broadcast block found in 60 seconds. This typically happens when some processes are hanging or doing some time-consuming work (e.g. compilation, weight/kv cache quantization).
+(Worker_TP5 pid=2311962) WARNING 04-26 23:11:20 [multiproc_executor.py:884] WorkerProc was terminated
+(Worker_TP0 pid=2311957) WARNING 04-26 23:11:20 [multiproc_executor.py:884] WorkerProc was terminated
+(Worker_TP4 pid=2311961) WARNING 04-26 23:11:20 [multiproc_executor.py:884] WorkerProc was terminated
+(Worker_TP1 pid=2311958) WARNING 04-26 23:11:20 [multiproc_executor.py:884] WorkerProc was terminated
+(Worker_TP6 pid=2311963) WARNING 04-26 23:11:20 [multiproc_executor.py:884] WorkerProc was terminated
+(Worker_TP3 pid=2311960) WARNING 04-26 23:11:20 [multiproc_executor.py:884] WorkerProc was terminated
+(Worker_TP2 pid=2311959) WARNING 04-26 23:11:20 [multiproc_executor.py:884] WorkerProc was terminated
+(Worker_TP7 pid=2311964) WARNING 04-26 23:11:20 [multiproc_executor.py:884] WorkerProc was terminated
+(APIServer pid=2309711) INFO:     Shutting down
+(APIServer pid=2309711) INFO:     Waiting for application shutdown.
+(APIServer pid=2309711) INFO:     Application shutdown complete.
+(APIServer pid=2309711) INFO:     Finished server process [2309711]
+(EngineCore pid=2311524) ERROR 04-26 23:11:23 [multiproc_executor.py:283] Worker proc VllmWorker-4 died unexpectedly, shutting down executor.
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 9 leaked shared_memory objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
