@@ -21,6 +21,15 @@
 #   bash eval/run_prod_smoke.sh             # run + save (push manually)
 #   bash eval/run_prod_smoke.sh --push      # run + commit + push (current branch)
 #
+# NUMA hint (dual-socket Sapphire Rapids 8480+ × 2):
+#   현재 OffloadingConnector / TSK_001 partial-attention 커널은 NUMA 무인지
+#   상태 (TSK_004 로 추적). 큰 cpu_bytes_to_use 가 한쪽 NUMA node 에 first-
+#   touch 로 쏠리는 것을 막으려면 다음과 같이 띄우면 페이지가 두 node 에
+#   라운드로빈으로 박혀 cross-socket access latency 가 대칭이 됩니다:
+#       numactl --interleave=all bash eval/run_prod_smoke.sh --push
+#   정확도(TST_003) 에는 영향 없으나 TST_002 throughput sweep 단계에서
+#   net-win 판정이 NUMA 페널티에 오염되지 않게 하려면 권장.
+#
 # Output layout (follows the eval/results/ convention <TS>_<HW_TAG>_<TAG>/):
 #   eval/results/<TS>_<HW_TAG>_prod_smoke/    <- this script's own artifacts
 #     ├── pytest.log              # pytest stdout (TST_001 + TST_004)
