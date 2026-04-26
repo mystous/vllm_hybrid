@@ -251,6 +251,15 @@ class FlashAttentionMetadata:
 
     causal: bool = True
 
+    # Cold-KV CPU partial attention (IDE_006 / TSK_002). When enabled, the
+    # model_runner routes the cold prefix of each request's block_table
+    # through the TSK_001 CPU partial-attention kernel and the hot suffix
+    # through the standard GPU flash_attn path, merging via
+    # merge_attn_states. Defaults keep the schema bit-identical to the
+    # pre-IDE_006 path.
+    enable_hot_cold_split: bool = False
+    num_cold_blocks: torch.Tensor | None = None
+
 
 def _get_sliding_window_configs(
     vllm_config: VllmConfig,
