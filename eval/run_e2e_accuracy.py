@@ -732,6 +732,16 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--logprobs", type=int, default=10, help="0 disables logprob collection")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument(
+        "--split-on-only",
+        action="store_true",
+        help=(
+            "Skip the baseline LLM load + generation. Only the split_on env "
+            "is exercised. Useful for quickly verifying that the Phase 4c "
+            "cold-path dispatcher fires (via the [IDE_006 diag ...] log "
+            "lines) without the cost of a full TST_003 comparison run."
+        ),
+    )
+    p.add_argument(
         "--output-dir",
         type=Path,
         default=None,
@@ -776,8 +786,11 @@ def main() -> int:
 
     baseline_env = _load_env_config(args.baseline_env)
     split_on_env = _load_env_config(args.split_on_env)
-    _validate_baseline_split_pair(baseline_env, split_on_env)
-    baseline_env, _harmonised = _harmonise_gpu_memory_util(baseline_env, split_on_env)
+    if not args.split_on_only:
+        _validate_baseline_split_pair(baseline_env, split_on_env)
+        baseline_env, _harmonised = _harmonise_gpu_memory_util(
+            baseline_env, split_on_env
+        )
     num_prompts, input_len, max_tokens = _resolve_workload(args, split_on_env)
 
     if (
@@ -802,16 +815,26 @@ def main() -> int:
         flush=True,
     )
 
-    # 1) baseline
-    baseline = _run_one_config(
-        config_name="baseline",
-        env=baseline_env,
-        prompts=prompts,
-        max_tokens=max_tokens,
-        logprobs_k=args.logprobs,
-        seed=args.seed,
-    )
-    _save_config_outputs(out_dir / "baseline.json", baseline)
+    # 1) baseline (skipped when --split-on-only — execution-path 검증 모드)
+    if args.split_on_only:
+        print(
+            "[split-on-only] skipping baseline LLM load + generation. "
+            "Only the split_on env runs — useful for verifying cold-path "
+            "dispatch via the [IDE_006 diag ...] log lines without the "
+            "cost of a full TST_003 comparison.",
+            flush=True,
+        )
+        baseline = None
+    else:
+        baseline = _run_one_config(
+            config_name="baseline",
+            env=baseline_env,
+            prompts=prompts,
+            max_tokens=max_tokens,
+            logprobs_k=args.logprobs,
+            seed=args.seed,
+        )
+        _save_config_outputs(out_dir / "baseline.json", baseline)
 
     # 2) split_on (TSK_002 Phase 4c feature on)
     split_on = _run_one_config(
@@ -823,6 +846,20 @@ def main() -> int:
         seed=args.seed,
     )
     _save_config_outputs(out_dir / "split_on.json", split_on)
+
+    # split-on-only 모드: comparison 단계는 baseline 이 없어 의미 없음.
+    # split_on.json + 진단 로그만 보고 path 검증 종료.
+    if args.split_on_only:
+        print()
+        print("=" * 60)
+        print("split-on-only run complete — comparison skipped.")
+        print(
+            "Check the run log for '[IDE_006 diag ...]' lines to confirm "
+            "whether the cold-path dispatcher actually fired."
+        )
+        print(f"results -> {out_dir}")
+        print("=" * 60)
+        return 0
 
     # 3) comparison + verdict
     comparison = _compare_outputs(
