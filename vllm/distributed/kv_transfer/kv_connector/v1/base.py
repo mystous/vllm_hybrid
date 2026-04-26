@@ -264,6 +264,32 @@ class KVConnectorBase_V1(ABC):
         """
         return
 
+    def get_cpu_kv_buffer_for_layer(
+        self, layer_name: str
+    ) -> list[torch.Tensor] | None:
+        """Return the per-layer CPU canonical KV buffer(s).
+
+        Used by the Cold-KV CPU partial attention path (IDE_006 /
+        TSK_002) to read cold blocks in place from a worker-managed
+        CPU pinned buffer, without an extra D2H copy. The return list
+        has one entry for layouts that pack K and V back-to-back in a
+        single canonical tensor, and two entries
+        ``[K_buffer, V_buffer]`` for layouts (e.g. FlashAttention's
+        ``(2, num_blocks, ...)``) that split K and V into separate
+        canonical tensors.
+
+        Each returned tensor has shape
+        ``(num_cpu_blocks, page_or_half_page_bytes)`` in ``int8`` and
+        lives in CPU pinned memory.
+
+        ``None`` is the default and signals that this connector does
+        not surface its CPU KV buffers — the caller must fall back to
+        the standard non-cold-split attention path. Connectors that
+        do expose CPU buffers (e.g. OffloadingConnector) override this
+        method.
+        """
+        return None
+
     def register_cross_layers_kv_cache(
         self, kv_cache: torch.Tensor, attn_backend: type["AttentionBackend"]
     ):

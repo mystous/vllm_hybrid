@@ -140,3 +140,17 @@ class OffloadingSpec(ABC):
             Tuples of (src_type, dst_type, offloading_handler).
         """
         pass
+
+    @property
+    def cpu_kv_buffers(self) -> list[torch.Tensor] | None:
+        """List of CPU canonical KV buffers, parallel to the
+        ``CanonicalKVCaches.tensors`` that ``get_handlers`` was called
+        with. Each entry has shape ``(num_cpu_blocks, page_size_bytes)``
+        in ``int8`` and lives in CPU pinned memory.
+
+        Used by the Cold-KV CPU partial attention path
+        (IDE_006 / TSK_002) to read cold blocks in place. Returns
+        ``None`` when the spec does not expose direct CPU read access
+        (e.g. specs that only support transfer-back-to-GPU loads).
+        """
+        return None

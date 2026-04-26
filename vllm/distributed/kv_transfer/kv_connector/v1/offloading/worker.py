@@ -59,6 +59,13 @@ class OffloadingConnectorWorker:
 
         self._finished_reqs_waiting_for_store: set[ReqId] = set()
 
+        # Cold-KV CPU partial attention (IDE_006 / TSK_002 Phase 4b):
+        # populated in register_kv_caches; one list of CanonicalKVCacheRef
+        # per layer. The Cold-KV path uses each ref's ``tensor_idx`` to
+        # index into ``self.spec.cpu_kv_buffers`` and obtain the per-layer
+        # CPU canonical buffer slice.
+        self._block_data_refs: dict[str, list[CanonicalKVCacheRef]] = {}
+
     def _generate_job_id(self) -> int:
         job_id = self._job_counter
         self._job_counter = job_id + 1
@@ -246,6 +253,12 @@ class OffloadingConnectorWorker:
             group_data_refs=group_data_refs,
         )
 
+        # Phase 4b: stash the per-layer canonical-tensor refs so the
+        # Cold-KV CPU partial attention path can later resolve
+        # layer_name → list of CPU canonical buffer slices via
+        # `spec.cpu_kv_buffers`.
+        self._block_data_refs = dict(block_data_refs)
+
         self._register_handlers(canonical_kv_caches)
 
     def register_cross_layers_kv_cache(
@@ -404,3 +417,30 @@ class OffloadingConnectorWorker:
         self._store_jobs.clear()
         self._finished_reqs_waiting_for_store.clear()
         self.worker.shutdown()
+
+    def get_cpu_kv_buffer_for_layer(
+        self, layer_name: str
+    ) -> list[torch.Tensor] | None:
+        """Return the per-layer CPU canonical KV buffer slice(s) for the
+        Cold-KV CPU partial attention path (IDE_006 / TSK_002).
+
+        FlashAttention-style layouts split each layer's KV into K and V
+        canonical tensors during ``register_kv_caches``; this returns
+        them as ``[K_buffer, V_buffer]`` (each
+        ``(num_cpu_blocks, half_page_bytes)`` int8 in pinned memory).
+        Layouts that pack K and V back-to-back in a single canonical
+        tensor (mamba etc.) return ``[combined_buffer]``.
+
+        Returns ``None`` if (a) registration has not happened yet, or
+        (b) the underlying spec does not expose direct CPU read access
+        via ``cpu_kv_buffers``, or (c) the layer was not registered.
+        """
+        if not self._block_data_refs:
+            return None
+        refs = self._block_data_refs.get(layer_name)
+        if not refs:
+            return None
+        cpu_buffers = self.spec.cpu_kv_buffers
+        if cpu_buffers is None:
+            return None
+        return [cpu_buffers[ref.tensor_idx] for ref in refs]

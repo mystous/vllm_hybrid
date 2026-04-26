@@ -2,6 +2,8 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from collections.abc import Iterator
 
+import torch
+
 from vllm.config import VllmConfig
 from vllm.platforms import current_platform
 from vllm.v1.kv_cache_interface import KVCacheConfig
@@ -95,3 +97,21 @@ class CPUOffloadingSpec(OffloadingSpec):
         assert self._handlers is not None
         yield GPULoadStoreSpec, CPULoadStoreSpec, self._handlers.gpu_to_cpu_handler
         yield CPULoadStoreSpec, GPULoadStoreSpec, self._handlers.cpu_to_gpu_handler
+
+    @property
+    def cpu_kv_buffers(self) -> list[torch.Tensor] | None:
+        """Per-canonical-tensor CPU KV buffer list. Parallel to
+        ``CanonicalKVCaches.tensors``: for FlashAttention layers
+        each layer contributes two entries (K and V) — both
+        ``(num_cpu_blocks, half_page_bytes)`` int8 in pinned memory.
+        ``None`` until ``get_handlers`` has been called (i.e. before
+        ``register_kv_caches``) so the Cold-KV CPU partial attention
+        path can detect that registration is incomplete.
+        """
+        if self._handlers is None:
+            return None
+        # gpu_to_cpu_handler.dst_tensors is the CPU-side list (the
+        # "destination" of a GPU→CPU transfer). cpu_to_gpu_handler.src_
+        # tensors is the same list reused; we read from gpu_to_cpu's
+        # dst because that is the canonical cold-buffer view.
+        return list(self._handlers.gpu_to_cpu_handler.dst_tensors)

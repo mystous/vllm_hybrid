@@ -74,6 +74,17 @@ class OffloadingConnector(KVConnectorBase_V1):
         assert self.connector_worker is not None
         self.connector_worker.register_kv_caches(kv_caches)
 
+    def get_cpu_kv_buffer_for_layer(
+        self, layer_name: str
+    ) -> list[torch.Tensor] | None:
+        # Worker-side connectors implement the lookup; scheduler-side
+        # callers go through the worker view, so for SCHEDULER role we
+        # have no CPU buffer to surface. (The Cold-KV CPU partial
+        # attention path runs in the worker process.)
+        if self.connector_worker is None:
+            return None
+        return self.connector_worker.get_cpu_kv_buffer_for_layer(layer_name)
+
     def register_cross_layers_kv_cache(
         self, kv_cache: torch.Tensor, attn_backend: type[AttentionBackend]
     ):
