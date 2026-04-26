@@ -259,10 +259,10 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 단계 | ID | 제목 | 상태 |
 |---|---|---|---|
 | 1 | [`PLN_001`](PLN_001.md) | Cold-KV CPU Partial Attention PoC 플랜 | `대기` (문서 적재 완료. (a) long-context 전환 후 `활성`) |
-| 2 | [`TSK_001`](TSK_001.md) | LSE-반환 CPU partial-attention kernel 구현 | `대기` (PLN 임계 충족 후) |
+| 2 | [`TSK_001`](TSK_001.md) | LSE-반환 CPU partial-attention kernel 구현 | `완료` (Phase 1 dev — 4.0/4.1/4.2c/4.3 + TST_001 dev 87 + prod 87 통과 2026-04-26) |
 | 3 | [`TSK_002`](TSK_002.md) | scheduler / attention metadata 의 hot/cold partition 통합 | `대기` (`TSK_001` 후속) |
 | 4 | [`TSK_003`](TSK_003.md) | **prod SIMD kernels** (AVX-512 + AMX C++) | `대기` (Phase 2 prod 사용자 직접) |
-| 5 | [`TST_001`](TST_001.md) | TSK_001 dev kernel 정확도 (A · B(i) · C) | `활성` (Phase 1 dev — 통과) |
+| 5 | [`TST_001`](TST_001.md) | TSK_001 dev kernel 정확도 (A · B(i) · C) | `완료` (dev 87 + prod 87 통과 2026-04-26) |
 | 6 | [`TST_004`](TST_004.md) | TSK_003 prod SIMD cross-check (B(ii) AVX-512 + B(iii) AMX) | `대기` (`TSK_003` 후) |
 | 7 | [`TST_003`](TST_003.md) | e2e 통합 정확도 (D-i + D-ii) | `대기` (`TSK_002` 후) |
 | 8 | [`TST_002`](TST_002.md) | throughput / overlap profile | `대기` (다른 TST 통과 후) |
@@ -325,6 +325,7 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 2026-04-25 | 잔존 표현 정리 | 본 README 와 상위 README 양쪽에서 잔존하던 deprecated 가설/식별자 관련 표현·인용을 모두 제거 (식별자 prefix 가 코드에 남아 있더라도 문서에서 이름으로 노출하지 않음). 본문 중립화. |
 | 2026-04-25 | 추가 검토 반영 (정합성) | (1) NEO 비교 문구에서 근거가 약한 표현 제거 — 안전한 표현 "vLLM native OffloadingConnector / LMCache cold-tier lifecycle 및 기존 LSE merge path 와의 통합은 다루지 않음" 으로 교체. (2) 출처 불명확한 "FastDecode 계열" 행 §7 표에서 제거. (3) §11 step 2 의 비교 대상 표기를 "IDE_006 hot/cold split path" 로 명확화. (4) 디렉토리 단계 주의 박스 추가 — features/IDE_006/ 가 pre-FEA 아이디어 상세 단계임을 명시 (CLAUDE.md / task.md / test.md 부재는 의도된 단계). |
 | 2026-04-25 | 검토 반영 개정 | (1) "CPU engine / CPU compute engine" 표기 제거 — "vLLM CPU attention backend" / "CPU partial-attention worker" / "worker-side CPU compute path" 로 교체. (2) §6 "어느 하나도 수정 전제로 하지 않는다" 문장을 현실에 맞게 조정 — merge 커널은 재사용하되 scheduler / attention metadata / attention backend 호출 경로 / 신규 LSE-반환 CPU kernel 의 네 축 통합이 필요함을 명시. (3) 기존 `cpu_attn.py:261-293` 의 `forward()` 가 LSE 를 반환하지 않아 as-is 재사용 불가임을 §3.2·§6 에 반영. (4) 진입 조건 (f) 초기 scope 잠금 (BF16/FP16, non-FP8, non-MLA, full attention, 단일 KV group) 과 (g) overlap 가능성 추가. 근거: `cpu_attn.py:250-251`, `kv_offload/worker/cpu_gpu.py:138-139`. (5) 리스크 vii (mid-layer synchronization — layer 내부 critical path 에 CPU 통신·계산이 직렬화되면 순 지연) 신설. |
+| 2026-04-26 | TSK_001 + TST_001 마감 (Phase 1 dev 완료) | 검증 게이트 [`TST_001`](TST_001.md) (단계 A · B(i) · C) 가 dev (12900KF + RTX 3090, 2026-04-25, 87 testcase) + prod (Xeon Platinum 8480+ x2 socket + H100 x8, 2026-04-26, 87 testcase, `eval/results/20260426_050608_..._prod_smoke/`) 양쪽 통과 → numerical 일관성 입증 → IDE_006 §9 (c)(d) 의 dev kernel 측 충족. §11 표 step 2 (`TSK_001`) + step 5 (`TST_001`) 모두 `완료` 로 전환. 다음 단계는 step 3 (`TSK_002` model_runner integration, dev 자동) + step 4 (`TSK_003` prod SIMD, 사용자 직접). |
 | (이전) | `shadow_assists/README.md` §3.2 재정의 (commit `8f50eeb2a4`) | 1차 정의 "Cold KV staging" 이 업스트림 중복이라 기각, CPU partial attention 으로 재정의 |
 
 ---
