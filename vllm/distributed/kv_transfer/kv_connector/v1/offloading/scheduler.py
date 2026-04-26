@@ -355,10 +355,30 @@ class OffloadingConnectorScheduler:
     def build_connector_meta(
         self, scheduler_output: SchedulerOutput
     ) -> KVConnectorMetadata:
+        # _get_reqs_to_store updates next_stored_block_idx in-place; capture
+        # the per-request cold-block snapshot AFTER that update so the worker
+        # sees the same value the connector just committed.
+        reqs_to_store = self._get_reqs_to_store(scheduler_output)
+
+        # Cold-KV CPU partial attention (IDE_006 / TSK_002) input. The
+        # offloaded-block-unit count `next_stored_block_idx` is converted
+        # to GPU-block units (matching the indexing of `block_table` used
+        # by attention kernels) by multiplying by `block_size_factor`.
+        # Single-KV-group is enforced elsewhere (line 169-170, 233-234,
+        # 275-276); we read group_states[0] accordingly.
+        num_cold_gpu_blocks_per_req: dict[ReqId, int] = {}
+        for req_id, req_status in self._req_status.items():
+            next_idx = req_status.group_states[0].next_stored_block_idx
+            if next_idx > 0:
+                num_cold_gpu_blocks_per_req[req_id] = (
+                    next_idx * self.config.block_size_factor
+                )
+
         meta = OffloadingConnectorMetadata(
             reqs_to_load=self._reqs_to_load,
-            reqs_to_store=self._get_reqs_to_store(scheduler_output),
+            reqs_to_store=reqs_to_store,
             reqs_to_flush=scheduler_output.preempted_req_ids,
+            num_cold_gpu_blocks_per_req=num_cold_gpu_blocks_per_req,
         )
         self._reqs_to_load = {}
 

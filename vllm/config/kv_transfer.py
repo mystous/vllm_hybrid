@@ -72,6 +72,14 @@ class KVTransferConfig:
     'recompute': reschedule the request to recompute failed blocks
     'fail': immediately fail the request with an error finish reason (default)"""
 
+    enable_cpu_partial_attention: bool = False
+    """Enable Cold-KV CPU partial attention path (IDE_006 / TSK_002).
+    When True, the model_runner routes the cold prefix of each request's
+    block_table through the CPU partial-attention kernel and the hot suffix
+    through the GPU flash_attn path, merging via merge_attn_states.
+    Requires kv_connector='OffloadingConnector'. Default False keeps the
+    pre-IDE_006 behaviour."""
+
     def compute_hash(self) -> str:
         """
         WARNING: Whenever a new field is added to this config,
@@ -104,6 +112,15 @@ class KVTransferConfig:
             raise ValueError(
                 "Please specify kv_role when kv_connector "
                 f"is set, supported roles are {get_args(KVRole)}"
+            )
+
+        if self.enable_cpu_partial_attention and self.kv_connector != (
+            "OffloadingConnector"
+        ):
+            raise ValueError(
+                "enable_cpu_partial_attention=True requires "
+                "kv_connector='OffloadingConnector' (IDE_006 / TSK_002 "
+                "currently scope-locked to that connector)."
             )
 
     @property
