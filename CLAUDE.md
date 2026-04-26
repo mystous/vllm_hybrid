@@ -30,6 +30,8 @@
 
 # Constraint
  - GPU만 사용 했을 때와 결과 값이 달라져서는 안됨
+   - **운영 해석**: token-level bit-exact 동등이 아니라 **분포·의도 수준의 유사성**. 같은 prompt 도 실행마다 미세하게 달라질 수 있고, BF16 산술의 비결합성 + 머신·구성 차이로 한 위치에서 token argmax 가 한 번 갈리면 greedy 시퀀스 전체가 cascading divergence 로 발산할 수 있다. 따라서 정확도 게이트의 binding 지표는 **분포 유사성** (per-token logprob 의 max abs diff, 시퀀스 PPL 의 relative diff) 이고, token-level 일치는 informational metric (regression 추적용) 으로 둔다.
+   - 본 해석은 IDE_006 / TST_003 의 verdict 산정 (`verdict_overall = verdict_d_ii`) 에서 시행되며, 이후 다른 GPU ↔ 비-GPU 경로 정확도 비교 (예: TSK_003 prod SIMD cross-check) 에도 동일하게 적용한다.
 
 # Hardware Targets
  - **개발 머신** (현재 작업 머신): NVIDIA RTX 3090 (24 GB) + Intel Core i9-12900KF + 시스템 RAM. 빠른 iteration / 정확도 검증 / 인터페이스·빌드 검증 / 소규모 microbench 용. CPU SIMD 면에서 AVX-512 가 microcode 로 fuse-off 될 수 있으므로 BIOS·microcode 점검 필요. AMX 는 hardware 미지원 (Alder Lake 비대상).
