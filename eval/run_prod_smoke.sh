@@ -9,7 +9,9 @@
 #       picks up `tests/v1/cpu_partial_attention/test_avx512_cross_check.py`
 #       and `test_amx_cross_check.py`. While the kernels are unbuilt the
 #       skipif marker keeps the suite at 0 fail.
-#   - IDE_006 long-context e2e scenarios (vllm_original / ide006_cold_kv envs).
+#   - IDE_006 long-context e2e scenarios (vllm_original / ide006_cold_kv /
+#     ide006_cold_kv_split_on envs — all on meta-llama/Llama-3.3-70B-Instruct
+#     with TP=8).
 #
 # Usage:
 #   bash eval/run_prod_smoke.sh             # run + save (push manually)
@@ -67,8 +69,9 @@ log "writing meta to ${SMOKE_DIR}/README.md"
     echo "- pytest TST_001 (TSK_001 dev kernel: stages A, B(i), C — reproduces 87 dev testcases)"
     echo "- pytest TST_004 (TSK_003 prod SIMD: B(ii) portable vs AVX-512 + B(iii) portable vs AMX)"
     echo "    └─ skipped via skipif marker if the TSK_003 §4.2a/§4.2b kernels are not built"
-    echo "- eval/run.sh envs/vllm_original_long_ctx.env (split-off long-context baseline)"
-    echo "- eval/run.sh envs/ide006_cold_kv_long_ctx.env (cold-tier KV offload)"
+    echo "- eval/run.sh envs/vllm_original_long_ctx.env (split-off baseline, Llama-3.3-70B + TP=8)"
+    echo "- eval/run.sh envs/ide006_cold_kv_long_ctx.env (OffloadingConnector only)"
+    echo "- eval/run.sh envs/ide006_cold_kv_split_on_long_ctx.env (full Cold-KV CPU partial attention — TSK_002 Phase 4c)"
     echo
     echo "Result subdirs (run.sh): see eval/results/<TS>_<HW_TAG>_<MODEL>/"
 } > "${SMOKE_DIR}/README.md"
@@ -87,7 +90,7 @@ log "capturing CPU/GPU snapshot to ${SMOKE_DIR}/isa_info.txt"
 
 # --------------------------------------------------------------------- 1) pytest
 
-log "[1/3] pytest TST_001 (TSK_001 dev kernel) + TST_004 (TSK_003 prod SIMD, skip if unbuilt)"
+log "[1/4] pytest TST_001 (TSK_001 dev kernel) + TST_004 (TSK_003 prod SIMD, skip if unbuilt)"
 PYTEST_RC=0
 "${PYTHON}" -m pytest tests/v1/cpu_partial_attention/ -v \
     --junit-xml="${SMOKE_DIR}/pytest_junit.xml" \
@@ -95,26 +98,34 @@ PYTEST_RC=0
 
 # --------------------------------------------------------------------- 2) baseline scenario
 
-log "[2/3] scenario: vllm_original_long_ctx (split-off baseline)"
+log "[2/4] scenario: vllm_original_long_ctx (split-off baseline, Llama-3.3-70B + TP=8)"
 SCEN1_RC=0
 bash "${SCRIPT_DIR}/run.sh" envs/vllm_original_long_ctx.env || SCEN1_RC=$?
 log "  scenario 1 exit=${SCEN1_RC}"
 
 # --------------------------------------------------------------------- 3) cold-tier scenario
 
-log "[3/3] scenario: ide006_cold_kv_long_ctx (OffloadingConnector)"
+log "[3/4] scenario: ide006_cold_kv_long_ctx (OffloadingConnector only)"
 SCEN2_RC=0
 bash "${SCRIPT_DIR}/run.sh" envs/ide006_cold_kv_long_ctx.env || SCEN2_RC=$?
 log "  scenario 2 exit=${SCEN2_RC}"
+
+# --------------------------------------------------------------------- 4) cold-tier + split-on (TSK_002 Phase 4c)
+
+log "[4/4] scenario: ide006_cold_kv_split_on_long_ctx (Cold-KV CPU partial attention — TSK_002 §4.5 Phase 4c)"
+SCEN3_RC=0
+bash "${SCRIPT_DIR}/run.sh" envs/ide006_cold_kv_split_on_long_ctx.env || SCEN3_RC=$?
+log "  scenario 3 exit=${SCEN3_RC}"
 
 # --------------------------------------------------------------------- summary
 
 {
     echo
     echo "## exit codes"
-    echo "- pytest:               ${PYTEST_RC}"
-    echo "- scenario baseline:    ${SCEN1_RC}"
-    echo "- scenario cold_kv:     ${SCEN2_RC}"
+    echo "- pytest:                       ${PYTEST_RC}"
+    echo "- scenario baseline:            ${SCEN1_RC}"
+    echo "- scenario cold_kv (offload):   ${SCEN2_RC}"
+    echo "- scenario cold_kv split-on:    ${SCEN3_RC}"
 } >> "${SMOKE_DIR}/README.md"
 
 log "smoke artifacts -> ${SMOKE_DIR}"
@@ -145,4 +156,4 @@ EOF
 fi
 
 # overall exit
-[[ ${PYTEST_RC} -eq 0 && ${SCEN1_RC} -eq 0 && ${SCEN2_RC} -eq 0 ]] && exit 0 || exit 1
+[[ ${PYTEST_RC} -eq 0 && ${SCEN1_RC} -eq 0 && ${SCEN2_RC} -eq 0 && ${SCEN3_RC} -eq 0 ]] && exit 0 || exit 1
