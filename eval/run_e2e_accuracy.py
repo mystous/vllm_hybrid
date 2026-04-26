@@ -10,12 +10,19 @@ the generated outputs:
   split_on:        spec'd by --split-on-env  (typically ide006_cold_kv_split_on
                    _long_ctx.env — Phase 4c dispatcher live)
 
-Two metrics, both must pass for TST_003 to count as 통과:
+Two metrics. **Only D-ii is binding** for the overall verdict; D-i is
+informational. See ``_compare_outputs`` docstring for rationale (BF16
+non-associativity + greedy argmax winner-take-all cascade) and CLAUDE.
+md Constraint 운영 해석 + shadow_assists/features/IDE_006/README.md
+§8·§9 for the project-level operating policy.
 
   D-i  Token-id divergence  greedy decoding, count of mismatched tokens
-                            between baseline and split_on per prompt
+                            between baseline and split_on per prompt.
+                            **Informational** — recorded for regression
+                            tracking; does not block the verdict.
   D-ii Logprob / PPL diff   per-position max abs logprob diff and
-                            relative PPL diff (sequence average)
+                            relative PPL diff (sequence average).
+                            **Binding** — verdict_overall == verdict_d_ii.
 
 Why a script and not a pytest test (the TST_003 spec form):
   the spec wires both LLM instances as session fixtures simultaneously,
@@ -578,6 +585,24 @@ def _compare_outputs(
 ) -> dict[str, Any]:
     """Compare baseline vs split_on per-prompt outputs and emit verdict.
 
+    Verdict policy (CLAUDE.md Constraint 운영 해석 / IDE_006 README §8·§9):
+
+      * **D-ii (logprob / PPL distribution similarity) is binding.**
+        ``verdict_overall == verdict_d_ii``. The Cold-KV CPU partial
+        attention path goes through split-K/V + LSE-merge whose float
+        summation order differs from a single FlashAttention call, so
+        BF16 round-to-nearest produces small per-position logprob
+        deltas that are *expected* — not a regression. We only fail
+        when those deltas exceed the agreed ``atol_logprob`` /
+        ``rtol_ppl``.
+
+      * **D-i (greedy token argmax match) is informational only.**
+        Greedy decoding is winner-take-all: a single position where
+        BF16 noise crosses the argmax boundary cascades and every
+        subsequent token diverges. That is a property of greedy
+        sampling, not of the algorithm. We record D-i for regression
+        tracking but do not block on it.
+
     A note on the "all-zero diff" guard. If the Cold-KV CPU partial
     attention dispatcher ever silently bypasses (connector mis-wiring,
     KV-pool not under pressure, etc.) the split_on run reduces to the
@@ -639,13 +664,19 @@ def _compare_outputs(
         and worst_ppl_rel == 0.0
     )
     if suspicious_no_cold_path:
-        d_i_pass_all = False  # force overall FAIL
+        # Force the binding gate to FAIL. d_i_pass_all is left untouched
+        # since D-i is informational, but the suspicious flag itself is
+        # surfaced in the return dict and printed at the end of main()
+        # so the failure reason is unambiguous.
         d_ii_pass_all = False
 
     return dict(
         verdict_d_i=d_i_pass_all,
         verdict_d_ii=d_ii_pass_all,
-        verdict_overall=d_i_pass_all and d_ii_pass_all,
+        # D-ii is binding (CLAUDE.md Constraint 운영 해석 / IDE_006 §9 (c)).
+        # D-i is informational and does not affect the overall verdict;
+        # see the docstring above for rationale.
+        verdict_overall=d_ii_pass_all,
         worst_diverging_tokens=worst_div,
         worst_max_abs_logprob=worst_max_abs_lp,
         worst_ppl_relative_diff=worst_ppl_rel,
@@ -717,11 +748,21 @@ def _write_readme(
         "",
         "## Verdict",
         f"- D-i  (token divergence):  {'PASS' if comparison['verdict_d_i'] else 'FAIL'} "
-        f"(worst = {comparison['worst_diverging_tokens']} tokens)",
+        f"(worst = {comparison['worst_diverging_tokens']} tokens) "
+        f"— informational, does not affect overall",
         f"- D-ii (logprob / PPL):     {'PASS' if comparison['verdict_d_ii'] else 'FAIL'} "
         f"(worst max_abs={comparison['worst_max_abs_logprob']:.4f}, "
-        f"worst ppl_rel={comparison['worst_ppl_relative_diff']:.4f})",
+        f"worst ppl_rel={comparison['worst_ppl_relative_diff']:.4f}) "
+        f"— **binding** (verdict_overall = verdict_d_ii)",
         f"- overall:                  {'PASS' if comparison['verdict_overall'] else 'FAIL'}",
+        f"- suspicious_no_cold_path: {comparison.get('suspicious_no_cold_path', False)}",
+        "",
+        "Verdict policy: CLAUDE.md Constraint 운영 해석 — token-level "
+        "bit-exact 가 아니라 분포 수준 유사성. D-ii (logprob/PPL atol/rtol) "
+        "이 binding 이고 D-i (token argmax 일치) 는 informational. "
+        "BF16 산술 비결합성 + greedy argmax cascade 로 D-i 가 깨질 수 있어도 "
+        "D-ii 가 통과하면 정확도 게이트 PASS. 자세한 근거는 IDE_006 README "
+        "§8·§9 / PLN_001 §4.1 참조.",
         "",
         "## Files",
         "- baseline.json     — per-prompt outputs from baseline (default forward)",
@@ -922,15 +963,19 @@ def main() -> int:
 
     print()
     print("=" * 60)
-    print(f"D-i  (token divergence):  {'PASS' if comparison['verdict_d_i'] else 'FAIL'}")
-    print(f"D-ii (logprob / PPL):     {'PASS' if comparison['verdict_d_ii'] else 'FAIL'}")
+    d_i_label = "PASS" if comparison["verdict_d_i"] else "FAIL"
+    d_ii_label = "PASS" if comparison["verdict_d_ii"] else "FAIL"
+    print(
+        f"D-i  (token divergence):  {d_i_label}  [informational — does not affect overall]"
+    )
+    print(f"D-ii (logprob / PPL):     {d_ii_label}  [binding]")
     if comparison.get("suspicious_no_cold_path"):
         print(
             "FAIL reason: baseline and split_on produced bit-identical "
             "logprobs across every prompt — impossible for a real "
             "partial-attention run on BF16. The Cold-KV cold path was "
             "silently bypassed (connector mis-wiring or KV-pool under-"
-            "pressured). Verdict force-failed."
+            "pressured). Binding gate force-failed."
         )
     print(f"overall:                  {'PASS' if comparison['verdict_overall'] else 'FAIL'}")
     print(f"results -> {out_dir}")

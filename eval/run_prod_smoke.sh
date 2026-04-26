@@ -12,10 +12,19 @@
 #   - IDE_006 long-context e2e scenarios (vllm_original / ide006_cold_kv /
 #     ide006_cold_kv_split_on envs — all on meta-llama/Llama-3.3-70B-Instruct
 #     with TP=8).
-#   - TST_003 e2e accuracy gate (run_e2e_accuracy.py) — D-i token divergence
-#     + D-ii logprob / PPL diff between baseline and Phase 4c split_on. Same
-#     model + TP, just enough prompts and max_tokens to surface algorithmic
-#     correctness without dominating the smoke wall time.
+#   - TST_003 e2e accuracy gate (run_e2e_accuracy.py) — distribution-level
+#     similarity between baseline and Phase 4c split_on. **D-ii (per-position
+#     logprob max abs diff + sequence PPL relative diff) is binding;** D-i
+#     (greedy token argmax match) is recorded for regression tracking only
+#     and does NOT block the verdict. Rationale: BF16 numerical non-
+#     associativity + greedy winner-take-all cascade can flip token argmax
+#     at a single position even when distributions match — see CLAUDE.md
+#     Constraint 운영 해석 / shadow_assists/features/IDE_006/README.md §8·§9
+#     / PLN_001.md §4.1. Same model + TP, just enough prompts and max_tokens
+#     to surface algorithmic correctness without dominating the smoke wall
+#     time. The script also force-FAILs on suspicious_no_cold_path
+#     (bit-identical outputs across all prompts) to catch silent dispatcher
+#     bypass.
 #
 # Usage:
 #   bash eval/run_prod_smoke.sh             # run + save (push manually)

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+import logging
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -422,43 +423,47 @@ class OffloadingConnectorScheduler:
         cold_cpu_block_ids: dict[ReqId, list[int]] = {}
         cold_factor_one = self.config.block_size_factor == 1
 
-        # IDE_006 / TSK_002 Phase 4c diagnostic — sample req status counters
-        # on the first few build_connector_meta calls so we can tell apart:
-        # (A) no requests have any next_stored_block_idx > 0 (connector
-        #     never asked to store anything) vs
-        # (B) some have next_stored_block_idx > 0 but peek_block_ids returns
-        #     None (transfers queued but never marked ready).
-        if not hasattr(self, "_cold_diag_counter"):
-            self._cold_diag_counter = 0
-        self._cold_diag_counter += 1
-        if self._cold_diag_counter <= 5 or self._cold_diag_counter % 50 == 0:
-            from vllm.logger import init_logger as _ilog
-            _diag_log = _ilog(__name__)
-            _stats: list[str] = []
-            for _rid, _rstatus in list(self._req_status.items())[:5]:
-                _ni = _rstatus.group_states[0].next_stored_block_idx
-                _peeked: list[Any] = []
-                if _ni > 0 and cold_factor_one:
-                    _ok = _rstatus.group_states[0].offload_keys[:_ni]
-                    try:
-                        _peeked = list(
-                            self.manager.peek_block_ids(_ok, _rstatus.req_context)
-                        )
-                    except Exception as _e:
-                        _stats.append(f"{_rid[:8]}:next={_ni},peek_err={_e!r}")
-                        continue
-                _ready = sum(1 for _b in _peeked if _b is not None)
-                _stats.append(
-                    f"{_rid[:8]}:next={_ni},ready={_ready}/{len(_peeked)}"
+        # IDE_006 / TSK_002 Phase 4c diagnostic — DEBUG level so the
+        # detail only shows under VLLM_LOGGING_LEVEL=DEBUG. The runtime
+        # guard against silent dispatcher bypass lives in
+        # eval/run_e2e_accuracy.py:_compare_outputs as the
+        # ``suspicious_no_cold_path`` detector. Useful for dev-side
+        # debugging when (A) connector never asks to store anything
+        # (next_stored_block_idx stays 0) needs to be distinguished
+        # from (B) transfers queued but never marked ready
+        # (peek_block_ids returns None).
+        if logger.isEnabledFor(logging.DEBUG):
+            if not hasattr(self, "_cold_diag_counter"):
+                self._cold_diag_counter = 0
+            self._cold_diag_counter += 1
+            if self._cold_diag_counter <= 5 or self._cold_diag_counter % 50 == 0:
+                _stats: list[str] = []
+                for _rid, _rstatus in list(self._req_status.items())[:5]:
+                    _ni = _rstatus.group_states[0].next_stored_block_idx
+                    _peeked: list[Any] = []
+                    if _ni > 0 and cold_factor_one:
+                        _ok = _rstatus.group_states[0].offload_keys[:_ni]
+                        try:
+                            _peeked = list(
+                                self.manager.peek_block_ids(
+                                    _ok, _rstatus.req_context
+                                )
+                            )
+                        except Exception as _e:
+                            _stats.append(f"{_rid[:8]}:next={_ni},peek_err={_e!r}")
+                            continue
+                    _ready = sum(1 for _b in _peeked if _b is not None)
+                    _stats.append(
+                        f"{_rid[:8]}:next={_ni},ready={_ready}/{len(_peeked)}"
+                    )
+                logger.debug(
+                    "[IDE_006 diag scheduler call=%d] num_reqs_total=%d "
+                    "factor=%d sampled=%s",
+                    self._cold_diag_counter,
+                    len(self._req_status),
+                    self.config.block_size_factor,
+                    ", ".join(_stats) or "<none>",
                 )
-            _diag_log.info(
-                "[IDE_006 diag scheduler call=%d] num_reqs_total=%d "
-                "factor=%d sampled=%s",
-                self._cold_diag_counter,
-                len(self._req_status),
-                self.config.block_size_factor,
-                ", ".join(_stats) or "<none>",
-            )
 
         for req_id, req_status in self._req_status.items():
             next_idx = req_status.group_states[0].next_stored_block_idx
