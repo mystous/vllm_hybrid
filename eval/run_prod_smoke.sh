@@ -15,15 +15,17 @@
 #   bash eval/run_prod_smoke.sh             # run + save (push manually)
 #   bash eval/run_prod_smoke.sh --push      # run + commit + push (current branch)
 #
-# Output layout:
-#   eval/results/prod_smoke_<TS>_<HW_TAG>/
+# Output layout (follows the eval/results/ convention <TS>_<HW_TAG>_<TAG>/):
+#   eval/results/<TS>_<HW_TAG>_prod_smoke/    <- this script's own artifacts
 #     ├── pytest.log              # pytest stdout (TST_001 + TST_004)
 #     ├── pytest_junit.xml        # pytest JUnit (CI/tooling compatible)
 #     ├── isa_info.txt            # /proc/cpuinfo + nvidia-smi snapshot
 #     └── README.md               # meta (git rev, vllm version, exec env)
-#   eval/results/<TS>_<HW_TAG>_<MODEL>/        <- run.sh artifacts (server.log,
-#   eval/results/<TS+1>_<HW_TAG>_<MODEL>/         bench.json, monitor_*.csv) — one
-#                                                 per env.
+#   eval/results/<TS+1>_<HW_TAG>_<MODEL>/     <- child run.sh artifacts (server.log,
+#   eval/results/<TS+2>_<HW_TAG>_<MODEL>/         bench.json, monitor_*.csv) —
+#                                                 one per env. Adjacent in `ls -t`
+#                                                 because the parent shares the
+#                                                 same TS prefix.
 # =============================================================================
 set -euo pipefail
 
@@ -35,7 +37,7 @@ cd "${REPO_ROOT}"
 source "${SCRIPT_DIR}/_hwtag.sh"
 
 TS="$(date '+%Y%m%d_%H%M%S')"
-SMOKE_DIR="${SCRIPT_DIR}/results/prod_smoke_${TS}_${HW_TAG}"
+SMOKE_DIR="${SCRIPT_DIR}/results/${TS}_${HW_TAG}_prod_smoke"
 mkdir -p "${SMOKE_DIR}"
 
 PYTHON="${PYTHON:-/workspace/vllm_dev_prj/bin/python}"
@@ -52,7 +54,7 @@ log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
 log "writing meta to ${SMOKE_DIR}/README.md"
 {
-    echo "# prod_smoke_${TS}_${HW_TAG}"
+    echo "# ${TS}_${HW_TAG}_prod_smoke"
     echo
     echo "- timestamp: ${TS}"
     echo "- hw_tag:    ${HW_TAG}"
