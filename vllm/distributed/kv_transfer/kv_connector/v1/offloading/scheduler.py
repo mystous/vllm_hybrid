@@ -293,12 +293,18 @@ class OffloadingConnectorScheduler:
         if self._blocks_being_loaded is not None:
             self._blocks_being_loaded.update(req_blocks_being_loaded)
 
-    def _get_reqs_to_store(self, scheduler_output: SchedulerOutput):
+    def _get_reqs_to_store(
+        self, scheduler_output: SchedulerOutput
+    ) -> tuple[dict[ReqId, TransferSpec], dict[ReqId, list[OffloadKey]]]:
         # Below assertion will be removed once this function supports HMA
         assert len(self.config.kv_group_configs) == 1
         group_config = self.config.kv_group_configs[0]
 
         reqs_to_store: dict[ReqId, TransferSpec] = {}
+        # Parallel structure surfaced to the worker via metadata — per-req
+        # OffloadKey list dispatched THIS round so the worker can report
+        # completions back via OffloadingConnectorWorkerMetadata.
+        reqs_to_store_keys: dict[ReqId, list[OffloadKey]] = {}
         # iterate over both new and cached requests
         for req_id, new_block_id_groups, preempted in yield_req_data(scheduler_output):
             req_status = self._req_status[req_id]
@@ -365,6 +371,13 @@ class OffloadingConnectorScheduler:
 
             reqs_to_store[req_id] = (src_spec, dst_spec)
             self._reqs_being_stored[req_id] |= keys_to_store
+            # The keys list passed to the worker must be in the same order
+            # as the GPU block IDs in src_block_ids so per-job completion
+            # mapping is unambiguous. We build it from new_offload_keys
+            # (the original ordered list) filtered through keys_to_store.
+            reqs_to_store_keys[req_id] = [
+                key for key in new_offload_keys if key in keys_to_store
+            ]
 
             logger.debug(
                 "Request %s offloading %s blocks starting from block #%d",
@@ -373,7 +386,7 @@ class OffloadingConnectorScheduler:
                 start_block_idx,
             )
 
-        return reqs_to_store
+        return reqs_to_store, reqs_to_store_keys
 
     def build_connector_meta(
         self, scheduler_output: SchedulerOutput
@@ -381,7 +394,9 @@ class OffloadingConnectorScheduler:
         # _get_reqs_to_store updates next_stored_block_idx in-place; capture
         # the per-request cold-block snapshot AFTER that update so the worker
         # sees the same value the connector just committed.
-        reqs_to_store = self._get_reqs_to_store(scheduler_output)
+        reqs_to_store, reqs_to_store_keys = self._get_reqs_to_store(
+            scheduler_output
+        )
 
         # Cold-KV CPU partial attention (IDE_006 / TSK_002) input. The
         # offloaded-block-unit count `next_stored_block_idx` is converted
@@ -406,6 +421,45 @@ class OffloadingConnectorScheduler:
         num_cold_gpu_blocks_per_req: dict[ReqId, int] = {}
         cold_cpu_block_ids: dict[ReqId, list[int]] = {}
         cold_factor_one = self.config.block_size_factor == 1
+
+        # IDE_006 / TSK_002 Phase 4c diagnostic — sample req status counters
+        # on the first few build_connector_meta calls so we can tell apart:
+        # (A) no requests have any next_stored_block_idx > 0 (connector
+        #     never asked to store anything) vs
+        # (B) some have next_stored_block_idx > 0 but peek_block_ids returns
+        #     None (transfers queued but never marked ready).
+        if not hasattr(self, "_cold_diag_counter"):
+            self._cold_diag_counter = 0
+        self._cold_diag_counter += 1
+        if self._cold_diag_counter <= 5 or self._cold_diag_counter % 50 == 0:
+            from vllm.logger import init_logger as _ilog
+            _diag_log = _ilog(__name__)
+            _stats: list[str] = []
+            for _rid, _rstatus in list(self._req_status.items())[:5]:
+                _ni = _rstatus.group_states[0].next_stored_block_idx
+                _peeked: list[Any] = []
+                if _ni > 0 and cold_factor_one:
+                    _ok = _rstatus.group_states[0].offload_keys[:_ni]
+                    try:
+                        _peeked = list(
+                            self.manager.peek_block_ids(_ok, _rstatus.req_context)
+                        )
+                    except Exception as _e:
+                        _stats.append(f"{_rid[:8]}:next={_ni},peek_err={_e!r}")
+                        continue
+                _ready = sum(1 for _b in _peeked if _b is not None)
+                _stats.append(
+                    f"{_rid[:8]}:next={_ni},ready={_ready}/{len(_peeked)}"
+                )
+            _diag_log.info(
+                "[IDE_006 diag scheduler call=%d] num_reqs_total=%d "
+                "factor=%d sampled=%s",
+                self._cold_diag_counter,
+                len(self._req_status),
+                self.config.block_size_factor,
+                ", ".join(_stats) or "<none>",
+            )
+
         for req_id, req_status in self._req_status.items():
             next_idx = req_status.group_states[0].next_stored_block_idx
             if next_idx == 0:
@@ -453,6 +507,7 @@ class OffloadingConnectorScheduler:
             reqs_to_flush=scheduler_output.preempted_req_ids,
             num_cold_gpu_blocks_per_req=num_cold_gpu_blocks_per_req,
             cold_cpu_block_ids=cold_cpu_block_ids,
+            reqs_to_store_keys=reqs_to_store_keys,
         )
         self._reqs_to_load = {}
 
@@ -474,6 +529,20 @@ class OffloadingConnectorScheduler:
             connector_output (KVConnectorOutput): the worker-side
                 connectors output.
         """
+        # IDE_006 / TSK_002 Phase 4c: surface in-flight store-completion
+        # events from the worker BEFORE the request-finished path so that
+        # peek_block_ids returns ready cache-side block IDs while the
+        # request is still alive — the prerequisite for the Cold-KV CPU
+        # partial attention dispatcher (`max_num_cold_blocks_host > 0`).
+        from vllm.distributed.kv_transfer.kv_connector.v1.offloading.common import (
+            OffloadingConnectorWorkerMetadata,
+        )
+
+        worker_meta = connector_output.kv_connector_worker_meta
+        if isinstance(worker_meta, OffloadingConnectorWorkerMetadata):
+            if worker_meta.finished_store_keys:
+                self.manager.complete_store(worker_meta.finished_store_keys)
+
         for req_id in connector_output.finished_sending or []:
             keys = self._reqs_being_stored.pop(req_id, None)
             if keys:

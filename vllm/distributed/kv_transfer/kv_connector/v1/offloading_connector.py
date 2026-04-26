@@ -136,6 +136,15 @@ class OffloadingConnector(KVConnectorBase_V1):
         assert self.connector_worker is not None
         return self.connector_worker.get_finished(finished_req_ids)
 
+    def build_connector_worker_meta(self):
+        # IDE_006 / TSK_002 Phase 4c — surface in-flight store-completion
+        # events from the worker side to the scheduler side so the manager
+        # can mark stored blocks as ready while their requests are still
+        # alive. ``None`` (default) is fine when partial-attention is off.
+        if self.connector_worker is None:
+            return None
+        return self.connector_worker.build_connector_worker_meta()
+
     def get_num_new_matched_tokens(
         self, request: "Request", num_computed_tokens: int
     ) -> tuple[int | None, bool]:

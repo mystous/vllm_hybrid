@@ -2301,8 +2301,8 @@ class GPUModelRunner(
             if not hasattr(self, "_cold_dispatch_counter"):
                 self._cold_dispatch_counter = 0
             self._cold_dispatch_counter += 1
-            if self._cold_dispatch_counter <= 3 or (
-                self._cold_dispatch_counter % 200 == 0
+            if self._cold_dispatch_counter <= 10 or (
+                self._cold_dispatch_counter % 5 == 0
             ):
                 num_with_cold = int(np.count_nonzero(num_cold_blocks_np))
                 logger.info(

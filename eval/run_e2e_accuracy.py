@@ -576,6 +576,21 @@ def _compare_outputs(
     atol_logprob: float,
     rtol_ppl: float,
 ) -> dict[str, Any]:
+    """Compare baseline vs split_on per-prompt outputs and emit verdict.
+
+    A note on the "all-zero diff" guard. If the Cold-KV CPU partial
+    attention dispatcher ever silently bypasses (connector mis-wiring,
+    KV-pool not under pressure, etc.) the split_on run reduces to the
+    same GPU-only arithmetic as baseline and every prompt emerges
+    bit-identical (worst_max_abs_logprob == 0.0). This SHOULD trip an
+    alarm rather than a green PASS, because BF16 numerical non-
+    associativity makes a real partial-attention run incapable of
+    being bit-equal to baseline. We catch that case here and degrade
+    the verdict to a FAIL with an explicit ``suspicious_no_cold_path``
+    flag — this was the false-pass mode we hit in the prod runs of
+    20260426 (commits ``9ebf3781``, ``496960a7``, ``2a18e016``,
+    ``23cda4b9``) before the connector in-flight ready-signal fix.
+    """
     assert len(baseline.prompts) == len(split_on.prompts)
     per_prompt: list[dict[str, Any]] = []
     d_i_pass_all = True
@@ -607,6 +622,26 @@ def _compare_outputs(
             )
         )
 
+    # Suspicious-PASS guard: bit-identical outputs across all prompts +
+    # logprobs == cold path silently did not fire. Logprobs collection
+    # may be off (logprobs_k == 0), in which case max_abs_lp / ppl_rel
+    # are 0 by construction and the guard cannot tell — only enforce
+    # when logprobs were collected.
+    logprobs_collected = (
+        baseline.logprobs_k > 0
+        and split_on.logprobs_k > 0
+        and any(p.chosen_logprobs for p in baseline.prompts)
+        and any(p.chosen_logprobs for p in split_on.prompts)
+    )
+    suspicious_no_cold_path = (
+        logprobs_collected
+        and worst_max_abs_lp == 0.0
+        and worst_ppl_rel == 0.0
+    )
+    if suspicious_no_cold_path:
+        d_i_pass_all = False  # force overall FAIL
+        d_ii_pass_all = False
+
     return dict(
         verdict_d_i=d_i_pass_all,
         verdict_d_ii=d_ii_pass_all,
@@ -614,6 +649,12 @@ def _compare_outputs(
         worst_diverging_tokens=worst_div,
         worst_max_abs_logprob=worst_max_abs_lp,
         worst_ppl_relative_diff=worst_ppl_rel,
+        # IDE_006 / TSK_002 false-pass detector. True iff baseline and
+        # split_on produced bit-identical logprobs across every prompt —
+        # impossible for a real partial-attention run on BF16, so this
+        # flag indicates the cold path was silently bypassed and the
+        # verdict was downgraded to FAIL.
+        suspicious_no_cold_path=suspicious_no_cold_path,
         tolerances=dict(
             max_diverging_tokens=max_diverging_tokens,
             atol_logprob=atol_logprob,
@@ -883,6 +924,14 @@ def main() -> int:
     print("=" * 60)
     print(f"D-i  (token divergence):  {'PASS' if comparison['verdict_d_i'] else 'FAIL'}")
     print(f"D-ii (logprob / PPL):     {'PASS' if comparison['verdict_d_ii'] else 'FAIL'}")
+    if comparison.get("suspicious_no_cold_path"):
+        print(
+            "FAIL reason: baseline and split_on produced bit-identical "
+            "logprobs across every prompt — impossible for a real "
+            "partial-attention run on BF16. The Cold-KV cold path was "
+            "silently bypassed (connector mis-wiring or KV-pool under-"
+            "pressured). Verdict force-failed."
+        )
     print(f"overall:                  {'PASS' if comparison['verdict_overall'] else 'FAIL'}")
     print(f"results -> {out_dir}")
     print("=" * 60)

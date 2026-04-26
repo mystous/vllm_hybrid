@@ -11,8 +11,10 @@ from vllm.distributed.kv_transfer.kv_connector.v1.metrics import (
 )
 from vllm.distributed.kv_transfer.kv_connector.v1.offloading.common import (
     OffloadingConnectorMetadata,
+    OffloadingConnectorWorkerMetadata,
     ReqId,
 )
+from vllm.v1.kv_offload.abstract import OffloadKey
 from vllm.distributed.kv_transfer.kv_connector.v1.offloading.metrics import (
     OffloadingConnectorStats,
 )
@@ -48,16 +50,29 @@ class OffloadingConnectorWorker:
         self._job_counter = 0
 
         self.kv_connector_stats = OffloadingConnectorStats()
-        # req_id -> (job_id, store)
-        self._jobs: dict[int, tuple[ReqId, bool]] = {}
+        # job_id -> (req_id, is_store, keys). Keys are populated for store
+        # jobs and used to report per-job completion back to the scheduler-
+        # side manager via OffloadingConnectorWorkerMetadata; load jobs
+        # carry an empty list (the load completion path uses req-level
+        # state instead). IDE_006 / TSK_002 Phase 4c.
+        self._jobs: dict[int, tuple[ReqId, bool, list[OffloadKey]]] = {}
         # req_id -> active job IDs
         self._load_job: dict[ReqId, int] = {}
         # req_id -> set(active job IDs)
         self._store_jobs = defaultdict[ReqId, set[int]](set)
-        # list of store jobs pending submission (job_id, transfer_spec)
-        self._unsubmitted_store_jobs: list[tuple[int, TransferSpec]] = []
+        # list of store jobs pending submission (job_id, transfer_spec, keys)
+        self._unsubmitted_store_jobs: list[
+            tuple[int, TransferSpec, list[OffloadKey]]
+        ] = []
 
         self._finished_reqs_waiting_for_store: set[ReqId] = set()
+
+        # IDE_006 / TSK_002 Phase 4c. Buffer of OffloadKeys whose async
+        # GPU→CPU store transfers have completed since the previous
+        # build_connector_worker_meta call. Drained — and the buffer
+        # cleared — when build_connector_worker_meta is called once per
+        # engine step.
+        self._pending_finished_store_keys: list[OffloadKey] = []
 
         # Cold-KV CPU partial attention (IDE_006 / TSK_002 Phase 4b):
         # populated in register_kv_caches; one list of CanonicalKVCacheRef
@@ -309,7 +324,7 @@ class OffloadingConnectorWorker:
         self._register_handlers(canonical_kv_caches)
 
     def handle_preemptions(self, kv_connector_metadata: OffloadingConnectorMetadata):
-        for job_id, transfer_spec in self._unsubmitted_store_jobs:
+        for job_id, transfer_spec, _keys in self._unsubmitted_store_jobs:
             success = self.worker.transfer_async(job_id, transfer_spec)
             assert success
         self._unsubmitted_store_jobs.clear()
@@ -320,7 +335,7 @@ class OffloadingConnectorWorker:
                 self.worker.wait(job_ids)
 
     def start_kv_transfers(self, metadata: OffloadingConnectorMetadata):
-        for job_id, transfer_spec in self._unsubmitted_store_jobs:
+        for job_id, transfer_spec, _keys in self._unsubmitted_store_jobs:
             success = self.worker.transfer_async(job_id, transfer_spec)
             assert success
         self._unsubmitted_store_jobs.clear()
@@ -336,12 +351,18 @@ class OffloadingConnectorWorker:
     def prepare_store_kv(self, metadata: OffloadingConnectorMetadata):
         for req_id, transfer_spec in metadata.reqs_to_store.items():
             job_id = self._generate_job_id()
-            self._jobs[job_id] = (req_id, True)
+            # IDE_006 / TSK_002 Phase 4c: pull the parallel keys list the
+            # scheduler attached to the metadata. Empty fallback keeps
+            # legacy callers (no partial-attention) working without any
+            # behaviour change — the keys are only used to surface per-
+            # job completion back to the scheduler-side manager.
+            keys = list(metadata.reqs_to_store_keys.get(req_id, []))
+            self._jobs[job_id] = (req_id, True, keys)
             self._store_jobs[req_id].add(job_id)
             # NOTE(orozery): defer the store to the beginning of the next engine step,
             # so that offloading starts AFTER transfers related to token sampling,
             # thereby avoiding delays to token generation due to offloading.
-            self._unsubmitted_store_jobs.append((job_id, transfer_spec))
+            self._unsubmitted_store_jobs.append((job_id, transfer_spec, keys))
 
     def get_finished(self, finished_req_ids: set[str]) -> tuple[set[str], set[str]]:
         """
@@ -359,7 +380,7 @@ class OffloadingConnectorWorker:
             # we currently do not support job failures
             job_id = transfer_result.job_id
             assert transfer_result.success
-            req_id, store = self._jobs.pop(job_id)
+            req_id, store, keys = self._jobs.pop(job_id)
             if (
                 transfer_result.transfer_time
                 and transfer_result.transfer_size is not None
@@ -371,6 +392,14 @@ class OffloadingConnectorWorker:
                     transfer_type=transfer_result.transfer_type,
                 )
             if store:
+                # IDE_006 / TSK_002 Phase 4c — surface per-job store
+                # completion to the scheduler-side manager. Without this
+                # surface, blocks remain "pending" in the manager forever
+                # for in-flight requests, peek_block_ids returns None,
+                # and the partial-attention dispatcher's
+                # `max_num_cold_blocks_host > 0` gate is never tripped.
+                if keys:
+                    self._pending_finished_store_keys.extend(keys)
                 req_jobs = self._store_jobs[req_id]
                 req_jobs.remove(job_id)
                 if req_jobs:
@@ -395,6 +424,22 @@ class OffloadingConnectorWorker:
                 del self._store_jobs[req_id]
 
         return finished_sending, finished_recving
+
+    def build_connector_worker_meta(
+        self,
+    ) -> OffloadingConnectorWorkerMetadata | None:
+        """Drain the per-step buffer of completed store keys.
+
+        Called by ``OffloadingConnector.build_connector_worker_meta`` once
+        per engine step (right after ``get_finished``). Returns ``None``
+        when there is nothing to surface so the upstream pipeline can
+        skip aggregation entirely. IDE_006 / TSK_002 Phase 4c.
+        """
+        if not self._pending_finished_store_keys:
+            return None
+        keys = self._pending_finished_store_keys
+        self._pending_finished_store_keys = []
+        return OffloadingConnectorWorkerMetadata(finished_store_keys=keys)
 
     def get_kv_connector_stats(self) -> KVConnectorStats | None:
         """
