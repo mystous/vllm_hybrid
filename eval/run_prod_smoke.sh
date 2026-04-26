@@ -1,26 +1,29 @@
 #!/usr/bin/env bash
 # =============================================================================
-# run_prod_smoke.sh — prod 서버에서 다음을 한 번에 실행하고 결과를 저장한다:
-#   - TST_001 (TSK_001 dev kernel: A · B(i) · C) — 87 case 재현
+# run_prod_smoke.sh — on a prod server, run the following in one shot and
+#   save results:
+#   - TST_001 (TSK_001 dev kernel: A · B(i) · C) — reproduces 87 cases.
 #   - TST_004 (TSK_003 prod SIMD cross-check: B(ii) AVX-512 + B(iii) AMX) —
-#       TSK_003 §4.2a/§4.2b kernel 빌드 + wrapper enable 후 자동 활성. pytest
-#       collection 이 `tests/v1/cpu_partial_attention/test_avx512_cross_check.py`
-#       와 `test_amx_cross_check.py` 를 자동 포함. 미빌드 시에는 skipif 마커로
-#       skip 되어 0 fail.
-#   - IDE_006 long-context e2e 시나리오 (vllm_original / ide006_cold_kv 두 env)
+#       activates automatically once the TSK_003 §4.2a/§4.2b kernels are
+#       built and the wrapper is enabled. pytest collection automatically
+#       picks up `tests/v1/cpu_partial_attention/test_avx512_cross_check.py`
+#       and `test_amx_cross_check.py`. While the kernels are unbuilt the
+#       skipif marker keeps the suite at 0 fail.
+#   - IDE_006 long-context e2e scenarios (vllm_original / ide006_cold_kv envs).
 #
 # Usage:
-#   bash eval/run_prod_smoke.sh             # 실행 + 결과 저장 (push 는 직접)
-#   bash eval/run_prod_smoke.sh --push      # 실행 + commit + push (branch 그대로)
+#   bash eval/run_prod_smoke.sh             # run + save (push manually)
+#   bash eval/run_prod_smoke.sh --push      # run + commit + push (current branch)
 #
-# 출력 위치:
+# Output layout:
 #   eval/results/prod_smoke_<TS>_<HW_TAG>/
 #     ├── pytest.log              # pytest stdout (TST_001 + TST_004)
-#     ├── pytest_junit.xml        # pytest JUnit (CI/툴 호환)
+#     ├── pytest_junit.xml        # pytest JUnit (CI/tooling compatible)
 #     ├── isa_info.txt            # /proc/cpuinfo + nvidia-smi snapshot
-#     └── README.md               # 메타 (git rev, vllm version, 실행 환경)
-#   eval/results/<TS>_<HW_TAG>_<MODEL>/        ← run.sh 산출물 (server.log, bench.json,
-#   eval/results/<TS+1>_<HW_TAG>_<MODEL>/        monitor_*.csv 등) — env 별 1 개씩
+#     └── README.md               # meta (git rev, vllm version, exec env)
+#   eval/results/<TS>_<HW_TAG>_<MODEL>/        <- run.sh artifacts (server.log,
+#   eval/results/<TS+1>_<HW_TAG>_<MODEL>/         bench.json, monitor_*.csv) — one
+#                                                 per env.
 # =============================================================================
 set -euo pipefail
 
@@ -59,9 +62,9 @@ log "writing meta to ${SMOKE_DIR}/README.md"
     echo "- vllm:      $(${PYTHON} -c 'import vllm; print(vllm.__version__)' 2>&1 | tail -1)"
     echo
     echo "## components"
-    echo "- pytest TST_001 (TSK_001 dev kernel: 단계 A · B(i) · C — dev 에서 통과한 87 testcase 재현)"
+    echo "- pytest TST_001 (TSK_001 dev kernel: stages A, B(i), C — reproduces 87 dev testcases)"
     echo "- pytest TST_004 (TSK_003 prod SIMD: B(ii) portable vs AVX-512 + B(iii) portable vs AMX)"
-    echo "    └─ TSK_003 §4.2a/§4.2b kernel 미빌드 시 skipif 마커로 skip"
+    echo "    └─ skipped via skipif marker if the TSK_003 §4.2a/§4.2b kernels are not built"
     echo "- eval/run.sh envs/vllm_original_long_ctx.env (split-off long-context baseline)"
     echo "- eval/run.sh envs/ide006_cold_kv_long_ctx.env (cold-tier KV offload)"
     echo
@@ -112,8 +115,8 @@ log "  scenario 2 exit=${SCEN2_RC}"
     echo "- scenario cold_kv:     ${SCEN2_RC}"
 } >> "${SMOKE_DIR}/README.md"
 
-log "smoke artifacts → ${SMOKE_DIR}"
-log "scenario artifacts → eval/results/${TS}_${HW_TAG}_*/ (run.sh 자동 생성)"
+log "smoke artifacts -> ${SMOKE_DIR}"
+log "scenario artifacts -> eval/results/${TS}_${HW_TAG}_*/ (auto-created by run.sh)"
 
 # --------------------------------------------------------------------- push (optional)
 
@@ -130,12 +133,12 @@ if [[ ${PUSH} -eq 1 ]]; then
 else
     cat <<EOF
 
-[push 안내] 결과를 push 하려면:
+[push hint] To push the results manually:
   git add eval/results/
   git commit -m "chore(eval): prod smoke run ${TS} @ ${HW_TAG}"
   git push origin $(git rev-parse --abbrev-ref HEAD)
 
-또는 다음 실행 시 \`bash eval/run_prod_smoke.sh --push\` 로 자동.
+Or rerun as \`bash eval/run_prod_smoke.sh --push\` to commit + push automatically.
 EOF
 fi
 
