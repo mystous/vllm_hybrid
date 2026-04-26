@@ -329,6 +329,21 @@ class CpuGpuOffloadingHandlers:
         mmap_region: SharedOffloadRegion | None = None,
     ):
         pin_memory = is_pin_memory_available()
+        # IDE_006 / TSK_004 — set this worker's CPU memory preference to
+        # its local NUMA node BEFORE the pinned `torch.zeros` calls below
+        # so the CPU KV mirror lands on the same socket as the worker's
+        # GPU. Silent no-op on single-socket dev / when libnuma is
+        # unavailable. See vllm/distributed/kv_transfer/kv_connector/v1/
+        # offloading/numa_aware.py for the resolution policy
+        # (GPU NUMA node → rank % num_nodes → skip).
+        try:
+            from vllm.distributed.kv_transfer.kv_connector.v1.offloading.numa_aware import (  # noqa: E501
+                bind_worker_to_local_numa,
+            )
+
+            bind_worker_to_local_numa()
+        except Exception as _exc:  # pragma: no cover - defence in depth
+            logger.debug("NUMA bind skipped: %r", _exc)
         logger.info("Allocating %d CPU tensors...", len(kv_caches.tensors))
         self._mmap_region = mmap_region
         if mmap_region is not None and pin_memory:

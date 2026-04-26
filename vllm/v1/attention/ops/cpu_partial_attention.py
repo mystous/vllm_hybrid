@@ -371,6 +371,21 @@ def forward_partial_with_lse(
     place so the eventual switch becomes a one-line change in
     :func:`select_isa_path` and the dispatch table below.
     """
+    # IDE_006 / TSK_004 — pin OpenMP / std::thread workers spawned by
+    # the chosen kernel to the cores of this worker's local NUMA node
+    # so split-K/V LSE-merge does not pay cross-socket UPI on its CPU
+    # reads. Idempotent: cost is one ``os.sched_setaffinity`` call per
+    # worker process. Silent no-op on single-socket dev / when the
+    # platform has no NUMA topology.
+    try:
+        from vllm.distributed.kv_transfer.kv_connector.v1.offloading.numa_aware import (  # noqa: E501
+            pin_threads_to_local_numa,
+        )
+
+        pin_threads_to_local_numa()
+    except Exception:  # pragma: no cover - defence in depth
+        pass
+
     path = _force_path if _force_path is not None else select_isa_path()
 
     common_kwargs = dict(
