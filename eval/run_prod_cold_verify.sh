@@ -147,7 +147,11 @@ log "  e2e exit=${E2E_RC}"
 # --------------------------------------------------------------------- summary
 
 # 발화 흔적 카운트.
-COLD_FIRINGS=$(grep -cE "IDE_006 .* dispatcher|forward_partial_with_lse|hot_cold_attention" \
+# - cold-path fired: hot_cold_attention 의 cold path 실 진입 로그
+#   (worker 당 첫 5 회만 찍는 bounded breadcrumb)
+# - AMX trace / partial profile: VLLM_AMX_TRACE / VLLM_PARTIAL_ATTN_PROFILE
+#   가 켜졌을 때만 출력 (default off)
+COLD_FIRINGS=$(grep -cE "\[IDE_006/TSK_004 cold-path fired" \
     "${OUT_DIR}/e2e.stderr.log" 2>/dev/null || echo 0)
 AMX_TRACE=$(grep -cE "AMX trace|\[IDE_006/TSK_004 profile" \
     "${OUT_DIR}/e2e.stderr.log" 2>/dev/null || echo 0)

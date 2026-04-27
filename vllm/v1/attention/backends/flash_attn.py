@@ -1375,6 +1375,16 @@ _PARTIAL_ATTN_MAX_QLEN = _read_partial_attn_max_qlen()
 _QLEN_CAP_FIRST_LOG_DONE = False  # one-shot startup config print
 _QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE = False  # one-shot loud warning
 
+# IDE_006 / TSK_004 — cold-path firing breadcrumb. Per-process counter
+# that emits a stderr line on the first few firings only so an operator
+# can confirm in the run log that cold path actually executed without
+# burying the rest of the output. After the limit we set a "done" flag
+# so subsequent calls do not even touch the global int — the per-call
+# cost collapses to a single bool read.
+_COLD_PATH_FIRING_COUNT = 0
+_COLD_PATH_FIRING_LOG_LIMIT = 5
+_COLD_PATH_FIRING_LOG_DONE = False
+
 
 def hot_cold_attention(
     output: torch.Tensor,
@@ -1669,6 +1679,26 @@ def hot_cold_attention(
     # Pure-decode small batches (1 token per cold seq) are the common
     # case after this filter.
     reduced_token_idx_cpu = torch.tensor(reduced_token_ids, dtype=torch.long)
+
+    # Cold-path firing breadcrumb — first few firings per worker only.
+    # After the limit ``_COLD_PATH_FIRING_LOG_DONE`` short-circuits the
+    # branch to a single global bool read, no string format, no stderr
+    # write. Per-call overhead collapses to ~10 ns once limit reached.
+    global _COLD_PATH_FIRING_COUNT, _COLD_PATH_FIRING_LOG_DONE
+    if not _COLD_PATH_FIRING_LOG_DONE:
+        _COLD_PATH_FIRING_COUNT += 1
+        import sys as _sys
+        print(
+            f"[IDE_006/TSK_004 cold-path fired pid={os.getpid()}] "
+            f"#{_COLD_PATH_FIRING_COUNT}/{_COLD_PATH_FIRING_LOG_LIMIT} "
+            f"need_cold_seqs={len(need_cold_seq_ids)}/{len(n_cold_list)} "
+            f"reduced_rows={len(reduced_token_ids)}/{cu_q_list[-1]} "
+            f"max_cold_blocks={max_num_cold_blocks}",
+            file=_sys.stderr,
+            flush=True,
+        )
+        if _COLD_PATH_FIRING_COUNT >= _COLD_PATH_FIRING_LOG_LIMIT:
+            _COLD_PATH_FIRING_LOG_DONE = True
 
     # Step 3: targeted index_select. Each input tensor may be on CPU or
     # GPU independently of the others (the dispatcher passes some on
