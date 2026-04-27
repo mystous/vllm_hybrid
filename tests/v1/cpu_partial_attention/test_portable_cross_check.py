@@ -306,3 +306,98 @@ def test_default_dispatch_uses_portable_when_available(
     )
     torch.testing.assert_close(O_default, O_force, atol=0, rtol=0)
     torch.testing.assert_close(LSE_default, LSE_force, atol=0, rtol=0)
+
+
+# ---------------------------------------------------------------------
+# Split-K/V layout — FlashAttention's OffloadingConnector mirror passes
+# K and V as two separate canonical int8 buffers. The portable kernel
+# reads them via the (cold_kv_cache, cold_kv_cache_v) parameter pair.
+# ---------------------------------------------------------------------
+
+
+def _make_split_inputs(
+    *,
+    kv_dtype,
+    head_dim: int,
+    num_kv_heads: int,
+    num_blocks: int,
+    block_size: int,
+    q_len: int,
+    num_q_heads: int,
+    seed: int = 0,
+):
+    """Build an input dict using two separate K-only and V-only int8
+    canonical buffers (split-K/V layout). The returned dict is shaped
+    for ``forward_partial_with_lse``: ``cold_kv_cache`` carries the K
+    buffer and ``cold_kv_cache_v`` carries the V buffer.
+    """
+    layout = KVPageLayout(
+        head_dim=head_dim,
+        num_kv_heads=num_kv_heads,
+        block_size=block_size,
+        dtype=kv_dtype,
+    )
+    k_canonical = torch.zeros(
+        (num_blocks, layout.kv_block_bytes), dtype=torch.int8
+    )
+    v_canonical = torch.zeros(
+        (num_blocks, layout.kv_block_bytes), dtype=torch.int8
+    )
+    adapter = KVViewAdapter.from_split_kv(k_canonical, v_canonical, layout)
+    K = adapter.k_view()
+    V = adapter.v_view()
+    gen = torch.Generator(device="cpu").manual_seed(seed)
+    K.copy_(
+        torch.randn(K.shape, generator=gen, dtype=torch.float32).to(kv_dtype)
+        * 0.5
+    )
+    V.copy_(
+        torch.randn(V.shape, generator=gen, dtype=torch.float32).to(kv_dtype)
+        * 0.5
+    )
+    n_cold = num_blocks * block_size
+    Q = (
+        torch.randn(
+            q_len, num_q_heads, head_dim, generator=gen, dtype=torch.float32
+        ).to(kv_dtype)
+        * 0.5
+    )
+    return dict(
+        query=Q,
+        cold_kv_cache=k_canonical,
+        cold_kv_cache_v=v_canonical,
+        cold_kv_layout=layout,
+        cold_block_ids=torch.tensor(
+            [list(range(num_blocks))], dtype=torch.int32
+        ),
+        cold_block_lens=torch.tensor([num_blocks], dtype=torch.int32),
+        cu_seqlens_q=torch.tensor([0, q_len], dtype=torch.int32),
+        seq_lens_total=torch.tensor([n_cold + q_len], dtype=torch.int32),
+        query_positions=torch.arange(
+            n_cold, n_cold + q_len, dtype=torch.int32
+        ),
+        softmax_scale=1.0 / math.sqrt(head_dim),
+    )
+
+
+@pytest.mark.parametrize("num_blocks", [1, 4, 8])
+@pytest.mark.parametrize("q_len", [1, 4, 16])
+def test_portable_split_kv_matches_python_ref(
+    kv_dtype, head_dim, num_kv_heads, block_size, num_blocks, q_len,
+):
+    inputs = _make_split_inputs(
+        kv_dtype=kv_dtype, head_dim=head_dim,
+        num_kv_heads=num_kv_heads, num_blocks=num_blocks,
+        block_size=block_size, q_len=q_len,
+        num_q_heads=num_kv_heads * 4, seed=42,
+    )
+
+    O_ref, LSE_ref = python_reference_partial_attention(**inputs)
+    O_por, LSE_por = forward_partial_with_lse(
+        **inputs, _force_path=ISAPath.PORTABLE,
+    )
+
+    atol = 5e-3 if kv_dtype is torch.bfloat16 else 1e-3
+    rtol = 5e-3 if kv_dtype is torch.bfloat16 else 1e-3
+    torch.testing.assert_close(O_por, O_ref, atol=atol, rtol=rtol)
+    torch.testing.assert_close(LSE_por, LSE_ref, atol=1e-3, rtol=1e-3)

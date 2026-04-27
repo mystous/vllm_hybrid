@@ -263,6 +263,7 @@ static inline float dot_avx512_kt(const T* a, const T* b, int64_t n) {
 static std::vector<torch::Tensor> forward_partial_bf16_amx(
     torch::Tensor query,
     torch::Tensor cold_kv_cache,
+    torch::Tensor cold_kv_cache_v,
     int64_t block_size,
     int64_t num_kv_heads,
     int64_t head_dim,
@@ -285,6 +286,16 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
               "cold_kv_cache must be int8");
   TORCH_CHECK(query.dim() == 3, "query must be 3D");
   TORCH_CHECK(head_dim % 2 == 0, "head_dim must be even for BF16 pair packing");
+
+  const bool split_kv = cold_kv_cache_v.numel() > 0;
+  if (split_kv) {
+    TORCH_CHECK(cold_kv_cache_v.is_contiguous(),
+                "cold_kv_cache_v must be contiguous");
+    TORCH_CHECK(cold_kv_cache_v.scalar_type() == torch::kInt8,
+                "cold_kv_cache_v must be int8");
+    TORCH_CHECK(cold_kv_cache_v.size(0) == cold_kv_cache.size(0),
+                "cold_kv_cache and cold_kv_cache_v must agree on num_blocks");
+  }
   vllm_amx_trace("forward_partial_bf16_amx:torch_checks_passed");
 
   using T = at::BFloat16;
@@ -297,17 +308,31 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
   const int64_t num_seqs = cu_seqlens_q.size(0) - 1;
   const int64_t page_size_bytes = cold_kv_cache.size(1);
 
-  TORCH_CHECK(page_size_bytes >= 2 * kv_block_bytes,
-              "page too small for K + V");
+  if (split_kv) {
+    TORCH_CHECK(page_size_bytes >= kv_block_bytes,
+                "split-K cache page too small for K");
+    TORCH_CHECK(cold_kv_cache_v.size(1) >= kv_block_bytes,
+                "split-V cache page too small for V");
+  } else {
+    TORCH_CHECK(page_size_bytes >= 2 * kv_block_bytes,
+                "combined page too small for K + V");
+  }
   TORCH_CHECK(static_cast<size_t>(kv_block_bytes) % sizeof(T) == 0,
               "kv_block_bytes not aligned to dtype itemsize");
-  const int64_t elements_per_page =
+  const int64_t k_block_stride_elems =
       page_size_bytes / static_cast<int64_t>(sizeof(T));
-  const int64_t elements_per_kv_block =
-      kv_block_bytes / static_cast<int64_t>(sizeof(T));
+  const int64_t v_block_stride_elems =
+      split_kv
+          ? (cold_kv_cache_v.size(1) / static_cast<int64_t>(sizeof(T)))
+          : k_block_stride_elems;
+  const int64_t v_intra_block_offset_elems =
+      split_kv ? 0 : (kv_block_bytes / static_cast<int64_t>(sizeof(T)));
 
-  const T* kv_data = reinterpret_cast<const T*>(
+  const T* k_data = reinterpret_cast<const T*>(
       cold_kv_cache.data_ptr<int8_t>());
+  const T* v_data = split_kv
+      ? reinterpret_cast<const T*>(cold_kv_cache_v.data_ptr<int8_t>())
+      : k_data;
 
   auto O = torch::zeros({num_tokens, num_q_heads, head_dim}, query.options());
   auto LSE = torch::full(
@@ -397,8 +422,8 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
                 scores[kk] = NEG_INF;
                 continue;
               }
-              const T* k_ptr = kv_data
-                  + real_block_id * elements_per_page
+              const T* k_ptr = k_data
+                  + real_block_id * k_block_stride_elems
                   + tib * num_kv_heads * head_dim
                   + kv_h * head_dim;
               const float dot = dot_avx512_kt<T>(q_ptr, k_ptr, head_dim);
@@ -444,8 +469,8 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
               const int64_t bidx = kk / block_size;
               const int64_t tib = kk % block_size;
               const int64_t real_block_id = cold_block_ids_a[s][bidx];
-              const at::BFloat16* row = kv_data
-                  + real_block_id * elements_per_page
+              const at::BFloat16* row = k_data
+                  + real_block_id * k_block_stride_elems
                   + tib * num_kv_heads * head_dim
                   + kv_h * head_dim
                   + d0;  // chunk offset
@@ -489,8 +514,8 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
             scores[k] = NEG_INF;
             continue;
           }
-          const T* k_ptr = kv_data
-              + real_block_id * elements_per_page
+          const T* k_ptr = k_data
+              + real_block_id * k_block_stride_elems
               + tib * num_kv_heads * head_dim
               + kv_h * head_dim;
           const float dot = dot_avx512_kt<T>(q_ptr, k_ptr, head_dim);
@@ -526,9 +551,9 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
           const int64_t bidx = kk / block_size;
           const int64_t tib = kk % block_size;
           const int64_t real_block_id = cold_block_ids_a[s][bidx];
-          const at::BFloat16* v_ptr = kv_data
-              + real_block_id * elements_per_page
-              + elements_per_kv_block
+          const at::BFloat16* v_ptr = v_data
+              + real_block_id * v_block_stride_elems
+              + v_intra_block_offset_elems
               + tib * num_kv_heads * head_dim
               + kv_h * head_dim;
           for (int64_t d = 0; d < head_dim; ++d) {
@@ -560,6 +585,7 @@ template <typename T>
 static std::vector<torch::Tensor> forward_partial_avx512_fallback(
     torch::Tensor query,
     torch::Tensor cold_kv_cache,
+    torch::Tensor cold_kv_cache_v,
     int64_t block_size,
     int64_t num_kv_heads,
     int64_t head_dim,
@@ -576,18 +602,35 @@ static std::vector<torch::Tensor> forward_partial_avx512_fallback(
               "cold_kv_cache must be int8");
   TORCH_CHECK(query.dim() == 3, "query must be 3D");
 
+  const bool split_kv = cold_kv_cache_v.numel() > 0;
+  if (split_kv) {
+    TORCH_CHECK(cold_kv_cache_v.is_contiguous(),
+                "cold_kv_cache_v must be contiguous");
+    TORCH_CHECK(cold_kv_cache_v.scalar_type() == torch::kInt8,
+                "cold_kv_cache_v must be int8");
+    TORCH_CHECK(cold_kv_cache_v.size(0) == cold_kv_cache.size(0),
+                "cold_kv_cache and cold_kv_cache_v must agree on num_blocks");
+  }
+
   const int64_t num_tokens = query.size(0);
   const int64_t num_q_heads = query.size(1);
   const int64_t q_per_kv = num_q_heads / num_kv_heads;
   const int64_t num_seqs = cu_seqlens_q.size(0) - 1;
   const int64_t page_size_bytes = cold_kv_cache.size(1);
-  const int64_t elements_per_page =
+  const int64_t k_block_stride_elems =
       page_size_bytes / static_cast<int64_t>(sizeof(T));
-  const int64_t elements_per_kv_block =
-      kv_block_bytes / static_cast<int64_t>(sizeof(T));
+  const int64_t v_block_stride_elems =
+      split_kv
+          ? (cold_kv_cache_v.size(1) / static_cast<int64_t>(sizeof(T)))
+          : k_block_stride_elems;
+  const int64_t v_intra_block_offset_elems =
+      split_kv ? 0 : (kv_block_bytes / static_cast<int64_t>(sizeof(T)));
 
-  const T* kv_data = reinterpret_cast<const T*>(
+  const T* k_data = reinterpret_cast<const T*>(
       cold_kv_cache.data_ptr<int8_t>());
+  const T* v_data = split_kv
+      ? reinterpret_cast<const T*>(cold_kv_cache_v.data_ptr<int8_t>())
+      : k_data;
 
   auto O = torch::zeros({num_tokens, num_q_heads, head_dim}, query.options());
   auto LSE = torch::full(
@@ -626,7 +669,7 @@ static std::vector<torch::Tensor> forward_partial_avx512_fallback(
           const int64_t tib = k % block_size;
           const int64_t real_block_id = cold_block_ids_a[s][bidx];
           if (causal && q_pos < k) { scores[k] = NEG_INF; continue; }
-          const T* k_ptr = kv_data + real_block_id * elements_per_page
+          const T* k_ptr = k_data + real_block_id * k_block_stride_elems
               + tib * num_kv_heads * head_dim + kv_h * head_dim;
           const float dot = dot_avx512_kt<T>(q_ptr, k_ptr, head_dim);
           const float score = dot * scale_f;
@@ -651,8 +694,8 @@ static std::vector<torch::Tensor> forward_partial_avx512_fallback(
           const int64_t bidx = k / block_size;
           const int64_t tib = k % block_size;
           const int64_t real_block_id = cold_block_ids_a[s][bidx];
-          const T* v_ptr = kv_data + real_block_id * elements_per_page
-              + elements_per_kv_block + tib * num_kv_heads * head_dim
+          const T* v_ptr = v_data + real_block_id * v_block_stride_elems
+              + v_intra_block_offset_elems + tib * num_kv_heads * head_dim
               + kv_h * head_dim;
           for (int64_t d = 0; d < head_dim; ++d) {
             out[d] += w * static_cast<float>(v_ptr[d]);
@@ -671,6 +714,7 @@ static std::vector<torch::Tensor> forward_partial_avx512_fallback(
 std::vector<torch::Tensor> forward_partial_with_lse_amx(
     torch::Tensor query,
     torch::Tensor cold_kv_cache,
+    torch::Tensor cold_kv_cache_v,
     int64_t block_size,
     int64_t num_kv_heads,
     int64_t head_dim,
@@ -684,18 +728,18 @@ std::vector<torch::Tensor> forward_partial_with_lse_amx(
   const auto dt = query.scalar_type();
   if (dt == torch::kBFloat16) {
     return forward_partial_bf16_amx(
-        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
-        kv_block_bytes, cold_block_ids, cold_block_lens,
+        query, cold_kv_cache, cold_kv_cache_v, block_size, num_kv_heads,
+        head_dim, kv_block_bytes, cold_block_ids, cold_block_lens,
         cu_seqlens_q, query_positions, softmax_scale, causal);
   } else if (dt == torch::kHalf) {
     return forward_partial_avx512_fallback<at::Half>(
-        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
-        kv_block_bytes, cold_block_ids, cold_block_lens,
+        query, cold_kv_cache, cold_kv_cache_v, block_size, num_kv_heads,
+        head_dim, kv_block_bytes, cold_block_ids, cold_block_lens,
         cu_seqlens_q, query_positions, softmax_scale, causal);
   } else if (dt == torch::kFloat) {
     return forward_partial_avx512_fallback<float>(
-        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
-        kv_block_bytes, cold_block_ids, cold_block_lens,
+        query, cold_kv_cache, cold_kv_cache_v, block_size, num_kv_heads,
+        head_dim, kv_block_bytes, cold_block_ids, cold_block_lens,
         cu_seqlens_q, query_positions, softmax_scale, causal);
   } else {
     TORCH_CHECK(false,

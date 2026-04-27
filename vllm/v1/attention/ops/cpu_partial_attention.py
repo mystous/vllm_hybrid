@@ -515,13 +515,12 @@ def forward_partial_with_lse(
     )
 
     # Split-K/V layout (FlashAttention's OffloadingConnector mirror) is
-    # currently only supported on the Python reference path; the portable
-    # C++ / AVX-512 / AMX kernels assume a single combined canonical
-    # tensor with K and V back-to-back per page. Force PYTHON_REF when
-    # split inputs are supplied so dispatch does not try to call a
-    # kernel that ignores cold_kv_cache_v.
-    if cold_kv_cache_v is not None:
-        path = ISAPath.PYTHON_REF
+    # now supported by all three C++ kernels (portable / AVX-512 / AMX
+    # — see csrc/cpu/partial_attention_*.cpp). The kernels detect
+    # cold_kv_cache_v.numel() > 0 to switch from combined K+V layout
+    # (legacy single-buffer mode) to split-K + split-V mode, where K
+    # comes from cold_kv_cache and V from cold_kv_cache_v. No
+    # dispatcher-level force is needed any more.
 
     # AMX / AVX-512 dispatch with cascade fallback. Each level falls
     # through when its kernel + cpuid pair is unavailable.
@@ -555,62 +554,21 @@ def forward_partial_with_lse(
     raise ValueError(f"unsupported ISA path: {path}")
 
 
-def _call_portable(
-    *,
-    query: torch.Tensor,
-    cold_kv_cache: torch.Tensor,
-    cold_kv_layout: KVPageLayout,
-    cold_block_ids: torch.Tensor,
-    cold_block_lens: torch.Tensor,
-    cu_seqlens_q: torch.Tensor,
-    seq_lens_total: torch.Tensor,
-    query_positions: torch.Tensor,
-    softmax_scale: Optional[float] = None,
-    causal: bool = True,
-    cold_kv_cache_v: Optional[torch.Tensor] = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Adapt Python-side inputs to the portable C++ kernel's signature.
+def _call_portable(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+    """Adapt Python-side inputs to the portable C++ kernel.
 
-    The C++ kernel expects:
-      - all tensors on CPU
-      - ``cold_block_ids``, ``cold_block_lens``, ``cu_seqlens_q``,
-        ``query_positions`` as int32
-      - ``cold_kv_cache`` as int8 (combined K+V, back-to-back per page)
-
-    ``cold_kv_cache_v`` exists only for kwargs-unpacking compatibility
-    with the dispatcher; the portable C++ kernel does not yet support
-    split-K/V layouts so the dispatcher is expected to have forced
-    PYTHON_REF before reaching this function.
+    Both combined K+V layout and split-K/V layout are supported. When
+    ``cold_kv_cache_v`` is provided (FlashAttention's
+    OffloadingConnector mirror), the kernel reads K from
+    ``cold_kv_cache`` and V from ``cold_kv_cache_v``; otherwise it
+    falls back to the legacy combined layout where K and V live
+    back-to-back inside ``cold_kv_cache`` pages.
     """
-    if cold_kv_cache_v is not None:
-        # Defence in depth — should never trigger because
-        # forward_partial_with_lse forces PYTHON_REF in split mode.
-        raise RuntimeError(
-            "portable C++ kernel does not yet support split-K/V cold "
-            "layout; forward_partial_with_lse should have routed this "
-            "call to the Python reference."
-        )
-    if softmax_scale is None:
-        softmax_scale = 1.0 / math.sqrt(cold_kv_layout.head_dim)
-
-    def _i32(t: torch.Tensor) -> torch.Tensor:
-        return t.to(torch.int32) if t.dtype is not torch.int32 else t
-
-    O, LSE = _PORTABLE_MOD.forward_partial_with_lse_portable(
-        query.contiguous(),
-        cold_kv_cache.contiguous(),
-        int(cold_kv_layout.block_size),
-        int(cold_kv_layout.num_kv_heads),
-        int(cold_kv_layout.head_dim),
-        int(cold_kv_layout.kv_block_bytes),
-        _i32(cold_block_ids).contiguous(),
-        _i32(cold_block_lens).contiguous(),
-        _i32(cu_seqlens_q).contiguous(),
-        _i32(query_positions).contiguous(),
-        float(softmax_scale),
-        bool(causal),
+    return _call_compiled_kernel(
+        _PORTABLE_MOD,
+        "forward_partial_with_lse_portable",
+        **kwargs,
     )
-    return O, LSE
 
 
 def _call_compiled_kernel(
@@ -629,32 +587,34 @@ def _call_compiled_kernel(
     causal: bool = True,
     cold_kv_cache_v: Optional[torch.Tensor] = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Adapter shared by ``_call_avx512`` and ``_call_amx``.
+    """Adapter shared by ``_call_portable``, ``_call_avx512`` and
+    ``_call_amx``.
 
-    Both kernels expose the same signature as the portable one and the
-    only difference between the call sites is which compiled module
-    receives the call. Centralising the input coercion + name lookup
-    keeps the ISA-specific branches in :func:`forward_partial_with_lse`
-    one-liners.
+    All three kernels share the same signature: the K cache buffer
+    plus an optional V cache buffer for split-K/V layout. When
+    ``cold_kv_cache_v`` is ``None`` (combined K+V layout) we forward
+    an empty int8 tensor as a sentinel — the C++ kernels detect
+    ``numel() == 0`` and stay on the legacy single-buffer path.
     """
-    if cold_kv_cache_v is not None:
-        # Defence in depth — the dispatcher upstream forces PYTHON_REF
-        # when split-K/V layout is supplied.
-        raise RuntimeError(
-            f"{fn_name}: split-K/V cold layout not supported by the "
-            "compiled C++ kernels; the dispatcher should have routed "
-            "this call to the Python reference."
-        )
     if softmax_scale is None:
         softmax_scale = 1.0 / math.sqrt(cold_kv_layout.head_dim)
 
     def _i32(t: torch.Tensor) -> torch.Tensor:
         return t.to(torch.int32) if t.dtype is not torch.int32 else t
 
+    # Sentinel for combined-layout calls. ``torch.empty(0, dtype=int8)``
+    # has ``numel() == 0`` which the kernels read as "no V cache, use
+    # combined layout in cold_kv_cache".
+    if cold_kv_cache_v is None:
+        v_arg = torch.empty(0, dtype=torch.int8)
+    else:
+        v_arg = cold_kv_cache_v.contiguous()
+
     fn = getattr(mod, fn_name)
     O, LSE = fn(
         query.contiguous(),
         cold_kv_cache.contiguous(),
+        v_arg,
         int(cold_kv_layout.block_size),
         int(cold_kv_layout.num_kv_heads),
         int(cold_kv_layout.head_dim),

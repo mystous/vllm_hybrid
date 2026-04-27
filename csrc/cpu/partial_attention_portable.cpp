@@ -20,7 +20,13 @@ namespace cpu_partial_attn {
 template <typename T>
 static std::vector<torch::Tensor> forward_partial_impl(
     torch::Tensor query,           // [num_tokens, num_q_heads, head_dim], T
-    torch::Tensor cold_kv_cache,   // [num_blocks, page_size_bytes],     int8
+    torch::Tensor cold_kv_cache,   // [num_blocks, page_size_bytes],     int8.
+                                   //   Combined mode: page = K+V back-to-back.
+                                   //   Split mode: page = K only.
+    torch::Tensor cold_kv_cache_v, // [num_blocks, kv_block_bytes], int8.
+                                   //   Empty (numel == 0) → combined mode.
+                                   //   Non-empty → split mode (V-only buffer
+                                   //   paired with K-only cold_kv_cache).
     int64_t block_size,
     int64_t num_kv_heads,
     int64_t head_dim,
@@ -37,6 +43,21 @@ static std::vector<torch::Tensor> forward_partial_impl(
               "cold_kv_cache must be int8");
   TORCH_CHECK(query.dim() == 3, "query must be 3D");
 
+  // Detect split-K/V layout. FlashAttention's OffloadingConnector mirror
+  // surfaces K and V as two distinct (num_blocks, kv_block_bytes) buffers
+  // (rather than one combined K+V page) so the C++ kernels need to handle
+  // both modes. Empty cold_kv_cache_v (numel == 0) is the legacy combined
+  // mode signal.
+  const bool split_kv = cold_kv_cache_v.numel() > 0;
+  if (split_kv) {
+    TORCH_CHECK(cold_kv_cache_v.is_contiguous(),
+                "cold_kv_cache_v must be contiguous");
+    TORCH_CHECK(cold_kv_cache_v.scalar_type() == torch::kInt8,
+                "cold_kv_cache_v must be int8");
+    TORCH_CHECK(cold_kv_cache_v.size(0) == cold_kv_cache.size(0),
+                "cold_kv_cache and cold_kv_cache_v must agree on num_blocks");
+  }
+
   const int64_t num_tokens = query.size(0);
   const int64_t num_q_heads = query.size(1);
   TORCH_CHECK(query.size(2) == head_dim,
@@ -47,17 +68,39 @@ static std::vector<torch::Tensor> forward_partial_impl(
   const int64_t num_seqs = cu_seqlens_q.size(0) - 1;
   const int64_t page_size_bytes = cold_kv_cache.size(1);
 
-  TORCH_CHECK(page_size_bytes >= 2 * kv_block_bytes,
-              "page too small for K + V");
+  if (split_kv) {
+    TORCH_CHECK(page_size_bytes >= kv_block_bytes,
+                "split-K cache page too small for K");
+    TORCH_CHECK(cold_kv_cache_v.size(1) >= kv_block_bytes,
+                "split-V cache page too small for V");
+  } else {
+    TORCH_CHECK(page_size_bytes >= 2 * kv_block_bytes,
+                "combined page too small for K + V");
+  }
   TORCH_CHECK(static_cast<size_t>(kv_block_bytes) % sizeof(T) == 0,
               "kv_block_bytes not aligned to dtype itemsize");
-  const int64_t elements_per_page =
+  // Per-block stride within K cache: full row width of cold_kv_cache.
+  const int64_t k_block_stride_elems =
       page_size_bytes / static_cast<int64_t>(sizeof(T));
+  // Per-block stride within V cache: full row width of cold_kv_cache_v in
+  // split mode, equals K stride in combined mode.
+  const int64_t v_block_stride_elems =
+      split_kv
+          ? (cold_kv_cache_v.size(1) / static_cast<int64_t>(sizeof(T)))
+          : k_block_stride_elems;
+  // Intra-block offset for V data: 0 in split mode (V starts at row 0 of
+  // cold_kv_cache_v), kv_block_bytes worth of elements in combined mode
+  // (V is back-to-back after K).
+  const int64_t v_intra_block_offset_elems =
+      split_kv ? 0 : (kv_block_bytes / static_cast<int64_t>(sizeof(T)));
   const int64_t elements_per_kv_block =
       kv_block_bytes / static_cast<int64_t>(sizeof(T));
 
   // Reinterpret canonical int8 storage as typed T pointer.
-  const T* kv_data = reinterpret_cast<const T*>(cold_kv_cache.data_ptr<int8_t>());
+  const T* k_data = reinterpret_cast<const T*>(cold_kv_cache.data_ptr<int8_t>());
+  const T* v_data = split_kv
+      ? reinterpret_cast<const T*>(cold_kv_cache_v.data_ptr<int8_t>())
+      : k_data;
 
   auto O = torch::zeros({num_tokens, num_q_heads, head_dim}, query.options());
   auto LSE = torch::full(
@@ -107,8 +150,8 @@ static std::vector<torch::Tensor> forward_partial_impl(
             continue;
           }
 
-          const T* k_ptr = kv_data
-              + real_block_id * elements_per_page
+          const T* k_ptr = k_data
+              + real_block_id * k_block_stride_elems
               + token_in_block * num_kv_heads * head_dim
               + kv_h * head_dim;
 
@@ -155,9 +198,9 @@ static std::vector<torch::Tensor> forward_partial_impl(
           const int64_t token_in_block = k % block_size;
           const int64_t real_block_id =
               cold_block_ids_a[s][block_idx_in_seq];
-          const T* v_ptr = kv_data
-              + real_block_id * elements_per_page
-              + elements_per_kv_block
+          const T* v_ptr = v_data
+              + real_block_id * v_block_stride_elems
+              + v_intra_block_offset_elems
               + token_in_block * num_kv_heads * head_dim
               + kv_h * head_dim;
           for (int64_t d = 0; d < head_dim; ++d) {
@@ -179,6 +222,7 @@ static std::vector<torch::Tensor> forward_partial_impl(
 std::vector<torch::Tensor> forward_partial_with_lse_portable(
     torch::Tensor query,
     torch::Tensor cold_kv_cache,
+    torch::Tensor cold_kv_cache_v,
     int64_t block_size,
     int64_t num_kv_heads,
     int64_t head_dim,
@@ -192,18 +236,18 @@ std::vector<torch::Tensor> forward_partial_with_lse_portable(
   const auto dt = query.scalar_type();
   if (dt == torch::kBFloat16) {
     return forward_partial_impl<at::BFloat16>(
-        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
-        kv_block_bytes, cold_block_ids, cold_block_lens,
+        query, cold_kv_cache, cold_kv_cache_v, block_size, num_kv_heads,
+        head_dim, kv_block_bytes, cold_block_ids, cold_block_lens,
         cu_seqlens_q, query_positions, softmax_scale, causal);
   } else if (dt == torch::kHalf) {
     return forward_partial_impl<at::Half>(
-        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
-        kv_block_bytes, cold_block_ids, cold_block_lens,
+        query, cold_kv_cache, cold_kv_cache_v, block_size, num_kv_heads,
+        head_dim, kv_block_bytes, cold_block_ids, cold_block_lens,
         cu_seqlens_q, query_positions, softmax_scale, causal);
   } else if (dt == torch::kFloat) {
     return forward_partial_impl<float>(
-        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
-        kv_block_bytes, cold_block_ids, cold_block_lens,
+        query, cold_kv_cache, cold_kv_cache_v, block_size, num_kv_heads,
+        head_dim, kv_block_bytes, cold_block_ids, cold_block_lens,
         cu_seqlens_q, query_positions, softmax_scale, causal);
   } else {
     TORCH_CHECK(false,
