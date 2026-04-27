@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import math
 import os
-from concurrent.futures import Future, ThreadPoolExecutor
 from enum import Enum
 from typing import Optional
 
@@ -39,7 +38,6 @@ __all__ = [
     "ISAPath",
     "select_isa_path",
     "forward_partial_with_lse",
-    "forward_partial_with_lse_async",
     "prewarm",
     "python_reference_partial_attention",
 ]
@@ -588,80 +586,6 @@ def forward_partial_with_lse(
     raise ValueError(f"unsupported ISA path: {path}")
 
 
-def forward_partial_with_lse_async(
-    *,
-    query: torch.Tensor,
-    cold_kv_cache: torch.Tensor,
-    cold_kv_layout: KVPageLayout,
-    cold_block_ids: torch.Tensor,
-    cold_block_lens: torch.Tensor,
-    cu_seqlens_q: torch.Tensor,
-    seq_lens_total: torch.Tensor,
-    query_positions: torch.Tensor,
-    softmax_scale: Optional[float] = None,
-    causal: bool = True,
-    cold_kv_cache_v: Optional[torch.Tensor] = None,
-    _force_path: Optional[ISAPath] = None,
-) -> "Future[tuple[torch.Tensor, torch.Tensor]]":
-    """NEO-style async issue of cold partial attention.
-
-    Issues the C++ kernel call onto a background worker thread and
-    returns a ``concurrent.futures.Future``. The caller (typically
-    ``hot_cold_attention``) can then issue / launch GPU hot-path work
-    on the *main* thread without being blocked by the CPU kernel,
-    achieving true GPU/CPU layer-level parallelism — while CPU does
-    cold partial-attn for layer N, the main thread enqueues GPU
-    kernels (FA, K/V projection of layer N+1, etc.) on the default
-    CUDA stream. The future is awaited just before
-    ``merge_attn_states`` consumes the cold output / LSE.
-
-    The single-worker pool keeps AMX tile config + worker affinity
-    stable across calls (NumPy-style threadpool safety).
-
-    Operator opt-out: ``VLLM_COLD_KV_DISABLE_OVERLAP=1`` makes this
-    function fall back to the synchronous path and return a
-    pre-completed future — useful for A/B comparison or when
-    debugging stream-related issues.
-    """
-    if _ASYNC_OVERLAP_DISABLED:
-        # Synchronous fallback: run inline, wrap the result in a
-        # done-future so the caller's ``.result()`` is a no-op wait.
-        result = forward_partial_with_lse(
-            query=query,
-            cold_kv_cache=cold_kv_cache,
-            cold_kv_layout=cold_kv_layout,
-            cold_block_ids=cold_block_ids,
-            cold_block_lens=cold_block_lens,
-            cu_seqlens_q=cu_seqlens_q,
-            seq_lens_total=seq_lens_total,
-            query_positions=query_positions,
-            softmax_scale=softmax_scale,
-            causal=causal,
-            cold_kv_cache_v=cold_kv_cache_v,
-            _force_path=_force_path,
-        )
-        f: "Future[tuple[torch.Tensor, torch.Tensor]]" = Future()
-        f.set_result(result)
-        return f
-
-    executor = _get_async_executor()
-    return executor.submit(
-        forward_partial_with_lse,
-        query=query,
-        cold_kv_cache=cold_kv_cache,
-        cold_kv_layout=cold_kv_layout,
-        cold_block_ids=cold_block_ids,
-        cold_block_lens=cold_block_lens,
-        cu_seqlens_q=cu_seqlens_q,
-        seq_lens_total=seq_lens_total,
-        query_positions=query_positions,
-        softmax_scale=softmax_scale,
-        causal=causal,
-        cold_kv_cache_v=cold_kv_cache_v,
-        _force_path=_force_path,
-    )
-
-
 def _call_compiled_kernel(
     mod,
     fn_name: str,
@@ -790,31 +714,6 @@ def _i32(t: torch.Tensor) -> torch.Tensor:
     """Module-level int32 cast helper. Inlined into the hot path so we do
     not pay the ``def`` cost on every call."""
     return t.to(torch.int32) if t.dtype is not torch.int32 else t
-
-
-# IDE_006 / TSK_002 §4.6 — async issue thread pool. ``forward_partial_with_lse``
-# normally blocks the caller until the C++ kernel returns. For NEO-style
-# layer-pipeline overlap (CPU cold path running concurrently with GPU
-# hot path FA on the same layer, plus next layer's GPU prep), we issue
-# the cold call to a background thread and return a ``Future`` which
-# the dispatcher can ``await`` later — typically right before
-# ``merge_attn_states``. Single worker thread per process keeps AMX
-# tile config + thread affinity stable across calls (the C++ kernel's
-# OpenMP team uses the worker's own affinity mask underneath).
-_ASYNC_EXECUTOR: Optional[ThreadPoolExecutor] = None
-_ASYNC_OVERLAP_DISABLED = bool(
-    os.environ.get("VLLM_COLD_KV_DISABLE_OVERLAP", "")
-) and os.environ["VLLM_COLD_KV_DISABLE_OVERLAP"] not in ("0", "")
-
-
-def _get_async_executor() -> ThreadPoolExecutor:
-    global _ASYNC_EXECUTOR
-    if _ASYNC_EXECUTOR is None:
-        _ASYNC_EXECUTOR = ThreadPoolExecutor(
-            max_workers=1,
-            thread_name_prefix="vllm-cold-partial",
-        )
-    return _ASYNC_EXECUTOR
 
 
 def prewarm() -> None:

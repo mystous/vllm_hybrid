@@ -16,11 +16,9 @@ import torch
 # triggered a sys.modules dict lookup on every cold-path-bearing layer
 # call (80 layers × N decode steps × 8 workers).
 from vllm.v1.attention.ops.cpu_partial_attention import (
-    _ASYNC_OVERLAP_DISABLED as _PARTIAL_ASYNC_DISABLED,
     _PROFILE_ENABLED as _PARTIAL_PROFILE_ENABLED,
     _profile_should_emit as _partial_profile_should_emit,
     forward_partial_with_lse,
-    forward_partial_with_lse_async,
 )
 from vllm.model_executor.layers.attention import Attention
 from vllm.platforms import current_platform
@@ -1396,7 +1394,8 @@ _COLD_STREAM_OVERLAP_DISABLED = bool(
 # only reads cold rows where cold_lse > -inf).
 _COLD_SCATTER_BUFS: dict[
     tuple[int, int, int, torch.dtype, torch.dtype],
-    "tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]",
+    "tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, "
+    "torch.cuda.Event | None]",
 ] = {}
 
 
@@ -1407,17 +1406,30 @@ def _get_cold_scatter_buffers(
     head_dim: int,
     output_dtype: torch.dtype,
     lse_dtype: torch.dtype,
-) -> tuple[torch.Tensor, torch.Tensor, "torch.Tensor | None"]:
-    """Return ``(cold_output_buf, cold_lse_buf, last_dirty_idx)``.
+) -> tuple[
+    torch.Tensor, torch.Tensor, "torch.Tensor | None",
+    "torch.cuda.Event | None",
+]:
+    """Return ``(cold_output_buf, cold_lse_buf, last_dirty_idx,
+    last_merge_event)``.
 
-    The buffers are keyed by (device, num_q_heads, head_dim,
-    output_dtype, lse_dtype) — those dimensions are fixed by the
-    model config so the worker only allocates them once. ``num_tokens``
-    is the row count and varies per call; the buffer grows in place
-    when needed but never shrinks. ``last_dirty_idx`` is the index
-    tensor written on the previous call so the caller can restore
-    -inf for those rows before writing new values, keeping the rest
-    of cold_lse_buf at -inf without a full-tensor fill kernel.
+    Keys: (device, num_q_heads, head_dim, output_dtype, lse_dtype) —
+    those dims are fixed by the model config so the worker only allocates
+    once. ``num_tokens`` (row count) varies per call; the buffer grows in
+    place but never shrinks.
+
+    ``last_dirty_idx`` is the row index tensor written on the previous
+    call. The caller resets just those rows back to -inf before writing
+    new values, keeping the rest of ``cold_lse_buf`` at -inf without a
+    full-tensor fill kernel.
+
+    ``last_merge_event`` is a CUDA event recorded on the default stream
+    immediately after the previous call's ``merge_attn_states`` finished
+    reading the buffers. The caller (running cold-side writes on a
+    non-default stream) **must** ``wait_event`` on it before issuing the
+    next ``index_fill_`` / ``index_copy_`` — otherwise the cold stream
+    can race ahead and overwrite the buffer while the previous merge is
+    still consuming it. ``None`` on the very first call.
     """
     dev_idx = device.index if device.index is not None else 0
     key = (dev_idx, num_q_heads, head_dim, output_dtype, lse_dtype)
@@ -1434,7 +1446,8 @@ def _get_cold_scatter_buffers(
             dtype=lse_dtype,
             device=device,
         )
-        entry = (cold_output_buf, cold_lse_buf, None)
+        # Fresh alloc — no prior merge consumer, no stale dirty rows.
+        entry = (cold_output_buf, cold_lse_buf, None, None)
         _COLD_SCATTER_BUFS[key] = entry
     return entry
 
@@ -1452,7 +1465,26 @@ def _set_cold_scatter_dirty(
     dev_idx = device.index if device.index is not None else 0
     key = (dev_idx, num_q_heads, head_dim, output_dtype, lse_dtype)
     entry = _COLD_SCATTER_BUFS[key]
-    _COLD_SCATTER_BUFS[key] = (entry[0], entry[1], dirty_idx)
+    _COLD_SCATTER_BUFS[key] = (entry[0], entry[1], dirty_idx, entry[3])
+
+
+def _set_cold_merge_event(
+    device: torch.device,
+    num_q_heads: int,
+    head_dim: int,
+    output_dtype: torch.dtype,
+    lse_dtype: torch.dtype,
+    event: "torch.cuda.Event",
+) -> None:
+    """Record the CUDA event marking the end of this call's
+    ``merge_attn_states`` read on the buffers. The next call's cold-side
+    write path waits on this event before issuing ``index_fill_`` /
+    ``index_copy_``, eliminating the cross-call buffer race that was
+    only hidden by CUDA legacy-default-stream implicit sync."""
+    dev_idx = device.index if device.index is not None else 0
+    key = (dev_idx, num_q_heads, head_dim, output_dtype, lse_dtype)
+    entry = _COLD_SCATTER_BUFS[key]
+    _COLD_SCATTER_BUFS[key] = (entry[0], entry[1], entry[2], event)
 
 
 def _get_cold_path_stream(device: torch.device) -> "torch.cuda.Stream | None":
@@ -1526,6 +1558,45 @@ def hot_cold_attention(
     )
 
     descale_shape = (cu_query_lens.shape[0] - 1, key_cache.shape[-2])
+
+    # ----- IDE_006 / TSK_002 §4.5 — fail-closed pre-check ------------------
+    # Cold path is restricted to pure decode (q_len == 1 per cold-bearing
+    # seq). Prefill chunks (q_len > 1) with cold blocks would silently drop
+    # the cold prefix from the merged output (hot path's seqused_k is
+    # clipped by cold_kv_tokens, so hot_output doesn't cover them). We fail
+    # *before* hot FA launches — pre-check costs an O(num_seqs) metadata
+    # D2H (≤ 1 KB) but turns a silent multi-second prefill into fail-fast.
+    # Without this, heavy prefill workloads spent the entire hot FA budget
+    # before raising. See TSK_002 §4.5b.
+    if max_num_cold_blocks > 0:
+        num_cold_blocks_cpu = num_cold_blocks.cpu()
+        cu_query_lens_cpu = cu_query_lens.cpu()
+        cu_q_list = cu_query_lens_cpu.tolist()
+        n_cold_list = num_cold_blocks_cpu.tolist()
+        need_cold_seq_ids = [i for i, n in enumerate(n_cold_list) if n > 0]
+        for _i in need_cold_seq_ids:
+            _qlen = cu_q_list[_i + 1] - cu_q_list[_i]
+            if _qlen > 1:
+                raise RuntimeError(
+                    "IDE_006/TSK_002 §4.5 — prefill chunk with cold blocks "
+                    f"is not supported by current policy (seq {_i}: "
+                    f"q_len={_qlen}, cold_blocks={n_cold_list[_i]}). Cold "
+                    "path is restricted to pure decode (q_len==1). "
+                    "Bypassing this seq to hot-only would silently drop "
+                    "its cold prefix from the attention output, violating "
+                    "the CLAUDE.md GPU-equivalence guarantee. The operator "
+                    "must either (a) disable IDE_006 for this workload "
+                    "(remove enable_cpu_partial_attention from "
+                    "kv-transfer-config), or (b) wait for the GPU reload "
+                    "fallback for prefill+cold which is being investigated "
+                    "as a follow-up. See TSK_002 §4.5 and TSK_004."
+                )
+    else:
+        num_cold_blocks_cpu = None
+        cu_query_lens_cpu = None
+        cu_q_list = None
+        n_cold_list = None
+        need_cold_seq_ids = None
 
     # Hot block_table: per-sequence shift to drop the cold prefix.
     # A naive column slice `block_table[:, max_num_cold_blocks:]` only works
@@ -1656,58 +1727,16 @@ def hot_cold_attention(
     # and outputs scale to the cold-needing token count instead of the
     # whole batch.
     #
-    # Step 1: small D2H of the per-seq metadata that decides which seqs
-    # need cold processing. These are O(num_seqs) tensors, ≤ 1 KB.
-    # ``.cpu()`` is a no-op when the tensor is already on CPU.
-    num_cold_blocks_cpu = num_cold_blocks.cpu()
-    cu_query_lens_cpu = cu_query_lens.cpu()
+    # ``num_cold_blocks_cpu`` / ``cu_query_lens_cpu`` / ``cu_q_list`` /
+    # ``n_cold_list`` / ``need_cold_seq_ids`` were already computed by the
+    # fail-closed pre-check above (single D2H) — reuse them here.
     seq_lens_total_cpu = seqused_k.cpu()
-
-    cu_q_list = cu_query_lens_cpu.tolist()
-    n_cold_list = num_cold_blocks_cpu.tolist()
-    need_cold_seq_ids = [i for i, n in enumerate(n_cold_list) if n > 0]
 
     # Should not happen — ``max_num_cold_blocks > 0`` was verified above —
     # but guard so we don't D2H an empty batch into the kernel.
     if not need_cold_seq_ids:
         output.copy_(hot_output)
         return
-
-    # ----- IDE_006 / TSK_002 §4.5 — decode-only gate (FAIL-CLOSED) ------
-    # Policy (사용자 결정 2026-04-27): cold path is restricted to pure
-    # decode (q_len == 1 per seq). For prefill chunks (q_len > 1) that
-    # carry cold blocks, sending the chunk to the CPU partial-attention
-    # kernel is now discarded as a policy. Bypassing to hot-only would
-    # violate CLAUDE.md "결과 값이 달라져서는 안됨" because hot_output
-    # was computed with hot_seqused_k = seqused_k - cold_kv_tokens
-    # (line ~1457), so the cold prefix of the prefill chunk would never
-    # be merged.
-    #
-    # Until OffloadingConnector / LMCache reload fallback (loading cold
-    # blocks back to GPU on prefill admission) is verified in code,
-    # the only safe action is to fail loudly. This keeps decode-only
-    # IDE_006 paths functional while making the prefill+cold mismatch
-    # visible to operators.
-    #
-    # Follow-up: investigate vLLM's reload mechanism for the prefill
-    # phase. Track in TSK_002 §4.5 / TSK_004.
-    for _i in need_cold_seq_ids:
-        _qlen = cu_q_list[_i + 1] - cu_q_list[_i]
-        if _qlen > 1:
-            raise RuntimeError(
-                "IDE_006/TSK_002 §4.5 — prefill chunk with cold blocks "
-                f"is not supported by current policy (seq {_i}: "
-                f"q_len={_qlen}, cold_blocks={n_cold_list[_i]}). Cold "
-                "path is restricted to pure decode (q_len==1). "
-                "Bypassing this seq to hot-only would silently drop "
-                "its cold prefix from the attention output, violating "
-                "the CLAUDE.md GPU-equivalence guarantee. The operator "
-                "must either (a) disable IDE_006 for this workload "
-                "(remove enable_cpu_partial_attention from "
-                "kv-transfer-config), or (b) wait for the GPU reload "
-                "fallback for prefill+cold which is being investigated "
-                "as a follow-up. See TSK_002 §4.5 and TSK_004."
-            )
 
     # Step 2: build a row-index tensor on the host that maps the
     # need-cold tokens back to their positions in the full batch. We
@@ -1795,14 +1824,16 @@ def hot_cold_attention(
         _t_d2h1 = _time.perf_counter()
         _t_kernel0 = _t_d2h1
 
-    # Step 5: NEO-style async issue of CPU partial-attention. The
-    # background thread starts the C++ kernel immediately; control
-    # returns to Python on the main thread *without* blocking. This
-    # frees the main thread to (a) wait on hot-path FA via
-    # cold_stream sync, (b) build full-size scatter buffers on GPU,
-    # (c) — at the model_runner level — start the next layer's
-    # GPU work. The future is awaited just before merge below.
-    cold_future = forward_partial_with_lse_async(
+    # Step 5: synchronous CPU partial-attention call. Earlier code
+    # submitted this to a single-thread executor and immediately blocked
+    # on the future, expecting overlap with "next layer GPU work". That
+    # cross-layer overlap is impossible without restructuring
+    # model_runner.forward to be layer-async; same-layer hot FA / cold
+    # CPU overlap was already provided by the GPU's async kernel launch.
+    # The async wrapper added thread-submit + future-await overhead with
+    # no real parallelism gain. See TSK_002 §4.6 Change Log
+    # 2026-04-27 (b-revert).
+    cold_output_reduced_cpu, cold_lse_reduced_cpu = forward_partial_with_lse(
         query=reduced_query_cpu,
         cold_kv_cache=cold_kv_combined,
         cold_kv_layout=cold_kv_layout,
@@ -1815,11 +1846,6 @@ def hot_cold_attention(
         causal=causal,
         cold_kv_cache_v=cold_kv_v_split,
     )
-
-    # Block here only at result-needed time. While we're waiting the
-    # background thread is doing useful CPU work and the default CUDA
-    # stream is finishing its hot-path FA kernel concurrently.
-    cold_output_reduced_cpu, cold_lse_reduced_cpu = cold_future.result()
 
     if _PARTIAL_PROFILE_ENABLED:
         _t_kernel1 = _time.perf_counter()
@@ -1857,7 +1883,12 @@ def hot_cold_attention(
         #   call, which we now restore to -inf before writing new
         #   values. Total per-call work is O(reduced rows), not
         #   O(num_tokens).
-        cold_output_buf, cold_lse_buf, last_dirty_idx = _get_cold_scatter_buffers(
+        (
+            cold_output_buf,
+            cold_lse_buf,
+            last_dirty_idx,
+            last_merge_event,
+        ) = _get_cold_scatter_buffers(
             device,
             num_tokens,
             num_q_heads,
@@ -1865,6 +1896,16 @@ def hot_cold_attention(
             hot_output.dtype,
             hot_lse.dtype,
         )
+        # Cross-call buffer race guard. The previous call's
+        # ``merge_attn_states`` reads cold_output_buf / cold_lse_buf on
+        # the default stream; without this wait, the cold-stream
+        # ``index_fill_`` / ``index_copy_`` below can overwrite the
+        # buffer while the previous merge is still consuming it. The
+        # CUDA legacy default stream's implicit sync hid this race in
+        # dev, but PyTorch's per-thread default stream mode (and prod's
+        # actual stream policy) doesn't — so we wait explicitly.
+        if last_merge_event is not None:
+            torch.cuda.current_stream(device).wait_event(last_merge_event)
         if last_dirty_idx is not None:
             # Reset previous call's dirty rows back to -inf (only those
             # rows; rest of the buffer was never overwritten).
@@ -1907,6 +1948,22 @@ def hot_cold_attention(
     merge_attn_states(
         output, hot_output, hot_lse, cold_output_gpu, cold_lse_gpu
     )
+
+    # Record an event on the default stream immediately after merge so the
+    # next call's cold-stream write path can wait on it before reusing the
+    # cached cold_output_buf / cold_lse_buf. See ``_get_cold_scatter_buffers``
+    # docstring + the ``wait_event`` call earlier in this function.
+    if cold_stream is not None:
+        merge_event = torch.cuda.Event()
+        merge_event.record()
+        _set_cold_merge_event(
+            device,
+            num_q_heads,
+            head_dim,
+            hot_output.dtype,
+            hot_lse.dtype,
+            merge_event,
+        )
 
     if _PARTIAL_PROFILE_ENABLED:
         if device.type == "cuda":
