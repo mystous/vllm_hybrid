@@ -1673,6 +1673,42 @@ def hot_cold_attention(
         output.copy_(hot_output)
         return
 
+    # ----- IDE_006 / TSK_002 §4.5 — decode-only gate (FAIL-CLOSED) ------
+    # Policy (사용자 결정 2026-04-27): cold path is restricted to pure
+    # decode (q_len == 1 per seq). For prefill chunks (q_len > 1) that
+    # carry cold blocks, sending the chunk to the CPU partial-attention
+    # kernel is now discarded as a policy. Bypassing to hot-only would
+    # violate CLAUDE.md "결과 값이 달라져서는 안됨" because hot_output
+    # was computed with hot_seqused_k = seqused_k - cold_kv_tokens
+    # (line ~1457), so the cold prefix of the prefill chunk would never
+    # be merged.
+    #
+    # Until OffloadingConnector / LMCache reload fallback (loading cold
+    # blocks back to GPU on prefill admission) is verified in code,
+    # the only safe action is to fail loudly. This keeps decode-only
+    # IDE_006 paths functional while making the prefill+cold mismatch
+    # visible to operators.
+    #
+    # Follow-up: investigate vLLM's reload mechanism for the prefill
+    # phase. Track in TSK_002 §4.5 / TSK_004.
+    for _i in need_cold_seq_ids:
+        _qlen = cu_q_list[_i + 1] - cu_q_list[_i]
+        if _qlen > 1:
+            raise RuntimeError(
+                "IDE_006/TSK_002 §4.5 — prefill chunk with cold blocks "
+                f"is not supported by current policy (seq {_i}: "
+                f"q_len={_qlen}, cold_blocks={n_cold_list[_i]}). Cold "
+                "path is restricted to pure decode (q_len==1). "
+                "Bypassing this seq to hot-only would silently drop "
+                "its cold prefix from the attention output, violating "
+                "the CLAUDE.md GPU-equivalence guarantee. The operator "
+                "must either (a) disable IDE_006 for this workload "
+                "(remove enable_cpu_partial_attention from "
+                "kv-transfer-config), or (b) wait for the GPU reload "
+                "fallback for prefill+cold which is being investigated "
+                "as a follow-up. See TSK_002 §4.5 and TSK_004."
+            )
+
     # Step 2: build a row-index tensor on the host that maps the
     # need-cold tokens back to their positions in the full batch. We
     # keep it on CPU first; the H2D copy is 4 bytes × reduced_n_tokens,
