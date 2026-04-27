@@ -7,7 +7,7 @@
 | 항목 | 값 |
 |---|---|
 | ID | `IDE_006` |
-| 상태 | `재정의` (1차 정의 기각 → 2차 정의. 최신 재정의 커밋: `8f50eeb2a4`) |
+| 상태 | `활성` (2차 정의 — TSK_001 완료. TSK_002 §4.2~§4.6 (stream 분리) dev 검증 완료. TSK_003 prod TST_004 cross-check 152 passed. TSK_004 NUMA-aware (a)/(b)/(b')/(b'')/(b''') 구현·prod 검증 통과. 다음 게이트: §4.6 prod overlap 측정 → TST_003 풀 회차 → TST_002 throughput sweep) |
 | 분류 | 선행 연구 적용 축 (독자 기여 지점 포함) |
 | 근거 등급 | C |
 | 현재 workload (128/128) 기여 | 0 (cold KV 자체가 발생하지 않음) |
@@ -258,15 +258,16 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 
 | 단계 | ID | 제목 | 상태 |
 |---|---|---|---|
-| 1 | [`PLN_001`](PLN_001.md) | Cold-KV CPU Partial Attention PoC 플랜 | `대기` (문서 적재 완료. (a) long-context 전환 후 `활성`) |
+| 1 | [`PLN_001`](PLN_001.md) | Cold-KV CPU Partial Attention PoC 플랜 | `활성` ((a) long-context 워크로드 전환 발생. PLN-deliverable: `PLN_001_TSK_002_01_partition_api_survey.md`, [`PLN_001_TSK_002_02_overlap_fix_log.md`](PLN_001_TSK_002_02_overlap_fix_log.md)) |
 | 2 | [`TSK_001`](TSK_001.md) | LSE-반환 CPU partial-attention kernel 구현 | `완료` (Phase 1 dev — 4.0/4.1/4.2c/4.3 + TST_001 dev 87 + prod 87 통과 2026-04-26) |
-| 3 | [`TSK_002`](TSK_002.md) | scheduler / attention metadata 의 hot/cold partition 통합 | `대기` (`TSK_001` 후속) |
-| 4 | [`TSK_003`](TSK_003.md) | **prod SIMD kernels** (AVX-512 + AMX C++) | `대기` (Phase 2 prod 사용자 직접) |
-| 5 | [`TST_001`](TST_001.md) | TSK_001 dev kernel 정확도 (A · B(i) · C) | `완료` (dev 87 + prod 87 통과 2026-04-26) |
-| 6 | [`TST_004`](TST_004.md) | TSK_003 prod SIMD cross-check (B(ii) AVX-512 + B(iii) AMX) | `대기` (`TSK_003` 후) |
-| 7 | [`TST_003`](TST_003.md) | e2e 통합 정확도 (D-i + D-ii) | `대기` (`TSK_002` 후) |
-| 8 | [`TST_002`](TST_002.md) | throughput / overlap profile | `대기` (다른 TST 통과 후) |
-| 9 | `FEA_###` | 통합 기능 (`feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
+| 3 | [`TSK_002`](TSK_002.md) | scheduler / attention metadata 의 hot/cold partition 통합 | `활성` (Phase 1 dev §4.2~§4.5 + §4.6 stream 분리 완료. Phase 2 prod overlap 측정 진행 중. 회귀 fix 흐름은 [`PLN_001_TSK_002_02_overlap_fix_log.md`](PLN_001_TSK_002_02_overlap_fix_log.md)) |
+| 4 | [`TSK_003`](TSK_003.md) | **prod SIMD kernels** (AVX-512 + AMX C++) | `활성` (Phase 1 dev kernel + dispatch wiring 완료. Phase 2 prod TST_004 cross-check 152 passed @ `eval/results/20260427_044407_*_simd_verify`. throughput sweep 은 TST_002 단계) |
+| 5 | [`TSK_004`](TSK_004.md) | Cold-KV 경로 NUMA-aware 화 (connector buffer + kernel thread bind + worker 별 NUMA cpulist 분할 + OMP num_threads + dispatch hot-path 캐싱) | `활성` (Phase 1 dev (a)/(b) 구현 + (b')/(b'')/(b''') 회귀 fix prod 통과. Phase 2 풀 throughput sweep 대기. 자세한 흐름 [`PLN_001_TSK_002_02_overlap_fix_log.md`](PLN_001_TSK_002_02_overlap_fix_log.md)) |
+| 6 | [`TST_001`](TST_001.md) | TSK_001 dev kernel 정확도 (A · B(i) · C) | `완료` (dev 87 + prod 87 통과 2026-04-26) |
+| 7 | [`TST_004`](TST_004.md) | TSK_003 prod SIMD cross-check (B(ii) AVX-512 + B(iii) AMX) | `완료` (152 passed @ prod simd_verify `eval/results/20260427_044407_*`) |
+| 8 | [`TST_003`](TST_003.md) | e2e 통합 정확도 (D-i + D-ii) | `대기` (`TSK_002` §4.6 안정화 후 풀 회차 — `eval/run_prod_smoke.sh --push`) |
+| 9 | [`TST_002`](TST_002.md) | throughput / overlap profile | `대기` (TST_003 통과 후. PLN_001 §4.3 overlap 부등식 net-win 결정점) |
+| 10 | `FEA_###` | 통합 기능 (`feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
 
 각 ID 의 상세 명세는 위 표의 링크 (`PLN_001.md`, `TSK_001.md`, `TSK_002.md`) 가 단일 출처. 미할당 ID 들은 PLN 결과에 따라 발급. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수.
 
@@ -326,6 +327,7 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 2026-04-25 | 추가 검토 반영 (정합성) | (1) NEO 비교 문구에서 근거가 약한 표현 제거 — 안전한 표현 "vLLM native OffloadingConnector / LMCache cold-tier lifecycle 및 기존 LSE merge path 와의 통합은 다루지 않음" 으로 교체. (2) 출처 불명확한 "FastDecode 계열" 행 §7 표에서 제거. (3) §11 step 2 의 비교 대상 표기를 "IDE_006 hot/cold split path" 로 명확화. (4) 디렉토리 단계 주의 박스 추가 — features/IDE_006/ 가 pre-FEA 아이디어 상세 단계임을 명시 (CLAUDE.md / task.md / test.md 부재는 의도된 단계). |
 | 2026-04-25 | 검토 반영 개정 | (1) "CPU engine / CPU compute engine" 표기 제거 — "vLLM CPU attention backend" / "CPU partial-attention worker" / "worker-side CPU compute path" 로 교체. (2) §6 "어느 하나도 수정 전제로 하지 않는다" 문장을 현실에 맞게 조정 — merge 커널은 재사용하되 scheduler / attention metadata / attention backend 호출 경로 / 신규 LSE-반환 CPU kernel 의 네 축 통합이 필요함을 명시. (3) 기존 `cpu_attn.py:261-293` 의 `forward()` 가 LSE 를 반환하지 않아 as-is 재사용 불가임을 §3.2·§6 에 반영. (4) 진입 조건 (f) 초기 scope 잠금 (BF16/FP16, non-FP8, non-MLA, full attention, 단일 KV group) 과 (g) overlap 가능성 추가. 근거: `cpu_attn.py:250-251`, `kv_offload/worker/cpu_gpu.py:138-139`. (5) 리스크 vii (mid-layer synchronization — layer 내부 critical path 에 CPU 통신·계산이 직렬화되면 순 지연) 신설. |
 | 2026-04-26 | TSK_001 + TST_001 마감 (Phase 1 dev 완료) | 검증 게이트 [`TST_001`](TST_001.md) (단계 A · B(i) · C) 가 dev (12900KF + RTX 3090, 2026-04-25, 87 testcase) + prod (Xeon Platinum 8480+ x2 socket + H100 x8, 2026-04-26, 87 testcase, `eval/results/20260426_050608_..._prod_smoke/`) 양쪽 통과 → numerical 일관성 입증 → IDE_006 §9 (c)(d) 의 dev kernel 측 충족. §11 표 step 2 (`TSK_001`) + step 5 (`TST_001`) 모두 `완료` 로 전환. 다음 단계는 step 3 (`TSK_002` model_runner integration, dev 자동) + step 4 (`TSK_003` prod SIMD, 사용자 직접). |
+| 2026-04-27 | TSK_002 §4.2~§4.6 + TSK_003 prod cross-check + TSK_004 NUMA-aware 일괄 진척 | (1) TSK_002 §4.2~§4.5 dev 구현 완료 후 prod 회귀 fix 흐름 (libgomp EAGAIN / wrapper 5462 ms timeout / device-mismatch / batch 전체 폭 D2H) 처리, §4.6 stream 분리 dev 검증까지 완료 — 자세한 흐름은 [`PLN_001_TSK_002_02_overlap_fix_log.md`](PLN_001_TSK_002_02_overlap_fix_log.md). 상태 `대기` → `활성`. (2) TSK_003 의 prod TST_004 cross-check 152 passed (`eval/results/20260427_044407_*_simd_verify`). TST_004 상태 `대기` → `완료`. (3) TSK_004 가 §11 표에 누락되어 있던 것을 추가 + 회귀 fix 항 (b'/b''/b''') 명시. NUMA partition / OMP num_threads / dispatch 캐싱 prod 통과. (4) IDE_006 최상위 상태 `재정의` → `활성`. (5) `eval/run_prod_simd_verify.sh` / `run_prod_cold_verify.sh` wrapper 두 개 신규. 다음 게이트: §4.6 prod overlap 측정 → TST_003 풀 회차 → TST_002 throughput sweep. |
 | (이전) | `shadow_assists/README.md` §3.2 재정의 (commit `8f50eeb2a4`) | 1차 정의 "Cold KV staging" 이 업스트림 중복이라 기각, CPU partial attention 으로 재정의 |
 
 ---
