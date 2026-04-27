@@ -1,0 +1,654 @@
+// SPDX-License-Identifier: Apache-2.0
+// Cold-KV CPU Partial Attention — AMX kernel (TSK_003 §4.2b).
+//
+// Same outer loop / online softmax / LSE return as the portable and
+// AVX-512 kernels (TSK_001 §4.2c, TSK_003 §4.2a) — what changes is
+// the inner Q · K^T score computation, which now uses Intel AMX BF16
+// tile matmul (`_tile_dpbf16ps`) to evaluate 16 K rows of dot product
+// per tile call. AMX is a Sapphire Rapids+ feature; on a host that
+// does not expose AMX-BF16 the wrapper's cpuid gate
+// (`_has_amx_kernel`) prevents this translation unit from ever
+// loading, so neither compile-time `-mamx-bf16` nor the static
+// initializer of this .so can SIGILL on the dev box (Alder Lake
+// 12900KF, no AMX hardware).
+//
+// AMX tile layout used here (palette 1, BF16 mode):
+//
+//   tile 0 (C, fp32 accumulator)
+//     M = 1   (one query row at a time)
+//     N = 16  (16 K rows in one matmul)
+//     => 1 × 16 fp32 = 64 bytes
+//
+//   tile 1 (A, BF16 query)
+//     M = 1
+//     K_paired = up to 16 (= 32 BF16 elements per row)
+//     => 1 × 64 bytes = 64 bytes
+//
+//   tile 2 (B, BF16 keys staged in A·B^T-friendly layout)
+//     K_paired = up to 16
+//     N = 16
+//     => 16 pair-rows × 64 bytes = 1024 bytes
+//
+// For ``head_dim`` larger than 32 BF16 (the per-tile K limit) we
+// accumulate across head_dim in chunks of 32. Llama-3.3-70B uses
+// head_dim = 128 → 4 accumulating tile calls per (query row, K
+// batch).
+//
+// The K batch is laid out by a thin staging step that copies 16 K
+// rows from the canonical cache into a B-tile-friendly buffer
+// (transpose from row-major (n_K × head_dim) to
+// (head_dim/2 × n_K × bf16-pair) so consecutive head_dim pair-rows
+// load with a 32-byte stride). The staging cost is one read of the
+// K block per AMX tile call and is a small constant relative to the
+// dpbf16ps throughput.
+//
+// FP16 / FP32 dispatch falls back to the AVX-512 path: AMX BF16 only
+// helps the BF16 case, and the prod scope (PLN_001 §3) is BF16/FP16
+// — FP16 routes via the AVX-512 kernel (which itself uses
+// `_mm512_cvtph_ps`).
+
+#include <torch/extension.h>
+#include <vector>
+#include <cmath>
+#include <limits>
+#include <cstdint>
+#include <cstring>
+
+#if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AVX512F__)
+#include <immintrin.h>
+#define VLLM_CPU_PARTIAL_HAS_AMX 1
+#else
+#define VLLM_CPU_PARTIAL_HAS_AMX 0
+#endif
+
+namespace cpu_partial_attn_amx {
+
+#if VLLM_CPU_PARTIAL_HAS_AMX
+
+// ---- AMX tile config -----------------------------------------------
+// One palette-1 record per thread. The palette byte is followed by 7
+// reserved bytes, then 8 (rows, colsb) pairs for the 8 tile registers.
+
+struct __attribute__((packed)) TileConfig {
+  uint8_t palette;
+  uint8_t start_row;
+  uint8_t reserved0[14];
+  uint16_t colsb[16];
+  uint8_t rows[16];
+};
+
+// AMX tile register indices. The intrinsics require these as
+// literal compile-time integers (the assembler emits ``tmm0``,
+// ``tmm1``, etc. directly), so we use preprocessor macros rather
+// than ``constexpr int`` — a ``static constexpr int TMM_C = 0;``
+// is folded by the optimiser but the inline asm template needs the
+// literal token at preprocessing time.
+#define VLLM_TMM_C 0
+#define VLLM_TMM_A 1
+#define VLLM_TMM_B 2
+
+static inline void configure_tiles_for_dot(int head_dim_chunk_bf16) {
+  // K_paired = head_dim_chunk_bf16 / 2 (each pair = 2 BF16 = 4 bytes)
+  TileConfig cfg{};
+  cfg.palette = 1;
+  // tile 0 (C): 1 × 16 fp32 = 64 bytes per row, 1 row
+  cfg.rows[VLLM_TMM_C] = 1;
+  cfg.colsb[VLLM_TMM_C] = 16 * 4;  // 64 bytes
+  // tile 1 (A): 1 × head_dim_chunk_bf16 = 1 row × (chunk * 2) bytes
+  cfg.rows[VLLM_TMM_A] = 1;
+  cfg.colsb[VLLM_TMM_A] = head_dim_chunk_bf16 * 2;  // up to 64 bytes
+  // tile 2 (B): K_paired pair-rows × 16 cols × 4 bytes = ... bytes per row
+  // (16 cols × 2 BF16 pair = 4 bytes per col, 16 cols = 64 bytes per row)
+  cfg.rows[VLLM_TMM_B] = head_dim_chunk_bf16 / 2;  // K_paired
+  cfg.colsb[VLLM_TMM_B] = 16 * 4;  // 64 bytes per pair-row
+  _tile_loadconfig(&cfg);
+}
+
+// Pack 16 K rows (each head_dim BF16) from canonical layout into the
+// AMX B-tile layout: K_paired pair-rows × 16 cols × 2 BF16 each.
+//
+// canonical[i, d] = K row i element d.
+// B[paired_row p, col c, pair s] = canonical[c, 2p + s]   for s ∈ {0,1}
+//
+// I.e. each pair-row p of B holds the (2p)-th and (2p+1)-th BF16
+// element of each of the 16 K rows. Stride within a pair-row is
+// 4 bytes (one (BF16,BF16) pair per K row, 16 K rows = 64 bytes).
+static inline void pack_K_for_B_tile(
+    const at::BFloat16* canonical_K_block_ptr,
+    int64_t k_row_stride_bytes,
+    int head_dim,
+    uint16_t* B_buf  // B_buf[K_paired × 16 × 2] BF16
+) {
+  const int K_paired = head_dim / 2;
+  for (int p = 0; p < K_paired; ++p) {
+    for (int c = 0; c < 16; ++c) {
+      const at::BFloat16* row = reinterpret_cast<const at::BFloat16*>(
+          reinterpret_cast<const uint8_t*>(canonical_K_block_ptr)
+          + c * k_row_stride_bytes);
+      // Pair row p has elements (2p, 2p+1) of K row c.
+      B_buf[p * 16 * 2 + c * 2 + 0] =
+          *reinterpret_cast<const uint16_t*>(&row[2 * p]);
+      B_buf[p * 16 * 2 + c * 2 + 1] =
+          *reinterpret_cast<const uint16_t*>(&row[2 * p + 1]);
+    }
+  }
+}
+
+#endif  // VLLM_CPU_PARTIAL_HAS_AMX
+
+// ---- AVX-512 dot product (BF16 fallback path used by FP16 / FP32 and
+// when AMX path completes a 16-batch and we still have a < 16 tail) --
+
+#if defined(__AVX512F__)
+#include <immintrin.h>
+
+static inline float hsum_ps_512(__m512 v) {
+  __m128 lane0 = _mm512_castps512_ps128(v);
+  __m128 lane1 = _mm512_extractf32x4_ps(v, 1);
+  __m128 lane2 = _mm512_extractf32x4_ps(v, 2);
+  __m128 lane3 = _mm512_extractf32x4_ps(v, 3);
+  __m128 sum01 = _mm_add_ps(lane0, lane1);
+  __m128 sum23 = _mm_add_ps(lane2, lane3);
+  __m128 q = _mm_add_ps(sum01, sum23);
+  q = _mm_add_ps(q, _mm_movehl_ps(q, q));
+  q = _mm_add_ss(q, _mm_shuffle_ps(q, q, 0x55));
+  return _mm_cvtss_f32(q);
+}
+
+template <typename T>
+static inline float dot_avx512_kt(const T* a, const T* b, int64_t n);
+
+template <>
+inline float dot_avx512_kt<at::BFloat16>(const at::BFloat16* a,
+                                         const at::BFloat16* b,
+                                         int64_t n) {
+  __m512 acc = _mm512_setzero_ps();
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    __m256i ai16 = _mm256_loadu_si256(
+        reinterpret_cast<const __m256i*>(a + d));
+    __m256i bi16 = _mm256_loadu_si256(
+        reinterpret_cast<const __m256i*>(b + d));
+    __m512 af = _mm512_castsi512_ps(_mm512_slli_epi32(
+        _mm512_cvtepu16_epi32(ai16), 16));
+    __m512 bf = _mm512_castsi512_ps(_mm512_slli_epi32(
+        _mm512_cvtepu16_epi32(bi16), 16));
+    acc = _mm512_fmadd_ps(af, bf, acc);
+  }
+  float result = hsum_ps_512(acc);
+  for (; d < n; ++d) {
+    result += static_cast<float>(a[d]) * static_cast<float>(b[d]);
+  }
+  return result;
+}
+
+template <>
+inline float dot_avx512_kt<at::Half>(const at::Half* a, const at::Half* b,
+                                     int64_t n) {
+  __m512 acc = _mm512_setzero_ps();
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    __m256i ai16 = _mm256_loadu_si256(
+        reinterpret_cast<const __m256i*>(a + d));
+    __m256i bi16 = _mm256_loadu_si256(
+        reinterpret_cast<const __m256i*>(b + d));
+    acc = _mm512_fmadd_ps(_mm512_cvtph_ps(ai16),
+                          _mm512_cvtph_ps(bi16), acc);
+  }
+  float result = hsum_ps_512(acc);
+  for (; d < n; ++d) {
+    result += static_cast<float>(a[d]) * static_cast<float>(b[d]);
+  }
+  return result;
+}
+
+template <>
+inline float dot_avx512_kt<float>(const float* a, const float* b,
+                                  int64_t n) {
+  __m512 acc = _mm512_setzero_ps();
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    acc = _mm512_fmadd_ps(_mm512_loadu_ps(a + d),
+                          _mm512_loadu_ps(b + d), acc);
+  }
+  float result = hsum_ps_512(acc);
+  for (; d < n; ++d) {
+    result += a[d] * b[d];
+  }
+  return result;
+}
+
+#else
+template <typename T>
+static inline float dot_avx512_kt(const T* a, const T* b, int64_t n) {
+  float acc = 0.0f;
+  for (int64_t d = 0; d < n; ++d)
+    acc += static_cast<float>(a[d]) * static_cast<float>(b[d]);
+  return acc;
+}
+#endif
+
+// ---- BF16-specialised kernel using AMX for the score batch ---------
+//
+// For BF16 we batch 16 K rows per AMX matmul. Tail (n_cold_kv % 16)
+// uses the AVX-512 scalar dot path.
+
+static std::vector<torch::Tensor> forward_partial_bf16_amx(
+    torch::Tensor query,
+    torch::Tensor cold_kv_cache,
+    int64_t block_size,
+    int64_t num_kv_heads,
+    int64_t head_dim,
+    int64_t kv_block_bytes,
+    torch::Tensor cold_block_ids,
+    torch::Tensor cold_block_lens,
+    torch::Tensor cu_seqlens_q,
+    torch::Tensor query_positions,
+    double softmax_scale,
+    bool causal) {
+#if !VLLM_CPU_PARTIAL_HAS_AMX
+  TORCH_CHECK(false,
+              "AMX kernel built without __AMX_TILE__ / __AMX_BF16__ — "
+              "rebuild with the proper compile flags.");
+#else
+  TORCH_CHECK(query.is_contiguous(), "query must be contiguous");
+  TORCH_CHECK(cold_kv_cache.is_contiguous(), "cold_kv_cache must be contiguous");
+  TORCH_CHECK(cold_kv_cache.scalar_type() == torch::kInt8,
+              "cold_kv_cache must be int8");
+  TORCH_CHECK(query.dim() == 3, "query must be 3D");
+  TORCH_CHECK(head_dim % 2 == 0, "head_dim must be even for BF16 pair packing");
+
+  using T = at::BFloat16;
+  const int64_t num_tokens = query.size(0);
+  const int64_t num_q_heads = query.size(1);
+  TORCH_CHECK(query.size(2) == head_dim, "query head_dim mismatch");
+  TORCH_CHECK(num_q_heads % num_kv_heads == 0,
+              "num_q_heads must be divisible by num_kv_heads");
+  const int64_t q_per_kv = num_q_heads / num_kv_heads;
+  const int64_t num_seqs = cu_seqlens_q.size(0) - 1;
+  const int64_t page_size_bytes = cold_kv_cache.size(1);
+
+  TORCH_CHECK(page_size_bytes >= 2 * kv_block_bytes,
+              "page too small for K + V");
+  TORCH_CHECK(static_cast<size_t>(kv_block_bytes) % sizeof(T) == 0,
+              "kv_block_bytes not aligned to dtype itemsize");
+  const int64_t elements_per_page =
+      page_size_bytes / static_cast<int64_t>(sizeof(T));
+  const int64_t elements_per_kv_block =
+      kv_block_bytes / static_cast<int64_t>(sizeof(T));
+
+  const T* kv_data = reinterpret_cast<const T*>(
+      cold_kv_cache.data_ptr<int8_t>());
+
+  auto O = torch::zeros({num_tokens, num_q_heads, head_dim}, query.options());
+  auto LSE = torch::full(
+      {num_q_heads, num_tokens},
+      -std::numeric_limits<float>::infinity(),
+      query.options().dtype(torch::kFloat32));
+
+  auto query_a = query.accessor<T, 3>();
+  auto O_a = O.accessor<T, 3>();
+  auto LSE_a = LSE.accessor<float, 2>();
+  auto cold_block_ids_a = cold_block_ids.accessor<int32_t, 2>();
+  auto cold_block_lens_a = cold_block_lens.accessor<int32_t, 1>();
+  auto cu_seqlens_q_a = cu_seqlens_q.accessor<int32_t, 1>();
+  auto query_positions_a = query_positions.accessor<int32_t, 1>();
+
+  const float scale_f = static_cast<float>(softmax_scale);
+  const float NEG_INF = -std::numeric_limits<float>::infinity();
+
+  // head_dim chunks of 32 BF16 elements per AMX tile call.
+  const int chunk_bf16 = 32;
+  const int n_chunks = static_cast<int>((head_dim + chunk_bf16 - 1) / chunk_bf16);
+  TORCH_CHECK(head_dim % chunk_bf16 == 0,
+              "head_dim must be a multiple of 32 for AMX BF16 (got ", head_dim, ")");
+
+  // Configure AMX tiles for chunk_bf16 = 32 BF16 K dim per call.
+  configure_tiles_for_dot(chunk_bf16);
+
+  // Per-thread scratch for the B tile staging buffer (16 × 32 BF16 = 1024 bytes)
+  // and the C tile read-back (1 × 16 fp32 = 64 bytes).
+  alignas(64) uint16_t B_buf[16 * 32];
+  alignas(64) float C_buf[16];
+
+  for (int64_t s = 0; s < num_seqs; ++s) {
+    const int64_t q_start = cu_seqlens_q_a[s];
+    const int64_t q_end = cu_seqlens_q_a[s + 1];
+    const int64_t n_cold_blocks = cold_block_lens_a[s];
+    if (q_end <= q_start || n_cold_blocks <= 0) continue;
+    const int64_t n_cold_kv = n_cold_blocks * block_size;
+
+    std::vector<float> scores(static_cast<size_t>(n_cold_kv));
+
+    for (int64_t t = q_start; t < q_end; ++t) {
+      const int64_t q_pos = query_positions_a[t];
+
+      for (int64_t h = 0; h < num_q_heads; ++h) {
+        const int64_t kv_h = h / q_per_kv;
+        const T* q_ptr = &query_a[t][h][0];
+
+        // ---- Pass 1: scores + max ----
+        float m_val = NEG_INF;
+
+        // Process 16 cold-KV rows at a time using AMX.
+        int64_t k = 0;
+        for (; k + 16 <= n_cold_kv; k += 16) {
+          // Check causal mask coverage: if any of the 16 rows is masked
+          // out (q_pos < k+i), fall back to scalar for this batch to
+          // keep the masking logic identical to portable.
+          bool any_masked = false;
+          if (causal) {
+            for (int i = 0; i < 16; ++i) {
+              if (q_pos < k + i) { any_masked = true; break; }
+            }
+          }
+          if (any_masked) {
+            for (int i = 0; i < 16; ++i) {
+              const int64_t kk = k + i;
+              const int64_t bidx = kk / block_size;
+              const int64_t tib = kk % block_size;
+              const int64_t real_block_id = cold_block_ids_a[s][bidx];
+              if (causal && q_pos < kk) {
+                scores[kk] = NEG_INF;
+                continue;
+              }
+              const T* k_ptr = kv_data
+                  + real_block_id * elements_per_page
+                  + tib * num_kv_heads * head_dim
+                  + kv_h * head_dim;
+              const float dot = dot_avx512_kt<T>(q_ptr, k_ptr, head_dim);
+              const float score = dot * scale_f;
+              scores[kk] = score;
+              if (score > m_val) m_val = score;
+            }
+            continue;
+          }
+
+          // Zero accumulator tile.
+          _tile_zero(VLLM_TMM_C);
+
+          // For each chunk of 32 BF16 (= 16 BF16 pairs) in head_dim,
+          // load A and B tiles and accumulate.
+          for (int chunk = 0; chunk < n_chunks; ++chunk) {
+            const int d0 = chunk * chunk_bf16;
+
+            // A tile: 1 × chunk_bf16 BF16 = (chunk_bf16 * 2) bytes.
+            // We can load directly from query memory; contiguous already.
+            _tile_loadd(
+                VLLM_TMM_A,
+                reinterpret_cast<const void*>(q_ptr + d0),
+                chunk_bf16 * 2  // stride for a 1-row tile: row size in bytes
+            );
+
+            // Stage 16 K rows × chunk_bf16 BF16 into B_buf in pair-row
+            // layout. K row stride = num_kv_heads * head_dim * 2 bytes.
+            // Compute the K block base for this batch of 16 rows. The
+            // 16 rows are k..k+15, each at (block, token_in_block) =
+            // ((k+i)/block_size, (k+i)%block_size). They share the same
+            // block IFF k % block_size == 0 AND k+15 < (block+1)*block_size,
+            // which holds when block_size is a multiple of 16 — true for
+            // PLN_001 §3 scope (block_size ∈ {16, 32, 64}).
+            // For safety we iterate per-row anyway.
+            for (int i = 0; i < 16; ++i) {
+              const int64_t kk = k + i;
+              const int64_t bidx = kk / block_size;
+              const int64_t tib = kk % block_size;
+              const int64_t real_block_id = cold_block_ids_a[s][bidx];
+              const at::BFloat16* row = kv_data
+                  + real_block_id * elements_per_page
+                  + tib * num_kv_heads * head_dim
+                  + kv_h * head_dim
+                  + d0;  // chunk offset
+              // Pack into B_buf at column i of every pair-row.
+              for (int p = 0; p < chunk_bf16 / 2; ++p) {
+                B_buf[p * 16 * 2 + i * 2 + 0] =
+                    *reinterpret_cast<const uint16_t*>(&row[2 * p]);
+                B_buf[p * 16 * 2 + i * 2 + 1] =
+                    *reinterpret_cast<const uint16_t*>(&row[2 * p + 1]);
+              }
+            }
+
+            // Load B tile and dpbf16ps accumulate into C.
+            _tile_loadd(VLLM_TMM_B, B_buf, 16 * 4);  // 64-byte stride per pair-row
+            _tile_dpbf16ps(VLLM_TMM_C, VLLM_TMM_A, VLLM_TMM_B);
+          }
+
+          // Read C tile (1 × 16 fp32) into C_buf.
+          _tile_stored(VLLM_TMM_C, C_buf, 16 * 4);
+
+          // Apply softmax_scale and update scores + max.
+          for (int i = 0; i < 16; ++i) {
+            const float score = C_buf[i] * scale_f;
+            scores[k + i] = score;
+            if (score > m_val) m_val = score;
+          }
+        }
+
+        // Tail (n_cold_kv % 16) — scalar AVX-512 dot.
+        for (; k < n_cold_kv; ++k) {
+          const int64_t bidx = k / block_size;
+          const int64_t tib = k % block_size;
+          const int64_t real_block_id = cold_block_ids_a[s][bidx];
+          if (causal && q_pos < k) {
+            scores[k] = NEG_INF;
+            continue;
+          }
+          const T* k_ptr = kv_data
+              + real_block_id * elements_per_page
+              + tib * num_kv_heads * head_dim
+              + kv_h * head_dim;
+          const float dot = dot_avx512_kt<T>(q_ptr, k_ptr, head_dim);
+          const float score = dot * scale_f;
+          scores[k] = score;
+          if (score > m_val) m_val = score;
+        }
+
+        if (m_val == NEG_INF) continue;
+
+        // ---- Pass 2: exp(score - m) ----
+        float sum_exp = 0.0f;
+        for (int64_t kk = 0; kk < n_cold_kv; ++kk) {
+          if (scores[kk] == NEG_INF) {
+            scores[kk] = 0.0f;
+            continue;
+          }
+          const float ex = std::exp(scores[kk] - m_val);
+          scores[kk] = ex;
+          sum_exp += ex;
+        }
+
+        // ---- Pass 3: weighted V sum (scalar; AMX would batch over a
+        // different axis and is not necessary for correctness) ----
+        float out[1024];
+        TORCH_CHECK(head_dim <= 1024, "head_dim too large for stack buffer");
+        for (int64_t d = 0; d < head_dim; ++d) out[d] = 0.0f;
+
+        const float inv_sum = 1.0f / sum_exp;
+        for (int64_t kk = 0; kk < n_cold_kv; ++kk) {
+          const float w = scores[kk] * inv_sum;
+          if (w == 0.0f) continue;
+          const int64_t bidx = kk / block_size;
+          const int64_t tib = kk % block_size;
+          const int64_t real_block_id = cold_block_ids_a[s][bidx];
+          const at::BFloat16* v_ptr = kv_data
+              + real_block_id * elements_per_page
+              + elements_per_kv_block
+              + tib * num_kv_heads * head_dim
+              + kv_h * head_dim;
+          for (int64_t d = 0; d < head_dim; ++d) {
+            out[d] += w * static_cast<float>(v_ptr[d]);
+          }
+        }
+
+        for (int64_t d = 0; d < head_dim; ++d) {
+          O_a[t][h][d] = static_cast<T>(out[d]);
+        }
+        LSE_a[h][t] = m_val + std::log(sum_exp);
+      }
+    }
+  }
+
+  // Release tile state.
+  _tile_release();
+
+  return {O, LSE};
+#endif
+}
+
+// FP16 / FP32 / unsupported dtypes route to a scalar AVX-512 path
+// (algorithmically identical to the AVX-512 kernel). AMX BF16 doesn't
+// help non-BF16 inputs, so this path is the natural fallback.
+template <typename T>
+static std::vector<torch::Tensor> forward_partial_avx512_fallback(
+    torch::Tensor query,
+    torch::Tensor cold_kv_cache,
+    int64_t block_size,
+    int64_t num_kv_heads,
+    int64_t head_dim,
+    int64_t kv_block_bytes,
+    torch::Tensor cold_block_ids,
+    torch::Tensor cold_block_lens,
+    torch::Tensor cu_seqlens_q,
+    torch::Tensor query_positions,
+    double softmax_scale,
+    bool causal) {
+  TORCH_CHECK(query.is_contiguous(), "query must be contiguous");
+  TORCH_CHECK(cold_kv_cache.is_contiguous(), "cold_kv_cache must be contiguous");
+  TORCH_CHECK(cold_kv_cache.scalar_type() == torch::kInt8,
+              "cold_kv_cache must be int8");
+  TORCH_CHECK(query.dim() == 3, "query must be 3D");
+
+  const int64_t num_tokens = query.size(0);
+  const int64_t num_q_heads = query.size(1);
+  const int64_t q_per_kv = num_q_heads / num_kv_heads;
+  const int64_t num_seqs = cu_seqlens_q.size(0) - 1;
+  const int64_t page_size_bytes = cold_kv_cache.size(1);
+  const int64_t elements_per_page =
+      page_size_bytes / static_cast<int64_t>(sizeof(T));
+  const int64_t elements_per_kv_block =
+      kv_block_bytes / static_cast<int64_t>(sizeof(T));
+
+  const T* kv_data = reinterpret_cast<const T*>(
+      cold_kv_cache.data_ptr<int8_t>());
+
+  auto O = torch::zeros({num_tokens, num_q_heads, head_dim}, query.options());
+  auto LSE = torch::full(
+      {num_q_heads, num_tokens},
+      -std::numeric_limits<float>::infinity(),
+      query.options().dtype(torch::kFloat32));
+
+  auto query_a = query.accessor<T, 3>();
+  auto O_a = O.accessor<T, 3>();
+  auto LSE_a = LSE.accessor<float, 2>();
+  auto cold_block_ids_a = cold_block_ids.accessor<int32_t, 2>();
+  auto cold_block_lens_a = cold_block_lens.accessor<int32_t, 1>();
+  auto cu_seqlens_q_a = cu_seqlens_q.accessor<int32_t, 1>();
+  auto query_positions_a = query_positions.accessor<int32_t, 1>();
+
+  const float scale_f = static_cast<float>(softmax_scale);
+  const float NEG_INF = -std::numeric_limits<float>::infinity();
+
+  for (int64_t s = 0; s < num_seqs; ++s) {
+    const int64_t q_start = cu_seqlens_q_a[s];
+    const int64_t q_end = cu_seqlens_q_a[s + 1];
+    const int64_t n_cold_blocks = cold_block_lens_a[s];
+    if (q_end <= q_start || n_cold_blocks <= 0) continue;
+    const int64_t n_cold_kv = n_cold_blocks * block_size;
+    std::vector<float> scores(static_cast<size_t>(n_cold_kv));
+
+    for (int64_t t = q_start; t < q_end; ++t) {
+      const int64_t q_pos = query_positions_a[t];
+      for (int64_t h = 0; h < num_q_heads; ++h) {
+        const int64_t kv_h = h / q_per_kv;
+        const T* q_ptr = &query_a[t][h][0];
+
+        float m_val = NEG_INF;
+        for (int64_t k = 0; k < n_cold_kv; ++k) {
+          const int64_t bidx = k / block_size;
+          const int64_t tib = k % block_size;
+          const int64_t real_block_id = cold_block_ids_a[s][bidx];
+          if (causal && q_pos < k) { scores[k] = NEG_INF; continue; }
+          const T* k_ptr = kv_data + real_block_id * elements_per_page
+              + tib * num_kv_heads * head_dim + kv_h * head_dim;
+          const float dot = dot_avx512_kt<T>(q_ptr, k_ptr, head_dim);
+          const float score = dot * scale_f;
+          scores[k] = score;
+          if (score > m_val) m_val = score;
+        }
+        if (m_val == NEG_INF) continue;
+        float sum_exp = 0.0f;
+        for (int64_t k = 0; k < n_cold_kv; ++k) {
+          if (scores[k] == NEG_INF) { scores[k] = 0.0f; continue; }
+          const float ex = std::exp(scores[k] - m_val);
+          scores[k] = ex;
+          sum_exp += ex;
+        }
+        float out[1024];
+        TORCH_CHECK(head_dim <= 1024, "head_dim too large for stack buffer");
+        for (int64_t d = 0; d < head_dim; ++d) out[d] = 0.0f;
+        const float inv_sum = 1.0f / sum_exp;
+        for (int64_t k = 0; k < n_cold_kv; ++k) {
+          const float w = scores[k] * inv_sum;
+          if (w == 0.0f) continue;
+          const int64_t bidx = k / block_size;
+          const int64_t tib = k % block_size;
+          const int64_t real_block_id = cold_block_ids_a[s][bidx];
+          const T* v_ptr = kv_data + real_block_id * elements_per_page
+              + elements_per_kv_block + tib * num_kv_heads * head_dim
+              + kv_h * head_dim;
+          for (int64_t d = 0; d < head_dim; ++d) {
+            out[d] += w * static_cast<float>(v_ptr[d]);
+          }
+        }
+        for (int64_t d = 0; d < head_dim; ++d) {
+          O_a[t][h][d] = static_cast<T>(out[d]);
+        }
+        LSE_a[h][t] = m_val + std::log(sum_exp);
+      }
+    }
+  }
+  return {O, LSE};
+}
+
+std::vector<torch::Tensor> forward_partial_with_lse_amx(
+    torch::Tensor query,
+    torch::Tensor cold_kv_cache,
+    int64_t block_size,
+    int64_t num_kv_heads,
+    int64_t head_dim,
+    int64_t kv_block_bytes,
+    torch::Tensor cold_block_ids,
+    torch::Tensor cold_block_lens,
+    torch::Tensor cu_seqlens_q,
+    torch::Tensor query_positions,
+    double softmax_scale,
+    bool causal) {
+  const auto dt = query.scalar_type();
+  if (dt == torch::kBFloat16) {
+    return forward_partial_bf16_amx(
+        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
+        kv_block_bytes, cold_block_ids, cold_block_lens,
+        cu_seqlens_q, query_positions, softmax_scale, causal);
+  } else if (dt == torch::kHalf) {
+    return forward_partial_avx512_fallback<at::Half>(
+        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
+        kv_block_bytes, cold_block_ids, cold_block_lens,
+        cu_seqlens_q, query_positions, softmax_scale, causal);
+  } else if (dt == torch::kFloat) {
+    return forward_partial_avx512_fallback<float>(
+        query, cold_kv_cache, block_size, num_kv_heads, head_dim,
+        kv_block_bytes, cold_block_ids, cold_block_lens,
+        cu_seqlens_q, query_positions, softmax_scale, causal);
+  } else {
+    TORCH_CHECK(false,
+                "forward_partial_with_lse_amx: unsupported dtype ", dt);
+  }
+}
+
+}  // namespace cpu_partial_attn_amx
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  m.def("forward_partial_with_lse_amx",
+        &cpu_partial_attn_amx::forward_partial_with_lse_amx,
+        "Cold-KV CPU Partial Attention (AMX BF16 + AVX-512 fallback)");
+}
