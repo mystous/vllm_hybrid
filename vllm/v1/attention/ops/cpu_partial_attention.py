@@ -152,7 +152,13 @@ def _try_load_portable():
         _PORTABLE_MOD = load(
             name="vllm_partial_attention_portable",
             sources=[src],
-            extra_cflags=["-O3", "-ftree-vectorize", "-fno-strict-aliasing"],
+            extra_cflags=[
+                "-O3",
+                "-ftree-vectorize",
+                "-fno-strict-aliasing",
+                "-fopenmp",
+            ],
+            extra_ldflags=["-fopenmp"],
             verbose=False,
         )
     except Exception as e:  # pragma: no cover - environment dependent
@@ -199,7 +205,9 @@ def _try_load_avx512():
                 "-mavx512bw",
                 "-mavx512vl",
                 "-mavx512bf16",
+                "-fopenmp",
             ],
+            extra_ldflags=["-fopenmp"],
             verbose=False,
         )
     except Exception as e:  # pragma: no cover - environment dependent
@@ -255,7 +263,9 @@ def _try_load_amx():
                 "-mavx512bf16",
                 "-mamx-tile",
                 "-mamx-bf16",
+                "-fopenmp",
             ],
+            extra_ldflags=["-fopenmp"],
             verbose=False,
         )
     except Exception as e:  # pragma: no cover - environment dependent

@@ -34,6 +34,10 @@
 #include <limits>
 #include <cstdint>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #if defined(__AVX512F__)
 #include <immintrin.h>
 #define VLLM_CPU_PARTIAL_HAS_AVX512 1
@@ -199,6 +203,77 @@ inline float dot_avx512<float>(const float* a, const float* b,
 #endif
 }
 
+// ---- V weighted sum SIMD --------------------------------------------
+// AVX-512 fmadd of ``out[d] += w * v_ptr[d]`` over head_dim. Same
+// dispatch shape as the dot helpers above. Caller's ``out`` is fp32.
+
+#if VLLM_CPU_PARTIAL_HAS_AVX512
+template <typename T>
+static inline void v_fmadd_avx512(float w, const T* v_ptr, float* out,
+                                  int64_t n);
+
+template <>
+inline void v_fmadd_avx512<at::BFloat16>(float w, const at::BFloat16* v_ptr,
+                                         float* out, int64_t n) {
+  __m512 wv = _mm512_set1_ps(w);
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    __m256i bi16 = _mm256_loadu_si256(
+        reinterpret_cast<const __m256i*>(v_ptr + d));
+    __m512 vf = _mm512_castsi512_ps(_mm512_slli_epi32(
+        _mm512_cvtepu16_epi32(bi16), 16));
+    __m512 of = _mm512_loadu_ps(out + d);
+    of = _mm512_fmadd_ps(wv, vf, of);
+    _mm512_storeu_ps(out + d, of);
+  }
+  for (; d < n; ++d) {
+    out[d] += w * static_cast<float>(v_ptr[d]);
+  }
+}
+
+template <>
+inline void v_fmadd_avx512<at::Half>(float w, const at::Half* v_ptr,
+                                     float* out, int64_t n) {
+  __m512 wv = _mm512_set1_ps(w);
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    __m256i hi16 = _mm256_loadu_si256(
+        reinterpret_cast<const __m256i*>(v_ptr + d));
+    __m512 vf = _mm512_cvtph_ps(hi16);
+    __m512 of = _mm512_loadu_ps(out + d);
+    of = _mm512_fmadd_ps(wv, vf, of);
+    _mm512_storeu_ps(out + d, of);
+  }
+  for (; d < n; ++d) {
+    out[d] += w * static_cast<float>(v_ptr[d]);
+  }
+}
+
+template <>
+inline void v_fmadd_avx512<float>(float w, const float* v_ptr, float* out,
+                                  int64_t n) {
+  __m512 wv = _mm512_set1_ps(w);
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    __m512 vf = _mm512_loadu_ps(v_ptr + d);
+    __m512 of = _mm512_loadu_ps(out + d);
+    of = _mm512_fmadd_ps(wv, vf, of);
+    _mm512_storeu_ps(out + d, of);
+  }
+  for (; d < n; ++d) {
+    out[d] += w * v_ptr[d];
+  }
+}
+
+#else
+template <typename T>
+static inline void v_fmadd_avx512(float w, const T* v_ptr, float* out,
+                                  int64_t n) {
+  for (int64_t d = 0; d < n; ++d)
+    out[d] += w * static_cast<float>(v_ptr[d]);
+}
+#endif
+
 template <typename T>
 static std::vector<torch::Tensor> forward_partial_impl(
     torch::Tensor query,
@@ -289,12 +364,20 @@ static std::vector<torch::Tensor> forward_partial_impl(
     if (q_end <= q_start || n_cold_blocks <= 0) continue;
     const int64_t n_cold_kv = n_cold_blocks * block_size;
 
+    #pragma omp parallel default(none) \
+        firstprivate(q_start, q_end, n_cold_kv, num_q_heads, q_per_kv, \
+                     num_kv_heads, head_dim, block_size, \
+                     k_block_stride_elems, v_block_stride_elems, \
+                     v_intra_block_offset_elems, scale_f, NEG_INF, \
+                     causal, k_data, v_data, s) \
+        shared(query_a, O_a, LSE_a, cold_block_ids_a, query_positions_a)
+    {
     std::vector<float> scores(static_cast<size_t>(n_cold_kv));
 
+    #pragma omp for collapse(2) schedule(static) nowait
     for (int64_t t = q_start; t < q_end; ++t) {
-      const int64_t q_pos = query_positions_a[t];
-
       for (int64_t h = 0; h < num_q_heads; ++h) {
+        const int64_t q_pos = query_positions_a[t];
         const int64_t kv_h = h / q_per_kv;
         // Pointer to query[t, h, :] for the inner dot product.
         const T* q_ptr = &query_a[t][h][0];
@@ -355,18 +438,17 @@ static std::vector<torch::Tensor> forward_partial_impl(
               + v_intra_block_offset_elems
               + token_in_block * num_kv_heads * head_dim
               + kv_h * head_dim;
-          for (int64_t d = 0; d < head_dim; ++d) {
-            out[d] += w * static_cast<float>(v_ptr[d]);
-          }
+          v_fmadd_avx512<T>(w, v_ptr, out, head_dim);
         }
 
         for (int64_t d = 0; d < head_dim; ++d) {
           O_a[t][h][d] = static_cast<T>(out[d]);
         }
         LSE_a[h][t] = m_val + std::log(sum_exp);
-      }
-    }
-  }
+      }    // close ``for h`` (omp for collapse=2)
+    }      // close ``for t``
+    }      // close ``#pragma omp parallel``
+  }        // close ``for s``
 
   return {O, LSE};
 }

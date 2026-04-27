@@ -15,6 +15,10 @@
 #include <limits>
 #include <cstdint>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace cpu_partial_attn {
 
 template <typename T>
@@ -127,14 +131,21 @@ static std::vector<torch::Tensor> forward_partial_impl(
     if (q_end <= q_start || n_cold_blocks <= 0) continue;
     const int64_t n_cold_kv = n_cold_blocks * block_size;
 
-    // Per-token reusable score buffer. Allocated once per sequence to
-    // avoid repeated heap allocation in the inner loop.
+    #pragma omp parallel default(none) \
+        firstprivate(q_start, q_end, n_cold_kv, num_q_heads, q_per_kv, \
+                     num_kv_heads, head_dim, block_size, \
+                     k_block_stride_elems, v_block_stride_elems, \
+                     v_intra_block_offset_elems, scale_f, NEG_INF, \
+                     causal, k_data, v_data, s) \
+        shared(query_a, O_a, LSE_a, cold_block_ids_a, query_positions_a)
+    {
+    // Per-thread reusable score buffer.
     std::vector<float> scores(static_cast<size_t>(n_cold_kv));
 
+    #pragma omp for collapse(2) schedule(static) nowait
     for (int64_t t = q_start; t < q_end; ++t) {
-      const int64_t q_pos = query_positions_a[t];
-
       for (int64_t h = 0; h < num_q_heads; ++h) {
+        const int64_t q_pos = query_positions_a[t];
         const int64_t kv_h = h / q_per_kv;
 
         // ---- Pass 1: compute scores, track max ----
@@ -212,9 +223,10 @@ static std::vector<torch::Tensor> forward_partial_impl(
           O_a[t][h][d] = static_cast<T>(out[d]);
         }
         LSE_a[h][t] = m_val + std::log(sum_exp);
-      }
-    }
-  }
+      }    // close ``for h`` (omp for collapse=2)
+    }      // close ``for t``
+    }      // close ``#pragma omp parallel``
+  }        // close ``for s``
 
   return {O, LSE};
 }

@@ -54,8 +54,13 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 #include <sys/syscall.h>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AVX512F__)
 #include <immintrin.h>
@@ -66,14 +71,17 @@
 
 // IDE_006 / TSK_003 §4.2b — diagnostic checkpoint printer. Unbuffered
 // stderr so even a SIGILL after a checkpoint leaves a "last seen at"
-// breadcrumb in the captured run log. Prints exactly once per
-// (worker_pid, checkpoint_id) pair to avoid spamming when the kernel
-// is called millions of times. Activated on every run for the first
-// few calls so we can see the checkpoint chain on prod for the
-// initial verify pass; subsequent calls collapse to no-op.
+// breadcrumb in the captured run log. Off by default — enable with
+// ``VLLM_AMX_TRACE=1`` in the environment to revive the breadcrumbs
+// for re-debugging. The static flag is read once at .so load and
+// then the per-call cost collapses to a single predictable branch.
+static const bool vllm_amx_trace_enabled = []() {
+  const char* env = std::getenv("VLLM_AMX_TRACE");
+  return env != nullptr && env[0] != '\0' && env[0] != '0';
+}();
+
 static inline void vllm_amx_trace(const char* tag) {
-  // Only the first 8 calls of any given tag print, per worker process.
-  // Tags are short string literals, so a tiny fixed-size table works.
+  if (!vllm_amx_trace_enabled) return;
   static thread_local int call_count = 0;
   if (call_count >= 64) return;  // hard cap per worker thread
   ++call_count;
@@ -255,6 +263,80 @@ static inline float dot_avx512_kt(const T* a, const T* b, int64_t n) {
 }
 #endif
 
+// IDE_006 / TSK_003 §4.2b — V weighted sum SIMD. Replaces the scalar
+// ``out[d] += w * v_ptr[d]`` inner loop with AVX-512 fmadd against a
+// broadcast scale, then BF16 / FP16 / FP32 specialisations match the
+// dot product helper above. All three accumulate into an fp32 output
+// buffer (``out[head_dim]``) regardless of the source dtype — the
+// caller does the final fp32 → T cast once per token.
+
+#if defined(__AVX512F__)
+template <typename T>
+static inline void v_fmadd_avx512(float w, const T* v_ptr, float* out,
+                                  int64_t n);
+
+template <>
+inline void v_fmadd_avx512<at::BFloat16>(float w, const at::BFloat16* v_ptr,
+                                         float* out, int64_t n) {
+  __m512 wv = _mm512_set1_ps(w);
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    __m256i bi16 = _mm256_loadu_si256(
+        reinterpret_cast<const __m256i*>(v_ptr + d));
+    __m512 vf = _mm512_castsi512_ps(_mm512_slli_epi32(
+        _mm512_cvtepu16_epi32(bi16), 16));
+    __m512 of = _mm512_loadu_ps(out + d);
+    of = _mm512_fmadd_ps(wv, vf, of);
+    _mm512_storeu_ps(out + d, of);
+  }
+  for (; d < n; ++d) {
+    out[d] += w * static_cast<float>(v_ptr[d]);
+  }
+}
+
+template <>
+inline void v_fmadd_avx512<at::Half>(float w, const at::Half* v_ptr,
+                                     float* out, int64_t n) {
+  __m512 wv = _mm512_set1_ps(w);
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    __m256i hi16 = _mm256_loadu_si256(
+        reinterpret_cast<const __m256i*>(v_ptr + d));
+    __m512 vf = _mm512_cvtph_ps(hi16);
+    __m512 of = _mm512_loadu_ps(out + d);
+    of = _mm512_fmadd_ps(wv, vf, of);
+    _mm512_storeu_ps(out + d, of);
+  }
+  for (; d < n; ++d) {
+    out[d] += w * static_cast<float>(v_ptr[d]);
+  }
+}
+
+template <>
+inline void v_fmadd_avx512<float>(float w, const float* v_ptr, float* out,
+                                  int64_t n) {
+  __m512 wv = _mm512_set1_ps(w);
+  int64_t d = 0;
+  for (; d + 16 <= n; d += 16) {
+    __m512 vf = _mm512_loadu_ps(v_ptr + d);
+    __m512 of = _mm512_loadu_ps(out + d);
+    of = _mm512_fmadd_ps(wv, vf, of);
+    _mm512_storeu_ps(out + d, of);
+  }
+  for (; d < n; ++d) {
+    out[d] += w * v_ptr[d];
+  }
+}
+
+#else
+template <typename T>
+static inline void v_fmadd_avx512(float w, const T* v_ptr, float* out,
+                                  int64_t n) {
+  for (int64_t d = 0; d < n; ++d)
+    out[d] += w * static_cast<float>(v_ptr[d]);
+}
+#endif
+
 // ---- BF16-specialised kernel using AMX for the score batch ---------
 //
 // For BF16 we batch 16 K rows per AMX matmul. Tail (n_cold_kv % 16)
@@ -374,12 +456,13 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
              static_cast<long long>(block_size));
     vllm_amx_trace(buf);
   }
-  configure_tiles_for_dot(chunk_bf16);
-
-  // Per-thread scratch for the B tile staging buffer (16 × 32 BF16 = 1024 bytes)
-  // and the C tile read-back (1 × 16 fp32 = 64 bytes).
-  alignas(64) uint16_t B_buf[16 * 32];
-  alignas(64) float C_buf[16];
+  // Tile config + scratch buffers (B_buf, C_buf, scores) are PER-THREAD
+  // because AMX tile state and ``alignas(64)`` stack scratch are
+  // per-thread and the OpenMP region below parallelises across
+  // (token, head) pairs. We open the parallel region around the seq
+  // loop so each thread does ``configure_tiles_for_dot`` exactly once
+  // and reuses the same B_buf / C_buf / scores allocation across all
+  // (s, t, h) iterations it executes.
 
   for (int64_t s = 0; s < num_seqs; ++s) {
     const int64_t q_start = cu_seqlens_q_a[s];
@@ -388,12 +471,28 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
     if (q_end <= q_start || n_cold_blocks <= 0) continue;
     const int64_t n_cold_kv = n_cold_blocks * block_size;
 
-    std::vector<float> scores(static_cast<size_t>(n_cold_kv));
+    #pragma omp parallel default(none) \
+        firstprivate(q_start, q_end, n_cold_kv, n_cold_blocks, num_q_heads, \
+                     q_per_kv, num_kv_heads, head_dim, block_size, \
+                     k_block_stride_elems, v_block_stride_elems, \
+                     v_intra_block_offset_elems, scale_f, NEG_INF, \
+                     causal, n_chunks, chunk_bf16, k_data, v_data, s) \
+        shared(query_a, O_a, LSE_a, cold_block_ids_a, query_positions_a)
+    {
+      configure_tiles_for_dot(chunk_bf16);
+      alignas(64) uint16_t B_buf[16 * 32];
+      alignas(64) float C_buf[16];
+      std::vector<float> scores(static_cast<size_t>(n_cold_kv));
 
-    for (int64_t t = q_start; t < q_end; ++t) {
+      #pragma omp for collapse(2) schedule(static) nowait
+      for (int64_t t = q_start; t < q_end; ++t) {
+        for (int64_t h = 0; h < num_q_heads; ++h) {
       const int64_t q_pos = query_positions_a[t];
 
-      for (int64_t h = 0; h < num_q_heads; ++h) {
+      {
+        // Body kept indented inside this brace block to minimise diff
+        // surface; the original (s, t, h) loop body follows verbatim.
+        (void)0;
         const int64_t kv_h = h / q_per_kv;
         const T* q_ptr = &query_a[t][h][0];
 
@@ -538,8 +637,9 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
           sum_exp += ex;
         }
 
-        // ---- Pass 3: weighted V sum (scalar; AMX would batch over a
-        // different axis and is not necessary for correctness) ----
+        // ---- Pass 3: weighted V sum — AVX-512 fmadd over head_dim,
+        // accumulating into the fp32 ``out`` buffer. The scalar fall-
+        // through inside ``v_fmadd_avx512`` handles head_dim tails.
         float out[1024];
         TORCH_CHECK(head_dim <= 1024, "head_dim too large for stack buffer");
         for (int64_t d = 0; d < head_dim; ++d) out[d] = 0.0f;
@@ -556,22 +656,23 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
               + v_intra_block_offset_elems
               + tib * num_kv_heads * head_dim
               + kv_h * head_dim;
-          for (int64_t d = 0; d < head_dim; ++d) {
-            out[d] += w * static_cast<float>(v_ptr[d]);
-          }
+          v_fmadd_avx512<at::BFloat16>(w, v_ptr, out, head_dim);
         }
 
         for (int64_t d = 0; d < head_dim; ++d) {
           O_a[t][h][d] = static_cast<T>(out[d]);
         }
         LSE_a[h][t] = m_val + std::log(sum_exp);
-      }
-    }
-  }
+      }    // close (void)0 body block
+        }  // close inner ``for h`` (omp for collapse=2)
+      }    // close ``for t``
+      // Each OpenMP thread releases its own AMX tile state before
+      // exiting the parallel region.
+      vllm_amx_trace("about_to_tile_release");
+      _tile_release();
+    }      // close ``#pragma omp parallel``
+  }        // close ``for s``
 
-  // Release tile state.
-  vllm_amx_trace("about_to_tile_release");
-  _tile_release();
   vllm_amx_trace("forward_partial_bf16_amx:exit");
 
   return {O, LSE};
@@ -655,11 +756,21 @@ static std::vector<torch::Tensor> forward_partial_avx512_fallback(
     const int64_t n_cold_blocks = cold_block_lens_a[s];
     if (q_end <= q_start || n_cold_blocks <= 0) continue;
     const int64_t n_cold_kv = n_cold_blocks * block_size;
+
+    #pragma omp parallel default(none) \
+        firstprivate(q_start, q_end, n_cold_kv, num_q_heads, q_per_kv, \
+                     num_kv_heads, head_dim, block_size, \
+                     k_block_stride_elems, v_block_stride_elems, \
+                     v_intra_block_offset_elems, scale_f, NEG_INF, \
+                     causal, k_data, v_data, s) \
+        shared(query_a, O_a, LSE_a, cold_block_ids_a, query_positions_a)
+    {
     std::vector<float> scores(static_cast<size_t>(n_cold_kv));
 
+    #pragma omp for collapse(2) schedule(static) nowait
     for (int64_t t = q_start; t < q_end; ++t) {
-      const int64_t q_pos = query_positions_a[t];
       for (int64_t h = 0; h < num_q_heads; ++h) {
+        const int64_t q_pos = query_positions_a[t];
         const int64_t kv_h = h / q_per_kv;
         const T* q_ptr = &query_a[t][h][0];
 
@@ -697,17 +808,16 @@ static std::vector<torch::Tensor> forward_partial_avx512_fallback(
           const T* v_ptr = v_data + real_block_id * v_block_stride_elems
               + v_intra_block_offset_elems + tib * num_kv_heads * head_dim
               + kv_h * head_dim;
-          for (int64_t d = 0; d < head_dim; ++d) {
-            out[d] += w * static_cast<float>(v_ptr[d]);
-          }
+          v_fmadd_avx512<T>(w, v_ptr, out, head_dim);
         }
         for (int64_t d = 0; d < head_dim; ++d) {
           O_a[t][h][d] = static_cast<T>(out[d]);
         }
         LSE_a[h][t] = m_val + std::log(sum_exp);
-      }
-    }
-  }
+      }    // close ``for h`` (omp for collapse=2)
+    }      // close ``for t``
+    }      // close ``#pragma omp parallel``
+  }        // close ``for s``
   return {O, LSE};
 }
 
