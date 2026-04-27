@@ -678,10 +678,90 @@ def _call_avx512(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
     )
 
 
-def _call_amx(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
-    """Adapt Python-side inputs to the AMX C++ kernel."""
-    return _call_compiled_kernel(
-        _AMX_MOD,
-        "forward_partial_with_lse_amx",
-        **kwargs,
+def _ensure_amx_permission_once() -> None:
+    """Grant AMX tile permission for the calling process.
+
+    Linux 5.16+ requires every process that wants to issue AMX
+    instructions (``_tile_loadconfig``, ``_tile_dpbf16ps``, …) to
+    first request access to the XSTATE feature for tile data via
+    ``prctl(ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA)``. Workers
+    inherit *file descriptors* from the parent, but xcomp permissions
+    are NOT inherited across ``execve`` / spawn — so each TP worker
+    subprocess needs to call this on its own. Without it the first
+    AMX instruction faults with SIGILL and the worker dies, the
+    engine then surfaces ``EngineDeadError`` to the caller.
+
+    Implementation delegates to
+    :func:`vllm.platforms.intel_cpu_utils._enable_amx_tiles` (which
+    already wraps the syscall + checks Linux). Idempotent via a
+    function-attribute flag.
+    """
+    if getattr(_ensure_amx_permission_once, "_done", False):
+        return
+    granted = False
+    err: Optional[Exception] = None
+    try:
+        from vllm.platforms.intel_cpu_utils import _enable_amx_tiles
+
+        _enable_amx_tiles()
+        granted = True
+    except Exception as e:  # pragma: no cover - defence in depth
+        err = e
+    _ensure_amx_permission_once._done = True
+    print(
+        f"[AMX trace pid={os.getpid()}] _ensure_amx_permission_once: "
+        f"granted={granted} err={err!r}",
+        flush=True,
     )
+
+
+def _call_amx(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+    """Adapt Python-side inputs to the AMX C++ kernel.
+
+    Wrapped by tracing + permission grant + a BaseException-catching
+    try/except so any worker-side death leaves the kernel inputs
+    captured before the engine surfaces ``EngineDeadError``. The C++
+    kernel itself prints checkpoint markers to stderr (see
+    ``csrc/cpu/partial_attention_amx.cpp:vllm_amx_trace``) so the
+    last printed checkpoint pins the SIGILL / TORCH_CHECK / segfault
+    site.
+    """
+    _ensure_amx_permission_once()
+    q = kwargs.get("query")
+    layout = kwargs.get("cold_kv_layout")
+    cbi = kwargs.get("cold_block_ids")
+    cbl = kwargs.get("cold_block_lens")
+    cul = kwargs.get("cu_seqlens_q")
+    qpos = kwargs.get("query_positions")
+    # Compact one-liner so it doesn't bury the rest of the log when the
+    # kernel is called many times. We rely on the C++ checkpoint trace
+    # for per-step granularity.
+    print(
+        f"[AMX trace pid={os.getpid()}] _call_amx: "
+        f"q.shape={tuple(q.shape) if q is not None else None} "
+        f"q.dtype={q.dtype if q is not None else None} "
+        f"head_dim={layout.head_dim if layout else None} "
+        f"num_kv_heads={layout.num_kv_heads if layout else None} "
+        f"block_size={layout.block_size if layout else None} "
+        f"cbi.shape={tuple(cbi.shape) if cbi is not None else None} "
+        f"cbl={cbl.tolist() if cbl is not None else None} "
+        f"cul={cul.tolist() if cul is not None else None}",
+        flush=True,
+    )
+    try:
+        result = _call_compiled_kernel(
+            _AMX_MOD,
+            "forward_partial_with_lse_amx",
+            **kwargs,
+        )
+    except BaseException as e:
+        # BaseException so SystemExit / KeyboardInterrupt context also
+        # surfaces. The print is unbuffered so it survives a worker
+        # abort.
+        print(
+            f"[AMX trace pid={os.getpid()}] _call_amx: kernel raised "
+            f"{type(e).__name__}: {e}",
+            flush=True,
+        )
+        raise
+    return result

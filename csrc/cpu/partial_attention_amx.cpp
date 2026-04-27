@@ -53,6 +53,9 @@
 #include <limits>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AVX512F__)
 #include <immintrin.h>
@@ -60,6 +63,27 @@
 #else
 #define VLLM_CPU_PARTIAL_HAS_AMX 0
 #endif
+
+// IDE_006 / TSK_003 §4.2b — diagnostic checkpoint printer. Unbuffered
+// stderr so even a SIGILL after a checkpoint leaves a "last seen at"
+// breadcrumb in the captured run log. Prints exactly once per
+// (worker_pid, checkpoint_id) pair to avoid spamming when the kernel
+// is called millions of times. Activated on every run for the first
+// few calls so we can see the checkpoint chain on prod for the
+// initial verify pass; subsequent calls collapse to no-op.
+static inline void vllm_amx_trace(const char* tag) {
+  // Only the first 8 calls of any given tag print, per worker process.
+  // Tags are short string literals, so a tiny fixed-size table works.
+  static thread_local int call_count = 0;
+  if (call_count >= 64) return;  // hard cap per worker thread
+  ++call_count;
+  pid_t pid = getpid();
+  long tid = static_cast<long>(syscall(SYS_gettid));
+  fprintf(stderr,
+          "[AMX trace pid=%d tid=%ld] %s\n",
+          static_cast<int>(pid), tid, tag);
+  fflush(stderr);
+}
 
 namespace cpu_partial_attn_amx {
 
@@ -88,6 +112,7 @@ struct __attribute__((packed)) TileConfig {
 #define VLLM_TMM_B 2
 
 static inline void configure_tiles_for_dot(int head_dim_chunk_bf16) {
+  vllm_amx_trace("configure_tiles_for_dot:enter");
   // K_paired = head_dim_chunk_bf16 / 2 (each pair = 2 BF16 = 4 bytes)
   TileConfig cfg{};
   cfg.palette = 1;
@@ -101,7 +126,9 @@ static inline void configure_tiles_for_dot(int head_dim_chunk_bf16) {
   // (16 cols × 2 BF16 pair = 4 bytes per col, 16 cols = 64 bytes per row)
   cfg.rows[VLLM_TMM_B] = head_dim_chunk_bf16 / 2;  // K_paired
   cfg.colsb[VLLM_TMM_B] = 16 * 4;  // 64 bytes per pair-row
+  vllm_amx_trace("configure_tiles_for_dot:about_to_tile_loadconfig");
   _tile_loadconfig(&cfg);
+  vllm_amx_trace("configure_tiles_for_dot:tile_loadconfig_returned");
 }
 
 // Pack 16 K rows (each head_dim BF16) from canonical layout into the
@@ -251,12 +278,14 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
               "AMX kernel built without __AMX_TILE__ / __AMX_BF16__ — "
               "rebuild with the proper compile flags.");
 #else
+  vllm_amx_trace("forward_partial_bf16_amx:enter");
   TORCH_CHECK(query.is_contiguous(), "query must be contiguous");
   TORCH_CHECK(cold_kv_cache.is_contiguous(), "cold_kv_cache must be contiguous");
   TORCH_CHECK(cold_kv_cache.scalar_type() == torch::kInt8,
               "cold_kv_cache must be int8");
   TORCH_CHECK(query.dim() == 3, "query must be 3D");
   TORCH_CHECK(head_dim % 2 == 0, "head_dim must be even for BF16 pair packing");
+  vllm_amx_trace("forward_partial_bf16_amx:torch_checks_passed");
 
   using T = at::BFloat16;
   const int64_t num_tokens = query.size(0);
@@ -304,6 +333,22 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
               "head_dim must be a multiple of 32 for AMX BF16 (got ", head_dim, ")");
 
   // Configure AMX tiles for chunk_bf16 = 32 BF16 K dim per call.
+  // Print kernel-level shape so we can correlate with the e2e workload
+  // before the first AMX instruction fires.
+  {
+    char buf[256];
+    snprintf(buf, sizeof(buf),
+             "forward_partial_bf16_amx:about_to_configure num_seqs=%lld "
+             "num_tokens=%lld num_q_heads=%lld num_kv_heads=%lld "
+             "head_dim=%lld block_size=%lld",
+             static_cast<long long>(num_seqs),
+             static_cast<long long>(num_tokens),
+             static_cast<long long>(num_q_heads),
+             static_cast<long long>(num_kv_heads),
+             static_cast<long long>(head_dim),
+             static_cast<long long>(block_size));
+    vllm_amx_trace(buf);
+  }
   configure_tiles_for_dot(chunk_bf16);
 
   // Per-thread scratch for the B tile staging buffer (16 × 32 BF16 = 1024 bytes)
@@ -364,8 +409,11 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
             continue;
           }
 
-          // Zero accumulator tile.
+          // Zero accumulator tile. First batch only — log so we know the
+          // first AMX op completed without SIGILL.
+          vllm_amx_trace("about_to_tile_zero");
           _tile_zero(VLLM_TMM_C);
+          vllm_amx_trace("tile_zero_returned");
 
           // For each chunk of 32 BF16 (= 16 BF16 pairs) in head_dim,
           // load A and B tiles and accumulate.
@@ -374,11 +422,13 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
 
             // A tile: 1 × chunk_bf16 BF16 = (chunk_bf16 * 2) bytes.
             // We can load directly from query memory; contiguous already.
+            vllm_amx_trace("about_to_tile_loadd_A");
             _tile_loadd(
                 VLLM_TMM_A,
                 reinterpret_cast<const void*>(q_ptr + d0),
                 chunk_bf16 * 2  // stride for a 1-row tile: row size in bytes
             );
+            vllm_amx_trace("tile_loadd_A_returned");
 
             // Stage 16 K rows × chunk_bf16 BF16 into B_buf in pair-row
             // layout. K row stride = num_kv_heads * head_dim * 2 bytes.
@@ -409,12 +459,18 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
             }
 
             // Load B tile and dpbf16ps accumulate into C.
+            vllm_amx_trace("about_to_tile_loadd_B");
             _tile_loadd(VLLM_TMM_B, B_buf, 16 * 4);  // 64-byte stride per pair-row
+            vllm_amx_trace("tile_loadd_B_returned");
+            vllm_amx_trace("about_to_tile_dpbf16ps");
             _tile_dpbf16ps(VLLM_TMM_C, VLLM_TMM_A, VLLM_TMM_B);
+            vllm_amx_trace("tile_dpbf16ps_returned");
           }
 
           // Read C tile (1 × 16 fp32) into C_buf.
+          vllm_amx_trace("about_to_tile_stored");
           _tile_stored(VLLM_TMM_C, C_buf, 16 * 4);
+          vllm_amx_trace("tile_stored_returned");
 
           // Apply softmax_scale and update scores + max.
           for (int i = 0; i < 16; ++i) {
@@ -489,7 +545,9 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
   }
 
   // Release tile state.
+  vllm_amx_trace("about_to_tile_release");
   _tile_release();
+  vllm_amx_trace("forward_partial_bf16_amx:exit");
 
   return {O, LSE};
 #endif

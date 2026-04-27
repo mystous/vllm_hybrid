@@ -118,7 +118,11 @@ log "  TST_004 exit=${TST_RC}"
 
 log "[2/2] e2e accuracy (split-on-only, cold path dispatcher firing verify)"
 E2E_RC=0
-HW_TAG="${HW_TAG}" "${PYTHON}" "${SCRIPT_DIR}/run_e2e_accuracy.py" \
+# Combine stdout + stderr explicitly so AMX trace prints (which go to
+# stderr from C++ via fprintf) end up in the same log as Python output,
+# in the right order. ``stdbuf -oL -eL`` forces line-buffered output so
+# the breadcrumb chain survives a SIGILL in a worker subprocess.
+HW_TAG="${HW_TAG}" stdbuf -oL -eL "${PYTHON}" -u "${SCRIPT_DIR}/run_e2e_accuracy.py" \
     --baseline-env "${SCRIPT_DIR}/envs/vllm_original_long_ctx.env" \
     --split-on-env "${SCRIPT_DIR}/envs/ide006_cold_kv_split_on_long_ctx.env" \
     --split-on-only \
@@ -126,7 +130,7 @@ HW_TAG="${HW_TAG}" "${PYTHON}" "${SCRIPT_DIR}/run_e2e_accuracy.py" \
     --max-tokens 32 \
     --logprobs 0 \
     --output-dir "${OUT_DIR}/e2e_quick_artifacts" \
-    2>&1 | tee "${OUT_DIR}/e2e_quick.log" || E2E_RC=$?
+    > >(tee "${OUT_DIR}/e2e_quick.log") 2> >(tee "${OUT_DIR}/e2e_quick.stderr.log" >&2) || E2E_RC=$?
 log "  e2e quick exit=${E2E_RC}"
 
 # --------------------------------------------------------------------- summary
@@ -164,7 +168,8 @@ log "key logs:"
 log "  - ${OUT_DIR}/README.md           (meta + verdict 요약)"
 log "  - ${OUT_DIR}/tst004_pytest.log   (pytest stdout)"
 log "  - ${OUT_DIR}/tst004_junit.xml    (JUnit XML — 자동 파싱용)"
-log "  - ${OUT_DIR}/e2e_quick.log       (e2e dispatch 진단 포함)"
+log "  - ${OUT_DIR}/e2e_quick.log       (e2e stdout — 정상 vLLM 로그 + AMX trace py-side)"
+log "  - ${OUT_DIR}/e2e_quick.stderr.log (e2e stderr — AMX trace C++-side checkpoints, SIGILL 직전 last-seen)"
 log "  - ${OUT_DIR}/e2e_quick_artifacts (split_on.json + comparison.json + README.md)"
 log "  - ${OUT_DIR}/isa_info.txt        (CPU / NUMA / kernel 스냅샷)"
 
