@@ -95,11 +95,11 @@ def select_isa_path() -> ISAPath:
 
 
 # ---------------------------------------------------------------------
-# C++ JIT loaders (TSK_001 §4.2c portable; AVX-512 / AMX added later).
-#
-# Until AVX-512 / AMX kernels are wired, only the portable kernel is
-# JIT-compiled here. The two helpers below stay False so that the
-# dispatch correctly falls back to portable / Python ref.
+# C++ JIT loaders (TSK_001 §4.2c portable, TSK_003 §4.2a AVX-512,
+# TSK_003 §4.2b AMX). Each loader is lazy and idempotent. The portable
+# kernel always builds (any C++ compiler); AVX-512 and AMX kernels are
+# JIT-compiled with the additional architecture flags and only loaded
+# when the host CPU exposes the matching ISA at runtime.
 # ---------------------------------------------------------------------
 
 
@@ -107,14 +107,29 @@ _PORTABLE_MOD = None
 _PORTABLE_LOAD_ERROR: Optional[Exception] = None
 _PORTABLE_LOAD_ATTEMPTED = False
 
+_AVX512_MOD = None
+_AVX512_LOAD_ERROR: Optional[Exception] = None
+_AVX512_LOAD_ATTEMPTED = False
 
-def _portable_source_path() -> str:
-    # vllm/v1/attention/ops/cpu_partial_attention.py → repo root is 5 up.
+_AMX_MOD = None
+_AMX_LOAD_ERROR: Optional[Exception] = None
+_AMX_LOAD_ATTEMPTED = False
+
+
+def _kernel_source_path(filename: str) -> str:
+    """Resolve ``csrc/cpu/<filename>`` from this module's location.
+
+    vllm/v1/attention/ops/cpu_partial_attention.py is 4 levels deep
+    from the repo root, so ``../../../..`` lands at the root and
+    ``csrc/cpu`` is the kernel directory.
+    """
     here = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(here, "..", "..", "..", ".."))
-    return os.path.join(
-        repo_root, "csrc", "cpu", "partial_attention_portable.cpp",
-    )
+    return os.path.join(repo_root, "csrc", "cpu", filename)
+
+
+def _portable_source_path() -> str:
+    return _kernel_source_path("partial_attention_portable.cpp")
 
 
 def _try_load_portable():
@@ -150,14 +165,111 @@ def _has_portable_kernel() -> bool:
     return _PORTABLE_MOD is not None
 
 
+def _try_load_avx512():
+    """Lazily JIT-compile the AVX-512 C++ kernel.
+
+    Compiled with ``-mavx512f -mavx512bw -mavx512vl -mavx512bf16``.
+    Only attempted when ``_has_avx512()`` reports the host supports
+    the foundation. On systems where AVX-512 is fused off via
+    microcode (e.g. some Alder Lake parts) the runtime cpuid check
+    returns False so this function is never called and the dispatch
+    falls back to the portable kernel.
+    """
+    global _AVX512_MOD, _AVX512_LOAD_ERROR, _AVX512_LOAD_ATTEMPTED
+    if _AVX512_LOAD_ATTEMPTED:
+        return
+    _AVX512_LOAD_ATTEMPTED = True
+    try:
+        from torch.utils.cpp_extension import load
+
+        src = _kernel_source_path("partial_attention_avx512.cpp")
+        if not os.path.isfile(src):
+            raise FileNotFoundError(f"AVX-512 kernel source missing: {src}")
+        # ``-mavx512bf16`` enables ``vdpbf16ps``; on compilers that
+        # don't recognise it (older GCC/Clang) we fall back to the
+        # AVX-512F-only path inside the kernel.
+        _AVX512_MOD = load(
+            name="vllm_partial_attention_avx512",
+            sources=[src],
+            extra_cflags=[
+                "-O3",
+                "-ftree-vectorize",
+                "-fno-strict-aliasing",
+                "-mavx512f",
+                "-mavx512bw",
+                "-mavx512vl",
+                "-mavx512bf16",
+            ],
+            verbose=False,
+        )
+    except Exception as e:  # pragma: no cover - environment dependent
+        _AVX512_LOAD_ERROR = e
+        _AVX512_MOD = None
+
+
 def _has_avx512_kernel() -> bool:
-    # AVX-512 C++ kernel is part of TSK_001 §4.2a (Phase 2 prod).
-    return False
+    """True iff the AVX-512 C++ kernel is buildable AND the host CPU
+    actually exposes AVX-512 at runtime.
+
+    The runtime check is essential: on Alder Lake parts that have
+    AVX-512 microcoded but BIOS-disabled, attempting to *execute* an
+    AVX-512 instruction would raise SIGILL. We only JIT-compile after
+    the cpuid gate so neither the build nor the runtime path can
+    accidentally hit a fused-off CPU.
+    """
+    if not _has_avx512():
+        return False
+    _try_load_avx512()
+    return _AVX512_MOD is not None
+
+
+def _try_load_amx():
+    """Lazily JIT-compile the AMX C++ kernel.
+
+    Compiled with ``-mavx512f -mavx512bw -mavx512vl -mamx-tile
+    -mamx-bf16`` so the BF16 tile dpbf16ps intrinsics resolve.
+    Requires Linux kernel ≥ 5.16 + ARCH_REQ_XCOMP_PERM permission
+    grant for AMX tile registers (handled by
+    ``vllm/platforms/intel_cpu_utils.py:_enable_amx_tiles``).
+    """
+    global _AMX_MOD, _AMX_LOAD_ERROR, _AMX_LOAD_ATTEMPTED
+    if _AMX_LOAD_ATTEMPTED:
+        return
+    _AMX_LOAD_ATTEMPTED = True
+    try:
+        from torch.utils.cpp_extension import load
+
+        src = _kernel_source_path("partial_attention_amx.cpp")
+        if not os.path.isfile(src):
+            raise FileNotFoundError(f"AMX kernel source missing: {src}")
+        _AMX_MOD = load(
+            name="vllm_partial_attention_amx",
+            sources=[src],
+            extra_cflags=[
+                "-O3",
+                "-ftree-vectorize",
+                "-fno-strict-aliasing",
+                "-mavx512f",
+                "-mavx512bw",
+                "-mavx512vl",
+                "-mavx512bf16",
+                "-mamx-tile",
+                "-mamx-bf16",
+            ],
+            verbose=False,
+        )
+    except Exception as e:  # pragma: no cover - environment dependent
+        _AMX_LOAD_ERROR = e
+        _AMX_MOD = None
 
 
 def _has_amx_kernel() -> bool:
-    # AMX C++ kernel is part of TSK_001 §4.2b (Phase 2 prod).
-    return False
+    """True iff the AMX C++ kernel is buildable AND the host CPU
+    actually exposes AMX-BF16 at runtime."""
+    if not _has_amx():
+        return False
+    _try_load_amx()
+    return _AMX_MOD is not None
 
 
 # ---------------------------------------------------------------------
@@ -411,26 +523,21 @@ def forward_partial_with_lse(
     if cold_kv_cache_v is not None:
         path = ISAPath.PYTHON_REF
 
-    # AMX / AVX-512 are TSK_001 Phase 2 (prod). When ``_force_path``
-    # picks one of them on a machine without the kernel built, fall
-    # through to portable (or Python ref).
+    # AMX / AVX-512 dispatch with cascade fallback. Each level falls
+    # through when its kernel + cpuid pair is unavailable.
     if path == ISAPath.AMX:
-        if _has_amx_kernel() and _has_amx():
-            raise NotImplementedError(
-                "AMX kernel binding not wired yet (TSK_001 §4.2b)"
-            )
+        if _has_amx_kernel():
+            return _call_amx(**common_kwargs)
         # Cascade: AVX-512 → portable → Python ref
         path = (
-            ISAPath.AVX512 if _has_avx512_kernel() and _has_avx512()
+            ISAPath.AVX512 if _has_avx512_kernel()
             else ISAPath.PORTABLE if _has_portable_kernel()
             else ISAPath.PYTHON_REF
         )
 
     if path == ISAPath.AVX512:
-        if _has_avx512_kernel() and _has_avx512():
-            raise NotImplementedError(
-                "AVX-512 kernel binding not wired yet (TSK_001 §4.2a)"
-            )
+        if _has_avx512_kernel():
+            return _call_avx512(**common_kwargs)
         path = (
             ISAPath.PORTABLE if _has_portable_kernel()
             else ISAPath.PYTHON_REF
@@ -504,3 +611,77 @@ def _call_portable(
         bool(causal),
     )
     return O, LSE
+
+
+def _call_compiled_kernel(
+    mod,
+    fn_name: str,
+    *,
+    query: torch.Tensor,
+    cold_kv_cache: torch.Tensor,
+    cold_kv_layout: KVPageLayout,
+    cold_block_ids: torch.Tensor,
+    cold_block_lens: torch.Tensor,
+    cu_seqlens_q: torch.Tensor,
+    seq_lens_total: torch.Tensor,
+    query_positions: torch.Tensor,
+    softmax_scale: Optional[float] = None,
+    causal: bool = True,
+    cold_kv_cache_v: Optional[torch.Tensor] = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Adapter shared by ``_call_avx512`` and ``_call_amx``.
+
+    Both kernels expose the same signature as the portable one and the
+    only difference between the call sites is which compiled module
+    receives the call. Centralising the input coercion + name lookup
+    keeps the ISA-specific branches in :func:`forward_partial_with_lse`
+    one-liners.
+    """
+    if cold_kv_cache_v is not None:
+        # Defence in depth — the dispatcher upstream forces PYTHON_REF
+        # when split-K/V layout is supplied.
+        raise RuntimeError(
+            f"{fn_name}: split-K/V cold layout not supported by the "
+            "compiled C++ kernels; the dispatcher should have routed "
+            "this call to the Python reference."
+        )
+    if softmax_scale is None:
+        softmax_scale = 1.0 / math.sqrt(cold_kv_layout.head_dim)
+
+    def _i32(t: torch.Tensor) -> torch.Tensor:
+        return t.to(torch.int32) if t.dtype is not torch.int32 else t
+
+    fn = getattr(mod, fn_name)
+    O, LSE = fn(
+        query.contiguous(),
+        cold_kv_cache.contiguous(),
+        int(cold_kv_layout.block_size),
+        int(cold_kv_layout.num_kv_heads),
+        int(cold_kv_layout.head_dim),
+        int(cold_kv_layout.kv_block_bytes),
+        _i32(cold_block_ids).contiguous(),
+        _i32(cold_block_lens).contiguous(),
+        _i32(cu_seqlens_q).contiguous(),
+        _i32(query_positions).contiguous(),
+        float(softmax_scale),
+        bool(causal),
+    )
+    return O, LSE
+
+
+def _call_avx512(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+    """Adapt Python-side inputs to the AVX-512 C++ kernel."""
+    return _call_compiled_kernel(
+        _AVX512_MOD,
+        "forward_partial_with_lse_avx512",
+        **kwargs,
+    )
+
+
+def _call_amx(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+    """Adapt Python-side inputs to the AMX C++ kernel."""
+    return _call_compiled_kernel(
+        _AMX_MOD,
+        "forward_partial_with_lse_amx",
+        **kwargs,
+    )
