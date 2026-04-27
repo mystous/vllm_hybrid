@@ -516,20 +516,10 @@ def forward_partial_with_lse(
     place so the eventual switch becomes a one-line change in
     :func:`select_isa_path` and the dispatch table below.
     """
-    # IDE_006 / TSK_004 — pin OpenMP / std::thread workers spawned by
-    # the chosen kernel to the cores of this worker's local NUMA node
-    # so split-K/V LSE-merge does not pay cross-socket UPI on its CPU
-    # reads. Idempotent: cost is one ``os.sched_setaffinity`` call per
-    # worker process. Silent no-op on single-socket dev / when the
-    # platform has no NUMA topology.
-    try:
-        from vllm.distributed.kv_transfer.kv_connector.v1.offloading.numa_aware import (  # noqa: E501
-            pin_threads_to_local_numa,
-        )
-
-        pin_threads_to_local_numa()
-    except Exception:  # pragma: no cover - defence in depth
-        pass
+    # IDE_006 / TSK_004 — NUMA pin (idempotent, silent no-op on
+    # single-socket / non-Linux). After first call the per-call cost
+    # collapses to a single bool read.
+    _maybe_pin_numa_once()
 
     path = _force_path if _force_path is not None else select_isa_path()
 
@@ -569,7 +559,11 @@ def forward_partial_with_lse(
 
     if path == ISAPath.AVX512:
         if _has_avx512_kernel():
-            return _call_avx512(**common_kwargs)
+            return _call_compiled_kernel(
+                _AVX512_MOD,
+                "forward_partial_with_lse_avx512",
+                **common_kwargs,
+            )
         path = (
             ISAPath.PORTABLE if _has_portable_kernel()
             else ISAPath.PYTHON_REF
@@ -577,7 +571,11 @@ def forward_partial_with_lse(
 
     if path == ISAPath.PORTABLE:
         if _has_portable_kernel():
-            return _call_portable(**common_kwargs)
+            return _call_compiled_kernel(
+                _PORTABLE_MOD,
+                "forward_partial_with_lse_portable",
+                **common_kwargs,
+            )
         # Portable kernel not loadable → fall through to Python ref.
         path = ISAPath.PYTHON_REF
 
@@ -585,23 +583,6 @@ def forward_partial_with_lse(
         return python_reference_partial_attention(**common_kwargs)
 
     raise ValueError(f"unsupported ISA path: {path}")
-
-
-def _call_portable(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
-    """Adapt Python-side inputs to the portable C++ kernel.
-
-    Both combined K+V layout and split-K/V layout are supported. When
-    ``cold_kv_cache_v`` is provided (FlashAttention's
-    OffloadingConnector mirror), the kernel reads K from
-    ``cold_kv_cache`` and V from ``cold_kv_cache_v``; otherwise it
-    falls back to the legacy combined layout where K and V live
-    back-to-back inside ``cold_kv_cache`` pages.
-    """
-    return _call_compiled_kernel(
-        _PORTABLE_MOD,
-        "forward_partial_with_lse_portable",
-        **kwargs,
-    )
 
 
 def _call_compiled_kernel(
@@ -632,16 +613,13 @@ def _call_compiled_kernel(
     if softmax_scale is None:
         softmax_scale = 1.0 / math.sqrt(cold_kv_layout.head_dim)
 
-    def _i32(t: torch.Tensor) -> torch.Tensor:
-        return t.to(torch.int32) if t.dtype is not torch.int32 else t
-
-    # Sentinel for combined-layout calls. ``torch.empty(0, dtype=int8)``
-    # has ``numel() == 0`` which the kernels read as "no V cache, use
-    # combined layout in cold_kv_cache".
-    if cold_kv_cache_v is None:
-        v_arg = torch.empty(0, dtype=torch.int8)
-    else:
-        v_arg = cold_kv_cache_v.contiguous()
+    # Sentinel for combined-layout calls. The cached module-level empty
+    # int8 tensor (``_EMPTY_INT8_SENTINEL``) avoids a per-call alloc.
+    v_arg = (
+        _EMPTY_INT8_SENTINEL
+        if cold_kv_cache_v is None
+        else cold_kv_cache_v.contiguous()
+    )
 
     fn = getattr(mod, fn_name)
 
@@ -694,17 +672,80 @@ def _call_compiled_kernel(
     return O, LSE
 
 
-def _call_avx512(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
-    """Adapt Python-side inputs to the AVX-512 C++ kernel."""
-    return _call_compiled_kernel(
-        _AVX512_MOD,
-        "forward_partial_with_lse_avx512",
-        **kwargs,
-    )
-
-
 _PY_AMX_TRACE_ENABLED = bool(os.environ.get("VLLM_AMX_TRACE", "")) and \
     os.environ["VLLM_AMX_TRACE"] not in ("0", "")
+
+
+# IDE_006 / TSK_004 — NUMA pin called from the user-facing entry. The
+# work itself is idempotent (``_pin_fast_done`` short-circuit), but the
+# lazy import + function dispatch still happen per call. Cache the
+# import at module load and a local once-bool so subsequent calls pay
+# only a single bool read on the hot path.
+_NUMA_PIN_DONE = False
+try:
+    from vllm.distributed.kv_transfer.kv_connector.v1.offloading.numa_aware import (
+        pin_threads_to_local_numa as _pin_threads_to_local_numa,
+    )
+except Exception:  # pragma: no cover — optional integration
+    _pin_threads_to_local_numa = None
+
+
+def _maybe_pin_numa_once() -> None:
+    global _NUMA_PIN_DONE
+    if _NUMA_PIN_DONE:
+        return
+    _NUMA_PIN_DONE = True
+    if _pin_threads_to_local_numa is not None:
+        try:
+            _pin_threads_to_local_numa()
+        except Exception:  # pragma: no cover
+            pass
+
+
+# Sentinel int8 tensor used by ``_call_compiled_kernel`` when the V cache
+# is in combined K+V layout (no separate ``cold_kv_cache_v``). Cached at
+# module load so the per-call cost is a single global read instead of a
+# fresh ``torch.empty`` allocation per layer.
+_EMPTY_INT8_SENTINEL = torch.empty(0, dtype=torch.int8)
+
+
+def _i32(t: torch.Tensor) -> torch.Tensor:
+    """Module-level int32 cast helper. Inlined into the hot path so we do
+    not pay the ``def`` cost on every call."""
+    return t.to(torch.int32) if t.dtype is not torch.int32 else t
+
+
+def prewarm() -> None:
+    """Move per-process warmup costs out of the first cold-path call.
+
+    Profile data showed the first call's outer ``hot_cold_attention``
+    taking 1.3~2.1 s while the inner C++ AMX kernel was only 3~26 ms —
+    the rest was lazy init: JIT extension load, ``cpuinfo`` parse,
+    AMX permission grant via prctl, NUMA pin / partition compute,
+    OMP thread-pool spawn. With 8 worker × 80 layer this warmup
+    accumulates noticeably into short-run benchmarks.
+
+    ``prewarm()`` is **idempotent and safe to call multiple times**.
+    Intended call site: worker startup, after CUDA init but before
+    the first model forward. Whatever it cannot pre-trigger (e.g.
+    OMP thread pool spawn — happens inside the first omp parallel)
+    will still warm up on first real call but at a fraction of the
+    original cost.
+    """
+    # 1) ISA detection + JIT extension load. select_isa_path() reads
+    #    /proc/cpuinfo via py-cpuinfo (~1 s first call) and triggers
+    #    _has_*_kernel() which JIT-loads the matching .cpp -> .so
+    #    (~0.5–2 s first call). Result cached on the function.
+    path = select_isa_path()
+
+    # 2) AMX prctl(ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA). Linux
+    #    5.16+ requirement before any AMX instruction. Idempotent.
+    if path == ISAPath.AMX and _has_amx_kernel():
+        _ensure_amx_permission_once()
+
+    # 3) NUMA bind + worker affinity partition. Idempotent fast-bool
+    #    after first call (see numa_aware._pin_fast_done).
+    _maybe_pin_numa_once()
 
 # IDE_006 / TSK_004 — diagnostic-only wall-time profiler. Default OFF.
 # Operator enables via ``VLLM_PARTIAL_ATTN_PROFILE=1`` to receive per-call
@@ -785,59 +826,12 @@ def _ensure_amx_permission_once() -> None:
 def _call_amx(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
     """Adapt Python-side inputs to the AMX C++ kernel.
 
-    Wrapped by a permission grant + a BaseException-catching try/except
-    so any worker-side death surfaces a useful breadcrumb before the
-    engine reports ``EngineDeadError``. The optional VLLM_AMX_TRACE env
-    enables per-call entry/exit/elapsed prints — off by default to keep
-    prod logs clean.
-    """
+    Permission grant runs once per worker process; the per-call hot
+    path is a single bool check + dispatch to ``_call_compiled_kernel``.
+    C++-side breadcrumbs remain available via ``VLLM_AMX_TRACE``."""
     _ensure_amx_permission_once()
-    if _PY_AMX_TRACE_ENABLED:
-        import time as _time
-        q = kwargs.get("query")
-        layout = kwargs.get("cold_kv_layout")
-        cbi = kwargs.get("cold_block_ids")
-        cbl = kwargs.get("cold_block_lens")
-        cul = kwargs.get("cu_seqlens_q")
-        print(
-            f"[AMX trace pid={os.getpid()}] _call_amx: "
-            f"q.shape={tuple(q.shape) if q is not None else None} "
-            f"q.dtype={q.dtype if q is not None else None} "
-            f"head_dim={layout.head_dim if layout else None} "
-            f"num_kv_heads={layout.num_kv_heads if layout else None} "
-            f"block_size={layout.block_size if layout else None} "
-            f"cbi.shape={tuple(cbi.shape) if cbi is not None else None} "
-            f"cbl={cbl.tolist() if cbl is not None else None} "
-            f"cul={cul.tolist() if cul is not None else None}",
-            flush=True,
-        )
-        t0 = _time.perf_counter()
-    try:
-        result = _call_compiled_kernel(
-            _AMX_MOD,
-            "forward_partial_with_lse_amx",
-            **kwargs,
-        )
-    except BaseException as e:
-        if _PY_AMX_TRACE_ENABLED:
-            elapsed_ms = (_time.perf_counter() - t0) * 1000  # noqa: F821
-            print(
-                f"[AMX trace pid={os.getpid()}] _call_amx: kernel raised "
-                f"{type(e).__name__}: {e} after {elapsed_ms:.1f}ms",
-                flush=True,
-            )
-        else:
-            print(
-                f"[AMX trace pid={os.getpid()}] _call_amx: kernel raised "
-                f"{type(e).__name__}: {e}",
-                flush=True,
-            )
-        raise
-    if _PY_AMX_TRACE_ENABLED:
-        elapsed_ms = (_time.perf_counter() - t0) * 1000  # noqa: F821
-        print(
-            f"[AMX trace pid={os.getpid()}] _call_amx: returned in "
-            f"{elapsed_ms:.1f}ms",
-            flush=True,
-        )
-    return result
+    return _call_compiled_kernel(
+        _AMX_MOD,
+        "forward_partial_with_lse_amx",
+        **kwargs,
+    )

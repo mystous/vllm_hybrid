@@ -11,6 +11,15 @@ from typing import ClassVar
 import numpy as np
 import torch
 
+# IDE_006 / TSK_002 §4.4 — module-level imports for hot_cold_attention.
+# These were previously imported lazily inside the function body, which
+# triggered a sys.modules dict lookup on every cold-path-bearing layer
+# call (80 layers × N decode steps × 8 workers).
+from vllm.v1.attention.ops.cpu_partial_attention import (
+    _PROFILE_ENABLED as _PARTIAL_PROFILE_ENABLED,
+    _profile_should_emit as _partial_profile_should_emit,
+    forward_partial_with_lse,
+)
 from vllm.model_executor.layers.attention import Attention
 from vllm.platforms import current_platform
 from vllm.utils.torch_utils import is_quantized_kv_cache
@@ -1346,36 +1355,6 @@ def cascade_attention(
     merge_attn_states(output, prefix_output, prefix_lse, suffix_output, suffix_lse)
 
 
-# IDE_006 / TSK_004 — opt-in CPU partial-attention q_len CAP.
-#
-# DEFAULT: DISABLED (-1). When disabled the dispatcher always routes
-# cold KV through the CPU kernel as the original IDE_006 design
-# intends; this is the slow-but-correct mode that preserves the
-# CLAUDE.md "결과 값이 달라져서는 안됨" guarantee.
-#
-# When enabled (operator sets ``VLLM_PARTIAL_ATTN_MAX_QLEN`` to a
-# positive int N), batches whose ``max_query_len > N`` bypass the
-# cold path entirely. This is a STAGED-VERIFICATION escape hatch
-# only — used to confirm "small decode step works end-to-end"
-# without the timeout caused by 16 K-token mixed prefill+decode
-# chunks. It introduces an explicit correctness violation when a
-# mixed batch contains both a small-q_len seq with cold blocks AND
-# a large-q_len prefill chunk; see the call-site comment in
-# ``hot_cold_attention`` for details. Do not enable in production
-# without understanding that trade-off. ``8`` (covers pure decode
-# + spec-decode) is a sensible value when consciously enabling.
-def _read_partial_attn_max_qlen() -> int:
-    raw = os.environ.get("VLLM_PARTIAL_ATTN_MAX_QLEN", "-1")
-    try:
-        return int(raw)
-    except ValueError:
-        return -1
-
-
-_PARTIAL_ATTN_MAX_QLEN = _read_partial_attn_max_qlen()
-_QLEN_CAP_FIRST_LOG_DONE = False  # one-shot startup config print
-_QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE = False  # one-shot loud warning
-
 # IDE_006 / TSK_004 — cold-path firing breadcrumb. Per-process counter
 # that emits a stderr line on the first few firings only so an operator
 # can confirm in the run log that cold path actually executed without
@@ -1550,70 +1529,6 @@ def hot_cold_attention(
         output.copy_(hot_output)
         return
 
-    # ----- IDE_006 / TSK_004 — q_len CAP (NOT a decode-only gate) ------
-    # If any seq in the batch has q_len > VLLM_PARTIAL_ATTN_MAX_QLEN we
-    # bypass the CPU partial-attention path for the *whole* batch and
-    # return hot_output as the result. This prevents the >4 s/call cost
-    # of pushing a 16 K-token mixed prefill+decode chunk through the
-    # CPU kernel that otherwise starves sample_tokens to a TimeoutError.
-    #
-    # CORRECTNESS VIOLATION (explicit, staged-verification trade-off):
-    #   - hot_output was computed with ``hot_seqused_k = seqused_k -
-    #     cold_kv_tokens`` (line ~1457), i.e. its attention completely
-    #     ignored each seq's cold prefix.
-    #   - For seqs with cold>0 (typically a small-q_len decode seq
-    #     mixed into a large-q_len prefill chunk) the resulting
-    #     output row attends ONLY to the hot suffix, missing the cold
-    #     prefix entirely. CLAUDE.md "결과 값이 달라져서는 안됨" is
-    #     violated for those rows.
-    #   - This is accepted *temporarily* under TSK_004 staged
-    #     verification ("작은 decode step 먼저 동작 확인 -> mixed
-    #     이후"). Once decode-only correctness is confirmed end to end,
-    #     mixed-batch handling will be either (a) per-seq filtered into
-    #     a sliced CPU kernel call, or (b) explicit failure when any
-    #     cold-bearing seq is co-batched with a > MAX_QLEN seq.
-    # Operator escape hatch:
-    #   ``VLLM_PARTIAL_ATTN_MAX_QLEN=-1`` disables the cap entirely
-    #   (slow-but-correct mode — accepts timeout risk).
-    if _PARTIAL_ATTN_MAX_QLEN >= 0 and max_query_len > _PARTIAL_ATTN_MAX_QLEN:
-        # Sync-free: use the host-side ``max_query_len`` already passed in
-        # by the dispatcher; reading from cu_query_lens would force a
-        # GPU->CPU sync.
-        import sys as _sys
-        global _QLEN_CAP_FIRST_LOG_DONE, _QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE
-        if not _QLEN_CAP_FIRST_LOG_DONE:
-            _QLEN_CAP_FIRST_LOG_DONE = True
-            print(
-                f"[IDE_006/TSK_004 q_len_cap pid={os.getpid()}] "
-                f"max_query_len={max_query_len} > "
-                f"VLLM_PARTIAL_ATTN_MAX_QLEN={_PARTIAL_ATTN_MAX_QLEN}; "
-                f"bypassing cold path for this batch (hot-only).",
-                file=_sys.stderr,
-                flush=True,
-            )
-        # Loud warning ONCE PER WORKER when the bypass actually drops
-        # cold attention from a seq that had cold blocks. This is the
-        # actual correctness violation surface; we want the operator to
-        # see it once during the run rather than burying it.
-        if (
-            not _QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE
-            and max_num_cold_blocks > 0
-        ):
-            _QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE = True
-            print(
-                f"[IDE_006/TSK_004 q_len_cap WARNING pid={os.getpid()}] "
-                f"bypassing cold path while max_num_cold_blocks="
-                f"{max_num_cold_blocks} > 0 — at least one row in this "
-                f"batch attends ONLY to hot suffix and ignores its cold "
-                f"prefix. Tokens generated for those rows will not match "
-                f"the GPU-only reference. Set VLLM_PARTIAL_ATTN_MAX_QLEN=-1 "
-                f"to disable the cap (slow-but-correct).",
-                file=_sys.stderr,
-                flush=True,
-            )
-        output.copy_(hot_output)
-        return
-
     # ----- Phase 3b: cold path on CPU + LSE merge on GPU ---------------
     # Required cold inputs (caller — Phase 4 — supplies them from the
     # OffloadingConnector worker state and the kv_cache_spec).
@@ -1649,20 +1564,6 @@ def hot_cold_attention(
             f"{len(cpu_kv_cache)}."
         )
 
-    # Local import — TSK_001's user-facing entry point. Lazy to keep the
-    # module import-time cost bounded and avoid a hard top-level coupling
-    # between flash_attn backend and the cpu_partial_attention op.
-    from vllm.v1.attention.ops.cpu_partial_attention import (
-        forward_partial_with_lse,
-    )
-    from vllm.v1.attention.ops.cpu_partial_attention import (
-        _PROFILE_ENABLED as _PARTIAL_PROFILE_ENABLED,
-        _profile_should_emit as _partial_profile_should_emit,
-    )
-
-    def _to_cpu(t: torch.Tensor) -> torch.Tensor:
-        return t if t.device.type == "cpu" else t.detach().cpu()
-
     # Diagnostic instrumentation. Gated by VLLM_PARTIAL_ATTN_PROFILE; takes
     # GPU sync hits to make the wall-time numbers honest. Off by default.
     if _PARTIAL_PROFILE_ENABLED:
@@ -1684,9 +1585,10 @@ def hot_cold_attention(
     #
     # Step 1: small D2H of the per-seq metadata that decides which seqs
     # need cold processing. These are O(num_seqs) tensors, ≤ 1 KB.
-    num_cold_blocks_cpu = _to_cpu(num_cold_blocks)
-    cu_query_lens_cpu = _to_cpu(cu_query_lens)
-    seq_lens_total_cpu = _to_cpu(seqused_k)
+    # ``.cpu()`` is a no-op when the tensor is already on CPU.
+    num_cold_blocks_cpu = num_cold_blocks.cpu()
+    cu_query_lens_cpu = cu_query_lens.cpu()
+    seq_lens_total_cpu = seqused_k.cpu()
 
     cu_q_list = cu_query_lens_cpu.tolist()
     n_cold_list = num_cold_blocks_cpu.tolist()
@@ -1752,31 +1654,26 @@ def hot_cold_attention(
     )
 
     # Step 3: targeted index_select on the cold stream. Each input
-    # tensor may be on CPU or GPU independently of the others (the
-    # dispatcher passes some on device for downstream GPU ops, others
-    # already mirrored to CPU). We resolve the row-index tensor to
-    # whatever device the source lives on, run index_select there, and
-    # bring the reduced result to CPU for the kernel call. Inside the
-    # ``cold_stream_ctx`` window, all GPU ops are issued on cold_stream
-    # so the default stream stays free for the hot-path FA kernel.
-    def _index_rows_to_cpu(src: torch.Tensor) -> torch.Tensor:
-        if src.device.type == "cuda":
-            idx = reduced_token_idx_cpu.to(src.device, non_blocking=True)
-            return src.index_select(0, idx).detach().cpu()
-        return src.index_select(0, reduced_token_idx_cpu)
-
+    # tensor may be on CPU or GPU independently. ``.cpu()`` is no-op on
+    # CPU tensors, so an unconditional pass through is safe.
     need_cold_seq_idx_cpu = torch.tensor(need_cold_seq_ids, dtype=torch.long)
 
-    def _index_seqs_to_cpu(src: torch.Tensor) -> torch.Tensor:
-        if src.device.type == "cuda":
-            idx = need_cold_seq_idx_cpu.to(src.device, non_blocking=True)
-            return src.index_select(0, idx).detach().cpu()
-        return src.index_select(0, need_cold_seq_idx_cpu)
-
     with cold_stream_ctx:
-        reduced_query_cpu = _index_rows_to_cpu(query)
-        reduced_qpos_cpu = _index_rows_to_cpu(query_positions)
-        reduced_cbi = _index_seqs_to_cpu(cold_block_ids)
+        if query.device.type == "cuda":
+            row_idx_dev = reduced_token_idx_cpu.to(query.device, non_blocking=True)
+            reduced_query_cpu = query.index_select(0, row_idx_dev).cpu()
+        else:
+            reduced_query_cpu = query.index_select(0, reduced_token_idx_cpu)
+        if query_positions.device.type == "cuda":
+            qp_idx_dev = reduced_token_idx_cpu.to(query_positions.device, non_blocking=True)
+            reduced_qpos_cpu = query_positions.index_select(0, qp_idx_dev).cpu()
+        else:
+            reduced_qpos_cpu = query_positions.index_select(0, reduced_token_idx_cpu)
+        if cold_block_ids.device.type == "cuda":
+            cbi_idx_dev = need_cold_seq_idx_cpu.to(cold_block_ids.device, non_blocking=True)
+            reduced_cbi = cold_block_ids.index_select(0, cbi_idx_dev).cpu()
+        else:
+            reduced_cbi = cold_block_ids.index_select(0, need_cold_seq_idx_cpu)
 
     # num_cold_blocks_cpu / seq_lens_total_cpu were already mirrored to
     # CPU at the top of the function (small tensors). Indexing on CPU

@@ -344,6 +344,22 @@ class CpuGpuOffloadingHandlers:
             bind_worker_to_local_numa()
         except Exception as _exc:  # pragma: no cover - defence in depth
             logger.debug("NUMA bind skipped: %r", _exc)
+
+        # IDE_006 / TSK_002 §4.6 — move per-process partial-attention
+        # warmup costs (JIT extension load, cpuinfo parse, AMX prctl,
+        # NUMA partition compute) out of the first hot_cold_attention
+        # call. Profile data showed the first call's outer
+        # ``hot_cold_attention`` taking 1.3~2.1 s vs ~3 ms steady-state,
+        # almost entirely lazy init. Calling here pulls that work into
+        # worker startup so the first model forward sees steady-state
+        # cold-path cost.
+        try:
+            from vllm.v1.attention.ops.cpu_partial_attention import prewarm
+
+            prewarm()
+        except Exception as _exc:  # pragma: no cover - defence in depth
+            logger.debug("partial-attention prewarm skipped: %r", _exc)
+
         logger.info("Allocating %d CPU tensors...", len(kv_caches.tensors))
         self._mmap_region = mmap_region
         if mmap_region is not None and pin_memory:
