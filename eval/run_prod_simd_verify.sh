@@ -17,8 +17,14 @@
 #      _cold_path detector 미발동만 본다 (정식 비교는 풀 prod_smoke 에서).
 #
 # Usage:
-#   bash eval/run_prod_simd_verify.sh             # run + save (push manually)
-#   bash eval/run_prod_simd_verify.sh --push      # run + commit + push
+#   bash eval/run_prod_simd_verify.sh             # e2e + TST_004 (push manually)
+#   bash eval/run_prod_simd_verify.sh --push      # e2e + TST_004, then commit + push
+#   bash eval/run_prod_simd_verify.sh --skip-tst  # e2e quick 만 (AVX/AMX 동작 확인 회전)
+#   bash eval/run_prod_simd_verify.sh --skip-tst --push
+#
+# 실행 순서: 먼저 e2e_quick (실제 AVX/AMX 발화 + 엔진 라이브성 확인), 그 다음
+# TST_004 (numerical 정합성 80 케이스). e2e 가 죽는 회귀를 빠르게 잡기 위해
+# 비싼 TC 를 뒤로 보내고, --skip-tst 로 fast 회전 모드를 지원한다.
 #
 # Output layout:
 #   eval/results/<TS>_<HW_TAG>_simd_verify/
@@ -48,7 +54,14 @@ if [[ ! -x "${PYTHON}" ]]; then
 fi
 
 PUSH=0
-[[ "${1:-}" == "--push" ]] && PUSH=1
+SKIP_TST=0
+for arg in "$@"; do
+    case "${arg}" in
+        --push)     PUSH=1 ;;
+        --skip-tst) SKIP_TST=1 ;;
+        *)          echo "unknown arg: ${arg}" >&2; exit 2 ;;
+    esac
+done
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
@@ -102,21 +115,9 @@ log "capturing CPU/GPU/NUMA snapshot to ${OUT_DIR}/isa_info.txt"
     numactl --hardware 2>&1 || echo "numactl unavailable"
 } > "${OUT_DIR}/isa_info.txt"
 
-# --------------------------------------------------------------------- 1) TST_004
+# --------------------------------------------------------------------- 1) e2e quick (AVX/AMX 동작 테스트)
 
-log "[1/2] pytest TST_004 cross-check (portable vs AVX-512 / portable vs AMX)"
-TST_RC=0
-"${PYTHON}" -m pytest \
-    tests/v1/cpu_partial_attention/test_avx512_cross_check.py \
-    tests/v1/cpu_partial_attention/test_amx_cross_check.py \
-    -v --tb=short \
-    --junit-xml="${OUT_DIR}/tst004_junit.xml" \
-    2>&1 | tee "${OUT_DIR}/tst004_pytest.log" || TST_RC=$?
-log "  TST_004 exit=${TST_RC}"
-
-# --------------------------------------------------------------------- 2) split-on-only e2e quick
-
-log "[2/2] e2e accuracy (split-on-only, cold path dispatcher firing verify)"
+log "[1/2] e2e accuracy (split-on-only, cold path dispatcher firing verify)"
 E2E_RC=0
 # Combine stdout + stderr explicitly so AMX trace prints (which go to
 # stderr from C++ via fprintf) end up in the same log as Python output,
@@ -133,6 +134,23 @@ HW_TAG="${HW_TAG}" stdbuf -oL -eL "${PYTHON}" -u "${SCRIPT_DIR}/run_e2e_accuracy
     > >(tee "${OUT_DIR}/e2e_quick.log") 2> >(tee "${OUT_DIR}/e2e_quick.stderr.log" >&2) || E2E_RC=$?
 log "  e2e quick exit=${E2E_RC}"
 
+# --------------------------------------------------------------------- 2) TST_004 (TC — 80 케이스)
+
+TST_RC=0
+if [[ ${SKIP_TST} -eq 1 ]]; then
+    log "[2/2] pytest TST_004 — SKIPPED (--skip-tst)"
+    TST_RC=-1
+else
+    log "[2/2] pytest TST_004 cross-check (portable vs AVX-512 / portable vs AMX)"
+    "${PYTHON}" -m pytest \
+        tests/v1/cpu_partial_attention/test_avx512_cross_check.py \
+        tests/v1/cpu_partial_attention/test_amx_cross_check.py \
+        -v --tb=short \
+        --junit-xml="${OUT_DIR}/tst004_junit.xml" \
+        2>&1 | tee "${OUT_DIR}/tst004_pytest.log" || TST_RC=$?
+    log "  TST_004 exit=${TST_RC}"
+fi
+
 # --------------------------------------------------------------------- summary
 
 # Pull verdict signals out of the logs so the README is self-contained.
@@ -143,17 +161,25 @@ E2E_DI=$(grep -oE 'D-i  \(token divergence\):  (PASS|FAIL)' "${OUT_DIR}/e2e_quic
 E2E_DII=$(grep -oE 'D-ii \(logprob / PPL\):     (PASS|FAIL)' "${OUT_DIR}/e2e_quick.log" | head -1 || echo "(N/A)")
 E2E_OVERALL=$(grep -oE 'overall:                  (PASS|FAIL)' "${OUT_DIR}/e2e_quick.log" | head -1 || echo "(N/A)")
 
+if [[ ${SKIP_TST} -eq 1 ]]; then
+    TST004_DISPLAY="(skipped via --skip-tst)"
+    TST004_RC_DISPLAY="skipped"
+else
+    TST004_DISPLAY="${TST004_PASSED} ${TST004_FAILED} ${TST004_SKIPPED}"
+    TST004_RC_DISPLAY="${TST_RC}"
+fi
+
 {
     echo
     echo "## exit codes"
-    echo "- TST_004 pytest:                ${TST_RC}"
     echo "- e2e quick (split-on-only):     ${E2E_RC}"
+    echo "- TST_004 pytest:                ${TST004_RC_DISPLAY}"
     echo
     echo "## verdict signals"
-    echo "- TST_004 cross-check counts:    ${TST004_PASSED} ${TST004_FAILED} ${TST004_SKIPPED}"
     echo "- e2e quick D-i:                 ${E2E_DI}"
     echo "- e2e quick D-ii:                ${E2E_DII}"
     echo "- e2e quick overall:             ${E2E_OVERALL}"
+    echo "- TST_004 cross-check counts:    ${TST004_DISPLAY}"
     echo
     echo "## interpretation cheat-sheet"
     echo "- 80 passed, 0 failed: SIMD kernel numerical correctness 확정 → throughput sweep 진입 가능"
@@ -197,5 +223,7 @@ Or rerun as \`bash eval/run_prod_simd_verify.sh --push\` to commit + push automa
 EOF
 fi
 
-# overall exit
-[[ ${TST_RC} -eq 0 && ${E2E_RC} -eq 0 ]] && exit 0 || exit 1
+# overall exit — TST_RC=-1 sentinel means skipped, treat as success
+EFFECTIVE_TST_RC=${TST_RC}
+[[ ${EFFECTIVE_TST_RC} -eq -1 ]] && EFFECTIVE_TST_RC=0
+[[ ${EFFECTIVE_TST_RC} -eq 0 && ${E2E_RC} -eq 0 ]] && exit 0 || exit 1

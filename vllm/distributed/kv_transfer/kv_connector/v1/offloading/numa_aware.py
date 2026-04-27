@@ -144,6 +144,54 @@ def _read_cpulist(node: int) -> list[int]:
     return cpus
 
 
+def _partition_node_cpus_for_rank(
+    rank: int, world_size: int, node: int, cpus: list[int]
+) -> list[int]:
+    """Carve out this rank's slice of a NUMA node's cores.
+
+    On a TP=8 / dual-socket prod box, four ranks land on the same NUMA
+    node. Pinning every rank to *all* of that node's cores means each
+    worker subprocess sees ``CPU_COUNT(affinity) = 56`` and the
+    partial-attention kernel asks libgomp for 56 OpenMP threads — four
+    workers × 56 = 224 threads on 56 cores, plus torch / flashinfer /
+    ray threads, which exhausts ``RLIMIT_NPROC`` /
+    ``kernel.threads-max`` and ``pthread_create`` returns ``EAGAIN``
+    ("Thread creation failed: Resource temporarily unavailable").
+
+    To avoid this we partition the node's cpulist into one contiguous
+    slice per co-located rank. ``CPU_COUNT(affinity)`` then naturally
+    returns ``cores_per_node / ranks_on_node``, the partial-attention
+    kernel scales to its rightful share, and total OMP thread count
+    across all workers stays ≤ physical core count.
+
+    Single-rank-per-node (dev box, TP≤num_numa_nodes) is a no-op — the
+    rank gets the full node, exactly as before.
+    """
+    if not cpus or world_size <= 1:
+        return cpus
+    same_node_ranks = sorted(
+        r
+        for r in range(world_size)
+        if _resolve_local_numa_node(r, world_size) == node
+    )
+    if rank not in same_node_ranks:
+        return cpus
+    n_on_node = len(same_node_ranks)
+    if n_on_node <= 1:
+        return cpus
+    idx = same_node_ranks.index(rank)
+    base, rem = divmod(len(cpus), n_on_node)
+    if base == 0:
+        # More ranks than cores on this node — fall back to full node
+        # rather than picking a single core (which would over-serialise
+        # OpenMP). Operator can override via VLLM_PARTIAL_ATTN_THREADS.
+        return cpus
+    start = idx * base + min(idx, rem)
+    extra = 1 if idx < rem else 0
+    end = start + base + extra
+    return cpus[start:end]
+
+
 def bind_worker_to_local_numa(
     rank: int | None = None, world_size: int | None = None
 ) -> int | None:
@@ -221,8 +269,8 @@ def pin_threads_to_local_numa(
             _pin_done[rank] = None
             return None
 
-        cpus = _read_cpulist(node)
-        if not cpus:
+        node_cpus = _read_cpulist(node)
+        if not node_cpus:
             _pin_done[rank] = None
             logger.debug(
                 "[IDE_006/TSK_004] rank=%d node=%d empty cpulist; skipping "
@@ -231,6 +279,8 @@ def pin_threads_to_local_numa(
                 node,
             )
             return None
+
+        cpus = _partition_node_cpus_for_rank(rank, world_size, node, node_cpus)
 
         try:
             os.sched_setaffinity(0, cpus)
@@ -246,10 +296,11 @@ def pin_threads_to_local_numa(
         _pin_done[rank] = cpus
         logger.info(
             "[IDE_006/TSK_004] rank=%d pinned threads to NUMA node %d "
-            "(%d cores: %d~%d)",
+            "(%d/%d cores: %d~%d)",
             rank,
             node,
             len(cpus),
+            len(node_cpus),
             cpus[0],
             cpus[-1],
         )
