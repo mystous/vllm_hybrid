@@ -61,6 +61,28 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+#include <sched.h>
+
+// vLLM 's V1 multiproc executor sets ``OMP_NUM_THREADS=1`` in every TP
+// worker subprocess to avoid CPU contention with other torch ops.
+// Without overriding it our ``#pragma omp parallel`` would spawn a
+// single thread and the kernel would run sequentially. Query the
+// worker's CPU affinity mask (TSK_004 sched_setaffinity already
+// restricted it to the local NUMA node's cores) and use that count
+// for the parallel region — this gives us the physical cores
+// available to *this* worker without crossing socket boundaries.
+static int vllm_partial_attn_thread_count() {
+  cpu_set_t mask;
+  if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
+    int n = CPU_COUNT(&mask);
+    if (n > 0) return n;
+  }
+#ifdef _OPENMP
+  return omp_get_num_procs();
+#else
+  return 1;
+#endif
+}
 
 #if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AVX512F__)
 #include <immintrin.h>
@@ -472,6 +494,7 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
     const int64_t n_cold_kv = n_cold_blocks * block_size;
 
     #pragma omp parallel default(none) \
+        num_threads(vllm_partial_attn_thread_count()) \
         firstprivate(q_start, q_end, n_cold_kv, n_cold_blocks, num_q_heads, \
                      q_per_kv, num_kv_heads, head_dim, block_size, \
                      k_block_stride_elems, v_block_stride_elems, \
@@ -758,6 +781,7 @@ static std::vector<torch::Tensor> forward_partial_avx512_fallback(
     const int64_t n_cold_kv = n_cold_blocks * block_size;
 
     #pragma omp parallel default(none) \
+        num_threads(vllm_partial_attn_thread_count()) \
         firstprivate(q_start, q_end, n_cold_kv, num_q_heads, q_per_kv, \
                      num_kv_heads, head_dim, block_size, \
                      k_block_stride_elems, v_block_stride_elems, \

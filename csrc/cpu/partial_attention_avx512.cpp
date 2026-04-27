@@ -37,6 +37,25 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+#include <sched.h>
+
+// vLLM 's V1 multiproc executor sets ``OMP_NUM_THREADS=1`` in worker
+// subprocesses; query the affinity mask and override the parallel
+// region's thread count so the kernel can use all cores assigned to
+// this worker (TSK_004 NUMA-aware bind keeps them on the local
+// socket).
+static int vllm_partial_attn_thread_count() {
+  cpu_set_t mask;
+  if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
+    int n = CPU_COUNT(&mask);
+    if (n > 0) return n;
+  }
+#ifdef _OPENMP
+  return omp_get_num_procs();
+#else
+  return 1;
+#endif
+}
 
 #if defined(__AVX512F__)
 #include <immintrin.h>
@@ -365,6 +384,7 @@ static std::vector<torch::Tensor> forward_partial_impl(
     const int64_t n_cold_kv = n_cold_blocks * block_size;
 
     #pragma omp parallel default(none) \
+        num_threads(vllm_partial_attn_thread_count()) \
         firstprivate(q_start, q_end, n_cold_kv, num_q_heads, q_per_kv, \
                      num_kv_heads, head_dim, block_size, \
                      k_block_stride_elems, v_block_stride_elems, \
