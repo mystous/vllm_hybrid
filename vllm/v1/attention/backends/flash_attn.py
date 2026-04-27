@@ -3,6 +3,7 @@
 """Attention layer with FlashAttention."""
 
 import copy
+import os
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -1344,6 +1345,37 @@ def cascade_attention(
     merge_attn_states(output, prefix_output, prefix_lse, suffix_output, suffix_lse)
 
 
+# IDE_006 / TSK_004 — opt-in CPU partial-attention q_len CAP.
+#
+# DEFAULT: DISABLED (-1). When disabled the dispatcher always routes
+# cold KV through the CPU kernel as the original IDE_006 design
+# intends; this is the slow-but-correct mode that preserves the
+# CLAUDE.md "결과 값이 달라져서는 안됨" guarantee.
+#
+# When enabled (operator sets ``VLLM_PARTIAL_ATTN_MAX_QLEN`` to a
+# positive int N), batches whose ``max_query_len > N`` bypass the
+# cold path entirely. This is a STAGED-VERIFICATION escape hatch
+# only — used to confirm "small decode step works end-to-end"
+# without the timeout caused by 16 K-token mixed prefill+decode
+# chunks. It introduces an explicit correctness violation when a
+# mixed batch contains both a small-q_len seq with cold blocks AND
+# a large-q_len prefill chunk; see the call-site comment in
+# ``hot_cold_attention`` for details. Do not enable in production
+# without understanding that trade-off. ``8`` (covers pure decode
+# + spec-decode) is a sensible value when consciously enabling.
+def _read_partial_attn_max_qlen() -> int:
+    raw = os.environ.get("VLLM_PARTIAL_ATTN_MAX_QLEN", "-1")
+    try:
+        return int(raw)
+    except ValueError:
+        return -1
+
+
+_PARTIAL_ATTN_MAX_QLEN = _read_partial_attn_max_qlen()
+_QLEN_CAP_FIRST_LOG_DONE = False  # one-shot startup config print
+_QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE = False  # one-shot loud warning
+
+
 def hot_cold_attention(
     output: torch.Tensor,
     query: torch.Tensor,
@@ -1472,6 +1504,70 @@ def hot_cold_attention(
         # Degenerate: no cold blocks across the batch. The hot path produced
         # the full attention; copy into output and return. merge_attn_states
         # is not needed because there is no second tensor to merge.
+        output.copy_(hot_output)
+        return
+
+    # ----- IDE_006 / TSK_004 — q_len CAP (NOT a decode-only gate) ------
+    # If any seq in the batch has q_len > VLLM_PARTIAL_ATTN_MAX_QLEN we
+    # bypass the CPU partial-attention path for the *whole* batch and
+    # return hot_output as the result. This prevents the >4 s/call cost
+    # of pushing a 16 K-token mixed prefill+decode chunk through the
+    # CPU kernel that otherwise starves sample_tokens to a TimeoutError.
+    #
+    # CORRECTNESS VIOLATION (explicit, staged-verification trade-off):
+    #   - hot_output was computed with ``hot_seqused_k = seqused_k -
+    #     cold_kv_tokens`` (line ~1457), i.e. its attention completely
+    #     ignored each seq's cold prefix.
+    #   - For seqs with cold>0 (typically a small-q_len decode seq
+    #     mixed into a large-q_len prefill chunk) the resulting
+    #     output row attends ONLY to the hot suffix, missing the cold
+    #     prefix entirely. CLAUDE.md "결과 값이 달라져서는 안됨" is
+    #     violated for those rows.
+    #   - This is accepted *temporarily* under TSK_004 staged
+    #     verification ("작은 decode step 먼저 동작 확인 -> mixed
+    #     이후"). Once decode-only correctness is confirmed end to end,
+    #     mixed-batch handling will be either (a) per-seq filtered into
+    #     a sliced CPU kernel call, or (b) explicit failure when any
+    #     cold-bearing seq is co-batched with a > MAX_QLEN seq.
+    # Operator escape hatch:
+    #   ``VLLM_PARTIAL_ATTN_MAX_QLEN=-1`` disables the cap entirely
+    #   (slow-but-correct mode — accepts timeout risk).
+    if _PARTIAL_ATTN_MAX_QLEN >= 0 and max_query_len > _PARTIAL_ATTN_MAX_QLEN:
+        # Sync-free: use the host-side ``max_query_len`` already passed in
+        # by the dispatcher; reading from cu_query_lens would force a
+        # GPU->CPU sync.
+        import sys as _sys
+        global _QLEN_CAP_FIRST_LOG_DONE, _QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE
+        if not _QLEN_CAP_FIRST_LOG_DONE:
+            _QLEN_CAP_FIRST_LOG_DONE = True
+            print(
+                f"[IDE_006/TSK_004 q_len_cap pid={os.getpid()}] "
+                f"max_query_len={max_query_len} > "
+                f"VLLM_PARTIAL_ATTN_MAX_QLEN={_PARTIAL_ATTN_MAX_QLEN}; "
+                f"bypassing cold path for this batch (hot-only).",
+                file=_sys.stderr,
+                flush=True,
+            )
+        # Loud warning ONCE PER WORKER when the bypass actually drops
+        # cold attention from a seq that had cold blocks. This is the
+        # actual correctness violation surface; we want the operator to
+        # see it once during the run rather than burying it.
+        if (
+            not _QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE
+            and max_num_cold_blocks > 0
+        ):
+            _QLEN_CAP_BYPASS_WITH_COLD_LOG_DONE = True
+            print(
+                f"[IDE_006/TSK_004 q_len_cap WARNING pid={os.getpid()}] "
+                f"bypassing cold path while max_num_cold_blocks="
+                f"{max_num_cold_blocks} > 0 — at least one row in this "
+                f"batch attends ONLY to hot suffix and ignores its cold "
+                f"prefix. Tokens generated for those rows will not match "
+                f"the GPU-only reference. Set VLLM_PARTIAL_ATTN_MAX_QLEN=-1 "
+                f"to disable the cap (slow-but-correct).",
+                file=_sys.stderr,
+                flush=True,
+            )
         output.copy_(hot_output)
         return
 

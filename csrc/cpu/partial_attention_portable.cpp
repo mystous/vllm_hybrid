@@ -14,6 +14,7 @@
 #include <cmath>
 #include <limits>
 #include <cstdint>
+#include <cstdlib>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -21,21 +22,35 @@
 #include <sched.h>
 
 // vLLM's V1 multiproc executor sets ``OMP_NUM_THREADS=1`` in worker
-// subprocesses; query the affinity mask and override the parallel
-// region's thread count so the kernel can use all cores assigned to
-// this worker (TSK_004 NUMA-aware bind keeps them on the local
-// socket).
+// subprocesses. Resolve thread count as:
+//   baseline = ``CPU_COUNT(sched_getaffinity)`` (TSK_004 NUMA bind),
+//   then ``VLLM_PARTIAL_ATTN_THREADS`` env (if set, positive) is
+//   clamped to ``min(env, baseline)`` so an oversized operator override
+//   cannot resurrect the pthread_create EAGAIN storm. Cached function-
+//   static so the cost is paid once per worker process.
 static int vllm_partial_attn_thread_count() {
-  cpu_set_t mask;
-  if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
-    int n = CPU_COUNT(&mask);
-    if (n > 0) return n;
-  }
+  static int cached = []() {
+    int baseline;
+    cpu_set_t mask;
+    if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
+      int n = CPU_COUNT(&mask);
+      baseline = (n > 0) ? n : 1;
+    } else {
 #ifdef _OPENMP
-  return omp_get_num_procs();
+      baseline = omp_get_num_procs();
 #else
-  return 1;
+      baseline = 1;
 #endif
+    }
+    if (const char* env = std::getenv("VLLM_PARTIAL_ATTN_THREADS")) {
+      int v = std::atoi(env);
+      if (v > 0) {
+        return (v < baseline) ? v : baseline;
+      }
+    }
+    return baseline;
+  }();
+  return cached;
 }
 
 namespace cpu_partial_attn {
@@ -47,8 +62,8 @@ static std::vector<torch::Tensor> forward_partial_impl(
                                    //   Combined mode: page = K+V back-to-back.
                                    //   Split mode: page = K only.
     torch::Tensor cold_kv_cache_v, // [num_blocks, kv_block_bytes], int8.
-                                   //   Empty (numel == 0) → combined mode.
-                                   //   Non-empty → split mode (V-only buffer
+                                   //   Empty (numel == 0) -> combined mode.
+                                   //   Non-empty -> split mode (V-only buffer
                                    //   paired with K-only cold_kv_cache).
     int64_t block_size,
     int64_t num_kv_heads,

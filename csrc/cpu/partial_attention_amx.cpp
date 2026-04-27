@@ -31,7 +31,7 @@
 //
 // For ``head_dim`` larger than 32 BF16 (the per-tile K limit) we
 // accumulate across head_dim in chunks of 32. Llama-3.3-70B uses
-// head_dim = 128 → 4 accumulating tile calls per (query row, K
+// head_dim = 128 -> 4 accumulating tile calls per (query row, K
 // batch).
 //
 // The K batch is laid out by a thin staging step that copies 16 K
@@ -66,22 +66,38 @@
 // vLLM 's V1 multiproc executor sets ``OMP_NUM_THREADS=1`` in every TP
 // worker subprocess to avoid CPU contention with other torch ops.
 // Without overriding it our ``#pragma omp parallel`` would spawn a
-// single thread and the kernel would run sequentially. Query the
-// worker's CPU affinity mask (TSK_004 sched_setaffinity already
-// restricted it to the local NUMA node's cores) and use that count
-// for the parallel region — this gives us the physical cores
-// available to *this* worker without crossing socket boundaries.
+// single thread and the kernel would run sequentially. Resolution:
+//   1. baseline = ``CPU_COUNT(sched_getaffinity)`` (worker's NUMA-bound
+//      mask), falling back to ``omp_get_num_procs()`` / 1.
+//   2. if ``VLLM_PARTIAL_ATTN_THREADS`` is set, use ``min(env, baseline)``
+//      so an oversized operator override cannot spawn more threads than
+//      the worker affinity can host (which would resurrect the libgomp
+//      pthread_create EAGAIN storm fixed in TSK_004).
+// Cached in a function-static so the env / syscall cost is paid once
+// per worker process, not once per ``num_threads(...)`` clause invocation.
 static int vllm_partial_attn_thread_count() {
-  cpu_set_t mask;
-  if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
-    int n = CPU_COUNT(&mask);
-    if (n > 0) return n;
-  }
+  static int cached = []() {
+    int baseline;
+    cpu_set_t mask;
+    if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
+      int n = CPU_COUNT(&mask);
+      baseline = (n > 0) ? n : 1;
+    } else {
 #ifdef _OPENMP
-  return omp_get_num_procs();
+      baseline = omp_get_num_procs();
 #else
-  return 1;
+      baseline = 1;
 #endif
+    }
+    if (const char* env = std::getenv("VLLM_PARTIAL_ATTN_THREADS")) {
+      int v = std::atoi(env);
+      if (v > 0) {
+        return (v < baseline) ? v : baseline;
+      }
+    }
+    return baseline;
+  }();
+  return cached;
 }
 
 #if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AVX512F__)
@@ -290,7 +306,7 @@ static inline float dot_avx512_kt(const T* a, const T* b, int64_t n) {
 // broadcast scale, then BF16 / FP16 / FP32 specialisations match the
 // dot product helper above. All three accumulate into an fp32 output
 // buffer (``out[head_dim]``) regardless of the source dtype — the
-// caller does the final fp32 → T cast once per token.
+// caller does the final fp32 -> T cast once per token.
 
 #if defined(__AVX512F__)
 template <typename T>

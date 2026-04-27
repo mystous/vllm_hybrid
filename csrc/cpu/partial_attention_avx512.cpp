@@ -12,8 +12,8 @@
 // For BF16 inputs we exploit AVX512_BF16 (`vdpbf16ps`) when the
 // compiler is invoked with ``-mavx512bf16``: 32 BF16 multiplies plus
 // 16 fp32 accumulators in a single instruction. Without that flag we
-// fall back to upcast-and-fma (load 16 BF16 → zero-extend to int32 →
-// shift-by-16 → reinterpret as fp32 → ``_mm512_fmadd_ps``).
+// fall back to upcast-and-fma (load 16 BF16 -> zero-extend to int32 ->
+// shift-by-16 -> reinterpret as fp32 -> ``_mm512_fmadd_ps``).
 //
 // FP16 and FP32 use the corresponding AVX-512F path (``_mm512_cvtph
 // _ps`` for FP16, native ``_mm512_loadu_ps`` for FP32). The softmax
@@ -33,6 +33,7 @@
 #include <cmath>
 #include <limits>
 #include <cstdint>
+#include <cstdlib>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -40,21 +41,35 @@
 #include <sched.h>
 
 // vLLM 's V1 multiproc executor sets ``OMP_NUM_THREADS=1`` in worker
-// subprocesses; query the affinity mask and override the parallel
-// region's thread count so the kernel can use all cores assigned to
-// this worker (TSK_004 NUMA-aware bind keeps them on the local
-// socket).
+// subprocesses. Resolve thread count as:
+//   baseline = ``CPU_COUNT(sched_getaffinity)`` (TSK_004 NUMA bind),
+//   then ``VLLM_PARTIAL_ATTN_THREADS`` env (if set, positive) is
+//   clamped to ``min(env, baseline)`` so an oversized operator override
+//   cannot resurrect the pthread_create EAGAIN storm. Cached function-
+//   static so the cost is paid once per worker process.
 static int vllm_partial_attn_thread_count() {
-  cpu_set_t mask;
-  if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
-    int n = CPU_COUNT(&mask);
-    if (n > 0) return n;
-  }
+  static int cached = []() {
+    int baseline;
+    cpu_set_t mask;
+    if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
+      int n = CPU_COUNT(&mask);
+      baseline = (n > 0) ? n : 1;
+    } else {
 #ifdef _OPENMP
-  return omp_get_num_procs();
+      baseline = omp_get_num_procs();
 #else
-  return 1;
+      baseline = 1;
 #endif
+    }
+    if (const char* env = std::getenv("VLLM_PARTIAL_ATTN_THREADS")) {
+      int v = std::atoi(env);
+      if (v > 0) {
+        return (v < baseline) ? v : baseline;
+      }
+    }
+    return baseline;
+  }();
+  return cached;
 }
 
 #if defined(__AVX512F__)
@@ -74,7 +89,7 @@ namespace cpu_partial_attn_avx512 {
 
 #if VLLM_CPU_PARTIAL_HAS_AVX512
 
-// Horizontal sum of 16 fp32 lanes → scalar. AVX-512F-only path
+// Horizontal sum of 16 fp32 lanes -> scalar. AVX-512F-only path
 // (avoids _mm512_extractf32x8_ps which requires AVX-512DQ). We split
 // the 512-bit register into four 128-bit lanes via the F-only
 // _mm512_extractf32x4_ps and reduce.
@@ -139,7 +154,7 @@ static inline float dot_fp16_avx512(const at::Half* a,
                                     int64_t n) {
   __m512 acc = _mm512_setzero_ps();
   int64_t d = 0;
-  // 16 FP16 → fp32 per iter via cvtph_ps.
+  // 16 FP16 -> fp32 per iter via cvtph_ps.
   for (; d + 16 <= n; d += 16) {
     __m256i ai16 = _mm256_loadu_si256(
         reinterpret_cast<const __m256i*>(a + d));

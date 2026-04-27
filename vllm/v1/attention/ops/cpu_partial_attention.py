@@ -648,11 +648,15 @@ def _call_avx512(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
     )
 
 
+_PY_AMX_TRACE_ENABLED = bool(os.environ.get("VLLM_AMX_TRACE", "")) and \
+    os.environ["VLLM_AMX_TRACE"] not in ("0", "")
+
+
 def _ensure_amx_permission_once() -> None:
     """Grant AMX tile permission for the calling process.
 
     Linux 5.16+ requires every process that wants to issue AMX
-    instructions (``_tile_loadconfig``, ``_tile_dpbf16ps``, …) to
+    instructions (``_tile_loadconfig``, ``_tile_dpbf16ps``, ...) to
     first request access to the XSTATE feature for tile data via
     ``prctl(ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA)``. Workers
     inherit *file descriptors* from the parent, but xcomp permissions
@@ -664,7 +668,8 @@ def _ensure_amx_permission_once() -> None:
     Implementation delegates to
     :func:`vllm.platforms.intel_cpu_utils._enable_amx_tiles` (which
     already wraps the syscall + checks Linux). Idempotent via a
-    function-attribute flag.
+    function-attribute flag. The granted/err report is gated by
+    ``VLLM_AMX_TRACE`` so prod logs stay quiet by default.
     """
     if getattr(_ensure_amx_permission_once, "_done", False):
         return
@@ -678,46 +683,53 @@ def _ensure_amx_permission_once() -> None:
     except Exception as e:  # pragma: no cover - defence in depth
         err = e
     _ensure_amx_permission_once._done = True
-    print(
-        f"[AMX trace pid={os.getpid()}] _ensure_amx_permission_once: "
-        f"granted={granted} err={err!r}",
-        flush=True,
-    )
+    if _PY_AMX_TRACE_ENABLED:
+        print(
+            f"[AMX trace pid={os.getpid()}] _ensure_amx_permission_once: "
+            f"granted={granted} err={err!r}",
+            flush=True,
+        )
+    elif not granted and err is not None:
+        # Permission grant failure is operationally important even when
+        # tracing is off — a SIGILL on the first AMX instruction will
+        # otherwise surface as a confusing EngineDeadError.
+        print(
+            f"[IDE_006/TSK_003 amx] pid={os.getpid()} permission grant "
+            f"failed: {err!r}; AMX kernel will fall back to AVX-512.",
+            flush=True,
+        )
 
 
 def _call_amx(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
     """Adapt Python-side inputs to the AMX C++ kernel.
 
-    Wrapped by tracing + permission grant + a BaseException-catching
-    try/except so any worker-side death leaves the kernel inputs
-    captured before the engine surfaces ``EngineDeadError``. The C++
-    kernel itself prints checkpoint markers to stderr (see
-    ``csrc/cpu/partial_attention_amx.cpp:vllm_amx_trace``) so the
-    last printed checkpoint pins the SIGILL / TORCH_CHECK / segfault
-    site.
+    Wrapped by a permission grant + a BaseException-catching try/except
+    so any worker-side death surfaces a useful breadcrumb before the
+    engine reports ``EngineDeadError``. The optional VLLM_AMX_TRACE env
+    enables per-call entry/exit/elapsed prints — off by default to keep
+    prod logs clean.
     """
     _ensure_amx_permission_once()
-    q = kwargs.get("query")
-    layout = kwargs.get("cold_kv_layout")
-    cbi = kwargs.get("cold_block_ids")
-    cbl = kwargs.get("cold_block_lens")
-    cul = kwargs.get("cu_seqlens_q")
-    qpos = kwargs.get("query_positions")
-    # Compact one-liner so it doesn't bury the rest of the log when the
-    # kernel is called many times. We rely on the C++ checkpoint trace
-    # for per-step granularity.
-    print(
-        f"[AMX trace pid={os.getpid()}] _call_amx: "
-        f"q.shape={tuple(q.shape) if q is not None else None} "
-        f"q.dtype={q.dtype if q is not None else None} "
-        f"head_dim={layout.head_dim if layout else None} "
-        f"num_kv_heads={layout.num_kv_heads if layout else None} "
-        f"block_size={layout.block_size if layout else None} "
-        f"cbi.shape={tuple(cbi.shape) if cbi is not None else None} "
-        f"cbl={cbl.tolist() if cbl is not None else None} "
-        f"cul={cul.tolist() if cul is not None else None}",
-        flush=True,
-    )
+    if _PY_AMX_TRACE_ENABLED:
+        import time as _time
+        q = kwargs.get("query")
+        layout = kwargs.get("cold_kv_layout")
+        cbi = kwargs.get("cold_block_ids")
+        cbl = kwargs.get("cold_block_lens")
+        cul = kwargs.get("cu_seqlens_q")
+        print(
+            f"[AMX trace pid={os.getpid()}] _call_amx: "
+            f"q.shape={tuple(q.shape) if q is not None else None} "
+            f"q.dtype={q.dtype if q is not None else None} "
+            f"head_dim={layout.head_dim if layout else None} "
+            f"num_kv_heads={layout.num_kv_heads if layout else None} "
+            f"block_size={layout.block_size if layout else None} "
+            f"cbi.shape={tuple(cbi.shape) if cbi is not None else None} "
+            f"cbl={cbl.tolist() if cbl is not None else None} "
+            f"cul={cul.tolist() if cul is not None else None}",
+            flush=True,
+        )
+        t0 = _time.perf_counter()
     try:
         result = _call_compiled_kernel(
             _AMX_MOD,
@@ -725,13 +737,25 @@ def _call_amx(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
             **kwargs,
         )
     except BaseException as e:
-        # BaseException so SystemExit / KeyboardInterrupt context also
-        # surfaces. The print is unbuffered so it survives a worker
-        # abort.
+        if _PY_AMX_TRACE_ENABLED:
+            elapsed_ms = (_time.perf_counter() - t0) * 1000  # noqa: F821
+            print(
+                f"[AMX trace pid={os.getpid()}] _call_amx: kernel raised "
+                f"{type(e).__name__}: {e} after {elapsed_ms:.1f}ms",
+                flush=True,
+            )
+        else:
+            print(
+                f"[AMX trace pid={os.getpid()}] _call_amx: kernel raised "
+                f"{type(e).__name__}: {e}",
+                flush=True,
+            )
+        raise
+    if _PY_AMX_TRACE_ENABLED:
+        elapsed_ms = (_time.perf_counter() - t0) * 1000  # noqa: F821
         print(
-            f"[AMX trace pid={os.getpid()}] _call_amx: kernel raised "
-            f"{type(e).__name__}: {e}",
+            f"[AMX trace pid={os.getpid()}] _call_amx: returned in "
+            f"{elapsed_ms:.1f}ms",
             flush=True,
         )
-        raise
     return result
