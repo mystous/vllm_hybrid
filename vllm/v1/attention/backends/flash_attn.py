@@ -1670,28 +1670,36 @@ def hot_cold_attention(
     # case after this filter.
     reduced_token_idx_cpu = torch.tensor(reduced_token_ids, dtype=torch.long)
 
-    # Step 3: targeted D2H — only the query / query_positions rows we
-    # actually need. ``index_select`` on GPU first, then .cpu() so the
-    # PCIe transfer is bound by the reduced row count instead of the
-    # full batch.
-    if query.device.type == "cuda":
-        reduced_token_idx_gpu = reduced_token_idx_cpu.to(
-            query.device, non_blocking=True
-        )
-        reduced_query_cpu = query.index_select(
-            0, reduced_token_idx_gpu
-        ).detach().cpu()
-        reduced_qpos_cpu = query_positions.index_select(
-            0, reduced_token_idx_gpu
-        ).detach().cpu()
-    else:
-        reduced_query_cpu = query.index_select(0, reduced_token_idx_cpu)
-        reduced_qpos_cpu = query_positions.index_select(0, reduced_token_idx_cpu)
+    # Step 3: targeted index_select. Each input tensor may be on CPU or
+    # GPU independently of the others (the dispatcher passes some on
+    # device for downstream GPU ops, others already mirrored to CPU).
+    # We resolve the row-index tensor to whatever device the source
+    # tensor lives on, run index_select there, and bring the reduced
+    # result to CPU for the kernel call.
+    def _index_rows_to_cpu(src: torch.Tensor) -> torch.Tensor:
+        if src.device.type == "cuda":
+            idx = reduced_token_idx_cpu.to(src.device, non_blocking=True)
+            return src.index_select(0, idx).detach().cpu()
+        return src.index_select(0, reduced_token_idx_cpu)
 
-    # Step 4: per-seq metadata for the kernel — already on CPU.
-    cold_block_ids_cpu = _to_cpu(cold_block_ids)
+    reduced_query_cpu = _index_rows_to_cpu(query)
+    reduced_qpos_cpu = _index_rows_to_cpu(query_positions)
+
+    # Step 4: per-seq metadata for the kernel. Each metadata tensor may
+    # be on CPU or GPU; the index (need_cold_seq_idx) is constructed on
+    # CPU. Mirror the same pattern used for query / query_positions.
     need_cold_seq_idx_cpu = torch.tensor(need_cold_seq_ids, dtype=torch.long)
-    reduced_cbi = cold_block_ids_cpu.index_select(0, need_cold_seq_idx_cpu)
+
+    def _index_seqs_to_cpu(src: torch.Tensor) -> torch.Tensor:
+        if src.device.type == "cuda":
+            idx = need_cold_seq_idx_cpu.to(src.device, non_blocking=True)
+            return src.index_select(0, idx).detach().cpu()
+        return src.index_select(0, need_cold_seq_idx_cpu)
+
+    reduced_cbi = _index_seqs_to_cpu(cold_block_ids)
+    # num_cold_blocks_cpu / seq_lens_total_cpu were already mirrored to
+    # CPU at the top of the function (small tensors). Indexing on CPU
+    # here is consistent with that.
     reduced_cbl = num_cold_blocks_cpu.index_select(0, need_cold_seq_idx_cpu)
     reduced_sl = seq_lens_total_cpu.index_select(0, need_cold_seq_idx_cpu)
     reduced_cu_cpu = torch.tensor(reduced_cu_list, dtype=torch.int32)
@@ -1736,12 +1744,14 @@ def hot_cold_attention(
     cold_lse_reduced_gpu = cold_lse_reduced_cpu.to(
         device=device, non_blocking=True
     )
-    if device.type == "cuda" and reduced_token_idx_cpu.device != device:
-        # token index tensor was already pushed to GPU above for
-        # index_select; reuse if available, else copy.
-        reduced_token_idx_gpu = reduced_token_idx_cpu.to(
+    # Bring the row-index tensor to ``device`` for the scatter. cheap;
+    # tensor is reduced_n int64 entries.
+    if reduced_token_idx_cpu.device != device:
+        reduced_token_idx_dev = reduced_token_idx_cpu.to(
             device=device, non_blocking=True
         )
+    else:
+        reduced_token_idx_dev = reduced_token_idx_cpu
 
     cold_output_gpu = torch.zeros(
         (num_tokens, num_q_heads, head_dim),
@@ -1755,10 +1765,10 @@ def hot_cold_attention(
         device=device,
     )
     cold_output_gpu.index_copy_(
-        0, reduced_token_idx_gpu, cold_output_reduced_gpu
+        0, reduced_token_idx_dev, cold_output_reduced_gpu
     )
     cold_lse_gpu.index_copy_(
-        1, reduced_token_idx_gpu, cold_lse_reduced_gpu
+        1, reduced_token_idx_dev, cold_lse_reduced_gpu
     )
 
     if _PARTIAL_PROFILE_ENABLED:
