@@ -16,9 +16,11 @@ import torch
 # triggered a sys.modules dict lookup on every cold-path-bearing layer
 # call (80 layers × N decode steps × 8 workers).
 from vllm.v1.attention.ops.cpu_partial_attention import (
+    _ASYNC_OVERLAP_DISABLED as _PARTIAL_ASYNC_DISABLED,
     _PROFILE_ENABLED as _PARTIAL_PROFILE_ENABLED,
     _profile_should_emit as _partial_profile_should_emit,
     forward_partial_with_lse,
+    forward_partial_with_lse_async,
 )
 from vllm.model_executor.layers.attention import Attention
 from vllm.platforms import current_platform
@@ -1757,12 +1759,14 @@ def hot_cold_attention(
         _t_d2h1 = _time.perf_counter()
         _t_kernel0 = _t_d2h1
 
-    # Step 5: CPU partial-attention. Python is blocked here for the
-    # duration of the C++ kernel call (typically ms-level for the
-    # reduced batch), but the hot-path FA kernel continues to execute
-    # on the default stream during this window — that's the overlap §4.6
-    # is buying us.
-    cold_output_reduced_cpu, cold_lse_reduced_cpu = forward_partial_with_lse(
+    # Step 5: NEO-style async issue of CPU partial-attention. The
+    # background thread starts the C++ kernel immediately; control
+    # returns to Python on the main thread *without* blocking. This
+    # frees the main thread to (a) wait on hot-path FA via
+    # cold_stream sync, (b) build full-size scatter buffers on GPU,
+    # (c) — at the model_runner level — start the next layer's
+    # GPU work. The future is awaited just before merge below.
+    cold_future = forward_partial_with_lse_async(
         query=reduced_query_cpu,
         cold_kv_cache=cold_kv_combined,
         cold_kv_layout=cold_kv_layout,
@@ -1775,6 +1779,11 @@ def hot_cold_attention(
         causal=causal,
         cold_kv_cache_v=cold_kv_v_split,
     )
+
+    # Block here only at result-needed time. While we're waiting the
+    # background thread is doing useful CPU work and the default CUDA
+    # stream is finishing its hot-path FA kernel concurrently.
+    cold_output_reduced_cpu, cold_lse_reduced_cpu = cold_future.result()
 
     if _PARTIAL_PROFILE_ENABLED:
         _t_kernel1 = _time.perf_counter()

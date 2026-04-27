@@ -474,3 +474,141 @@ def test_hot_cold_split_mixed_device_inputs():
     torch.cuda.synchronize()
 
     torch.testing.assert_close(output, ref_out, atol=atol, rtol=atol)
+
+
+@cuda_required
+def test_hot_cold_split_async_matches_sync(monkeypatch):
+    """Regression — IDE_006 / TSK_002 §4.6 async issue path equivalence.
+
+    NEO-style ``forward_partial_with_lse_async`` issues the C++ kernel
+    on a background thread and returns a ``Future``. The dispatcher
+    inside ``hot_cold_attention`` awaits this future before merge,
+    so per-call wall behaviour should be observationally identical
+    to the synchronous path. This test verifies *numerical*
+    equivalence between (default) async-issue mode and the
+    ``VLLM_COLD_KV_DISABLE_OVERLAP=1`` sync fallback.
+    """
+    import vllm.v1.attention.ops.cpu_partial_attention as cpa
+    import vllm.v1.attention.backends.flash_attn as fa
+
+    from vllm.v1.attention.backends.fa_utils import (
+        flash_attn_varlen_func,
+        get_flash_attn_version,
+    )
+    from vllm.v1.attention.backends.flash_attn import hot_cold_attention
+    from vllm.v1.attention.ops.kv_view_adapter import KVPageLayout, KVViewAdapter
+
+    device = torch.device("cuda")
+    torch.manual_seed(123)
+
+    batch_size = 3
+    seq_lens = [96, 192, 64]
+    cold_per_seq = [3, 6, 0]  # mix of cold and hot-only
+    block_size = 16
+    num_kv_heads = 4
+    num_q_heads = 8
+    head_dim = 128
+    kv_dtype = torch.bfloat16
+    atol = 5e-3
+
+    query_lens = [1] * batch_size
+    num_tokens = sum(query_lens)
+    cu_query_lens = torch.tensor(
+        [0] + list(torch.cumsum(torch.tensor(query_lens), dim=0).tolist()),
+        dtype=torch.int32, device=device,
+    )
+    seqused_k_t = torch.tensor(seq_lens, dtype=torch.int32, device=device)
+    query_positions = torch.tensor(
+        [seq_lens[s] - 1 for s in range(batch_size)],
+        dtype=torch.int32, device="cpu",
+    )
+
+    query = torch.randn(
+        num_tokens, num_q_heads, head_dim, dtype=kv_dtype, device=device,
+    )
+
+    nblocks_per_seq = [(sl + block_size - 1) // block_size for sl in seq_lens]
+    n_cold_total = sum(cold_per_seq)
+    n_hot_total = sum(nblocks_per_seq) - n_cold_total
+    max_blocks = max(nblocks_per_seq)
+    max_cold = max(cold_per_seq)
+
+    total_blocks_gpu = n_cold_total + n_hot_total + 4
+    key_cache_gpu = torch.randn(
+        total_blocks_gpu, block_size, num_kv_heads, head_dim,
+        dtype=kv_dtype, device=device,
+    )
+    value_cache_gpu = torch.randn_like(key_cache_gpu)
+
+    layout = KVPageLayout(
+        head_dim=head_dim, num_kv_heads=num_kv_heads,
+        block_size=block_size, dtype=kv_dtype,
+    )
+    cpu_canonical = torch.zeros(
+        n_cold_total, layout.page_size_bytes, dtype=torch.int8, device="cpu",
+    )
+    adapter = KVViewAdapter(cpu_canonical, layout)
+    adapter.k_view().copy_(key_cache_gpu[:n_cold_total].cpu())
+    adapter.v_view().copy_(value_cache_gpu[:n_cold_total].cpu())
+
+    block_table = torch.zeros(
+        (batch_size, max_blocks), dtype=torch.int32, device=device,
+    )
+    cold_idx, hot_idx = 0, n_cold_total
+    for s in range(batch_size):
+        for j in range(cold_per_seq[s]):
+            block_table[s, j] = cold_idx
+            cold_idx += 1
+        n_hot_s = nblocks_per_seq[s] - cold_per_seq[s]
+        for j in range(n_hot_s):
+            block_table[s, cold_per_seq[s] + j] = hot_idx
+            hot_idx += 1
+
+    cold_block_ids = torch.zeros(
+        (batch_size, max_cold), dtype=torch.int32, device="cpu",
+    )
+    cold_idx = 0
+    for s in range(batch_size):
+        for j in range(cold_per_seq[s]):
+            cold_block_ids[s, j] = cold_idx
+            cold_idx += 1
+
+    softmax_scale = 1.0 / (head_dim ** 0.5)
+    fa_version = get_flash_attn_version()
+
+    def _run() -> torch.Tensor:
+        out = torch.empty(
+            (num_tokens, num_q_heads, head_dim),
+            dtype=kv_dtype, device=device,
+        )
+        hot_cold_attention(
+            output=out, query=query,
+            key_cache=key_cache_gpu, value_cache=value_cache_gpu,
+            cu_query_lens=cu_query_lens, max_query_len=1,
+            seqused_k=seqused_k_t, max_seqlen_k=max(seq_lens),
+            softmax_scale=softmax_scale,
+            sliding_window=(-1, -1), logits_soft_cap=0.0,
+            block_table=block_table, block_size=block_size,
+            num_cold_blocks=torch.tensor(
+                cold_per_seq, dtype=torch.int32, device=device,
+            ),
+            max_num_cold_blocks=max_cold,
+            fa_version=fa_version, causal=True,
+            cpu_kv_cache=[cpu_canonical], cold_kv_layout=layout,
+            cold_block_ids=cold_block_ids, query_positions=query_positions,
+        )
+        torch.cuda.synchronize()
+        return out
+
+    # Default — async overlap ON
+    assert cpa._ASYNC_OVERLAP_DISABLED is False
+    out_async = _run()
+
+    # Force sync fallback
+    monkeypatch.setattr(cpa, "_ASYNC_OVERLAP_DISABLED", True)
+    monkeypatch.setattr(fa, "_PARTIAL_ASYNC_DISABLED", True)
+    out_sync = _run()
+
+    # async / sync paths must produce identical outputs (within BF16
+    # rounding — no per-call randomness in either path).
+    torch.testing.assert_close(out_async, out_sync, atol=atol, rtol=atol)
