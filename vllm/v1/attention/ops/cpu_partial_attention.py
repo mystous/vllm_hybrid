@@ -621,21 +621,53 @@ def _call_compiled_kernel(
         v_arg = cold_kv_cache_v.contiguous()
 
     fn = getattr(mod, fn_name)
+
+    # Wall-time profiling (gated by VLLM_PARTIAL_ATTN_PROFILE; capped).
+    if _PROFILE_ENABLED:
+        import time as _time
+        t_prep_start = _time.perf_counter()
+
+    q_c = query.contiguous()
+    k_c = cold_kv_cache.contiguous()
+    cbi_c = _i32(cold_block_ids).contiguous()
+    cbl_c = _i32(cold_block_lens).contiguous()
+    cul_c = _i32(cu_seqlens_q).contiguous()
+    qpos_c = _i32(query_positions).contiguous()
+
+    if _PROFILE_ENABLED:
+        t_prep_end = _time.perf_counter()
+        t_kernel_start = t_prep_end
+
     O, LSE = fn(
-        query.contiguous(),
-        cold_kv_cache.contiguous(),
+        q_c,
+        k_c,
         v_arg,
         int(cold_kv_layout.block_size),
         int(cold_kv_layout.num_kv_heads),
         int(cold_kv_layout.head_dim),
         int(cold_kv_layout.kv_block_bytes),
-        _i32(cold_block_ids).contiguous(),
-        _i32(cold_block_lens).contiguous(),
-        _i32(cu_seqlens_q).contiguous(),
-        _i32(query_positions).contiguous(),
+        cbi_c,
+        cbl_c,
+        cul_c,
+        qpos_c,
         float(softmax_scale),
         bool(causal),
     )
+
+    if _PROFILE_ENABLED:
+        t_kernel_end = _time.perf_counter()
+        if _profile_should_emit():
+            import sys as _sys
+            print(
+                f"[IDE_006/TSK_004 profile pid={os.getpid()} kernel={fn_name}] "
+                f"prep_ms={(t_prep_end - t_prep_start) * 1000:.2f} "
+                f"kernel_ms={(t_kernel_end - t_kernel_start) * 1000:.2f} "
+                f"q.shape={tuple(query.shape)} "
+                f"n_seqs={cu_seqlens_q.shape[0] - 1} "
+                f"max_cbl={int(cold_block_lens.max()) if cold_block_lens.numel() else 0}",
+                file=_sys.stderr,
+                flush=True,
+            )
     return O, LSE
 
 
@@ -650,6 +682,33 @@ def _call_avx512(**kwargs) -> tuple[torch.Tensor, torch.Tensor]:
 
 _PY_AMX_TRACE_ENABLED = bool(os.environ.get("VLLM_AMX_TRACE", "")) and \
     os.environ["VLLM_AMX_TRACE"] not in ("0", "")
+
+# IDE_006 / TSK_004 — diagnostic-only wall-time profiler. Default OFF.
+# Operator enables via ``VLLM_PARTIAL_ATTN_PROFILE=1`` to receive per-call
+# stage timings on stderr (capped at PROFILE_CALL_CAP per worker process so
+# the log volume stays bounded). Used to isolate where the prod 4.4s/call
+# timeout cost lives — D2H, kernel, H2D, or merge — before designing a
+# targeted fix. Does not change behaviour; pure observation.
+_PROFILE_ENABLED = bool(os.environ.get("VLLM_PARTIAL_ATTN_PROFILE", "")) and \
+    os.environ["VLLM_PARTIAL_ATTN_PROFILE"] not in ("0", "")
+_PROFILE_CALL_CAP = 128
+_profile_call_counter = 0
+
+
+def _profile_should_emit() -> bool:
+    """Return True iff the next call should print a profile line.
+
+    Bounded by ``_PROFILE_CALL_CAP`` per worker process so an 8 TP × 80
+    layer × many-step run does not bury the rest of the log. After the
+    cap is hit, profile emission collapses to a single early-return
+    branch."""
+    global _profile_call_counter
+    if not _PROFILE_ENABLED:
+        return False
+    if _profile_call_counter >= _PROFILE_CALL_CAP:
+        return False
+    _profile_call_counter += 1
+    return True
 
 
 def _ensure_amx_permission_once() -> None:

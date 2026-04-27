@@ -1612,6 +1612,10 @@ def hot_cold_attention(
     from vllm.v1.attention.ops.cpu_partial_attention import (
         forward_partial_with_lse,
     )
+    from vllm.v1.attention.ops.cpu_partial_attention import (
+        _PROFILE_ENABLED as _PARTIAL_PROFILE_ENABLED,
+        _profile_should_emit as _partial_profile_should_emit,
+    )
 
     # D2H of GPU-side host inputs that the CPU kernel reads. The CPU kernel
     # itself runs on host memory, so any tensor on `query.device` must be
@@ -1621,12 +1625,26 @@ def hot_cold_attention(
     def _to_cpu(t: torch.Tensor) -> torch.Tensor:
         return t if t.device.type == "cpu" else t.detach().cpu()
 
+    # Diagnostic instrumentation. Gated by VLLM_PARTIAL_ATTN_PROFILE; takes
+    # GPU sync hits to make the wall-time numbers honest. Off by default.
+    if _PARTIAL_PROFILE_ENABLED:
+        import time as _time
+        # Sync first so we measure the cold path's cost and not whatever
+        # GPU work the previous step deferred.
+        if query.device.type == "cuda":
+            torch.cuda.synchronize(query.device)
+        _t_d2h0 = _time.perf_counter()
+
     query_cpu = _to_cpu(query)
     cu_query_lens_cpu = _to_cpu(cu_query_lens)
     seq_lens_total_cpu = _to_cpu(seqused_k)
     num_cold_blocks_cpu = _to_cpu(num_cold_blocks)
     cold_block_ids_cpu = _to_cpu(cold_block_ids)
     query_positions_cpu = _to_cpu(query_positions)
+
+    if _PARTIAL_PROFILE_ENABLED:
+        _t_d2h1 = _time.perf_counter()
+        _t_kernel0 = _t_d2h1
 
     cold_output_cpu, cold_lse_cpu = forward_partial_with_lse(
         query=query_cpu,
@@ -1642,6 +1660,10 @@ def hot_cold_attention(
         cold_kv_cache_v=cold_kv_v_split,
     )
 
+    if _PARTIAL_PROFILE_ENABLED:
+        _t_kernel1 = _time.perf_counter()
+        _t_h2d0 = _t_kernel1
+
     # H2D of (O_cold, LSE_cold) onto the same device as the hot outputs
     # so merge_attn_states can fuse them. non_blocking is fine because the
     # subsequent merge_attn_states call serialises against the same stream
@@ -1650,9 +1672,34 @@ def hot_cold_attention(
     cold_output_gpu = cold_output_cpu.to(device=device, non_blocking=True)
     cold_lse_gpu = cold_lse_cpu.to(device=device, non_blocking=True)
 
+    if _PARTIAL_PROFILE_ENABLED:
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        _t_h2d1 = _time.perf_counter()
+        _t_merge0 = _t_h2d1
+
     # Online-softmax merge of hot suffix + cold prefix. Sequences whose
     # cold_block_lens were 0 receive LSE_cold == -inf for those positions
     # (per TSK_001's reference behaviour), which the merge naturally drops.
     merge_attn_states(
         output, hot_output, hot_lse, cold_output_gpu, cold_lse_gpu
     )
+
+    if _PARTIAL_PROFILE_ENABLED:
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        _t_merge1 = _time.perf_counter()
+        if _partial_profile_should_emit():
+            import sys as _sys
+            print(
+                f"[IDE_006/TSK_004 profile pid={os.getpid()} stage=hot_cold] "
+                f"d2h_ms={(_t_d2h1 - _t_d2h0) * 1000:.2f} "
+                f"kernel_ms={(_t_kernel1 - _t_kernel0) * 1000:.2f} "
+                f"h2d_ms={(_t_h2d1 - _t_h2d0) * 1000:.2f} "
+                f"merge_ms={(_t_merge1 - _t_merge0) * 1000:.2f} "
+                f"total_ms={(_t_merge1 - _t_d2h0) * 1000:.2f} "
+                f"q.shape={tuple(query.shape)} "
+                f"max_cold_blocks={max_num_cold_blocks}",
+                file=_sys.stderr,
+                flush=True,
+            )
