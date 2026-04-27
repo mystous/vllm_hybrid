@@ -4,6 +4,8 @@
 
 세 번의 기각이 쌓였다. X (CPU async executor) 는 same-req 중복 compute 로 sync 대비 절반 throughput, B2 (heavy workload CPU decode shadow) 는 -96%, B3 (Meta-scheduling Gateway) 는 우리 포크의 차별점과 직교, B1 (Inverted Control Plane) 은 Blink 논문의 재구성에 가까워 독자 기여가 얇았다. 네 시도의 공통 실패 원인은 "가설이 크지만 우리만의 고유 지점이 없었다" 는 것이다.
 
+과거 X 기각과 memory-bandwidth 기반 방향 전환의 상세 논거는 [`legacy_async_executor_rejection_context.md`](legacy_async_executor_rejection_context.md) 에 보존한다.
+
 `super_power/ideation/cpu_idle_acceleration_ideation_20260421.md` 를 다시 읽으면 이 문제의 해결 단서가 §2 (새 아이디어 8가지) 와 §4 (논문 지형의 빈 공간 4가지) 에 이미 놓여 있다. 이 문서는 그 8가지를 한 곳에 묶되, **직접 대응 논문이 없어 우리만의 독자 기여가 되는 것**과 **기존 연구의 적용·조합·역전으로 가치가 나는 것** 두 축으로 분리해 정리한다. 어느 쪽이 옳은지는 지금 판정할 수 없다. 각 축의 성격이 다르고, 추진 순서도 다르다.
 
 독창 쪽은 **돌파 가치가 크나 근거가 얇다**. 선행 연구 적용 쪽은 **이득 범위가 알려져 있으나 우리 포크에서 고유성이 낮다**. 두 축을 동시에 운영하되, 공통 전제인 profile (현재 workload 에서 어느 CPU 유휴 구간이 실재하는지) 을 먼저 확정한 뒤 각 아이디어의 진입/기각이 결정된다.
