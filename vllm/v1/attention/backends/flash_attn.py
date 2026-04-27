@@ -1382,6 +1382,77 @@ _COLD_STREAM_OVERLAP_DISABLED = bool(
 ) and os.environ["VLLM_COLD_KV_DISABLE_OVERLAP"] not in ("0", "")
 
 
+# IDE_006 / TSK_004 — reusable cold scatter buffers (deferred item 4).
+# Previously each ``hot_cold_attention`` call allocated 32 MB
+# ``cold_output_gpu`` + 512 KB ``cold_lse_gpu`` and ran zero/full
+# kernels to pre-fill them. With heavy workload (80 layer × decode
+# steps × 8 worker), the per-call alloc + fill kernels add up. Since
+# the row dimension (``num_tokens``) is bounded by the engine's max
+# in-flight token count, we cache reusable buffers per (device,
+# dtype) and reset only the rows we wrote on the previous call. The
+# rest stay at -inf for cold_lse and arbitrary for cold_output (merge
+# only reads cold rows where cold_lse > -inf).
+_COLD_SCATTER_BUFS: dict[
+    tuple[int, int, int, torch.dtype, torch.dtype],
+    "tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]",
+] = {}
+
+
+def _get_cold_scatter_buffers(
+    device: torch.device,
+    num_tokens: int,
+    num_q_heads: int,
+    head_dim: int,
+    output_dtype: torch.dtype,
+    lse_dtype: torch.dtype,
+) -> tuple[torch.Tensor, torch.Tensor, "torch.Tensor | None"]:
+    """Return ``(cold_output_buf, cold_lse_buf, last_dirty_idx)``.
+
+    The buffers are keyed by (device, num_q_heads, head_dim,
+    output_dtype, lse_dtype) — those dimensions are fixed by the
+    model config so the worker only allocates them once. ``num_tokens``
+    is the row count and varies per call; the buffer grows in place
+    when needed but never shrinks. ``last_dirty_idx`` is the index
+    tensor written on the previous call so the caller can restore
+    -inf for those rows before writing new values, keeping the rest
+    of cold_lse_buf at -inf without a full-tensor fill kernel.
+    """
+    dev_idx = device.index if device.index is not None else 0
+    key = (dev_idx, num_q_heads, head_dim, output_dtype, lse_dtype)
+    entry = _COLD_SCATTER_BUFS.get(key)
+    if entry is None or entry[0].size(0) < num_tokens:
+        cold_output_buf = torch.empty(
+            (num_tokens, num_q_heads, head_dim),
+            dtype=output_dtype,
+            device=device,
+        )
+        cold_lse_buf = torch.full(
+            (num_q_heads, num_tokens),
+            float("-inf"),
+            dtype=lse_dtype,
+            device=device,
+        )
+        entry = (cold_output_buf, cold_lse_buf, None)
+        _COLD_SCATTER_BUFS[key] = entry
+    return entry
+
+
+def _set_cold_scatter_dirty(
+    device: torch.device,
+    num_q_heads: int,
+    head_dim: int,
+    output_dtype: torch.dtype,
+    lse_dtype: torch.dtype,
+    dirty_idx: torch.Tensor,
+) -> None:
+    """Record the row indices written on this call so the next call
+    can restore -inf for them before writing new values."""
+    dev_idx = device.index if device.index is not None else 0
+    key = (dev_idx, num_q_heads, head_dim, output_dtype, lse_dtype)
+    entry = _COLD_SCATTER_BUFS[key]
+    _COLD_SCATTER_BUFS[key] = (entry[0], entry[1], dirty_idx)
+
+
 def _get_cold_path_stream(device: torch.device) -> "torch.cuda.Stream | None":
     """Return a dedicated CUDA stream for cold-path GPU ops on ``device``.
 
@@ -1734,23 +1805,47 @@ def hot_cold_attention(
         else:
             reduced_token_idx_dev = reduced_token_idx_cpu
 
-        cold_output_gpu = torch.zeros(
-            (num_tokens, num_q_heads, head_dim),
-            dtype=hot_output.dtype,
-            device=device,
+        # Re-use module-cached cold scatter buffers (deferred item 4).
+        # cold_output_buf: arbitrary (only need_cold rows are read by
+        #   merge thanks to cold_lse=-inf gating elsewhere).
+        # cold_lse_buf: kept at -inf except on the rows we wrote last
+        #   call, which we now restore to -inf before writing new
+        #   values. Total per-call work is O(reduced rows), not
+        #   O(num_tokens).
+        cold_output_buf, cold_lse_buf, last_dirty_idx = _get_cold_scatter_buffers(
+            device,
+            num_tokens,
+            num_q_heads,
+            head_dim,
+            hot_output.dtype,
+            hot_lse.dtype,
         )
-        cold_lse_gpu = torch.full(
-            (num_q_heads, num_tokens),
-            float("-inf"),
-            dtype=hot_lse.dtype,
-            device=device,
-        )
-        cold_output_gpu.index_copy_(
+        if last_dirty_idx is not None:
+            # Reset previous call's dirty rows back to -inf (only those
+            # rows; rest of the buffer was never overwritten).
+            cold_lse_buf.index_fill_(1, last_dirty_idx, float("-inf"))
+        cold_output_buf.index_copy_(
             0, reduced_token_idx_dev, cold_output_reduced_gpu
         )
-        cold_lse_gpu.index_copy_(
+        cold_lse_buf.index_copy_(
             1, reduced_token_idx_dev, cold_lse_reduced_gpu
         )
+        _set_cold_scatter_dirty(
+            device,
+            num_q_heads,
+            head_dim,
+            hot_output.dtype,
+            hot_lse.dtype,
+            reduced_token_idx_dev,
+        )
+        # merge_attn_states needs same-shape inputs; if the cached buf
+        # is larger than current num_tokens, take a [:num_tokens] view.
+        if cold_output_buf.size(0) == num_tokens:
+            cold_output_gpu = cold_output_buf
+            cold_lse_gpu = cold_lse_buf
+        else:
+            cold_output_gpu = cold_output_buf[:num_tokens]
+            cold_lse_gpu = cold_lse_buf[:, :num_tokens]
 
     # Sync the default stream with cold_stream so merge_attn_states (on
     # default) sees finalized cold tensors. wait_stream is event-based
