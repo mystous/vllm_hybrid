@@ -1617,11 +1617,6 @@ def hot_cold_attention(
         _profile_should_emit as _partial_profile_should_emit,
     )
 
-    # D2H of GPU-side host inputs that the CPU kernel reads. The CPU kernel
-    # itself runs on host memory, so any tensor on `query.device` must be
-    # mirrored to CPU before the call. Phase 5 may pipeline these with an
-    # async stream; Phase 3b accepts a synchronous D2H for first-cut
-    # correctness.
     def _to_cpu(t: torch.Tensor) -> torch.Tensor:
         return t if t.device.type == "cpu" else t.detach().cpu()
 
@@ -1629,32 +1624,94 @@ def hot_cold_attention(
     # GPU sync hits to make the wall-time numbers honest. Off by default.
     if _PARTIAL_PROFILE_ENABLED:
         import time as _time
-        # Sync first so we measure the cold path's cost and not whatever
-        # GPU work the previous step deferred.
         if query.device.type == "cuda":
             torch.cuda.synchronize(query.device)
         _t_d2h0 = _time.perf_counter()
 
-    query_cpu = _to_cpu(query)
+    # ----- IDE_006 / TSK_004 — per-seq filter ----------------------------
+    # Only rows belonging to seqs with ``num_cold_blocks > 0`` need the CPU
+    # cold-prefix attention; rows of cold-less seqs are full-attention
+    # already covered by the GPU hot path. Without this filter we D2H the
+    # entire batch query (e.g. 16384 × 8 × 128 × 2 = 32 MB), allocate a
+    # 32 MB output tensor in the C++ kernel for the kernel's outer loop to
+    # immediately skip, and H2D 32 MB back. With the filter we forward
+    # only the rows that actually need cold attention; the kernel's inputs
+    # and outputs scale to the cold-needing token count instead of the
+    # whole batch.
+    #
+    # Step 1: small D2H of the per-seq metadata that decides which seqs
+    # need cold processing. These are O(num_seqs) tensors, ≤ 1 KB.
+    num_cold_blocks_cpu = _to_cpu(num_cold_blocks)
     cu_query_lens_cpu = _to_cpu(cu_query_lens)
     seq_lens_total_cpu = _to_cpu(seqused_k)
-    num_cold_blocks_cpu = _to_cpu(num_cold_blocks)
+
+    cu_q_list = cu_query_lens_cpu.tolist()
+    n_cold_list = num_cold_blocks_cpu.tolist()
+    need_cold_seq_ids = [i for i, n in enumerate(n_cold_list) if n > 0]
+
+    # Should not happen — ``max_num_cold_blocks > 0`` was verified above —
+    # but guard so we don't D2H an empty batch into the kernel.
+    if not need_cold_seq_ids:
+        output.copy_(hot_output)
+        return
+
+    # Step 2: build a row-index tensor on the host that maps the
+    # need-cold tokens back to their positions in the full batch. We
+    # keep it on CPU first; the H2D copy is 4 bytes × reduced_n_tokens,
+    # which is much smaller than the query D2H it replaces.
+    reduced_token_ids: list[int] = []
+    reduced_cu_list: list[int] = [0]
+    for i in need_cold_seq_ids:
+        qs, qe = cu_q_list[i], cu_q_list[i + 1]
+        reduced_token_ids.extend(range(qs, qe))
+        reduced_cu_list.append(reduced_cu_list[-1] + (qe - qs))
+
+    # Pure-decode small batches (1 token per cold seq) are the common
+    # case after this filter.
+    reduced_token_idx_cpu = torch.tensor(reduced_token_ids, dtype=torch.long)
+
+    # Step 3: targeted D2H — only the query / query_positions rows we
+    # actually need. ``index_select`` on GPU first, then .cpu() so the
+    # PCIe transfer is bound by the reduced row count instead of the
+    # full batch.
+    if query.device.type == "cuda":
+        reduced_token_idx_gpu = reduced_token_idx_cpu.to(
+            query.device, non_blocking=True
+        )
+        reduced_query_cpu = query.index_select(
+            0, reduced_token_idx_gpu
+        ).detach().cpu()
+        reduced_qpos_cpu = query_positions.index_select(
+            0, reduced_token_idx_gpu
+        ).detach().cpu()
+    else:
+        reduced_query_cpu = query.index_select(0, reduced_token_idx_cpu)
+        reduced_qpos_cpu = query_positions.index_select(0, reduced_token_idx_cpu)
+
+    # Step 4: per-seq metadata for the kernel — already on CPU.
     cold_block_ids_cpu = _to_cpu(cold_block_ids)
-    query_positions_cpu = _to_cpu(query_positions)
+    need_cold_seq_idx_cpu = torch.tensor(need_cold_seq_ids, dtype=torch.long)
+    reduced_cbi = cold_block_ids_cpu.index_select(0, need_cold_seq_idx_cpu)
+    reduced_cbl = num_cold_blocks_cpu.index_select(0, need_cold_seq_idx_cpu)
+    reduced_sl = seq_lens_total_cpu.index_select(0, need_cold_seq_idx_cpu)
+    reduced_cu_cpu = torch.tensor(reduced_cu_list, dtype=torch.int32)
 
     if _PARTIAL_PROFILE_ENABLED:
         _t_d2h1 = _time.perf_counter()
         _t_kernel0 = _t_d2h1
 
-    cold_output_cpu, cold_lse_cpu = forward_partial_with_lse(
-        query=query_cpu,
+    # Step 5: invoke the CPU partial-attention kernel on the reduced
+    # batch. The kernel sees only the rows that need cold processing,
+    # so its internal allocations and OMP work scale accordingly.
+    cold_output_reduced_cpu, cold_lse_reduced_cpu = forward_partial_with_lse(
+        query=reduced_query_cpu,
         cold_kv_cache=cold_kv_combined,
         cold_kv_layout=cold_kv_layout,
-        cold_block_ids=cold_block_ids_cpu,
-        cold_block_lens=num_cold_blocks_cpu,
-        cu_seqlens_q=cu_query_lens_cpu,
-        seq_lens_total=seq_lens_total_cpu,
-        query_positions=query_positions_cpu,
+        cold_block_ids=reduced_cbi,
+        cold_block_lens=reduced_cbl,
+        cu_seqlens_q=reduced_cu_cpu,
+        seq_lens_total=reduced_sl,
+        query_positions=reduced_qpos_cpu,
         softmax_scale=softmax_scale,
         causal=causal,
         cold_kv_cache_v=cold_kv_v_split,
@@ -1664,13 +1721,45 @@ def hot_cold_attention(
         _t_kernel1 = _time.perf_counter()
         _t_h2d0 = _t_kernel1
 
-    # H2D of (O_cold, LSE_cold) onto the same device as the hot outputs
-    # so merge_attn_states can fuse them. non_blocking is fine because the
-    # subsequent merge_attn_states call serialises against the same stream
-    # that consumes these tensors.
+    # Step 6: H2D the reduced result, then scatter into full-size
+    # tensors on GPU. Skipped rows get LSE = -inf so merge_attn_states
+    # naturally drops them and the hot path output flows through
+    # unchanged for those rows.
     device = hot_output.device
-    cold_output_gpu = cold_output_cpu.to(device=device, non_blocking=True)
-    cold_lse_gpu = cold_lse_cpu.to(device=device, non_blocking=True)
+    num_tokens = hot_output.size(0)
+    num_q_heads = hot_output.size(1)
+    head_dim = hot_output.size(2)
+
+    cold_output_reduced_gpu = cold_output_reduced_cpu.to(
+        device=device, non_blocking=True
+    )
+    cold_lse_reduced_gpu = cold_lse_reduced_cpu.to(
+        device=device, non_blocking=True
+    )
+    if device.type == "cuda" and reduced_token_idx_cpu.device != device:
+        # token index tensor was already pushed to GPU above for
+        # index_select; reuse if available, else copy.
+        reduced_token_idx_gpu = reduced_token_idx_cpu.to(
+            device=device, non_blocking=True
+        )
+
+    cold_output_gpu = torch.zeros(
+        (num_tokens, num_q_heads, head_dim),
+        dtype=hot_output.dtype,
+        device=device,
+    )
+    cold_lse_gpu = torch.full(
+        (num_q_heads, num_tokens),
+        float("-inf"),
+        dtype=hot_lse.dtype,
+        device=device,
+    )
+    cold_output_gpu.index_copy_(
+        0, reduced_token_idx_gpu, cold_output_reduced_gpu
+    )
+    cold_lse_gpu.index_copy_(
+        1, reduced_token_idx_gpu, cold_lse_reduced_gpu
+    )
 
     if _PARTIAL_PROFILE_ENABLED:
         if device.type == "cuda":
@@ -1678,9 +1767,6 @@ def hot_cold_attention(
         _t_h2d1 = _time.perf_counter()
         _t_merge0 = _t_h2d1
 
-    # Online-softmax merge of hot suffix + cold prefix. Sequences whose
-    # cold_block_lens were 0 receive LSE_cold == -inf for those positions
-    # (per TSK_001's reference behaviour), which the merge naturally drops.
     merge_attn_states(
         output, hot_output, hot_lse, cold_output_gpu, cold_lse_gpu
     )
@@ -1699,6 +1785,7 @@ def hot_cold_attention(
                 f"merge_ms={(_t_merge1 - _t_merge0) * 1000:.2f} "
                 f"total_ms={(_t_merge1 - _t_d2h0) * 1000:.2f} "
                 f"q.shape={tuple(query.shape)} "
+                f"reduced_q={tuple(reduced_query_cpu.shape)} "
                 f"max_cold_blocks={max_num_cold_blocks}",
                 file=_sys.stderr,
                 flush=True,
