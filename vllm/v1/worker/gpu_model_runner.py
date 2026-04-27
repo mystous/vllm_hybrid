@@ -298,6 +298,38 @@ class AsyncGPUModelRunnerOutput(AsyncModelRunnerOutput):
         return output
 
 
+def _mask_prefill_cold_blocks(
+    num_cold_blocks_np: np.ndarray,
+    cu_q_cpu: np.ndarray,
+    num_reqs: int,
+) -> None:
+    """IDE_006 / TSK_002 §4.5c — in-place mask prefill-chunk cold counts to 0.
+
+    Routes prefill seqs (``q_len > 1``) to vLLM's native reload path so the
+    IDE_006 cold path does not fire on them. The vLLM-native reload
+    (`OffloadingConnectorScheduler.update_state_after_alloc()` ->
+    `prepare_load(offload_keys)` + `GPULoadStoreSpec(...)`,
+    ``vllm/distributed/kv_transfer/kv_connector/v1/offloading/scheduler.py:247-292``)
+    already brings those cold blocks to GPU at prefill admission, so the
+    standard hot FA reads them through `block_table` without IDE_006
+    routing.
+
+    Mixed batches are the point: decode seqs (``q_len == 1``) keep their
+    ``num_cold_blocks`` entries intact and the IDE_006 cold path fires on
+    them — IDE_006's throughput value (CPU partial-attention overlap with
+    GPU hot FA per README §5.1) is preserved.
+
+    See ``shadow_assists/features/IDE_006/TSK_002.md`` §4.5c for the spec
+    + the X4/W1 location decision (host-side numpy mask, no D2H sync).
+    """
+    if num_reqs <= 0:
+        return
+    q_lens = cu_q_cpu[1 : num_reqs + 1] - cu_q_cpu[:num_reqs]
+    prefill_mask = q_lens > 1
+    if prefill_mask.any():
+        np.putmask(num_cold_blocks_np[:num_reqs], prefill_mask, 0)
+
+
 def _copy_pooler_output_to_cpu(
     raw_pooler_output: PoolerOutput, finished_mask: list[bool]
 ) -> list[torch.Tensor | None]:
@@ -2230,6 +2262,17 @@ class GPUModelRunner(
             cold_per_req = kv_connector_metadata.num_cold_gpu_blocks_per_req
             for i, req_id in enumerate(self.input_batch.req_ids[:num_reqs]):
                 num_cold_blocks_np[i] = cold_per_req.get(req_id, 0)
+
+            # IDE_006 / TSK_002 §4.5c reload-fallback (X4/W1) — host-side
+            # numpy mask of prefill-chunk cold counts. Prefill seqs are
+            # routed to vLLM's native reload path; only decode seqs keep
+            # their cold counts and fire the IDE_006 cold path.
+            cu_q_cpu = (
+                self.query_start_loc.cpu[: num_reqs_padded + 1]
+                .numpy()
+            )
+            _mask_prefill_cold_blocks(num_cold_blocks_np, cu_q_cpu, num_reqs)
+
             num_cold_blocks_tensor = torch.from_numpy(num_cold_blocks_np).to(
                 device=self.device, non_blocking=True
             )
@@ -2238,6 +2281,9 @@ class GPUModelRunner(
             # max_cold_per_req] aligned with input_batch.req_ids order.
             # Padding slots beyond num_cold_blocks[i] hold 0 (the kernel
             # only reads up to num_cold_blocks[i] anyway).
+            # max_cold_per_req is computed *after* the §4.5c mask above,
+            # so a batch where every cold-bearing seq is a prefill chunk
+            # falls through to max == 0 -> hot_cold_attention's fast path.
             cold_ids_per_req = kv_connector_metadata.cold_cpu_block_ids
             max_cold_per_req = int(num_cold_blocks_np.max(initial=0))
             if max_cold_per_req > 0:
