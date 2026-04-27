@@ -1,0 +1,219 @@
+{
+  "config_name": "split_on",
+  "env": {
+    "env_path": "eval/envs/ide006_cold_kv_split_on.env",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "tensor_parallel_size": 1,
+    "gpu_memory_util": 0.85,
+    "max_model_len": 4096,
+    "num_prompts": 200,
+    "input_len": 512,
+    "output_len": 256,
+    "extra_serve_args": "--kv-transfer-config={\"kv_connector\":\"OffloadingConnector\",\"kv_role\":\"kv_both\",\"enable_cpu_partial_attention\":true,\"kv_connector_extra_config\":{\"cpu_bytes_to_use\":1073741824}}",
+    "kv_transfer_dict": {
+      "kv_connector": "OffloadingConnector",
+      "kv_role": "kv_both",
+      "enable_cpu_partial_attention": true,
+      "kv_connector_extra_config": {
+        "cpu_bytes_to_use": 1073741824
+      }
+    }
+  },
+  "max_tokens": 16,
+  "logprobs_k": 0,
+  "prompts": [
+    {
+      "prompt_index": 0,
+      "prompt": "[Document #0] Summarise the following passage in three concise bullet points, focusing on its long-term influence.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fundamentally improving them. The Pont du Gard in southern France, built in the first century, still stands as a striking example of their durability and aesthetic ambition. Beyond the engineering feat, the aqueducts shaped Roman urban life: cities chose their locations partly based on water availability, public hygiene improved, and the rise of public baths became a defining cultural feature. Some historians argue that no other ancient work of infrastructure had as enduring an influence on the cities that succeeded Rome. As we examine the surviving plans and physical remains today, the precision of measurement and the long-term planning evident in their layout continue to surprise modern engineers, even as the larger empire that produced them passed into history.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman technique",
+      "token_ids": [
+        2041,
+        42493,
+        18392,
+        1105,
+        13,
+        576,
+        39770,
+        3845,
+        22443,
+        304,
+        18070,
+        9625,
+        11,
+        5798,
+        304,
+        279
+      ],
+      "chosen_logprobs": null,
+      "generation_seconds": 0.10873543878551573
+    },
+    {
+      "prompt_index": 1,
+      "prompt": "[Document #1] Identify the three most important engineering principles described and explain why each matters today.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fundamentally improving them. The Pont du Gard in southern France, built in the first century, still stands as a striking example of their durability and aesthetic ambition. Beyond the engineering feat, the aqueducts shaped Roman urban life: cities chose their locations partly based on water availability, public hygiene improved, and the rise of public baths became a defining cultural feature. Some historians argue that no other ancient work of infrastructure had as enduring an influence on the cities that succeeded Rome. As we examine the surviving plans and physical remains today, the precision of measurement and the long-term planning evident in their layout continue to surprise modern engineers, even as the larger empire that produced them passed into history.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniq",
+      "token_ids": [
+        288,
+        2041,
+        42493,
+        18392,
+        1105,
+        13,
+        576,
+        39770,
+        3845,
+        22443,
+        304,
+        18070,
+        9625,
+        11,
+        5798,
+        304
+      ],
+      "chosen_logprobs": null,
+      "generation_seconds": 0.10873543878551573
+    },
+    {
+      "prompt_index": 2,
+      "prompt": "[Document #2] Compare the cultural impact described to a modern infrastructure system you are familiar with.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fundamentally improving them. The Pont du Gard in southern France, built in the first century, still stands as a striking example of their durability and aesthetic ambition. Beyond the engineering feat, the aqueducts shaped Roman urban life: cities chose their locations partly based on water availability, public hygiene improved, and the rise of public baths became a defining cultural feature. Some historians argue that no other ancient work of infrastructure had as enduring an influence on the cities that succeeded Rome. As we examine the surviving plans and physical remains today, the precision of measurement and the long-term planning evident in their layout continue to surprise modern engineers, even as the larger empire that produced them passed into history.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques with",
+      "token_ids": [
+        1172,
+        8922,
+        18142,
+        13,
+        576,
+        39770,
+        3845,
+        22443,
+        304,
+        18070,
+        9625,
+        11,
+        5798,
+        304,
+        279,
+        1156
+      ],
+      "chosen_logprobs": null,
+      "generation_seconds": 0.10873543878551573
+    },
+    {
+      "prompt_index": 3,
+      "prompt": "[Document #3] Extract the chronology of key events implied in the text and present it as a timeline.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fundamentally improving them. The Pont du Gard in southern France, built in the first century, still stands as a striking example of their durability and aesthetic ambition. Beyond the engineering feat, the aqueducts shaped Roman urban life: cities chose their locations partly based on water availability, public hygiene improved, and the rise of public baths became a defining cultural feature. Some historians argue that no other ancient work of infrastructure had as enduring an influence on the cities that succeeded Rome. As we examine the surviving plans and physical remains today, the precision of measurement and the long-term planning evident in their layout continue to surprise modern engineers, even as the larger empire that produced them passed into history.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fund",
+      "token_ids": [
+        309,
+        198,
+        58,
+        7524,
+        671,
+        18,
+        60,
+        22826,
+        279,
+        25986,
+        2449,
+        315,
+        1376,
+        4357,
+        6131,
+        304
+      ],
+      "chosen_logprobs": null,
+      "generation_seconds": 0.10873543878551573
+    },
+    {
+      "prompt_index": 4,
+      "prompt": "[Document #4] Critique one aspect of the engineering or cultural claims and back your critique with reasoning.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fundamentally improving them. The Pont du Gard in southern France, built in the first century, still stands as a striking example of their durability and aesthetic ambition. Beyond the engineering feat, the aqueducts shaped Roman urban life: cities chose their locations partly based on water availability, public hygiene improved, and the rise of public baths became a defining cultural feature. Some historians argue that no other ancient work of infrastructure had as enduring an influence on the cities that succeeded Rome. As we examine the surviving plans and physical remains today, the precision of measurement and the long-term planning evident in their layout continue to surprise modern engineers, even as the larger empire that produced them passed into history.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques wi",
+      "token_ids": [
+        9338,
+        3966,
+        12893,
+        315,
+        279,
+        14667,
+        8186,
+        911,
+        279,
+        12751,
+        15355,
+        80500,
+        82,
+        429,
+        646,
+        387
+      ],
+      "chosen_logprobs": null,
+      "generation_seconds": 0.10873543878551573
+    },
+    {
+      "prompt_index": 5,
+      "prompt": "[Document #5] Summarise the following passage in three concise bullet points, focusing on its long-term influence.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fundamentally improving them. The Pont du Gard in southern France, built in the first century, still stands as a striking example of their durability and aesthetic ambition. Beyond the engineering feat, the aqueducts shaped Roman urban life: cities chose their locations partly based on water availability, public hygiene improved, and the rise of public baths became a defining cultural feature. Some historians argue that no other ancient work of infrastructure had as enduring an influence on the cities that succeeded Rome. As we examine the surviving plans and physical remains today, the precision of measurement and the long-term planning evident in their layout continue to surprise modern engineers, even as the larger empire that produced them passed into history.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman technique",
+      "token_ids": [
+        2041,
+        42493,
+        18392,
+        1105,
+        13,
+        576,
+        39770,
+        3845,
+        22443,
+        304,
+        18070,
+        9625,
+        11,
+        5798,
+        304,
+        279
+      ],
+      "chosen_logprobs": null,
+      "generation_seconds": 0.10873543878551573
+    },
+    {
+      "prompt_index": 6,
+      "prompt": "[Document #6] Identify the three most important engineering principles described and explain why each matters today.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fundamentally improving them. The Pont du Gard in southern France, built in the first century, still stands as a striking example of their durability and aesthetic ambition. Beyond the engineering feat, the aqueducts shaped Roman urban life: cities chose their locations partly based on water availability, public hygiene improved, and the rise of public baths became a defining cultural feature. Some historians argue that no other ancient work of infrastructure had as enduring an influence on the cities that succeeded Rome. As we examine the surviving plans and physical remains today, the precision of measurement and the long-term planning evident in their layout continue to surprise modern engineers, even as the larger empire that produced them passed into history.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniq",
+      "token_ids": [
+        288,
+        2041,
+        42493,
+        18392,
+        1105,
+        13,
+        576,
+        39770,
+        3845,
+        22443,
+        304,
+        18070,
+        9625,
+        11,
+        5798,
+        304
+      ],
+      "chosen_logprobs": null,
+      "generation_seconds": 0.10873543878551573
+    },
+    {
+      "prompt_index": 7,
+      "prompt": "[Document #7] Compare the cultural impact described to a modern infrastructure system you are familiar with.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques without fundamentally improving them. The Pont du Gard in southern France, built in the first century, still stands as a striking example of their durability and aesthetic ambition. Beyond the engineering feat, the aqueducts shaped Roman urban life: cities chose their locations partly based on water availability, public hygiene improved, and the rise of public baths became a defining cultural feature. Some historians argue that no other ancient work of infrastructure had as enduring an influence on the cities that succeeded Rome. As we examine the surviving plans and physical remains today, the precision of measurement and the long-term planning evident in their layout continue to surprise modern engineers, even as the larger empire that produced them passed into history.\n\nThe Roman aqueducts were arguably the most influential engineering achievement of the ancient world. Stretching across hundreds of kilometres of varied terrain, they delivered fresh water to public fountains, baths, and private homes alike. Their construction demanded mastery of gradients, pressure, masonry, and the use of inverted siphons and arched bridges, setting design standards that would persist for over a thousand years. Even after the Western Empire's decline, fragments continued to function for centuries, while later civilisations built upon Roman techniques with",
+      "token_ids": [
+        1172,
+        8922,
+        18142,
+        13,
+        576,
+        39770,
+        3845,
+        22443,
+        304,
+        18070,
+        9625,
+        11,
+        5798,
+        304,
+        279,
+        1156
+      ],
+      "chosen_logprobs": null,
+      "generation_seconds": 0.10873543878551573
+    }
+  ],
+  "total_seconds": 23.213384958915412
+}
