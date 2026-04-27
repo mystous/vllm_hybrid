@@ -733,3 +733,264 @@ def test_hot_cold_split_prefill_with_cold_fails_closed():
             cpu_kv_cache=[cpu_canonical], cold_kv_layout=layout,
             cold_block_ids=cold_block_ids, query_positions=query_positions,
         )
+
+
+@cuda_required
+@pytest.mark.parametrize(
+    "query_lens, cold_per_seq, should_fail, expected_offending_q_len",
+    [
+        # boundary q_len=2 — just over the q_len==1 threshold
+        ([2, 1], [3, 0], True, 2),
+        # mixed: q_len=1 cold + q_len=4 cold — both have cold,
+        # at least one has q_len > 1 → fail-closed.
+        ([1, 4], [2, 3], True, 4),
+        # mixed: q_len=1 cold + q_len=4 NO cold — only the q_len=1
+        # seq has cold; the q_len=4 seq is hot-only, doesn't trigger
+        # the gate.
+        ([1, 4], [3, 0], False, None),
+        # all decode (q_len=1) + cold — original supported case.
+        ([1, 1, 1], [3, 0, 2], False, None),
+        # large prefill chunk single seq (q_len=8) + cold — fail.
+        ([8], [4], True, 8),
+    ],
+    ids=[
+        "boundary_q_len_2_with_cold_fails",
+        "mixed_decode_plus_prefill_both_cold_fails",
+        "mixed_decode_cold_plus_prefill_nocold_passes",
+        "all_decode_with_cold_passes",
+        "large_prefill_single_seq_with_cold_fails",
+    ],
+)
+def test_hot_cold_split_decode_only_gate_matrix(
+    query_lens, cold_per_seq, should_fail, expected_offending_q_len
+):
+    """Regression — IDE_006 / TSK_002 §4.5 decode-only gate matrix.
+
+    Exhaustively covers the q_len × cold combinations the policy
+    cares about: only seqs with both ``q_len > 1`` AND
+    ``num_cold_blocks > 0`` trigger fail-closed. Anything else
+    (decode-only with cold, prefill without cold) passes through.
+    """
+    from vllm.v1.attention.backends.fa_utils import (
+        flash_attn_varlen_func,
+        get_flash_attn_version,
+    )
+    from vllm.v1.attention.backends.flash_attn import hot_cold_attention
+    from vllm.v1.attention.ops.kv_view_adapter import KVPageLayout, KVViewAdapter
+
+    device = torch.device("cuda")
+    torch.manual_seed(31)
+
+    batch_size = len(query_lens)
+    seq_lens = [256] * batch_size  # uniform, large enough to hold
+    block_size = 16
+    num_kv_heads = 4
+    num_q_heads = 8
+    head_dim = 128
+    kv_dtype = torch.bfloat16
+
+    num_tokens = sum(query_lens)
+    cu_query_lens = torch.tensor(
+        [0] + list(torch.cumsum(torch.tensor(query_lens), dim=0).tolist()),
+        dtype=torch.int32, device=device,
+    )
+    seqused_k_t = torch.tensor(seq_lens, dtype=torch.int32, device=device)
+    qpos_list: list[int] = []
+    for s, qlen in enumerate(query_lens):
+        # last `qlen` positions of seq s
+        qpos_list.extend(range(seq_lens[s] - qlen, seq_lens[s]))
+    query_positions = torch.tensor(qpos_list, dtype=torch.int32, device="cpu")
+
+    query = torch.randn(
+        num_tokens, num_q_heads, head_dim, dtype=kv_dtype, device=device,
+    )
+
+    nblocks_per_seq = [(sl + block_size - 1) // block_size for sl in seq_lens]
+    n_cold_total = sum(cold_per_seq)
+    n_hot_total = sum(nblocks_per_seq) - n_cold_total
+    max_blocks = max(nblocks_per_seq)
+    max_cold = max(cold_per_seq) if max(cold_per_seq) > 0 else 1
+
+    total_blocks_gpu = n_cold_total + n_hot_total + 4
+    key_cache_gpu = torch.randn(
+        total_blocks_gpu, block_size, num_kv_heads, head_dim,
+        dtype=kv_dtype, device=device,
+    )
+    value_cache_gpu = torch.randn_like(key_cache_gpu)
+
+    layout = KVPageLayout(
+        head_dim=head_dim, num_kv_heads=num_kv_heads,
+        block_size=block_size, dtype=kv_dtype,
+    )
+    cpu_canonical = torch.zeros(
+        max(n_cold_total, 1), layout.page_size_bytes,
+        dtype=torch.int8, device="cpu",
+    )
+    if n_cold_total > 0:
+        adapter = KVViewAdapter(cpu_canonical, layout)
+        adapter.k_view().copy_(key_cache_gpu[:n_cold_total].cpu())
+        adapter.v_view().copy_(value_cache_gpu[:n_cold_total].cpu())
+
+    block_table = torch.zeros(
+        (batch_size, max_blocks), dtype=torch.int32, device=device,
+    )
+    cold_idx, hot_idx = 0, n_cold_total
+    for s in range(batch_size):
+        for j in range(cold_per_seq[s]):
+            block_table[s, j] = cold_idx
+            cold_idx += 1
+        n_hot_s = nblocks_per_seq[s] - cold_per_seq[s]
+        for j in range(n_hot_s):
+            block_table[s, cold_per_seq[s] + j] = hot_idx
+            hot_idx += 1
+
+    cold_block_ids = torch.zeros(
+        (batch_size, max_cold), dtype=torch.int32, device="cpu",
+    )
+    cold_idx = 0
+    for s in range(batch_size):
+        for j in range(cold_per_seq[s]):
+            cold_block_ids[s, j] = cold_idx
+            cold_idx += 1
+
+    softmax_scale = 1.0 / (head_dim ** 0.5)
+    fa_version = get_flash_attn_version()
+
+    out = torch.empty(
+        (num_tokens, num_q_heads, head_dim), dtype=kv_dtype, device=device,
+    )
+    call_kwargs = dict(
+        output=out, query=query,
+        key_cache=key_cache_gpu, value_cache=value_cache_gpu,
+        cu_query_lens=cu_query_lens, max_query_len=max(query_lens),
+        seqused_k=seqused_k_t, max_seqlen_k=max(seq_lens),
+        softmax_scale=softmax_scale,
+        sliding_window=(-1, -1), logits_soft_cap=0.0,
+        block_table=block_table, block_size=block_size,
+        num_cold_blocks=torch.tensor(
+            cold_per_seq, dtype=torch.int32, device=device,
+        ),
+        max_num_cold_blocks=max(cold_per_seq),
+        fa_version=fa_version, causal=True,
+        cpu_kv_cache=[cpu_canonical], cold_kv_layout=layout,
+        cold_block_ids=cold_block_ids, query_positions=query_positions,
+    )
+
+    if should_fail:
+        with pytest.raises(RuntimeError) as excinfo:
+            hot_cold_attention(**call_kwargs)
+        msg = str(excinfo.value)
+        # Verify the error message carries the operator-actionable
+        # context: prefix, seq idx, q_len, cold_blocks, mitigation.
+        assert "prefill chunk with cold blocks" in msg
+        assert f"q_len={expected_offending_q_len}" in msg
+        assert "cold_blocks=" in msg
+        assert "enable_cpu_partial_attention" in msg or \
+               "reload" in msg, (
+            "error message must mention operator mitigation path; got: "
+            + msg
+        )
+    else:
+        # Should complete without raising.
+        hot_cold_attention(**call_kwargs)
+        torch.cuda.synchronize()
+
+
+@cuda_required
+def test_hot_cold_split_decode_only_gate_fires_in_sync_path(monkeypatch):
+    """Regression — IDE_006 / TSK_002 §4.5 decode-only gate must fire
+    identically whether the cold issue path is async (default) or sync
+    (``VLLM_COLD_KV_DISABLE_OVERLAP=1`` opt-out). The gate runs *before*
+    the async issue so this should hold by construction; this test
+    pins the contract."""
+    from vllm.v1.attention.backends.fa_utils import (
+        flash_attn_varlen_func,
+        get_flash_attn_version,
+    )
+    from vllm.v1.attention.backends.flash_attn import hot_cold_attention
+    from vllm.v1.attention.ops.kv_view_adapter import KVPageLayout, KVViewAdapter
+
+    import vllm.v1.attention.ops.cpu_partial_attention as cpa
+    import vllm.v1.attention.backends.flash_attn as fa
+
+    monkeypatch.setattr(cpa, "_ASYNC_OVERLAP_DISABLED", True)
+    monkeypatch.setattr(fa, "_PARTIAL_ASYNC_DISABLED", True)
+
+    device = torch.device("cuda")
+    torch.manual_seed(7)
+
+    # Single seq, q_len=3 (prefill chunk), 2 cold blocks → must fail.
+    block_size = 16
+    num_kv_heads = 4
+    num_q_heads = 8
+    head_dim = 128
+    kv_dtype = torch.bfloat16
+
+    seq_len = 192
+    cold_blocks = 2
+    q_len = 3
+
+    cu_query_lens = torch.tensor([0, q_len], dtype=torch.int32, device=device)
+    seqused_k_t = torch.tensor([seq_len], dtype=torch.int32, device=device)
+    query_positions = torch.tensor(
+        list(range(seq_len - q_len, seq_len)),
+        dtype=torch.int32, device="cpu",
+    )
+    query = torch.randn(
+        q_len, num_q_heads, head_dim, dtype=kv_dtype, device=device,
+    )
+
+    nblocks = (seq_len + block_size - 1) // block_size
+    total_blocks_gpu = cold_blocks + (nblocks - cold_blocks) + 4
+    key_cache_gpu = torch.randn(
+        total_blocks_gpu, block_size, num_kv_heads, head_dim,
+        dtype=kv_dtype, device=device,
+    )
+    value_cache_gpu = torch.randn_like(key_cache_gpu)
+
+    layout = KVPageLayout(
+        head_dim=head_dim, num_kv_heads=num_kv_heads,
+        block_size=block_size, dtype=kv_dtype,
+    )
+    cpu_canonical = torch.zeros(
+        cold_blocks, layout.page_size_bytes, dtype=torch.int8, device="cpu",
+    )
+    adapter = KVViewAdapter(cpu_canonical, layout)
+    adapter.k_view().copy_(key_cache_gpu[:cold_blocks].cpu())
+    adapter.v_view().copy_(value_cache_gpu[:cold_blocks].cpu())
+
+    block_table = torch.zeros(
+        (1, nblocks), dtype=torch.int32, device=device,
+    )
+    for j in range(cold_blocks):
+        block_table[0, j] = j
+    for j in range(nblocks - cold_blocks):
+        block_table[0, cold_blocks + j] = cold_blocks + j
+
+    cold_block_ids = torch.zeros((1, cold_blocks), dtype=torch.int32, device="cpu")
+    for j in range(cold_blocks):
+        cold_block_ids[0, j] = j
+
+    softmax_scale = 1.0 / (head_dim ** 0.5)
+    fa_version = get_flash_attn_version()
+
+    out = torch.empty(
+        (q_len, num_q_heads, head_dim), dtype=kv_dtype, device=device,
+    )
+    with pytest.raises(RuntimeError, match=r"prefill chunk with cold blocks"):
+        hot_cold_attention(
+            output=out, query=query,
+            key_cache=key_cache_gpu, value_cache=value_cache_gpu,
+            cu_query_lens=cu_query_lens, max_query_len=q_len,
+            seqused_k=seqused_k_t, max_seqlen_k=seq_len,
+            softmax_scale=softmax_scale,
+            sliding_window=(-1, -1), logits_soft_cap=0.0,
+            block_table=block_table, block_size=block_size,
+            num_cold_blocks=torch.tensor(
+                [cold_blocks], dtype=torch.int32, device=device,
+            ),
+            max_num_cold_blocks=cold_blocks,
+            fa_version=fa_version, causal=True,
+            cpu_kv_cache=[cpu_canonical], cold_kv_layout=layout,
+            cold_block_ids=cold_block_ids, query_positions=query_positions,
+        )
