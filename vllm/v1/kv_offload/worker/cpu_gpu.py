@@ -278,6 +278,22 @@ class SingleDirectionOffloadingHandler(OffloadingHandler):
             )
         )
 
+        # IDE_006 / TSK_002 §4.5c — reload completion sync.
+        # For cpu_to_gpu (load) transfers, ensure the GPU's *default*
+        # stream waits on the load's end_event before any subsequent
+        # forward-path kernel reads the destination GPU blocks. The
+        # connector's `wait_for_layer_load(...)` is a no-op
+        # (`offloading_connector.py:118-119`), so without this barrier
+        # an attention forward can race the in-flight reload and read
+        # stale GPU blocks. The wait_event is enqueued on the current
+        # default stream, so the next default-stream operation (the
+        # model's attention layers) naturally waits.
+        # Only emitted for loads — store transfers don't need the
+        # default stream to wait on them (the kernel doesn't read the
+        # CPU destination back).
+        if not self.gpu_to_cpu:
+            torch.cuda.current_stream().wait_event(end_event)
+
         # success
         return True
 
