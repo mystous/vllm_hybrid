@@ -54,6 +54,13 @@ logger = init_logger(__name__)
 _lock = Lock()
 _bind_done: dict[int, int | None] = {}  # rank -> node (or None if no-op)
 _pin_done: dict[int, list[int] | None] = {}  # rank -> cpus (or None if no-op)
+# IDE_006 / TSK_004 — hot-path fast flag. Once any rank has completed
+# pin_threads_to_local_numa, ``forward_partial_with_lse`` is called
+# tens of thousands of times per request and we don't want to acquire
+# the module-level Lock just to read a cache hit. After the first
+# successful (or definitively skipped) pin we set this to True and
+# subsequent calls return immediately without touching the Lock.
+_pin_fast_done = False
 
 
 def _get_rank_world() -> tuple[int, int]:
@@ -257,21 +264,32 @@ def pin_threads_to_local_numa(
     Idempotent. Returns the list of pinned CPU IDs, or ``None`` when
     pinning was skipped.
     """
+    global _pin_fast_done
+    # Fast path — once any rank has finished pinning in this process we
+    # bypass _get_rank_world / Lock entirely. forward_partial_with_lse
+    # is on the model hot path (per-layer per-call) and prod profiling
+    # showed even a no-op call here costs measurable µs at scale.
+    if _pin_fast_done:
+        return _pin_done.get(rank if rank is not None else 0)
+
     if rank is None or world_size is None:
         rank, world_size = _get_rank_world()
 
     with _lock:
         if rank in _pin_done:
+            _pin_fast_done = True
             return _pin_done[rank]
 
         node = _resolve_local_numa_node(rank, world_size)
         if node is None:
             _pin_done[rank] = None
+            _pin_fast_done = True
             return None
 
         node_cpus = _read_cpulist(node)
         if not node_cpus:
             _pin_done[rank] = None
+            _pin_fast_done = True
             logger.debug(
                 "[IDE_006/TSK_004] rank=%d node=%d empty cpulist; skipping "
                 "thread pin",
@@ -286,6 +304,7 @@ def pin_threads_to_local_numa(
             os.sched_setaffinity(0, cpus)
         except (AttributeError, OSError) as exc:
             _pin_done[rank] = None
+            _pin_fast_done = True
             logger.debug(
                 "[IDE_006/TSK_004] rank=%d sched_setaffinity failed: %r",
                 rank,
@@ -294,6 +313,7 @@ def pin_threads_to_local_numa(
             return None
 
         _pin_done[rank] = cpus
+        _pin_fast_done = True
         logger.info(
             "[IDE_006/TSK_004] rank=%d pinned threads to NUMA node %d "
             "(%d/%d cores: %d~%d)",

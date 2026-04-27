@@ -56,25 +56,36 @@ class ISAPath(str, Enum):
     PYTHON_REF = "python_ref"
 
 
-def _has_amx() -> bool:
-    """True if the current CPU exposes AMX BF16 instructions."""
+def _read_cpu_flags_once() -> set[str]:
+    """Cached one-time CPU flag read. ``cpuinfo.get_cpu_info()`` runs a
+    /proc/cpuinfo parse (and on some platforms a subprocess cpuid) that
+    can take 1–5 seconds — calling it once per partial-attention layer
+    on a TP=8 / 70B / 80-layer model is the dominant ~5 s/call cost
+    measured in the prod profile run. We resolve the flag set on first
+    use and freeze it; the result is a function-attribute cache so it
+    survives module reloads under tests."""
+    cached = getattr(_read_cpu_flags_once, "_cache", None)
+    if cached is not None:
+        return cached
     try:
         import cpuinfo  # type: ignore
+        info = cpuinfo.get_cpu_info()
+        flags = set(info.get("flags", []))
     except Exception:
-        return False
-    info = cpuinfo.get_cpu_info()
-    flags = info.get("flags", [])
+        flags = set()
+    _read_cpu_flags_once._cache = flags  # type: ignore[attr-defined]
+    return flags
+
+
+def _has_amx() -> bool:
+    """True if the current CPU exposes AMX BF16 instructions."""
+    flags = _read_cpu_flags_once()
     return "amx_bf16" in flags or "amx_tile" in flags
 
 
 def _has_avx512() -> bool:
     """True if the current CPU exposes AVX-512 (foundation)."""
-    try:
-        import cpuinfo  # type: ignore
-    except Exception:
-        return False
-    info = cpuinfo.get_cpu_info()
-    flags = info.get("flags", [])
+    flags = _read_cpu_flags_once()
     return any(f.startswith("avx512f") for f in flags)
 
 
@@ -84,14 +95,26 @@ def select_isa_path() -> ISAPath:
     Order: AMX → AVX-512 → portable (always available C++) →
     Python reference. Each step is gated on (a) the corresponding kernel
     being loaded successfully and (b) the host CPU exposing the ISA.
-    """
+
+    Cached after first call. ISA topology and kernel availability do
+    not change for the lifetime of the worker process; calling this on
+    every partial-attention dispatch adds ~5 s/call of cpuid/JIT-cache
+    lookup overhead and is the root cause of the prod TimeoutError
+    measured in the TSK_004 profile run (avg 5.46 s/call wrapper vs
+    avg 9.4 ms/call in the C++ kernel itself)."""
+    cached = getattr(select_isa_path, "_cache", None)
+    if cached is not None:
+        return cached
     if _has_amx_kernel() and _has_amx():
-        return ISAPath.AMX
-    if _has_avx512_kernel() and _has_avx512():
-        return ISAPath.AVX512
-    if _has_portable_kernel():
-        return ISAPath.PORTABLE
-    return ISAPath.PYTHON_REF
+        path = ISAPath.AMX
+    elif _has_avx512_kernel() and _has_avx512():
+        path = ISAPath.AVX512
+    elif _has_portable_kernel():
+        path = ISAPath.PORTABLE
+    else:
+        path = ISAPath.PYTHON_REF
+    select_isa_path._cache = path  # type: ignore[attr-defined]
+    return path
 
 
 # ---------------------------------------------------------------------
