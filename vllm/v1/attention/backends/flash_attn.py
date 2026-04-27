@@ -4,6 +4,7 @@
 
 import copy
 import os
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -1386,6 +1387,38 @@ _COLD_PATH_FIRING_LOG_LIMIT = 5
 _COLD_PATH_FIRING_LOG_DONE = False
 
 
+# IDE_006 / TSK_004 §4.6 — dedicated CUDA stream for cold-path GPU
+# operations (D2H of reduced query rows, H2D of reduced cold result,
+# scatter into full-size). Hot path (flash_attn_varlen_func) stays on
+# the default stream. With these on different streams the GPU can
+# execute the hot kernel concurrently while CPU does partial-attn work
+# on the host side, satisfying PLN_001 §4.3 's overlap design intent
+# (T_Q_transfer + T_CPU_partial + T_partial_transfer ≤ T_GPU_hot_attn).
+# Lazy + cached per device index. Operator opt-out via
+# ``VLLM_COLD_KV_DISABLE_OVERLAP=1`` falls back to single-stream
+# (sequential) execution — useful for A/B comparison or debugging.
+_COLD_STREAM_CACHE: dict[int, "torch.cuda.Stream | None"] = {}
+_COLD_STREAM_OVERLAP_DISABLED = bool(
+    os.environ.get("VLLM_COLD_KV_DISABLE_OVERLAP", "")
+) and os.environ["VLLM_COLD_KV_DISABLE_OVERLAP"] not in ("0", "")
+
+
+def _get_cold_path_stream(device: torch.device) -> "torch.cuda.Stream | None":
+    """Return a dedicated CUDA stream for cold-path GPU ops on ``device``.
+
+    Returns ``None`` if the device is CPU or overlap is disabled — caller
+    falls back to running cold-path GPU ops on the default stream
+    (same behaviour as before §4.6)."""
+    if _COLD_STREAM_OVERLAP_DISABLED or device.type != "cuda":
+        return None
+    idx = device.index if device.index is not None else 0
+    s = _COLD_STREAM_CACHE.get(idx)
+    if s is None:
+        s = torch.cuda.Stream(device=device)
+        _COLD_STREAM_CACHE[idx] = s
+    return s
+
+
 def hot_cold_attention(
     output: torch.Tensor,
     query: torch.Tensor,
@@ -1700,24 +1733,38 @@ def hot_cold_attention(
         if _COLD_PATH_FIRING_COUNT >= _COLD_PATH_FIRING_LOG_LIMIT:
             _COLD_PATH_FIRING_LOG_DONE = True
 
-    # Step 3: targeted index_select. Each input tensor may be on CPU or
-    # GPU independently of the others (the dispatcher passes some on
-    # device for downstream GPU ops, others already mirrored to CPU).
-    # We resolve the row-index tensor to whatever device the source
-    # tensor lives on, run index_select there, and bring the reduced
-    # result to CPU for the kernel call.
+    # ----- §4.6 GPU/CPU overlap setup ------------------------------------
+    # Cold-path GPU operations (index_select-then-D2H, H2D-then-scatter)
+    # are issued on a dedicated CUDA stream so they run concurrently
+    # with the hot-path FA kernel on the default stream. CPU partial-
+    # attention then overlaps with the FA kernel via Python's natural
+    # pause during the synchronous .cpu() / forward_partial_with_lse
+    # calls — while Python is blocked, default stream's FA continues.
+    # Without this overlap (single-stream sequential), prod measured
+    # 5.6× slowdown vs baseline (cold_verify run @ 0a9d313288). With
+    # overlap, wall-clock collapses to max(T_FA, T_d2h+T_cpu+T_h2d).
+    device = hot_output.device
+    cold_stream = _get_cold_path_stream(device)
+    cold_stream_ctx = (
+        torch.cuda.stream(cold_stream)
+        if cold_stream is not None
+        else nullcontext()
+    )
+
+    # Step 3: targeted index_select on the cold stream. Each input
+    # tensor may be on CPU or GPU independently of the others (the
+    # dispatcher passes some on device for downstream GPU ops, others
+    # already mirrored to CPU). We resolve the row-index tensor to
+    # whatever device the source lives on, run index_select there, and
+    # bring the reduced result to CPU for the kernel call. Inside the
+    # ``cold_stream_ctx`` window, all GPU ops are issued on cold_stream
+    # so the default stream stays free for the hot-path FA kernel.
     def _index_rows_to_cpu(src: torch.Tensor) -> torch.Tensor:
         if src.device.type == "cuda":
             idx = reduced_token_idx_cpu.to(src.device, non_blocking=True)
             return src.index_select(0, idx).detach().cpu()
         return src.index_select(0, reduced_token_idx_cpu)
 
-    reduced_query_cpu = _index_rows_to_cpu(query)
-    reduced_qpos_cpu = _index_rows_to_cpu(query_positions)
-
-    # Step 4: per-seq metadata for the kernel. Each metadata tensor may
-    # be on CPU or GPU; the index (need_cold_seq_idx) is constructed on
-    # CPU. Mirror the same pattern used for query / query_positions.
     need_cold_seq_idx_cpu = torch.tensor(need_cold_seq_ids, dtype=torch.long)
 
     def _index_seqs_to_cpu(src: torch.Tensor) -> torch.Tensor:
@@ -1726,10 +1773,14 @@ def hot_cold_attention(
             return src.index_select(0, idx).detach().cpu()
         return src.index_select(0, need_cold_seq_idx_cpu)
 
-    reduced_cbi = _index_seqs_to_cpu(cold_block_ids)
+    with cold_stream_ctx:
+        reduced_query_cpu = _index_rows_to_cpu(query)
+        reduced_qpos_cpu = _index_rows_to_cpu(query_positions)
+        reduced_cbi = _index_seqs_to_cpu(cold_block_ids)
+
     # num_cold_blocks_cpu / seq_lens_total_cpu were already mirrored to
     # CPU at the top of the function (small tensors). Indexing on CPU
-    # here is consistent with that.
+    # here is consistent with that — no GPU op needed.
     reduced_cbl = num_cold_blocks_cpu.index_select(0, need_cold_seq_idx_cpu)
     reduced_sl = seq_lens_total_cpu.index_select(0, need_cold_seq_idx_cpu)
     reduced_cu_cpu = torch.tensor(reduced_cu_list, dtype=torch.int32)
@@ -1738,9 +1789,11 @@ def hot_cold_attention(
         _t_d2h1 = _time.perf_counter()
         _t_kernel0 = _t_d2h1
 
-    # Step 5: invoke the CPU partial-attention kernel on the reduced
-    # batch. The kernel sees only the rows that need cold processing,
-    # so its internal allocations and OMP work scale accordingly.
+    # Step 5: CPU partial-attention. Python is blocked here for the
+    # duration of the C++ kernel call (typically ms-level for the
+    # reduced batch), but the hot-path FA kernel continues to execute
+    # on the default stream during this window — that's the overlap §4.6
+    # is buying us.
     cold_output_reduced_cpu, cold_lse_reduced_cpu = forward_partial_with_lse(
         query=reduced_query_cpu,
         cold_kv_cache=cold_kv_combined,
@@ -1759,47 +1812,54 @@ def hot_cold_attention(
         _t_kernel1 = _time.perf_counter()
         _t_h2d0 = _t_kernel1
 
-    # Step 6: H2D the reduced result, then scatter into full-size
-    # tensors on GPU. Skipped rows get LSE = -inf so merge_attn_states
-    # naturally drops them and the hot path output flows through
-    # unchanged for those rows.
-    device = hot_output.device
+    # Step 6: H2D the reduced result + scatter into full-size tensors,
+    # also on the cold stream so it overlaps with any remaining hot
+    # path work. ``cold_lse`` for skipped rows is -inf so
+    # merge_attn_states naturally drops them and the hot-path output
+    # flows through unchanged for those rows.
     num_tokens = hot_output.size(0)
     num_q_heads = hot_output.size(1)
     head_dim = hot_output.size(2)
 
-    cold_output_reduced_gpu = cold_output_reduced_cpu.to(
-        device=device, non_blocking=True
-    )
-    cold_lse_reduced_gpu = cold_lse_reduced_cpu.to(
-        device=device, non_blocking=True
-    )
-    # Bring the row-index tensor to ``device`` for the scatter. cheap;
-    # tensor is reduced_n int64 entries.
-    if reduced_token_idx_cpu.device != device:
-        reduced_token_idx_dev = reduced_token_idx_cpu.to(
+    with cold_stream_ctx:
+        cold_output_reduced_gpu = cold_output_reduced_cpu.to(
             device=device, non_blocking=True
         )
-    else:
-        reduced_token_idx_dev = reduced_token_idx_cpu
+        cold_lse_reduced_gpu = cold_lse_reduced_cpu.to(
+            device=device, non_blocking=True
+        )
+        # Bring the row-index tensor to ``device`` for the scatter.
+        # cheap; tensor is reduced_n int64 entries.
+        if reduced_token_idx_cpu.device != device:
+            reduced_token_idx_dev = reduced_token_idx_cpu.to(
+                device=device, non_blocking=True
+            )
+        else:
+            reduced_token_idx_dev = reduced_token_idx_cpu
 
-    cold_output_gpu = torch.zeros(
-        (num_tokens, num_q_heads, head_dim),
-        dtype=hot_output.dtype,
-        device=device,
-    )
-    cold_lse_gpu = torch.full(
-        (num_q_heads, num_tokens),
-        float("-inf"),
-        dtype=hot_lse.dtype,
-        device=device,
-    )
-    cold_output_gpu.index_copy_(
-        0, reduced_token_idx_dev, cold_output_reduced_gpu
-    )
-    cold_lse_gpu.index_copy_(
-        1, reduced_token_idx_dev, cold_lse_reduced_gpu
-    )
+        cold_output_gpu = torch.zeros(
+            (num_tokens, num_q_heads, head_dim),
+            dtype=hot_output.dtype,
+            device=device,
+        )
+        cold_lse_gpu = torch.full(
+            (num_q_heads, num_tokens),
+            float("-inf"),
+            dtype=hot_lse.dtype,
+            device=device,
+        )
+        cold_output_gpu.index_copy_(
+            0, reduced_token_idx_dev, cold_output_reduced_gpu
+        )
+        cold_lse_gpu.index_copy_(
+            1, reduced_token_idx_dev, cold_lse_reduced_gpu
+        )
+
+    # Sync the default stream with cold_stream so merge_attn_states (on
+    # default) sees finalized cold tensors. wait_stream is event-based
+    # and doesn't block Python — it just inserts a stream-side wait.
+    if cold_stream is not None:
+        torch.cuda.current_stream(device).wait_stream(cold_stream)
 
     if _PARTIAL_PROFILE_ENABLED:
         if device.type == "cuda":
