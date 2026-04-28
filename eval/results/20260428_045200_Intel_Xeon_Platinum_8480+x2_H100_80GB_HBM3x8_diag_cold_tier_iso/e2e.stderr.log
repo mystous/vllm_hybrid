@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/workspace/vllm_hybrid/eval/run_e2e_accuracy.py", line 988, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/vllm_hybrid/eval/run_e2e_accuracy.py", line 884, in main
+    raise ValueError(
+ValueError: --split-on-env /workspace/vllm_hybrid/eval/envs/ide006_cold_tier_only_long_ctx.env does not have enable_cpu_partial_attention=true in its EXTRA_SERVE_ARGS kv-transfer-config — the e2e accuracy gate would compare two equivalent configurations and trivially pass. Use the split_on env (e.g. ide006_cold_kv_split_on_long_ctx.env).

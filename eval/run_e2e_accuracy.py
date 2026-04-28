@@ -835,6 +835,18 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--max-diverging-tokens", type=int, default=10)
     p.add_argument("--atol-logprob", type=float, default=0.5)
     p.add_argument("--rtol-ppl", type=float, default=0.10)
+    p.add_argument(
+        "--allow-equivalent-config",
+        action="store_true",
+        help=(
+            "Skip the enable_cpu_partial_attention=true check on --split-on-env. "
+            "Used by diagnostic wrappers (e.g. TSK_012 사전 진단 — cold-tier "
+            "isolation) where split_on intentionally has IDE_006 disabled to "
+            "isolate the cold-tier evict/reload path from the IDE_006 attention "
+            "kernel path. Verdict still produced; only the defensive check is "
+            "lifted."
+        ),
+    )
     return p.parse_args()
 
 
@@ -876,11 +888,18 @@ def main() -> int:
     num_prompts, input_len, max_tokens = _resolve_workload(args, split_on_env)
 
     if (
-        split_on_env.kv_transfer_dict is None
-        or not split_on_env.kv_transfer_dict.get("enable_cpu_partial_attention", False)
+        not args.allow_equivalent_config
+        and (
+            split_on_env.kv_transfer_dict is None
+            or not split_on_env.kv_transfer_dict.get(
+                "enable_cpu_partial_attention", False
+            )
+        )
     ):
         # Defence in depth — TST_003 only makes sense when split is actually
         # on for the split_on env. Misconfigured env should fail loudly.
+        # ``--allow-equivalent-config`` lifts this for diagnostic wrappers
+        # (e.g. TSK_012 사전 진단).
         raise ValueError(
             f"--split-on-env {args.split_on_env} does not have "
             "enable_cpu_partial_attention=true in its EXTRA_SERVE_ARGS "
