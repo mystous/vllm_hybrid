@@ -496,32 +496,37 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
   }
   // Tile config + scratch buffers (B_buf, C_buf, scores) are PER-THREAD
   // because AMX tile state and ``alignas(64)`` stack scratch are
-  // per-thread and the OpenMP region below parallelises across
-  // (token, head) pairs. We open the parallel region around the seq
-  // loop so each thread does ``configure_tiles_for_dot`` exactly once
-  // and reuses the same B_buf / C_buf / scores allocation across all
-  // (s, t, h) iterations it executes.
+  // per-thread. The OpenMP parallel region is opened ONCE outside the
+  // seq loop (TSK_005 단계0 fix: 이전엔 seq loop 안에서 매 seq 마다 team
+  // 을 spawn → spawn overhead × num_cold_seqs × num_layer_calls 누적
+  // 이 매우 큼). 이제 한 번의 spawn 으로 모든 (s, t, h) iteration 처리.
+  // ``scores`` 는 ``std::vector`` 의 capacity 를 키워가며 매 seq 의
+  // n_cold_kv 만큼 사용 — heap alloc/free 가 매 seq 마다 발생하지 않음.
 
-  for (int64_t s = 0; s < num_seqs; ++s) {
-    const int64_t q_start = cu_seqlens_q_a[s];
-    const int64_t q_end = cu_seqlens_q_a[s + 1];
-    const int64_t n_cold_blocks = cold_block_lens_a[s];
-    if (q_end <= q_start || n_cold_blocks <= 0) continue;
-    const int64_t n_cold_kv = n_cold_blocks * block_size;
+  #pragma omp parallel default(none) \
+      num_threads(vllm_partial_attn_thread_count()) \
+      firstprivate(num_seqs, num_q_heads, q_per_kv, num_kv_heads, head_dim, \
+                   block_size, k_block_stride_elems, v_block_stride_elems, \
+                   v_intra_block_offset_elems, scale_f, NEG_INF, \
+                   causal, n_chunks, chunk_bf16, k_data, v_data) \
+      shared(query_a, O_a, LSE_a, cold_block_ids_a, cold_block_lens_a, \
+             cu_seqlens_q_a, query_positions_a)
+  {
+    configure_tiles_for_dot(chunk_bf16);
+    alignas(64) uint16_t B_buf[16 * 32];
+    alignas(64) float C_buf[16];
+    std::vector<float> scores;
+    scores.reserve(8192);
 
-    #pragma omp parallel default(none) \
-        num_threads(vllm_partial_attn_thread_count()) \
-        firstprivate(q_start, q_end, n_cold_kv, n_cold_blocks, num_q_heads, \
-                     q_per_kv, num_kv_heads, head_dim, block_size, \
-                     k_block_stride_elems, v_block_stride_elems, \
-                     v_intra_block_offset_elems, scale_f, NEG_INF, \
-                     causal, n_chunks, chunk_bf16, k_data, v_data, s) \
-        shared(query_a, O_a, LSE_a, cold_block_ids_a, query_positions_a)
-    {
-      configure_tiles_for_dot(chunk_bf16);
-      alignas(64) uint16_t B_buf[16 * 32];
-      alignas(64) float C_buf[16];
-      std::vector<float> scores(static_cast<size_t>(n_cold_kv));
+    for (int64_t s = 0; s < num_seqs; ++s) {
+      const int64_t q_start = cu_seqlens_q_a[s];
+      const int64_t q_end = cu_seqlens_q_a[s + 1];
+      const int64_t n_cold_blocks = cold_block_lens_a[s];
+      if (q_end <= q_start || n_cold_blocks <= 0) continue;
+      const int64_t n_cold_kv = n_cold_blocks * block_size;
+      if (scores.size() < static_cast<size_t>(n_cold_kv)) {
+        scores.resize(static_cast<size_t>(n_cold_kv));
+      }
 
       #pragma omp for collapse(2) schedule(static) nowait
       for (int64_t t = q_start; t < q_end; ++t) {
@@ -572,11 +577,8 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
             continue;
           }
 
-          // Zero accumulator tile. First batch only — log so we know the
-          // first AMX op completed without SIGILL.
-          vllm_amx_trace("about_to_tile_zero");
+          // Zero accumulator tile.
           _tile_zero(VLLM_TMM_C);
-          vllm_amx_trace("tile_zero_returned");
 
           // For each chunk of 32 BF16 (= 16 BF16 pairs) in head_dim,
           // load A and B tiles and accumulate.
@@ -585,13 +587,11 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
 
             // A tile: 1 × chunk_bf16 BF16 = (chunk_bf16 * 2) bytes.
             // We can load directly from query memory; contiguous already.
-            vllm_amx_trace("about_to_tile_loadd_A");
             _tile_loadd(
                 VLLM_TMM_A,
                 reinterpret_cast<const void*>(q_ptr + d0),
                 chunk_bf16 * 2  // stride for a 1-row tile: row size in bytes
             );
-            vllm_amx_trace("tile_loadd_A_returned");
 
             // Stage 16 K rows × chunk_bf16 BF16 into B_buf in pair-row
             // layout. K row stride = num_kv_heads * head_dim * 2 bytes.
@@ -622,18 +622,12 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
             }
 
             // Load B tile and dpbf16ps accumulate into C.
-            vllm_amx_trace("about_to_tile_loadd_B");
             _tile_loadd(VLLM_TMM_B, B_buf, 16 * 4);  // 64-byte stride per pair-row
-            vllm_amx_trace("tile_loadd_B_returned");
-            vllm_amx_trace("about_to_tile_dpbf16ps");
             _tile_dpbf16ps(VLLM_TMM_C, VLLM_TMM_A, VLLM_TMM_B);
-            vllm_amx_trace("tile_dpbf16ps_returned");
           }
 
           // Read C tile (1 × 16 fp32) into C_buf.
-          vllm_amx_trace("about_to_tile_stored");
           _tile_stored(VLLM_TMM_C, C_buf, 16 * 4);
-          vllm_amx_trace("tile_stored_returned");
 
           // Apply softmax_scale and update scores + max.
           for (int i = 0; i < 16; ++i) {
@@ -705,12 +699,12 @@ static std::vector<torch::Tensor> forward_partial_bf16_amx(
       }    // close (void)0 body block
         }  // close inner ``for h`` (omp for collapse=2)
       }    // close ``for t``
-      // Each OpenMP thread releases its own AMX tile state before
-      // exiting the parallel region.
-      vllm_amx_trace("about_to_tile_release");
-      _tile_release();
-    }      // close ``#pragma omp parallel``
-  }        // close ``for s``
+    }      // close ``for s`` (now inside the omp parallel region)
+    // Each OpenMP thread releases its own AMX tile state before
+    // exiting the parallel region.
+    vllm_amx_trace("about_to_tile_release");
+    _tile_release();
+  }        // close ``#pragma omp parallel``
 
   vllm_amx_trace("forward_partial_bf16_amx:exit");
 

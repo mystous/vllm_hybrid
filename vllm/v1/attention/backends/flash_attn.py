@@ -1568,155 +1568,75 @@ def _record_cold_fallback_breadcrumb(
         _COLD_FALLBACK_FIRING_LOG_DONE = True
 
 
-def _fallback_full_fa_sdpa(
+def _fallback_full_fa_paged(
     *,
     output: torch.Tensor,
     query: torch.Tensor,
     key_cache: torch.Tensor,
     value_cache: torch.Tensor,
-    block_table: torch.Tensor,
-    block_size: int,
-    cu_q_list: list[int],
-    n_cold_list: list[int],
-    seq_lens_total_cpu: torch.Tensor,
-    fallback_seq_ids: list[int],
-    cpu_kv_cache: list[torch.Tensor],
-    cold_kv_layout,
-    cold_block_ids: torch.Tensor,
+    cu_query_lens: torch.Tensor,
+    max_query_len: int,
+    seqused_k: torch.Tensor,
+    max_seqlen_k: int,
     softmax_scale: float,
+    causal: bool,
+    sliding_window: tuple[int, int],
+    logits_soft_cap: float,
+    block_table: torch.Tensor,
+    fa_version: int,
+    suffix_scheduler_metadata: torch.Tensor | None,
+    q_descale: torch.Tensor | None,
+    k_descale: torch.Tensor | None,
+    v_descale: torch.Tensor | None,
+    fallback_seq_ids: list[int],
+    cu_q_list: list[int],
 ) -> int:
-    """opt-F fallback path — GPU full attention on (hot+cold) for fallback seqs.
+    """opt-F-paged fallback path — paged FA on the original (hot+cold)
+    block_table for fallback seqs (IDE_006 / TSK_011 단계2 정정).
 
-    For each fallback seq, builds the full (K, V) tensor by:
-      - gathering hot blocks from the GPU paged KV cache,
-      - pulling cold blocks from the CPU page cache via KVViewAdapter (typed
-        view), and H2D'ing only the BF16/FP16 slice (not the int8 page).
-    Then runs PyTorch native SDPA (paged-KV bypass) and writes the result
-    directly into ``output[qs:qe]`` rows. The partition+merge for these seqs
-    is therefore skipped entirely.
+    이전 버전 (_fallback_full_fa_sdpa) 은 cold blocks 를 매 layer 마다 PCIe
+    H2D + native SDPA 로 우회 처리했음 — baseline 의 admission reload + paged
+    FA 에 비해 매우 비효율 (사용자 지적: "Cold KV 가 사전에 복사가 안되어
+    있는거야?"). 본 정정 버전은 cold blocks 가 GPU paged cache 에 prefetch
+    되어 있다는 전제 (admission reload 의 자연 발생 — TSK_009) 에서 paged
+    FA 를 *원래 block_table* (cold prefix 포함) 로 한 번 더 호출하여 baseline
+    의 reload-fallback 동작을 그대로 재사용.
 
-    IDE_006 scope is decode-only (q_len == 1 per cold-bearing seq), so the
-    causal mask is trivial — the single query token attends to all KV
-    positions and ``is_causal=False`` with ``attn_mask=None`` is correct.
-    GQA broadcast is handled by ``F.scaled_dot_product_attention(...,
-    enable_gqa=True)`` (PyTorch 2.5+).
+    fallback 발동 시 호출 비용 = paged FA 한 번 추가 (이미 hot path 에서 한
+    번 호출됨). worst case wall-time = 2 × paged FA per fallback layer →
+    baseline 동등 또는 약간 느림 (paged FA 한 번 vs 두 번).
 
-    Returns the total number of cold blocks transferred for the breadcrumb
-    metric.
+    Returns the number of fallback seqs (for the breadcrumb metric).
     """
-    import torch.nn.functional as F
+    descale_shape = (cu_query_lens.shape[0] - 1, key_cache.shape[-2])
 
-    device = output.device
-
-    # Build typed K/V views over the cold CPU page cache. Same view object
-    # reused across fallback seqs.
-    if len(cpu_kv_cache) == 1:
-        cold_adapter = KVViewAdapter(cpu_kv_cache[0], cold_kv_layout)
-    elif len(cpu_kv_cache) == 2:
-        cold_adapter = KVViewAdapter.from_split_kv(
-            cpu_kv_cache[0], cpu_kv_cache[1], cold_kv_layout
-        )
-    else:
-        raise ValueError(
-            "cpu_kv_cache must be a list of 1 (combined K+V) or 2 (split) "
-            f"int8 buffers; got list of length {len(cpu_kv_cache)}."
-        )
-
-    cold_k_view_cpu = cold_adapter.k_view()
-    cold_v_view_cpu = cold_adapter.v_view()
-
-    # cold_block_ids is shaped (num_seqs, max_cold_blocks). Mirror to CPU
-    # once for slicing.
-    cold_block_ids_cpu = (
-        cold_block_ids.cpu()
-        if cold_block_ids.device.type == "cuda"
-        else cold_block_ids
+    full_output, _ = flash_attn_varlen_func(
+        q=query,
+        k=key_cache,
+        v=value_cache,
+        cu_seqlens_q=cu_query_lens,
+        seqused_k=seqused_k,
+        max_seqlen_q=max_query_len,
+        max_seqlen_k=max_seqlen_k,
+        softmax_scale=softmax_scale,
+        causal=causal,
+        window_size=list(sliding_window),
+        block_table=block_table,
+        softcap=logits_soft_cap,
+        return_softmax_lse=True,
+        scheduler_metadata=suffix_scheduler_metadata,
+        fa_version=fa_version,
+        q_descale=q_descale.expand(descale_shape) if q_descale is not None else None,
+        k_descale=k_descale.expand(descale_shape) if k_descale is not None else None,
+        v_descale=v_descale.expand(descale_shape) if v_descale is not None else None,
     )
 
-    num_q_heads = query.size(1)
-    num_kv_heads = key_cache.size(-2)
-    head_dim = query.size(2)
-
-    total_cold_blocks_transferred = 0
-
     for seq_idx in fallback_seq_ids:
-        n_cold_blocks_i = int(n_cold_list[seq_idx])
-        seq_len_total_i = int(seq_lens_total_cpu[seq_idx])
-        n_cold_tokens = n_cold_blocks_i * block_size
-        n_hot_tokens = seq_len_total_i - n_cold_tokens
         qs = cu_q_list[seq_idx]
         qe = cu_q_list[seq_idx + 1]
-        n_q = qe - qs
+        output[qs:qe].copy_(full_output[qs:qe])
 
-        # IDE_006 decode-only scope contract.
-        if n_q != 1:
-            raise RuntimeError(
-                f"TSK_011 fallback expects q_len==1 per fallback seq "
-                f"(IDE_006 decode-only scope), got n_q={n_q} for seq {seq_idx}"
-            )
-
-        # (1) Hot K/V gather from GPU paged cache. block_table[seq_idx, :] is
-        # ordered: cold prefix block IDs first, then hot suffix. We only need
-        # the hot suffix here.
-        n_hot_blocks_i = (n_hot_tokens + block_size - 1) // block_size
-        if n_hot_blocks_i > 0:
-            hot_block_ids_i = block_table[
-                seq_idx, n_cold_blocks_i : n_cold_blocks_i + n_hot_blocks_i
-            ].to(torch.long)
-            hot_k = key_cache.index_select(0, hot_block_ids_i)
-            hot_v = value_cache.index_select(0, hot_block_ids_i)
-            hot_k = hot_k.reshape(-1, num_kv_heads, head_dim)[:n_hot_tokens]
-            hot_v = hot_v.reshape(-1, num_kv_heads, head_dim)[:n_hot_tokens]
-        else:
-            hot_k = torch.empty(
-                (0, num_kv_heads, head_dim),
-                dtype=key_cache.dtype,
-                device=device,
-            )
-            hot_v = torch.empty_like(hot_k)
-
-        # (2) Cold K/V — pull from CPU typed view + H2D. Index_select on CPU
-        # first so the PCIe payload is BF16/FP16 (smaller than the int8 page).
-        cold_block_ids_seq = cold_block_ids_cpu[seq_idx, :n_cold_blocks_i].to(
-            torch.long
-        )
-        cold_k_cpu = cold_k_view_cpu.index_select(0, cold_block_ids_seq)
-        cold_v_cpu = cold_v_view_cpu.index_select(0, cold_block_ids_seq)
-        cold_k = (
-            cold_k_cpu.to(device, non_blocking=True)
-            .reshape(-1, num_kv_heads, head_dim)[:n_cold_tokens]
-        )
-        cold_v = (
-            cold_v_cpu.to(device, non_blocking=True)
-            .reshape(-1, num_kv_heads, head_dim)[:n_cold_tokens]
-        )
-        total_cold_blocks_transferred += n_cold_blocks_i
-
-        # (3) Concat: cold prefix first, then hot suffix.
-        full_k = torch.cat([cold_k, hot_k], dim=0)
-        full_v = torch.cat([cold_v, hot_v], dim=0)
-
-        # (4) SDPA. Decode-only ⇒ q_len == 1, all KV valid, no mask.
-        q = query[qs:qe]                                   # (1, H, D)
-        q_b = q.transpose(0, 1).unsqueeze(0)               # (1, H, 1, D)
-        k_b = full_k.transpose(0, 1).unsqueeze(0)          # (1, Hkv, Lk, D)
-        v_b = full_v.transpose(0, 1).unsqueeze(0)
-
-        out_b = F.scaled_dot_product_attention(
-            q_b,
-            k_b,
-            v_b,
-            attn_mask=None,
-            is_causal=False,
-            scale=softmax_scale,
-            enable_gqa=True,
-        )                                                   # (1, H, 1, D)
-        out_seq = out_b.squeeze(0).transpose(0, 1)          # (1, H, D)
-
-        # (5) Write directly into output rows.
-        output[qs:qe].copy_(out_seq)
-
-    return total_cold_blocks_transferred
+    return len(fallback_seq_ids)
 
 
 def hot_cold_attention(
@@ -2089,21 +2009,27 @@ def hot_cold_attention(
             # mid-call; the result will be discarded by GC.
             future.cancel()
             output.copy_(hot_output)
-            n_cold_blocks_total = _fallback_full_fa_sdpa(
+            n_cold_blocks_total = _fallback_full_fa_paged(
                 output=output,
                 query=query,
                 key_cache=key_cache,
                 value_cache=value_cache,
-                block_table=block_table,
-                block_size=block_size,
-                cu_q_list=cu_q_list,
-                n_cold_list=n_cold_list,
-                seq_lens_total_cpu=seq_lens_total_cpu,
-                fallback_seq_ids=need_cold_seq_ids,
-                cpu_kv_cache=cpu_kv_cache,
-                cold_kv_layout=cold_kv_layout,
-                cold_block_ids=cold_block_ids,
+                cu_query_lens=cu_query_lens,
+                max_query_len=max_query_len,
+                seqused_k=seqused_k,
+                max_seqlen_k=max_seqlen_k,
                 softmax_scale=softmax_scale,
+                causal=causal,
+                sliding_window=sliding_window,
+                logits_soft_cap=logits_soft_cap,
+                block_table=block_table,
+                fa_version=fa_version,
+                suffix_scheduler_metadata=suffix_scheduler_metadata,
+                q_descale=q_descale,
+                k_descale=k_descale,
+                v_descale=v_descale,
+                fallback_seq_ids=need_cold_seq_ids,
+                cu_q_list=cu_q_list,
             )
             _record_cold_fallback_breadcrumb(
                 n_fallback_seqs=len(need_cold_seq_ids),
