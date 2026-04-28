@@ -298,6 +298,59 @@ class AsyncGPUModelRunnerOutput(AsyncModelRunnerOutput):
         return output
 
 
+def _pack_cold_cpu_block_ids(
+    num_cold_blocks_np: np.ndarray,
+    cold_ids_per_req: dict[str, list[int]],
+    req_ids: list[str],
+    num_reqs: int,
+    num_reqs_padded: int,
+) -> tuple[np.ndarray, int]:
+    """IDE_006 / TSK_002 §4.5c — masked count 기준 cold_cpu_block_ids packing.
+
+    ``num_cold_blocks_np`` 는 ``_mask_prefill_cold_blocks`` 적용 *후* 의
+    값. 즉 prefill seq 는 0 으로 force 되어 있고, decode seq 만 원래 cold
+    count 를 들고 있다. ``max_cold_per_req`` 는 mask 후 max — prefill seq
+    의 *원래 (mask 전) ids 길이* 가 그보다 클 수 있어, 이전 코드처럼
+    ``cold_ids_np[i, :len(ids)] = ids`` 로 채우면 row width 초과로
+    ``ValueError`` (실제 발생 시나리오: prefill cold 630, decode cold 10
+    → max=10, prefill row 에 630 개 채우려다 broadcast 실패).
+
+    이 helper 는 *masked count 만큼만* 채우고 row width (``max_cold_per_req``)
+    를 넘지 않도록 보장. prefill seq (n=0) 는 자동 skip.
+
+    Args:
+        num_cold_blocks_np: shape ``(num_reqs_padded,)``, mask 후 값.
+        cold_ids_per_req: req_id → cold block ids list.
+        req_ids: ``input_batch.req_ids`` 의 처음 num_reqs 개.
+        num_reqs: 실제 요청 수.
+        num_reqs_padded: padding 포함 row 수.
+
+    Returns:
+        ``(cold_ids_np, max_cold_per_req)``. max=0 이면 빈 (..., 0) 텐서.
+    """
+    max_cold_per_req = int(num_cold_blocks_np.max(initial=0))
+    if max_cold_per_req == 0:
+        return np.zeros((num_reqs_padded, 0), dtype=np.int32), 0
+    cold_ids_np = np.zeros(
+        (num_reqs_padded, max_cold_per_req), dtype=np.int32
+    )
+    for i in range(num_reqs):
+        n = int(num_cold_blocks_np[i])
+        if n <= 0:
+            continue
+        ids = cold_ids_per_req.get(req_ids[i])
+        if not ids:
+            continue
+        # mask 후 num_cold_blocks 가 ids 길이를 초과하는 건 connector
+        # 측 데이터 일관성이 깨졌다는 신호 — silent truncation 대신 raise.
+        assert len(ids) >= n, (
+            f"req_ids[{i}]={req_ids[i]!r} has {len(ids)} cold ids but "
+            f"masked num_cold_blocks={n} — connector metadata inconsistency"
+        )
+        cold_ids_np[i, :n] = ids[:n]
+    return cold_ids_np, max_cold_per_req
+
+
 def _mask_prefill_cold_blocks(
     num_cold_blocks_np: np.ndarray,
     cu_q_cpu: np.ndarray,
@@ -2284,18 +2337,17 @@ class GPUModelRunner(
             # max_cold_per_req is computed *after* the §4.5c mask above,
             # so a batch where every cold-bearing seq is a prefill chunk
             # falls through to max == 0 -> hot_cold_attention's fast path.
-            cold_ids_per_req = kv_connector_metadata.cold_cpu_block_ids
-            max_cold_per_req = int(num_cold_blocks_np.max(initial=0))
+            # Packing uses ``_pack_cold_cpu_block_ids`` to honour the
+            # masked count per row — prefill seqs (n=0 after mask) are
+            # skipped, decode seqs are filled to their masked length.
+            cold_ids_np, max_cold_per_req = _pack_cold_cpu_block_ids(
+                num_cold_blocks_np,
+                kv_connector_metadata.cold_cpu_block_ids,
+                self.input_batch.req_ids,
+                num_reqs,
+                num_reqs_padded,
+            )
             if max_cold_per_req > 0:
-                cold_ids_np = np.zeros(
-                    (num_reqs_padded, max_cold_per_req), dtype=np.int32
-                )
-                for i, req_id in enumerate(
-                    self.input_batch.req_ids[:num_reqs]
-                ):
-                    ids = cold_ids_per_req.get(req_id)
-                    if ids:
-                        cold_ids_np[i, :len(ids)] = ids
                 cold_cpu_block_ids_tensor = torch.from_numpy(cold_ids_np)
             else:
                 cold_cpu_block_ids_tensor = torch.zeros(
