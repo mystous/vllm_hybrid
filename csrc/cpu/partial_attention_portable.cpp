@@ -29,6 +29,21 @@
 //   cannot resurrect the pthread_create EAGAIN storm. Cached function-
 //   static so the cost is paid once per worker process.
 static int vllm_partial_attn_thread_count() {
+  // Thread-local: omp_get_max_threads() reflects the calling thread's
+  // OpenMP nthreads-var ICV (set via omp_set_num_threads). TSK_010
+  // sub-batching has the Python wrapper invoke omp_set_num_threads on
+  // each sub-batch worker thread to limit the OMP team size and avoid
+  // oversubscription. When the calling thread has set a value > 1, use
+  // it. Otherwise fall back to the cached baseline (preserves the
+  // pre-TSK_010 single-batch behaviour where vLLM's V1 multiproc
+  // executor sets OMP_NUM_THREADS=1 and we override via the cached
+  // sched_getaffinity / VLLM_PARTIAL_ATTN_THREADS path).
+#ifdef _OPENMP
+  int omp_max = omp_get_max_threads();
+  if (omp_max > 1) {
+    return omp_max;
+  }
+#endif
   static int cached = []() {
     int baseline;
     cpu_set_t mask;

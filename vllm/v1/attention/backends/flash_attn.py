@@ -1524,6 +1524,13 @@ _COLD_FALLBACK_DEADLINE_MS_RAW = os.environ.get(
 )
 
 
+# IDE_006 / TSK_010 — sub-batching 활성 (default 1 = off). N>=2 면 cold path
+# kernel call 을 N 그룹으로 split + ThreadPoolExecutor 동시 실행.
+_COLD_NUM_SUB_BATCHES = max(
+    1, int(os.environ.get("VLLM_COLD_KV_NUM_SUB_BATCHES", "1") or "1")
+)
+
+
 def _resolve_cold_deadline_s() -> float | None:
     """Return per-call cold-path deadline in seconds, or ``None`` if disabled."""
     raw = _COLD_FALLBACK_DEADLINE_MS_RAW
@@ -1970,19 +1977,40 @@ def hot_cold_attention(
     # the partition+merge tail of this function.
     deadline_s = _resolve_cold_deadline_s()
     if deadline_s is None:
-        cold_output_reduced_cpu, cold_lse_reduced_cpu = forward_partial_with_lse(
-            query=reduced_query_cpu,
-            cold_kv_cache=cold_kv_combined,
-            cold_kv_layout=cold_kv_layout,
-            cold_block_ids=reduced_cbi,
-            cold_block_lens=reduced_cbl,
-            cu_seqlens_q=reduced_cu_cpu,
-            seq_lens_total=reduced_sl,
-            query_positions=reduced_qpos_cpu,
-            softmax_scale=softmax_scale,
-            causal=causal,
-            cold_kv_cache_v=cold_kv_v_split,
-        )
+        if _COLD_NUM_SUB_BATCHES > 1:
+            from vllm.v1.attention.ops.cpu_partial_attention import (
+                forward_partial_with_lse_sub_batched,
+            )
+            cold_output_reduced_cpu, cold_lse_reduced_cpu = (
+                forward_partial_with_lse_sub_batched(
+                    query=reduced_query_cpu,
+                    cold_kv_cache=cold_kv_combined,
+                    cold_kv_layout=cold_kv_layout,
+                    cold_block_ids=reduced_cbi,
+                    cold_block_lens=reduced_cbl,
+                    cu_seqlens_q=reduced_cu_cpu,
+                    seq_lens_total=reduced_sl,
+                    query_positions=reduced_qpos_cpu,
+                    softmax_scale=softmax_scale,
+                    causal=causal,
+                    cold_kv_cache_v=cold_kv_v_split,
+                    num_sub_batches=_COLD_NUM_SUB_BATCHES,
+                )
+            )
+        else:
+            cold_output_reduced_cpu, cold_lse_reduced_cpu = forward_partial_with_lse(
+                query=reduced_query_cpu,
+                cold_kv_cache=cold_kv_combined,
+                cold_kv_layout=cold_kv_layout,
+                cold_block_ids=reduced_cbi,
+                cold_block_lens=reduced_cbl,
+                cu_seqlens_q=reduced_cu_cpu,
+                seq_lens_total=reduced_sl,
+                query_positions=reduced_qpos_cpu,
+                softmax_scale=softmax_scale,
+                causal=causal,
+                cold_kv_cache_v=cold_kv_v_split,
+            )
     else:
         future = forward_partial_with_lse_async(
             query=reduced_query_cpu,
@@ -1996,6 +2024,7 @@ def hot_cold_attention(
             softmax_scale=softmax_scale,
             causal=causal,
             cold_kv_cache_v=cold_kv_v_split,
+            num_sub_batches=_COLD_NUM_SUB_BATCHES,
         )
         try:
             cold_output_reduced_cpu, cold_lse_reduced_cpu = future.result(

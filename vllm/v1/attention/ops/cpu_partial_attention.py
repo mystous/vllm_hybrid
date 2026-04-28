@@ -40,6 +40,7 @@ __all__ = [
     "select_isa_path",
     "forward_partial_with_lse",
     "forward_partial_with_lse_async",
+    "forward_partial_with_lse_sub_batched",
     "prewarm",
     "python_reference_partial_attention",
 ]
@@ -624,6 +625,7 @@ def forward_partial_with_lse_async(
     causal: bool = True,
     cold_kv_cache_v: Optional[torch.Tensor] = None,
     _force_path: Optional[ISAPath] = None,
+    num_sub_batches: int = 1,
 ) -> "Future[tuple[torch.Tensor, torch.Tensor]]":
     """TSK_011 — submit cold partial-attention onto a single-worker thread
     pool and return a ``concurrent.futures.Future``. The caller obtains
@@ -638,8 +640,29 @@ def forward_partial_with_lse_async(
     indefinitely. When the deadline is generous and the kernel finishes
     within budget, the behavior is identical to the synchronous
     ``forward_partial_with_lse``.
+
+    TSK_010 — when ``num_sub_batches > 1`` the future internally splits
+    the batch into N groups and runs N concurrent kernel calls (multi-
+    OMP-team / sub-batching). See ``forward_partial_with_lse_sub_batched``.
     """
     executor = _get_async_executor()
+    if num_sub_batches > 1:
+        return executor.submit(
+            forward_partial_with_lse_sub_batched,
+            query=query,
+            cold_kv_cache=cold_kv_cache,
+            cold_kv_layout=cold_kv_layout,
+            cold_block_ids=cold_block_ids,
+            cold_block_lens=cold_block_lens,
+            cu_seqlens_q=cu_seqlens_q,
+            seq_lens_total=seq_lens_total,
+            query_positions=query_positions,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            cold_kv_cache_v=cold_kv_cache_v,
+            num_sub_batches=num_sub_batches,
+            _force_path=_force_path,
+        )
     return executor.submit(
         forward_partial_with_lse,
         query=query,
@@ -655,6 +678,240 @@ def forward_partial_with_lse_async(
         cold_kv_cache_v=cold_kv_cache_v,
         _force_path=_force_path,
     )
+
+
+# IDE_006 / TSK_010 — sub-batching executor. forward_partial_with_lse_sub_batched
+# 가 batch 를 N 그룹으로 split + ThreadPoolExecutor 에 concurrent submit.
+# 각 worker thread 진입 시 ``omp_set_num_threads(per_sub_threads)`` 로 그
+# thread 의 OpenMP nthreads-var ICV 를 설정 → C++ kernel 의
+# ``vllm_partial_attn_thread_count()`` 가 그 값을 사용 → OMP team size 제한
+# (oversubscription 방지). max_workers 는 가장 큰 num_sub_batches 까지 한 번
+# 생성 후 재사용 (default 4 — VLLM_COLD_KV_MAX_SUB_BATCHES 로 override).
+_SUBBATCH_EXECUTOR: Optional[ThreadPoolExecutor] = None
+_SUBBATCH_MAX_WORKERS = max(
+    1, int(os.environ.get("VLLM_COLD_KV_MAX_SUB_BATCHES", "4"))
+)
+
+# libgomp.so cdecl handle for omp_set_num_threads (thread-local ICV).
+_LIBGOMP_HANDLE = None
+
+
+def _libgomp():
+    """Lazy-load libgomp.so for omp_set_num_threads ctypes call."""
+    global _LIBGOMP_HANDLE
+    if _LIBGOMP_HANDLE is False:
+        return None
+    if _LIBGOMP_HANDLE is None:
+        try:
+            import ctypes
+            for libname in ("libgomp.so.1", "libgomp.so"):
+                try:
+                    _LIBGOMP_HANDLE = ctypes.CDLL(libname)
+                    _LIBGOMP_HANDLE.omp_set_num_threads.argtypes = [ctypes.c_int]
+                    _LIBGOMP_HANDLE.omp_set_num_threads.restype = None
+                    break
+                except OSError:
+                    continue
+            else:
+                _LIBGOMP_HANDLE = False
+                return None
+        except Exception:
+            _LIBGOMP_HANDLE = False
+            return None
+    return _LIBGOMP_HANDLE
+
+
+def _set_omp_num_threads_for_thread(n: int) -> None:
+    """Set libgomp's nthreads-var ICV for the calling thread (thread-local).
+
+    No-op on systems without libgomp. Idempotent.
+    """
+    lg = _libgomp()
+    if lg is None or n <= 0:
+        return
+    lg.omp_set_num_threads(int(n))
+
+
+def _get_subbatch_executor() -> ThreadPoolExecutor:
+    global _SUBBATCH_EXECUTOR
+    if _SUBBATCH_EXECUTOR is None:
+        _SUBBATCH_EXECUTOR = ThreadPoolExecutor(
+            max_workers=_SUBBATCH_MAX_WORKERS,
+            thread_name_prefix="vllm-cold-subbatch",
+        )
+    return _SUBBATCH_EXECUTOR
+
+
+def _sub_batch_worker(
+    *,
+    omp_threads: int,
+    forward_kwargs: dict,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """ThreadPoolExecutor worker — set per-thread OMP nthreads-var, call
+    forward_partial_with_lse, return result. Idempotent on repeat
+    invocations (same OS thread reuse → ICV preserved)."""
+    _set_omp_num_threads_for_thread(omp_threads)
+    return forward_partial_with_lse(**forward_kwargs)
+
+
+def forward_partial_with_lse_sub_batched(
+    *,
+    query: torch.Tensor,
+    cold_kv_cache: torch.Tensor,
+    cold_kv_layout: KVPageLayout,
+    cold_block_ids: torch.Tensor,
+    cold_block_lens: torch.Tensor,
+    cu_seqlens_q: torch.Tensor,
+    seq_lens_total: torch.Tensor,
+    query_positions: torch.Tensor,
+    softmax_scale: Optional[float] = None,
+    causal: bool = True,
+    cold_kv_cache_v: Optional[torch.Tensor] = None,
+    num_sub_batches: int = 2,
+    _force_path: Optional[ISAPath] = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """TSK_010 — split batch into ``num_sub_batches`` groups + concurrent
+    kernel calls (multi-OMP-team / sub-batching).
+
+    각 sub-batch 가 별도 Python thread 에서 ``forward_partial_with_lse`` 호출.
+    각 thread 가 자기 OMP team 으로 진입 → 같은 worker 의 CPU 자원을 *동시*
+    여러 sub-batch 처리에 활용. libgomp 가 worker affinity 안에서 thread 수
+    자동 조정 (oversubscription 시 dynamic adjust).
+
+    효과 추정 (δ1 조사 기준):
+      - 현재: 단일 OMP team 의 N threads 가 worker 의 모든 코어 사용 중.
+      - sub-batched: 코어 자원 *분할* — 각 sub-batch 가 그 일부 사용.
+      - 기대 효과 = cache locality 향상 + memory bandwidth 활용 ↑ (작음).
+
+    fallback: ``num_sub_batches <= 1`` 이거나 ``num_seqs <= 1`` 이면
+    single-batch ``forward_partial_with_lse`` 와 동일 동작.
+    """
+    num_seqs = cu_seqlens_q.size(0) - 1
+    if num_sub_batches <= 1 or num_seqs <= 1:
+        return forward_partial_with_lse(
+            query=query,
+            cold_kv_cache=cold_kv_cache,
+            cold_kv_layout=cold_kv_layout,
+            cold_block_ids=cold_block_ids,
+            cold_block_lens=cold_block_lens,
+            cu_seqlens_q=cu_seqlens_q,
+            seq_lens_total=seq_lens_total,
+            query_positions=query_positions,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            cold_kv_cache_v=cold_kv_cache_v,
+            _force_path=_force_path,
+        )
+
+    seqs_per_group = (num_seqs + num_sub_batches - 1) // num_sub_batches
+    groups: list[dict] = []
+    cu_q_cpu = cu_seqlens_q.cpu() if cu_seqlens_q.device.type != "cpu" else cu_seqlens_q
+    for sb in range(num_sub_batches):
+        s0 = sb * seqs_per_group
+        s1 = min((sb + 1) * seqs_per_group, num_seqs)
+        if s0 >= s1:
+            continue
+        t0 = int(cu_q_cpu[s0])
+        t1 = int(cu_q_cpu[s1])
+        if t0 >= t1:
+            continue
+        sub_cu = (cu_seqlens_q[s0 : s1 + 1] - cu_seqlens_q[s0]).contiguous()
+        groups.append(
+            {
+                "query": query[t0:t1],
+                "cold_block_ids": cold_block_ids[s0:s1],
+                "cold_block_lens": cold_block_lens[s0:s1],
+                "cu_seqlens_q": sub_cu,
+                "seq_lens_total": seq_lens_total[s0:s1],
+                "query_positions": query_positions[t0:t1],
+                "token_range": (t0, t1),
+            }
+        )
+
+    if not groups:
+        return forward_partial_with_lse(
+            query=query,
+            cold_kv_cache=cold_kv_cache,
+            cold_kv_layout=cold_kv_layout,
+            cold_block_ids=cold_block_ids,
+            cold_block_lens=cold_block_lens,
+            cu_seqlens_q=cu_seqlens_q,
+            seq_lens_total=seq_lens_total,
+            query_positions=query_positions,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            cold_kv_cache_v=cold_kv_cache_v,
+            _force_path=_force_path,
+        )
+
+    if len(groups) == 1:
+        # Only one viable group; fall back to single-batch (no thread overhead).
+        g = groups[0]
+        return forward_partial_with_lse(
+            query=g["query"],
+            cold_kv_cache=cold_kv_cache,
+            cold_kv_layout=cold_kv_layout,
+            cold_block_ids=g["cold_block_ids"],
+            cold_block_lens=g["cold_block_lens"],
+            cu_seqlens_q=g["cu_seqlens_q"],
+            seq_lens_total=g["seq_lens_total"],
+            query_positions=g["query_positions"],
+            softmax_scale=softmax_scale,
+            causal=causal,
+            cold_kv_cache_v=cold_kv_cache_v,
+            _force_path=_force_path,
+        )
+
+    # Per-sub-batch OMP team size — divide the worker's affinity-bound core
+    # count by the number of active groups. Use os.sched_getaffinity for the
+    # baseline (matches the C++ kernel's cached fallback path). Floor to 1
+    # so a group always gets at least one thread.
+    try:
+        affinity_cpus = len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):
+        affinity_cpus = os.cpu_count() or 1
+    per_sub_threads = max(1, affinity_cpus // len(groups))
+
+    executor = _get_subbatch_executor()
+    futures: list[tuple[dict, "Future[tuple[torch.Tensor, torch.Tensor]]"]] = []
+    for g in groups:
+        forward_kwargs = dict(
+            query=g["query"],
+            cold_kv_cache=cold_kv_cache,
+            cold_kv_layout=cold_kv_layout,
+            cold_block_ids=g["cold_block_ids"],
+            cold_block_lens=g["cold_block_lens"],
+            cu_seqlens_q=g["cu_seqlens_q"],
+            seq_lens_total=g["seq_lens_total"],
+            query_positions=g["query_positions"],
+            softmax_scale=softmax_scale,
+            causal=causal,
+            cold_kv_cache_v=cold_kv_cache_v,
+            _force_path=_force_path,
+        )
+        f = executor.submit(
+            _sub_batch_worker,
+            omp_threads=per_sub_threads,
+            forward_kwargs=forward_kwargs,
+        )
+        futures.append((g, f))
+
+    num_tokens = query.size(0)
+    num_q_heads = query.size(1)
+    head_dim = query.size(2)
+    O_full = torch.zeros((num_tokens, num_q_heads, head_dim), dtype=query.dtype)
+    LSE_full = torch.full(
+        (num_q_heads, num_tokens),
+        -float("inf"),
+        dtype=torch.float32,
+    )
+    for g, f in futures:
+        O_sub, LSE_sub = f.result()
+        t0, t1 = g["token_range"]
+        O_full[t0:t1] = O_sub
+        LSE_full[:, t0:t1] = LSE_sub
+
+    return O_full, LSE_full
 
 
 def _call_compiled_kernel(
