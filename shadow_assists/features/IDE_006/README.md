@@ -275,6 +275,58 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 15 | [`TSK_010`](TSK_010.md) | CPU 자원 활용 확장 (multi-OMP-team / sub-batching) | `대기` (사용자 허락 후 발행 2026-04-28 — TSK_004 자연 확장). 검증 게이트 = [`TST_010`](TST_010.md) |
 | 16 | `FEA_###` | 통합 기능 (`feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
 
+### 11.1 · 진행 현황 (2026-04-28)
+
+```mermaid
+flowchart TB
+    subgraph DONE["완료"]
+        T1["TSK_001 kernel"]
+        TT1["TST_001"]
+        TT4["TST_004"]
+    end
+    subgraph ACTIVE["활성 — 코드 적용 완료, prod 측정 대기"]
+        T2["TSK_002 §4.2~§4.6 + §4.5c"]
+        T3["TSK_003 SIMD"]
+        T4["TSK_004 NUMA"]
+    end
+    subgraph WAIT_TSK["대기 — 신규 발행 (2026-04-28)"]
+        T5["TSK_005 cross-layer"]
+        T6["TSK_006 chunk"]
+        T7["TSK_007 GQA"]
+        T8["TSK_008 split"]
+        T9["TSK_009 prefetch"]
+        T10["TSK_010 multi-team"]
+    end
+    subgraph WAIT_TST["TST 대기"]
+        TT2["TST_002 throughput"]
+        TT3["TST_003 e2e (prompt2 발산 미해결)"]
+        TT5_10["TST_005~010"]
+    end
+    FEA["FEA_### (미할당)"]
+
+    T1 --> T2
+    T1 --> T3
+    T1 --> T4
+    T2 --> T5
+    T2 --> T9
+    T4 --> T10
+    T5 --> T6
+    ACTIVE -.측정.-> TT2
+    T2 -.측정.-> TT3
+    WAIT_TSK -.측정.-> TT5_10
+    WAIT_TST --> FEA
+
+    style DONE fill:#cfc,color:#000
+    style ACTIVE fill:#ffd,color:#000
+    style WAIT_TSK fill:#fdd,color:#000
+    style WAIT_TST fill:#fdd,color:#000
+    style FEA fill:#ddd,color:#000
+```
+
+**우선순위**: `TSK_005` (NEO 핵심, 100 req heavy 격차 해소) → (`TSK_009` ‖ `TSK_010`, 병렬) → `TSK_006` → `TSK_007` → `TSK_008`. 자세한 의존은 `shadow_assists/README.md` Part VII Trace Tree.
+
+**커밋**: `origin/feat` 보다 6 커밋 앞섬 (`1b36802db2` ~ `d1237277b6` + 본 정합성 commit). dev pytest 누계 **202 통과 / 153 skip**.
+
 각 ID 의 상세 명세는 위 표의 링크 (`PLN_001.md`, `TSK_001.md`, `TSK_002.md`) 가 단일 출처. 미할당 ID 들은 PLN 결과에 따라 발급. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수.
 
 ---
