@@ -1,4 +1,4 @@
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_005`](TSK_005.md) · [`TSK_006`](TSK_006.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_005`](TST_005.md) · [`TST_006`](TST_006.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md)
 
 ---
 
@@ -267,7 +267,13 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 7 | [`TST_004`](TST_004.md) | TSK_003 prod SIMD cross-check (B(ii) AVX-512 + B(iii) AMX) | `완료` (152 passed @ prod simd_verify `eval/results/20260427_044407_*`) |
 | 8 | [`TST_003`](TST_003.md) | e2e 통합 정확도 (D-i + D-ii) | `대기` (`TSK_002` §4.6 안정화 후 풀 회차 — `eval/run_prod_smoke.sh --push`) |
 | 9 | [`TST_002`](TST_002.md) | throughput / overlap profile | `대기` (TST_003 통과 후. PLN_001 §4.3 overlap 부등식 net-win 결정점) |
-| 10 | `FEA_###` | 통합 기능 (`feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
+| 10 | [`TSK_005`](TSK_005.md) | **Cross-layer pipeline parallelism** (model_runner.forward layer-async refactor) | `대기` (사전 조사 — README §8 vii / §9 (g) / §12 Q6 + TSK_002 §10 2026-04-27 deferred). 검증 게이트 = [`TST_005`](TST_005.md). NEO 핵심 — 100 req heavy throughput 격차 해소 결정적 영역 |
+| 11 | [`TSK_006`](TSK_006.md) | Q chunk pipelining | `대기` (사전 조사 — README §12 Q6 + TSK_002 §4.6 본문). 의존: TSK_005. 검증 게이트 = [`TST_006`](TST_006.md) |
+| 12 | [`TSK_007`](TSK_007.md) | GQA K/V broadcast 옵션 결정 (A vs B) | `대기` (사전 조사 — README §4.3 / §8 iv / §12 Q3). 검증 게이트 = [`TST_007`](TST_007.md) |
+| 13 | [`TSK_008`](TSK_008.md) | hot/cold 분할 정책 (layer-별 vs request 균일) | `대기` (사전 조사 — README §12 Q4). 검증 게이트 = [`TST_008`](TST_008.md) |
+| 14 | [`TSK_009`](TSK_009.md) | Reload prefetch (admission 시점 trigger) | `대기` (사용자 허락 후 발행 2026-04-28 — 본 commit `c35585556c` 의 reload sync 비용 반영). 검증 게이트 = [`TST_009`](TST_009.md) |
+| 15 | [`TSK_010`](TSK_010.md) | CPU 자원 활용 확장 (multi-OMP-team / sub-batching) | `대기` (사용자 허락 후 발행 2026-04-28 — TSK_004 자연 확장). 검증 게이트 = [`TST_010`](TST_010.md) |
+| 16 | `FEA_###` | 통합 기능 (`feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
 
 각 ID 의 상세 명세는 위 표의 링크 (`PLN_001.md`, `TSK_001.md`, `TSK_002.md`) 가 단일 출처. 미할당 ID 들은 PLN 결과에 따라 발급. CLAUDE.md ID Rule 8 (본문 사용은 id_registry 갱신 이후) 준수.
 
@@ -329,7 +335,8 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 2026-04-26 | TSK_001 + TST_001 마감 (Phase 1 dev 완료) | 검증 게이트 [`TST_001`](TST_001.md) (단계 A · B(i) · C) 가 dev (12900KF + RTX 3090, 2026-04-25, 87 testcase) + prod (Xeon Platinum 8480+ x2 socket + H100 x8, 2026-04-26, 87 testcase, `eval/results/20260426_050608_..._prod_smoke/`) 양쪽 통과 → numerical 일관성 입증 → IDE_006 §9 (c)(d) 의 dev kernel 측 충족. §11 표 step 2 (`TSK_001`) + step 5 (`TST_001`) 모두 `완료` 로 전환. 다음 단계는 step 3 (`TSK_002` model_runner integration, dev 자동) + step 4 (`TSK_003` prod SIMD, 사용자 직접). |
 | 2026-04-27 | TSK_002 §4.2~§4.6 + TSK_003 prod cross-check + TSK_004 NUMA-aware 일괄 진척 | (1) TSK_002 §4.2~§4.5 dev 구현 완료 후 prod 회귀 fix 흐름 (libgomp EAGAIN / wrapper 5462 ms timeout / device-mismatch / batch 전체 폭 D2H) 처리, §4.6 stream 분리 dev 검증까지 완료 — 자세한 흐름은 [`PLN_001_TSK_002_02_overlap_fix_log.md`](PLN_001_TSK_002_02_overlap_fix_log.md). 상태 `대기` → `활성`. (2) TSK_003 의 prod TST_004 cross-check 152 passed (`eval/results/20260427_044407_*_simd_verify`). TST_004 상태 `대기` → `완료`. (3) TSK_004 가 §11 표에 누락되어 있던 것을 추가 + 회귀 fix 항 (b'/b''/b''') 명시. NUMA partition / OMP num_threads / dispatch 캐싱 prod 통과. (4) IDE_006 최상위 상태 `재정의` → `활성`. (5) `eval/run_prod_simd_verify.sh` / `run_prod_cold_verify.sh` wrapper 두 개 신규. 다음 게이트: §4.6 prod overlap 측정 → TST_003 풀 회차 → TST_002 throughput sweep. |
 | (이전) | `shadow_assists/README.md` §3.2 재정의 (commit `8f50eeb2a4`) | 1차 정의 "Cold KV staging" 이 업스트림 중복이라 기각, CPU partial attention 으로 재정의 |
+| 2026-04-28 | 성능 향상 로드맵 — TSK_005~010 + TST_005~010 신규 발행 | 사용자 지시 (2026-04-28) "IDE_006으로 성능을 향상 하기 위한 로드맵을 만들고 필요한 Task를 만들어. 니 멋대로 만들지 말고 사전 조사된 내용을 바탕으로 만들어". 사전 조사된 출처 (README §8 vii / §9 (g) / §12 Q3·Q4·Q6 + TSK_002 §10 2026-04-27 deferred) 기반으로 TSK_005 (cross-layer pipeline), TSK_006 (Q chunk pipelining), TSK_007 (GQA broadcast 옵션), TSK_008 (분할 정책) 발행. 사용자 추가 허락으로 TSK_009 (reload prefetch — 본 commit `c35585556c` 의 reload sync 비용 반영) + TSK_010 (CPU 자원 확장 — TSK_004 자연 확장) 발행. 매핑 TST_005~010 — 모두 *실제 동작 검증* (CUDA event timeline / per-core utilization / perf counter / firing 빈도 등) spec. id_registry: TSK 다음 부여 번호 005→011, TST 005→011 갱신. README §11 표에 step 10~16 추가 (이전 step 10 FEA_### → step 16 으로 이동). |
 
 ---
 
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_005`](TSK_005.md) · [`TSK_006`](TSK_006.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_005`](TST_005.md) · [`TST_006`](TST_006.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md)
