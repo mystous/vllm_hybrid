@@ -166,6 +166,7 @@ flowchart TB
     PLN_001 --> TSK_008["TSK_008<br/>hot/cold 분할 정책"]
     PLN_001 --> TSK_009["TSK_009<br/>Reload prefetch"]
     PLN_001 --> TSK_010["TSK_010<br/>CPU 자원 확장<br/>(multi-OMP-team)"]
+    PLN_001 --> TSK_011["TSK_011<br/>Speculative + GPU fallback<br/>(3차 재정의 코드화)"]
     PLN_001 --> TST_001["TST_001<br/>TSK_001 정확도<br/>(A · B(i) · C)"]
     PLN_001 --> TST_004["TST_004<br/>TSK_003 prod SIMD cross-check<br/>(B(ii) AVX-512 + B(iii) AMX)"]
     PLN_001 --> TST_003["TST_003<br/>e2e 통합 정확도<br/>(D-i + D-ii)"]
@@ -176,6 +177,7 @@ flowchart TB
     PLN_001 --> TST_008["TST_008<br/>분할 정책 측정"]
     PLN_001 --> TST_009["TST_009<br/>prefetch 동작 측정"]
     PLN_001 --> TST_010["TST_010<br/>CPU 자원 활용 측정"]
+    PLN_001 --> TST_011["TST_011<br/>speculative + fallback 측정"]
 
     TSK_001 --> TSK_002
     TSK_001 --> TSK_003
@@ -197,6 +199,8 @@ flowchart TB
     TSK_008 -.검증.-> TST_008
     TSK_009 -.검증.-> TST_009
     TSK_010 -.검증.-> TST_010
+    TSK_011 -.검증.-> TST_011
+    TSK_002 --> TSK_011
 
     TST_001 --> TST_004
     TST_001 --> TST_003
