@@ -1,4 +1,4 @@
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_005`](TSK_005.md) · [`TSK_006`](TSK_006.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TSK_011`](TSK_011.md) · [`TSK_012`](TSK_012.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_005`](TST_005.md) · [`TST_006`](TST_006.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md) · [`TST_011`](TST_011.md) · [`TST_012`](TST_012.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TSK_011`](TSK_011.md) · [`TSK_012`](TSK_012.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md) · [`TST_011`](TST_011.md) · [`TST_012`](TST_012.md)
 
 ---
 
@@ -288,17 +288,17 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 7 | [`TST_004`](TST_004.md) | TSK_003 prod SIMD cross-check (B(ii) AVX-512 + B(iii) AMX) | `완료` (152 passed @ prod simd_verify `eval/results/20260427_044407_*`) |
 | 8 | [`TST_003`](TST_003.md) | e2e 통합 정확도 (D-i + D-ii) | `대기` (`TSK_002` §4.6 안정화 후 풀 회차 — `eval/run_prod_smoke.sh --push`) |
 | 9 | [`TST_002`](TST_002.md) | throughput / overlap profile | `대기` (TST_003 통과 후. PLN_001 §4.3 overlap 부등식 net-win 결정점) |
-| 10 | [`TSK_005`](TSK_005.md) | **Cross-layer pipeline parallelism** (model_runner.forward layer-async refactor) | `대기` (사전 조사 — README §8 vii / §9 (g) / §12 Q6 + TSK_002 §10 2026-04-27 deferred). 검증 게이트 = [`TST_005`](TST_005.md). NEO 핵심 — 100 req heavy throughput 격차 해소 결정적 영역 |
-| 11 | [`TSK_006`](TSK_006.md) | Q chunk pipelining | `대기` (사전 조사 — README §12 Q6 + TSK_002 §4.6 본문). 의존: TSK_005. 검증 게이트 = [`TST_006`](TST_006.md) |
-| 12 | [`TSK_007`](TSK_007.md) | GQA K/V broadcast 옵션 결정 (A vs B) | `대기` (사전 조사 — README §4.3 / §8 iv / §12 Q3). 검증 게이트 = [`TST_007`](TST_007.md) |
-| 13 | [`TSK_008`](TSK_008.md) | hot/cold 분할 정책 (layer-별 vs request 균일) | `대기` (사전 조사 — README §12 Q4). 검증 게이트 = [`TST_008`](TST_008.md) |
-| 14 | [`TSK_009`](TSK_009.md) | Reload prefetch (admission 시점 trigger) | `대기` (사용자 허락 후 발행 2026-04-28 — 본 commit `c35585556c` 의 reload sync 비용 반영). 검증 게이트 = [`TST_009`](TST_009.md) |
-| 15 | [`TSK_010`](TSK_010.md) | CPU 자원 활용 확장 (multi-OMP-team / sub-batching) | `대기` (사용자 허락 후 발행 2026-04-28 — TSK_004 자연 확장). 검증 게이트 = [`TST_010`](TST_010.md) |
-| 16 | [`TSK_011`](TSK_011.md) | **Speculative cold + GPU fallback** (3차 재정의 핵심) | `활성` (코드 land + dev pytest 419 passed + prod 70B fallback 발동 검증 + sweep 결과 land 2026-04-28). 검증 게이트 = [`TST_011`](TST_011.md) `부분 완료` (a/b/c 입증, d 미달성으로 영역 분리). |
-| 17 | [`TST_011`](TST_011.md) | TSK_011 fallback 동작 검증 (deadline / fb # / throughput / equivalence) | `부분 완료` (sweep 100ms / 1000ms 결과 — 자세한 측정값은 본문 prod sweep 결과 단락 참조) |
-| 18 | [`TSK_012`](TSK_012.md) | **Decode-time cold-blocks GPU reload** (D-ii equivalence — TSK_011 sweep 발견의 진짜 봉합 메커니즘) | `대기` (사용자 결정 2026-04-28 — TSK_011 sweep 결과 fallback 만으로 D-ii 봉합 불가능 입증. *cold KV source* 자체를 baseline 과 일치시키는 영역). 검증 게이트 = [`TST_012`](TST_012.md) |
-| 19 | [`TST_012`](TST_012.md) | TSK_012 decode reload 의 D-ii 봉합 정량 | `대기` (TST_003 wrapper reuse) |
-| 20 | `FEA_###` | 통합 기능 (`feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
+| 10 | [`TSK_007`](TSK_007.md) | GQA K/V broadcast 옵션 결정 (A vs B) | `대기` (사전 조사 — README §4.3 / §8 iv / §12 Q3). 검증 게이트 = [`TST_007`](TST_007.md) |
+| 11 | [`TSK_008`](TSK_008.md) | hot/cold 분할 정책 (layer-별 vs request 균일) | `대기` (사전 조사 — README §12 Q4). 검증 게이트 = [`TST_008`](TST_008.md) |
+| 12 | [`TSK_009`](TSK_009.md) | Reload prefetch (admission 시점 trigger) | `대기` (사용자 허락 후 발행 2026-04-28 — 본 commit `c35585556c` 의 reload sync 비용 반영). 검증 게이트 = [`TST_009`](TST_009.md) |
+| 13 | [`TSK_010`](TSK_010.md) | CPU 자원 활용 확장 (multi-OMP-team / sub-batching) | `대기` (사용자 허락 후 발행 2026-04-28 — TSK_004 자연 확장). 검증 게이트 = [`TST_010`](TST_010.md) |
+| 14 | [`TSK_011`](TSK_011.md) | **Speculative cold + GPU fallback** (3차 재정의 핵심) | `활성` (코드 land + dev pytest 419 passed + prod 70B fallback 발동 검증 + sweep 결과 land 2026-04-28). 검증 게이트 = [`TST_011`](TST_011.md) `부분 완료` (a/b/c 입증, d 미달성으로 영역 분리). |
+| 15 | [`TST_011`](TST_011.md) | TSK_011 fallback 동작 검증 (deadline / fb # / throughput / equivalence) | `부분 완료` (sweep 100ms / 1000ms 결과 — 자세한 측정값은 본문 prod sweep 결과 단락 참조) |
+| 16 | [`TSK_012`](TSK_012.md) | **Decode-time cold-blocks GPU reload** (D-ii equivalence — TSK_011 sweep 발견의 진짜 봉합 메커니즘) | `대기` (사용자 결정 2026-04-28 — TSK_011 sweep 결과 fallback 만으로 D-ii 봉합 불가능 입증. *cold KV source* 자체를 baseline 과 일치시키는 영역). 검증 게이트 = [`TST_012`](TST_012.md) |
+| 17 | [`TST_012`](TST_012.md) | TSK_012 decode reload 의 D-ii 봉합 정량 | `대기` (TST_003 wrapper reuse) |
+| 18 | `FEA_###` | 통합 기능 (`feat/ide006-cold-kv-cpu-partial-attention` 브랜치) | 미할당 |
+
+> **본 표에서 제외된 ID**: `TSK_005` (Cross-layer pipeline) / `TSK_006` (Q chunk pipelining) / `TST_005` / `TST_006` 는 *Llama only* 의 model-specific 작업이라 IDE_006 의 model-agnostic scope 와 어긋나 본문에서 제외했다. 자세한 사유는 §14 Change Log 2026-04-28 참조. id_registry 의 ID 행은 그대로 보존 (재사용 금지 룰).
 
 ### 11.1 · 진행 현황 (2026-04-28)
 
@@ -315,9 +315,7 @@ flowchart TB
         T4["TSK_004 NUMA"]
         T11["TSK_011 fallback (sweep land)"]
     end
-    subgraph WAIT_TSK["대기 — 신규 발행"]
-        T5["TSK_005 cross-layer"]
-        T6["TSK_006 chunk"]
+    subgraph WAIT_TSK["대기"]
         T7["TSK_007 GQA"]
         T8["TSK_008 split"]
         T9["TSK_009 admission prefetch"]
@@ -329,24 +327,22 @@ flowchart TB
         TT3["TST_003 e2e (prompt2 발산 미해결)"]
         TT11["TST_011 부분 완료 (a/b/c)"]
         TT12["TST_012 D-ii 봉합 정량"]
-        TT5_10["TST_005~010"]
+        TT_OTHER["TST_007~010"]
     end
     FEA["FEA_### (미할당)"]
 
     T1 --> T2
     T1 --> T3
     T1 --> T4
-    T2 --> T5
     T2 --> T9
     T4 --> T10
-    T5 --> T6
     T11 --> T12
     T9 --> T12
     ACTIVE -.측정.-> TT2
     T2 -.측정.-> TT3
     T11 -.측정.-> TT11
     T12 -.측정.-> TT12
-    WAIT_TSK -.측정.-> TT5_10
+    WAIT_TSK -.측정.-> TT_OTHER
     WAIT_TST --> FEA
 
     style DONE fill:#cfc,color:#000
@@ -356,7 +352,7 @@ flowchart TB
     style FEA fill:#ddd,color:#000
 ```
 
-**우선순위**: `TSK_012` (D-ii 봉합 — TSK_011 sweep 의 결정적 발견 영역) → `TSK_005` (NEO cross-layer, 100 req heavy 격차 해소) → (`TSK_009` ‖ `TSK_010`, 병렬) → `TSK_006` → `TSK_007` → `TSK_008`. 자세한 의존은 `shadow_assists/README.md` Part VII Trace Tree.
+**우선순위**: `TSK_012` (D-ii 봉합 — TSK_011 sweep 의 결정적 발견 영역) → (`TSK_009` ‖ `TSK_010`, 병렬) → `TSK_007` → `TSK_008`. 자세한 의존은 `shadow_assists/README.md` Part VII Trace Tree.
 
 **커밋**: `origin/feat` 보다 7 커밋 앞섬 (`1b36802db2` ~ `bf525c24d9` + 본 TSK_011 land commit). dev pytest 누계 **419 통과 / 153 skip**.
 
@@ -421,10 +417,11 @@ flowchart TB
 | 2026-04-27 | TSK_002 §4.2~§4.6 + TSK_003 prod cross-check + TSK_004 NUMA-aware 일괄 진척 | (1) TSK_002 §4.2~§4.5 dev 구현 완료 후 prod 회귀 fix 흐름 (libgomp EAGAIN / wrapper 5462 ms timeout / device-mismatch / batch 전체 폭 D2H) 처리, §4.6 stream 분리 dev 검증까지 완료 — 자세한 흐름은 [`PLN_001_TSK_002_02_overlap_fix_log.md`](PLN_001_TSK_002_02_overlap_fix_log.md). 상태 `대기` → `활성`. (2) TSK_003 의 prod TST_004 cross-check 152 passed (`eval/results/20260427_044407_*_simd_verify`). TST_004 상태 `대기` → `완료`. (3) TSK_004 가 §11 표에 누락되어 있던 것을 추가 + 회귀 fix 항 (b'/b''/b''') 명시. NUMA partition / OMP num_threads / dispatch 캐싱 prod 통과. (4) IDE_006 최상위 상태 `재정의` → `활성`. (5) `eval/run_prod_simd_verify.sh` / `run_prod_cold_verify.sh` wrapper 두 개 신규. 다음 게이트: §4.6 prod overlap 측정 → TST_003 풀 회차 → TST_002 throughput sweep. |
 | (이전) | `shadow_assists/README.md` §3.2 재정의 (commit `8f50eeb2a4`) | 1차 정의 "Cold KV staging" 이 업스트림 중복이라 기각, CPU partial attention 으로 재정의 |
 | 2026-04-28 | 성능 향상 로드맵 — TSK_005~010 + TST_005~010 신규 발행 | 사용자 지시 (2026-04-28) "IDE_006으로 성능을 향상 하기 위한 로드맵을 만들고 필요한 Task를 만들어. 니 멋대로 만들지 말고 사전 조사된 내용을 바탕으로 만들어". 사전 조사된 출처 (README §8 vii / §9 (g) / §12 Q3·Q4·Q6 + TSK_002 §10 2026-04-27 deferred) 기반으로 TSK_005 (cross-layer pipeline), TSK_006 (Q chunk pipelining), TSK_007 (GQA broadcast 옵션), TSK_008 (분할 정책) 발행. 사용자 추가 허락으로 TSK_009 (reload prefetch — 본 commit `c35585556c` 의 reload sync 비용 반영) + TSK_010 (CPU 자원 확장 — TSK_004 자연 확장) 발행. 매핑 TST_005~010 — 모두 *실제 동작 검증* (CUDA event timeline / per-core utilization / perf counter / firing 빈도 등) spec. id_registry: TSK 다음 부여 번호 005→011, TST 005→011 갱신. README §11 표에 step 10~16 추가 (이전 step 10 FEA_### → step 16 으로 이동). |
+| 2026-04-28 | **TSK_005 / TSK_006 본문 제외 — model-specific 사유** | 사용자 결정 (2026-04-28) — TSK_005 (Cross-layer pipeline) 의 자연스러운 hook 위치가 `vllm/model_executor/models/llama.py` 의 `LlamaModel.forward` layer loop 임이 Y2 architecture 조사로 확인됨. 그 곳 변경은 *Llama 한정* 이며 Qwen / Mistral 등 다른 모델은 자기 `XxxModel.forward` 가 따로 있어 별도 변경 필요 — IDE_006 의 model-agnostic scope (long-context 모든 모델) 와 어긋남. 진정한 cross-layer 향상 (NEO 식 layer-async + speculation rollback) 은 attention output 의 layer 안 즉시 dependency 라 fundamental 어려움. 본 §11 표 / §11.1 Mermaid / 본문에서 TSK_005 / TSK_006 / TST_005 / TST_006 제외. id_registry 의 ID 행은 그대로 보존 (재사용 금지). 우선순위 갱신: TSK_012 → TSK_009 ‖ TSK_010 → TSK_007 → TSK_008. |
 | 2026-04-28 | **단계0~5 적용 — partition path 41% 단축, fundamental 격차 5.4×→3.1× 감소** | 사용자 plan (단계0 AMX inspect / 단계1 admission prefetch / 단계2 fallback paged FA / 단계3 partition speculative / 단계4 회귀 / 단계5 측정 / 단계6 분석) 끝까지 진행. (1) 단계0 — `csrc/cpu/partial_attention_amx.cpp` OMP region 외부 이동 + thread-local persistent scores buffer + hot-path trace 제거. AMX cross-check 76 passed. profile mean kernel 4.34→4.29ms (1% noise 영역). (2) 단계1 — admission reload 가 `OffloadingConnectorScheduler.update_state_after_alloc` 의 prefix cache hit 시 *이미 baseline 메커니즘으로 자연 발생* 임을 inspection 으로 확인. decode 영역 reload 는 vLLM core 통합 영역이라 별도. (3) 단계2 — `_fallback_full_fa_sdpa` (매 layer PCIe + SDPA 우회) 폐기 + `_fallback_full_fa_paged` (paged FA cold-only 추가 호출) 로 교체. (4) 단계3 — speculative pattern 이미 구현. (5) 단계5 prod 측정 (100 prompts × 14336 × 8): split_on **313.5s** vs 이전 408.0s (-23%), generate **136.4s** vs 233.2s (-41%). baseline 186.5s 대비 3.1× 느림 (이전 5.4× 에서 개선). worst_lp 3.65 / d_i 100/100 / d_ii 91/100. fallback firing 0 (deadline 100ms 안에 partition 끝남). (6) 단계6 — 사용자 임무 ("baseline 보다 빠르게") 미충족 fundamental — CPU AMX kernel 의 raw throughput 이 GPU paged FA + chunked overlap PCIe reload 보다 *항상* 느림. 단 큰 폭 향상 입증 + worst-case stall 차단. |
 | 2026-04-28 | **TSK_011 land + prod sweep + TSK_012 분리 발급** | TSK_011 §4.1 / §4.2 (opt-F: layer-local 임시 H2D + native SDPA) 코드 land. dev pytest 누계 419 통과 (이전 404 + 신규 15 — `tests/v1/cpu_partial_attention/test_tsk011_fallback.py`). prod 70B + TP=8 (`eval/run_prod_quick_e2e_70b.sh`) 회차로 fallback 정상 발동 검증 (50/50 success, fallback 40 회). **prod sweep (`run_prod_tsk011_deadline_sweep.sh`)** — deadline=100ms (fallback 100% 발동) 와 deadline=1000ms (fallback 0%) 두 점에서 모두 `worst_max_abs_logprob ~3.43`, `ppl_relative_diff ~0.24` 의 *동일 발산* — fallback path / partition path 모두 *같은 cold KV source (CPU page cache)* 사용으로 같은 root cause. 즉 **TSK_011 의 약속 중 *throughput 하한 보장* + *worst-case stall 차단* 은 입증, *D-ii 봉합* 은 fallback 만으로 불가능함이 입증**. 후속으로 [`TSK_012`](TSK_012.md) **decode-time cold-blocks GPU reload** 발급 — *cold KV source 자체를 baseline 과 일치시키는* 진짜 D-ii 봉합 메커니즘. id_registry: TSK 011→013, TST 011→013 (stale 정정 + 신규 +1). §11 표에 step 17 (TST_011 부분 완료) / step 18 (TSK_012) / step 19 (TST_012) 추가. §11.1 Mermaid 갱신 — TSK_011 활성, TSK_012 신규 / TST_011 부분 완료 / TST_012 신규. 우선순위 갱신: `TSK_012` (D-ii 봉합) → `TSK_005` (NEO) → 나머지. |
 | 2026-04-28 | **3차 재정의** — Speculative cold + GPU fallback 정책을 정의에 통합 | 사용자 결정 (2026-04-28) "GPU 메모리 절약은 나의 관심사가 아니야 / 재정의 해서 업데이트". 2 차 정의 ("GPU 로 reload 없이 CPU 가 처리") 의 worst case 무한 지연 위험 (§8 risk vii "overlap 불가 시 IDE_006 기각") 을 *fallback 정책* 으로 닫음. (a) §1 TL;DR 의 "무엇을 하는가" + "무엇이 *목표 가 아닌가*" 항목 갱신 — GPU memory 절약은 가치 축이 아님 명시. (b) §3.1 한 줄 정의 재작성 — *opportunistic CPU + deadline 기반 GPU full FA fallback* 으로 throughput 하한 보장. (c) §3.2 구성 요소 표에 "merge / fallback dispatcher" 추가. (d) §4.1.1 신설 — fallback 의 수학적 근거 (LSE-rescaling 의 정의에 의해 fallback 결과 = partition 합산 결과). (e) §5.1 Data Flow Mermaid 의 alt/else 분기 추가. (f) §8 risk vii "기각" 정책 폐기 → fallback 으로 *해소*. (g) §9 진입 조건 (g) 를 "throughput 하한 보장" 으로 재작성. (h) §10 가치 성격 — "장기 가치 영역" 에서 "모든 workload 에서 활성 가능" 으로 (단 실효 향상은 overlap 가능성에 비례). (i) TSK_011 + TST_011 신규 발행 — 3 차 재정의의 코드화. id_registry: TSK 다음 부여 번호 011→012, TST 011→012. README §11 표 step 16 (TSK_011) + step 17 (FEA) 추가. | 사용자 지시 (2026-04-28) "IDE_006으로 성능을 향상 하기 위한 로드맵을 만들고 필요한 Task를 만들어. 니 멋대로 만들지 말고 사전 조사된 내용을 바탕으로 만들어". 사전 조사된 출처 (README §8 vii / §9 (g) / §12 Q3·Q4·Q6 + TSK_002 §10 2026-04-27 deferred) 기반으로 TSK_005 (cross-layer pipeline), TSK_006 (Q chunk pipelining), TSK_007 (GQA broadcast 옵션), TSK_008 (분할 정책) 발행. 사용자 추가 허락으로 TSK_009 (reload prefetch — 본 commit `c35585556c` 의 reload sync 비용 반영) + TSK_010 (CPU 자원 확장 — TSK_004 자연 확장) 발행. 매핑 TST_005~010 — 모두 *실제 동작 검증* (CUDA event timeline / per-core utilization / perf counter / firing 빈도 등) spec. id_registry: TSK 다음 부여 번호 005→011, TST 005→011 갱신. README §11 표에 step 10~16 추가 (이전 step 10 FEA_### → step 16 으로 이동). |
 
 ---
 
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_005`](TSK_005.md) · [`TSK_006`](TSK_006.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TSK_011`](TSK_011.md) · [`TSK_012`](TSK_012.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_005`](TST_005.md) · [`TST_006`](TST_006.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md) · [`TST_011`](TST_011.md) · [`TST_012`](TST_012.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TSK_011`](TSK_011.md) · [`TSK_012`](TSK_012.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md) · [`TST_011`](TST_011.md) · [`TST_012`](TST_012.md)

@@ -160,8 +160,6 @@ flowchart TB
     PLN_001 --> TSK_002["TSK_002<br/>scheduler / attention metadata<br/>hot/cold partition 통합"]
     PLN_001 --> TSK_003["TSK_003<br/>prod SIMD kernels<br/>(AVX-512 + AMX C++)"]
     PLN_001 --> TSK_004["TSK_004<br/>Cold-KV 경로 NUMA-aware 화<br/>(connector buffer + kernel)"]
-    PLN_001 --> TSK_005["TSK_005<br/>Cross-layer pipeline<br/>(model_runner layer-async)"]
-    PLN_001 --> TSK_006["TSK_006<br/>Q chunk pipelining"]
     PLN_001 --> TSK_007["TSK_007<br/>GQA broadcast 옵션 결정"]
     PLN_001 --> TSK_008["TSK_008<br/>hot/cold 분할 정책"]
     PLN_001 --> TSK_009["TSK_009<br/>Reload prefetch"]
@@ -172,8 +170,6 @@ flowchart TB
     PLN_001 --> TST_004["TST_004<br/>TSK_003 prod SIMD cross-check<br/>(B(ii) AVX-512 + B(iii) AMX)"]
     PLN_001 --> TST_003["TST_003<br/>e2e 통합 정확도<br/>(D-i + D-ii)"]
     PLN_001 --> TST_002["TST_002<br/>throughput / overlap profile"]
-    PLN_001 --> TST_005["TST_005<br/>cross-layer overlap 측정"]
-    PLN_001 --> TST_006["TST_006<br/>chunk pipeline 측정"]
     PLN_001 --> TST_007["TST_007<br/>GQA microbench"]
     PLN_001 --> TST_008["TST_008<br/>분할 정책 측정"]
     PLN_001 --> TST_009["TST_009<br/>prefetch 동작 측정"]
@@ -186,8 +182,6 @@ flowchart TB
     TSK_001 --> TSK_004
     TSK_002 --> TSK_004
     TSK_003 --> TSK_004
-    TSK_002 --> TSK_005
-    TSK_005 --> TSK_006
     TSK_002 --> TSK_009
     TSK_004 --> TSK_010
 
@@ -195,8 +189,6 @@ flowchart TB
     TSK_003 -.검증.-> TST_004
     TSK_002 -.검증.-> TST_003
     TSK_004 -.검증.-> TST_002
-    TSK_005 -.검증.-> TST_005
-    TSK_006 -.검증.-> TST_006
     TSK_007 -.검증.-> TST_007
     TSK_008 -.검증.-> TST_008
     TSK_009 -.검증.-> TST_009
