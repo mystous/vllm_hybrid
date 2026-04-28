@@ -117,66 +117,82 @@ def fmt(times: list[float]) -> str:
     return f"median={median:6.2f} mean={mean:6.2f} p90={p90:6.2f} p99={p99:6.2f} ms"
 
 
-def main():
-    # Llama-3.3-70B + TP=8 worker per:
-    #   num_q_heads = 64 / 8 = 8
-    #   num_kv_heads = 8 / 8 = 1   (option A)
-    # q_per_kv = num_q_heads / num_kv_heads_A = 8
-
-    NUM_Q_HEADS = 8
-    NUM_KV_HEADS_A = 1  # compact
-    NUM_KV_HEADS_B = NUM_Q_HEADS  # pre-expanded
-    HEAD_DIM = 128
-    BLOCK_SIZE = 64
-    DTYPE = torch.bfloat16
-
+def sweep(num_q_heads: int, q_per_kv: int, head_dim: int, block_size: int, dtype: torch.dtype, label: str):
+    """num_kv_heads_A = num_q_heads // q_per_kv (compact)
+       num_kv_heads_B = num_q_heads (pre-expanded)"""
+    NUM_KV_HEADS_A = max(1, num_q_heads // q_per_kv)
+    NUM_KV_HEADS_B = num_q_heads
+    print(f"\n=== {label} ===")
     print(
-        f"GQA layout: q_heads={NUM_Q_HEADS} kv_heads_A={NUM_KV_HEADS_A} "
-        f"kv_heads_B={NUM_KV_HEADS_B} q_per_kv={NUM_Q_HEADS // NUM_KV_HEADS_A}"
+        f"q_heads={num_q_heads} kv_heads_A={NUM_KV_HEADS_A} kv_heads_B={NUM_KV_HEADS_B} "
+        f"q_per_kv={q_per_kv} head_dim={head_dim} block_size={block_size} dtype={dtype}"
     )
-    print(f"head_dim={HEAD_DIM} block_size={BLOCK_SIZE} dtype={DTYPE}")
-    print()
-
     print(f"{'n_cold_blocks':>14} {'num_seqs':>9} | {'A (compact)':<48} | {'B (expand)':<48} | {'B/A':>6}")
     print("-" * 134)
 
-    for n_cold_blocks in [50, 100, 200]:
+    for n_cold_blocks in [10, 50, 200]:
         for num_seqs in [1, 4, 16]:
             inputs_a = build_inputs(
                 num_kv_heads=NUM_KV_HEADS_A,
-                num_q_heads=NUM_Q_HEADS,
-                head_dim=HEAD_DIM,
-                block_size=BLOCK_SIZE,
+                num_q_heads=num_q_heads,
+                head_dim=head_dim,
+                block_size=block_size,
                 n_cold_blocks=n_cold_blocks,
                 num_seqs=num_seqs,
-                dtype=DTYPE,
+                dtype=dtype,
             )
             inputs_b = build_inputs(
                 num_kv_heads=NUM_KV_HEADS_B,
-                num_q_heads=NUM_Q_HEADS,
-                head_dim=HEAD_DIM,
-                block_size=BLOCK_SIZE,
+                num_q_heads=num_q_heads,
+                head_dim=head_dim,
+                block_size=block_size,
                 n_cold_blocks=n_cold_blocks,
                 num_seqs=num_seqs,
-                dtype=DTYPE,
+                dtype=dtype,
             )
 
-            times_a = benchmark_call(inputs_a, n_warmup=5, n_iter=30)
-            times_b = benchmark_call(inputs_b, n_warmup=5, n_iter=30)
+            times_a = benchmark_call(inputs_a, n_warmup=3, n_iter=20)
+            times_b = benchmark_call(inputs_b, n_warmup=3, n_iter=20)
 
             ma = statistics.median(times_a) * 1000
             mb = statistics.median(times_b) * 1000
             ratio = mb / ma if ma > 0 else float("nan")
 
+            mark = " ⭐ B 빠름" if ratio < 1.0 else ""
             print(
                 f"{n_cold_blocks:>14} {num_seqs:>9} | "
-                f"{fmt(times_a):<48} | {fmt(times_b):<48} | {ratio:>5.2f}×"
+                f"{fmt(times_a):<48} | {fmt(times_b):<48} | {ratio:>5.2f}×{mark}"
             )
+
+
+def main():
+    BLOCK_SIZE = 64
+
+    # 1) Llama-3.3-70B + TP=8 worker per — q_per_kv=8, head_dim=128, BF16
+    sweep(num_q_heads=8, q_per_kv=8, head_dim=128, block_size=BLOCK_SIZE,
+          dtype=torch.bfloat16, label="Llama-70B + TP=8 worker (q_per_kv=8, head_dim=128, BF16)")
+
+    # 2) Qwen2.5-7B + TP=1 — q_per_kv=7, head_dim=128, BF16
+    sweep(num_q_heads=28, q_per_kv=7, head_dim=128, block_size=BLOCK_SIZE,
+          dtype=torch.bfloat16, label="Qwen2.5-7B + TP=1 (q_per_kv=7, head_dim=128, BF16)")
+
+    # 3) Qwen2.5-7B + TP=4 worker per — q_per_kv=7, head_dim=128, BF16
+    sweep(num_q_heads=7, q_per_kv=7, head_dim=128, block_size=BLOCK_SIZE,
+          dtype=torch.bfloat16, label="Qwen2.5-7B + TP=4 worker (q_per_kv=7, head_dim=128, BF16)")
+
+    # 4) Llama-3.3-70B FP16 — q_per_kv=8, head_dim=128 (AMX 안 씀, AVX-512 fallback)
+    sweep(num_q_heads=8, q_per_kv=8, head_dim=128, block_size=BLOCK_SIZE,
+          dtype=torch.float16, label="Llama-70B + TP=8 worker FP16 (AVX-512 fallback path)")
+
+    # 5) 작은 q_per_kv (=2 또는 4) — broadcast factor 작은 영역
+    sweep(num_q_heads=8, q_per_kv=2, head_dim=128, block_size=BLOCK_SIZE,
+          dtype=torch.bfloat16, label="q_per_kv=2 (broadcast factor 작음, head_dim=128, BF16)")
 
     print()
     print("결과 해석")
-    print("- B/A < 1.0: 옵션 B (pre-expand) 가 빠름 — kernel 의 cache pattern 이 expanded layout 에 유리")
-    print("- B/A > 1.0: 옵션 A (compact + broadcast) 가 빠름 — broadcast 비용 < cache miss 비용")
+    print("- B/A < 1.0: 옵션 B (pre-expand) 가 빠름 (⭐ 표시) — cache 안에 들어가는 영역")
+    print("- B/A > 1.0: 옵션 A (compact + broadcast) 가 빠름 — cache miss 비용 dominant")
+    print("- 옵션 B 가 빠른 영역이 있으면 *그 영역 한정* 으로 옵션 B 채택 검토 가능")
 
 
 if __name__ == "__main__":
