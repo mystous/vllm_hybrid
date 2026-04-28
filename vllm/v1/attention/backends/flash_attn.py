@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Attention layer with FlashAttention."""
 
+import concurrent.futures
 import copy
 import os
 from contextlib import nullcontext
@@ -19,7 +20,9 @@ from vllm.v1.attention.ops.cpu_partial_attention import (
     _PROFILE_ENABLED as _PARTIAL_PROFILE_ENABLED,
     _profile_should_emit as _partial_profile_should_emit,
     forward_partial_with_lse,
+    forward_partial_with_lse_async,
 )
+from vllm.v1.attention.ops.kv_view_adapter import KVViewAdapter
 from vllm.model_executor.layers.attention import Attention
 from vllm.platforms import current_platform
 from vllm.utils.torch_utils import is_quantized_kv_cache
@@ -1503,6 +1506,219 @@ def _get_cold_path_stream(device: torch.device) -> "torch.cuda.Stream | None":
     return s
 
 
+# ============================================================================
+# IDE_006 / TSK_011 §4.1/4.2 — deadline-aware cold path + GPU full-FA fallback.
+# When the cold partial-attention does not return within the per-call deadline,
+# the layer falls back to GPU-side full attention on (hot+cold) for cold-
+# bearing seqs (opt-F: layer-local temporary KV H2D + native SDPA, vLLM core
+# KVConnector lifecycle unchanged). Numerical equivalence is provided by the
+# LSE-rescaling identity (IDE_006 README §4.1.1) — fallback result == partition
+# result modulo BF16 noise. Throughput floor is bounded above by GPU-only.
+# ============================================================================
+
+# Per-process deadline in ms. ``unset`` / ``0`` / ``None`` disables the
+# fallback and reverts to synchronous cold-path behavior (caller blocks
+# indefinitely, matching pre-TSK_011 contract). Resolved once at import.
+_COLD_FALLBACK_DEADLINE_MS_RAW = os.environ.get(
+    "VLLM_COLD_KV_FALLBACK_DEADLINE_MS", ""
+)
+
+
+def _resolve_cold_deadline_s() -> float | None:
+    """Return per-call cold-path deadline in seconds, or ``None`` if disabled."""
+    raw = _COLD_FALLBACK_DEADLINE_MS_RAW
+    if not raw:
+        return None
+    try:
+        ms = float(raw)
+    except ValueError:
+        return None
+    if ms <= 0:
+        return None
+    return ms / 1000.0
+
+
+# Bounded per-process breadcrumb for fallback firings. After the limit the
+# branch short-circuits to a single global bool read.
+_COLD_FALLBACK_FIRING_COUNT = 0
+_COLD_FALLBACK_FIRING_LOG_LIMIT = 5
+_COLD_FALLBACK_FIRING_LOG_DONE = False
+
+
+def _record_cold_fallback_breadcrumb(
+    n_fallback_seqs: int,
+    deadline_s: float,
+    cold_blocks_total: int,
+) -> None:
+    global _COLD_FALLBACK_FIRING_COUNT, _COLD_FALLBACK_FIRING_LOG_DONE
+    if _COLD_FALLBACK_FIRING_LOG_DONE:
+        return
+    _COLD_FALLBACK_FIRING_COUNT += 1
+    import sys as _sys
+    print(
+        f"[IDE_006/TSK_011 cold-fallback fired pid={os.getpid()}] "
+        f"#{_COLD_FALLBACK_FIRING_COUNT}/{_COLD_FALLBACK_FIRING_LOG_LIMIT} "
+        f"n_fallback_seqs={n_fallback_seqs} "
+        f"deadline_ms={deadline_s * 1000:.1f} "
+        f"cold_blocks_total={cold_blocks_total}",
+        file=_sys.stderr,
+        flush=True,
+    )
+    if _COLD_FALLBACK_FIRING_COUNT >= _COLD_FALLBACK_FIRING_LOG_LIMIT:
+        _COLD_FALLBACK_FIRING_LOG_DONE = True
+
+
+def _fallback_full_fa_sdpa(
+    *,
+    output: torch.Tensor,
+    query: torch.Tensor,
+    key_cache: torch.Tensor,
+    value_cache: torch.Tensor,
+    block_table: torch.Tensor,
+    block_size: int,
+    cu_q_list: list[int],
+    n_cold_list: list[int],
+    seq_lens_total_cpu: torch.Tensor,
+    fallback_seq_ids: list[int],
+    cpu_kv_cache: list[torch.Tensor],
+    cold_kv_layout,
+    cold_block_ids: torch.Tensor,
+    softmax_scale: float,
+) -> int:
+    """opt-F fallback path — GPU full attention on (hot+cold) for fallback seqs.
+
+    For each fallback seq, builds the full (K, V) tensor by:
+      - gathering hot blocks from the GPU paged KV cache,
+      - pulling cold blocks from the CPU page cache via KVViewAdapter (typed
+        view), and H2D'ing only the BF16/FP16 slice (not the int8 page).
+    Then runs PyTorch native SDPA (paged-KV bypass) and writes the result
+    directly into ``output[qs:qe]`` rows. The partition+merge for these seqs
+    is therefore skipped entirely.
+
+    IDE_006 scope is decode-only (q_len == 1 per cold-bearing seq), so the
+    causal mask is trivial — the single query token attends to all KV
+    positions and ``is_causal=False`` with ``attn_mask=None`` is correct.
+    GQA broadcast is handled by ``F.scaled_dot_product_attention(...,
+    enable_gqa=True)`` (PyTorch 2.5+).
+
+    Returns the total number of cold blocks transferred for the breadcrumb
+    metric.
+    """
+    import torch.nn.functional as F
+
+    device = output.device
+
+    # Build typed K/V views over the cold CPU page cache. Same view object
+    # reused across fallback seqs.
+    if len(cpu_kv_cache) == 1:
+        cold_adapter = KVViewAdapter(cpu_kv_cache[0], cold_kv_layout)
+    elif len(cpu_kv_cache) == 2:
+        cold_adapter = KVViewAdapter.from_split_kv(
+            cpu_kv_cache[0], cpu_kv_cache[1], cold_kv_layout
+        )
+    else:
+        raise ValueError(
+            "cpu_kv_cache must be a list of 1 (combined K+V) or 2 (split) "
+            f"int8 buffers; got list of length {len(cpu_kv_cache)}."
+        )
+
+    cold_k_view_cpu = cold_adapter.k_view()
+    cold_v_view_cpu = cold_adapter.v_view()
+
+    # cold_block_ids is shaped (num_seqs, max_cold_blocks). Mirror to CPU
+    # once for slicing.
+    cold_block_ids_cpu = (
+        cold_block_ids.cpu()
+        if cold_block_ids.device.type == "cuda"
+        else cold_block_ids
+    )
+
+    num_q_heads = query.size(1)
+    num_kv_heads = key_cache.size(-2)
+    head_dim = query.size(2)
+
+    total_cold_blocks_transferred = 0
+
+    for seq_idx in fallback_seq_ids:
+        n_cold_blocks_i = int(n_cold_list[seq_idx])
+        seq_len_total_i = int(seq_lens_total_cpu[seq_idx])
+        n_cold_tokens = n_cold_blocks_i * block_size
+        n_hot_tokens = seq_len_total_i - n_cold_tokens
+        qs = cu_q_list[seq_idx]
+        qe = cu_q_list[seq_idx + 1]
+        n_q = qe - qs
+
+        # IDE_006 decode-only scope contract.
+        if n_q != 1:
+            raise RuntimeError(
+                f"TSK_011 fallback expects q_len==1 per fallback seq "
+                f"(IDE_006 decode-only scope), got n_q={n_q} for seq {seq_idx}"
+            )
+
+        # (1) Hot K/V gather from GPU paged cache. block_table[seq_idx, :] is
+        # ordered: cold prefix block IDs first, then hot suffix. We only need
+        # the hot suffix here.
+        n_hot_blocks_i = (n_hot_tokens + block_size - 1) // block_size
+        if n_hot_blocks_i > 0:
+            hot_block_ids_i = block_table[
+                seq_idx, n_cold_blocks_i : n_cold_blocks_i + n_hot_blocks_i
+            ].to(torch.long)
+            hot_k = key_cache.index_select(0, hot_block_ids_i)
+            hot_v = value_cache.index_select(0, hot_block_ids_i)
+            hot_k = hot_k.reshape(-1, num_kv_heads, head_dim)[:n_hot_tokens]
+            hot_v = hot_v.reshape(-1, num_kv_heads, head_dim)[:n_hot_tokens]
+        else:
+            hot_k = torch.empty(
+                (0, num_kv_heads, head_dim),
+                dtype=key_cache.dtype,
+                device=device,
+            )
+            hot_v = torch.empty_like(hot_k)
+
+        # (2) Cold K/V — pull from CPU typed view + H2D. Index_select on CPU
+        # first so the PCIe payload is BF16/FP16 (smaller than the int8 page).
+        cold_block_ids_seq = cold_block_ids_cpu[seq_idx, :n_cold_blocks_i].to(
+            torch.long
+        )
+        cold_k_cpu = cold_k_view_cpu.index_select(0, cold_block_ids_seq)
+        cold_v_cpu = cold_v_view_cpu.index_select(0, cold_block_ids_seq)
+        cold_k = (
+            cold_k_cpu.to(device, non_blocking=True)
+            .reshape(-1, num_kv_heads, head_dim)[:n_cold_tokens]
+        )
+        cold_v = (
+            cold_v_cpu.to(device, non_blocking=True)
+            .reshape(-1, num_kv_heads, head_dim)[:n_cold_tokens]
+        )
+        total_cold_blocks_transferred += n_cold_blocks_i
+
+        # (3) Concat: cold prefix first, then hot suffix.
+        full_k = torch.cat([cold_k, hot_k], dim=0)
+        full_v = torch.cat([cold_v, hot_v], dim=0)
+
+        # (4) SDPA. Decode-only ⇒ q_len == 1, all KV valid, no mask.
+        q = query[qs:qe]                                   # (1, H, D)
+        q_b = q.transpose(0, 1).unsqueeze(0)               # (1, H, 1, D)
+        k_b = full_k.transpose(0, 1).unsqueeze(0)          # (1, Hkv, Lk, D)
+        v_b = full_v.transpose(0, 1).unsqueeze(0)
+
+        out_b = F.scaled_dot_product_attention(
+            q_b,
+            k_b,
+            v_b,
+            attn_mask=None,
+            is_causal=False,
+            scale=softmax_scale,
+            enable_gqa=True,
+        )                                                   # (1, H, 1, D)
+        out_seq = out_b.squeeze(0).transpose(0, 1)          # (1, H, D)
+
+        # (5) Write directly into output rows.
+        output[qs:qe].copy_(out_seq)
+
+    return total_cold_blocks_transferred
+
+
 def hot_cold_attention(
     output: torch.Tensor,
     query: torch.Tensor,
@@ -1824,28 +2040,77 @@ def hot_cold_attention(
         _t_d2h1 = _time.perf_counter()
         _t_kernel0 = _t_d2h1
 
-    # Step 5: synchronous CPU partial-attention call. Earlier code
-    # submitted this to a single-thread executor and immediately blocked
-    # on the future, expecting overlap with "next layer GPU work". That
-    # cross-layer overlap is impossible without restructuring
-    # model_runner.forward to be layer-async; same-layer hot FA / cold
-    # CPU overlap was already provided by the GPU's async kernel launch.
-    # The async wrapper added thread-submit + future-await overhead with
-    # no real parallelism gain. See TSK_002 §4.6 Change Log
-    # 2026-04-27 (b-revert).
-    cold_output_reduced_cpu, cold_lse_reduced_cpu = forward_partial_with_lse(
-        query=reduced_query_cpu,
-        cold_kv_cache=cold_kv_combined,
-        cold_kv_layout=cold_kv_layout,
-        cold_block_ids=reduced_cbi,
-        cold_block_lens=reduced_cbl,
-        cu_seqlens_q=reduced_cu_cpu,
-        seq_lens_total=reduced_sl,
-        query_positions=reduced_qpos_cpu,
-        softmax_scale=softmax_scale,
-        causal=causal,
-        cold_kv_cache_v=cold_kv_v_split,
-    )
+    # Step 5: CPU partial-attention call.
+    # When VLLM_COLD_KV_FALLBACK_DEADLINE_MS is unset / 0, this is a plain
+    # synchronous call (matches pre-TSK_011 contract). When set, the call
+    # is issued onto a single-worker thread pool and awaited with a
+    # deadline; on TimeoutError the layer falls back to GPU full FA on
+    # (hot+cold) for cold-bearing seqs (opt-F, TSK_011 §4.2). The
+    # fallback path writes directly into ``output`` and short-circuits
+    # the partition+merge tail of this function.
+    deadline_s = _resolve_cold_deadline_s()
+    if deadline_s is None:
+        cold_output_reduced_cpu, cold_lse_reduced_cpu = forward_partial_with_lse(
+            query=reduced_query_cpu,
+            cold_kv_cache=cold_kv_combined,
+            cold_kv_layout=cold_kv_layout,
+            cold_block_ids=reduced_cbi,
+            cold_block_lens=reduced_cbl,
+            cu_seqlens_q=reduced_cu_cpu,
+            seq_lens_total=reduced_sl,
+            query_positions=reduced_qpos_cpu,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            cold_kv_cache_v=cold_kv_v_split,
+        )
+    else:
+        future = forward_partial_with_lse_async(
+            query=reduced_query_cpu,
+            cold_kv_cache=cold_kv_combined,
+            cold_kv_layout=cold_kv_layout,
+            cold_block_ids=reduced_cbi,
+            cold_block_lens=reduced_cbl,
+            cu_seqlens_q=reduced_cu_cpu,
+            seq_lens_total=reduced_sl,
+            query_positions=reduced_qpos_cpu,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            cold_kv_cache_v=cold_kv_v_split,
+        )
+        try:
+            cold_output_reduced_cpu, cold_lse_reduced_cpu = future.result(
+                timeout=deadline_s
+            )
+        except concurrent.futures.TimeoutError:
+            # opt-F fallback. Initialize ``output`` with the hot-only result
+            # for non-cold-bearing rows, then overwrite cold-bearing rows
+            # with GPU full FA on (hot+cold). The future is left running —
+            # cancel() is best-effort and the kernel cannot be interrupted
+            # mid-call; the result will be discarded by GC.
+            future.cancel()
+            output.copy_(hot_output)
+            n_cold_blocks_total = _fallback_full_fa_sdpa(
+                output=output,
+                query=query,
+                key_cache=key_cache,
+                value_cache=value_cache,
+                block_table=block_table,
+                block_size=block_size,
+                cu_q_list=cu_q_list,
+                n_cold_list=n_cold_list,
+                seq_lens_total_cpu=seq_lens_total_cpu,
+                fallback_seq_ids=need_cold_seq_ids,
+                cpu_kv_cache=cpu_kv_cache,
+                cold_kv_layout=cold_kv_layout,
+                cold_block_ids=cold_block_ids,
+                softmax_scale=softmax_scale,
+            )
+            _record_cold_fallback_breadcrumb(
+                n_fallback_seqs=len(need_cold_seq_ids),
+                deadline_s=deadline_s,
+                cold_blocks_total=n_cold_blocks_total,
+            )
+            return
 
     if _PARTIAL_PROFILE_ENABLED:
         _t_kernel1 = _time.perf_counter()

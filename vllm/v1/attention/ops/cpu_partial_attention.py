@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import math
 import os
+from concurrent.futures import Future, ThreadPoolExecutor
 from enum import Enum
 from typing import Optional
 
@@ -38,6 +39,7 @@ __all__ = [
     "ISAPath",
     "select_isa_path",
     "forward_partial_with_lse",
+    "forward_partial_with_lse_async",
     "prewarm",
     "python_reference_partial_attention",
 ]
@@ -584,6 +586,75 @@ def forward_partial_with_lse(
         return python_reference_partial_attention(**common_kwargs)
 
     raise ValueError(f"unsupported ISA path: {path}")
+
+
+# IDE_006 / TSK_011 §4.1 — async issue thread pool. Re-introduced after
+# TSK_002 §10 b-revert removed it. Re-introduced under different semantics:
+# this is *not* used for cross-layer overlap (model_runner.forward is still
+# layer-sequential). Its sole purpose is to give the caller a *cancellable*
+# await point so that worst-case CPU partial-attention latency cannot wedge
+# the layer's critical path indefinitely — the caller awaits with a deadline
+# budget and on timeout falls back to GPU full-FA (TSK_011 §4.2 / opt-F).
+# Single worker thread keeps AMX tile config + worker affinity stable
+# across calls.
+_ASYNC_EXECUTOR: Optional[ThreadPoolExecutor] = None
+
+
+def _get_async_executor() -> ThreadPoolExecutor:
+    global _ASYNC_EXECUTOR
+    if _ASYNC_EXECUTOR is None:
+        _ASYNC_EXECUTOR = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="vllm-cold-partial",
+        )
+    return _ASYNC_EXECUTOR
+
+
+def forward_partial_with_lse_async(
+    *,
+    query: torch.Tensor,
+    cold_kv_cache: torch.Tensor,
+    cold_kv_layout: KVPageLayout,
+    cold_block_ids: torch.Tensor,
+    cold_block_lens: torch.Tensor,
+    cu_seqlens_q: torch.Tensor,
+    seq_lens_total: torch.Tensor,
+    query_positions: torch.Tensor,
+    softmax_scale: Optional[float] = None,
+    causal: bool = True,
+    cold_kv_cache_v: Optional[torch.Tensor] = None,
+    _force_path: Optional[ISAPath] = None,
+) -> "Future[tuple[torch.Tensor, torch.Tensor]]":
+    """TSK_011 — submit cold partial-attention onto a single-worker thread
+    pool and return a ``concurrent.futures.Future``. The caller obtains
+    the result via ``future.result(timeout=deadline_s)``; on
+    ``concurrent.futures.TimeoutError`` the caller triggers the GPU
+    full-FA fallback path (TSK_011 §4.2 / opt-F).
+
+    Unlike the b-reverted async wrapper (TSK_002 §10), this function is
+    *not* used for cross-layer overlap. Its sole purpose is to give the
+    caller a cancellable await point so that worst-case CPU partial-
+    attention latency cannot wedge the layer's critical path
+    indefinitely. When the deadline is generous and the kernel finishes
+    within budget, the behavior is identical to the synchronous
+    ``forward_partial_with_lse``.
+    """
+    executor = _get_async_executor()
+    return executor.submit(
+        forward_partial_with_lse,
+        query=query,
+        cold_kv_cache=cold_kv_cache,
+        cold_kv_layout=cold_kv_layout,
+        cold_block_ids=cold_block_ids,
+        cold_block_lens=cold_block_lens,
+        cu_seqlens_q=cu_seqlens_q,
+        seq_lens_total=seq_lens_total,
+        query_positions=query_positions,
+        softmax_scale=softmax_scale,
+        causal=causal,
+        cold_kv_cache_v=cold_kv_cache_v,
+        _force_path=_force_path,
+    )
 
 
 def _call_compiled_kernel(
