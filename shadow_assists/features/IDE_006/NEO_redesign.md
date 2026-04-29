@@ -231,6 +231,7 @@ NEO paper 본문 (특히 §3 system design + §4 scheduling heuristic + §5 eval
 ### 측정 결과 출처
 - TSK_011 sweep — `eval/results/20260428_041131_*` (deadline=100ms) / `..._042424_*` (deadline=1000ms) / `..._025616_*` (비활성)
 - TSK_009 fix v4 validation — `eval/results/20260429_043734_*_tsk009_validation/`
+- **NEO 4 차 재정의 vanilla baseline** (정식 논문 reference) — [`PLN_001_neo_baseline_results.md`](PLN_001_neo_baseline_results.md) — Llama-3.3-70B + TP=8 + 5000 × 50:50 (4.7 시간) 의 KV 한계 영역 throughput 1,609 prompt_tps + concurrent 134/256 = 52% 가 NEO 의 *진짜 가치 영역* 발현 baseline
 
 ---
 
