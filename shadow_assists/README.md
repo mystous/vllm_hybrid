@@ -63,10 +63,23 @@ Decode step 내부에서 GPU 는 phase 를 번갈아 탄다. attention (memory-b
 
 2 차 정의는 **cold KV 블록 위에서 CPU partial-attention worker 가 partial attention 을 직접 수행**하는 구도다. LMCache / OffloadingConnector 가 cold KV 를 CPU DRAM 으로 내려 둔 상태를 활용하되, GPU 로 다시 끌어올리는 대신 **CPU 측에서 cold 블록에 대한 Q·Kᵀ softmax + V 가중합과 LSE 를 계산**해 `(partial_output, LSE)` 만 GPU 로 전송한다. GPU 는 hot KV 의 partial output·LSE 와 **online softmax** 로 합산한다. 합산은 vLLM 내부에 이미 존재하는 prefix/suffix attention merge 경로(`csrc/attention/merge_attn_states.cu`, `vllm/v1/attention/backends/flash_attn.py:967` 및 `:1214`) 를 재사용한다.
 
+3 차 재정의 (2026-04-28) 는 worst case 보장을 추가한다 — CPU partial 결과가 deadline 안에 도착하지 못한 layer 는 GPU 가 cold 영역 포함 full attention 으로 fallback 하여 throughput 하한이 GPU only 와 *동등 이상* 으로 보장된다 (`TSK_011`).
+
+> **prod 측정 사실 (2026-04-29)** — `TSK_009` fix v4 의 6 회차 통합 검증 결과 (`eval/results/20260429_043734_*_tsk009_validation/`, 100 prompts × Llama-3.3-70B + TP=8 × 3 시나리오 input_heavy/output_heavy/equal × B/C):
+>
+> - **invariant 1 (속도)**: C (cold-tier ON, IDE_006 ON) wall-time / B (cold-tier ON, IDE_006 OFF) = 1.078×~1.103× — partition path 가 baseline 보다 7~10% 느림 (잔여 cost = cold path setup 의 GPU sync 비용). 사용자 결정 acceptable.
+> - **invariant 2 (CPU 활용)**: layer 별 `merged` (= partition merge 진입) / `dropped` (= CPU 결과 미도착 폐기) 비율이 **모든 시나리오에서 merged 0.00%**. 즉 *layer-안 partition path 만으로는 CPU partial 작업이 전혀 활용되지 못함*.
+>
+> 원인 = `partial = softmax(Q · Kᵀ_cold) · V_cold` 의 **Q dependency** — Q 는 그 layer 의 QKV projection 후 결정되므로 future submit ~ poll 시점이 layer-안 microsecond 단위. CPU partial (~6.4 ms) 이 GPU hot attention (~0.6 ms) 의 busy window 안에 *절대 fit 못 함*. fallback 으로 throughput 하한 동등은 보장되지만 *향상 자체는 0%*.
+>
+> 의미 있는 향상의 *진짜* 영역은 **`TSK_012` (decode-time cold-blocks GPU reload + 진짜 evict)** — vLLM 의 OffloadingConnector 가 *현재 mirror only* (cold blocks 가 GPU pool 에 그대로 잔류) 라 GPU 는 항상 paged FA full 가능. 즉 CPU partial 결과는 *어차피 GPU 가 자기 계산할 수 있는* 영역에서는 무용. **CPU partial 이 의미 있게 활용되는 *유일* 조건** = cold blocks 가 *진짜 GPU pool 에서 free* (evict) 되어 GPU 가 cold attention 을 *진짜로 못 함* + reload 필요. 그 시점에 CPU partial 결과가 *reload 의 대체* 로 가치. 이건 `TSK_012` (decode-time reload + 진짜 evict 정책 통합) 의 영역.
+>
+> `TSK_005` (cross-layer pipeline) 는 *기각* — layer N+1 의 cold partial 을 layer N 진행 동시에 시작해도 layer N+1 attention 진입 시점에 *진짜 Q 가 GPU 에 이미 있음* → GPU 가 paged FA full 가능 → CPU 결과 무용. `Q dependency + GPU 가 진짜 Q 가지면 CPU 결과 무용` 의 fundamental dilemma 는 layer-안이든 cross-layer 든 동일.
+
 - 선행 연구 — [NEO (arXiv 2411.01142, OpenReview umgy9tWBLA)](https://openreview.net/forum?id=umgy9tWBLA) 가 가장 가깝다. [CachedAttention (USENIX ATC'24)](https://prongs1996.github.io/assets/pdf/CachedAttention.pdf) 다계층 KV reuse 도 인접 영역
 - 독자 기여 (좁게) — **vLLM native cold-tier offloading (LMCache / OffloadingConnector) 에 이미 내려간 KV 를 GPU reload 없이 CPU 에서 partial attention 으로 소비하고, vLLM 내부 LSE merge 경로로 합산하는 구조** 는 공개 연구·상용 시스템에서 직접 대응이 확인되지 않았다
 - 근거 등급 — C. 현재 workload (128/128) 기여 — 0 (cold KV 미발생). 가치 성격 — 장기 (long-context 전환 후) + 독자 기여
-- 리스크·진입 조건·수정 범위·data flow — [IDE_006 README](features/IDE_006/README.md) §5·§6·§8·§9 참조. 핵심 변화점: (i) merge 커널은 재사용하되 **네 축 통합** 필요 — (1) scheduler / attention metadata, (2) flash_attn 호출부, (3) LSE-반환 CPU kernel, (4) OffloadingConnector worker scope lock, (ii) 기존 `cpu_attn.py:261-293` forward 는 LSE 미반환이라 as-is 재사용 불가, (iii) mid-layer synchronization 이 GPU critical path 를 늘릴 위험이 별도 리스크, (iv) 초기 scope lock (BF16/FP16, non-FP8, non-MLA, full attention, 단일 KV group) 과 overlap 가능성이 진입 조건에 명시
+- 리스크·진입 조건·수정 범위·data flow — [IDE_006 README](features/IDE_006/README.md) §5·§6·§8·§9 참조. 핵심 변화점: (i) merge 커널은 재사용하되 **네 축 통합** 필요 — (1) scheduler / attention metadata, (2) flash_attn 호출부, (3) LSE-반환 CPU kernel, (4) OffloadingConnector worker scope lock, (ii) 기존 `cpu_attn.py:261-293` forward 는 LSE 미반환이라 as-is 재사용 불가, (iii) **mid-layer synchronization 의 fundamental 한계 — prod 측정 (`TSK_009` fix v4) 으로 발현 입증. cold blocks 가 GPU mirror 에 잔류하는 한 GPU 는 paged FA full 가능 → CPU partial 결과 무용. CPU partial 이 의미 있게 활용되는 영역은 cold blocks 가 *진짜 evict* 되는 시점 (`TSK_012`) 의 reload 대체로만**, (iv) 초기 scope lock (BF16/FP16, non-FP8, non-MLA, full attention, 단일 KV group) 과 overlap 가능성이 진입 조건에 명시
 
 ### 3.3 · CPU Speculative Logits Rerank (`IDE_007`)
 
