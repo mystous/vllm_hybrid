@@ -4053,6 +4053,26 @@ class GPUModelRunner(
                 defer_finalize=defer_kv_connector_finalize,
             ) as kv_connector_output,
         ):
+            # NEO 식 dual sub-batch dispatch (IDE_006 4 차 재정의 / TSK_016).
+            # When the NEO scheduler attached two sub-batches to the
+            # SchedulerOutput, the runner must fork the attention metadata
+            # and call ``LlamaModel.forward_neo_pipelined`` instead of the
+            # vanilla single-batch ``_model_forward``. The metadata fork
+            # is the subject of step 5.3+ commits — for now we observe
+            # the attachment and continue with the vanilla path so the
+            # wiring is verifiable end-to-end without behaviour change.
+            neo_sub_batches = getattr(scheduler_output, "neo_sub_batches", None)
+            if neo_sub_batches and len(neo_sub_batches) >= 1:
+                if not getattr(self, "_neo_subbatch_seen_logged", False):
+                    logger.info(
+                        "execute_model: NEO scheduler attached %d sub-batch(es)"
+                        " (req-id counts %s). Dual-forward dispatch is queued"
+                        " for follow-up steps; vanilla path continues.",
+                        len(neo_sub_batches),
+                        [len(sb) for sb in neo_sub_batches],
+                    )
+                    self._neo_subbatch_seen_logged = True
+
             model_output = self._model_forward(
                 input_ids=input_ids,
                 positions=positions,
