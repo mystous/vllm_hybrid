@@ -154,6 +154,15 @@ class SchedulerConfig:
     while a larger value (e.g., 10) reduces host overhead and may increase throughput
     by batching multiple tokens before sending."""
 
+    enable_neo_asymmetric: bool = False
+    """Activate the NEO-style asymmetric GPU/CPU pipelining scheduler
+    (IDE_006 4 차 재정의). When True, the engine routes through the
+    NeoScheduler / NeoBlockManager / SubBatchPipelineExecutor path
+    instead of vLLM's default scheduler. Experimental; default off
+    keeps vanilla behaviour intact.
+
+    See ``shadow_assists/features/IDE_006/NEO_redesign.md``."""
+
     @staticmethod
     def default_factory(**kwargs):
         """
@@ -167,6 +176,12 @@ class SchedulerConfig:
 
     def get_scheduler_cls(self) -> type["SchedulerInterface"]:
         if self.scheduler_cls is None:
+            if self.enable_neo_asymmetric:
+                from vllm.v1.core.sched.neo_scheduler_adapter import (
+                    NeoSchedulerAdapter,
+                )
+
+                return NeoSchedulerAdapter
             if self.async_scheduling:
                 from vllm.v1.core.sched.async_scheduler import AsyncScheduler
 
