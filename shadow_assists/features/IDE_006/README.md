@@ -1,4 +1,4 @@
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`NEO_redesign`](NEO_redesign.md) · [`NEO_code_deepdive`](NEO_code_deepdive.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TSK_011`](TSK_011.md) · [`TSK_012`](TSK_012.md) · [`TSK_013`](TSK_013.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md) · [`TST_011`](TST_011.md) · [`TST_012`](TST_012.md) · [`TST_013`](TST_013.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`NEO_redesign`](NEO_redesign.md) · [`NEO_code_deepdive`](NEO_code_deepdive.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TSK_011`](TSK_011.md) · [`TSK_012`](TSK_012.md) · [`TSK_013`](TSK_013.md) · [`TSK_014`](TSK_014.md) · [`TSK_015`](TSK_015.md) · [`TSK_016`](TSK_016.md) · [`TSK_017`](TSK_017.md) · [`TSK_018`](TSK_018.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md) · [`TST_011`](TST_011.md) · [`TST_012`](TST_012.md) · [`TST_013`](TST_013.md) · [`TST_014`](TST_014.md) · [`TST_015`](TST_015.md) · [`TST_016`](TST_016.md) · [`TST_017`](TST_017.md) · [`TST_018`](TST_018.md)
 
 ---
 
@@ -300,63 +300,83 @@ CLAUDE.md 원칙에 따라 숫자로 진입·기각 판정.
 | 17 | [`TST_012`](TST_012.md) | TSK_012 검증 — D-ii 봉합 + reload timeline + throughput tradeoff (+ 선택 capacity) | `대기 — 단일 단계 spec (2026-04-29)` |
 | 18 | [`TSK_013`](TSK_013.md) | **NEO repo 분석 + vLLM 위 적용 plan + 신규 TSK 발급 (Phase 0)** | `활성 (2026-04-29 — NEO 4 차 재정의 후 발급)`. NEO repo (`/workspace/neo_ref/`) clone 완료. 1차 분석 결과 = [`PLN_001_TSK_013_neo_arch_survey.md`](PLN_001_TSK_013_neo_arch_survey.md). 신규 TSK 5 개 발급 plan (TSK_014 가칭 Request scheduler / TSK_015 가칭 KV exclusive / TSK_016 가칭 Asymmetric pipelining / TSK_017 가칭 Load-aware scheduling / TSK_018 가칭 CPU kernel 통합). 검증 게이트 = [`TST_013`](TST_013.md) |
 | 19 | [`TST_013`](TST_013.md) | TSK_013 검증 — 분석 plan 완결성 + (선택) NEO 자체 reproduce | `활성 (2026-04-29 — TSK_013 발급에 따른 검증 게이트 신설)` |
-| 20 | `FEA_###` | 통합 기능 (`feat/ide006-neo-asymmetric` 브랜치) | 미할당 |
+| 20 | [`TSK_014`](TSK_014.md) | **Request-level scheduler** (3 큐 + load-aware mode selection, NEO §3) | `대기 (2026-04-29)`. NEO `swiftllm/server/scheduler.py` 알고리즘 차용. 변경: `vllm/v1/core/sched/scheduler.py` + 신규 `mode_selector.py` + `sub_batch.py`. 의존: TSK_017 선행 |
+| 21 | [`TST_014`](TST_014.md) | TSK_014 검증 — 6 단계 invariant + heuristic 측정 | `대기 (2026-04-29)` |
+| 22 | [`TSK_015`](TSK_015.md) | **KV cache exclusive ownership** (mirror → exclusive, NEO §5) | `대기 (2026-04-29)`. NEO `swiftllm/server/block_manager.py` 알고리즘 차용. 변경: `OffloadingConnector` mirror → exclusive + `_initiate_swap` atomic. 의존: 독립 (TSK_014 와 병렬) |
+| 23 | [`TST_015`](TST_015.md) | TSK_015 검증 — exclusive invariant + capacity | `대기 (2026-04-29)` |
+| 24 | [`TSK_016`](TSK_016.md) | **Asymmetric pipelining** (sub-batch 동시 실행, NEO §4) | `대기 (2026-04-29)`. NEO `_forward_pipeline` layer ping-pong port. 변경: `gpu_model_runner.py` + 신규 `sub_batch_executor.py` + `llama.py` 의 stage 분할. 의존: TSK_014 + TSK_015 선행 |
+| 25 | [`TST_016`](TST_016.md) | TSK_016 검증 — 정확도 + 시간 매칭 + throughput | `대기 (2026-04-29)` |
+| 26 | [`TSK_017`](TSK_017.md) | **Load-aware scheduling heuristic** (PerfPredictor, NEO §6) | `대기 (2026-04-29)`. NEO `TablePerfPredictor` 알고리즘 차용. 변경: 신규 `vllm/v1/core/sched/perfpredictor.py` + `metrics/profiler.py`. 의존: 독립 |
+| 27 | [`TST_017`](TST_017.md) | TSK_017 검증 — prediction 정확도 + startup overhead | `대기 (2026-04-29)` |
+| 28 | [`TSK_018`](TSK_018.md) | **CPU attention kernel 통합** (IDE_006 TSK_001/003/004/007/010 흡수, NEO §7) | `대기 (2026-04-29)`. IDE_006 의 AVX-512/AMX kernel 우위 — NEO ISPC 미통합. LSE-반환 인터페이스만 제거. 의존: TSK_016 와 함께 |
+| 29 | [`TST_018`](TST_018.md) | TSK_018 검증 — 회귀 + 정확도 + (선택) NEO ISPC 비교 | `대기 (2026-04-29)` |
+| 30 | `FEA_###` | 통합 기능 (`feat/ide006-neo-asymmetric` 브랜치) | 미할당 |
 
 > **본 표에서 제외된 ID**: `TSK_005` (Cross-layer pipeline) / `TSK_006` (Q chunk pipelining) / `TST_005` / `TST_006`. **TSK_005 는 2026-04-29 두 차례 결정 후 *기각*** — 1) 같은 날 일찍 *Llama only* model-specific 사유로 제외 → 2) TSK_009 fix v4 검증 후 invariant 2 향상 영역으로 본 표 *재진입* → 3) plug-in 형식 설계 후 *fundamental dilemma 식별* 로 다시 *기각*. dilemma = `Q dependency + GPU 가 진짜 Q 가지면 CPU 결과 무용`. layer N+1 cold partial 을 layer N 진행 동시 시작해도 layer N+1 attention 진입 시점에 GPU 가 진짜 Q 가지므로 paged FA full 가능 → CPU 결과 활용 의미 없음. CPU partial 이 *진짜* 가치 영역 = cold blocks 가 *진짜 GPU evict* (free) 되어 GPU 가 cold attention 못 하는 시점 (`TSK_012`) 의 reload 대체로만. id_registry 의 ID 행은 그대로 보존 (재사용 금지 룰).
 
-### 11.1 · 진행 현황 (2026-04-28)
+### 11.1 · 진행 현황 (2026-04-29 — NEO 4 차 재정의 후 갱신)
 
 ```mermaid
 flowchart TB
-    subgraph DONE["완료"]
-        T1["TSK_001 kernel"]
-        TT1["TST_001"]
-        TT4["TST_004"]
+    subgraph IDE006_LEGACY["3 차 재정의 영역 (hot/cold split — history 보존, NEO 식 적용 시 일부 dead/흡수)"]
+        T1["TSK_001 kernel ✓"]
+        T3["TSK_003 SIMD ✓"]
+        T4["TSK_004 NUMA ✓"]
+        T7["TSK_007 GQA ✓"]
+        T10["TSK_010 sub-batching ✓"]
+        T2["TSK_002 hot/cold partition ❌ NEO dead"]
+        T9["TSK_009 fix v4 ❌ NEO dead"]
+        T11["TSK_011 fallback ❌ NEO dead"]
+        T12["TSK_012 cold evict ⚠ NEO 영역 흡수"]
     end
-    subgraph ACTIVE["활성 — 코드 적용 완료, prod 측정 대기"]
-        T2["TSK_002 §4.2~§4.6 + §4.5c"]
-        T3["TSK_003 SIMD"]
-        T4["TSK_004 NUMA"]
-        T9["TSK_009 fix v4 (non-blocking dispatch — invariant 1 acceptable, invariant 2 0%)"]
-        T11["TSK_011 fallback (sweep land)"]
-    end
-    subgraph WAIT_TSK["대기"]
-        T7["TSK_007 GQA"]
-        T8["TSK_008 split"]
-        T10["TSK_010 multi-team"]
-        T12["TSK_012 ★★ (IDE_006 진짜 가치 영역<br/>cold 진짜 evict + decode reload<br/>D-ii 봉합 + KV pool 완화)"]
-    end
-    subgraph WAIT_TST["TST 대기"]
-        TT2["TST_002 throughput"]
-        TT3["TST_003 e2e (prompt2 발산 미해결)"]
-        TT11["TST_011 부분 완료 (a/b/c)"]
-        TT12["TST_012 D-ii 봉합 정량"]
-        TT_OTHER["TST_007~010"]
-    end
-    FEA["FEA_### (미할당)"]
 
-    T1 --> T2
-    T1 --> T3
-    T1 --> T4
-    T2 --> T9
-    T4 --> T10
-    T11 --> T12
-    T9 --> T12
-    ACTIVE -.측정.-> TT2
-    T2 -.측정.-> TT3
-    T11 -.측정.-> TT11
-    T12 -.측정.-> TT12
-    WAIT_TSK -.측정.-> TT_OTHER
-    WAIT_TST --> FEA
+    subgraph IDE006_NEO["4 차 재정의 영역 (NEO 식 asymmetric pipelining)"]
+        T13["TSK_013 ★ Phase 0 분석 (활성)"]
+        T17["TSK_017 PerfPredictor"]
+        T15["TSK_015 KV exclusive"]
+        T14["TSK_014 Scheduler 3 큐"]
+        T16["TSK_016 ★★ Asymmetric pipelining"]
+        T18["TSK_018 kernel 통합 (IDE_006 흡수)"]
+    end
 
-    style DONE fill:#cfc,color:#000
-    style ACTIVE fill:#ffd,color:#000
-    style WAIT_TSK fill:#fdd,color:#000
-    style WAIT_TST fill:#fdd,color:#000
+    T13 --> T14
+    T13 --> T15
+    T13 --> T17
+    T17 --> T14
+    T14 --> T16
+    T15 --> T16
+    T16 --> T18
+
+    T1 -.흡수.-> T18
+    T3 -.흡수.-> T18
+    T4 -.흡수.-> T18
+    T7 -.흡수.-> T18
+    T10 -.흡수.-> T18
+
+    FEA["FEA_### (미할당, feat/ide006-neo-asymmetric)"]
+    T16 --> FEA
+    T18 --> FEA
+
+    style IDE006_LEGACY fill:#eee,color:#000
+    style IDE006_NEO fill:#cef,color:#000
+    style T13 fill:#ffd,color:#000
+    style T16 fill:#cfc,color:#000
+    style T18 fill:#cfc,color:#000
     style FEA fill:#ddd,color:#000
 ```
 
-**우선순위 (2026-04-29 재갱신 — TSK_005 기각 후)**: `TSK_012` (decode-time cold reload + 진짜 evict — IDE_006 의 진짜 가치 영역) → `TSK_010` → `TSK_008`. `TSK_005` (cross-layer pipeline) 는 *기각* (`Q dependency + GPU 가 진짜 Q 가지면 CPU 결과 무용` dilemma).
+**우선순위 (2026-04-29 — NEO 4 차 재정의 후 재갱신)**:
+1. `TSK_013` (NEO Phase 0 분석 — *진행 중*)
+2. `TSK_017` (PerfPredictor) + `TSK_015` (KV exclusive) — 병렬 가능
+3. `TSK_014` (Scheduler) — TSK_017 후
+4. `TSK_016` (Asymmetric pipelining) — TSK_014 + TSK_015 후
+5. `TSK_018` (CPU kernel 통합) — TSK_016 와 함께
+
+**3 차 재정의 영역 (hot/cold split) 의 운명**:
+- ✅ 그대로 사용: TSK_001 (kernel 코어), TSK_003 (SIMD), TSK_004 (NUMA), TSK_007 (GQA 옵션 A), TSK_010 (sub-batching) — TSK_018 이 흡수
+- ❌ NEO 식에서 dead: TSK_002 (hot/cold partition), TSK_009 (non-blocking dispatch), TSK_011 (fallback)
+- ⚠ NEO 영역 흡수: TSK_012 (cold evict — request 단위 exclusive 로 흡수)
+- 기각 보존: TSK_005, TSK_006
 
 **커밋**: `origin/feat` 보다 7 커밋 앞섬 (`1b36802db2` ~ `bf525c24d9` + 본 TSK_011 land commit). dev pytest 누계 **419 통과 / 153 skip**.
 
@@ -422,6 +442,7 @@ flowchart TB
 | 2026-04-29 | **TSK_005 / TST_005 본 표 진입 — Llama-70B + Qwen2.5-72B 두 모델 대상 (사용자 결정)** | TSK_009 fix v4 의 prod 검증 결과 — invariant 2 (CPU 활용) 모든 시나리오 0.00%. fundamental Q dependency 로 layer-안 partition path 만으로는 향상 영역 비어 있음 입증. 의미 있는 향상의 *유일* 영역 = `TSK_005` (cross-layer pipeline) 으로 식별. 두 모델 대상 진행. (1) §3.2 본문에 측정 사실 + TSK_005 영역 명시 (2) §11 표 row 18~19 추가 (TSK_005 / TST_005) (3) §11.1 Mermaid 갱신 (4) 우선순위 TSK_005 → TSK_012 → TSK_010 → TSK_008. |
 | 2026-04-29 | **TSK_005 다시 기각 — fundamental dilemma 식별 (사용자 지적)** | TSK_005 plug-in 형식 설계 후 사용자 지적 — "GPU 가 진짜 Q 가지면 CPU 결과 무용". 분석: (1) cross-layer overlap 의 layer N+1 cold partial 을 layer N 진행 동시 시작 시 layer N+1 attention 진입 시점에 GPU 가 *진짜 Q* 를 이미 가짐 (QKV proj 후 결정) → GPU 가 paged FA full 직접 가능 → CPU 결과 활용 의미 없음. (2) speculative Q 추정 영역도 동일 — 추정 Q 와 진짜 Q 비교/correction 이 결국 GPU 의 paged FA 와 같은 작업 → wall-time 동등 또는 더 김. **dilemma**: `Q dependency + GPU 가 진짜 Q 가지면 CPU 결과 무용` 은 layer-안이든 cross-layer 든 동일. CPU partial 이 *진짜* 가치 있는 영역 = **cold blocks 가 진짜 GPU evict (free) 되어 GPU 가 cold attention 못 하는 시점** — 즉 reload 가 필요한 시점에 CPU partial 이 *reload 의 대체* 로만. 이건 `TSK_012` (decode-time cold-blocks GPU reload + 진짜 evict 정책 통합) 의 영역. **TSK_005 / TST_005 본 표 다시 제외 + 기각 처리**. (1) §3.2 본문 갱신 — TSK_012 가 IDE_006 의 진짜 가치 영역 명시. (2) §11 표 row 18~19 (TSK_005 / TST_005) 제거 — FEA 행만 남음. (3) §11.1 Mermaid 의 TSK_005 노드 제거. (4) 우선순위 TSK_012 → TSK_010 → TSK_008. id_registry 의 TSK_005 / TST_005 행은 그대로 보존 (재사용 금지 룰), 상태만 *기각* 으로 변경. |
 | 2026-04-29 | **TSK_011 / TSK_012 / TST_011 / TST_012 본문 최신화 (Phase 1/2 + sequence diagram + cross-link)** | 사용자 결정 (2026-04-29) — 본 turn 의 진행 (TSK_009 fix v4 적용 + TSK_005 기각 + TSK_012 의 Phase 1/2 framing 식별) 이 *문서 본문에 미반영* 임을 인식 → 일괄 갱신. (1) **TSK_012.md 본문 재작성** — Phase 1 (D-ii 봉합 only) / Phase 2 (진짜 evict + IDE_006 race) 단계 분리 + sequence diagram 3 개 (현재 fix v4 / Phase 1 / Phase 2) + 변경 파일 표 (Phase 1 / Phase 2) + 구현 단계 (0.1 hook 조사 → 1.1~1.5 Phase 1 → 2.1~2.3 Phase 2) + cross-link (TSK_005 기각 / TSK_009 fix v4 / TSK_011 sweep). (2) **TST_012.md 본문 재작성** — Phase 별 검증 spec (Phase 1 D-ii / Phase 2 invariant 1/2/race winner 분포) + Phase 별 환경 (max-prompts=30 logprobs=1 vs max-prompts=100 3 시나리오). (3) **TSK_011.md 갱신** — fix v4 의 의미 재정의 명시 (blocking deadline → non-blocking poll), TSK_012 framing 별 본 TSK 의 의미 (A: dead, B: race 안전망 재활용), §1 TL;DR 박스 + §3.1 흐름 표 + §6 References cross-link. (4) **TST_011.md 갱신** — §1.1 측정 의미 변경 (deadline timeout → non-blocking poll merged/dropped) + Phase 별 §1.4 numerical 의 재해석 영역 명시. (5) **README §11 표 row 14~17** 갱신 — TSK_011 / TST_011 의미 재정의 / TSK_012 / TST_012 Phase 본문 갱신 명시. (6) **§11.1 Mermaid** — T12 노드에 ★★ 표시 + Phase 1/2 명시. (7) **id_registry** — TSK_011 / TSK_012 / TST_011 / TST_012 행 모두 최신 framing 으로 갱신. |
+| 2026-04-29 | **TSK_014~018 / TST_014~018 신규 발급 — NEO 식 architecture 의 5 개 적재 TSK + 검증 게이트** | NEO 4 차 재정의 ([`NEO_redesign.md`](NEO_redesign.md)) + Phase 0 분석 ([`TSK_013`](TSK_013.md)) + 깊은 코드 dive ([`NEO_code_deepdive.md`](NEO_code_deepdive.md)) 결과를 바탕으로 5 개 신규 TSK + 5 개 신규 TST 발급. (1) **`TSK_014`** Request-level scheduler — 3 큐 + load-aware mode selection. NEO `swiftllm/server/scheduler.py` 알고리즘 차용. 변경: vLLM `vllm/v1/core/sched/scheduler.py` 의 `schedule()` 반환을 두 SubBatch + swap list 로 확장 + 신규 `mode_selector.py` + `sub_batch.py`. 의존: TSK_017 선행. (2) **`TSK_015`** KV cache exclusive ownership — mirror → exclusive. `_initiate_swap` 의 atomic (source free + dest alloc) 패턴 port. 의존: 독립 (TSK_014 와 병렬). (3) **`TSK_016`** Asymmetric pipelining — `_forward_pipeline` 의 layer 단위 ping-pong port. 의존: TSK_014 + TSK_015 선행. **IDE_006 의 시그니처 메커니즘 — Q dependency dilemma 회피 영역**. (4) **`TSK_017`** Load-aware scheduling heuristic — `TablePerfPredictor` 의 4 종류 prediction + 1D/2D linear interpolation + ModelProfiler. 의존: 독립. (5) **`TSK_018`** CPU attention kernel 통합 — IDE_006 의 TSK_001/003/004/007/010 을 그대로 흡수 (AVX-512/AMX 우위). NEO 의 ISPC AVX2 미통합 (알고리즘 reference 만). LSE-반환 인터페이스만 제거. 의존: TSK_016 와 함께. (6) 매핑 5 개 TST_014~018 신규 발급. (7) id_registry 의 TSK 다음 부여 번호 014→019, TST 014→019 갱신. (8) **§11 표 row 20~30 추가** — TSK_014~018 / TST_014~018. FEA_### 가 row 30 (이전 row 20). (9) **§11.1 Mermaid 갱신** — 3 차 재정의 영역 (hot/cold split, history 보존) + 4 차 재정의 영역 (NEO asymmetric pipelining) 으로 분리. TSK_001/003/004/007/010 의 TSK_018 흡수 점선. 우선순위 5 단계 (TSK_013 → 17/15 → 14 → 16 → 18). |
 | 2026-04-29 | **NEO_code_deepdive.md 신규 발행 — 알고리즘 차용 정책 + 깊은 코드 dive (논문용 reference)** | 사용자 결정 (2026-04-29) — (1) NEO 의 *코드 직접 차용* 이 아닌 *알고리즘만 차용* 정책 (NEO 가 Apache 2.0 이라 호환, attribution 명시). (2) 깊은 코드 dive 결과를 향후 논문 영역의 reference 자료로 사용 가능하도록 *별도 md* 로 정리. **본 문서 ([`NEO_code_deepdive.md`](NEO_code_deepdive.md)) 의 적재 영역**: §1 Overview + Mermaid + 핵심 invariant 3 개 / §2 SubBatch 추상 + BatchPerfData 모델 (gprf_reqs / cprf_reqs / gdec_reqs / cdec_reqs / set_model_forward_args) / §3 Scheduler — 6 단계 batch 결정 algorithm + `_decide_mode_and_gen_batch` 5 단계 + `_get_remains` 의 GPU/CPU 시간 매칭 measure / §4 Asymmetric pipelining `_forward_pipeline` — layer 단위 ping-pong + `forward_first_stage` / `forward_double` / `forward_last_stage` 의 분할 / §5 BlockManager — DeviceBlockManager 의 split-aware 자료구조 + alloc / `_initiate_swap` exclusive ownership / §6 PerfPredictor — TablePerfPredictor 의 4 종류 prediction (linr_T / pref_T / gdec_T / cdec_T) + 1D/2D linear interpolation 알고리즘 / §7 CPU kernel pacpu — IDE_006 의 AVX-512/AMX kernel 우위 영역 명시 / §8 NEO 의 fundamental 한계 (TP=1 가정 / LLaMa 만 / profile cost / extra_layer_for_cprf 의미). 본 문서는 NEO 의 코드를 *언어 중립 의사 코드* 로 추출 — 직접 복사가 아닌 알고리즘 reference 로 vLLM 위 재구현 시 사용. |
 | 2026-04-29 | **TSK_013 / TST_013 발급 + NEO repo clone + 1차 분석 적재** | NEO 4 차 재정의 ([`NEO_redesign.md`](NEO_redesign.md)) 의 §4 신규 TSK 영역 — Phase 0 코드 dive 가 진입 전 필수임을 인식. (1) **NEO repo clone** — `https://github.com/NEO-MLSys25/NEO` 를 `/workspace/neo_ref/` 에 `--depth 1` clone (~992 KB). NEO 는 자체 LLM 엔진 (`swiftllm` + `pacpu`) — vLLM 의 fork 가 아니므로 *port / 모방* 영역. (2) **TSK_013 / TST_013 발급** — id_registry "다음 부여 번호" 가져와 발급 후 +1 (TSK 다음 부여 번호 014 / TST 다음 부여 번호 014). (3) **1차 분석 적재** — [`PLN_001_TSK_013_neo_arch_survey.md`](PLN_001_TSK_013_neo_arch_survey.md). NEO 의 핵심 5 개 모듈 식별: ① Scheduler (`swiftllm/server/scheduler.py` — 3 큐 + load-aware mode selection), ② BlockManager (`swiftllm/server/block_manager.py` — GPU/CPU exclusive ownership), ③ LlamaModel sub-batch (`swiftllm/worker/model.py:_forward_pipeline` — 두 SubBatch 동시 실행 = asymmetric pipelining), ④ PerfPredictor (`swiftllm/perfpredictor.py` — table-based load prediction), ⑤ pacpu (CPU attention kernel ISPC + AVX2 — IDE_006 의 AVX-512/AMX 가 우위). (4) **신규 TSK 5 개 발급 plan** — TSK_014 가칭 Request scheduler / TSK_015 가칭 KV exclusive ownership / TSK_016 가칭 Asymmetric pipelining / TSK_017 가칭 Load-aware scheduling / TSK_018 가칭 CPU kernel 통합 (IDE_006 TSK_001/003/004/007/010 흡수). 우선순위 Mermaid + 의존 관계 + 변경 범위 명시. (5) **README §11 표 row 18~20** 추가 (TSK_013 / TST_013 / FEA_###). FEA_### 의 통합 branch 가 `feat/ide006-cold-kv-cpu-partial-attention` → `feat/ide006-neo-asymmetric` 로 변경. (6) **다음 단계** = §6 깊은 코드 dive 우선순위 (1순위: scheduler 의 `_decide_mode_and_gen_batch` + LlamaModel `_forward_pipeline`) 를 다음 turn 들에서 점진적으로 보강. |
 | 2026-04-29 | **🚨 4 차 재정의 검토 + 결정 — NEO 식 asymmetric pipelining 으로 architecture 전환** | 사용자 결정 (2026-04-29) — TSK_012 단일 단계화 후 사용자 지적 *"mirror 를 가지고 있는 게 개선한 것보다 빠른 거 아냐?"* + NEO 논문 검토 + request 단위 분할 메커니즘 발견 → **IDE_006 의 4 차 재정의**. 핵심 전환: "같은 request 안 hot/cold split + LSE merge" → "request 단위 GPU/CPU exclusive ownership + asymmetric pipelining". (1) **검토 + 결정 history** 단일 출처 = [`NEO_redesign.md`](NEO_redesign.md) 신규 발행 — TSK_011 sweep 결과 + TSK_009 fix v4 invariant 측정 + TSK_005 기각의 Q dependency dilemma + TSK_012 단일 단계화 + 사용자 mirror 의문 + NEO 논문 정량 결과 (T4 7.5× / A10G 26% / H100 14%) + NEO 의 fundamental 메커니즘 (request 단위 exclusive + asymmetric pipelining + Q dependency 회피 방법) + 기존 8 개 적용 TSK 의 NEO 식 적용 시 운명 (✅ 4 / 🔶 2 / ❌ 2) + branch 분리 결정 (옵션 A 채택). (2) **branch 분리** — `feat/ide006-neo-asymmetric` 신규 (main `a30d90dddb` 에서 fork). 첫 commit = IDE_006 문서 import (1f6fb8a7ec 의 IDE_006 디렉토리 28 개 .md + id_registry / shadow_assists/README), 두 번째 commit = NEO_redesign.md 신규 + 본 README 갱신. NEO 식 코드 적재는 다음 turn 에서 사용자 결정 후 신규 TSK 발급 + 재사용 가능 코드 (TSK_001 kernel / TSK_003 SIMD / TSK_004 NUMA / TSK_010 sub-batching) cherry-pick. (3) **본 §1~§13 (1/2/3 차 정의 본문) 은 history 보존** — *hot/cold split 시도의 사고 흐름* 자체가 4 차 재정의의 근거이므로 보존. NEO 식 architecture 의 본문은 새 TSK 들과 함께 별도 적재. (4) **기존 branch (`feat/ide006-cold-kv-cpu-partial-attention`)** 는 archive 보존 — git history 그대로, NEO 식 측정 결과로 가치 영역 입증 못 하면 부활 가능. |
@@ -440,4 +461,4 @@ flowchart TB
 
 ---
 
-**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`NEO_redesign`](NEO_redesign.md) · [`NEO_code_deepdive`](NEO_code_deepdive.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TSK_011`](TSK_011.md) · [`TSK_012`](TSK_012.md) · [`TSK_013`](TSK_013.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md) · [`TST_011`](TST_011.md) · [`TST_012`](TST_012.md) · [`TST_013`](TST_013.md)
+**↑ 부모**: [`shadow_assists/README.md`](../../README.md) · **↓ 자식**: [`PLN_001`](PLN_001.md) · [`NEO_redesign`](NEO_redesign.md) · [`NEO_code_deepdive`](NEO_code_deepdive.md) · [`TSK_001`](TSK_001.md) · [`TSK_002`](TSK_002.md) · [`TSK_003`](TSK_003.md) · [`TSK_004`](TSK_004.md) · [`TSK_007`](TSK_007.md) · [`TSK_008`](TSK_008.md) · [`TSK_009`](TSK_009.md) · [`TSK_010`](TSK_010.md) · [`TSK_011`](TSK_011.md) · [`TSK_012`](TSK_012.md) · [`TSK_013`](TSK_013.md) · [`TSK_014`](TSK_014.md) · [`TSK_015`](TSK_015.md) · [`TSK_016`](TSK_016.md) · [`TSK_017`](TSK_017.md) · [`TSK_018`](TSK_018.md) · [`TST_001`](TST_001.md) · [`TST_002`](TST_002.md) · [`TST_003`](TST_003.md) · [`TST_004`](TST_004.md) · [`TST_007`](TST_007.md) · [`TST_008`](TST_008.md) · [`TST_009`](TST_009.md) · [`TST_010`](TST_010.md) · [`TST_011`](TST_011.md) · [`TST_012`](TST_012.md) · [`TST_013`](TST_013.md) · [`TST_014`](TST_014.md) · [`TST_015`](TST_015.md) · [`TST_016`](TST_016.md) · [`TST_017`](TST_017.md) · [`TST_018`](TST_018.md)
