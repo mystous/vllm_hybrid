@@ -119,22 +119,36 @@ class NeoSchedulerAdapter(Scheduler):
         )
 
     # ------------------------------------------------------------------
-    # SchedulerInterface override — record-only NEO sibling
+    # SchedulerInterface override — attach NEO decisions to SchedulerOutput
     # ------------------------------------------------------------------
     def schedule(self) -> "SchedulerOutput":
         # Drive the default scheduler — this is the data path the engine
-        # actually consumes.
+        # actually consumes for vanilla operation.
         output = super().schedule()
 
-        # Drive the NEO sibling for visibility. Until later stages wire
-        # the runner to consume two sub-batches, the adapter cannot
-        # actually run a NEO-style iteration; it only records the
-        # decision the NEO scheduler would have made if invoked.
+        # Drive the NEO sibling. The decision is *attached* to the
+        # SchedulerOutput so that the GPU model runner can consume it
+        # in subsequent stages (Step 5.3+).
         try:
             self.last_neo_output = self.neo_scheduler.schedule()
         except Exception as e:  # noqa: BLE001
-            # Never let the NEO sibling break the data path.
             logger.debug("NeoScheduler sibling raised: %s", e)
             self.last_neo_output = None
+
+        if self.last_neo_output is not None:
+            try:
+                output.neo_sub_batches = [
+                    [r.request_id for r in batch.all_reqs]
+                    for batch in self.last_neo_output.batches
+                ]
+                output.neo_swap_in_req_ids = [
+                    r.request_id for r in self.last_neo_output.swap_in_reqs
+                ]
+                output.neo_swap_out_req_ids = [
+                    r.request_id for r in self.last_neo_output.swap_out_reqs
+                ]
+            except (AttributeError, TypeError) as e:
+                # Defensive: never break the data path on attachment failure.
+                logger.debug("NEO output attach failed: %s", e)
 
         return output
