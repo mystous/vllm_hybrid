@@ -238,6 +238,31 @@ class SchedulerOutput:
     # preventing stale NaN/data from corrupting attention or SSM computation.
     new_block_ids_to_zero: list[int] | None = None
 
+    # ──────────────────────────────────────────────────────────────────
+    # NEO-style asymmetric pipeline attachment
+    # (IDE_006 4 차 재정의 / TSK_014).
+    #
+    # When ``SchedulerConfig.enable_neo_asymmetric=True`` and the
+    # NeoSchedulerAdapter has decided that a NEO-style pipelined step
+    # is profitable, ``neo_sub_batches`` carries the per-sub-batch
+    # request lists that the GPU model runner uses to fork attention
+    # metadata and dispatch the dual forward path.
+    #
+    # ``neo_sub_batches`` is a list of length 1 (sequential mode —
+    # vanilla equivalent) or 2 (pipelined mode). Each element is a
+    # list of request IDs assigned to that sub-batch.
+    #
+    # ``neo_swap_in_req_ids`` / ``neo_swap_out_req_ids`` carry the
+    # request IDs that the NEO scheduler decided to migrate between
+    # GPU and CPU on this step (KV exclusive ownership).
+    #
+    # All three fields default to ``None`` so that vanilla schedulers
+    # remain wire-compatible (no NEO awareness required).
+    # ──────────────────────────────────────────────────────────────────
+    neo_sub_batches: list[list[str]] | None = None
+    neo_swap_in_req_ids: list[str] | None = None
+    neo_swap_out_req_ids: list[str] | None = None
+
     @classmethod
     def make_empty(cls) -> "SchedulerOutput":
         return cls(
