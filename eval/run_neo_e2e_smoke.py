@@ -32,37 +32,51 @@ import argparse
 import sys
 from pathlib import Path
 
-MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
-PROMPTS = [
+DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+DEFAULT_PROMPTS = [
     "Hello, my name is",
     "The quick brown fox",
     "Once upon a time",
 ]
-MAX_TOKENS = 16
+DEFAULT_MAX_TOKENS = 16
 DEFAULT_LOG_FILE = "/tmp/neo_smoke.log"
 
+# Aliases for the locally cached production-target weights. Pass via
+# ``--model llama-70b`` etc. on the CLI.
+MODEL_ALIASES = {
+    "qwen-1.5b":   "Qwen/Qwen2.5-1.5B-Instruct",
+    "qwen-72b":    "Qwen/Qwen2.5-72B-Instruct",
+    "llama-70b":   "meta-llama/Llama-3.3-70B-Instruct",
+}
 
-def _run(enable_neo: bool):
+
+def _resolve_model(name_or_path: str) -> str:
+    return MODEL_ALIASES.get(name_or_path.lower(), name_or_path)
+
+
+def _run(args, enable_neo: bool):
     from vllm import LLM, SamplingParams
 
     llm = LLM(
-        model=MODEL,
+        model=_resolve_model(args.model),
         enable_neo_asymmetric=enable_neo,
-        tensor_parallel_size=1,
-        max_model_len=512,
-        gpu_memory_utilization=0.4,
+        tensor_parallel_size=args.tensor_parallel_size,
+        max_model_len=args.max_model_len,
+        gpu_memory_utilization=args.gpu_memory_utilization,
         enforce_eager=True,
         disable_log_stats=True,
     )
     params = SamplingParams(
-        temperature=0.0, top_p=1.0, max_tokens=MAX_TOKENS, seed=0,
+        temperature=0.0, top_p=1.0, max_tokens=args.max_tokens, seed=0,
     )
-    outputs = llm.generate(PROMPTS, params)
-    return [out.outputs[0].token_ids for out in outputs], \
-           [out.outputs[0].text for out in outputs]
+    prompts = args.prompts or DEFAULT_PROMPTS
+    outputs = llm.generate(prompts, params)
+    return ([out.outputs[0].token_ids for out in outputs],
+            [out.outputs[0].text for out in outputs],
+            prompts)
 
 
-def _verify(vanilla_tokens, vanilla_text, neo_tokens, neo_text,
+def _verify(vanilla_tokens, vanilla_text, neo_tokens, neo_text, prompts,
             log_file: Path | None) -> int:
     """Return 0 on PASS, 1 on FAIL."""
     print("=" * 60)
@@ -75,6 +89,7 @@ def _verify(vanilla_tokens, vanilla_text, neo_tokens, neo_text,
         for i, (a, b) in enumerate(zip(vanilla_tokens, neo_tokens)):
             if a != b:
                 print(f"    diff at prompt {i}: {a} vs {b}")
+                print(f"      prompt: {prompts[i]!r}")
 
     # NEO gate logs come from the EngineCore subprocess and are written
     # to the captured log file. The current main process' logger never
@@ -110,6 +125,23 @@ def _verify(vanilla_tokens, vanilla_text, neo_tokens, neo_text,
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument(
+        "--model",
+        type=str,
+        default=DEFAULT_MODEL,
+        help=("Model name or alias. Aliases: "
+              + ", ".join(MODEL_ALIASES.keys())),
+    )
+    ap.add_argument("--tensor-parallel-size", type=int, default=1)
+    ap.add_argument("--max-model-len", type=int, default=512)
+    ap.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
+    ap.add_argument("--gpu-memory-utilization", type=float, default=0.4)
+    ap.add_argument(
+        "--prompts",
+        nargs="+",
+        default=None,
+        help="Override default prompts. Pass space-separated quoted strings.",
+    )
+    ap.add_argument(
         "--log-file",
         type=Path,
         default=Path(DEFAULT_LOG_FILE),
@@ -143,23 +175,29 @@ def main() -> int:
               f"{'PASS' if ok_adapter and ok_gate else 'FAIL'}")
         return 0 if ok_adapter and ok_gate else 1
 
+    resolved = _resolve_model(args.model)
     print("=" * 60)
+    print(f"MODEL: {resolved} (alias '{args.model}')")
+    print(f"TP={args.tensor_parallel_size} max_model_len={args.max_model_len}"
+          f" max_tokens={args.max_tokens} prompts={len(args.prompts or DEFAULT_PROMPTS)}")
+    print("=" * 60)
+
     print("VANILLA RUN (enable_neo_asymmetric=False)")
     print("=" * 60)
-    vanilla_tokens, vanilla_text = _run(False)
-    for prompt, text in zip(PROMPTS, vanilla_text):
+    vanilla_tokens, vanilla_text, prompts = _run(args, False)
+    for prompt, text in zip(prompts, vanilla_text):
         print(f"  [vanilla] {prompt!r} → {text!r}")
 
     print("=" * 60)
     print("NEO RUN (enable_neo_asymmetric=True)")
     print("=" * 60)
-    neo_tokens, neo_text = _run(True)
-    for prompt, text in zip(PROMPTS, neo_text):
+    neo_tokens, neo_text, _ = _run(args, True)
+    for prompt, text in zip(prompts, neo_text):
         print(f"  [neo]     {prompt!r} → {text!r}")
 
     log_file = None if args.no_log_verify else args.log_file
     return _verify(vanilla_tokens, vanilla_text, neo_tokens, neo_text,
-                   log_file)
+                   prompts, log_file)
 
 
 if __name__ == "__main__":

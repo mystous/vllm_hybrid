@@ -129,13 +129,29 @@ class NeoSchedulerAdapter(Scheduler):
             )
             self.table_predictor = None
 
-        num_gpu_blocks = max(
-            getattr(cache_cfg, "num_gpu_blocks_override", None) or 1,
-            1,
+        # KV pool sizes are not finalised when the scheduler is built —
+        # ``cache_cfg.num_gpu_blocks`` is set by a worker profile run
+        # *after* this point. Until then we estimate from the scheduler
+        # / model config so the NEO sibling has a realistic budget for
+        # its mode-selection arithmetic. The estimate is intentionally
+        # generous so swap-out doesn't fire on every iteration.
+        block_size = max(getattr(cache_cfg, "block_size", 16), 1)
+        max_model_len = max(getattr(model_cfg, "max_model_len", 0), 1)
+        max_num_seqs = max(getattr(sched_cfg, "max_num_seqs", 1), 1)
+        estimated_blocks = (max_num_seqs * max_model_len) // block_size + 1
+
+        num_gpu_blocks = (
+            getattr(cache_cfg, "num_gpu_blocks", None)
+            or getattr(cache_cfg, "num_gpu_blocks_override", None)
+            or estimated_blocks
         )
+        num_gpu_blocks = max(int(num_gpu_blocks), 1)
+
         # CPU block count is determined by ``--swap-space`` × layer
-        # count; before that's known we use a conservative placeholder.
-        num_cpu_blocks = max(num_gpu_blocks, 1)
+        # count; until that's resolved, mirror the GPU estimate so the
+        # cpu_threshold = num_cpu_blocks - num_gpu_blocks heuristic
+        # doesn't go negative.
+        num_cpu_blocks = max(int(num_gpu_blocks * 2), num_gpu_blocks + 1)
 
         try:
             num_layers = model_cfg.hf_config.num_hidden_layers
