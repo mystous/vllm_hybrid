@@ -290,6 +290,8 @@ flowchart TB
 
 ## 6. 다음 단계 — 깊은 코드 dive 영역
 
+> **2026-04-29 갱신** — 깊은 코드 dive 결과는 [`NEO_code_deepdive.md`](NEO_code_deepdive.md) (논문용 reference 별도 문서) 에 적재 완료. 본 §6 은 *분석 영역 list* 만 보존.
+
 본 1차 분석 후 다음 코드 dive 가 필요한 영역:
 
 | 우선순위 | 코드 dive 영역 | 산출물 |
