@@ -308,7 +308,7 @@ CPU:                [batches[1] CPU attention (별도 thread)]
 
 ### 4.3 · `forward_first_stage` / `forward_double` / `forward_last_stage` 의 분할
 
-NEO 는 transformer layer 를 다음 stage 로 분할:
+NEO 는 transformer layer 를 다음 stage 로 분할 (`worker/layers/transformer_layer.py:373~501`):
 
 | Stage | GPU 작업 | CPU 작업 |
 |---|---|---|
@@ -317,6 +317,121 @@ NEO 는 transformer layer 를 다음 stage 로 분할:
 | `forward_last_stage` | 마지막 layer 의 attention + output projection | (있을 수 있음) |
 
 이 stage 분할 덕에 *first stage* 가 *next layer 의 input* 을 미리 준비 → 다음 layer 의 CPU 가 즉시 시작 가능 → pipeline depth 1.
+
+### 4.4 · *Layer offset* 의 fundamental 메커니즘 (핵심 발견)
+
+`forward_double` 의 진짜 의미 (transformer_layer.py:430~448 의 docstring 인용):
+
+```
+batch 0 : o0   |=>  post-projection[i] -> pre-projection[i+1]  |        attention[i+1]                     |=> [o0']
+batch 1 : qkv1 |=>       attention[i]                          | post-projection[i] -> pre-projection[i+1] |=> qkv1'
+```
+
+**핵심 — 한 `forward_double` 호출에서 두 batch 가 *서로 다른 layer* 의 attention 처리**:
+- batch 1 (cur_stage=0): layer **i** 의 attention 진행
+- batch 0 (cur_stage=1): layer **i+1** 의 attention 진행
+
+`cur_layer_id` 결정 규칙 (`_attention` 안):
+
+```python
+cur_layer_id = (self.layer_id + cur_stage) % self.model_config.num_layers
+```
+
+→ stage 0 = batch[1] 의 *layer i* attention. stage 1 = batch[0] 의 *layer i+1* attention.
+
+즉 **두 batch 가 layer 1 만큼 어긋나 진행** — pipeline depth 1 with layer offset. 이게 NEO 의 *진짜* asymmetric pipelining 의 의미. 단순히 두 batch 가 동시 진행하는 게 아니라 *layer 단위 어긋남* 으로 attention dependency chain 을 분리.
+
+`forward_first_stage` 가 batch[0] 의 layer 1 attention 만 미리 진행 + batch[1] 의 layer 1 q/k/v 만 만들어둠. `forward_double` 가 layer 1 ~ N-1 까지 ping-pong (각 호출마다 batch[1] 의 layer i + batch[0] 의 layer i+1). `forward_last_stage` 가 batch[1] 의 layer N attention + 두 batch 의 post.
+
+```mermaid
+sequenceDiagram
+    participant FS as forward_first_stage
+    participant FD as forward_double × (N-1)
+    participant FL as forward_last_stage
+
+    Note over FS: batch[0] layer 1 attention<br/>batch[1] layer 1 q/k/v 준비
+    FS->>FD: q1, k1, v1 of batch[1] layer 1
+
+    loop layer i = 1 ... N-1
+        Note over FD: stage 0:<br/>batch[1] layer i attention<br/>batch[0] layer i+1 q/k/v 준비
+        Note over FD: stage 1:<br/>batch[0] layer i+1 attention<br/>batch[1] layer i+1 q/k/v 준비
+    end
+
+    FD->>FL: q1, k1, v1 of batch[1] layer N
+    Note over FL: batch[1] layer N attention<br/>batch[0] post + batch[1] post
+```
+
+→ batch[0] 과 batch[1] 의 layer 처리가 *항상 layer 1 만큼 어긋남*. attention output 의 layer 안 즉시 dependency 가 *cross-batch 로 분리* 됨.
+
+### 4.5 · `_attention` 의 3-way dispatch (`worker/layers/transformer_layer.py:258~355`)
+
+한 SubBatch 안에 prefill / GPU decode / CPU decode 가 섞일 수 있으므로 `_attention` 는 *3-way dispatch*:
+
+```python
+def _attention(q, k, v, batch, cur_stage):
+    o = batch.attn_out_buf  # output buffer
+    cur_layer_id = (self.layer_id + cur_stage) % num_layers
+
+    # 1. Prefill (Ampere+ → flash_attn, 구형 → custom prefill_attention)
+    if batch.num_prefs > 0:
+        if cuda_device.major >= 8:
+            flash_attn_cuda.varlen_fwd(q[:sum_pref_toks], k[:sum_pref_toks], v[:sum_pref_toks], ...)
+        else:
+            prefill_attention(q, k, v, o[:sum_pref_toks], ...)
+
+    # 2. GPU decode (paged attention)
+    if batch.num_gdecs > 0:
+        paged_attention(
+            q[sum_pref_toks:sum_prgd_toks],
+            ...
+            self.swapper.k_cache, self.swapper.v_cache,
+            self.swapper.gpu_block_table,
+            ...
+            cur_layer_id, batch.seq_block_size, batch.num_seq_blocks,
+        )
+
+    # 3. CPU decode (pacpu kernel)
+    if batch.num_cdecs > 0:
+        oc = self.swapper.o_cpu[:batch.num_cdecs]
+        self.events[cur_stage].qkvtr_e.synchronize()  # Q D2H 완료 대기
+        torch.ops.pacpu.paged_attention_cpu(
+            cur_layer_id, softmax_scale,
+            batch.seq_ids_list[batch.num_prgds:],
+            batch.seq_lens_list[batch.num_prgds:],
+            self.swapper.q_cpu[:num_cdecs],
+            self.swapper.k_cpu[:num_cdecs],
+            self.swapper.v_cpu[:num_cdecs],
+            self.swapper.k_swap, self.swapper.v_swap,  # CPU KV cache (CPU-cache)
+            self.swapper.cpu_block_table,
+            oc
+        )
+        # CPU output → GPU output buffer
+        with cuda.stream(self.cpu_communication_stream):
+            o[-num_cdecs:].copy_(oc, non_blocking=True)
+    self._compute_wait_comm()
+```
+
+`paged_attention_cpu` 가 NEO 의 *pacpu* C++/ISPC kernel — `torch.ops.pacpu.paged_attention_cpu` 로 dispatch.
+
+### 4.6 · `_transfer_qkv` — Q/K/V D2H 메커니즘 (`worker/layers/transformer_layer.py:158~178`)
+
+`num_cdecs > 0` 인 경우 _attention 진입 *전* 에 Q/K/V 를 CPU 로 D2H. CPU 통신 stream 사용 + qkvtr_e event 로 _attention 의 동기점 :
+
+```python
+def _transfer_qkv(q, k, v, batch, cur_stage):
+    self._comm_wait_compute()  # 이전 compute 가 끝나야 D2H 시작
+    if batch.num_cdecs > 0:
+        with cuda.stream(self.cpu_communication_stream):
+            qc = self.swapper.q_cpu[:batch.num_cdecs]
+            kc = self.swapper.k_cpu[:batch.num_cdecs]
+            vc = self.swapper.v_cpu[:batch.num_cdecs]
+            qc.copy_(q[-batch.num_cdecs:], non_blocking=True)
+            kc.copy_(k[-batch.num_cdecs:], non_blocking=True)
+            vc.copy_(v[-batch.num_cdecs:], non_blocking=True)
+            self.events[cur_stage].qkvtr_e.record()
+```
+
+→ Q D2H + KV (current step) D2H 가 *별도 stream* 에서 진행. 그 동안 GPU 의 다른 batch 가 attention 진행 가능. `qkvtr_e.record()` event 가 `_attention` 안 `qkvtr_e.synchronize()` 와 짝.
 
 ---
 
@@ -370,6 +485,67 @@ def _initiate_swap(reqs, is_swap_out, ...):
 ```
 
 → swap 은 *source 에서 free + dest 에 alloc* 의 atomic 영역. *exclusive ownership* 의 핵심 — 한 request 의 KV 가 *반드시 한 device 에만* 존재.
+
+### 5.4 · `BlockManager.prepare(batches, swap_out, swap_in)` — iteration 진입 lifecycle (3 단계)
+
+매 iteration 시작에 `prepare` 가 KV cache + swap 관련 인자를 한 번에 준비 (block_manager.py:195~261):
+
+```python
+def prepare(batches, cur_swap_out, cur_swap_in):
+    assert not (cur_swap_out and cur_swap_in)
+    mappings = (([], []), ([], []))   # ((GPU vids, GPU pids), (CPU vids, CPU pids))
+    swappings = ([], [])              # (src pids, dst pids)
+
+    # Step 1: 일반 swap (scheduler 의 swap_out 또는 swap_in)
+    is_swap_out = bool(cur_swap_out)
+    sp, dv, dp = self._initiate_swap(cur_swap_out or cur_swap_in, is_swap_out)
+    mappings[is_swap_out][0].extend(dv)
+    mappings[is_swap_out][1].extend(dp)
+    swappings[0].extend(sp)
+    swappings[1].extend(dp)
+
+    # Step 2: 각 SubBatch 의 forward args 설정 + GPU/CPU block alloc
+    for batch in batches:
+        batch.set_model_forward_args(self.model_config)   # (§2 의 layout 변환)
+        (gv, gp), (cv, cp) = self._alloc_blocks_for_batch(batch)
+        mappings[0][0].extend(gv); mappings[0][1].extend(gp)
+        mappings[1][0].extend(cv); mappings[1][1].extend(cp)
+
+    # Step 3: CPU prefill 의 swap-out (extra_layer_for_cprf 정책)
+    for batch in batches:
+        sp, dv, dp = self._initiate_swap(
+            batch.all_reqs[:batch.num_cprfs],   # CPU prefill 만
+            is_swap_out=True,
+            use_itm=self.engine_config.extra_layer_for_cprf,
+            omit_last=False
+        )
+        batch.src_blk_ids = sp
+        batch.dst_blk_ids = dp
+        mappings[1][0].extend(dv); mappings[1][1].extend(dp)
+
+    return mappings, swappings, is_swap_out
+```
+
+핵심 — 3 단계 분리:
+1. **일반 swap** (scheduler 결정) — request 의 GPU↔CPU 이전
+2. **batch alloc** — SubBatch 의 새 token block 할당 + forward args 변환
+3. **cprf swap** — CPU prefill 만 *intermediate GPU layer* (extra_layer_for_cprf=True 면 num_layers 번째 layer) 에 임시 store 후 CPU 로 swap. 이게 `_swap_out_blocks` (transformer_layer.py:181) 의 source.
+
+### 5.5 · `BlockManager.update_and_free` — iteration 종료 lifecycle
+
+```python
+def update_and_free(batches, output_token_ids):
+    finished = []
+    for batch in batches:
+        for req, tok in zip(batch.all_reqs, output_token_ids[...]):
+            req.update_output(tok)
+            if req.is_finished():
+                finished.append(req)
+    self._free_blocks_of_requests(finished)
+    return finished
+```
+
+→ output token append → finished 검사 → finished request 의 GPU + CPU block 모두 free (exclusive 라 한 쪽만 점유 중이지만 양쪽 free 호출).
 
 ---
 
@@ -425,6 +601,57 @@ def get_cdec_T(S, N):  # 2D (bilinear) 보간
 
 NEO 는 첫 startup 시 `ModelProfiler` (profiler.py) 가 **각 (S, N) 점에서 actual forward 측정** 을 수행하여 `*_T_list` 들을 채운다. 이후 scheduling 의 `BatchPerfData` 가 보간으로 prediction.
 
+### 6.4 · `ModelProfiler` 의 측정 단계 (`server/profiler.py:28~403`)
+
+```python
+class ModelProfiler:
+    def init_profile_tables(self, block_manager: BlockManager):
+        self.bm = block_manager
+        self.pp = TablePerfPredictor(engine_config)
+
+        # 4 종류 table 채우기
+        self.pp.linr_S_list, self.pp.linr_T_list = self._profile_linr(self.pp.linr_S_list)
+        self.pp.pref_S_list, self.pp.pref_T_list = self._profile_pref(self.pp.pref_S_list)
+        self.pp.gdec_N_list, self.pp.gdec_T_list = self._profile_gdec(self.pp.gdec_N_list)
+        self.pp.cdec_S_list, self.pp.cdec_N_lists, self.pp.cdec_T_lists = \
+            self._profile_cdec(self.pp.cdec_S_list, self.pp.cdec_N_lists)
+```
+
+각 측정 점은 *artificial test case* 로 `_run_test_case` 가 실행:
+
+```python
+def _run_test_case(pref_lens, gdec_lens, cdec_lens, nwarmup=2, nrepeat=3):
+    nbatches = len(pref_lens)  # 1 (sequential) 또는 2 (pipelined same)
+
+    batches = []
+    for i in range(nbatches):
+        batch = SubBatch()
+        for j in range(len(pref_lens[i])):
+            batch.add_pref(create_request([10] * pref_lens[i][j], ...), is_gpu=True)
+        for j in range(len(gdec_lens[i])):
+            batch.add_gdec(create_request([10] * (gdec_lens[i][j] - 1), ..., [10], True))
+        for j in range(len(cdec_lens[i])):
+            batch.add_cdec(create_request([10] * (cdec_lens[i][j] - 1), ..., [10], True))
+        batches.append(batch)
+
+    # block alloc + forward args 변환
+    args = self.bm.prepare(batches, [], [])
+
+    # warmup + repeat
+    for i in range(-nwarmup, nrepeat):
+        if i == 0: self.executor.turn_on_perf_monitor()
+        self.executor.do_one_iteration(batches, *args)
+
+    self.bm.update_and_free(batches, output_tokens)
+    return self.executor.turn_off_perf_monitor_and_flush_results()
+```
+
+핵심 — 두 변종:
+- `_run_test_case_seq(pref, gdec, cdec)` = 단일 SubBatch (sequential mode 측정)
+- `_run_test_case_pip_same(pref, gdec, cdec)` = 두 동일 SubBatch (pipelined same 측정 — `linr_T` / `pref_T` / `gdec_T` 의 *pipelined 진입 시 시간*)
+
+→ 각 (S, N) 점마다 `nwarmup=2` + `nrepeat=3` 회 forward 실행, perf event 시점 기록 후 평균. 측정 점 총 수 ≈ `len(linr_S_list) + len(pref_S_list) + len(gdec_N_list) + len(cdec_S_list × cdec_N_lists)` ≈ 수백.
+
 ---
 
 ## 7. CPU Attention Kernel — `pacpu/`
@@ -467,6 +694,76 @@ def qk_product(cur_layer, num_blocks, seq_len, q, k_cache, block_table, a):
 
 → **NEO 의 CPU kernel 영역은 IDE_006 가 그대로 사용** (TSK_001 + 003 + 004 + 007 + 010 의 코드를 NEO 식 architecture 의 CPU sub-batch attention path 에 통합).
 
+### 7.3 · `pacpu.ispc` 의 4 개 export 함수 (ISPC SPMD 알고리즘)
+
+ISPC = Intel SPMD Program Compiler — `foreach` 가 SIMD lane 별 병렬 (AVX2 lane = 8 × FP32). NEO 의 핵심 4 함수:
+
+```ispc
+// 1. Q · Kᵀ — attention score
+export void qk_product(
+    cur_layer, num_blocks, seq_len,
+    q[],         // [NUM_Q_HEADS, HEAD_DIM]
+    k_cache[],   // [..., NUM_LAYERS, NUM_KV_HEADS, BLOCK_SIZE, HEAD_DIM]
+    block_table[],
+    a[]          // [seq_len, NUM_KV_HEADS, HEAD_DIM] — attention score
+);
+
+// 2. softmax — Q·Kᵀ 결과를 normalize
+void softmax(
+    seq_len, softmax_scale,
+    a[],         // in-place — [seq_len, NUM_Q_HEADS]
+    asb[]        // [NUM_Q_HEADS] — sum buffer (LSE 와 등가)
+);
+
+// 3. softmax(QKᵀ) · V — attention output
+export void av_product(
+    cur_layer, num_blocks, seq_len,
+    a[], v_cache[], block_table[],
+    o[]          // [NUM_Q_HEADS, HEAD_DIM]
+);
+
+// 4. 한 시퀀스의 attention 통합
+export void attn_one_seq(
+    cur_layer, num_blocks, seq_len, softmax_scale,
+    q[], k_cache[], v_cache[], block_table[],
+    a[], o[], asb[]
+) {
+    qk_product(cur_layer, num_blocks, seq_len, q, k_cache, block_table, a);
+    softmax(seq_len, softmax_scale, a, asb);
+    av_product(cur_layer, num_blocks, seq_len, a, v_cache, block_table, o);
+}
+
+// 5. multi-block output gather (block 단위 partial → seq 단위 통합)
+export void gather_output_one_seq(
+    num_blocks,
+    o_buf[],     // [num_blocks, NUM_Q_HEADS, HEAD_DIM]
+    as_buf[]     // [num_blocks, NUM_Q_HEADS]
+);
+```
+
+**ISPC 특이점**:
+- `K_TILE_WIDTH = 2` — qk_product 가 2 개 token 동시 처리 (cache locality)
+- `foreach (l = 0 ... HEAD_DIM)` — head_dim 차원이 SIMD lane (AVX2 = 8 lane)
+- `reduce_add(sum[h][g])` — SIMD lane 의 dot product reduction
+- `uniform` 키워드 — scalar (SIMD 외부) 변수 지정
+
+**NEO `paged_attention_cpu` 호출 사이트** (`_attention` 안):
+
+```python
+torch.ops.pacpu.paged_attention_cpu(
+    cur_layer_id,          # int
+    softmax_scale,         # float
+    seq_ids_list[num_prgds:],   # CPU decoding seq IDs
+    seq_lens_list[num_prgds:],  # CPU decoding seq lengths
+    q_cpu, k_cpu, v_cpu,   # current step Q/K/V (D2H 후)
+    k_swap, v_swap,        # CPU KV cache (CPU-cache, request 의 과거 KV)
+    cpu_block_table,       # CPU block table
+    o_cpu                  # output buffer (CPU)
+)
+```
+
+`pacpu.cpp` 가 위 인터페이스를 받아 OpenMP team 으로 seq 별 `attn_one_seq` 호출 (multi-thread 병렬).
+
 ---
 
 ## 8. NEO 의 fundamental 한계 / 본 IDE_006 적용 시 주의
@@ -503,6 +800,7 @@ def qk_product(cur_layer, num_blocks, seq_len, q, k_cache, block_table, a):
 | 날짜 | 변경 | 사유 |
 |---|---|---|
 | 2026-04-29 | NEO_code_deepdive.md 신규 발행 (본 문서) | 사용자 결정 (2026-04-29) — 깊은 코드 dive 결과를 향후 논문 영역의 reference 자료로 사용 가능하도록 *별도 md* 로 정리. NEO 의 코드를 *직접 차용* 하지 않고 *알고리즘만 재구현* 의 결정 (Apache 2.0 호환, attribution 명시) 에 따라 본 문서는 *언어 중립 의사 코드 + 알고리즘 분석* 으로 정리. §1 overview + §2 SubBatch / BatchPerfData + §3 Scheduler 6 단계 + §4 Asymmetric pipelining layer ping-pong + §5 BlockManager exclusive ownership + §6 PerfPredictor table-based interpolation + §7 CPU kernel pacpu (IDE_006 우위 영역) + §8 fundamental 한계. |
+| 2026-04-29 | **추가 깊은 코드 dive — layer offset / 3-way dispatch / Q D2H / prepare lifecycle / ModelProfiler / pacpu.ispc 4 함수** | 사용자 지시 (2026-04-29) — 추가 분석 + 논문용 문서 보강. (1) **§4.4 *Layer offset* fundamental 메커니즘 (핵심 발견)** — `forward_double` 의 docstring 분석 결과 한 호출에서 두 batch 가 *서로 다른 layer* 의 attention 처리 (batch[1] layer i + batch[0] layer i+1). `cur_layer_id = (layer_id + cur_stage) % num_layers` 가 결정 규칙. 두 batch 가 *layer 1 만큼 어긋나 진행* — pipeline depth 1 with layer offset 의 정확한 의미. mermaid sequenceDiagram 추가. (2) **§4.5 `_attention` 의 3-way dispatch** — prefill (flash_attn / prefill_attention) / GPU decode (paged_attention) / CPU decode (`torch.ops.pacpu.paged_attention_cpu`). `qkvtr_e.synchronize()` 동기점. (3) **§4.6 `_transfer_qkv` Q/K/V D2H** — `cpu_communication_stream` 별도 stream, `qkvtr_e.record()` event 와 `_attention` 의 `qkvtr_e.synchronize()` 짝. (4) **§5.4 BlockManager.prepare 의 3 단계 lifecycle** — 일반 swap → batch alloc + forward args → cprf swap (extra_layer_for_cprf=True 면 intermediate GPU layer 활용). (5) **§5.5 update_and_free** — finished request 의 GPU + CPU 양쪽 free 호출. (6) **§6.4 ModelProfiler 의 측정 단계** — `_run_test_case_seq` (sequential) vs `_run_test_case_pip_same` (pipelined same), nwarmup=2 + nrepeat=3, 측정 점 ≈ 수백. (7) **§7.3 pacpu.ispc 의 4 개 export 함수** — `qk_product` / `softmax` / `av_product` / `attn_one_seq` / `gather_output_one_seq`. ISPC SPMD `foreach` SIMD lane 병렬, K_TILE_WIDTH=2 cache tiling. NEO 의 `paged_attention_cpu` 호출 사이트 인터페이스 (q_cpu, k_cpu, v_cpu, k_swap, v_swap, cpu_block_table, o_cpu). |
 
 ---
 
