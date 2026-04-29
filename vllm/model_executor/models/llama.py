@@ -332,6 +332,58 @@ class LlamaDecoderLayer(nn.Module):
         hidden_states = self.mlp(hidden_states)
         return hidden_states, residual
 
+    # ------------------------------------------------------------------
+    # NEO-style stage helpers (IDE_006 4 차 재정의 / TSK_016).
+    #
+    # ``neo_preproj`` + ``neo_attention`` + ``neo_postproj`` together
+    # produce the exact same outputs as ``forward()`` above. The split
+    # exists so that the asymmetric pipeline orchestrator
+    # (``vllm.v1.worker.sub_batch_executor.SubBatchPipelineExecutor``)
+    # can interleave two sub-batches at different stages of a layer.
+    #
+    # The vanilla forward path is untouched — these helpers are dead
+    # code unless ``SchedulerConfig.enable_neo_asymmetric`` is True.
+    # ------------------------------------------------------------------
+    def neo_preproj(
+        self,
+        hidden_states: torch.Tensor,
+        residual: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """RMSNorm + residual handoff. Produces the input to ``self_attn``.
+
+        Returns the normalized hidden_states and the propagated residual
+        in the same order as the vanilla forward path.
+        """
+        if residual is None:
+            residual = hidden_states
+            hidden_states = self.input_layernorm(hidden_states)
+        else:
+            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+        return hidden_states, residual
+
+    def neo_attention(
+        self,
+        positions: torch.Tensor,
+        hidden_states: torch.Tensor,
+    ) -> torch.Tensor:
+        """Self-attention (QKV proj + paged attention + output proj)."""
+        return self.self_attn(positions=positions, hidden_states=hidden_states)
+
+    def neo_postproj(
+        self,
+        hidden_states: torch.Tensor,
+        residual: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """post-attention LayerNorm + MLP. Returns the layer's output
+        (hidden_states, residual) — identical to the vanilla forward
+        return value.
+        """
+        hidden_states, residual = self.post_attention_layernorm(
+            hidden_states, residual
+        )
+        hidden_states = self.mlp(hidden_states)
+        return hidden_states, residual
+
     def get_quant_config(self, vllm_config: VllmConfig) -> QuantizationConfig | None:
         """Get quantization config for this layer. Override in subclasses."""
         return vllm_config.quant_config
