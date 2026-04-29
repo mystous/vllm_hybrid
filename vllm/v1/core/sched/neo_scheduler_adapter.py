@@ -43,6 +43,47 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class _NeoRequestView:
+    """Lightweight adapter so that vLLM's ``Request`` satisfies
+    NeoScheduler's ``_ReqLike`` protocol.
+
+    NEO uses ``request_id`` as a numeric pool index in
+    ``NeoBlockManager``; vLLM uses an arbitrary string. This view
+    hashes the string to a stable integer slot and exposes the token
+    counters NEO's mode-selection needs."""
+
+    __slots__ = ("_req", "request_id", "prompt_len", "_str_id")
+
+    def __init__(self, request) -> None:
+        self._req = request
+        # vLLM Request id is a string; NEO indexes are integers. We
+        # hash the string into a 31-bit slot — collisions inside a
+        # single inference run are vanishingly unlikely.
+        rid_str = getattr(request, "request_id", str(id(request)))
+        self._str_id = rid_str
+        self.request_id = abs(hash(rid_str)) & 0x7FFFFFFF
+        self.prompt_len = int(getattr(request, "num_prompt_tokens", 0)) or 1
+
+    @classmethod
+    def from_id(cls, rid_str: str) -> "_NeoRequestView":
+        """Build a stub view from just an id (for finish_requests)."""
+        stub = object.__new__(cls)
+        stub._req = None
+        stub._str_id = rid_str
+        stub.request_id = abs(hash(rid_str)) & 0x7FFFFFFF
+        stub.prompt_len = 1
+        return stub
+
+    @property
+    def num_tokens(self) -> int:
+        if self._req is None:
+            return 1
+        try:
+            return int(self._req.num_tokens)
+        except (AttributeError, TypeError):
+            return self.prompt_len
+
+
 class NeoSchedulerAdapter(Scheduler):
     """First-stage NEO wrapper around the default vLLM scheduler.
 
@@ -119,7 +160,32 @@ class NeoSchedulerAdapter(Scheduler):
         )
 
     # ------------------------------------------------------------------
-    # SchedulerInterface override — attach NEO decisions to SchedulerOutput
+    # SchedulerInterface overrides — keep the NEO sibling in lock-step
+    # with the default scheduler's request set so its mode-selection
+    # has a non-empty workload to reason about.
+    # ------------------------------------------------------------------
+    def add_request(self, request) -> None:  # type: ignore[override]
+        super().add_request(request)
+        try:
+            self.neo_scheduler.on_requests_arrival([
+                _NeoRequestView(request)
+            ])
+        except Exception as e:  # noqa: BLE001
+            logger.debug("NEO sibling add_request failed: %s", e)
+
+    def finish_requests(self, request_ids, finished_status) -> None:  # type: ignore[override]
+        super().finish_requests(request_ids, finished_status)
+        try:
+            wrappers = [
+                _NeoRequestView.from_id(rid) for rid in request_ids
+            ]
+            self.neo_scheduler.remove_finished_requests(wrappers)
+        except Exception as e:  # noqa: BLE001
+            logger.debug("NEO sibling finish_requests failed: %s", e)
+
+    # ------------------------------------------------------------------
+    # schedule — drive both the default and NEO schedulers, attach the
+    # NEO decision to the SchedulerOutput for the runner to consume.
     # ------------------------------------------------------------------
     def schedule(self) -> "SchedulerOutput":
         # Drive the default scheduler — this is the data path the engine
