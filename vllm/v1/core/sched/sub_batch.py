@@ -59,11 +59,6 @@ class BatchPerfData:
     cdec_T  — derived from (x_c, n_c) via ``predictor.get_cdec_T``
     """
 
-    __slots__ = (
-        "predictor", "x", "s", "n_g", "x_c", "n_c",
-        "pref_T", "gdec_T", "lnch_T",
-    )
-
     def __init__(self, predictor: PerfPredictor | None = None) -> None:
         self.predictor: PerfPredictor = predictor or ZeroPerfPredictor()
         self.x = 0
@@ -136,11 +131,6 @@ class SubBatch:
     ``BatchPerfData`` that tracks predicted timings as members are
     added or removed.
     """
-
-    __slots__ = (
-        "predictor", "gprf_reqs", "cprf_reqs", "gdec_reqs", "cdec_reqs",
-        "perfdata",
-    )
 
     def __init__(self, predictor: PerfPredictor | None = None) -> None:
         self.predictor = predictor or ZeroPerfPredictor()
