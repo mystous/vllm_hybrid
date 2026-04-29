@@ -3779,6 +3779,27 @@ class GPUModelRunner(
                 "after execute_model() returns None."
             )
 
+        # NEO 식 asymmetric pipeline (IDE_006 4 차 재정의 / TSK_016) gate.
+        # The full data-path integration — running two sub-batches with
+        # layer offset through ``LlamaModel.forward_neo_pipelined`` —
+        # requires forking the attention metadata setup further down
+        # this method into a per-sub-batch pair. Until that work lands,
+        # this gate only confirms that the flag and adapter are wired
+        # end-to-end. Behaviour with the flag on remains identical to
+        # vanilla.
+        if getattr(
+            self.vllm_config.scheduler_config, "enable_neo_asymmetric", False
+        ):
+            if not getattr(self, "_neo_gate_logged", False):
+                logger.info(
+                    "execute_model: enable_neo_asymmetric=True observed."
+                    " NEO scheduler sibling is recording mode decisions"
+                    " in NeoSchedulerAdapter.last_neo_output. Data path"
+                    " is still vanilla — sub-batch dual forward will be"
+                    " enabled when the runner's metadata fork lands."
+                )
+                self._neo_gate_logged = True
+
         if self.routed_experts_initialized:
             capturer = RoutedExpertsCapturer.get_instance()
             if capturer is not None:
