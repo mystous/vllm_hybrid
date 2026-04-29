@@ -292,16 +292,29 @@ flowchart TB
 
 > **2026-04-29 갱신** — 깊은 코드 dive 결과는 [`NEO_code_deepdive.md`](NEO_code_deepdive.md) (논문용 reference 별도 문서) 에 적재 완료. 본 §6 은 *분석 영역 list* 만 보존.
 
-본 1차 분석 후 다음 코드 dive 가 필요한 영역:
+본 1차 분석 후 다음 코드 dive 가 필요한 영역 (모두 NEO_code_deepdive.md 에 적재 완료):
 
-| 우선순위 | 코드 dive 영역 | 산출물 |
+| 영역 | 산출물 위치 | 적재 상태 |
 |---|---|---|
-| 1 | `swiftllm/server/scheduler.py:142` `_decide_mode_and_gen_batch` 의 정확한 알고리즘 | 본 문서 §2.1 보강 |
-| 1 | `swiftllm/worker/model.py:278` `_forward_pipeline` 의 두 sub-batch 동시 실행 hook 위치 | 본 문서 §2.3 보강 |
-| 2 | `swiftllm/server/block_manager.py` 의 admission / eviction lifecycle 정확한 흐름 | 본 문서 §2.2 보강 |
-| 2 | `swiftllm/perfpredictor.py:70` `TablePerfPredictor` 의 profile data 형식 | 본 문서 §2.4 보강 |
-| 3 | `pacpu/pacpu.ispc` 의 ISPC 알고리즘 vs IDE_006 의 AVX-512 비교 | 본 문서 §2.5 보강 |
-| 3 | `swiftllm/structs.py:211` `SubBatch` 의 `set_model_forward_args` — vLLM 의 input metadata 와 어떻게 매핑 | 본 문서 §1 보강 |
+| `swiftllm/server/scheduler.py:142` `_decide_mode_and_gen_batch` 5 단계 알고리즘 | NEO_code_deepdive §3.1 / §3.2 | ✅ |
+| `swiftllm/worker/model.py:278` `_forward_pipeline` layer ping-pong | NEO_code_deepdive §4 | ✅ |
+| `worker/layers/transformer_layer.py:430` `forward_double` 의 *layer offset* (한 호출에서 두 batch 가 layer i / i+1 attention 처리) | NEO_code_deepdive §4.4 (mermaid sequenceDiagram) | ✅ |
+| `transformer_layer.py:258~355` `_attention` 의 3-way dispatch (prefill / GPU decode / CPU decode) | NEO_code_deepdive §4.5 | ✅ |
+| `transformer_layer.py:158~178` `_transfer_qkv` Q/K/V D2H + `qkvtr_e.record()` event | NEO_code_deepdive §4.6 | ✅ |
+| `swiftllm/server/block_manager.py:195` `BlockManager.prepare` 3 단계 (swap → alloc → cprf swap) | NEO_code_deepdive §5.4 | ✅ |
+| `block_manager.py:264` `update_and_free` finished request 의 GPU + CPU 양쪽 free | NEO_code_deepdive §5.5 | ✅ |
+| `swiftllm/perfpredictor.py:70` `TablePerfPredictor` 4 종류 prediction + 1D/2D interpolation | NEO_code_deepdive §6.1 ~ §6.3 | ✅ |
+| `swiftllm/server/profiler.py:28` `ModelProfiler` 의 `_run_test_case_seq` vs `_run_test_case_pip_same`, nwarmup=2 + nrepeat=3 | NEO_code_deepdive §6.4 | ✅ |
+| `pacpu/pacpu.ispc` 의 4 개 export 함수 (`qk_product` / `softmax` / `av_product` / `attn_one_seq` / `gather_output_one_seq`) | NEO_code_deepdive §7.3 | ✅ |
+| `swiftllm/structs.py:211` `SubBatch` 의 `set_model_forward_args` — kernel-friendly metadata 변환 | NEO_code_deepdive §2 | ✅ |
+| NEO `paged_attention_cpu` 호출 사이트 인터페이스 (q_cpu, k_cpu, v_cpu, k_swap, v_swap, cpu_block_table, o_cpu) | NEO_code_deepdive §7.3 끝 | ✅ |
+
+**핵심 새 발견 (2026-04-29 추가 분석)**:
+
+1. **layer offset 이 NEO 의 *진짜* asymmetric pipelining 메커니즘** — 단순 두 batch 동시 진행이 아닌, 두 batch 가 *layer 1 만큼 어긋나 진행*. attention output 의 layer 안 즉시 dependency 가 *cross-batch 로 분리* 됨.
+2. **`_attention` 의 3-way dispatch** — 한 SubBatch 안에 prefill / GPU decode / CPU decode 가 섞여 있을 수 있음. `_attention` 가 모든 3 종류 처리.
+3. **CPU prefill 의 `extra_layer_for_cprf` 정책** — CPU prefill 의 결과 KV 가 *intermediate GPU layer (= num_layers 번째)* 에 일시 store 후 CPU 로 swap. block_manager 의 split-aware 자료구조의 진짜 의미.
+4. **NEO 의 ISPC 알고리즘** — `K_TILE_WIDTH=2` cache tiling, `foreach` SIMD lane 병렬. 단 IDE_006 의 AVX-512 + AMX 가 prod 우위.
 
 ---
 
