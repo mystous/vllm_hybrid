@@ -1575,6 +1575,46 @@ def _record_cold_fallback_breadcrumb(
         _COLD_FALLBACK_FIRING_LOG_DONE = True
 
 
+# IDE_006 / TSK_009 — cold-path outcome counter (사용자 framing).
+#   merged  : future.done() == True at poll → partition merge path (hot subset
+#             paged FA + CPU result merge). CPU 작업이 GPU 가 필요할 때까지
+#             도착해 활용된 layer 수.
+#   dropped : future.done() == False → CPU 결과 폐기 + paged FA full 으로
+#             진행 (= cold-tier ON IDE_006 OFF baseline 동작 동등).
+# invariant 2 의 검증 데이터 = merged 횟수 (0 이면 CPU 작업 모두 버려짐).
+_COLD_OUTCOME_MERGED = 0
+_COLD_OUTCOME_DROPPED = 0
+_COLD_OUTCOME_LOG_LIMIT = int(
+    os.environ.get("VLLM_COLD_KV_OUTCOME_LOG_LIMIT", "20") or "20"
+)
+_COLD_OUTCOME_LOG_COUNT = 0
+
+
+def _record_cold_outcome(merged: bool) -> None:
+    global _COLD_OUTCOME_MERGED, _COLD_OUTCOME_DROPPED, _COLD_OUTCOME_LOG_COUNT
+    if merged:
+        _COLD_OUTCOME_MERGED += 1
+    else:
+        _COLD_OUTCOME_DROPPED += 1
+    # Periodic stderr summary (every 200 firings, capped).
+    total = _COLD_OUTCOME_MERGED + _COLD_OUTCOME_DROPPED
+    if total % 200 == 0 and _COLD_OUTCOME_LOG_COUNT < _COLD_OUTCOME_LOG_LIMIT:
+        _COLD_OUTCOME_LOG_COUNT += 1
+        import sys as _sys
+        merged_pct = (
+            100.0 * _COLD_OUTCOME_MERGED / total if total > 0 else 0.0
+        )
+        print(
+            f"[IDE_006/TSK_009 cold-outcome pid={os.getpid()}] "
+            f"#{_COLD_OUTCOME_LOG_COUNT}/{_COLD_OUTCOME_LOG_LIMIT} "
+            f"merged={_COLD_OUTCOME_MERGED} "
+            f"dropped={_COLD_OUTCOME_DROPPED} "
+            f"merged_pct={merged_pct:.2f}%",
+            file=_sys.stderr,
+            flush=True,
+        )
+
+
 def _fallback_full_fa_paged(
     *,
     output: torch.Tensor,
@@ -1741,79 +1781,45 @@ def hot_cold_attention(
         n_cold_list = None
         need_cold_seq_ids = None
 
-    # Hot block_table: per-sequence shift to drop the cold prefix.
-    # A naive column slice `block_table[:, max_num_cold_blocks:]` only works
-    # when every sequence in the batch has the same cold count; if seq i
-    # has num_cold_blocks[i] < max_num_cold_blocks, the slice would drop
-    # `max_num_cold_blocks - num_cold_blocks[i]` valid hot blocks for that
-    # sequence. The per-row gather below shifts each row by exactly its own
-    # num_cold_blocks[i] and pads the tail with the original block_table's
-    # padding (NULL block IDs) — flash_attn never reads past seqused_k, so
-    # that pad is harmless.
+    # IDE_006 / TSK_009 fix v4 (사용자 framing 2026-04-29) —
+    #   GPU FA 호출은 *항상 1번* (invariant 1: C ≤ B 동등 wall-time).
+    #   기존 v3 는 hot subset paged FA *항상 호출* + future poll 미도착 시
+    #   `_fallback_full_fa_paged` *추가* 호출 = GPU FA 2회. 본 fix v4 는
+    #   hot path 호출을 *cold-bearing batch 의 future poll done 분기로 지연*
+    #   하여 어느 분기든 1회 보장.
+    #
+    #   Cold-less fast path (max_num_cold_blocks == 0): block_table 그대로
+    #   paged FA full inplace 호출 + return.
     if max_num_cold_blocks == 0:
-        hot_block_table = block_table
-    else:
-        # We allocate the full original block_table width as the hot column
-        # budget. A naive `max_blocks - max_num_cold_blocks` width fails when
-        # one sequence is 100% cold (max_num_cold_blocks == max_blocks) but
-        # another sequence has 0 cold and therefore needs the full width of
-        # hot blocks; that case would compute width 0 and lose every
-        # sequence's hot KV. Using the full width is safe because
-        # hot_seqused_k clips the kernel's reach per-sequence and any slot
-        # that ends up beyond the row's real hot region is harmless.
-        num_seqs_bt, max_blocks_bt = block_table.shape
-        max_hot_blocks_bt = max_blocks_bt
-        row_idx = torch.arange(
-            num_seqs_bt, device=block_table.device
-        ).unsqueeze(1)
-        col_offsets = torch.arange(
-            max_hot_blocks_bt, device=block_table.device
-        ).unsqueeze(0)
-        # Cast num_cold_blocks to the same dtype as the index arange so the
-        # broadcast add doesn't materialise a different (larger) dtype.
-        col_idx = num_cold_blocks.to(col_offsets.dtype).unsqueeze(1) + col_offsets
-        col_idx_clamped = col_idx.clamp_max(max_blocks_bt - 1)
-        hot_block_table = block_table[row_idx, col_idx_clamped]
-
-    # Per-sequence hot KV length = total seq KV length − cold KV tokens.
-    # clamp to 0 so a sequence with all-hot (num_cold_blocks[i]==0) is unaffected.
-    cold_kv_tokens = num_cold_blocks * block_size
-    hot_seqused_k = (seqused_k - cold_kv_tokens).clamp_(min=0)
-
-    # Hot path's max KV length must be ≥ the maximum hot_seqused_k across the
-    # batch, which is `max_seqlen_k - min(num_cold_blocks) * block_size`.
-    # Computing `min(num_cold_blocks)` on-device would force a sync; instead
-    # we conservatively use the original `max_seqlen_k` as the upper bound.
-    # The flash_attn kernel respects per-sequence seqused_k so the only cost
-    # of the looser bound is a slightly larger kernel workspace allocation.
-    hot_max_seqlen_k = max_seqlen_k
-
-    hot_output, hot_lse = flash_attn_varlen_func(
-        q=query,
-        k=key_cache,
-        v=value_cache,
-        cu_seqlens_q=cu_query_lens,
-        seqused_k=hot_seqused_k,
-        max_seqlen_q=max_query_len,
-        max_seqlen_k=hot_max_seqlen_k,
-        softmax_scale=softmax_scale,
-        causal=causal,
-        window_size=list(sliding_window),
-        block_table=hot_block_table,
-        softcap=logits_soft_cap,
-        return_softmax_lse=True,
-        scheduler_metadata=suffix_scheduler_metadata,
-        fa_version=fa_version,
-        q_descale=q_descale.expand(descale_shape) if q_descale is not None else None,
-        k_descale=k_descale.expand(descale_shape) if k_descale is not None else None,
-        v_descale=v_descale.expand(descale_shape) if v_descale is not None else None,
-    )
-
-    if max_num_cold_blocks == 0:
-        # Degenerate: no cold blocks across the batch. The hot path produced
-        # the full attention; copy into output and return. merge_attn_states
-        # is not needed because there is no second tensor to merge.
-        output.copy_(hot_output)
+        flash_attn_varlen_func(
+            q=query,
+            k=key_cache,
+            v=value_cache,
+            out=output,
+            cu_seqlens_q=cu_query_lens,
+            seqused_k=seqused_k,
+            max_seqlen_q=max_query_len,
+            max_seqlen_k=max_seqlen_k,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            window_size=list(sliding_window),
+            block_table=block_table,
+            softcap=logits_soft_cap,
+            scheduler_metadata=suffix_scheduler_metadata,
+            fa_version=fa_version,
+            q_descale=(
+                q_descale.expand(descale_shape)
+                if q_descale is not None else None
+            ),
+            k_descale=(
+                k_descale.expand(descale_shape)
+                if k_descale is not None else None
+            ),
+            v_descale=(
+                v_descale.expand(descale_shape)
+                if v_descale is not None else None
+            ),
+        )
         return
 
     # ----- Phase 3b: cold path on CPU + LSE merge on GPU ---------------
@@ -1926,7 +1932,10 @@ def hot_cold_attention(
     # Without this overlap (single-stream sequential), prod measured
     # 5.6× slowdown vs baseline (cold_verify run @ 0a9d313288). With
     # overlap, wall-clock collapses to max(T_FA, T_d2h+T_cpu+T_h2d).
-    device = hot_output.device
+    # IDE_006 / TSK_009 fix v4 — hot_output 가 함수 끝 helper 호출까지 *지연*
+    # 되므로 cold path setup 시점에는 정의 안 됨. query.device 사용 — 같은
+    # GPU device.
+    device = query.device if query.device.type == "cuda" else output.device
     cold_stream = _get_cold_path_stream(device)
     cold_stream_ctx = (
         torch.cuda.stream(cold_stream)
@@ -1976,7 +1985,92 @@ def hot_cold_attention(
     # fallback path writes directly into ``output`` and short-circuits
     # the partition+merge tail of this function.
     deadline_s = _resolve_cold_deadline_s()
+
+    # IDE_006 / TSK_009 fix v4 helper — hot subset paged FA 호출.
+    # done 분기 (CPU 결과 활용) 에서만 사용. block_table 슬라이싱 (cold prefix
+    # 제외) + paged FA hot subset 한 번 호출. partition merge tail 입력 산출.
+    def _call_hot_subset_paged_fa():
+        num_seqs_bt, max_blocks_bt = block_table.shape
+        row_idx_l = torch.arange(
+            num_seqs_bt, device=block_table.device
+        ).unsqueeze(1)
+        col_offsets_l = torch.arange(
+            max_blocks_bt, device=block_table.device
+        ).unsqueeze(0)
+        col_idx_l = num_cold_blocks.to(col_offsets_l.dtype).unsqueeze(1) + col_offsets_l
+        col_idx_clamped_l = col_idx_l.clamp_max(max_blocks_bt - 1)
+        hot_block_table_l = block_table[row_idx_l, col_idx_clamped_l]
+        cold_kv_tokens_l = num_cold_blocks * block_size
+        hot_seqused_k_l = (seqused_k - cold_kv_tokens_l).clamp_(min=0)
+        return flash_attn_varlen_func(
+            q=query,
+            k=key_cache,
+            v=value_cache,
+            cu_seqlens_q=cu_query_lens,
+            seqused_k=hot_seqused_k_l,
+            max_seqlen_q=max_query_len,
+            max_seqlen_k=max_seqlen_k,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            window_size=list(sliding_window),
+            block_table=hot_block_table_l,
+            softcap=logits_soft_cap,
+            return_softmax_lse=True,
+            scheduler_metadata=suffix_scheduler_metadata,
+            fa_version=fa_version,
+            q_descale=(
+                q_descale.expand(descale_shape)
+                if q_descale is not None else None
+            ),
+            k_descale=(
+                k_descale.expand(descale_shape)
+                if k_descale is not None else None
+            ),
+            v_descale=(
+                v_descale.expand(descale_shape)
+                if v_descale is not None else None
+            ),
+        )
+
+    # IDE_006 / TSK_009 fix v4 helper — paged FA full inplace 호출 + return.
+    # not done / sync 외 모드의 baseline 동작 동등 path. block_table 그대로
+    # (cold prefix 포함) — cold blocks 가 GPU mirror 에 있어 attention 결과는
+    # baseline 동작과 동등. GPU FA 호출 = 1번 (invariant 1 충족).
+    def _call_paged_fa_full_inplace():
+        flash_attn_varlen_func(
+            q=query,
+            k=key_cache,
+            v=value_cache,
+            out=output,
+            cu_seqlens_q=cu_query_lens,
+            seqused_k=seqused_k,
+            max_seqlen_q=max_query_len,
+            max_seqlen_k=max_seqlen_k,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            window_size=list(sliding_window),
+            block_table=block_table,
+            softcap=logits_soft_cap,
+            scheduler_metadata=suffix_scheduler_metadata,
+            fa_version=fa_version,
+            q_descale=(
+                q_descale.expand(descale_shape)
+                if q_descale is not None else None
+            ),
+            k_descale=(
+                k_descale.expand(descale_shape)
+                if k_descale is not None else None
+            ),
+            v_descale=(
+                v_descale.expand(descale_shape)
+                if v_descale is not None else None
+            ),
+        )
+
     if deadline_s is None:
+        # Sync mode — partition path 항상 진행 (이전 호환). hot subset paged FA
+        # 호출 + CPU partial sync. fix v4 에서는 hot path 호출이 함수 위에서
+        # 제거됐으므로 여기서 호출.
         if _COLD_NUM_SUB_BATCHES > 1:
             from vllm.v1.attention.ops.cpu_partial_attention import (
                 forward_partial_with_lse_sub_batched,
@@ -2011,7 +2105,15 @@ def hot_cold_attention(
                 causal=causal,
                 cold_kv_cache_v=cold_kv_v_split,
             )
+        hot_output, hot_lse = _call_hot_subset_paged_fa()
     else:
+        # IDE_006 / TSK_009 fix v4 (사용자 framing 2026-04-29):
+        #   1. CPU partial 을 별도 thread (ThreadPoolExecutor) 에 submit
+        #      → main GPU thread 방해 0
+        #   2. layer 진입 시 *non-blocking* `future.done()` 로 검사
+        #   3. done → hot subset paged FA + partition merge (CPU 결과 활용)
+        #   4. not done → CPU 결과 폐기 + paged FA full inplace + return
+        #      (= baseline 동작 동등, GPU FA 호출 1번 — invariant 1 충족)
         future = forward_partial_with_lse_async(
             query=reduced_query_cpu,
             cold_kv_cache=cold_kv_combined,
@@ -2026,39 +2128,18 @@ def hot_cold_attention(
             cold_kv_cache_v=cold_kv_v_split,
             num_sub_batches=_COLD_NUM_SUB_BATCHES,
         )
-        try:
-            cold_output_reduced_cpu, cold_lse_reduced_cpu = future.result(
-                timeout=deadline_s
-            )
-        except concurrent.futures.TimeoutError:
-            # opt-F fallback. Initialize ``output`` with the hot-only result
-            # for non-cold-bearing rows, then overwrite cold-bearing rows
-            # with GPU full FA on (hot+cold). The future is left running —
-            # cancel() is best-effort and the kernel cannot be interrupted
-            # mid-call; the result will be discarded by GC.
+        if future.done():
+            cold_output_reduced_cpu, cold_lse_reduced_cpu = future.result()
+            _record_cold_outcome(merged=True)
+            hot_output, hot_lse = _call_hot_subset_paged_fa()
+            # → partition merge tail 진입 (invariant 2 의 측정 대상)
+        else:
             future.cancel()
-            output.copy_(hot_output)
-            n_cold_blocks_total = _fallback_full_fa_paged(
-                output=output,
-                query=query,
-                key_cache=key_cache,
-                value_cache=value_cache,
-                cu_query_lens=cu_query_lens,
-                max_query_len=max_query_len,
-                seqused_k=seqused_k,
-                max_seqlen_k=max_seqlen_k,
-                softmax_scale=softmax_scale,
-                causal=causal,
-                sliding_window=sliding_window,
-                logits_soft_cap=logits_soft_cap,
-                block_table=block_table,
-                fa_version=fa_version,
-                suffix_scheduler_metadata=suffix_scheduler_metadata,
-                q_descale=q_descale,
-                k_descale=k_descale,
-                v_descale=v_descale,
-                fallback_seq_ids=need_cold_seq_ids,
-                cu_q_list=cu_q_list,
+            _record_cold_outcome(merged=False)
+            _call_paged_fa_full_inplace()
+            n_cold_blocks_total = (
+                int(num_cold_blocks_cpu.sum().item())
+                if num_cold_blocks_cpu is not None else 0
             )
             _record_cold_fallback_breadcrumb(
                 n_fallback_seqs=len(need_cold_seq_ids),
