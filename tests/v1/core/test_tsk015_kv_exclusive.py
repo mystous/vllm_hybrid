@@ -411,3 +411,100 @@ def test_neo_swap_out_no_event_when_logging_disabled():
     req = _StubRequest("r2", num_computed_tokens=1)
     sch._neo_swap_out(req)                     # no timestamp arg
     # Did not raise — pass.
+
+
+# ----------------------------------------------------------------------
+# Phase 4.4.b — Scheduler._neo_swap_in helper + KVCacheManager.neo_swap_in_alloc
+# ----------------------------------------------------------------------
+class _StubKvCacheManagerWithSwapIn(_StubKvCacheManager):
+    """Adds neo_swap_in_alloc with a configurable return value to test
+    both success and pool-exhaustion branches of _neo_swap_in."""
+
+    def __init__(self, alloc_returns: bool = True) -> None:
+        super().__init__()
+        self.alloc_returns = alloc_returns
+        self.alloc_calls: list = []
+
+    def neo_swap_in_alloc(self, request) -> bool:
+        self.alloc_calls.append(request)
+        return self.alloc_returns
+
+
+class _StubSchedulerForSwapIn:
+    """Lightweight shim binding both _neo_swap_out and _neo_swap_in
+    methods off the real Scheduler class."""
+
+    def __init__(self, alloc_returns: bool = True) -> None:
+        self.kv_cache_manager = _StubKvCacheManagerWithSwapIn(
+            alloc_returns=alloc_returns)
+        self.encoder_cache_manager = _StubEncoderCacheManager()
+        self.log_stats = False
+
+    def _bind(self):
+        from vllm.v1.core.sched.scheduler import Scheduler
+        self._neo_swap_out = Scheduler._neo_swap_out.__get__(self, type(self))
+        self._neo_swap_in = Scheduler._neo_swap_in.__get__(self, type(self))
+
+
+def test_neo_swap_in_restores_running_on_alloc_success():
+    """Successful neo_swap_in_alloc → status=RUNNING + return True."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubSchedulerForSwapIn(alloc_returns=True)
+    sch._bind()
+    req = _StubRequest("r3", num_computed_tokens=10)
+    req.status = RequestStatus.SWAPPED_OUT
+    req.spec_token_ids = [5, 6]
+
+    ok = sch._neo_swap_in(req)
+
+    assert ok is True
+    assert req.status == RequestStatus.RUNNING
+    assert req.num_computed_tokens == 10       # 보존
+    assert req.spec_token_ids == [5, 6]        # 보존
+    assert sch.kv_cache_manager.alloc_calls == [req]
+
+
+def test_neo_swap_in_keeps_swapped_on_alloc_failure():
+    """Pool exhausted → status remains SWAPPED_OUT + return False."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubSchedulerForSwapIn(alloc_returns=False)
+    sch._bind()
+    req = _StubRequest("r4", num_computed_tokens=10)
+    req.status = RequestStatus.SWAPPED_OUT
+
+    ok = sch._neo_swap_in(req)
+
+    assert ok is False
+    assert req.status == RequestStatus.SWAPPED_OUT  # rollback
+    assert sch.kv_cache_manager.alloc_calls == [req]
+
+
+def test_neo_swap_in_rejects_non_swapped():
+    """Only SWAPPED_OUT requests can be NEO-swapped-in."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubSchedulerForSwapIn()
+    sch._bind()
+    req = _StubRequest("r5")
+    req.status = RequestStatus.RUNNING        # already running
+    with pytest.raises(AssertionError, match=r"NEO-swapped-in"):
+        sch._neo_swap_in(req)
+
+
+def test_neo_swap_out_then_swap_in_roundtrip_preserves_progress():
+    """Full out→in cycle preserves num_computed_tokens / spec_token_ids."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubSchedulerForSwapIn(alloc_returns=True)
+    sch._bind()
+    req = _StubRequest("r6", num_computed_tokens=99)
+    req.spec_token_ids = [1, 2, 3, 4, 5]
+
+    sch._neo_swap_out(req)
+    assert req.status == RequestStatus.SWAPPED_OUT
+    assert req.num_computed_tokens == 99
+    assert req.spec_token_ids == [1, 2, 3, 4, 5]
+
+    ok = sch._neo_swap_in(req)
+    assert ok is True
+    assert req.status == RequestStatus.RUNNING
+    assert req.num_computed_tokens == 99       # 보존
+    assert req.spec_token_ids == [1, 2, 3, 4, 5]  # 보존

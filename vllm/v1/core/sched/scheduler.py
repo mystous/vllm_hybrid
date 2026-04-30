@@ -1000,6 +1000,33 @@ class Scheduler(SchedulerInterface):
     # - GPU→CPU KV 사본은 본 helper 호출 *전에* worker 가 완료해야 함
     #   (`_neo_handle_kv_swap` `gpu_model_runner.py`).
     # ------------------------------------------------------------------
+    def _neo_swap_in(self, request: Request, timestamp: float | None = None) -> bool:
+        """NEO 식 CPU→GPU swap-in (counterpart of ``_neo_swap_out``).
+
+        Re-allocates GPU block_table entries via
+        ``KVCacheManager.neo_swap_in_alloc`` for an already-progressed
+        request whose KV is held in the worker-side CPU buffer. On
+        success, restores ``status`` from ``SWAPPED_OUT`` to
+        ``RUNNING``. ``num_computed_tokens`` / ``spec_token_ids`` are
+        already preserved from the swap-out side.
+
+        Returns True on success, False on GPU pool exhaustion. caller
+        is responsible for putting the request back into ``self.running``
+        on success and arranging the CPU→GPU KV restore on the worker
+        side (``_neo_handle_kv_swap`` in ``gpu_model_runner.py``).
+        """
+        assert request.status == RequestStatus.SWAPPED_OUT, (
+            f"Only SWAPPED_OUT requests can be NEO-swapped-in; got {request.status}"
+        )
+        if not self.kv_cache_manager.neo_swap_in_alloc(request):
+            return False
+        request.status = RequestStatus.RUNNING
+        if self.log_stats and timestamp is not None:
+            # No dedicated event type yet — telemetry-only refinement is
+            # a low-priority follow-up.
+            pass
+        return True
+
     def _neo_swap_out(self, request: Request, timestamp: float | None = None) -> None:
         """NEO 식 GPU→CPU swap-out.
 
