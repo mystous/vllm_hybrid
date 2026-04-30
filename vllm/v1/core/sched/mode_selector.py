@@ -147,9 +147,24 @@ def decide_mode(
             continue
         next_batch_idx = int(remains[1] > remains[0])
 
-    # Edge case: no cdec was packed → fall back to GPU-only
+    # Edge case: no cdec was packed → fall back to GPU-only.
+    # When ``VLLM_NEO_FORCE_PIPELINED=1`` we instead split batches[0]
+    # before falling back, so the forced two-sub-batch shape lands
+    # downstream and the dual-forward path actually fires.
     if not batches[1] and num_gpu_blocks > 0:
-        return [gpu_only_batch]
+        import os as _os
+        if _os.environ.get("VLLM_NEO_FORCE_PIPELINED") == "1":
+            half_gprf = len(batches[0].gprf_reqs) // 2
+            for _ in range(half_gprf):
+                req = batches[0].gprf_reqs.pop()
+                batches[0].perfdata.pop_pref(req.prompt_len)
+                batches[1].add_pref(req, is_gpu=True)
+            half_gdec = batches[0].num_gdecs // 2
+            for _ in range(half_gdec):
+                req = batches[0].pop_gdec()
+                batches[1].add_gdec(req)
+        if not batches[1]:
+            return [gpu_only_batch]
 
     # When num_gpu_blocks == 0 we're in CPU-only mode; return the
     # composed batches directly.
@@ -168,6 +183,40 @@ def decide_mode(
     # Step 5 — pipelined vs sequential by request-rate comparison
     sequential_time = gpu_only_batch.gpu_time * num_layers
     pipelined_time = (batches[0].gpu_time + batches[1].gpu_time) * num_layers
+
+    # Experimental override (env: ``VLLM_NEO_FORCE_PIPELINED=1``).
+    # When active, force the pipelined two-sub-batch return so the
+    # downstream ``forward_neo_pipelined`` path actually fires —
+    # used during NEO data-path bring-up (Step 5.4) to surface the
+    # first runtime mismatch with vLLM's single-batch forward
+    # context. Has no effect once a real predictor is wired.
+    import os as _os_force
+    if _os_force.environ.get("VLLM_NEO_FORCE_PIPELINED") == "1":
+        import logging as _lg
+        _lg.getLogger(__name__).info(
+            "[NEO-DEBUG] decide_mode FORCE entry: "
+            "batches[0] gprf=%d cprf=%d gdec=%d cdec=%d / batches[1] gprf=%d gdec=%d cdec=%d",
+            batches[0].num_gprfs, batches[0].num_cprfs,
+            batches[0].num_gdecs, batches[0].num_cdecs,
+            batches[1].num_gprfs, batches[1].num_gdecs, batches[1].num_cdecs,
+        )
+        if not len(batches[1]):
+            # GPU prefill 분할
+            half_gprf = len(batches[0].gprf_reqs) // 2
+            for _ in range(half_gprf):
+                req = batches[0].gprf_reqs.pop()
+                batches[0].perfdata.pop_pref(req.prompt_len)
+                batches[1].add_pref(req, is_gpu=True)
+            # GPU decode 분할
+            half_gdec = batches[0].num_gdecs // 2
+            for _ in range(half_gdec):
+                req = batches[0].pop_gdec()
+                batches[1].add_gdec(req)
+        if len(batches[1]):
+            # Force pipelined return, bypassing Step 5's rate compare
+            # which is meaningless under ZeroPerfPredictor.
+            return batches
+
     if sequential_time <= 0:
         return batches if pipelined_time > 0 else [gpu_only_batch]
     if pipelined_time <= 0:

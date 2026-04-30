@@ -212,9 +212,26 @@ class NeoSchedulerAdapter(Scheduler):
         # SchedulerOutput so that the GPU model runner can consume it
         # in subsequent stages (Step 5.3+).
         try:
+            n_wait_before = len(self.neo_scheduler.waiting_q)
+            n_gpu_dec_before = len(self.neo_scheduler.gpu_decoding_q)
+            n_cpu_dec_before = len(self.neo_scheduler.cpu_decoding_q)
             self.last_neo_output = self.neo_scheduler.schedule()
+            logger.info(
+                "[NEO-DEBUG] schedule(): pre-queues "
+                "wait=%d gdec=%d cdec=%d → batches=%d swap_in=%d swap_out=%d",
+                n_wait_before, n_gpu_dec_before, n_cpu_dec_before,
+                len(self.last_neo_output.batches),
+                len(self.last_neo_output.swap_in_reqs),
+                len(self.last_neo_output.swap_out_reqs),
+            )
+            for i, b in enumerate(self.last_neo_output.batches):
+                logger.info(
+                    "[NEO-DEBUG]   batch[%d]: gprf=%d cprf=%d gdec=%d cdec=%d total=%d",
+                    i, b.num_gprfs, b.num_cprfs, b.num_gdecs, b.num_cdecs, len(b),
+                )
         except Exception as e:  # noqa: BLE001
-            logger.debug("NeoScheduler sibling raised: %s", e)
+            logger.warning("[NEO-DEBUG] sibling raised: %s: %s",
+                           type(e).__name__, e)
             self.last_neo_output = None
 
         if self.last_neo_output is not None:

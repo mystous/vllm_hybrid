@@ -311,6 +311,42 @@ class Qwen2DecoderLayer(nn.Module):
         hidden_states = self.mlp(hidden_states)
         return hidden_states, residual
 
+    # ------------------------------------------------------------------
+    # NEO-style stage helpers (IDE_006 4 차 재정의 / TSK_016).
+    # Mirror the Llama port — splits ``forward`` into preproj /
+    # attention / postproj so ``SubBatchPipelineExecutor`` can interleave
+    # two sub-batches across layer boundaries.
+    # ------------------------------------------------------------------
+    def neo_preproj(
+        self,
+        hidden_states: torch.Tensor,
+        residual: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if residual is None:
+            residual = hidden_states
+            hidden_states = self.input_layernorm(hidden_states)
+        else:
+            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+        return hidden_states, residual
+
+    def neo_attention(
+        self,
+        positions: torch.Tensor,
+        hidden_states: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.self_attn(positions=positions, hidden_states=hidden_states)
+
+    def neo_postproj(
+        self,
+        hidden_states: torch.Tensor,
+        residual: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        hidden_states, residual = self.post_attention_layernorm(
+            hidden_states, residual
+        )
+        hidden_states = self.mlp(hidden_states)
+        return hidden_states, residual
+
 
 def qwen_2_model_invariants(
     input_ids: torch.Tensor,
@@ -457,6 +493,93 @@ class Qwen2Model(nn.Module, EagleModelMixin):
             return hidden_states, aux_hidden_states
 
         return hidden_states
+
+    # ------------------------------------------------------------------
+    # NEO-style asymmetric pipeline forward (IDE_006 4 차 재정의 / TSK_016).
+    # Mirror of LlamaModel.forward_neo_pipelined — see that method for
+    # the algorithmic notes. Activated by the GPU model runner when
+    # ``SchedulerConfig.enable_neo_asymmetric=True`` and the scheduler
+    # returns two sub-batches.
+    # ------------------------------------------------------------------
+    def forward_neo_pipelined(
+        self,
+        sub_batches,                                   # list[SubBatch]
+        positions_list: list[torch.Tensor],
+        embeddings_list: list[torch.Tensor],
+    ):
+        from vllm.v1.worker.sub_batch_executor import (
+            LayerPipelineCallbacks,
+            SubBatchPipelineExecutor,
+        )
+
+        if len(sub_batches) not in (1, 2):
+            raise ValueError(
+                f"forward_neo_pipelined expects 1 or 2 sub-batches, "
+                f"got {len(sub_batches)}"
+            )
+
+        layers = list(islice(self.layers, self.start_layer, self.end_layer))
+        num_layers = len(layers)
+
+        residuals: dict[tuple[int, int], torch.Tensor | None] = {}
+
+        def _bid(batch) -> int:
+            return id(batch)
+
+        def preproj(emb, batch, layer_idx, layer_off):
+            del layer_off
+            layer = layers[layer_idx]
+            residual = residuals.get((layer_idx, _bid(batch)))
+            hidden, residual = layer.neo_preproj(emb, residual)
+            residuals[(layer_idx, _bid(batch))] = residual
+            return hidden, hidden, hidden
+
+        def attention(q, k, v, batch, cur_layer_id):
+            del k, v
+            layer = layers[cur_layer_id]
+            for sb, pos in zip(sub_batches, positions_list):
+                if sb is batch:
+                    return layer.neo_attention(positions=pos, hidden_states=q)
+            raise RuntimeError(
+                "neo_attention: batch identity not found in sub_batches"
+            )
+
+        def postproj(attn_out, batch, layer_idx):
+            layer = layers[layer_idx]
+            residual = residuals[(layer_idx, _bid(batch))]
+            hidden, residual = layer.neo_postproj(attn_out, residual)
+            residuals[(layer_idx + 1, _bid(batch))] = residual
+            return hidden
+
+        callbacks = LayerPipelineCallbacks(
+            preproj=preproj,
+            attention=attention,
+            postproj=postproj,
+        )
+        executor = SubBatchPipelineExecutor(
+            num_layers=num_layers, callbacks=callbacks
+        )
+
+        if len(sub_batches) == 1:
+            out = executor.forward_sequential(sub_batches[0], embeddings_list[0])
+            outputs = [out]
+        else:
+            out0, out1 = executor.forward_pipeline(sub_batches, embeddings_list)
+            outputs = [out0, out1]
+
+        if get_pp_group().is_last_rank:
+            finals = []
+            for hidden, sb in zip(outputs, sub_batches):
+                # Explicit ``is None`` — ``a or b`` triggers
+                # ``bool(tensor)`` which is ambiguous for multi-element
+                # tensors. Mirror of llama.py fix.
+                final_residual = residuals.get((num_layers, _bid(sb)))
+                if final_residual is None:
+                    final_residual = residuals.get((num_layers - 1, _bid(sb)))
+                hidden, _ = self.norm(hidden, final_residual)
+                finals.append(hidden)
+            return finals
+        return outputs
 
     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
         stacked_params_mapping = [

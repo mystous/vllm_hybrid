@@ -128,19 +128,44 @@ NEO data path 변경 시 *동일 input → 동일 output* 보장 (NEO_code_deepd
 
 ## 5. 다음 단계 — NEO 회차 비교 측정 영역
 
-본 baseline 의 비교 회차 (NEO ON) 은 다음 시점에 *진짜 의미*:
+본 baseline 의 비교 회차 (NEO ON) 은 *NEO 데이터 path 의 적재 단계* 에 따라 의미가 달라진다.
+
+### 5.1 · 현재 (2026-04-30) NEO ON 의 의미 — *무회귀 검증* 만
+
+NEO data path 가 dev 머신 smoke (Qwen-1.5B + RTX 3090) 에서 wiring 통과 (TSK_016 §3 의 Step 5.1~5.4). 단 *forward 결과 합산* 은 Step 5.5 (forward-context fork — sub-batch 별 disjoint `slot_mapping` / `cu_seqlens` / `block_tables`) 미적용으로 KV cache cross-contamination 발생 → **divergence 검출 후 vanilla fallback** 이 active.
+
+따라서 현재 시점에 NEO ON 회차를 돌려도:
+
+- **token output**: vanilla 와 *bit-exact* (fallback 으로 vanilla forward 결과 채택)
+- **wall_s / throughput**: scheduler 의 추가 cost 만큼 *vanilla 보다 살짝 느림* (기대) — 진짜 NEO dual forward 가 발화하지 않음
+
+→ 본 단계의 NEO ON 회차는 **prod scale 회귀 검증** (smoke 3 prompt 가 못 잡는 scale 회귀) 영역. 운영 의미:
+
+| 회차 | 회귀 검증 의미 |
+|---|---|
+| **500 × 50:50** | *개발 회차* — 31 분, KV pool 99% 한계 영역에서 NEO ON 의 wiring chain 이 깨지지 않는지 (수백 iteration 동안 swap-out / preempt / dual-forward 분기 / divergence-fallback 경로 모두 안전) |
+| 1000 × 50:50 | 정식 회귀 — 58 분, scale ↑ |
+| 5000 × 50:50 | 외부 보고 회귀 — 4.7 시간 (효과 측정 가능 단계 후로 미루는 게 합리) |
+
+### 5.2 · 향후 *효과 측정* 영역 — Step 5.5 + TSK_015/TSK_017 후
+
+진짜 NEO 효과 (wall_s 단축 / concurrent 확장) 측정은 다음 단계 누적 후 의미:
 
 | 시점 | NEO 회차 의미 |
 |---|---|
-| TSK_014 (Scheduler 활성) 후 | scheduler 의 sub-batch 결정만 적용 — 데이터 path vanilla → 동일 결과 예상 |
-| TSK_016 (Asymmetric pipelining) 후 | 진짜 dual forward 활성 → *throughput / capacity 측정* |
+| TSK_014 + TSK_016 §3 Step 5.4 (현재) | wiring 통과 — *vanilla fallback* 으로 무회귀만 |
+| TSK_016 §3 Step 5.5 (forward-context fork) 후 | 진짜 dual forward 활성 (KV cross-contamination 해소) → *latency* 효과 측정 가능 |
+| TSK_015 (KV exclusive ownership) 후 | request 단위 GPU/CPU 분리 → *capacity* 효과 측정 가능 (concurrent 134 → 200+ 검증) |
+| TSK_017 (PerfPredictor 실측 table) 후 | sequential vs pipelined 결정의 *진짜* heuristic 활성 (현재는 ZeroPerfPredictor 로 항상 sequential) |
 | TSK_018 (CPU kernel 통합) 후 | full stack — 정식 NEO 효과 측정 |
 
-**5000 × 50:50 NEO 회차** = TSK_018 까지 완료 후 1 회 측정 — 4.7 시간. 그 결과를 본 baseline 과 비교하여:
+### 5.3 · 정식 비교 회차 plan
 
-- **wall_s 비교** — NEO 의 *throughput 향상 비율*
-- **concurrent 비교** — NEO 의 *capacity 확장* 비율 (134 → 200+ 가능?)
-- **token output bit-exact** — vanilla 무회귀 검증
+| 단계 | 회차 | wall_min (예상) | 비교 metric |
+|---|---|---|---|
+| 무회귀 검증 (현재 ~ Step 5.5 직후) | 500 × 50:50 | 31 분 + α (scheduler overhead) | token-id bit-exact + wall_s 회귀 ≤ +5% |
+| 효과 측정 baseline | 1000 × 50:50 | 58 분 (NEO ON) | wall_s 비교 / concurrent 비교 |
+| 외부 보고 baseline | 5000 × 50:50 | 4.7 시간 (NEO ON) | wall_s 비교 / concurrent 비교 / token output bit-exact |
 
 ---
 
@@ -160,6 +185,7 @@ NEO data path 변경 시 *동일 input → 동일 output* 보장 (NEO_code_deepd
 | 날짜 | 변경 | 사유 |
 |---|---|---|
 | 2026-04-29 | PLN_001 deliverable 신규 발행 (본 문서) | NEO 4 차 재정의의 vanilla baseline 측정 6 회차 적재. 사용자 결정 (5000 × 50:50 = 정식 논문 baseline). NEO 비교 회차의 reference. |
+| 2026-04-30 | **§5 갱신 — 현재 NEO ON 의 의미 + 정식 비교 회차 plan 분리** | TSK_016 의 Step 5.1~5.4 wiring 통과 후 사용자 질문 ("500 prompt 로 NEO 기능 검증이 가능한거지?") 에 답하기 위한 layered 정리. (1) **§5.1**: 현재 NEO data path 는 forward-context fork 미적용 → KV cache cross-contamination → vanilla fallback active. NEO ON 회차의 의미 = *무회귀 검증* 만. 500 회차 = 개발 회귀, 1000 = 정식 회귀, 5000 = 외부 보고 회귀 (효과 측정 단계 후로 미룸). (2) **§5.2**: 진짜 효과 측정은 Step 5.5 (forward-context fork) → TSK_015 (KV exclusive) → TSK_017 (PerfPredictor 실측 table) → TSK_018 (CPU kernel 통합) 누적 후 의미. (3) **§5.3**: 무회귀 / 효과 측정 / 외부 보고 의 3 단계 비교 회차 plan 명시. |
 
 ---
 

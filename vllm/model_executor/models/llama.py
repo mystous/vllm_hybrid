@@ -592,10 +592,12 @@ class LlamaModel(nn.Module, EagleModelMixin):
             finals = []
             for hidden, sb in zip(outputs, sub_batches):
                 # ``residual`` for the post-loop normalization is whatever
-                # was emitted by the last layer's postproj.
-                final_residual = residuals.get(
-                    (num_layers, _bid(sb))
-                ) or residuals.get((num_layers - 1, _bid(sb)))
+                # was emitted by the last layer's postproj. Use explicit
+                # ``is None`` — ``a or b`` triggers ``bool(tensor)`` which
+                # is ambiguous for multi-element tensors.
+                final_residual = residuals.get((num_layers, _bid(sb)))
+                if final_residual is None:
+                    final_residual = residuals.get((num_layers - 1, _bid(sb)))
                 hidden, _ = self.norm(hidden, final_residual)
                 finals.append(hidden)
             return finals
