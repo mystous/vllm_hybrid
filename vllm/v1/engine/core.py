@@ -454,6 +454,16 @@ class EngineCore:
         swap_in_ids = getattr(scheduler_output, "neo_swap_in_req_ids", None)
         if not swap_out_ids and not swap_in_ids:
             return
+        # One-time INFO log on first activation so the gate is visible
+        # without DEBUG. Subsequent dispatches stay silent (hot path).
+        if not getattr(self, "_neo_swap_logged_once", False):
+            logger.info(
+                "NEO swap dispatch active (VLLM_NEO_KV_FREE=1) — first fire: "
+                "out=%d in=%d",
+                len(swap_out_ids or ()),
+                len(swap_in_ids or ()),
+            )
+            self._neo_swap_logged_once = True
         sched = self.scheduler
         # Out: RUNNING → SWAPPED_OUT, KV freed, popped from running.
         if swap_out_ids:
@@ -606,6 +616,9 @@ class EngineCore:
         # Before processing the model output, process any aborts that happened
         # during the model execution.
         self._process_aborts_queue()
+        # TSK_015 Phase 4.4.c — opt-in NEO swap dispatch (env-gated).
+        # Mirrors the hook in ``step()`` for the batch-queue execution path.
+        self._handle_neo_swaps(scheduler_output)
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, model_output
         )
