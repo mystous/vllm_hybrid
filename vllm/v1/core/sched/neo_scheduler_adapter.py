@@ -205,6 +205,38 @@ class NeoSchedulerAdapter(Scheduler):
         self.neo_scheduler.on_requests_arrival([view])
 
     # ------------------------------------------------------------------
+    # TSK_015 Phase 2 — NeoScheduler queue tracking. NEO 가 prefill→decode
+    # transition 을 자체 추적할 hook 이 없으므로 (NEO upstream 는 자체
+    # engine 의 이벤트로 추적), vLLM Scheduler 의 ``self.running`` 을
+    # 매 schedule 후 mirror 해서 NEO sibling 이 보는 gpu_decoding_q 를
+    # 채운다. exclusive policy (kv_cache_policy=exclusive) 가 활성된
+    # 후에는 Phase 3/4 가 *진짜 swap* 을 추가; 본 Phase 는 *관찰* 만.
+    # ------------------------------------------------------------------
+    def _sync_neo_gpu_decoding_q(self) -> None:
+        """Mirror vLLM ``self.running`` (decoding subset) into the NEO
+        sibling's ``gpu_decoding_q``. Run after ``super().schedule()``.
+
+        The sibling uses this to (a) reserve budget for active decoders
+        in Step 1, (b) consider preempting under pressure in Step 2,
+        (c) drive ``decide_mode`` 's ``_get_remains`` analysis.
+        """
+        cache = self._neo_view_cache
+        new_gdec: list[_NeoRequestView] = []
+        for req in self.running:
+            # Decode phase = num_computed_tokens >= num_prompt_tokens.
+            # During chunked prefill, num_computed_tokens may equal
+            # num_prompt_tokens during the *last* chunk's iteration —
+            # treat as decoding from the next step onwards (correct for
+            # NEO's decode-budget reasoning).
+            if req.num_computed_tokens < req.num_prompt_tokens:
+                continue
+            view = cache.get(req.request_id)
+            if view is not None:
+                new_gdec.append(view)
+        # NEO 의 gpu_decoding_q 는 ``list`` (not deque) — 직접 교체.
+        self.neo_scheduler.gpu_decoding_q = new_gdec
+
+    # ------------------------------------------------------------------
     # NEO PerfPredictor — populate from worker-side profile (TSK_017
     # Step 1.6). Called by EngineCore once after warmup.
     # ------------------------------------------------------------------
@@ -300,6 +332,15 @@ class NeoSchedulerAdapter(Scheduler):
         if not self._neo_sibling_meaningful:
             self.last_neo_output = None
             return output
+
+        # TSK_015 Phase 2 — sync NEO sibling's gpu_decoding_q with the
+        # *actual* set of decoding requests in vLLM's running list.
+        # Without this, NEO's gpu_decoding_q never populates (its only
+        # source is Step 3 swap-in from cpu_decoding_q — itself empty)
+        # so Step 2 preempt + Step 3 swap-in are dead. With sync, NEO
+        # sees the same decode workload vLLM does and can make
+        # capacity-related decisions.
+        self._sync_neo_gpu_decoding_q()
 
         # Drive the NEO sibling. ``try/except`` is intentionally *narrow*
         # — the sibling schedule itself runs without try-overhead on the
