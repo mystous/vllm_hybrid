@@ -173,6 +173,11 @@ class NeoSchedulerAdapter(Scheduler):
         # 인덱스 stability 도 보장.
         self._neo_view_cache: dict[str, _NeoRequestView] = {}
 
+        # TSK_015 Phase 4.1 — CPU KV buffer 의 *데이터* 는 worker (
+        # GPUModelRunner) 에 둠 — TP shard 별로 분산. Adapter (engine
+        # 측) 는 *결정* 만 (swap_out_req_ids attach via SchedulerOutput).
+        # 본 adapter 는 이제 buffer instance 를 hold 하지 않음.
+
         # Sibling skip 판정 — predictor 가 ZeroPerfPredictor 면 항상
         # sequential 결정. FORCE flag 도 비활성이면 sibling 작업 100%
         # 폐기 → schedule() 마다 호출 자체를 skip. TSK_017 PerfPredictor
@@ -182,6 +187,15 @@ class NeoSchedulerAdapter(Scheduler):
         self._neo_sibling_meaningful: bool = (
             _FORCE_PIPELINED
             or not isinstance(self.predictor, ZeroPerfPredictor)
+        )
+
+        # TSK_015 Phase 4.6 — FORCE-cdec dev flag. ``VLLM_NEO_FORCE_CDEC=1``
+        # bypass Step 2 (budget overflow) and artificially move 1 req
+        # gdec→cdec each schedule, so cdec_reqs path activates on smoke.
+        # Cached at import (env var doesn't change at runtime).
+        import os as _os
+        self._neo_force_cdec: bool = (
+            _os.environ.get("VLLM_NEO_FORCE_CDEC") == "1"
         )
 
         logger.info(
@@ -258,6 +272,22 @@ class NeoSchedulerAdapter(Scheduler):
             return
 
         try:
+            # TSK_015 Phase 3.1 — sync NEO scheduler's num_gpu_blocks
+            # with the *real* value (set during warmup). Adapter init
+            # used an estimate before warmup; now cache_config.num_gpu_blocks
+            # is finalized.
+            real_blocks = getattr(
+                self.vllm_config.cache_config, "num_gpu_blocks", None
+            )
+            if real_blocks and real_blocks > 0:
+                old = self.neo_scheduler.num_gpu_blocks
+                self.neo_scheduler.num_gpu_blocks = int(real_blocks)
+                logger.info(
+                    "NEO: num_gpu_blocks sync %d → %d (Phase 3.1 — Step 2 "
+                    "swap-out threshold reflects real KV pool).",
+                    old, real_blocks,
+                )
+
             pred = TablePerfPredictor(self.vllm_config)
             # Replace S/T list pairs with the *measured* sub-set.
             linr_pairs = profile_data.get("linr_T_pairs", [])
@@ -342,6 +372,26 @@ class NeoSchedulerAdapter(Scheduler):
         # capacity-related decisions.
         self._sync_neo_gpu_decoding_q()
 
+        # TSK_015 Phase 4.6 — FORCE-cdec dev hook. With ``VLLM_NEO_FORCE_CDEC=1``
+        # we artificially move 1 decoding req from gpu_decoding_q to
+        # cpu_decoding_q so NEO 's Step 3 / decide_mode / sub-batch
+        # populating with cdec_reqs path actually fires on smoke. Real
+        # production trigger is Step 2 budget overflow.
+        # 동시에 ``_force_swap_out_reqs`` 에 누적해서 본 schedule 의
+        # ``last_neo_output.swap_out_reqs`` 에 append — runner 의
+        # `_neo_handle_kv_swap` 가 실제 GPU→CPU KV move 를 수행.
+        self._force_swap_out_pending: list = []
+        if self._neo_force_cdec and self.neo_scheduler.gpu_decoding_q:
+            victim = self.neo_scheduler.gpu_decoding_q.pop()
+            self.neo_scheduler.cpu_decoding_q.appendleft(victim)
+            self._force_swap_out_pending.append(victim)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "[NEO FORCE-CDEC] artificially moved req %s to "
+                    "cpu_decoding_q (gdec→cdec) for path activation test",
+                    victim._str_id,
+                )
+
         # Drive the NEO sibling. ``try/except`` is intentionally *narrow*
         # — the sibling schedule itself runs without try-overhead on the
         # hot path.
@@ -386,8 +436,11 @@ class NeoSchedulerAdapter(Scheduler):
 
         # Swap lists rarely populated (only when KV exclusive ownership
         # is active — TSK_015). Skip attach when empty.
+        # FORCE-CDEC 의 swap_out 도 합산해서 runner 가 처리.
         swap_in = self.last_neo_output.swap_in_reqs
-        swap_out = self.last_neo_output.swap_out_reqs
+        swap_out = list(self.last_neo_output.swap_out_reqs)
+        if self._force_swap_out_pending:
+            swap_out.extend(self._force_swap_out_pending)
         if swap_in:
             output.neo_swap_in_req_ids = [r._str_id for r in swap_in]
         if swap_out:

@@ -422,6 +422,15 @@ class GPUModelRunner(
         self._neo_gate_logged: bool = False
         self._neo_pending_subbatches: list[list[str]] | None = None
 
+        # TSK_015 Phase 4.1/4.3 — CPU KV buffer + per-req residency set.
+        # Allocated lazily (when first swap_out arrives) to avoid wasting
+        # CPU memory when ``kv_cache_policy != "exclusive"``.
+        self._neo_cpu_kv_buffer = None        # NeoCpuKvBuffer | None
+        self._neo_cpu_resident_reqs: set[str] = set()
+        self._neo_kv_policy: str = getattr(
+            self.scheduler_config, "kv_cache_policy", "mirror"
+        )
+
         model_config = self.model_config
         cache_config = self.cache_config
         scheduler_config = self.scheduler_config
@@ -4223,6 +4232,24 @@ class GPUModelRunner(
                         )
                 else:
                     self._neo_pending_subbatches = None
+
+                # TSK_015 Phase 4.3 — handle swap-out / swap-in events.
+                # Adapter (engine 측) 는 NEO Step 2 swap-out 결정을
+                # ``neo_swap_out_req_ids`` 에 attach. 본 worker 가 per-
+                # layer KV move (GPU→CPU buffer) 를 수행한다.
+                # Phase 4.4 (vLLM scheduler 통합) 는 별도 — 지금 GPU
+                # blocks 는 free 하지 않음 (shadow KV).
+                swap_out_ids = getattr(
+                    scheduler_output, "neo_swap_out_req_ids", None
+                )
+                swap_in_ids = getattr(
+                    scheduler_output, "neo_swap_in_req_ids", None
+                )
+                if swap_out_ids or swap_in_ids:
+                    self._neo_handle_kv_swap(
+                        swap_out_ids=swap_out_ids,
+                        swap_in_ids=swap_in_ids,
+                    )
             else:
                 self._neo_pending_subbatches = None
 
@@ -5944,6 +5971,200 @@ class GPUModelRunner(
 
         max_task = max(output_size.items(), key=lambda x: x[1])[0]
         return self._dummy_pooler_run_task(hidden_states, max_task)
+
+    # ------------------------------------------------------------------
+    # TSK_015 Phase 4.3 — KV swap-out / swap-in handlers (worker side).
+    # Adapter (engine 측) attaches ``neo_swap_out_req_ids`` /
+    # ``neo_swap_in_req_ids`` to ``SchedulerOutput``; this method does
+    # the *actual* per-layer KV move via ``NeoCpuKvBuffer``.
+    #
+    # Phase 4.4 (vLLM scheduler 통합 — GPU blocks free / re-alloc) 는
+    # 별도. 본 Phase 는 *shadow KV* — GPU 에 KV 잔류한 채 CPU 에 사본
+    # 만 만든다. 동일 KV 의 양측 보유는 capacity 효과 없지만 NEO 의
+    # CPU compute path (TSK_018 Phase 3) 의 input 으로 사용 가능.
+    # ------------------------------------------------------------------
+    def _ensure_neo_cpu_kv_buffer(self) -> bool:
+        """Lazy-allocate the CPU KV buffer on first swap-out. Returns
+        True if buffer is available (alloc succeeded or already exists)."""
+        if self._neo_cpu_kv_buffer is not None:
+            return True
+        if self._neo_kv_policy != "exclusive":
+            return False
+        from vllm.v1.core.sched.neo_cpu_kv_buffer import (
+            NeoCpuKvBuffer,
+            make_spec_from_config,
+        )
+        spec = make_spec_from_config(self.vllm_config)
+        if spec is None:
+            return False
+        try:
+            self._neo_cpu_kv_buffer = NeoCpuKvBuffer(spec)
+            logger.info(
+                "[NEO] worker-side CPU KV buffer allocated lazily on "
+                "first swap-out"
+            )
+            return True
+        except (RuntimeError, MemoryError) as e:
+            logger.warning(
+                "[NEO] worker-side CPU KV buffer alloc failed: %s — "
+                "swap-out / swap-in will be no-op.", e,
+            )
+            return False
+
+    def _get_req_gpu_block_ids(self, req_id: str) -> list[int] | None:
+        """Look up the GPU block_ids for ``req_id`` from the runner's
+        input_batch. Returns ``None`` if the req is not in the current
+        batch (e.g., already finished)."""
+        idx = self.input_batch.req_id_to_index.get(req_id)
+        if idx is None:
+            return None
+        # Use the first kv_cache_group's block_table — typical Llama
+        # has a single uniform attention spec → one group. Hybrid cache
+        # (mamba + attn) is *not yet* supported by NEO CPU path.
+        if not self.input_batch.block_table:
+            return None
+        bt = self.input_batch.block_table[0]
+        nblk = int(bt.num_blocks_per_row[idx])
+        if nblk <= 0:
+            return None
+        return bt.block_table.np[idx, :nblk].tolist()
+
+    def _neo_handle_kv_swap(
+        self,
+        *,
+        swap_out_ids: list[str] | None,
+        swap_in_ids: list[str] | None,
+    ) -> None:
+        """Per-step KV swap orchestrator. Skips silently if the buffer
+        cannot be allocated (e.g., mirror policy, memory pressure)."""
+        # Fast skip when nothing to do.
+        nothing = not swap_out_ids and not swap_in_ids
+        if nothing:
+            return
+        if not self._ensure_neo_cpu_kv_buffer():
+            return
+
+        buf = self._neo_cpu_kv_buffer
+
+        # ── swap-out: GPU → CPU per-layer copy ────────────────────────
+        for req_id in (swap_out_ids or []):
+            if req_id in self._neo_cpu_resident_reqs:
+                continue   # already on CPU
+            gpu_blocks = self._get_req_gpu_block_ids(req_id)
+            if gpu_blocks is None:
+                continue
+            # Allocate matching CPU blocks; pool exhaustion → skip.
+            cpu_blocks = buf.alloc(req_id, num_blocks=len(gpu_blocks))
+            if cpu_blocks is None:
+                logger.warning(
+                    "[NEO] swap-out: CPU pool full, skipping req %s "
+                    "(blocks needed=%d, free=%d)",
+                    req_id, len(gpu_blocks), buf.num_free_blocks,
+                )
+                continue
+            try:
+                self._neo_swap_out_one_req(req_id, gpu_blocks)
+                self._neo_cpu_resident_reqs.add(req_id)
+                logger.info(
+                    "[NEO] swap-out: req %s (%d blocks) GPU→CPU done",
+                    req_id, len(gpu_blocks),
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "[NEO] swap-out: req %s failed (%s) — rolling back "
+                    "CPU alloc", req_id, e,
+                )
+                buf.free(req_id)
+
+        # ── swap-in: CPU → GPU per-layer copy ─────────────────────────
+        for req_id in (swap_in_ids or []):
+            if req_id not in self._neo_cpu_resident_reqs:
+                continue   # not on CPU
+            gpu_blocks = self._get_req_gpu_block_ids(req_id)
+            if gpu_blocks is None:
+                # Phase 4.4 will handle this — vLLM should re-alloc GPU
+                # blocks before swap-in. Skip gracefully for now.
+                continue
+            try:
+                self._neo_swap_in_one_req(req_id, gpu_blocks)
+                buf.free(req_id)
+                self._neo_cpu_resident_reqs.discard(req_id)
+                logger.info(
+                    "[NEO] swap-in: req %s (%d blocks) CPU→GPU done",
+                    req_id, len(gpu_blocks),
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "[NEO] swap-in: req %s failed (%s)", req_id, e,
+                )
+
+    def _neo_swap_out_one_req(
+        self,
+        req_id: str,
+        gpu_block_ids: list[int],
+    ) -> None:
+        """Per-layer copy of one req's KV from vLLM GPU caches to NEO
+        CPU buffer. ``gpu_block_ids`` are indices into the per-layer
+        ``self.kv_caches[layer]`` 2-component tensor (K + V)."""
+        buf = self._neo_cpu_kv_buffer
+        nlayers = len(self.kv_caches)
+        gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
+                               device=self.device)
+        for layer in range(nlayers):
+            kv = self.kv_caches[layer]
+            if kv is None:
+                continue
+            # vLLM 의 typical layout: ``(2, num_blocks, block_size,
+            # num_kv_heads, head_dim)`` (NHD) — kv[0] = K, kv[1] = V.
+            # For HND backends layout becomes ``(2, num_blocks,
+            # num_kv_heads, block_size, head_dim)`` — already matches
+            # NEO. We auto-detect via shape (block_size vs num_kv_heads
+            # at index 2).
+            k_blocks = kv[0][gpu_idx]   # (n, ...)
+            v_blocks = kv[1][gpu_idx]
+            # Permute NHD → HND if needed so dim order matches NEO
+            # buffer's ``(num_blocks, num_kv_heads, block_size, head_dim)``.
+            if k_blocks.dim() == 4 and k_blocks.shape[1] != buf.spec.num_kv_heads:
+                # Likely NHD: (num_blocks, block_size, num_kv_heads, head_dim)
+                k_blocks = k_blocks.permute(0, 2, 1, 3).contiguous()
+                v_blocks = v_blocks.permute(0, 2, 1, 3).contiguous()
+            buf.copy_layer_in(req_id, layer, k_blocks, v_blocks)
+
+    def _neo_swap_in_one_req(
+        self,
+        req_id: str,
+        gpu_block_ids: list[int],
+    ) -> None:
+        """Reverse of ``_neo_swap_out_one_req`` — copy CPU buffer back
+        to GPU blocks (Phase 4.4 will hand-off into a freshly allocated
+        GPU range; for now we copy back into the *same* blocks the req
+        previously occupied, assuming they're still reserved)."""
+        buf = self._neo_cpu_kv_buffer
+        nlayers = len(self.kv_caches)
+        gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
+                               device=self.device)
+        for layer in range(nlayers):
+            kv = self.kv_caches[layer]
+            if kv is None:
+                continue
+            k_cpu, v_cpu = buf.copy_layer_out(req_id, layer)
+            # CPU tensors are HND ``(num_blocks, num_kv_heads, block_size,
+            # head_dim)``. vLLM destination layout detected via
+            # ``kv[0].shape[2]``:
+            #   * NHD: ``(num_blocks, block_size, num_kv_heads, head_dim)``
+            #     → shape[2] == num_kv_heads → permute (HND→NHD).
+            #   * HND: ``(num_blocks, num_kv_heads, block_size, head_dim)``
+            #     → shape[2] == block_size → no permute.
+            if (kv[0].dim() == 4
+                    and kv[0].shape[2] == buf.spec.num_kv_heads):
+                # vLLM is NHD — permute CPU (HND) → NHD.
+                k_cpu = k_cpu.permute(0, 2, 1, 3).contiguous()
+                v_cpu = v_cpu.permute(0, 2, 1, 3).contiguous()
+            # Cast back to the GPU cache's dtype (may differ from FP16).
+            k_gpu = k_cpu.to(device=self.device, dtype=kv.dtype)
+            v_gpu = v_cpu.to(device=self.device, dtype=kv.dtype)
+            kv[0][gpu_idx] = k_gpu
+            kv[1][gpu_idx] = v_gpu
 
     # ------------------------------------------------------------------
     # NEO PerfPredictor — engine-side measure_fn (TSK_017 Step 1.5).

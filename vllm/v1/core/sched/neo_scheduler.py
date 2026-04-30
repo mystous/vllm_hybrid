@@ -147,6 +147,54 @@ class NeoScheduler:
         return _cdiv(req.num_tokens, self.block_size)
 
     # ------------------------------------------------------------------
+    # TSK_015 Phase 5.1 — atomic swap helpers + XOR invariant.
+    #
+    # In NEO's exclusive-ownership model, every active req lives in
+    # *exactly one* of {gpu_decoding_q, cpu_decoding_q} at any observable
+    # state boundary (waiting_q is for not-yet-prefilled). The helpers
+    # below wrap the pop+append pair as a single conceptual unit so the
+    # call sites are intent-clear and the invariant is locally
+    # ``assert``-able.
+    #
+    # Single-threaded Python: the in-method state mutation cannot be
+    # observed mid-step from outside, so "atomicity" is naturally
+    # satisfied. We keep the helpers + assertion to surface the
+    # invariant for tests and future multi-thread evolution.
+    # ------------------------------------------------------------------
+    def _initiate_swap_out(self, victim: _ReqLike) -> None:
+        """Atomically move ``victim`` from gpu_decoding_q to
+        cpu_decoding_q. Caller is responsible for popping the victim
+        from gpu_decoding_q (typical: ``victim = q.pop()``); this
+        helper enforces the appendleft + assert pair."""
+        # By design ``victim`` was already removed from gpu_decoding_q
+        # by the caller; we move it into the cpu side. The invariant
+        # then re-becomes ``has_gpu XOR has_cpu`` for ``victim``.
+        self.cpu_decoding_q.appendleft(victim)
+
+    def _initiate_swap_in(self, candidate: _ReqLike) -> None:
+        """Atomically move ``candidate`` from cpu_decoding_q to
+        gpu_decoding_q. Caller has already validated the budget /
+        block-need check; this helper does the queue handoff."""
+        self.cpu_decoding_q.popleft()
+        self.gpu_decoding_q.append(candidate)
+
+    def _assert_exclusive_invariant(self, *, where: str = "") -> None:
+        """XOR invariant check (debug-only; opt-in via ``ENABLE_NEO_INV
+        =1`` env so it's free in prod). For each req present in any
+        decoding queue, assert it appears in *exactly one*."""
+        import os as _os
+        if _os.environ.get("ENABLE_NEO_INV") != "1":
+            return
+        gpu_ids = {r.request_id for r in self.gpu_decoding_q}
+        cpu_ids = {r.request_id for r in self.cpu_decoding_q}
+        overlap = gpu_ids & cpu_ids
+        if overlap:
+            raise AssertionError(
+                f"NEO XOR invariant violated{(' @ ' + where) if where else ''}"
+                f": {len(overlap)} req(s) in BOTH queues: {sorted(overlap)[:5]}..."
+            )
+
+    # ------------------------------------------------------------------
     # Main entry — produce the next iteration's batches
     # ------------------------------------------------------------------
     def schedule(self) -> NeoSchedulerOutput:
@@ -170,10 +218,11 @@ class NeoScheduler:
         while (budget.overspent
                or gpu_block_needed > swap_out_threshold) and self.gpu_decoding_q:
             victim = self.gpu_decoding_q.pop()
-            self.cpu_decoding_q.appendleft(victim)
+            self._initiate_swap_out(victim)         # Phase 5.1 atomic
             swap_out_reqs.append(victim)
             gpu_block_needed -= self._get_block_needed(victim)
             budget.add(1)
+        self._assert_exclusive_invariant(where="step2")
 
         # Step 3 — swap-in head-of-queue CPU decode (mutually exclusive
         # with swap-out)
@@ -185,8 +234,8 @@ class NeoScheduler:
                 break
             gpu_block_needed += need
             swap_in_reqs.append(candidate)
-            self.cpu_decoding_q.popleft()
-            self.gpu_decoding_q.append(candidate)
+            self._initiate_swap_in(candidate)       # Phase 5.1 atomic
+        self._assert_exclusive_invariant(where="step3")
         # Mutually exclusive
         assert not swap_out_reqs or not swap_in_reqs
 
