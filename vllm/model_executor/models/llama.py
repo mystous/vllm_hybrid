@@ -510,13 +510,21 @@ class LlamaModel(nn.Module, EagleModelMixin):
         sub_batches,                                   # list[SubBatch]
         positions_list: list[torch.Tensor],            # one per sub-batch
         embeddings_list: list[torch.Tensor],           # one per sub-batch
+        per_subbatch_contexts=None,                    # list[ForwardContext] | None
     ):
         """Pipelined forward for two sub-batches with layer offset.
 
         ``sub_batches`` is a list of length 1 (sequential fallback) or
         2 (full NEO ping-pong). Returns a list of final hidden_states
         tensors, one per sub-batch.
+
+        When ``per_subbatch_contexts`` is provided, each sub-batch's
+        attention call runs under its own ``ForwardContext`` so the
+        attention backend reads disjoint ``slot_mapping`` /
+        ``cu_seqlens`` / ``block_table`` (KV cache exclusive ownership
+        on the GPU side, i.e. Step 5.5 forward-context fork).
         """
+        from vllm.forward_context import override_forward_context
         from vllm.v1.worker.sub_batch_executor import (
             LayerPipelineCallbacks,
             SubBatchPipelineExecutor,
@@ -534,6 +542,14 @@ class LlamaModel(nn.Module, EagleModelMixin):
         # Per-layer state: residual is threaded through preproj → postproj.
         # We capture it in a closure indexed by (layer_idx, batch_id).
         residuals: dict[tuple[int, int], torch.Tensor | None] = {}
+
+        # Pre-compute id(batch) → ubid mapping. ``attention`` callback
+        # is invoked O(L × num_subbatches) times — the linear scan over
+        # sub_batches inside each call would be O(L × N²) and visible
+        # in profiles. dict lookup is O(1).
+        _bid_to_ubid: dict[int, int] = {
+            id(sb): ubid for ubid, sb in enumerate(sub_batches)
+        }
 
         def _bid(batch) -> int:
             return id(batch)
@@ -554,14 +570,18 @@ class LlamaModel(nn.Module, EagleModelMixin):
         def attention(q, k, v, batch, cur_layer_id):
             del k, v  # see preproj — q is the post-RMSNorm hidden state.
             layer = layers[cur_layer_id]
-            # Position tensor lives per-sub-batch; pull it via the
-            # sub-batch's identity matching.
-            for sb, pos in zip(sub_batches, positions_list):
-                if sb is batch:
-                    return layer.neo_attention(positions=pos, hidden_states=q)
-            raise RuntimeError(
-                "neo_attention: batch identity not found in sub_batches"
-            )
+            ubid = _bid_to_ubid[id(batch)]  # O(1) dict lookup
+            pos = positions_list[ubid]
+            if per_subbatch_contexts is not None:
+                # Push the sub-batch's own forward context so the
+                # attention kernel reads its disjoint slot_mapping /
+                # cu_seqlens / block_table — KV writes land in *its*
+                # pool slots only.
+                with override_forward_context(per_subbatch_contexts[ubid]):
+                    return layer.neo_attention(
+                        positions=pos, hidden_states=q
+                    )
+            return layer.neo_attention(positions=pos, hidden_states=q)
 
         def postproj(attn_out, batch, layer_idx):
             layer = layers[layer_idx]

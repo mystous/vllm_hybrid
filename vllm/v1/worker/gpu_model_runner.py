@@ -4,6 +4,7 @@
 import functools
 import gc
 import itertools
+import logging
 import threading
 import time
 from collections import defaultdict
@@ -47,6 +48,8 @@ from vllm.distributed.parallel_state import (
 )
 from vllm.forward_context import (
     BatchDescriptor,
+    create_forward_context,
+    get_forward_context,
     set_forward_context,
 )
 from vllm.logger import init_logger
@@ -410,6 +413,14 @@ class GPUModelRunner(
         self.scheduler_config = vllm_config.scheduler_config
         self.speculative_config = vllm_config.speculative_config
         self.observability_config = vllm_config.observability_config
+        # NEO 식 asymmetric pipelining flag — hot-path 마다 getattr 비용
+        # 회피 위해 init 시 한 번만 resolve. config 가 runtime 에 변경되지
+        # 않으므로 안전.
+        self._neo_enabled: bool = bool(getattr(
+            self.scheduler_config, "enable_neo_asymmetric", False
+        ))
+        self._neo_gate_logged: bool = False
+        self._neo_pending_subbatches: list[list[str]] | None = None
 
         model_config = self.model_config
         cache_config = self.cache_config
@@ -3504,80 +3515,90 @@ class GPUModelRunner(
         Returns:
             Model output tensor
         """
-        # NEO 식 dual sub-batch dispatch — Step 5.4.
-        # If the scheduler attached two NEO sub-batches and the model
-        # exposes ``forward_neo_pipelined``, attempt the asymmetric
-        # path. Wrapped in try-except: vLLM's forward context is set
-        # for a single batch (cu_seqlens / block_tables / slot_mapping
-        # all assume one) so the call is expected to fail cleanly
-        # until forward-context-fork lands. The exception is swallowed
-        # and we fall back to vanilla so production stays safe.
-        # LlamaForCausalLM exposes the inner LlamaModel as ``.model``;
-        # ``forward_neo_pipelined`` lives on the inner module.
-        _inner_model = getattr(self.model, "model", self.model)
-        if (
-            getattr(self.vllm_config.scheduler_config,
-                    "enable_neo_asymmetric", False)
-            and getattr(self, "_neo_pending_subbatches", None) is not None
-            and len(self._neo_pending_subbatches) == 2
-            and hasattr(_inner_model, "forward_neo_pipelined")
-        ):
-            try:
-                logger.info(
-                    "[NEO-DEBUG] _model_forward: attempting dual forward "
-                    "(sub_batches=%s)",
-                    [len(sb) for sb in self._neo_pending_subbatches],
-                )
-                output = _inner_model.forward_neo_pipelined(
-                    sub_batches=self._neo_pending_subbatches,
-                    positions_list=[positions, positions],
-                    embeddings_list=[inputs_embeds, inputs_embeds]
-                        if inputs_embeds is not None
-                        else [_inner_model.embed_input_ids(input_ids)] * 2,
-                )
-                # ``forward_neo_pipelined`` returns ``list[tensor]`` —
-                # one per sub-batch. Until the forward-context fork
-                # lands and each sub-batch processes its own token
-                # range, both entries are computed from the *full*
-                # merged input and are therefore identical. Take the
-                # first as the merged output for the wiring smoke;
-                # the real merge will index into per-sub-batch token
-                # slots in Step 5.5.
-                if isinstance(output, list):
-                    if len(output) >= 2:
-                        diff = (output[0] - output[1]).abs().max().item()
-                        logger.info(
-                            "[NEO-DEBUG] _model_forward: dual forward "
-                            "returned %d tensors, max|out0-out1|=%.3e "
-                            "(should be 0 for identical-input fake split)",
-                            len(output), diff,
-                        )
-                        # Both sub-batches received the *same* positions /
-                        # embeddings (forward-context fork hasn't landed
-                        # yet). If the outputs diverge, the second pass
-                        # contaminated the first via shared KV-cache slot
-                        # writes — trust neither result and raise so the
-                        # outer ``except`` falls back to vanilla. Token
-                        # equality is preserved for production safety.
-                        if diff > 1e-3:
-                            raise RuntimeError(
-                                f"dual forward diverged (max|d|={diff:.3e}) "
-                                "— KV cache cross-contamination detected; "
-                                "forward-context fork required (Step 5.5)."
+        # NEO 식 dual sub-batch dispatch — Step 5.4 + Step 5.5.
+        # Step 5.4 wired the ``forward_neo_pipelined`` branch + list-output
+        # merge. Step 5.5 (本 commit) routes the call through vLLM's
+        # ubatch infrastructure — when the scheduler decided pipelined,
+        # ``execute_model`` set ``forward_context.ubatch_slices`` and the
+        # attention metadata builder produced ``list[dict]``. We turn
+        # those into per-sub-batch ``ForwardContext`` objects, slice
+        # positions/embeddings per sub-batch, and let
+        # ``forward_neo_pipelined`` orchestrate the layer-offset
+        # ping-pong with each ``attention`` call running under its own
+        # context (KV writes land in disjoint slots).
+        # Fast-path: NEO 비활성 또는 sub-batch 미부착 시 즉시 vanilla.
+        # ``self._neo_enabled`` 와 ``self._neo_pending_subbatches`` 둘 다
+        # cheap attribute access — 추가 getattr/hasattr 비용 없음.
+        pending = self._neo_pending_subbatches
+        if self._neo_enabled and pending is not None and len(pending) == 2:
+            _inner_model = getattr(self.model, "model", self.model)
+            if hasattr(_inner_model, "forward_neo_pipelined"):
+                fc = get_forward_context()
+                ubatch_slices = fc.ubatch_slices
+                attn_md = fc.attn_metadata
+                slot_md = fc.slot_mapping
+
+                if (
+                    ubatch_slices is not None
+                    and len(ubatch_slices) == 2
+                    and isinstance(attn_md, list)
+                    and len(attn_md) == 2
+                ):
+                    try:
+                        # Build per-sub-batch ForwardContexts from the
+                        # list[dict] attn_metadata that
+                        # ``_build_attention_metadata`` already forked when
+                        # ``ubatch_slices`` was passed in.
+                        slot_is_list = isinstance(slot_md, list)
+                        per_subbatch_contexts = [
+                            create_forward_context(
+                                attn_md[i],
+                                self.vllm_config,
+                                dp_metadata=fc.dp_metadata,
+                                cudagraph_runtime_mode=fc.cudagraph_runtime_mode,
+                                batch_descriptor=fc.batch_descriptor,
+                                slot_mapping=slot_md[i] if slot_is_list else None,
                             )
-                    output = output[0]
-                else:
-                    logger.info(
-                        "[NEO-DEBUG] _model_forward: dual forward returned"
-                    )
-                return output
-            except Exception as e:  # noqa: BLE001
-                logger.info(
-                    "[NEO-DEBUG] _model_forward: dual forward fell back, "
-                    "exception was %s: %s",
-                    type(e).__name__, e,
-                )
-                # fall through to vanilla
+                            for i in range(2)
+                        ]
+
+                        # Slice positions / embeddings per sub-batch.
+                        positions_2d = positions.ndim == 2
+                        sliced_positions = [
+                            positions[:, ubs.token_slice] if positions_2d
+                            else positions[ubs.token_slice]
+                            for ubs in ubatch_slices
+                        ]
+
+                        if inputs_embeds is not None:
+                            sliced_embeds = [
+                                inputs_embeds[ubs.token_slice]
+                                for ubs in ubatch_slices
+                            ]
+                        else:
+                            full_embed = _inner_model.embed_input_ids(input_ids)
+                            sliced_embeds = [
+                                full_embed[ubs.token_slice]
+                                for ubs in ubatch_slices
+                            ]
+
+                        outputs = _inner_model.forward_neo_pipelined(
+                            sub_batches=pending,
+                            positions_list=sliced_positions,
+                            embeddings_list=sliced_embeds,
+                            per_subbatch_contexts=per_subbatch_contexts,
+                        )
+                        # Concat per-sub-batch outputs along the token dim
+                        # (sub-batch 0 first, then sub-batch 1).
+                        return torch.cat(outputs, dim=0)
+                    except Exception as e:  # noqa: BLE001
+                        # Fallback 은 비정상 — 항상 알려야 함.
+                        logger.warning(
+                            "[NEO] _model_forward: forked dual forward "
+                            "fell back, exception was %s: %s",
+                            type(e).__name__, e,
+                        )
+                        # fall through to vanilla
 
         return self.model(
             input_ids=input_ids,
@@ -3862,18 +3883,15 @@ class GPUModelRunner(
         # this gate only confirms that the flag and adapter are wired
         # end-to-end. Behaviour with the flag on remains identical to
         # vanilla.
-        if getattr(
-            self.vllm_config.scheduler_config, "enable_neo_asymmetric", False
-        ):
-            if not getattr(self, "_neo_gate_logged", False):
-                logger.info(
-                    "execute_model: enable_neo_asymmetric=True observed."
-                    " NEO scheduler sibling is recording mode decisions"
-                    " in NeoSchedulerAdapter.last_neo_output. Data path"
-                    " is still vanilla — sub-batch dual forward will be"
-                    " enabled when the runner's metadata fork lands."
-                )
-                self._neo_gate_logged = True
+        # 본 게이트는 활성 시 *처음 한 번* 만 INFO 로 알림. 매 step 의
+        # getattr 비용 회피를 위해 init 시 cached + first-fire sentinel.
+        if self._neo_enabled and not self._neo_gate_logged:
+            logger.info(
+                "execute_model: enable_neo_asymmetric=True observed."
+                " NEO scheduler sibling is recording mode decisions"
+                " in NeoSchedulerAdapter.last_neo_output."
+            )
+            self._neo_gate_logged = True
 
         if self.routed_experts_initialized:
             capturer = RoutedExpertsCapturer.get_instance()
@@ -3995,12 +4013,63 @@ class GPUModelRunner(
             num_reqs_padded = (
                 batch_desc.num_reqs if batch_desc.num_reqs is not None else num_reqs
             )
+
+            # NEO 식 sub-batch 활성 시 vLLM 의 ubatch 인프라를 reuse —
+            # split_attn_metadata 가 자동으로 sub-batch 별 disjoint
+            # slot_mapping/cu_seqlens/block_tables 를 fork.
+            # Fast-path: NEO 비활성, sub-batch 0/1 개, 비-contiguous 모두
+            # 즉시 skip → ubatch wiring 비용 0.
+            neo_split_point: int | None = None
+            neo_split_used: bool = False
+            if self._neo_enabled:
+                neo_subs_str = getattr(
+                    scheduler_output, "neo_sub_batches", None
+                )
+                # 빠른 short-circuit: list[list[str]] 길이 2 + 둘 다 비어있지
+                # 않을 때만 contiguous 검사로 진입.
+                if (
+                    neo_subs_str is not None
+                    and len(neo_subs_str) == 2
+                    and neo_subs_str[0]
+                    and neo_subs_str[1]
+                ):
+                    # NEO scheduler 는 request 추가 순서대로 batches[0]/[1] 에
+                    # 분배 — 자연스럽게 input_batch.req_ids 의 prefix/suffix
+                    # 를 차지. 따라서 set 비교로 contiguous-from-0 검증.
+                    boundary = len(neo_subs_str[0])
+                    if (
+                        boundary + len(neo_subs_str[1]) == num_reqs
+                        # Set 비교 — list 정렬보다 빠름 (둘 다 O(N) 이지만
+                        # set 은 hash, list sort 는 비교 + alloc).
+                        and set(neo_subs_str[0]) == set(
+                            self.input_batch.req_ids[:boundary]
+                        )
+                    ):
+                        # split_point 은 boundary req 이전까지의 token 합.
+                        neo_split_point = int(
+                            num_scheduled_tokens_np[:boundary].sum()
+                        )
+                        if 0 < neo_split_point < num_tokens_padded:
+                            should_ubatch = True
+                            neo_split_used = True
+                            if logger.isEnabledFor(logging.DEBUG):
+                                logger.debug(
+                                    "[NEO] forward-context fork active: "
+                                    "split_point=%d (boundary=%d, "
+                                    "sub-batch sizes=%d/%d)",
+                                    neo_split_point, boundary,
+                                    boundary, len(neo_subs_str[1]),
+                                )
+
             ubatch_slices, ubatch_slices_padded = maybe_create_ubatch_slices(
                 should_ubatch,
                 num_scheduled_tokens_np,
                 num_tokens_padded,
                 num_reqs_padded,
-                self.parallel_config.num_ubatches,
+                # NEO 는 항상 2 sub-batches 이므로 강제 2.
+                # DBO 일반 경로는 config 가 결정.
+                2 if neo_split_used else self.parallel_config.num_ubatches,
+                split_point=neo_split_point if neo_split_used else None,
             )
 
             logger.debug(
@@ -4136,15 +4205,24 @@ class GPUModelRunner(
             # back to the vanilla call on any exception — vLLM's
             # forward-context is still single-batch, so today we only
             # exercise the wiring + measure where the next blocker lies.
-            neo_sub_batches = getattr(scheduler_output, "neo_sub_batches", None)
-            if neo_sub_batches and len(neo_sub_batches) >= 1:
-                logger.info(
-                    "[NEO-DEBUG] execute_model gate: %d sub-batch(es), "
-                    "req-id counts=%s",
-                    len(neo_sub_batches),
-                    [len(sb) for sb in neo_sub_batches],
+            # NEO sub-batch attachment — vanilla path 에는 영향 없음.
+            # ``_neo_pending_subbatches`` 가 set 되면 ``_model_forward``
+            # 가 fork branch 진입.
+            if self._neo_enabled:
+                neo_sub_batches = getattr(
+                    scheduler_output, "neo_sub_batches", None
                 )
-                self._neo_pending_subbatches = neo_sub_batches
+                if neo_sub_batches:
+                    self._neo_pending_subbatches = neo_sub_batches
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(
+                            "[NEO] execute_model gate: %d sub-batch(es), "
+                            "req-id counts=%s",
+                            len(neo_sub_batches),
+                            [len(sb) for sb in neo_sub_batches],
+                        )
+                else:
+                    self._neo_pending_subbatches = None
             else:
                 self._neo_pending_subbatches = None
 
@@ -5867,6 +5945,115 @@ class GPUModelRunner(
         max_task = max(output_size.items(), key=lambda x: x[1])[0]
         return self._dummy_pooler_run_task(hidden_states, max_task)
 
+    # ------------------------------------------------------------------
+    # NEO PerfPredictor — engine-side measure_fn (TSK_017 Step 1.5).
+    # Returns table data as plain dict so the main process can populate
+    # ``TablePerfPredictor`` after RPC. cdec measurement is skipped (CPU
+    # attention path is TSK_018).
+    # ------------------------------------------------------------------
+    def profile_neo_predictor(self) -> dict:
+        """Worker-side PerfPredictor table profiling.
+
+        Time NEO's four prediction shapes via ``_dummy_run`` and return
+        the populated lists. The main process wires the result into
+        ``TablePerfPredictor`` and swaps the scheduler's predictor.
+
+        Each measurement = 2 warmup + 3 timed forward passes (averaged).
+        For prod-scale models the full table can take 10s~minutes —
+        first-run cost only (disk cache TODO at TSK_017 Step 1.7).
+        """
+        if not self._neo_enabled:
+            return {}
+
+        # Build a temp predictor just to get the sampling points
+        # (the same module is used in main process too).
+        from vllm.v1.core.sched.perfpredictor import TablePerfPredictor
+
+        pred = TablePerfPredictor(self.vllm_config)
+
+        nwarmup, nrepeat = 2, 3
+
+        def _measure(num_tokens: int, uniform_decode: bool) -> float:
+            """Avg ms over ``nrepeat`` timed forward passes."""
+            for _ in range(nwarmup):
+                self._dummy_run(
+                    num_tokens,
+                    cudagraph_runtime_mode=CUDAGraphMode.NONE,
+                    uniform_decode=uniform_decode,
+                    is_profile=True,
+                )
+            torch.cuda.synchronize()
+            t0 = time.perf_counter()
+            for _ in range(nrepeat):
+                self._dummy_run(
+                    num_tokens,
+                    cudagraph_runtime_mode=CUDAGraphMode.NONE,
+                    uniform_decode=uniform_decode,
+                    is_profile=True,
+                )
+            torch.cuda.synchronize()
+            return (time.perf_counter() - t0) * 1000.0 / nrepeat
+
+        # Subsample very fine-grained linr range to bound profile cost.
+        # NEO uses range(1, 512) for linr but interpolation only needs
+        # ~10 points to get acceptable accuracy.
+        def _subsample(xs: list[int], target: int = 16) -> list[int]:
+            if len(xs) <= target:
+                return xs
+            step = max(1, len(xs) // target)
+            sub = xs[::step]
+            if sub[-1] != xs[-1]:
+                sub.append(xs[-1])
+            return sub
+
+        linr_S_sub = _subsample(pred.linr_S_list)
+        pref_S_sub = _subsample(pred.pref_S_list)
+        gdec_N_sub = _subsample(pred.gdec_N_list)
+
+        t_total0 = time.perf_counter()
+        # linr/pref are *prefill-shaped* forwards at width S
+        # (uniform_decode=False — single sequence of S new tokens).
+        linr_T_pairs = [
+            (S, _measure(S, uniform_decode=False)) for S in linr_S_sub
+        ]
+        pref_T_pairs = [
+            (S, _measure(S, uniform_decode=False)) for S in pref_S_sub
+        ]
+        # gdec is *decode-shaped* — 1 token per request, batch dim ≈ B.
+        # ``_dummy_run(num_tokens=N, uniform_decode=True)`` requires
+        # N <= max_num_seqs (each req decodes 1 token). Clamp larger N
+        # to max_num_seqs for the FORWARD shape but keep the original
+        # N as the *predictor key* — table interpolation still queries
+        # by total KV tokens. Accuracy at large N is approximate (forward
+        # only sees max_num_seqs decode reqs); good enough for first
+        # iteration of the heuristic.
+        max_seqs = self.scheduler_config.max_num_seqs
+        gdec_T_pairs = [
+            (N, _measure(min(N, max_seqs), uniform_decode=True))
+            for N in gdec_N_sub
+        ]
+        # Launch overhead — measure with 1 token forward (smallest).
+        lnch_T = _measure(1, uniform_decode=True)
+        elapsed = time.perf_counter() - t_total0
+        logger.info(
+            "[NEO] profile_neo_predictor: %d points × %d forwards in %.2fs"
+            " (linr=%d, pref=%d, gdec=%d, lnch_T=%.2fms)",
+            len(linr_T_pairs) + len(pref_T_pairs) + len(gdec_T_pairs) + 1,
+            nwarmup + nrepeat,
+            elapsed,
+            len(linr_T_pairs),
+            len(pref_T_pairs),
+            len(gdec_T_pairs),
+            lnch_T,
+        )
+
+        return {
+            "linr_T_pairs": linr_T_pairs,
+            "pref_T_pairs": pref_T_pairs,
+            "gdec_T_pairs": gdec_T_pairs,
+            "lnch_T": lnch_T,
+        }
+
     def profile_run(self) -> None:
         # Profile with multimodal encoder & encoder cache.
         if self.supports_mm_inputs:
@@ -6385,6 +6572,28 @@ class GPUModelRunner(
         """
         Create the metadata builders for all KV cache groups and attn groups.
         """
+        # NEO 식 pipelined (Step 5.5 fork) 가 *실제로* 발화하는 경로만
+        # 2 builders 가 필요. 단순 NEO 활성 (sequential mode) 은 1 builder
+        # 면 충분 — vanilla 와 동일. ZeroPerfPredictor + 비-FORCE 환경
+        # (즉 production 의 일반 NEO ON) 에서는 항상 sequential 만 결정 →
+        # 2 builders 할당이 잠재적 회귀 요인 (단, 분석 영역 — 측정으로
+        # 입증 후 결정).
+        # 일단 보수적으로 *FORCE 플래그* 또는 use_ubatching 활성 시에만
+        # 2 builders 할당. 진짜 NEO heuristic 활성 (TSK_017 PerfPredictor
+        # 적재 후) 시에는 별도 path 추가 필요.
+        from vllm.v1.core.sched.mode_selector import _FORCE_PIPELINED
+        enable_neo = getattr(
+            self.vllm_config.scheduler_config,
+            "enable_neo_asymmetric",
+            False,
+        )
+        if self.parallel_config.use_ubatching:
+            num_builders = self.parallel_config.num_ubatches
+        elif enable_neo and _FORCE_PIPELINED:
+            num_builders = 2
+        else:
+            num_builders = 1
+
         for kv_cache_group_id in range(len(kv_cache_config.kv_cache_groups)):
             for attn_group in self.attn_groups[kv_cache_group_id]:
                 attn_group.create_metadata_builders(
@@ -6393,9 +6602,7 @@ class GPUModelRunner(
                     kernel_block_sizes[kv_cache_group_id]
                     if kv_cache_group_id < len(kernel_block_sizes)
                     else None,
-                    num_metadata_builders=1
-                    if not self.parallel_config.use_ubatching
-                    else self.parallel_config.num_ubatches,
+                    num_metadata_builders=num_builders,
                 )
         # Calculate reorder batch threshold (if needed)
         # Note (tdoublep): do this *after* constructing builders,

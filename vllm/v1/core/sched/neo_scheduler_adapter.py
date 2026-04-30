@@ -168,6 +168,21 @@ class NeoSchedulerAdapter(Scheduler):
             predictor=self.predictor,
         )
         self.last_neo_output: "NeoSchedulerOutput | None" = None
+        # add_request → finish_requests 사이에 같은 view 객체를 재사용
+        # 하기 위한 cache. 매 finish 마다 hash 재계산을 피한다 + int-pool
+        # 인덱스 stability 도 보장.
+        self._neo_view_cache: dict[str, _NeoRequestView] = {}
+
+        # Sibling skip 판정 — predictor 가 ZeroPerfPredictor 면 항상
+        # sequential 결정. FORCE flag 도 비활성이면 sibling 작업 100%
+        # 폐기 → schedule() 마다 호출 자체를 skip. TSK_017 PerfPredictor
+        # 적재 후 predictor swap 시점에 본 flag 도 갱신 필요.
+        from vllm.v1.core.sched.mode_selector import _FORCE_PIPELINED
+        from vllm.v1.core.sched.perfpredictor import ZeroPerfPredictor
+        self._neo_sibling_meaningful: bool = (
+            _FORCE_PIPELINED
+            or not isinstance(self.predictor, ZeroPerfPredictor)
+        )
 
         logger.info(
             "NeoSchedulerAdapter: enable_neo_asymmetric activated. "
@@ -182,22 +197,89 @@ class NeoSchedulerAdapter(Scheduler):
     # ------------------------------------------------------------------
     def add_request(self, request) -> None:  # type: ignore[override]
         super().add_request(request)
+        # Cache the view by its (string) request_id so finish_requests
+        # can retrieve the *same* object — avoids re-hashing the rid
+        # and keeps the int-pool index stable between add/finish.
+        view = _NeoRequestView(request)
+        self._neo_view_cache[view._str_id] = view
+        self.neo_scheduler.on_requests_arrival([view])
+
+    # ------------------------------------------------------------------
+    # NEO PerfPredictor — populate from worker-side profile (TSK_017
+    # Step 1.6). Called by EngineCore once after warmup.
+    # ------------------------------------------------------------------
+    def populate_predictor_from_profile(self, profile_data: dict) -> None:
+        """Replace ``ZeroPerfPredictor`` with measurements collected by
+        ``GPUModelRunner.profile_neo_predictor`` on worker_0.
+
+        ``profile_data`` is a dict with ``{linr,pref,gdec}_T_pairs`` of
+        ``(S_or_N, ms)`` tuples plus ``lnch_T`` ms. We rebuild the
+        ``TablePerfPredictor`` 's lists from these pairs (the sampling
+        sub-set the worker measured) and atomically swap.
+        """
+        from vllm.v1.core.sched.perfpredictor import TablePerfPredictor
+
+        if not profile_data:
+            logger.warning(
+                "NEO: profile_data empty — predictor stays ZeroPerfPredictor."
+            )
+            return
+
         try:
-            self.neo_scheduler.on_requests_arrival([
-                _NeoRequestView(request)
-            ])
+            pred = TablePerfPredictor(self.vllm_config)
+            # Replace S/T list pairs with the *measured* sub-set.
+            linr_pairs = profile_data.get("linr_T_pairs", [])
+            pref_pairs = profile_data.get("pref_T_pairs", [])
+            gdec_pairs = profile_data.get("gdec_T_pairs", [])
+            if linr_pairs:
+                pred.linr_S_list = [p[0] for p in linr_pairs]
+                pred.linr_T_list = [p[1] for p in linr_pairs]
+                pred.linr_S_lb_idx = pred._get_lb_idx_list(pred.linr_S_list)
+            if pref_pairs:
+                pred.pref_S_list = [p[0] for p in pref_pairs]
+                pred.pref_T_list = [p[1] for p in pref_pairs]
+                pred.pref_S_lb_idx = pred._get_lb_idx_list(pred.pref_S_list)
+            if gdec_pairs:
+                pred.gdec_N_list = [p[0] for p in gdec_pairs]
+                pred.gdec_T_list = [p[1] for p in gdec_pairs]
+                pred.gdec_N_lb_idx = pred._get_lb_idx_list(pred.gdec_N_list)
+            pred.lnch_T = float(profile_data.get("lnch_T", 0.8))
+
+            # Atomic swap. NeoScheduler 도 같은 ref 를 사용하므로 한 번만.
+            self.predictor = pred
+            self.table_predictor = pred
+            self.neo_scheduler.predictor = pred
+
+            # Sibling 의 hot-path skip 영역 갱신 — 진짜 prediction table
+            # 보유했으므로 더 이상 항상 sequential 만 결정 안 함.
+            self._neo_sibling_meaningful = True
+
+            logger.info(
+                "NEO: PerfPredictor populated (linr=%d/pref=%d/gdec=%d points,"
+                " lnch_T=%.2fms). NEO scheduler now makes real "
+                "sequential vs pipelined decisions.",
+                len(linr_pairs), len(pref_pairs), len(gdec_pairs),
+                pred.lnch_T,
+            )
         except Exception as e:  # noqa: BLE001
-            logger.debug("NEO sibling add_request failed: %s", e)
+            logger.warning(
+                "NEO: populate_predictor_from_profile failed (%s) — "
+                "predictor stays ZeroPerfPredictor.", e,
+            )
 
     def finish_requests(self, request_ids, finished_status) -> None:  # type: ignore[override]
         super().finish_requests(request_ids, finished_status)
-        try:
-            wrappers = [
-                _NeoRequestView.from_id(rid) for rid in request_ids
-            ]
-            self.neo_scheduler.remove_finished_requests(wrappers)
-        except Exception as e:  # noqa: BLE001
-            logger.debug("NEO sibling finish_requests failed: %s", e)
+        if not request_ids:
+            return
+        # Pull the *cached* view first; only fall back to ``from_id``
+        # (which re-hashes) if a request was never seen by add_request
+        # (e.g. cancelled before scheduling).
+        cache = self._neo_view_cache
+        wrappers = [
+            cache.pop(rid, None) or _NeoRequestView.from_id(rid)
+            for rid in request_ids
+        ]
+        self.neo_scheduler.remove_finished_requests(wrappers)
 
     # ------------------------------------------------------------------
     # schedule — drive both the default and NEO schedulers, attach the
@@ -208,16 +290,30 @@ class NeoSchedulerAdapter(Scheduler):
         # actually consumes for vanilla operation.
         output = super().schedule()
 
-        # Drive the NEO sibling. The decision is *attached* to the
-        # SchedulerOutput so that the GPU model runner can consume it
-        # in subsequent stages (Step 5.3+).
-        try:
-            n_wait_before = len(self.neo_scheduler.waiting_q)
-            n_gpu_dec_before = len(self.neo_scheduler.gpu_decoding_q)
-            n_cpu_dec_before = len(self.neo_scheduler.cpu_decoding_q)
-            self.last_neo_output = self.neo_scheduler.schedule()
-            logger.info(
-                "[NEO-DEBUG] schedule(): pre-queues "
+        # Sibling skip — NEO scheduler 가 *의미 있는 결정* 을 내릴 수
+        # 없는 환경에서는 sibling 의 schedule() 호출 자체를 skip 해서
+        # 매 step 의 SubBatch/BatchPerfData/ScheduleBudget 할당 + 6 단계
+        # 알고리즘 통째로 회피. 의미 있는 결정 = pipelined return 가능
+        # 한 환경 = (a) FORCE flag 활성 또는 (b) PerfPredictor 가
+        # ZeroPerfPredictor 가 아닌 진짜 측정 table 보유 (TSK_017 이후).
+        # 둘 다 아니면 항상 sequential mode → sibling 작업 100% 폐기.
+        if not self._neo_sibling_meaningful:
+            self.last_neo_output = None
+            return output
+
+        # Drive the NEO sibling. ``try/except`` is intentionally *narrow*
+        # — the sibling schedule itself runs without try-overhead on the
+        # hot path.
+        n_wait_before = len(self.neo_scheduler.waiting_q)
+        n_gpu_dec_before = len(self.neo_scheduler.gpu_decoding_q)
+        n_cpu_dec_before = len(self.neo_scheduler.cpu_decoding_q)
+        self.last_neo_output = self.neo_scheduler.schedule()
+        # Per-iteration diagnostic — DEBUG only (no-op at default INFO
+        # level, so zero hot-path cost). Re-enable with ``--log-level
+        # DEBUG`` when investigating.
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "[NEO] schedule(): pre-queues "
                 "wait=%d gdec=%d cdec=%d → batches=%d swap_in=%d swap_out=%d",
                 n_wait_before, n_gpu_dec_before, n_cpu_dec_before,
                 len(self.last_neo_output.batches),
@@ -225,29 +321,35 @@ class NeoSchedulerAdapter(Scheduler):
                 len(self.last_neo_output.swap_out_reqs),
             )
             for i, b in enumerate(self.last_neo_output.batches):
-                logger.info(
-                    "[NEO-DEBUG]   batch[%d]: gprf=%d cprf=%d gdec=%d cdec=%d total=%d",
-                    i, b.num_gprfs, b.num_cprfs, b.num_gdecs, b.num_cdecs, len(b),
+                logger.debug(
+                    "[NEO]   batch[%d]: gprf=%d cprf=%d gdec=%d cdec=%d total=%d",
+                    i, b.num_gprfs, b.num_cprfs, b.num_gdecs, b.num_cdecs,
+                    len(b),
                 )
-        except Exception as e:  # noqa: BLE001
-            logger.warning("[NEO-DEBUG] sibling raised: %s: %s",
-                           type(e).__name__, e)
-            self.last_neo_output = None
 
-        if self.last_neo_output is not None:
+        # Attach NEO sub-batch decision to SchedulerOutput *only* when
+        # the runner actually needs it. Sequential mode (1 sub-batch)
+        # is functionally vanilla — the runner's NEO branch checks
+        # ``len(pending) == 2``. Attaching a 200+ string list every step
+        # for sequential mode just bloats IPC (pickle of SchedulerOutput
+        # broadcast to all TP workers) without any benefit. Skip it.
+        batches = self.last_neo_output.batches
+        if len(batches) >= 2:
             try:
                 output.neo_sub_batches = [
-                    [r.request_id for r in batch.all_reqs]
-                    for batch in self.last_neo_output.batches
-                ]
-                output.neo_swap_in_req_ids = [
-                    r.request_id for r in self.last_neo_output.swap_in_reqs
-                ]
-                output.neo_swap_out_req_ids = [
-                    r.request_id for r in self.last_neo_output.swap_out_reqs
+                    [r._str_id for r in batch.all_reqs]
+                    for batch in batches
                 ]
             except (AttributeError, TypeError) as e:
-                # Defensive: never break the data path on attachment failure.
                 logger.debug("NEO output attach failed: %s", e)
+
+        # Swap lists rarely populated (only when KV exclusive ownership
+        # is active — TSK_015). Skip attach when empty.
+        swap_in = self.last_neo_output.swap_in_reqs
+        swap_out = self.last_neo_output.swap_out_reqs
+        if swap_in:
+            output.neo_swap_in_req_ids = [r._str_id for r in swap_in]
+        if swap_out:
+            output.neo_swap_out_req_ids = [r._str_id for r in swap_out]
 
         return output

@@ -506,7 +506,12 @@ class Qwen2Model(nn.Module, EagleModelMixin):
         sub_batches,                                   # list[SubBatch]
         positions_list: list[torch.Tensor],
         embeddings_list: list[torch.Tensor],
+        per_subbatch_contexts=None,                    # list[ForwardContext] | None
     ):
+        """Mirror of LlamaModel.forward_neo_pipelined — see that for
+        the per_subbatch_contexts contract (Step 5.5 forward-context fork).
+        """
+        from vllm.forward_context import override_forward_context
         from vllm.v1.worker.sub_batch_executor import (
             LayerPipelineCallbacks,
             SubBatchPipelineExecutor,
@@ -523,6 +528,11 @@ class Qwen2Model(nn.Module, EagleModelMixin):
 
         residuals: dict[tuple[int, int], torch.Tensor | None] = {}
 
+        # Pre-compute id(batch) → ubid mapping (mirror of llama.py port).
+        _bid_to_ubid: dict[int, int] = {
+            id(sb): ubid for ubid, sb in enumerate(sub_batches)
+        }
+
         def _bid(batch) -> int:
             return id(batch)
 
@@ -537,12 +547,14 @@ class Qwen2Model(nn.Module, EagleModelMixin):
         def attention(q, k, v, batch, cur_layer_id):
             del k, v
             layer = layers[cur_layer_id]
-            for sb, pos in zip(sub_batches, positions_list):
-                if sb is batch:
-                    return layer.neo_attention(positions=pos, hidden_states=q)
-            raise RuntimeError(
-                "neo_attention: batch identity not found in sub_batches"
-            )
+            ubid = _bid_to_ubid[id(batch)]
+            pos = positions_list[ubid]
+            if per_subbatch_contexts is not None:
+                with override_forward_context(per_subbatch_contexts[ubid]):
+                    return layer.neo_attention(
+                        positions=pos, hidden_states=q
+                    )
+            return layer.neo_attention(positions=pos, hidden_states=q)
 
         def postproj(attn_out, batch, layer_idx):
             layer = layers[layer_idx]

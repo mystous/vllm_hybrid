@@ -218,6 +218,37 @@ class EngineCore:
 
         self._idle_state_callbacks: list[Callable] = []
 
+        # NEO PerfPredictor profile (TSK_017 Step 1.6) — only when NEO
+        # scheduler is active. Done AFTER warmup (model + KV cache ready)
+        # so dummy_run sees the production setup. Currently sync — first
+        # invocation blocks startup; measured cost will guide whether to
+        # add disk cache (Step 1.7) or async background.
+        if hasattr(self.scheduler, "populate_predictor_from_profile"):
+            try:
+                t_profile_0 = time.time()
+                # collective_rpc broadcasts the call to all TP workers.
+                # Each returns its dict; use worker_0 (rank 0) since
+                # profiling is deterministic per (model, GPU, dtype).
+                rpc_results = self.model_executor.collective_rpc(
+                    "profile_neo_predictor"
+                )
+                profile_data = (
+                    rpc_results[0] if rpc_results else {}
+                )
+                self.scheduler.populate_predictor_from_profile(profile_data)
+                logger.info(
+                    "NEO PerfPredictor profile took %.2fs",
+                    time.time() - t_profile_0,
+                )
+            except Exception as e:  # noqa: BLE001
+                import traceback as _tb
+                logger.warning(
+                    "NEO: predictor profile hook failed (%s: %s) — running"
+                    " with ZeroPerfPredictor (NEO scheduler always sequential)."
+                    " trace=\n%s",
+                    type(e).__name__, e, _tb.format_exc(),
+                )
+
         # Mark the startup heap as static so that it's ignored by GC.
         # Reduces pause times of oldest generation collections.
         freeze_gc_heap()
@@ -309,6 +340,7 @@ class EngineCore:
                 elapsed,
                 scope="local",
             )
+
         return scheduler_kv_cache_config
 
     def get_supported_tasks(self) -> tuple[SupportedTask, ...]:
