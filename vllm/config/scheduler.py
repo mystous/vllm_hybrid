@@ -163,6 +163,19 @@ class SchedulerConfig:
 
     See ``shadow_assists/features/IDE_006/NEO_redesign.md``."""
 
+    kv_cache_policy: Literal["mirror", "exclusive"] = "mirror"
+    """KV cache ownership policy (IDE_006 / TSK_015).
+
+    * ``mirror`` (default, vanilla): cold blocks 가 CPU 로 offload 되어도
+      GPU 에 *복사본* 이 잔류 — vLLM 기본 OffloadingConnector 동작.
+    * ``exclusive``: cold blocks 가 CPU 로 *이전* (GPU 영역 free) — NEO
+      식 request 단위 GPU/CPU exclusive ownership. 이 정책 하에서만
+      NEO scheduler 가 cdec_reqs 를 진짜 populate 하고 TSK_018 의 CPU
+      sub-batch attention 가 발화.
+
+    ``exclusive`` 는 ``enable_neo_asymmetric=True`` 와 함께 사용 권장.
+    See ``shadow_assists/features/IDE_006/TSK_015.md``."""
+
     @staticmethod
     def default_factory(**kwargs):
         """
