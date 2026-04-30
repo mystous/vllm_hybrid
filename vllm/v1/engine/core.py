@@ -433,6 +433,48 @@ class EngineCore:
         )
         self._iteration_index += 1
 
+    # ------------------------------------------------------------------
+    # TSK_015 Phase 4.4.c — NEO swap-out / swap-in dispatch hook.
+    #
+    # Off by default (env-gated). Activates only when the operator opts
+    # in with ``VLLM_NEO_KV_FREE=1``. Reads ``neo_swap_out_req_ids`` /
+    # ``neo_swap_in_req_ids`` from SchedulerOutput (attached by the NEO
+    # adapter), then dispatches to ``Scheduler._neo_swap_out`` /
+    # ``_neo_swap_in`` (Phase 4.4.a/b helpers).
+    #
+    # Important — runs *between* ``execute_model`` (so the worker has
+    # already finished the GPU↔CPU KV copy via ``_neo_handle_kv_swap``)
+    # and ``update_from_output`` (so the swap'd req's status is correct
+    # by the time outputs are folded in).
+    # ------------------------------------------------------------------
+    def _handle_neo_swaps(self, scheduler_output: SchedulerOutput) -> None:
+        if os.environ.get("VLLM_NEO_KV_FREE") != "1":
+            return
+        swap_out_ids = getattr(scheduler_output, "neo_swap_out_req_ids", None)
+        swap_in_ids = getattr(scheduler_output, "neo_swap_in_req_ids", None)
+        if not swap_out_ids and not swap_in_ids:
+            return
+        sched = self.scheduler
+        # Out: RUNNING → SWAPPED_OUT, KV freed, popped from running.
+        if swap_out_ids:
+            for req_id in swap_out_ids:
+                req = sched.requests.get(req_id)
+                if req is None or req.status != RequestStatus.RUNNING:
+                    continue
+                sched._neo_swap_out(req)
+                try:
+                    sched.running.remove(req)
+                except ValueError:
+                    pass        # already absent — defensive
+        # In: SWAPPED_OUT → RUNNING, GPU blocks re-allocated, appended.
+        if swap_in_ids:
+            for req_id in swap_in_ids:
+                req = sched.requests.get(req_id)
+                if req is None or req.status != RequestStatus.SWAPPED_OUT:
+                    continue
+                if sched._neo_swap_in(req):
+                    sched.running.append(req)
+
     def step(self) -> tuple[dict[int, EngineCoreOutputs], bool]:
         """Schedule, execute, and make output.
 
@@ -458,6 +500,8 @@ class EngineCore:
         # Before processing the model output, process any aborts that happened
         # during the model execution.
         self._process_aborts_queue()
+        # TSK_015 Phase 4.4.c — opt-in NEO swap dispatch (env-gated).
+        self._handle_neo_swaps(scheduler_output)
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, model_output
         )

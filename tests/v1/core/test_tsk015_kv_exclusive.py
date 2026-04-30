@@ -508,3 +508,141 @@ def test_neo_swap_out_then_swap_in_roundtrip_preserves_progress():
     assert req.status == RequestStatus.RUNNING
     assert req.num_computed_tokens == 99       # 보존
     assert req.spec_token_ids == [1, 2, 3, 4, 5]  # 보존
+
+
+# ----------------------------------------------------------------------
+# Phase 4.4.c — EngineCore._handle_neo_swaps env-gated dispatch.
+# ----------------------------------------------------------------------
+class _StubFullScheduler(_StubSchedulerForSwapIn):
+    """Adds the bits ``_handle_neo_swaps`` reads: ``requests`` dict and
+    ``running`` list."""
+
+    def __init__(self, alloc_returns: bool = True) -> None:
+        super().__init__(alloc_returns=alloc_returns)
+        self.requests: dict[str, _StubRequest] = {}
+        self.running: list[_StubRequest] = []
+
+
+class _StubEngineCore:
+    """Hosts ``_handle_neo_swaps`` bound off the real EngineCore class.
+    ``self.scheduler`` provides ``requests`` / ``running`` /
+    ``_neo_swap_out`` / ``_neo_swap_in`` like the real one."""
+
+    def __init__(self, scheduler) -> None:
+        self.scheduler = scheduler
+
+    def _bind(self):
+        from vllm.v1.engine.core import EngineCore
+        self._handle_neo_swaps = EngineCore._handle_neo_swaps.__get__(
+            self, type(self))
+
+
+class _StubSchedOut:
+    def __init__(self, swap_out=None, swap_in=None) -> None:
+        self.neo_swap_out_req_ids = swap_out
+        self.neo_swap_in_req_ids = swap_in
+
+
+def test_handle_neo_swaps_noop_when_env_off(monkeypatch):
+    """With VLLM_NEO_KV_FREE unset (prod default), no swap dispatch
+    occurs even when SchedulerOutput has populated swap lists."""
+    from vllm.v1.request import RequestStatus
+    monkeypatch.delenv("VLLM_NEO_KV_FREE", raising=False)
+
+    sch = _StubFullScheduler()
+    sch._bind()
+    req = _StubRequest("r_off", num_computed_tokens=5)
+    sch.requests[req.request_id] = req
+    sch.running.append(req)
+
+    core = _StubEngineCore(sch)
+    core._bind()
+    core._handle_neo_swaps(_StubSchedOut(swap_out=[req.request_id]))
+
+    # No-op: status unchanged, KV not freed, still in running.
+    assert req.status == RequestStatus.RUNNING
+    assert sch.kv_cache_manager.free_calls == []
+    assert req in sch.running
+
+
+def test_handle_neo_swaps_dispatches_swap_out_on_env(monkeypatch):
+    """VLLM_NEO_KV_FREE=1 → swap_out_req_ids dispatched + popped from running."""
+    from vllm.v1.request import RequestStatus
+    monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
+
+    sch = _StubFullScheduler()
+    sch._bind()
+    req = _StubRequest("r_out", num_computed_tokens=12)
+    sch.requests[req.request_id] = req
+    sch.running.append(req)
+
+    core = _StubEngineCore(sch)
+    core._bind()
+    core._handle_neo_swaps(_StubSchedOut(swap_out=[req.request_id]))
+
+    assert req.status == RequestStatus.SWAPPED_OUT
+    assert sch.kv_cache_manager.free_calls == [req]
+    assert req not in sch.running                   # popped
+
+
+def test_handle_neo_swaps_dispatches_swap_in_on_env(monkeypatch):
+    """VLLM_NEO_KV_FREE=1 + swap_in_req_ids → SWAPPED_OUT→RUNNING + appended."""
+    from vllm.v1.request import RequestStatus
+    monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
+
+    sch = _StubFullScheduler(alloc_returns=True)
+    sch._bind()
+    req = _StubRequest("r_in", num_computed_tokens=20)
+    req.status = RequestStatus.SWAPPED_OUT
+    sch.requests[req.request_id] = req
+    # not in running yet — will be appended on swap-in success
+
+    core = _StubEngineCore(sch)
+    core._bind()
+    core._handle_neo_swaps(_StubSchedOut(swap_in=[req.request_id]))
+
+    assert req.status == RequestStatus.RUNNING
+    assert req in sch.running                       # appended
+    assert sch.kv_cache_manager.alloc_calls == [req]
+
+
+def test_handle_neo_swaps_skips_unknown_req_ids(monkeypatch):
+    """Stale req_id (not in requests dict) is silently skipped."""
+    monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
+    sch = _StubFullScheduler()
+    sch._bind()
+    core = _StubEngineCore(sch)
+    core._bind()
+    # No matching request in dict — must not raise.
+    core._handle_neo_swaps(_StubSchedOut(
+        swap_out=["does_not_exist"],
+        swap_in=["also_missing"],
+    ))
+    assert sch.kv_cache_manager.free_calls == []
+
+
+def test_handle_neo_swaps_skips_stale_status(monkeypatch):
+    """Req in dict but status mismatch (e.g. already SWAPPED_OUT for an
+    out-id, or already RUNNING for an in-id) is skipped to avoid
+    double-transitions."""
+    from vllm.v1.request import RequestStatus
+    monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
+    sch = _StubFullScheduler()
+    sch._bind()
+    # already-out req — must NOT free again
+    r1 = _StubRequest("r_already_out", num_computed_tokens=5)
+    r1.status = RequestStatus.SWAPPED_OUT
+    sch.requests[r1.request_id] = r1
+    # already-running req — must NOT swap-in again
+    r2 = _StubRequest("r_already_in", num_computed_tokens=5)
+    r2.status = RequestStatus.RUNNING
+    sch.requests[r2.request_id] = r2
+
+    core = _StubEngineCore(sch)
+    core._bind()
+    core._handle_neo_swaps(_StubSchedOut(
+        swap_out=[r1.request_id],     # status mismatch → skip
+        swap_in=[r2.request_id],      # status mismatch → skip
+    ))
+    assert sch.kv_cache_manager.free_calls == []
+    assert sch.kv_cache_manager.alloc_calls == []
