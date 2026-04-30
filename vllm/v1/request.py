@@ -304,6 +304,12 @@ class RequestStatus(enum.IntEnum):
     WAITING_FOR_REMOTE_KVS = enum.auto()
     WAITING_FOR_STREAMING_REQ = enum.auto()
     RUNNING = enum.auto()
+    # TSK_015 Phase 4.4.a — NEO 식 GPU→CPU KV swap-out 상태. ``RUNNING`` 의
+    # variant 로 볼 수 있으나 NEO 의 ``cpu_decoding_q`` 가 source of truth 이고
+    # vLLM scheduler 의 ``self.running`` 에서는 빠진다. ``num_computed_tokens``
+    # 는 보존되어 swap-in 시 그대로 복귀. ``PREEMPTED`` 와 별개 trace —
+    # ``waiting`` 으로 prepend 되지 않음.
+    SWAPPED_OUT = enum.auto()
     PREEMPTED = enum.auto()
     # Note: anything after PREEMPTED will be considered
     # as a finished status.

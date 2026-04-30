@@ -980,6 +980,51 @@ class Scheduler(SchedulerInterface):
         # Put the request back to the waiting queue.
         self.waiting.prepend_request(request)
 
+    # ------------------------------------------------------------------
+    # TSK_015 Phase 4.4.a — NEO 전용 GPU→CPU swap-out helper.
+    #
+    # vLLM 의 ``_preempt_request`` 와 의미가 다름:
+    # - KV: free (GPU 풀로 회수). CPU 사본은 worker (`_neo_handle_kv_swap`)
+    #   가 별도로 보관.
+    # - ``num_computed_tokens``: **보존** (재 prefill 안 함; swap-in 시
+    #   그대로 복귀).
+    # - ``spec_token_ids``: 보존 (preempt 와 차이점).
+    # - ``num_preemptions``: unchanged (preempt 가 아님).
+    # - status: ``SWAPPED_OUT`` (PREEMPTED 와 별개 trace).
+    # - 다음 위치: ``waiting`` 으로 가지 않음. NEO scheduler 의
+    #   ``cpu_decoding_q`` 가 source of truth.
+    #
+    # NOTE — 호출자 책임:
+    # - ``self.running`` 에서 popping 은 caller 가 처리 (Phase 4.4.c
+    #   EngineCore hook 에서 SchedulerOutput.neo_swap_out_req_ids 기반).
+    # - GPU→CPU KV 사본은 본 helper 호출 *전에* worker 가 완료해야 함
+    #   (`_neo_handle_kv_swap` `gpu_model_runner.py`).
+    # ------------------------------------------------------------------
+    def _neo_swap_out(self, request: Request, timestamp: float | None = None) -> None:
+        """NEO 식 GPU→CPU swap-out.
+
+        See class-level note above for semantic differences vs
+        ``_preempt_request``. This is a *swap*, not a preempt — KV is
+        moved to CPU (caller-side), GPU blocks are reclaimed, but
+        progress (``num_computed_tokens`` / ``spec_token_ids``) is
+        preserved for swap-in.
+        """
+        assert request.status == RequestStatus.RUNNING, (
+            f"Only running requests can be NEO-swapped-out; got {request.status}"
+        )
+        # Reclaim GPU KV blocks. CPU copy is held by the worker-side
+        # NeoCpuKvBuffer keyed by request_id.
+        self.kv_cache_manager.free(request)
+        # Encoder cache is typically empty post-prefill; defensive free
+        # is a no-op when already cleared.
+        self.encoder_cache_manager.free(request)
+        request.status = RequestStatus.SWAPPED_OUT
+        # num_computed_tokens / spec_token_ids / num_preemptions 보존.
+        if self.log_stats and timestamp is not None:
+            # Reuse PREEMPTED event type until a dedicated SWAPPED_OUT
+            # event is added (low-priority — telemetry only).
+            request.record_event(EngineCoreEventType.PREEMPTED, timestamp)
+
     def _update_after_schedule(self, scheduler_output: SchedulerOutput) -> None:
         # Advance the number of computed tokens for the request AFTER
         # the request is scheduled.
