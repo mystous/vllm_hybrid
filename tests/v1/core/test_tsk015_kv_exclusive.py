@@ -313,3 +313,101 @@ def test_buffer_id_uniqueness_under_full_pool():
         assert s.isdisjoint(seen)             # no id reused while alive
         seen.update(s)
     assert len(seen) == 32                    # full pool partitioned
+
+
+# ----------------------------------------------------------------------
+# Phase 4.4.a — Scheduler._neo_swap_out helper (NEO-style swap-out
+# semantics distinct from vLLM ``_preempt_request``).
+# ----------------------------------------------------------------------
+class _StubKvCacheManager:
+    def __init__(self) -> None:
+        self.free_calls: list = []
+
+    def free(self, request) -> None:
+        self.free_calls.append(request)
+
+
+class _StubEncoderCacheManager:
+    def __init__(self) -> None:
+        self.free_calls: list = []
+
+    def free(self, request) -> None:
+        self.free_calls.append(request)
+
+
+class _StubScheduler:
+    """Minimal Scheduler shim that hosts ``_neo_swap_out`` for unit
+    testing without the full Scheduler init machinery (KVCacheConfig,
+    ModelConfig, etc.). The helper itself only touches
+    ``self.kv_cache_manager`` / ``self.encoder_cache_manager`` /
+    ``self.log_stats`` — bind the real method onto this stub."""
+
+    def __init__(self) -> None:
+        self.kv_cache_manager = _StubKvCacheManager()
+        self.encoder_cache_manager = _StubEncoderCacheManager()
+        self.log_stats = False
+
+    # Bind the real method off the Scheduler class — this is what we're
+    # actually testing. Done lazily so the import lives inside the
+    # function body (keeps top-of-file import light).
+    def _bind(self):
+        from vllm.v1.core.sched.scheduler import Scheduler
+        self._neo_swap_out = Scheduler._neo_swap_out.__get__(self, type(self))
+
+
+class _StubRequest:
+    def __init__(self, request_id: str, num_computed_tokens: int = 0) -> None:
+        from vllm.v1.request import RequestStatus
+        self.request_id = request_id
+        self.status = RequestStatus.RUNNING
+        self.num_computed_tokens = num_computed_tokens
+        self.spec_token_ids: list[int] = []
+        self.num_preemptions = 0
+
+    def record_event(self, *_args, **_kwargs):
+        pass
+
+
+def test_request_status_swapped_out_is_not_finished():
+    """SWAPPED_OUT must be < PREEMPTED so ``is_finished`` returns False."""
+    from vllm.v1.request import RequestStatus
+    assert RequestStatus.SWAPPED_OUT < RequestStatus.PREEMPTED
+    assert not RequestStatus.is_finished(RequestStatus.SWAPPED_OUT)
+
+
+def test_neo_swap_out_preserves_progress_and_frees_kv():
+    """_neo_swap_out: status→SWAPPED_OUT, KV freed, num_computed_tokens preserved."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubScheduler()
+    sch._bind()
+    req = _StubRequest("r0", num_computed_tokens=42)
+    req.spec_token_ids = [9, 8, 7]
+
+    sch._neo_swap_out(req)
+
+    assert req.status == RequestStatus.SWAPPED_OUT
+    assert req.num_computed_tokens == 42       # 보존
+    assert req.spec_token_ids == [9, 8, 7]     # 보존
+    assert req.num_preemptions == 0            # preempt 가 아님
+    assert sch.kv_cache_manager.free_calls == [req]
+    assert sch.encoder_cache_manager.free_calls == [req]
+
+
+def test_neo_swap_out_rejects_non_running():
+    """Only RUNNING requests can be NEO-swapped-out."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubScheduler()
+    sch._bind()
+    req = _StubRequest("r1")
+    req.status = RequestStatus.PREEMPTED      # already preempted
+    with pytest.raises(AssertionError, match=r"NEO-swapped-out"):
+        sch._neo_swap_out(req)
+
+
+def test_neo_swap_out_no_event_when_logging_disabled():
+    """log_stats=False (default) must not require timestamp."""
+    sch = _StubScheduler()
+    sch._bind()
+    req = _StubRequest("r2", num_computed_tokens=1)
+    sch._neo_swap_out(req)                     # no timestamp arg
+    # Did not raise — pass.
