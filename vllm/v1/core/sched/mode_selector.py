@@ -19,11 +19,23 @@ See ``shadow_assists/features/IDE_006/NEO_code_deepdive.md`` §3.1.
 
 from __future__ import annotations
 
+import itertools
+import logging
 import math
+import os
 from typing import Iterable, Protocol
 
 from vllm.v1.core.sched.perfpredictor import PerfPredictor
 from vllm.v1.core.sched.sub_batch import SubBatch
+
+# os.environ lookup is *not* free — Python eagerly snapshots all env on
+# first import, but ``os.environ.get`` still does a dict lookup each
+# call. ``decide_mode`` runs every schedule, so cache the flag once at
+# module import. Setting the env var after Python startup will not take
+# effect — that is intentional (used only for dev-time bring-up).
+_FORCE_PIPELINED: bool = os.environ.get("VLLM_NEO_FORCE_PIPELINED") == "1"
+
+logger = logging.getLogger(__name__)
 
 
 class _ReqLike(Protocol):
@@ -105,6 +117,47 @@ def decide_mode(
     """Run NEO's 5-step batch composition. Returns either one or two
     SubBatches depending on whether pipelined mode wins.
     """
+    # Fast-path: 의미 있게 pipelined 가 발화하려면 (a) cpu_decoding_q 가
+    # non-empty (Step 3 가 cdec 배포 가능) 또는 (b) FORCE_PIPELINED 활성.
+    # 둘 다 아니면 batches[1] 가 끝까지 비어있어 line 177 의
+    # ``return [gpu_only_batch]`` 로 떨어진다 — 이때 batches[0] 와
+    # gpu_only_batch 양쪽에 add_gdec/add_pref 를 *모두* 한 작업이 통째로
+    # 폐기. 이 fast-path 로 batches[0]/[1] 의 add 자체를 skip 해서 134+
+    # add_gdec 호출 비용 제거.
+    cdec_iter = iter(cpu_decoding_q)
+    has_cdec = False
+    try:
+        first_cdec = next(cdec_iter)
+        has_cdec = True
+    except StopIteration:
+        first_cdec = None
+
+    if not has_cdec and not _FORCE_PIPELINED and num_gpu_blocks > 0:
+        gpu_only_batch = SubBatch(predictor)
+        for req in gpu_prefill_reqs:
+            gpu_only_batch.add_pref(req, is_gpu=True)
+        for req in cpu_prefill_reqs:
+            gpu_only_batch.add_pref(req, is_gpu=False)
+        for req in gpu_decoding_q:
+            gpu_only_batch.add_gdec(req)
+
+        if len(gpu_only_batch) == 0:
+            return []
+
+        # Step 2 — trim CPU prefill in gpu_only when iter width is large
+        while gpu_only_batch.get_num_prefs():
+            req, is_gpu = gpu_only_batch.pop_pref()
+            if is_gpu or gpu_only_batch.perfdata.s < linr_S_threshold:
+                gpu_only_batch.add_pref(req, is_gpu=is_gpu)
+                break
+
+        return [gpu_only_batch]
+
+    # Slow path — cpu_decoding_q 가 있거나 FORCE 활성. cdec_iter 를 다시
+    # full iterator 로 만들기 위해 첫 element 와 chain.
+    if has_cdec:
+        cpu_decoding_q = itertools.chain([first_cdec], cdec_iter)
+
     batches = [SubBatch(predictor) for _ in range(2)]
     gpu_only_batch = SubBatch(predictor)
 
@@ -152,8 +205,7 @@ def decide_mode(
     # before falling back, so the forced two-sub-batch shape lands
     # downstream and the dual-forward path actually fires.
     if not batches[1] and num_gpu_blocks > 0:
-        import os as _os
-        if _os.environ.get("VLLM_NEO_FORCE_PIPELINED") == "1":
+        if _FORCE_PIPELINED:
             half_gprf = len(batches[0].gprf_reqs) // 2
             for _ in range(half_gprf):
                 req = batches[0].gprf_reqs.pop()
@@ -184,37 +236,32 @@ def decide_mode(
     sequential_time = gpu_only_batch.gpu_time * num_layers
     pipelined_time = (batches[0].gpu_time + batches[1].gpu_time) * num_layers
 
-    # Experimental override (env: ``VLLM_NEO_FORCE_PIPELINED=1``).
-    # When active, force the pipelined two-sub-batch return so the
-    # downstream ``forward_neo_pipelined`` path actually fires —
-    # used during NEO data-path bring-up (Step 5.4) to surface the
-    # first runtime mismatch with vLLM's single-batch forward
-    # context. Has no effect once a real predictor is wired.
-    import os as _os_force
-    if _os_force.environ.get("VLLM_NEO_FORCE_PIPELINED") == "1":
-        import logging as _lg
-        _lg.getLogger(__name__).info(
-            "[NEO-DEBUG] decide_mode FORCE entry: "
-            "batches[0] gprf=%d cprf=%d gdec=%d cdec=%d / batches[1] gprf=%d gdec=%d cdec=%d",
-            batches[0].num_gprfs, batches[0].num_cprfs,
-            batches[0].num_gdecs, batches[0].num_cdecs,
-            batches[1].num_gprfs, batches[1].num_gdecs, batches[1].num_cdecs,
-        )
+    # Experimental override — module-level cached at import (zero hot-path
+    # cost when off). Used during NEO bring-up to force pipelined return
+    # so ``forward_neo_pipelined`` exercises real workloads even with
+    # ZeroPerfPredictor (where Step 5's rate compare is meaningless).
+    if _FORCE_PIPELINED:
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "[NEO] decide_mode FORCE entry: "
+                "batches[0] gprf=%d cprf=%d gdec=%d cdec=%d / "
+                "batches[1] gprf=%d gdec=%d cdec=%d",
+                batches[0].num_gprfs, batches[0].num_cprfs,
+                batches[0].num_gdecs, batches[0].num_cdecs,
+                batches[1].num_gprfs, batches[1].num_gdecs,
+                batches[1].num_cdecs,
+            )
         if not len(batches[1]):
-            # GPU prefill 분할
             half_gprf = len(batches[0].gprf_reqs) // 2
             for _ in range(half_gprf):
                 req = batches[0].gprf_reqs.pop()
                 batches[0].perfdata.pop_pref(req.prompt_len)
                 batches[1].add_pref(req, is_gpu=True)
-            # GPU decode 분할
             half_gdec = batches[0].num_gdecs // 2
             for _ in range(half_gdec):
                 req = batches[0].pop_gdec()
                 batches[1].add_gdec(req)
         if len(batches[1]):
-            # Force pipelined return, bypassing Step 5's rate compare
-            # which is meaningless under ZeroPerfPredictor.
             return batches
 
     if sequential_time <= 0:

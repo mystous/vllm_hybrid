@@ -124,6 +124,12 @@ def main() -> int:
                     default=Path("benchmarks/sonnet.txt"))
     ap.add_argument("--log-file", type=Path, default=Path(DEFAULT_LOG_FILE))
     ap.add_argument("--output-file", type=Path, default=Path(DEFAULT_OUTPUT_FILE))
+    ap.add_argument(
+        "--enable-neo-asymmetric",
+        action="store_true",
+        help="Activate NEO asymmetric scheduler (IDE_006 4 차 재정의). "
+             "Default off — vanilla baseline.",
+    )
     args = ap.parse_args()
 
     print(f"[baseline] model={_resolve_model(args.model)}", flush=True)
@@ -143,10 +149,13 @@ def main() -> int:
 
     from vllm import LLM, SamplingParams
 
+    print(f"[baseline] enable_neo_asymmetric={args.enable_neo_asymmetric}",
+          flush=True)
+
     init_t0 = time.perf_counter()
     llm = LLM(
         model=_resolve_model(args.model),
-        enable_neo_asymmetric=False,    # vanilla baseline
+        enable_neo_asymmetric=args.enable_neo_asymmetric,
         tensor_parallel_size=args.tensor_parallel_size,
         max_model_len=args.max_model_len,
         max_num_seqs=args.max_num_seqs,
@@ -191,6 +200,7 @@ def main() -> int:
         "num_prompts": args.num_prompts,
         "target_input_len": args.target_input_len,
         "max_tokens": args.max_tokens,
+        "enable_neo_asymmetric": args.enable_neo_asymmetric,
         "init_s": init_s,
         "generate_wall_s": wall_s,
         "total_input_tokens": total_in,

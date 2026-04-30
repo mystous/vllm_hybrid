@@ -336,6 +336,20 @@ class WorkerWrapperBase:
 
         return self.worker.execute_model(scheduler_output)
 
+    def profile_neo_predictor(self) -> dict:
+        """NEO PerfPredictor profile (TSK_017 Step 1.5/1.6).
+
+        RPC dispatcher: each worker's WorkerBase routes the call to its
+        ``GPUModelRunner.profile_neo_predictor`` (which uses
+        ``_dummy_run`` internally). EngineCore takes only worker_0's
+        result since profiling is deterministic across TP ranks for the
+        same shape.
+        """
+        runner = getattr(self.worker, "model_runner", None)
+        if runner is None or not hasattr(runner, "profile_neo_predictor"):
+            return {}
+        return runner.profile_neo_predictor()
+
     def reset_mm_cache(self) -> None:
         mm_receiver_cache = self.mm_receiver_cache
         if mm_receiver_cache is not None:
