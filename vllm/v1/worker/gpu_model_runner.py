@@ -3504,6 +3504,81 @@ class GPUModelRunner(
         Returns:
             Model output tensor
         """
+        # NEO 식 dual sub-batch dispatch — Step 5.4.
+        # If the scheduler attached two NEO sub-batches and the model
+        # exposes ``forward_neo_pipelined``, attempt the asymmetric
+        # path. Wrapped in try-except: vLLM's forward context is set
+        # for a single batch (cu_seqlens / block_tables / slot_mapping
+        # all assume one) so the call is expected to fail cleanly
+        # until forward-context-fork lands. The exception is swallowed
+        # and we fall back to vanilla so production stays safe.
+        # LlamaForCausalLM exposes the inner LlamaModel as ``.model``;
+        # ``forward_neo_pipelined`` lives on the inner module.
+        _inner_model = getattr(self.model, "model", self.model)
+        if (
+            getattr(self.vllm_config.scheduler_config,
+                    "enable_neo_asymmetric", False)
+            and getattr(self, "_neo_pending_subbatches", None) is not None
+            and len(self._neo_pending_subbatches) == 2
+            and hasattr(_inner_model, "forward_neo_pipelined")
+        ):
+            try:
+                logger.info(
+                    "[NEO-DEBUG] _model_forward: attempting dual forward "
+                    "(sub_batches=%s)",
+                    [len(sb) for sb in self._neo_pending_subbatches],
+                )
+                output = _inner_model.forward_neo_pipelined(
+                    sub_batches=self._neo_pending_subbatches,
+                    positions_list=[positions, positions],
+                    embeddings_list=[inputs_embeds, inputs_embeds]
+                        if inputs_embeds is not None
+                        else [_inner_model.embed_input_ids(input_ids)] * 2,
+                )
+                # ``forward_neo_pipelined`` returns ``list[tensor]`` —
+                # one per sub-batch. Until the forward-context fork
+                # lands and each sub-batch processes its own token
+                # range, both entries are computed from the *full*
+                # merged input and are therefore identical. Take the
+                # first as the merged output for the wiring smoke;
+                # the real merge will index into per-sub-batch token
+                # slots in Step 5.5.
+                if isinstance(output, list):
+                    if len(output) >= 2:
+                        diff = (output[0] - output[1]).abs().max().item()
+                        logger.info(
+                            "[NEO-DEBUG] _model_forward: dual forward "
+                            "returned %d tensors, max|out0-out1|=%.3e "
+                            "(should be 0 for identical-input fake split)",
+                            len(output), diff,
+                        )
+                        # Both sub-batches received the *same* positions /
+                        # embeddings (forward-context fork hasn't landed
+                        # yet). If the outputs diverge, the second pass
+                        # contaminated the first via shared KV-cache slot
+                        # writes — trust neither result and raise so the
+                        # outer ``except`` falls back to vanilla. Token
+                        # equality is preserved for production safety.
+                        if diff > 1e-3:
+                            raise RuntimeError(
+                                f"dual forward diverged (max|d|={diff:.3e}) "
+                                "— KV cache cross-contamination detected; "
+                                "forward-context fork required (Step 5.5)."
+                            )
+                    output = output[0]
+                else:
+                    logger.info(
+                        "[NEO-DEBUG] _model_forward: dual forward returned"
+                    )
+                return output
+            except Exception as e:  # noqa: BLE001
+                logger.info(
+                    "[NEO-DEBUG] _model_forward: dual forward fell back, "
+                    "exception was %s: %s",
+                    type(e).__name__, e,
+                )
+                # fall through to vanilla
+
         return self.model(
             input_ids=input_ids,
             positions=positions,
@@ -4054,24 +4129,24 @@ class GPUModelRunner(
             ) as kv_connector_output,
         ):
             # NEO 식 dual sub-batch dispatch (IDE_006 4 차 재정의 / TSK_016).
-            # When the NEO scheduler attached two sub-batches to the
-            # SchedulerOutput, the runner must fork the attention metadata
-            # and call ``LlamaModel.forward_neo_pipelined`` instead of the
-            # vanilla single-batch ``_model_forward``. The metadata fork
-            # is the subject of step 5.3+ commits — for now we observe
-            # the attachment and continue with the vanilla path so the
-            # wiring is verifiable end-to-end without behaviour change.
+            # Forward the NEO scheduler's sub-batch decision into the
+            # ``_model_forward`` helper via a transient instance flag.
+            # The helper attempts the asymmetric ``forward_neo_pipelined``
+            # path when two sub-batches are attached, and silently falls
+            # back to the vanilla call on any exception — vLLM's
+            # forward-context is still single-batch, so today we only
+            # exercise the wiring + measure where the next blocker lies.
             neo_sub_batches = getattr(scheduler_output, "neo_sub_batches", None)
             if neo_sub_batches and len(neo_sub_batches) >= 1:
-                if not getattr(self, "_neo_subbatch_seen_logged", False):
-                    logger.info(
-                        "execute_model: NEO scheduler attached %d sub-batch(es)"
-                        " (req-id counts %s). Dual-forward dispatch is queued"
-                        " for follow-up steps; vanilla path continues.",
-                        len(neo_sub_batches),
-                        [len(sb) for sb in neo_sub_batches],
-                    )
-                    self._neo_subbatch_seen_logged = True
+                logger.info(
+                    "[NEO-DEBUG] execute_model gate: %d sub-batch(es), "
+                    "req-id counts=%s",
+                    len(neo_sub_batches),
+                    [len(sb) for sb in neo_sub_batches],
+                )
+                self._neo_pending_subbatches = neo_sub_batches
+            else:
+                self._neo_pending_subbatches = None
 
             model_output = self._model_forward(
                 input_ids=input_ids,
