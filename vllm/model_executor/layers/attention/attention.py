@@ -817,12 +817,21 @@ def unified_attention_with_output(
         else:
             return
 
-        # 4. seq_ids / seq_lengths placeholder — actual req_id mapping +
-        # num_tokens routing is deferred to Step 3.2.C-4 (NEO 의 int_pool
-        # index 와 vLLM string req_id 매개 영역). 본 단계에서는 list 형태만
-        # 갖춰서 호출 시그니처 검증.
+        # 4. seq_ids / seq_lengths — Step 3.2.C-4 정확화.
+        # NEO pacpu 의 ``seq_id`` 는 block_table row index (kernel 내부의
+        # ``block_table_p + seq_id * width`` lookup). 우리는 이미
+        # block_table_full[seq_slice] 로 cdec rows 만 골라서 넘기므로
+        # ``seq_ids = range(cdec_count)`` 가 정확 (0..cdec_count-1).
+        # ``seq_lengths`` 는 각 cdec seq 의 *현재까지 KV 길이* (num_tokens).
+        # vLLM ``attn_metadata.seq_lens`` 가 per-seq KV 길이를 GPU
+        # tensor 로 제공 — cdec seq slice 만 가져와 list 변환.
         seq_ids = list(range(cdec_count))
-        seq_lengths = [int(query.shape[0])] * cdec_count
+        seq_lens_attr = getattr(attn_metadata, "seq_lens", None)
+        if seq_lens_attr is None:
+            return
+        seq_lengths = (
+            seq_lens_attr[_s0:_s1].to(torch.int64).cpu().tolist()
+        )
 
         # 5. neo_pacpu invocation — Step 3.2.C-3 will add FP16 cast +
         # CPU memcpy + output in-place 덮어쓰기. 본 단계는 호출 시그니처
