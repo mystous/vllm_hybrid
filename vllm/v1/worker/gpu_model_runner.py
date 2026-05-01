@@ -6050,15 +6050,16 @@ class GPUModelRunner(
             return True
         if self._neo_kv_policy != "exclusive":
             return False
-        from vllm.v1.core.sched.neo_cpu_kv_buffer import (
-            NeoCpuKvBuffer,
-            make_spec_from_config,
-        )
-        spec = make_spec_from_config(self.vllm_config)
+        from vllm.v1.core.sched import neo_cpu_kv_buffer as _neo_cpu_kv_buffer
+        spec = _neo_cpu_kv_buffer.make_spec_from_config(self.vllm_config)
         if spec is None:
             return False
         try:
-            self._neo_cpu_kv_buffer = NeoCpuKvBuffer(spec)
+            self._neo_cpu_kv_buffer = _neo_cpu_kv_buffer.NeoCpuKvBuffer(spec)
+            # IDE_006 Step3.2.c.6 — register process-local active buffer
+            # so unified_attention_with_output can read CPU KV directly
+            # (avoid GPU→CPU memcpy per layer).
+            _neo_cpu_kv_buffer.set_active_buffer(self._neo_cpu_kv_buffer)
             logger.info(
                 "[NEO] worker-side CPU KV buffer allocated lazily on "
                 "first swap-out"
