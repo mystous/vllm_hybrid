@@ -257,6 +257,25 @@ class EngineCore:
                     type(e).__name__, e, _tb.format_exc(),
                 )
 
+        # TSK_018 Phase 3.4.b — NEO pacpu kernel auto-load (and
+        # auto-build on cache miss when ``VLLM_NEO_AUTO_BUILD=1``).
+        # Best-effort; never blocks startup. Skipped when the NEO
+        # scheduler is inactive (``enable_neo_asymmetric=False``).
+        if getattr(vllm_config.scheduler_config,
+                   "enable_neo_asymmetric", False):
+            try:
+                from vllm.v1.attention.ops import neo_pacpu as _neo_pacpu
+                _neo_pacpu.ensure_loaded(
+                    vllm_config.model_config.model,
+                    vllm_config.parallel_config.tensor_parallel_size,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "NEO: pacpu ensure_loaded failed (%s: %s) — falling "
+                    "back to vanilla GPU attention for cdec rows",
+                    type(e).__name__, e,
+                )
+
         # Mark the startup heap as static so that it's ignored by GC.
         # Reduces pause times of oldest generation collections.
         freeze_gc_heap()
