@@ -753,6 +753,7 @@ def unified_attention_with_output(
     layer_name = _resolve_layer_name(layer_name)
     attn_metadata, self, kv_cache, _ = get_attention_context(layer_name)
 
+    # Vanilla GPU forward (fills `output` for all rows).
     self.impl.forward(
         self,
         query,
@@ -764,6 +765,38 @@ def unified_attention_with_output(
         output_scale=output_scale,
         output_block_scale=output_block_scale,
     )
+
+    # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — NEO cdec dispatch.
+    # Read the per-sub-batch ``neo_cdec_token_slice`` from the active
+    # ForwardContext. ``None`` (default) means no NEO override — vanilla
+    # output stands. When a non-empty slice is present, the cdec rows of
+    # ``output`` are overwritten in-place by the CPU pacpu kernel result.
+    #
+    # All CPU-dispatch work is wrapped in ``try`` so any failure
+    # (kernel not loaded, KV cache view mismatch, dtype mismatch, …)
+    # falls back silently to the vanilla GPU output. 회귀 zero 보장.
+    try:
+        from vllm.forward_context import get_forward_context as _get_fc
+        _fc = _get_fc()
+        _slice = getattr(_fc, "neo_cdec_token_slice", None)
+        if _slice is None or _slice[1] <= _slice[0]:
+            return
+        # Step 3.2.B-3 first attempt — dispatch entry path. Actual
+        # neo_pacpu invocation + output reassembly remains a deferred
+        # follow-up (KV cache view 매개 + per-req metadata 의존).
+        # 본 단계는 hook 가 발화하는지 확인 + log 만.
+        if not getattr(self, "_neo_cdec_dispatch_logged", False):
+            from vllm.logger import init_logger as _init
+            _logger = _init("vllm.attention.neo_cdec")
+            _logger.info(
+                "NEO cdec dispatch hook entered: layer=%s slice=%s "
+                "(neo_pacpu call deferred — KV cache view 매개)",
+                layer_name, _slice,
+            )
+            self._neo_cdec_dispatch_logged = True
+    except Exception:  # noqa: BLE001
+        # Any failure → vanilla output stands. Silent (hot path).
+        pass
 
 
 def unified_attention_with_output_fake(
