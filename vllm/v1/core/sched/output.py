@@ -262,6 +262,17 @@ class SchedulerOutput:
     neo_sub_batches: list[list[str]] | None = None
     neo_swap_in_req_ids: list[str] | None = None
     neo_swap_out_req_ids: list[str] | None = None
+    # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — per-sub-batch (start, end)
+    # row range that the cdec rows occupy within each sub-batch's
+    # contiguous token tensor. The GPU model runner copies this onto
+    # the per-sub-batch ``CommonAttentionMetadata.neo_cdec_token_slice``
+    # field so the attention backend can dispatch cdec rows to the
+    # CPU pacpu kernel without any model-side decision.
+    #
+    # Length matches ``neo_sub_batches`` (1 or 2). Empty cdec slice
+    # is encoded as ``(end, end)`` (zero width). ``None`` (default)
+    # means no NEO override — backend takes the vanilla path.
+    neo_sub_batch_cdec_slices: list[tuple[int, int]] | None = None
 
     @classmethod
     def make_empty(cls) -> "SchedulerOutput":

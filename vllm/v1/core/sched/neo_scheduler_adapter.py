@@ -431,6 +431,15 @@ class NeoSchedulerAdapter(Scheduler):
                     [r._str_id for r in batch.all_reqs]
                     for batch in batches
                 ]
+                # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — per-sub-batch
+                # cdec token row slice attach. Backend reads this via
+                # ``CommonAttentionMetadata.neo_cdec_token_slice`` and
+                # dispatches cdec rows to the CPU pacpu kernel. Each
+                # tuple is half-open ``(start, end)`` within the
+                # sub-batch's contiguous token tensor.
+                output.neo_sub_batch_cdec_slices = [
+                    batch.cdec_token_slice for batch in batches
+                ]
             except (AttributeError, TypeError) as e:
                 logger.debug("NEO output attach failed: %s", e)
 
