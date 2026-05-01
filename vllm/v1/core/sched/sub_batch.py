@@ -206,6 +206,58 @@ class SubBatch:
         return [*self.cprf_reqs, *self.gprf_reqs,
                 *self.gdec_reqs, *self.cdec_reqs]
 
+    # ── token-row slices ────────────────────────────────────────────
+    # IDE_006 Step 3.0 (TSK_015 4.5 / TSK_018 3.1 진입 전 인프라).
+    #
+    # The kernel layout above places tokens in a single batched
+    # tensor following ``all_reqs`` order. Each request contributes:
+    #   cprf: prompt_len tokens   (CPU prefill — long, schedule-time)
+    #   gprf: prompt_len tokens   (GPU prefill — long)
+    #   gdec: 1 token             (decode step)
+    #   cdec: 1 token             (decode step, attention runs on CPU)
+    #
+    # The four slice properties below give the half-open ``(start,
+    # end)`` row range each subset occupies in the sub-batch's
+    # contiguous token tensor. ``end - start == 0`` when that subset
+    # is empty (callers should treat empty slices as "no work").
+    #
+    # These slices are read-only views; populated lazily on each call
+    # to keep state mutation localized to ``add_*`` / ``pop_*``.
+    # ----------------------------------------------------------------
+    def _sum_prompt_len(self, reqs: list[_ReqLike]) -> int:
+        return sum(r.prompt_len for r in reqs)
+
+    @property
+    def cprf_token_slice(self) -> tuple[int, int]:
+        return (0, self._sum_prompt_len(self.cprf_reqs))
+
+    @property
+    def gprf_token_slice(self) -> tuple[int, int]:
+        start = self._sum_prompt_len(self.cprf_reqs)
+        return (start, start + self._sum_prompt_len(self.gprf_reqs))
+
+    @property
+    def gdec_token_slice(self) -> tuple[int, int]:
+        # Each gdec / cdec contributes exactly one token (decode step).
+        start = (self._sum_prompt_len(self.cprf_reqs)
+                 + self._sum_prompt_len(self.gprf_reqs))
+        return (start, start + len(self.gdec_reqs))
+
+    @property
+    def cdec_token_slice(self) -> tuple[int, int]:
+        start = (self._sum_prompt_len(self.cprf_reqs)
+                 + self._sum_prompt_len(self.gprf_reqs)
+                 + len(self.gdec_reqs))
+        return (start, start + len(self.cdec_reqs))
+
+    @property
+    def total_tokens(self) -> int:
+        """Total token count across all four sub-lists."""
+        return (self._sum_prompt_len(self.cprf_reqs)
+                + self._sum_prompt_len(self.gprf_reqs)
+                + len(self.gdec_reqs)
+                + len(self.cdec_reqs))
+
     @property
     def gpu_time(self) -> float:
         return self.perfdata.gpu_time
