@@ -388,6 +388,15 @@ class CommonAttentionMetadata:
     (num_computed_tokens < num_prompt_tokens). Used by some backends to
     distinguish actual decodes from short extends."""
 
+    # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — half-open ``(start, end)`` token
+    # row range that the NEO sub-batch executor wants the attention backend
+    # to dispatch through the CPU pacpu kernel instead of the default GPU
+    # backend. ``None`` means "no NEO override" — the backend takes its
+    # default path. This field is the *single source of truth* for cdec
+    # row routing; no model-side dispatch decision required (vLLM 정통
+    # backend dispatch path).
+    neo_cdec_token_slice: tuple[int, int] | None = None
+
     # WARNING: Deprecated fields. Will be removed in a future release (v0.15.0)
     _seq_lens_cpu: torch.Tensor | None = None
     _num_computed_tokens_cpu: torch.Tensor | None = None
