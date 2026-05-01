@@ -267,6 +267,43 @@ class NeoCpuKvBuffer:
     def num_resident_reqs(self) -> int:
         return len(self._req_alloc)
 
+
+# ----------------------------------------------------------------------
+# IDE_006 / TSK_015.Step3.2.c.6 — module-level singleton register/get
+#
+# ``unified_attention_with_output`` 의 NEO cdec dispatch hook 은
+# attention layer 영역에서 worker-side ``NeoCpuKvBuffer`` 에 접근해야
+# 한다. forward_context 나 attn_metadata 에 buffer reference 를 attach
+# 하려면 backend 별 metadata 에까지 schema 가 전파되어야 하므로,
+# process-local module singleton 을 1 차 path 로 사용한다.
+#
+# 한 worker process 안에 하나의 active buffer 만 의미가 있으므로 (TP=N
+# 인 경우 worker 별 process 가 자기 buffer 를 보유), 단일 slot
+# ``_active_buffer`` 로 충분. 호출 흐름:
+#   1. ``GPUModelRunner._ensure_neo_cpu_kv_buffer`` 가 buffer alloc 직후
+#      ``set_active_buffer(buffer)`` 호출.
+#   2. ``unified_attention_with_output`` 이 dispatch hook 안에서
+#      ``get_active_buffer()`` 로 lookup. ``None`` 이면 NEO 비활성 →
+#      vanilla path.
+# ----------------------------------------------------------------------
+_active_buffer: NeoCpuKvBuffer | None = None
+
+
+def set_active_buffer(buffer: NeoCpuKvBuffer | None) -> None:
+    """Register / clear the worker-process-local active CPU KV buffer.
+
+    Pass ``None`` to deregister (e.g. on engine shutdown). Idempotent —
+    overwrites any prior registration.
+    """
+    global _active_buffer
+    _active_buffer = buffer
+
+
+def get_active_buffer() -> NeoCpuKvBuffer | None:
+    """Return the currently registered CPU KV buffer, or ``None`` when
+    NEO is inactive in this worker process."""
+    return _active_buffer
+
     def __len__(self) -> int:
         return self.num_resident_reqs
 

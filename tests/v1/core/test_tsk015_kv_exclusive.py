@@ -301,6 +301,25 @@ def test_buffer_alloc_free_churn_preserves_pool_size():
         assert buf.num_free_blocks == 64      # full restore each cycle
 
 
+def test_active_buffer_register_and_get():
+    """Step3.2.c.6 — module-level singleton register / get."""
+    from vllm.v1.core.sched import neo_cpu_kv_buffer as _ncb
+    # baseline — no active
+    _ncb.set_active_buffer(None)
+    assert _ncb.get_active_buffer() is None
+    # register
+    buf = NeoCpuKvBuffer(_mini_spec(num_blocks=8))
+    _ncb.set_active_buffer(buf)
+    assert _ncb.get_active_buffer() is buf
+    # overwrite
+    buf2 = NeoCpuKvBuffer(_mini_spec(num_blocks=4))
+    _ncb.set_active_buffer(buf2)
+    assert _ncb.get_active_buffer() is buf2
+    # clear
+    _ncb.set_active_buffer(None)
+    assert _ncb.get_active_buffer() is None
+
+
 def test_buffer_id_uniqueness_under_full_pool():
     """Disjoint id sets across all resident reqs (no double-handing)."""
     spec = _mini_spec(num_blocks=32)
