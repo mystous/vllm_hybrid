@@ -427,6 +427,7 @@ class GPUModelRunner(
         # NEO-active steps.
         self._neo_cdec_slices_for_step: list[tuple[int, int]] | None = None
         self._neo_cdec_seq_slices_for_step: list[tuple[int, int]] | None = None
+        self._neo_cdec_req_ids_for_step: list[list[str]] | None = None
 
         # TSK_015 Phase 4.1/4.3 — CPU KV buffer + per-req residency set.
         # Allocated lazily (when first swap_out arrives) to avoid wasting
@@ -2339,6 +2340,9 @@ class GPUModelRunner(
                     neo_cdec_seq_slices = getattr(
                         self, "_neo_cdec_seq_slices_for_step", None,
                     )
+                    neo_cdec_req_ids = getattr(
+                        self, "_neo_cdec_req_ids_for_step", None,
+                    )
                     for ubid, _cm in enumerate(split_attn_metadata(ubatch_slices, cm)):
                         if (neo_cdec_slices is not None
                                 and ubid < len(neo_cdec_slices)):
@@ -2346,6 +2350,9 @@ class GPUModelRunner(
                         if (neo_cdec_seq_slices is not None
                                 and ubid < len(neo_cdec_seq_slices)):
                             _cm.neo_cdec_seq_slice = neo_cdec_seq_slices[ubid]
+                        if (neo_cdec_req_ids is not None
+                                and ubid < len(neo_cdec_req_ids)):
+                            _cm.neo_cdec_req_ids = neo_cdec_req_ids[ubid]
                         _build_attn_group_metadata(kv_cache_gid, attn_gid, _cm, ubid)
 
                 else:
@@ -3600,6 +3607,7 @@ class GPUModelRunner(
                         # path — model code unaware).
                         cdec_slices = self._neo_cdec_slices_for_step
                         cdec_seq_slices = self._neo_cdec_seq_slices_for_step
+                        cdec_req_ids = self._neo_cdec_req_ids_for_step
                         if cdec_slices is not None:
                             for i, fc_sb in enumerate(per_subbatch_contexts):
                                 if i < len(cdec_slices):
@@ -3608,6 +3616,11 @@ class GPUModelRunner(
                                         and i < len(cdec_seq_slices)):
                                     fc_sb.neo_cdec_seq_slice = (
                                         cdec_seq_slices[i]
+                                    )
+                                if (cdec_req_ids is not None
+                                        and i < len(cdec_req_ids)):
+                                    fc_sb.neo_cdec_req_ids = (
+                                        cdec_req_ids[i]
                                     )
 
                         # Slice positions / embeddings per sub-batch.
@@ -4074,6 +4087,7 @@ class GPUModelRunner(
             # non-NEO step.
             self._neo_cdec_slices_for_step = None
             self._neo_cdec_seq_slices_for_step = None
+            self._neo_cdec_req_ids_for_step = None
             if self._neo_enabled:
                 neo_subs_str = getattr(
                     scheduler_output, "neo_sub_batches", None
@@ -4119,6 +4133,10 @@ class GPUModelRunner(
                             self._neo_cdec_seq_slices_for_step = getattr(
                                 scheduler_output,
                                 "neo_sub_batch_cdec_seq_slices", None,
+                            )
+                            self._neo_cdec_req_ids_for_step = getattr(
+                                scheduler_output,
+                                "neo_sub_batch_cdec_req_ids", None,
                             )
                             if logger.isEnabledFor(logging.DEBUG):
                                 logger.debug(

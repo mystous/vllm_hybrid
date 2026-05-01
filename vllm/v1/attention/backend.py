@@ -400,6 +400,9 @@ class CommonAttentionMetadata:
     # indexing). Differs from token slice when prefill is in the
     # sub-batch (1 prefill = multi-token / 1-seq).
     neo_cdec_seq_slice: tuple[int, int] | None = None
+    # Step 3.2.c.7 — request id list for cdec rows, used by the
+    # attention dispatch hook to look up CPU KV via NeoCpuKvBuffer.
+    neo_cdec_req_ids: list[str] | None = None
 
     # WARNING: Deprecated fields. Will be removed in a future release (v0.15.0)
     _seq_lens_cpu: torch.Tensor | None = None
