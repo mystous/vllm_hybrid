@@ -220,25 +220,33 @@ class EngineCore:
 
         # NEO PerfPredictor profile (TSK_017 Step 1.6) — only when NEO
         # scheduler is active. Done AFTER warmup (model + KV cache ready)
-        # so dummy_run sees the production setup. Currently sync — first
-        # invocation blocks startup; measured cost will guide whether to
-        # add disk cache (Step 1.7) or async background.
+        # so dummy_run sees the production setup. Step 1.7 adds disk
+        # cache — cache HIT skips the RPC entirely (saves ~21s @ prod
+        # / ~4s @ dev each startup); MISS falls back to fresh measure
+        # then persists the result for the next launch.
         if hasattr(self.scheduler, "populate_predictor_from_profile"):
             try:
+                from vllm.v1.core.sched import neo_perfpredictor_cache as _ppc
                 t_profile_0 = time.time()
-                # collective_rpc broadcasts the call to all TP workers.
-                # Each returns its dict; use worker_0 (rank 0) since
-                # profiling is deterministic per (model, GPU, dtype).
-                rpc_results = self.model_executor.collective_rpc(
-                    "profile_neo_predictor"
-                )
-                profile_data = (
-                    rpc_results[0] if rpc_results else {}
-                )
+                profile_data = _ppc.load(vllm_config)
+                source = "cache"
+                if profile_data is None:
+                    # collective_rpc broadcasts the call to all TP workers.
+                    # Each returns its dict; use worker_0 (rank 0) since
+                    # profiling is deterministic per (model, GPU, dtype).
+                    rpc_results = self.model_executor.collective_rpc(
+                        "profile_neo_predictor"
+                    )
+                    profile_data = (
+                        rpc_results[0] if rpc_results else {}
+                    )
+                    source = "measured"
+                    # Best-effort persist; never raises.
+                    _ppc.save(vllm_config, profile_data)
                 self.scheduler.populate_predictor_from_profile(profile_data)
                 logger.info(
-                    "NEO PerfPredictor profile took %.2fs",
-                    time.time() - t_profile_0,
+                    "NEO PerfPredictor profile took %.2fs (%s)",
+                    time.time() - t_profile_0, source,
                 )
             except Exception as e:  # noqa: BLE001
                 import traceback as _tb
