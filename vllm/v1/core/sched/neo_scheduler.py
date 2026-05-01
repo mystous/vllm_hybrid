@@ -225,8 +225,18 @@ class NeoScheduler:
         self._assert_exclusive_invariant(where="step2")
 
         # Step 3 — swap-in head-of-queue CPU decode (mutually exclusive
-        # with swap-out)
-        while self.cpu_decoding_q and not swap_out_reqs:
+        # with swap-out).
+        # IDE_006 Step 3.2.C-5 dev hook — VLLM_NEO_FORCE_CDEC_DISPATCH=1 면
+        # swap_in 자체를 skip 시켜 cpu_decoding_q 가 그대로 유지 → mode_selector
+        # 의 step 3 가 그 reqs 를 cdec_reqs 로 batches 에 add → unified_
+        # attention_with_output 의 dispatch hook 이 dev 환경에서 실제 발화.
+        # prod 워크로드 의 KV pool pressure 영역 검증을 dev 에서 시뮬레이션.
+        import os as _os
+        _force_cdec_dispatch = (
+            _os.environ.get("VLLM_NEO_FORCE_CDEC_DISPATCH") == "1"
+        )
+        while (self.cpu_decoding_q and not swap_out_reqs
+               and not _force_cdec_dispatch):
             candidate = self.cpu_decoding_q[0]
             need = self._get_block_needed(candidate)
             if (gpu_block_needed + need > swap_in_threshold
