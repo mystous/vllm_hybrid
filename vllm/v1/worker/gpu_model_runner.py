@@ -421,6 +421,11 @@ class GPUModelRunner(
         ))
         self._neo_gate_logged: bool = False
         self._neo_pending_subbatches: list[list[str]] | None = None
+        # Per-step cdec token-row slices, set by execute_model's NEO fork
+        # branch and consumed by ``_build_attention_metadata`` to populate
+        # ``CommonAttentionMetadata.neo_cdec_token_slice``. None outside
+        # NEO-active steps.
+        self._neo_cdec_slices_for_step: list[tuple[int, int]] | None = None
 
         # TSK_015 Phase 4.1/4.3 — CPU KV buffer + per-req residency set.
         # Allocated lazily (when first swap_out arrives) to avoid wasting
@@ -2322,7 +2327,18 @@ class GPUModelRunner(
 
             for attn_gid in range(len(self.attn_groups[kv_cache_gid])):
                 if ubatch_slices is not None:
+                    # IDE_006 / TSK_015 4.5 — apply per-sub-batch cdec
+                    # row slice to each forked CommonAttentionMetadata.
+                    # ``self._neo_cdec_slices_for_step`` is set by the
+                    # NEO fork branch (execute_model) and cleared on
+                    # exit; ``None`` for non-NEO calls (no override).
+                    neo_cdec_slices = getattr(
+                        self, "_neo_cdec_slices_for_step", None,
+                    )
                     for ubid, _cm in enumerate(split_attn_metadata(ubatch_slices, cm)):
+                        if (neo_cdec_slices is not None
+                                and ubid < len(neo_cdec_slices)):
+                            _cm.neo_cdec_token_slice = neo_cdec_slices[ubid]
                         _build_attn_group_metadata(kv_cache_gid, attn_gid, _cm, ubid)
 
                 else:
@@ -4030,6 +4046,10 @@ class GPUModelRunner(
             # 즉시 skip → ubatch wiring 비용 0.
             neo_split_point: int | None = None
             neo_split_used: bool = False
+            # IDE_006 — clear stale per-step NEO state at the top of every
+            # call so a previous step's cdec slice never leaks into a
+            # non-NEO step.
+            self._neo_cdec_slices_for_step = None
             if self._neo_enabled:
                 neo_subs_str = getattr(
                     scheduler_output, "neo_sub_batches", None
@@ -4061,13 +4081,25 @@ class GPUModelRunner(
                         if 0 < neo_split_point < num_tokens_padded:
                             should_ubatch = True
                             neo_split_used = True
+                            # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — capture
+                            # per-sub-batch cdec token slices so the
+                            # attention metadata builder can set
+                            # ``CommonAttentionMetadata.neo_cdec_token_slice``
+                            # on each forked sub-batch's metadata. Backend
+                            # then dispatches cdec rows to the CPU pacpu
+                            # kernel without any model-side decision.
+                            self._neo_cdec_slices_for_step = getattr(
+                                scheduler_output,
+                                "neo_sub_batch_cdec_slices", None,
+                            )
                             if logger.isEnabledFor(logging.DEBUG):
                                 logger.debug(
                                     "[NEO] forward-context fork active: "
                                     "split_point=%d (boundary=%d, "
-                                    "sub-batch sizes=%d/%d)",
+                                    "sub-batch sizes=%d/%d, cdec_slices=%s)",
                                     neo_split_point, boundary,
                                     boundary, len(neo_subs_str[1]),
+                                    self._neo_cdec_slices_for_step,
                                 )
 
             ubatch_slices, ubatch_slices_padded = maybe_create_ubatch_slices(
