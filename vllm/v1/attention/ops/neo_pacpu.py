@@ -91,10 +91,10 @@ def load_kernel(model_name: str, tp_degree: int) -> bool:
     if not so.is_file():
         logger.warning(
             "neo_pacpu: pre-built %s not found. Build with:\n"
-            "    cd csrc/cpu/pacpu && bash build.sh %s %d\n"
-            "(needs g++-12 and ispc on PATH). Falling back to "
-            "pure-Python reference.",
-            so, macro, tp_degree,
+            "    bash scripts/build_pacpu.sh %s %d\n"
+            "(needs g++ ≥ 12 and ispc; auto-detected). Falling back "
+            "to pure-Python reference.",
+            so, model_name, tp_degree,
         )
         return False
     try:
