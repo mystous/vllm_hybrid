@@ -3586,6 +3586,16 @@ class GPUModelRunner(
                             )
                             for i in range(2)
                         ]
+                        # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — annotate
+                        # per-sub-batch ForwardContexts with the cdec row
+                        # slice so unified_attention_with_output dispatches
+                        # cdec rows to neo_pacpu (vLLM 정통 backend dispatch
+                        # path — model code unaware).
+                        cdec_slices = self._neo_cdec_slices_for_step
+                        if cdec_slices is not None:
+                            for i, fc_sb in enumerate(per_subbatch_contexts):
+                                if i < len(cdec_slices):
+                                    fc_sb.neo_cdec_token_slice = cdec_slices[i]
 
                         # Slice positions / embeddings per sub-batch.
                         positions_2d = positions.ndim == 2
