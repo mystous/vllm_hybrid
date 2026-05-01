@@ -780,8 +780,10 @@ def unified_attention_with_output(
         _fc = _get_fc()
         _tok = getattr(_fc, "neo_cdec_token_slice", None)
         _seq = getattr(_fc, "neo_cdec_seq_slice", None)
+        _req_ids = getattr(_fc, "neo_cdec_req_ids", None)
         if (_tok is None or _tok[1] <= _tok[0]
-                or _seq is None or _seq[1] <= _seq[0]):
+                or _seq is None or _seq[1] <= _seq[0]
+                or not _req_ids):
             return
         # Step 3.2.C-2 — actual neo_pacpu dispatch path. All work is
         # wrapped in this single try so any failure (kernel not loaded,
@@ -791,40 +793,63 @@ def unified_attention_with_output(
             # Kernel never loaded (auto-build OFF + .so missing). Skip.
             return
 
+        # Step 3.2.c.8 — NeoCpuKvBuffer 의 CPU view 직접 사용 (timeout
+        # 해결). buffer 없으면 NEO 비활성 → return (vanilla output stands).
+        from vllm.v1.core.sched import neo_cpu_kv_buffer as _ncb
+        buf = _ncb.get_active_buffer()
+        if buf is None:
+            return
+
         from vllm.v1.attention.ops import neo_pacpu as _pa
         _t0, _t1 = _tok
         _s0, _s1 = _seq
-        cdec_count = _t1 - _t0           # one row per cdec token
+        cdec_count = _t1 - _t0
         nh = self.impl.num_heads
         nkh = self.impl.num_kv_heads
         hd = self.impl.head_size
 
-        # 1. q/k/v of cdec rows (will need .to(float16).cpu() — Step 3.2.C-3)
+        # 1. q/k/v of cdec rows
         q_cdec = query[_t0:_t1].view(cdec_count, nh, hd)
         k_cdec = key[_t0:_t1].view(cdec_count, nkh, hd)
         v_cdec = value[_t0:_t1].view(cdec_count, nkh, hd)
 
-        # 2. block_table (seq-row indexed) — cdec seq slice
-        block_table_full = getattr(attn_metadata, "block_table_tensor", None)
-        if block_table_full is None:
+        # 2. layer_idx — extract from layer_name "model.layers.<N>...".
+        import re
+        m = re.search(r"layers\.(\d+)", layer_name)
+        if m is None:
             return
-        block_table_cdec = block_table_full[_s0:_s1]
+        layer_idx = int(m.group(1))
 
-        # 3. KV cache layer view (HND format expected by NEO)
-        if isinstance(kv_cache, (list, tuple)) and len(kv_cache) >= 2:
-            k_cache_layer = kv_cache[0]
-            v_cache_layer = kv_cache[1]
-        else:
-            return
+        # 3. block_table — rebuild from NeoCpuKvBuffer's block ids.
+        # buf.get_block_ids(req_id) returns the ids in *buffer-local*
+        # numbering, which the kernel reads via ``k_cpu[layer, block_id]``.
+        block_table_width = buf.spec.num_cpu_blocks  # upper bound on per-seq blocks
+        max_blocks_per_seq = max(
+            len(buf.get_block_ids(rid) or [])
+            for rid in _req_ids
+        ) or 1
+        block_table_rows = []
+        valid_seq_lens: list[int] = []
+        for rid in _req_ids:
+            ids = buf.get_block_ids(rid)
+            if ids is None:
+                # Req not resident in CPU buffer (race) — vanilla fallback.
+                return
+            row = list(ids) + [0] * (max_blocks_per_seq - len(ids))
+            block_table_rows.append(row)
+        block_table_cpu = torch.tensor(
+            block_table_rows, dtype=torch.int32,
+        )
 
-        # 4. seq_ids / seq_lengths — Step 3.2.C-4 정확화.
-        # NEO pacpu 의 ``seq_id`` 는 block_table row index (kernel 내부의
-        # ``block_table_p + seq_id * width`` lookup). 우리는 이미
-        # block_table_full[seq_slice] 로 cdec rows 만 골라서 넘기므로
-        # ``seq_ids = range(cdec_count)`` 가 정확 (0..cdec_count-1).
-        # ``seq_lengths`` 는 각 cdec seq 의 *현재까지 KV 길이* (num_tokens).
-        # vLLM ``attn_metadata.seq_lens`` 가 per-seq KV 길이를 GPU
-        # tensor 로 제공 — cdec seq slice 만 가져와 list 변환.
+        # 4. KV cache view — direct from buffer (already FP16, CPU, pinned).
+        # ``self.k_cpu`` shape: (num_layers, num_cpu_blocks, num_kv_heads,
+        # block_size, head_dim). NEO pacpu's ``_to_neo_kv_view`` expects
+        # ``(num_layers, num_blocks, ...)`` — already matches.
+        k_cache_layer = buf.k_cpu                 # full multi-layer view
+        v_cache_layer = buf.v_cpu
+
+        # 5. seq_ids / seq_lengths — block_table row index 0..N-1; lengths
+        # from attn_metadata.seq_lens at the cdec seq slice.
         seq_ids = list(range(cdec_count))
         seq_lens_attr = getattr(attn_metadata, "seq_lens", None)
         if seq_lens_attr is None:
@@ -833,23 +858,23 @@ def unified_attention_with_output(
             seq_lens_attr[_s0:_s1].to(torch.int64).cpu().tolist()
         )
 
-        # 5. neo_pacpu invocation — Step 3.2.C-3 will add FP16 cast +
-        # CPU memcpy + output in-place 덮어쓰기. 본 단계는 호출 시그니처
-        # path 의 land 만 (실제 호출은 try 안에서 attempt).
+        # 6. neo_pacpu invocation — q/k/v.cpu() lightweight (cdec rows
+        # only). KV cache 는 buf.k_cpu / buf.v_cpu 직접 사용 — *전체*
+        # GPU→CPU 복사 회피 (timeout 해결).
         out_buf = torch.empty(
             cdec_count, nh * hd, dtype=torch.float32,
         )
         _pa.forward_attention(
-            cur_layer=0,
+            cur_layer=layer_idx,
             softmax_scale=float(self.impl.scale),
             seq_ids=seq_ids,
             seq_lengths=seq_lengths,
             q=q_cdec.to(torch.float16).cpu(),
             k_new=k_cdec.to(torch.float16).cpu(),
             v_new=v_cdec.to(torch.float16).cpu(),
-            k_cache_layer=k_cache_layer.to(torch.float16).cpu(),
-            v_cache_layer=v_cache_layer.to(torch.float16).cpu(),
-            block_table=block_table_cdec.to(torch.int32).cpu(),
+            k_cache_layer=k_cache_layer,
+            v_cache_layer=v_cache_layer,
+            block_table=block_table_cpu,
             output=out_buf,
         )
 
