@@ -785,6 +785,14 @@ def unified_attention_with_output(
                 or _seq is None or _seq[1] <= _seq[0]
                 or not _req_ids):
             return
+        # IDE_006 Step3.2 profile — VLLM_NEO_PROFILE=1 opt-in. 매 layer
+        # call 의 단계별 timing log. once-fire (첫 호출만). hot path
+        # 비용 zero (default OFF).
+        import os as _os
+        _profile = _os.environ.get("VLLM_NEO_PROFILE") == "1"
+        if _profile:
+            import time as _time
+            _t_start = _time.perf_counter()
         # Step 3.2.C-2 — actual neo_pacpu dispatch path. All work is
         # wrapped in this single try so any failure (kernel not loaded,
         # KV layout mismatch, dtype mismatch, attribute missing, …)
@@ -807,11 +815,15 @@ def unified_attention_with_output(
         nh = self.impl.num_heads
         nkh = self.impl.num_kv_heads
         hd = self.impl.head_size
+        if _profile:
+            _t_setup = _time.perf_counter()
 
         # 1. q/k/v of cdec rows
         q_cdec = query[_t0:_t1].view(cdec_count, nh, hd)
         k_cdec = key[_t0:_t1].view(cdec_count, nkh, hd)
         v_cdec = value[_t0:_t1].view(cdec_count, nkh, hd)
+        if _profile:
+            _t_qkv = _time.perf_counter()
 
         # 2. layer_idx — extract from layer_name "model.layers.<N>...".
         import re
@@ -819,37 +831,34 @@ def unified_attention_with_output(
         if m is None:
             return
         layer_idx = int(m.group(1))
+        if _profile:
+            _t_layer = _time.perf_counter()
 
         # 3. block_table — rebuild from NeoCpuKvBuffer's block ids.
-        # buf.get_block_ids(req_id) returns the ids in *buffer-local*
-        # numbering, which the kernel reads via ``k_cpu[layer, block_id]``.
-        block_table_width = buf.spec.num_cpu_blocks  # upper bound on per-seq blocks
         max_blocks_per_seq = max(
             len(buf.get_block_ids(rid) or [])
             for rid in _req_ids
         ) or 1
         block_table_rows = []
-        valid_seq_lens: list[int] = []
         for rid in _req_ids:
             ids = buf.get_block_ids(rid)
             if ids is None:
-                # Req not resident in CPU buffer (race) — vanilla fallback.
                 return
             row = list(ids) + [0] * (max_blocks_per_seq - len(ids))
             block_table_rows.append(row)
         block_table_cpu = torch.tensor(
             block_table_rows, dtype=torch.int32,
         )
+        if _profile:
+            _t_btab = _time.perf_counter()
 
         # 4. KV cache view — direct from buffer (already FP16, CPU, pinned).
-        # ``self.k_cpu`` shape: (num_layers, num_cpu_blocks, num_kv_heads,
-        # block_size, head_dim). NEO pacpu's ``_to_neo_kv_view`` expects
-        # ``(num_layers, num_blocks, ...)`` — already matches.
-        k_cache_layer = buf.k_cpu                 # full multi-layer view
+        k_cache_layer = buf.k_cpu
         v_cache_layer = buf.v_cpu
+        if _profile:
+            _t_kvview = _time.perf_counter()
 
-        # 5. seq_ids / seq_lengths — block_table row index 0..N-1; lengths
-        # from attn_metadata.seq_lens at the cdec seq slice.
+        # 5. seq_ids / seq_lengths
         seq_ids = list(range(cdec_count))
         seq_lens_attr = getattr(attn_metadata, "seq_lens", None)
         if seq_lens_attr is None:
@@ -857,10 +866,18 @@ def unified_attention_with_output(
         seq_lengths = (
             seq_lens_attr[_s0:_s1].to(torch.int64).cpu().tolist()
         )
+        if _profile:
+            _t_seqlen = _time.perf_counter()
 
         # 6. neo_pacpu invocation — q/k/v.cpu() lightweight (cdec rows
         # only). KV cache 는 buf.k_cpu / buf.v_cpu 직접 사용 — *전체*
         # GPU→CPU 복사 회피 (timeout 해결).
+        q_cpu = q_cdec.to(torch.float16).cpu()
+        k_cpu = k_cdec.to(torch.float16).cpu()
+        v_cpu = v_cdec.to(torch.float16).cpu()
+        if _profile:
+            _t_qkvcpu = _time.perf_counter()
+
         out_buf = torch.empty(
             cdec_count, nh * hd, dtype=torch.float32,
         )
@@ -869,32 +886,43 @@ def unified_attention_with_output(
             softmax_scale=float(self.impl.scale),
             seq_ids=seq_ids,
             seq_lengths=seq_lengths,
-            q=q_cdec.to(torch.float16).cpu(),
-            k_new=k_cdec.to(torch.float16).cpu(),
-            v_new=v_cdec.to(torch.float16).cpu(),
+            q=q_cpu,
+            k_new=k_cpu,
+            v_new=v_cpu,
             k_cache_layer=k_cache_layer,
             v_cache_layer=v_cache_layer,
             block_table=block_table_cpu,
             output=out_buf,
         )
+        if _profile:
+            _t_kernel = _time.perf_counter()
 
         # Step 3.2.C-3 — CPU 결과 → GPU output 의 cdec rows 부분 덮어쓰기.
-        # ``unified_attention_with_output`` 의 ``output`` 은 *pre o_proj*
-        # 의 attention 결과 (raw q·K^T softmax · V). neo_pacpu 도 동일
-        # semantic 결과를 ``out_buf`` 에 채움 — 그대로 cast 후 덮어쓰면
-        # o_proj 단계가 GPU 측에서 정확히 이어짐.
-        # output shape = (cdec_count, num_heads * head_dim) — out_buf 와 동일.
         out_gpu = out_buf.to(output.device).to(output.dtype)
         output[_t0:_t1].copy_(out_gpu)
-        if not getattr(self, "_neo_cdec_dispatch_logged", False):
+        if _profile:
+            _t_out = _time.perf_counter()
+
+        if _profile:
             from vllm.logger import init_logger as _init
-            _logger = _init("vllm.attention.neo_cdec")
+            _logger = _init("vllm.attention.neo_cdec_profile")
             _logger.info(
-                "NEO cdec dispatch active (Step 3.2.C-3): layer=%s "
-                "tok=%s seq=%s — %d cdec rows routed via neo_pacpu",
-                layer_name, _tok, _seq, cdec_count,
+                "NEO cdec profile L%d cdec=%d (ms): "
+                "setup=%.1f qkv_view=%.1f layer_idx=%.1f btab=%.1f "
+                "kv_view=%.1f seqlen=%.1f qkv_cpu=%.1f kernel=%.1f "
+                "out_copy=%.1f total=%.1f",
+                layer_idx, cdec_count,
+                (_t_setup - _t_start) * 1000,
+                (_t_qkv - _t_setup) * 1000,
+                (_t_layer - _t_qkv) * 1000,
+                (_t_btab - _t_layer) * 1000,
+                (_t_kvview - _t_btab) * 1000,
+                (_t_seqlen - _t_kvview) * 1000,
+                (_t_qkvcpu - _t_seqlen) * 1000,
+                (_t_kernel - _t_qkvcpu) * 1000,
+                (_t_out - _t_kernel) * 1000,
+                (_t_out - _t_start) * 1000,
             )
-            self._neo_cdec_dispatch_logged = True
     except Exception:  # noqa: BLE001
         # Any failure → vanilla output stands. Silent (hot path).
         pass
