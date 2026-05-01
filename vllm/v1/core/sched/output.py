@@ -273,6 +273,11 @@ class SchedulerOutput:
     # is encoded as ``(end, end)`` (zero width). ``None`` (default)
     # means no NEO override — backend takes the vanilla path.
     neo_sub_batch_cdec_slices: list[tuple[int, int]] | None = None
+    # IDE_006 Step 3.2.C-1 — seq-row range for cdec rows. cprf / gprf
+    # contribute multi-token / 1-seq, so the *seq* slice (used to
+    # index ``block_table_tensor``) differs from the *token* slice
+    # (used to index hidden_state row buffers).
+    neo_sub_batch_cdec_seq_slices: list[tuple[int, int]] | None = None
 
     @classmethod
     def make_empty(cls) -> "SchedulerOutput":

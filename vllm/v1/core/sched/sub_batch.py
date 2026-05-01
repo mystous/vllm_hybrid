@@ -258,6 +258,43 @@ class SubBatch:
                 + len(self.gdec_reqs)
                 + len(self.cdec_reqs))
 
+    # ── seq-row slices (one row per request) ─────────────────────────
+    # IDE_006 Step 3.2.C-1 — token slice (above) gives the row range
+    # in the *contiguous token tensor*. The attention metadata's
+    # ``block_table_tensor`` is shaped ``(batch_size_seqs,
+    # max_blocks_per_seq)`` — one row per *request*, not per token.
+    # cprf / gprf contribute one row each despite multi-token, so the
+    # seq-row slice differs from the token slice.
+    #
+    # ``all_reqs`` order is cprf → gprf → gdec → cdec, so the seq
+    # slices are simple cumulative counts of request lists.
+    # ----------------------------------------------------------------
+    @property
+    def cprf_seq_slice(self) -> tuple[int, int]:
+        return (0, len(self.cprf_reqs))
+
+    @property
+    def gprf_seq_slice(self) -> tuple[int, int]:
+        start = len(self.cprf_reqs)
+        return (start, start + len(self.gprf_reqs))
+
+    @property
+    def gdec_seq_slice(self) -> tuple[int, int]:
+        start = len(self.cprf_reqs) + len(self.gprf_reqs)
+        return (start, start + len(self.gdec_reqs))
+
+    @property
+    def cdec_seq_slice(self) -> tuple[int, int]:
+        start = (len(self.cprf_reqs) + len(self.gprf_reqs)
+                 + len(self.gdec_reqs))
+        return (start, start + len(self.cdec_reqs))
+
+    @property
+    def total_seqs(self) -> int:
+        """Total request count (one row per request in attn_metadata)."""
+        return (len(self.cprf_reqs) + len(self.gprf_reqs)
+                + len(self.gdec_reqs) + len(self.cdec_reqs))
+
     @property
     def gpu_time(self) -> float:
         return self.perfdata.gpu_time

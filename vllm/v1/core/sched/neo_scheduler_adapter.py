@@ -440,6 +440,9 @@ class NeoSchedulerAdapter(Scheduler):
                 output.neo_sub_batch_cdec_slices = [
                     batch.cdec_token_slice for batch in batches
                 ]
+                output.neo_sub_batch_cdec_seq_slices = [
+                    batch.cdec_seq_slice for batch in batches
+                ]
             except (AttributeError, TypeError) as e:
                 logger.debug("NEO output attach failed: %s", e)
 
