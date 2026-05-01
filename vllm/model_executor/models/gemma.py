@@ -409,8 +409,24 @@ class GemmaModel(nn.Module):
             pos = positions_list[ubid]
             if per_subbatch_contexts is not None:
                 with override_forward_context(per_subbatch_contexts[ubid]):
-                    return layer.neo_attention(positions=pos, hidden_states=q)
-            return layer.neo_attention(positions=pos, hidden_states=q)
+                    attn_out = layer.neo_attention(
+                        positions=pos, hidden_states=q
+                    )
+            else:
+                attn_out = layer.neo_attention(
+                    positions=pos, hidden_states=q
+                )
+            # IDE_006 Step 3.1 — cdec dispatch fork (TSK_015 4.5 / TSK_018 3.1)
+            cdec_start, cdec_end = batch.cdec_token_slice
+            if cdec_end > cdec_start and cur_layer_id == 0:
+                if not getattr(self, "_neo_cdec_fork_logged", False):
+                    logger.info(
+                        "NEO cdec fork enter: %d cdec rows in sub-batch "
+                        "(rows [%d, %d)). Phase 3.2 will route via neo_pacpu.",
+                        cdec_end - cdec_start, cdec_start, cdec_end,
+                    )
+                    self._neo_cdec_fork_logged = True
+            return attn_out
 
         def postproj(attn_out, batch, layer_idx):
             layer = layers[layer_idx]
