@@ -34,6 +34,7 @@ from transformers import LlamaConfig
 from vllm.compilation.decorators import support_torch_compile
 from vllm.config import CacheConfig, VllmConfig
 from vllm.distributed import get_pp_group, get_tensor_model_parallel_world_size
+from vllm.logger import init_logger
 from vllm.model_executor.layers.activation import SiluAndMul
 from vllm.model_executor.layers.attention import (
     Attention,
@@ -76,6 +77,8 @@ from .utils import (
     make_layers,
     maybe_prefix,
 )
+
+logger = init_logger(__name__)
 
 
 class LlamaMLP(nn.Module):
@@ -578,10 +581,28 @@ class LlamaModel(nn.Module, EagleModelMixin):
                 # cu_seqlens / block_table — KV writes land in *its*
                 # pool slots only.
                 with override_forward_context(per_subbatch_contexts[ubid]):
-                    return layer.neo_attention(
+                    attn_out = layer.neo_attention(
                         positions=pos, hidden_states=q
                     )
-            return layer.neo_attention(positions=pos, hidden_states=q)
+            else:
+                attn_out = layer.neo_attention(
+                    positions=pos, hidden_states=q
+                )
+            # IDE_006 Step 3.1 — cdec dispatch fork (TSK_015 4.5 / TSK_018 3.1).
+            # When the sub-batch carries CPU-decoding rows, those rows'
+            # attention should run on the CPU pacpu kernel rather than
+            # GPU flash_attn. Step 3.2 implements the actual override;
+            # Step 3.1 land 의 본 분기는 *진입 인프라* + once-fire log.
+            cdec_start, cdec_end = batch.cdec_token_slice
+            if cdec_end > cdec_start and cur_layer_id == 0:
+                if not getattr(self, "_neo_cdec_fork_logged", False):
+                    logger.info(
+                        "NEO cdec fork enter: %d cdec rows in sub-batch "
+                        "(rows [%d, %d)). Phase 3.2 will route via neo_pacpu.",
+                        cdec_end - cdec_start, cdec_start, cdec_end,
+                    )
+                    self._neo_cdec_fork_logged = True
+            return attn_out
 
         def postproj(attn_out, batch, layer_idx):
             layer = layers[layer_idx]
