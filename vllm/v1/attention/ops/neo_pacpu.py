@@ -92,8 +92,10 @@ def load_kernel(model_name: str, tp_degree: int) -> bool:
         logger.warning(
             "neo_pacpu: pre-built %s not found. Build with:\n"
             "    bash scripts/build_pacpu.sh %s %d\n"
-            "(needs g++ ≥ 12 and ispc; auto-detected). Falling back "
-            "to pure-Python reference.",
+            "(needs g++ ≥ 12 and ispc; auto-detected). Or call "
+            "``ensure_loaded(..., auto_build=True)`` to invoke the "
+            "build script automatically. Falling back to pure-Python "
+            "reference.",
             so, model_name, tp_degree,
         )
         return False
@@ -106,6 +108,115 @@ def load_kernel(model_name: str, tp_degree: int) -> bool:
     _loaded_libraries[macro] = str(so)
     logger.info("neo_pacpu: loaded %s", so)
     return True
+
+
+# ----------------------------------------------------------------------
+# TSK_018 Phase 3.4.b — startup-friendly auto-build invoke.
+#
+# ``ensure_loaded(model, tp, auto_build=...)`` is the single entry the
+# engine startup hook calls when ``enable_neo_asymmetric=True``. It
+# loads the pre-built ``.so`` if present; on cache miss it (optionally)
+# spawns ``scripts/build_pacpu.sh`` to build the kernel before retrying
+# the load.
+#
+# auto_build resolution:
+#   None (default) → read env ``VLLM_NEO_AUTO_BUILD`` (truthy / falsy)
+#   True           → always try to build on miss
+#   False          → never auto-build (warn-and-fallback only)
+# ----------------------------------------------------------------------
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[4]   # vllm_hybrid/
+
+
+def _try_build(model_macro: str, tp_degree: int) -> bool:
+    """Run ``scripts/build_pacpu.sh <macro> <tp>`` synchronously.
+    Returns True if the build script exited 0 *and* produced the
+    expected ``.so``. Captures stdout/stderr to the logger so init-time
+    failures surface clearly without crashing the engine."""
+    import subprocess
+    script = _repo_root() / "scripts" / "build_pacpu.sh"
+    if not script.is_file():
+        logger.warning(
+            "neo_pacpu auto-build: %s not found — cannot build",
+            script,
+        )
+        return False
+    so = _so_path(model_macro, tp_degree)
+    logger.info(
+        "neo_pacpu auto-build: invoking %s %s %d (this may take ~15s "
+        "the first time — cmake configure + ISPC compile)",
+        script, model_macro, tp_degree,
+    )
+    try:
+        proc = subprocess.run(
+            ["bash", str(script), model_macro, str(tp_degree)],
+            capture_output=True, text=True, check=False,
+            cwd=str(_repo_root()),
+        )
+    except OSError as e:
+        logger.warning("neo_pacpu auto-build: invocation failed: %s", e)
+        return False
+    if proc.returncode != 0:
+        logger.warning(
+            "neo_pacpu auto-build: build script exited %d. stderr tail:\n%s",
+            proc.returncode,
+            "\n".join(proc.stderr.splitlines()[-20:]),
+        )
+        return False
+    if not so.is_file():
+        logger.warning(
+            "neo_pacpu auto-build: script returned 0 but %s missing",
+            so,
+        )
+        return False
+    logger.info("neo_pacpu auto-build: produced %s", so)
+    return True
+
+
+def ensure_loaded(
+    model_name: str,
+    tp_degree: int,
+    *,
+    auto_build: bool | None = None,
+) -> bool:
+    """Load the pacpu kernel for ``(model, tp)``, optionally building
+    on cache miss. Returns True iff the kernel is loaded and callable
+    via ``torch.ops.pacpu`` afterwards.
+
+    Safe to call repeatedly — internal load cache makes it idempotent.
+    Designed for the engine startup hook; does not raise (best-effort).
+    """
+    macro = _resolve_neo_macro(model_name)
+    if macro is None:
+        logger.info(
+            "neo_pacpu ensure_loaded: no macro mapping for %r — skip",
+            model_name,
+        )
+        return False
+    if macro in _loaded_libraries:
+        return True
+
+    if auto_build is None:
+        auto_build = os.environ.get("VLLM_NEO_AUTO_BUILD", "") in (
+            "1", "true", "True", "yes", "on"
+        )
+
+    so = _so_path(macro, tp_degree)
+    if so.is_file():
+        return load_kernel(model_name, tp_degree)
+
+    # Cache miss path
+    if not auto_build:
+        logger.warning(
+            "neo_pacpu ensure_loaded: %s missing and auto_build=False — "
+            "build it manually with ``bash scripts/build_pacpu.sh %s %d``",
+            so, model_name, tp_degree,
+        )
+        return False
+
+    if not _try_build(macro, tp_degree):
+        return False
+    return load_kernel(model_name, tp_degree)
 
 
 # ----------------------------------------------------------------------
