@@ -158,6 +158,10 @@ class ForwardContext:
     # source of truth* for cdec routing — model code and per-backend
     # metadata builders are unaware of it.
     neo_cdec_token_slice: tuple[int, int] | None = None
+    # Step 3.2.C-1 — seq-row range for cdec rows. block_table_tensor is
+    # indexed by *seq* (one row per request). cprf / gprf contribute
+    # multi-token / 1-seq, so this differs from token slice above.
+    neo_cdec_seq_slice: tuple[int, int] | None = None
 
     # If True, bypass the compiled model call, e.g. by using .forward() directly
     skip_compiled: bool = False

@@ -161,3 +161,65 @@ def test_variable_prompt_lengths():
     sb.add_pref(_Req(2, 7, 7), is_gpu=True)
     sb.add_pref(_Req(3, 23, 23), is_gpu=True)
     assert sb.gprf_token_slice == (0, 130)
+
+
+# ----------------------------------------------------------------------
+# Step 3.2.C-1 — seq-row slices (one row per request — for block_table_tensor).
+# Key contract: cprf / gprf contribute multi-token but ONE seq row.
+# ----------------------------------------------------------------------
+def test_seq_slices_count_one_row_per_request():
+    sb = _make_sb()
+    sb.add_pref(_Req(1, 100, 100), is_gpu=False)        # cprf: 1 seq, 100 tokens
+    sb.add_pref(_Req(2, 50, 50), is_gpu=True)           # gprf: 1 seq, 50 tokens
+    sb.add_pref(_Req(3, 30, 30), is_gpu=True)           # gprf: 1 seq, 30 tokens
+    sb.add_gdec(_Req(4, 4, 5))                          # gdec: 1 seq
+    sb.add_gdec(_Req(5, 4, 5))                          # gdec: 1 seq
+    sb.add_cdec(_Req(6, 4, 5))                          # cdec: 1 seq
+
+    # token slice (existing): cprf=100, gprf=80, gdec=2, cdec=1
+    assert sb.cprf_token_slice == (0, 100)
+    assert sb.gprf_token_slice == (100, 180)
+    assert sb.gdec_token_slice == (180, 182)
+    assert sb.cdec_token_slice == (182, 183)
+
+    # seq slice (new): each request contributes 1 row
+    assert sb.cprf_seq_slice == (0, 1)
+    assert sb.gprf_seq_slice == (1, 3)
+    assert sb.gdec_seq_slice == (3, 5)
+    assert sb.cdec_seq_slice == (5, 6)
+    assert sb.total_seqs == 6
+
+
+def test_empty_seq_slices_all_zero():
+    sb = _make_sb()
+    assert sb.cprf_seq_slice == (0, 0)
+    assert sb.gprf_seq_slice == (0, 0)
+    assert sb.gdec_seq_slice == (0, 0)
+    assert sb.cdec_seq_slice == (0, 0)
+    assert sb.total_seqs == 0
+
+
+def test_seq_slice_decouples_from_token_slice_when_prefill_present():
+    """The whole point of cdec_seq_slice — when prefill is present,
+    token positions and seq positions diverge."""
+    sb = _make_sb()
+    sb.add_pref(_Req(1, 64, 64), is_gpu=True)    # 1 seq, 64 tokens
+    sb.add_cdec(_Req(2, 4, 5))                   # 1 seq, 1 token
+
+    # token: cdec starts at 64
+    assert sb.cdec_token_slice == (64, 65)
+    # seq: cdec starts at 1 (since 1 prefill seq before)
+    assert sb.cdec_seq_slice == (1, 2)
+
+
+def test_seq_slice_matches_token_slice_when_only_decodes():
+    """When only gdec/cdec are present, 1 token = 1 seq, so the
+    two slices coincide."""
+    sb = _make_sb()
+    sb.add_gdec(_Req(1, 4, 5))
+    sb.add_gdec(_Req(2, 4, 5))
+    sb.add_cdec(_Req(3, 4, 5))
+    sb.add_cdec(_Req(4, 4, 5))
+
+    assert sb.cdec_token_slice == sb.cdec_seq_slice == (2, 4)
+    assert sb.gdec_token_slice == sb.gdec_seq_slice == (0, 2)

@@ -396,6 +396,10 @@ class CommonAttentionMetadata:
     # row routing; no model-side dispatch decision required (vLLM 정통
     # backend dispatch path).
     neo_cdec_token_slice: tuple[int, int] | None = None
+    # Step 3.2.C-1 — seq-row slice for cdec rows (block_table_tensor
+    # indexing). Differs from token slice when prefill is in the
+    # sub-batch (1 prefill = multi-token / 1-seq).
+    neo_cdec_seq_slice: tuple[int, int] | None = None
 
     # WARNING: Deprecated fields. Will be removed in a future release (v0.15.0)
     _seq_lens_cpu: torch.Tensor | None = None
