@@ -778,20 +778,87 @@ def unified_attention_with_output(
     try:
         from vllm.forward_context import get_forward_context as _get_fc
         _fc = _get_fc()
-        _slice = getattr(_fc, "neo_cdec_token_slice", None)
-        if _slice is None or _slice[1] <= _slice[0]:
+        _tok = getattr(_fc, "neo_cdec_token_slice", None)
+        _seq = getattr(_fc, "neo_cdec_seq_slice", None)
+        if (_tok is None or _tok[1] <= _tok[0]
+                or _seq is None or _seq[1] <= _seq[0]):
             return
-        # Step 3.2.B-3 first attempt — dispatch entry path. Actual
-        # neo_pacpu invocation + output reassembly remains a deferred
-        # follow-up (KV cache view 매개 + per-req metadata 의존).
-        # 본 단계는 hook 가 발화하는지 확인 + log 만.
+        # Step 3.2.C-2 — actual neo_pacpu dispatch path. All work is
+        # wrapped in this single try so any failure (kernel not loaded,
+        # KV layout mismatch, dtype mismatch, attribute missing, …)
+        # falls back silently to the vanilla GPU output.
+        if not hasattr(torch.ops, "pacpu"):
+            # Kernel never loaded (auto-build OFF + .so missing). Skip.
+            return
+
+        from vllm.v1.attention.ops import neo_pacpu as _pa
+        _t0, _t1 = _tok
+        _s0, _s1 = _seq
+        cdec_count = _t1 - _t0           # one row per cdec token
+        nh = self.impl.num_heads
+        nkh = self.impl.num_kv_heads
+        hd = self.impl.head_size
+
+        # 1. q/k/v of cdec rows (will need .to(float16).cpu() — Step 3.2.C-3)
+        q_cdec = query[_t0:_t1].view(cdec_count, nh, hd)
+        k_cdec = key[_t0:_t1].view(cdec_count, nkh, hd)
+        v_cdec = value[_t0:_t1].view(cdec_count, nkh, hd)
+
+        # 2. block_table (seq-row indexed) — cdec seq slice
+        block_table_full = getattr(attn_metadata, "block_table_tensor", None)
+        if block_table_full is None:
+            return
+        block_table_cdec = block_table_full[_s0:_s1]
+
+        # 3. KV cache layer view (HND format expected by NEO)
+        if isinstance(kv_cache, (list, tuple)) and len(kv_cache) >= 2:
+            k_cache_layer = kv_cache[0]
+            v_cache_layer = kv_cache[1]
+        else:
+            return
+
+        # 4. seq_ids / seq_lengths placeholder — actual req_id mapping +
+        # num_tokens routing is deferred to Step 3.2.C-4 (NEO 의 int_pool
+        # index 와 vLLM string req_id 매개 영역). 본 단계에서는 list 형태만
+        # 갖춰서 호출 시그니처 검증.
+        seq_ids = list(range(cdec_count))
+        seq_lengths = [int(query.shape[0])] * cdec_count
+
+        # 5. neo_pacpu invocation — Step 3.2.C-3 will add FP16 cast +
+        # CPU memcpy + output in-place 덮어쓰기. 본 단계는 호출 시그니처
+        # path 의 land 만 (실제 호출은 try 안에서 attempt).
+        out_buf = torch.empty(
+            cdec_count, nh * hd, dtype=torch.float32,
+        )
+        _pa.forward_attention(
+            cur_layer=0,
+            softmax_scale=float(self.impl.scale),
+            seq_ids=seq_ids,
+            seq_lengths=seq_lengths,
+            q=q_cdec.to(torch.float16).cpu(),
+            k_new=k_cdec.to(torch.float16).cpu(),
+            v_new=v_cdec.to(torch.float16).cpu(),
+            k_cache_layer=k_cache_layer.to(torch.float16).cpu(),
+            v_cache_layer=v_cache_layer.to(torch.float16).cpu(),
+            block_table=block_table_cdec.to(torch.int32).cpu(),
+            output=out_buf,
+        )
+
+        # Step 3.2.C-3 — CPU 결과 → GPU output 의 cdec rows 부분 덮어쓰기.
+        # ``unified_attention_with_output`` 의 ``output`` 은 *pre o_proj*
+        # 의 attention 결과 (raw q·K^T softmax · V). neo_pacpu 도 동일
+        # semantic 결과를 ``out_buf`` 에 채움 — 그대로 cast 후 덮어쓰면
+        # o_proj 단계가 GPU 측에서 정확히 이어짐.
+        # output shape = (cdec_count, num_heads * head_dim) — out_buf 와 동일.
+        out_gpu = out_buf.to(output.device).to(output.dtype)
+        output[_t0:_t1].copy_(out_gpu)
         if not getattr(self, "_neo_cdec_dispatch_logged", False):
             from vllm.logger import init_logger as _init
             _logger = _init("vllm.attention.neo_cdec")
             _logger.info(
-                "NEO cdec dispatch hook entered: layer=%s slice=%s "
-                "(neo_pacpu call deferred — KV cache view 매개)",
-                layer_name, _slice,
+                "NEO cdec dispatch active (Step 3.2.C-3): layer=%s "
+                "tok=%s seq=%s — %d cdec rows routed via neo_pacpu",
+                layer_name, _tok, _seq, cdec_count,
             )
             self._neo_cdec_dispatch_logged = True
     except Exception:  # noqa: BLE001
