@@ -278,6 +278,12 @@ class SchedulerOutput:
     # index ``block_table_tensor``) differs from the *token* slice
     # (used to index hidden_state row buffers).
     neo_sub_batch_cdec_seq_slices: list[tuple[int, int]] | None = None
+    # IDE_006 / TSK_015.Step3.2.c.7 — per-sub-batch cdec request id list.
+    # Worker-side dispatch hook uses these ids to look up the CPU KV view
+    # in ``NeoCpuKvBuffer.copy_layer_out(req_id, layer_idx)`` — avoiding
+    # a per-layer GPU→CPU memcpy of the whole KV cache.
+    # ``len(neo_sub_batch_cdec_req_ids[i]) == cdec_seq_slice[i] width``.
+    neo_sub_batch_cdec_req_ids: list[list[str]] | None = None
 
     @classmethod
     def make_empty(cls) -> "SchedulerOutput":

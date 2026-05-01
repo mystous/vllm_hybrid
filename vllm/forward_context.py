@@ -162,6 +162,9 @@ class ForwardContext:
     # indexed by *seq* (one row per request). cprf / gprf contribute
     # multi-token / 1-seq, so this differs from token slice above.
     neo_cdec_seq_slice: tuple[int, int] | None = None
+    # Step 3.2.c.7 — request id list for cdec rows. Used by attention
+    # dispatch hook to look up CPU KV via NeoCpuKvBuffer.
+    neo_cdec_req_ids: list[str] | None = None
 
     # If True, bypass the compiled model call, e.g. by using .forward() directly
     skip_compiled: bool = False
