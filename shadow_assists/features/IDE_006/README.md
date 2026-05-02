@@ -271,11 +271,12 @@ XOR invariant — 어느 시점이든 한 req 는 `gpu_decoding_q` 와 `cpu_deco
 | pacpu 모델 macro 확장 | `csrc/cpu/pacpu/dtype.h` + `scripts/build_pacpu.sh` | ✅ Llama-70B + Qwen-1.5B/7B/32B/72B 빌드 검증 |
 | pacpu startup auto-build | `vllm/v1/attention/ops/neo_pacpu.py` `ensure_loaded(...)` | ✅ TSK_018 Phase 3.4.b (`VLLM_NEO_AUTO_BUILD=1` opt-in) |
 
-> **현재 한계** (2026-05-02 prod 1차 실측 후 정합):
+> **현재 한계** (2026-05-02 prod 4차 실측 후 정합):
 > - **인프라 회귀 zero** — Llama-70B + TP=8 prod env-ON smoke token-id equality vanilla = NEO **PASS**.
 > - **NEO 의 진정한 gain 영역** = KV pool **100% 초과 sustained** 영역 (`neo_scheduler.py:202` 의 `swap_out_threshold = num_gpu_blocks`). 5000 prompts × 50:50 + 8192/8192 (~4.7 hour) workload 만 자연 발화.
+> - **VLLM_NEO_SWAP_OUT_RATIO env 추가** (2026-05-02) — default 1.0 (기존 동작 보존), 0.05 등 단축 회차에서 forced-fire 영역 활성. forced-fire 단축 회차에서 **NEO swap dispatch first fire 발화 검증** (`first fire: out=2 in=0`) — 단 first fire 직후 `gpu_model_runner.py:1867` shape mismatch crash 식별 (B-5 fragile spot, multi-day fix 영역). 본 turn 에 truncate guard 적재 → 회귀 zero + path 진행 가능.
 > - **단축 회차 회귀** — KV 미압력 영역에서는 NEO sibling overhead 만 누적 (vanilla 대비 2.65× regression 측정 — `eval/results/20260502_024212_*_neo_b6_short/`). 본 영역의 회귀 자체는 NEO 논문의 "KV 압력 없으면 gain 없음" 영역과 정합.
-> - **B-5 자연 발화 + B-6 throughput gain 검증** = 별도 prod session (multi-hour) 영역. 절차는 `TSK_015.md §3.5` 의 P-1~P-5.
+> - **B-5 token equality + B-6 throughput gain 검증** = 별도 prod session (multi-hour) 영역. 절차는 `TSK_015.md §3.5` 의 P-1~P-5.
 
 ---
 
