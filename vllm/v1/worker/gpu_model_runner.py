@@ -2353,6 +2353,16 @@ class GPUModelRunner(
                         if (neo_cdec_slices is not None
                                 and ubid < len(neo_cdec_slices)):
                             _cm.neo_cdec_token_slice = neo_cdec_slices[ubid]
+                            # IDE_006 / TSK_015.B-3.c — slot_mapping sentinel
+                            # for cdec rows. flash_attn 이 PADDING_SLOT_ID=-1
+                            # 인 row 는 KV cache write 를 skip → cdec KV 가
+                            # GPU 에 안 쓰여 wasteful 회피. neo_pacpu 의 결과
+                            # 가 dispatch hook 에서 output 덮어쓰므로 정확성
+                            # 영향 zero.
+                            _cdec_t0, _cdec_t1 = neo_cdec_slices[ubid]
+                            if (_cdec_t1 > _cdec_t0
+                                    and _cm.slot_mapping is not None):
+                                _cm.slot_mapping[_cdec_t0:_cdec_t1] = -1
                         if (neo_cdec_seq_slices is not None
                                 and ubid < len(neo_cdec_seq_slices)):
                             _cm.neo_cdec_seq_slice = neo_cdec_seq_slices[ubid]
