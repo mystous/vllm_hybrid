@@ -385,6 +385,19 @@ class Scheduler(SchedulerInterface):
         while req_index < len(self.running) and token_budget > 0:
             request = self.running[req_index]
 
+            # IDE_006 / TSK_015.B-2.a — SWAPPED_OUT req 는 GPU KV blocks 가
+            # 없음 (Phase 4.4.c 의 swap-out). 정상 ``allocate_slots`` 가 fail.
+            # B-1 후 cdec req 가 ``running`` 에 유지되므로 schedule() 의
+            # running loop 에서 skip 필요. NEO scheduler 가 swap_in 시
+            # status RUNNING 복귀 후 정상 schedule.
+            #
+            # B-2.b (deferred): SWAPPED_OUT 도 schedule 하되 KV alloc 우회 +
+            # token 만 schedule (NEO 정통 — Q embedding 은 GPU 가 생성, attention
+            # 단계만 backend 가 CPU pacpu 로 분기). vLLM core 깊은 변경.
+            if request.status == RequestStatus.SWAPPED_OUT:
+                req_index += 1
+                continue
+
             if (
                 request.num_output_placeholders > 0
                 # This is (num_computed_tokens + 1) - (num_output_placeholders - 1).
