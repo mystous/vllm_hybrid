@@ -18,6 +18,12 @@ BUILDER="$REPO_ROOT/csrc/cpu/pacpu/build.sh"
 declare -A ALIAS_MODEL=(
     [qwen-1.5b]=qwen2_5_1_5b
     [qwen2_5_1_5b]=qwen2_5_1_5b
+    [qwen-7b]=qwen2_5_7b
+    [qwen2_5_7b]=qwen2_5_7b
+    [qwen-32b]=qwen2_5_32b
+    [qwen2_5_32b]=qwen2_5_32b
+    [qwen-72b]=qwen2_5_72b
+    [qwen2_5_72b]=qwen2_5_72b
     [llama-70b]=llama3_3_70b
     [llama3_3_70b]=llama3_3_70b
 )
