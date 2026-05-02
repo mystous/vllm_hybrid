@@ -1817,7 +1817,14 @@ class GPUModelRunner(
             logits_indices, spec_decode_metadata,
         ]
         """
-        total_num_scheduled_tokens = scheduler_output.total_num_scheduled_tokens
+        # IDE_006 / TSK_015.B-5 root fix — input_batch 측의 *실제 token 합* 사용.
+        # scheduler_output.total_num_scheduled_tokens 는 num_scheduled_tokens
+        # dict 의 합 (모든 schedule 된 req) 이지만, input_batch 가 *finish ↔
+        # schedule 동시 발화 시* cdec_req 를 제거해 mismatch 가 발생할 수
+        # 있음 (input_batch[100 reqs] vs scheduler[101 reqs]).
+        # _prepare_inputs 의 모든 buffer write 가 input_batch 측 num_reqs 를
+        # 기준으로 sized 되므로, total 도 같은 기준으로 정합.
+        total_num_scheduled_tokens = int(num_scheduled_tokens.sum())
         assert total_num_scheduled_tokens > 0
         num_reqs = self.input_batch.num_reqs
         assert num_reqs > 0
@@ -4065,7 +4072,11 @@ class GPUModelRunner(
             tokens = [scheduler_output.num_scheduled_tokens[i] for i in req_ids]
             num_scheduled_tokens_np = np.array(tokens, dtype=np.int32)
             max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
-            num_tokens_unpadded = scheduler_output.total_num_scheduled_tokens
+            # IDE_006 / TSK_015.B-5 root fix — input_batch 측 실제 합 사용.
+            # scheduler_output.total_num_scheduled_tokens 는 finish ↔ schedule
+            # 동시 발화 시 input_batch 에서 빠진 req 의 token 도 포함할 수 있어
+            # downstream buffer (req_indices / token_indices 등) 와 mismatch 영역.
+            num_tokens_unpadded = int(num_scheduled_tokens_np.sum())
 
             logits_indices, spec_decode_metadata = self._prepare_inputs(
                 scheduler_output,
