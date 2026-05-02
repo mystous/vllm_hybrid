@@ -585,7 +585,9 @@ def test_handle_neo_swaps_noop_when_env_off(monkeypatch):
 
 
 def test_handle_neo_swaps_dispatches_swap_out_on_env(monkeypatch):
-    """VLLM_NEO_KV_FREE=1 → swap_out_req_ids dispatched + popped from running."""
+    """B-1: swap-out → status SWAPPED_OUT + KV freed, but req **stays
+    in running** so vLLM input_batch still includes it (NEO 정통 —
+    cdec req 도 forward 에 참여)."""
     from vllm.v1.request import RequestStatus
     monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
 
@@ -601,11 +603,12 @@ def test_handle_neo_swaps_dispatches_swap_out_on_env(monkeypatch):
 
     assert req.status == RequestStatus.SWAPPED_OUT
     assert sch.kv_cache_manager.free_calls == [req]
-    assert req not in sch.running                   # popped
+    assert req in sch.running                       # B-1: stays in running
 
 
 def test_handle_neo_swaps_dispatches_swap_in_on_env(monkeypatch):
-    """VLLM_NEO_KV_FREE=1 + swap_in_req_ids → SWAPPED_OUT→RUNNING + appended."""
+    """B-1: swap-in → status SWAPPED_OUT→RUNNING. req 는 이미 running
+    에 있으므로 append 안 함 (B-1 후 cdec 가 forward 참여 영역)."""
     from vllm.v1.request import RequestStatus
     monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
 
@@ -614,14 +617,16 @@ def test_handle_neo_swaps_dispatches_swap_in_on_env(monkeypatch):
     req = _StubRequest("r_in", num_computed_tokens=20)
     req.status = RequestStatus.SWAPPED_OUT
     sch.requests[req.request_id] = req
-    # not in running yet — will be appended on swap-in success
+    sch.running.append(req)                          # already in running
 
     core = _StubEngineCore(sch)
     core._bind()
     core._handle_neo_swaps(_StubSchedOut(swap_in=[req.request_id]))
 
     assert req.status == RequestStatus.RUNNING
-    assert req in sch.running                       # appended
+    assert req in sch.running
+    # only one occurrence (no double-append after B-1)
+    assert sch.running.count(req) == 1
     assert sch.kv_cache_manager.alloc_calls == [req]
 
 

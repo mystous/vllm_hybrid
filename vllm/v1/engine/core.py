@@ -492,25 +492,28 @@ class EngineCore:
             )
             self._neo_swap_logged_once = True
         sched = self.scheduler
-        # Out: RUNNING → SWAPPED_OUT, KV freed, popped from running.
+        # IDE_006 / TSK_015.B-1 — Out: RUNNING → SWAPPED_OUT, GPU blocks
+        # freed but req **stays in running**. NEO 의 정통: cdec req 도
+        # forward 에 참여 (Q embedding 만 GPU, attention backend 단계에서만
+        # CPU pacpu 분기). running 에서 제거하면 vLLM input_batch 가 cdec
+        # 를 모르고 → fork branch 의 num_reqs mismatch → dispatch dead code.
         if swap_out_ids:
             for req_id in swap_out_ids:
                 req = sched.requests.get(req_id)
                 if req is None or req.status != RequestStatus.RUNNING:
                     continue
                 sched._neo_swap_out(req)
-                try:
-                    sched.running.remove(req)
-                except ValueError:
-                    pass        # already absent — defensive
-        # In: SWAPPED_OUT → RUNNING, GPU blocks re-allocated, appended.
+                # running 유지 — vLLM scheduler 의 schedule() 이 SWAPPED_OUT
+                # status 도 input_batch 에 포함하도록 갱신 (B-2)
+        # In: SWAPPED_OUT → RUNNING. running 에 이미 있으므로 append 하지
+        # 않고 status 만 복귀.
         if swap_in_ids:
             for req_id in swap_in_ids:
                 req = sched.requests.get(req_id)
                 if req is None or req.status != RequestStatus.SWAPPED_OUT:
                     continue
-                if sched._neo_swap_in(req):
-                    sched.running.append(req)
+                sched._neo_swap_in(req)
+                # running 에 이미 있음 — append 안 함 (B-1)
 
     def step(self) -> tuple[dict[int, EngineCoreOutputs], bool]:
         """Schedule, execute, and make output.
