@@ -30,10 +30,10 @@ MODEL="${1,,}"          # lower-case
 TP="$2"
 
 case "$MODEL" in
-    llama3_3_70b|qwen2_5_1_5b|qwen2_5_7b|qwen2_5_32b|qwen2_5_72b) ;;
+    llama3_3_70b|qwen2_5_1_5b|qwen2_5_7b|qwen2_5_32b|qwen2_5_72b|mistral_7b|mistral_nemo_12b|phi3_medium_14b) ;;
     *)
         echo "error: unknown MODEL '$MODEL'." >&2
-        echo "       supported: llama3_3_70b, qwen2_5_1_5b, qwen2_5_7b, qwen2_5_32b, qwen2_5_72b" >&2
+        echo "       supported: llama3_3_70b, qwen2_5_*, mistral_7b, mistral_nemo_12b, phi3_medium_14b" >&2
         echo "       (add a new macro to dtype.h then update this list)" >&2
         exit 2
         ;;

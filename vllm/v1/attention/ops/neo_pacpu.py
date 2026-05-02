@@ -49,6 +49,15 @@ _MODEL_TO_NEO_MACRO: dict[str, str] = {
     "llama-3.1-70b": "llama3_3_70b",     # same dim-set as 3.3
     "llama-3-70b":   "llama3_3_70b",
     "llama-2-70b":   "llama3_3_70b",
+    "mistral-7b":                                 "mistral_7b",
+    "mistralai/mistral-7b-instruct-v0.3":         "mistral_7b",
+    "mistralai/mistral-7b-instruct-v0.2":         "mistral_7b",
+    "mistral-nemo":                               "mistral_nemo_12b",
+    "mistralai/mistral-nemo-instruct-2407":       "mistral_nemo_12b",
+    "phi-3-medium":                               "phi3_medium_14b",
+    "phi3-medium":                                "phi3_medium_14b",
+    "microsoft/phi-3-medium-128k-instruct":       "phi3_medium_14b",
+    "microsoft/phi-3-medium-4k-instruct":         "phi3_medium_14b",
 }
 
 _loaded_libraries: dict[str, str] = {}   # macro → loaded .so path

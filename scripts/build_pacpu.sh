@@ -26,6 +26,14 @@ declare -A ALIAS_MODEL=(
     [qwen2_5_72b]=qwen2_5_72b
     [llama-70b]=llama3_3_70b
     [llama3_3_70b]=llama3_3_70b
+    [mistral-7b]=mistral_7b
+    [mistral_7b]=mistral_7b
+    [mistral-nemo]=mistral_nemo_12b
+    [mistral-nemo-12b]=mistral_nemo_12b
+    [mistral_nemo_12b]=mistral_nemo_12b
+    [phi3-medium]=phi3_medium_14b
+    [phi3-medium-14b]=phi3_medium_14b
+    [phi3_medium_14b]=phi3_medium_14b
 )
 
 # Default (dev, RTX 3090) target — used when no args.
