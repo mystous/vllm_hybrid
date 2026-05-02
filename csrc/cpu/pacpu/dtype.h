@@ -57,8 +57,23 @@ typedef float otpt_t;
   #define NUM_LAYERS 80
   #define NUM_Q_HEADS (64 / TP_DEGREE)
   #define NUM_KV_HEADS (8 / TP_DEGREE)
+#elif defined(MISTRAL_7B)
+  // Mistral-7B-Instruct-v0.3 (head_dim=128): 32 layers, 32 Q heads, 8 KV heads.
+  #define NUM_LAYERS 32
+  #define NUM_Q_HEADS (32 / TP_DEGREE)
+  #define NUM_KV_HEADS (8 / TP_DEGREE)
+#elif defined(MISTRAL_NEMO_12B)
+  // Mistral-Nemo-Instruct-2407 (head_dim=128): 40 layers, 32 Q heads, 8 KV heads.
+  #define NUM_LAYERS 40
+  #define NUM_Q_HEADS (32 / TP_DEGREE)
+  #define NUM_KV_HEADS (8 / TP_DEGREE)
+#elif defined(PHI3_MEDIUM_14B)
+  // Phi-3-medium-128k-instruct (head_dim=128): 40 layers, 40 Q heads, 10 KV heads.
+  #define NUM_LAYERS 40
+  #define NUM_Q_HEADS (40 / TP_DEGREE)
+  #define NUM_KV_HEADS (10 / TP_DEGREE)
 #else
-  #error "Please define the model (e.g. -DLLAMA3_3_70B / -DQWEN2_5_1_5B / -DQWEN2_5_7B / -DQWEN2_5_32B / -DQWEN2_5_72B)"
+  #error "Please define the model (e.g. -DLLAMA3_3_70B / -DQWEN2_5_1_5B / -DQWEN2_5_7B / -DQWEN2_5_32B / -DQWEN2_5_72B / -DMISTRAL_7B / -DMISTRAL_NEMO_12B / -DPHI3_MEDIUM_14B)"
 #endif
 
 #define QH_PER_KVH (NUM_Q_HEADS / NUM_KV_HEADS)
