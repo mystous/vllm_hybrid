@@ -1873,7 +1873,11 @@ class Scheduler(SchedulerInterface):
                 continue
 
             valid_requests.append(request)
-            if request.status == RequestStatus.RUNNING:
+            # IDE_006 / TSK_015.B-3.b — SWAPPED_OUT 도 running 에 있음
+            # (B-1 의 running 유지 정책). finish 시 running 에서 정상
+            # 제거되도록 SWAPPED_OUT 도 RUNNING 과 같은 path.
+            if request.status in (
+                    RequestStatus.RUNNING, RequestStatus.SWAPPED_OUT):
                 running_requests_to_remove.add(request)
             else:
                 if request.status == RequestStatus.WAITING_FOR_STREAMING_REQ:
