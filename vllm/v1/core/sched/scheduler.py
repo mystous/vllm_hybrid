@@ -1070,7 +1070,12 @@ class Scheduler(SchedulerInterface):
         #    computed tokens will be adjusted in update_from_output.
         num_scheduled_tokens = scheduler_output.num_scheduled_tokens
         for req_id, num_scheduled_token in num_scheduled_tokens.items():
-            request = self.requests[req_id]
+            # IDE_006 / TSK_015.B-2.b — cdec req (SWAPPED_OUT) 가 schedule
+            # 됐다가 다른 path 에서 self.requests 에서 제거된 경우 — 임시
+            # guard. Root cause 분석은 후속 sub-step.
+            request = self.requests.get(req_id)
+            if request is None:
+                continue
             request.num_computed_tokens += num_scheduled_token
             request.is_prefill_chunk = request.num_computed_tokens < (
                 request.num_tokens + request.num_output_placeholders

@@ -1240,7 +1240,13 @@ class GPUModelRunner(
             self.prev_num_draft_tokens.np.fill(0)
 
         for i, req_id in enumerate(req_data.req_ids):
-            req_state = self.requests[req_id]
+            # IDE_006 / TSK_015.B-2.b — cdec req (SWAPPED_OUT) 가 worker
+            # 의 self.requests 에 미등록 상태일 수 있음. 임시 guard. Root
+            # cause (worker self.requests 의 cleanup path 정합) 는 후속
+            # multi-day 영역.
+            req_state = self.requests.get(req_id)
+            if req_state is None:
+                continue
             num_computed_tokens = req_data.num_computed_tokens[i]
             new_block_ids = req_data.new_block_ids[i]
             resumed_from_preemption = req_id in req_data.resumed_req_ids
