@@ -266,9 +266,16 @@ XOR invariant — 어느 시점이든 한 req 는 `gpu_decoding_q` 와 `cpu_deco
 | sub-batch forward fork | `vllm/v1/worker/gpu_model_runner.py` + `forward_neo_pipelined` | ✅ TSK_016 Step 5.5 (layer-offset ping-pong 보존) |
 | TablePerfPredictor + ModelProfiler | `vllm/v1/core/sched/perfpredictor.py`, `vllm/v1/metrics/profiler.py` | ✅ TSK_017 Step 1.1~1.6 |
 | NEO pacpu (ISPC + g++-12) | `csrc/cpu/pacpu/` + `vllm/v1/attention/ops/neo_pacpu.py` | ✅ TSK_018 Phase 1+2 cherry-pick |
-| sub_batch_executor cdec dispatch | (미연결) | 🚧 TSK_018 Phase 3 — TSK_015 Phase 4.5 동행 |
+| `unified_attention_with_output` cdec dispatch hook | `vllm/model_executor/layers/attention/attention.py` | ✅ TSK_015.Step3.2.B + Step3.2.C.1~C.8 (vLLM 정통 backend dispatch) |
+| §3.4 B-단계 architectural mismatch fix | scheduler / kv_cache_manager / gpu_model_runner | ✅ B-1 ~ B-4 (running 유지 / SWAPPED_OUT 정상 schedule / finish-swap mutex / slot_mapping sentinel / fork branch 재검증) |
+| pacpu 모델 macro 확장 | `csrc/cpu/pacpu/dtype.h` + `scripts/build_pacpu.sh` | ✅ Llama-70B + Qwen-1.5B/7B/32B/72B 빌드 검증 |
+| pacpu startup auto-build | `vllm/v1/attention/ops/neo_pacpu.py` `ensure_loaded(...)` | ✅ TSK_018 Phase 3.4.b (`VLLM_NEO_AUTO_BUILD=1` opt-in) |
 
-> **현재 한계**: pipelined 모드의 *진짜 GPU/CPU 동시 forward* 는 TSK_018 Phase 3 wiring 후 발현. 본 시점까지는 `VLLM_NEO_FORCE_PIPELINED=1` 로 fork path 만 발화 + cdec 도 GPU 가 처리 (정확성은 token equality PASS 로 입증). multi-day 영역.
+> **현재 한계** (2026-05-02 prod 1차 실측 후 정합):
+> - **인프라 회귀 zero** — Llama-70B + TP=8 prod env-ON smoke token-id equality vanilla = NEO **PASS**.
+> - **NEO 의 진정한 gain 영역** = KV pool **100% 초과 sustained** 영역 (`neo_scheduler.py:202` 의 `swap_out_threshold = num_gpu_blocks`). 5000 prompts × 50:50 + 8192/8192 (~4.7 hour) workload 만 자연 발화.
+> - **단축 회차 회귀** — KV 미압력 영역에서는 NEO sibling overhead 만 누적 (vanilla 대비 2.65× regression 측정 — `eval/results/20260502_024212_*_neo_b6_short/`). 본 영역의 회귀 자체는 NEO 논문의 "KV 압력 없으면 gain 없음" 영역과 정합.
+> - **B-5 자연 발화 + B-6 throughput gain 검증** = 별도 prod session (multi-hour) 영역. 절차는 `TSK_015.md §3.5` 의 P-1~P-5.
 
 ---
 
