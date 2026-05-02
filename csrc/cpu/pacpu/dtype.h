@@ -42,8 +42,23 @@ typedef float otpt_t;
   #define NUM_LAYERS 28
   #define NUM_Q_HEADS (12 / TP_DEGREE)
   #define NUM_KV_HEADS (2 / TP_DEGREE)
+#elif defined(QWEN2_5_7B)
+  // Qwen2.5-7B-Instruct: 28 layers, 28 Q heads, 4 KV heads (head_dim=128).
+  #define NUM_LAYERS 28
+  #define NUM_Q_HEADS (28 / TP_DEGREE)
+  #define NUM_KV_HEADS (4 / TP_DEGREE)
+#elif defined(QWEN2_5_32B)
+  // Qwen2.5-32B-Instruct: 64 layers, 40 Q heads, 8 KV heads (head_dim=128).
+  #define NUM_LAYERS 64
+  #define NUM_Q_HEADS (40 / TP_DEGREE)
+  #define NUM_KV_HEADS (8 / TP_DEGREE)
+#elif defined(QWEN2_5_72B)
+  // Qwen2.5-72B-Instruct: 80 layers, 64 Q heads, 8 KV heads (head_dim=128).
+  #define NUM_LAYERS 80
+  #define NUM_Q_HEADS (64 / TP_DEGREE)
+  #define NUM_KV_HEADS (8 / TP_DEGREE)
 #else
-  #error "Please define the model (e.g. -DLLAMA3_3_70B / -DQWEN2_5_1_5B)"
+  #error "Please define the model (e.g. -DLLAMA3_3_70B / -DQWEN2_5_1_5B / -DQWEN2_5_7B / -DQWEN2_5_32B / -DQWEN2_5_72B)"
 #endif
 
 #define QH_PER_KVH (NUM_Q_HEADS / NUM_KV_HEADS)

@@ -38,6 +38,12 @@ _PACPU_BUILD_DIR = (
 _MODEL_TO_NEO_MACRO: dict[str, str] = {
     "qwen2.5-1.5b": "qwen2_5_1_5b",
     "qwen/qwen2.5-1.5b-instruct": "qwen2_5_1_5b",
+    "qwen2.5-7b": "qwen2_5_7b",
+    "qwen/qwen2.5-7b-instruct": "qwen2_5_7b",
+    "qwen2.5-32b": "qwen2_5_32b",
+    "qwen/qwen2.5-32b-instruct": "qwen2_5_32b",
+    "qwen2.5-72b": "qwen2_5_72b",
+    "qwen/qwen2.5-72b-instruct": "qwen2_5_72b",
     "llama-3.3-70b": "llama3_3_70b",
     "meta-llama/llama-3.3-70b-instruct": "llama3_3_70b",
     "llama-3.1-70b": "llama3_3_70b",     # same dim-set as 3.3
