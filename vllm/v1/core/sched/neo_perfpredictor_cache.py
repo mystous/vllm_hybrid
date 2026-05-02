@@ -59,7 +59,7 @@ def _cache_dir() -> Path:
     return Path(base) / "vllm" / "neo_predictor"
 
 
-def _key_meta(vllm_config: "VllmConfig") -> dict[str, Any]:
+def _key_meta(vllm_config: VllmConfig) -> dict[str, Any]:
     """Extract the binding config knobs that determine the measurement.
 
     Anything that changes ``ModelProfiler`` 's S/N grids or the dummy
@@ -82,13 +82,13 @@ def _key_meta(vllm_config: "VllmConfig") -> dict[str, Any]:
     }
 
 
-def compute_cache_key(vllm_config: "VllmConfig") -> str:
+def compute_cache_key(vllm_config: VllmConfig) -> str:
     meta = _key_meta(vllm_config)
     payload = json.dumps(meta, sort_keys=True).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()[:32]
 
 
-def _entry_path(vllm_config: "VllmConfig") -> Path:
+def _entry_path(vllm_config: VllmConfig) -> Path:
     return _cache_dir() / f"{compute_cache_key(vllm_config)}.json"
 
 
@@ -98,7 +98,7 @@ def _is_valid_profile_data(data: Any) -> bool:
     return all(k in data for k in _REQUIRED_PROFILE_KEYS)
 
 
-def load(vllm_config: "VllmConfig") -> dict | None:
+def load(vllm_config: VllmConfig) -> dict | None:
     """Read the cached profile dict if present + valid + schema-matched."""
     path = _entry_path(vllm_config)
     if not path.is_file():
@@ -130,7 +130,7 @@ def load(vllm_config: "VllmConfig") -> dict | None:
     return profile
 
 
-def save(vllm_config: "VllmConfig", profile_data: dict) -> Path | None:
+def save(vllm_config: VllmConfig, profile_data: dict) -> Path | None:
     """Persist ``profile_data`` atomically. Returns the path or ``None``
     on silent failure (the cache is best-effort and must never break
     engine startup)."""

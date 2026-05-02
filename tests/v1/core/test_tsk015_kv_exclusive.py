@@ -15,8 +15,6 @@ See ``shadow_assists/features/IDE_006/TSK_015.md``.
 
 from __future__ import annotations
 
-import os
-from collections import deque
 from dataclasses import dataclass
 
 import pytest

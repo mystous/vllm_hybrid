@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 import torch
 
@@ -133,7 +132,7 @@ class NeoCpuKvBuffer:
     # ------------------------------------------------------------------
     # Per-request allocation API (Phase 4.1 — bookkeeping only)
     # ------------------------------------------------------------------
-    def alloc(self, req_id: str, num_blocks: int) -> Optional[list[int]]:
+    def alloc(self, req_id: str, num_blocks: int) -> list[int] | None:
         """Reserve ``num_blocks`` CPU block_ids for ``req_id``. Returns
         the assigned block_ids, or ``None`` if the free pool is
         insufficient (caller should treat as a swap-out failure).
@@ -150,7 +149,7 @@ class NeoCpuKvBuffer:
         self._req_alloc[req_id] = _PerReqAllocation(block_ids=ids)
         return ids
 
-    def free(self, req_id: str) -> Optional[list[int]]:
+    def free(self, req_id: str) -> list[int] | None:
         """Release the block_ids belonging to ``req_id``. Returns the
         freed block_ids (so callers can wipe them). Returns ``None`` if
         the req was not allocated."""
@@ -160,7 +159,7 @@ class NeoCpuKvBuffer:
         self._free_block_ids.extend(alloc.block_ids)
         return alloc.block_ids
 
-    def get_block_ids(self, req_id: str) -> Optional[list[int]]:
+    def get_block_ids(self, req_id: str) -> list[int] | None:
         alloc = self._req_alloc.get(req_id)
         return alloc.block_ids if alloc is not None else None
 
@@ -308,7 +307,7 @@ def get_active_buffer() -> NeoCpuKvBuffer | None:
         return self.num_resident_reqs
 
 
-def make_spec_from_config(vllm_config) -> Optional[NeoCpuKvBufferSpec]:
+def make_spec_from_config(vllm_config) -> NeoCpuKvBufferSpec | None:
     """Best-effort constructor from a ``VllmConfig``. Returns ``None``
     if any required hyperparameter is missing — caller falls back to
     *not* allocating the CPU buffer (NEO scheduler then refuses

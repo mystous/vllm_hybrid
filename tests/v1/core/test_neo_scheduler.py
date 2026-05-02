@@ -4,21 +4,23 @@
 
 from __future__ import annotations
 
+import os as _os_test
 from dataclasses import dataclass
+from unittest import mock as _mock
 
 import pytest
 
 from vllm.v1.core.sched.mode_selector import (
     ScheduleBudget,
-    decide_mode,
     _get_remains,
+    decide_mode,
 )
 from vllm.v1.core.sched.neo_scheduler import NeoScheduler, NeoSchedulerOutput
 from vllm.v1.core.sched.perfpredictor import (
     PerfPredictor,
     ZeroPerfPredictor,
 )
-from vllm.v1.core.sched.sub_batch import BatchPerfData, SubBatch
+from vllm.v1.core.sched.sub_batch import SubBatch
 
 
 @dataclass
@@ -224,12 +226,7 @@ def test_schedule_returns_at_most_two_batches():
 
 
 # IDE_006 / TSK_015 §3.5 — VLLM_NEO_SWAP_OUT_RATIO env scale 검증
-import os as _os_test
-import pytest as _pytest
-from unittest import mock as _mock
-
-
-@_pytest.mark.parametrize("ratio_str,expected_ratio", [
+@pytest.mark.parametrize("ratio_str,expected_ratio", [
     ("1.0", 1.0),       # default behaviour
     ("0.5", 0.5),       # half KV pool
     ("0.05", 0.05),     # forced-fire short workload

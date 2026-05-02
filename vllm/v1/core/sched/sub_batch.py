@@ -22,7 +22,7 @@ See ``shadow_assists/features/IDE_006/NEO_code_deepdive.md`` §2.
 
 from __future__ import annotations
 
-from typing import Iterable, Protocol
+from typing import Protocol
 
 from vllm.v1.core.sched.perfpredictor import (
     PerfPredictor,

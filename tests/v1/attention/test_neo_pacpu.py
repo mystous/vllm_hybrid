@@ -43,7 +43,10 @@ def test_resolve_neo_macro_llama():
 
 
 def test_resolve_neo_macro_unknown_returns_none():
-    assert neo_pacpu._resolve_neo_macro("Mistral-7B-v0.1") is None
+    # Use a guaranteed-unknown name (no substring match in
+    # _MODEL_TO_NEO_MACRO). Mistral / Phi3 / Gemma now mapped post
+    # 2026-05-02 macro 확장.
+    assert neo_pacpu._resolve_neo_macro("xyz-unknown-model-9z9z") is None
     assert neo_pacpu._resolve_neo_macro("foo/bar") is None
 
 
@@ -155,7 +158,7 @@ def test_forward_attention_synthetic_qwen_1_5b():
     assert ok and hasattr(torch.ops, "pacpu")
 
     # Qwen2.5-1.5B + TP=1 hyperparams (must match dtype.h)
-    NUM_LAYERS = 28          # not directly used here (per-layer view)
+    # NUM_LAYERS = 28 (per-layer view, not used directly)
     NUM_Q_HEADS = 12
     NUM_KV_HEADS = 2
     HEAD_DIM = 128

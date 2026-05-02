@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from vllm.v1.core.sched.perfpredictor import TablePerfPredictor
@@ -42,7 +43,7 @@ class ModelProfiler:
 
     def __init__(
         self,
-        predictor: "TablePerfPredictor",
+        predictor: TablePerfPredictor,
         measure_fn: Callable[[str, int, int], float],
         *,
         nwarmup: int = 2,
