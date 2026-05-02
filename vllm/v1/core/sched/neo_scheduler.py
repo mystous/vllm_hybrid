@@ -199,7 +199,19 @@ class NeoScheduler:
     # ------------------------------------------------------------------
     def schedule(self) -> NeoSchedulerOutput:
         budget = ScheduleBudget(self.max_batch_size, self.max_tokens_in_batch)
-        swap_out_threshold = self.num_gpu_blocks
+        # IDE_006 / TSK_015 §3.5 — VLLM_NEO_SWAP_OUT_RATIO env scales the
+        # swap-out threshold so that short prod runs can force cdec firing
+        # without needing a 4.7-hour 5000×50:50 workload to saturate KV.
+        # ratio in (0, 1]; default 1.0 = current behaviour (NEO paper spec).
+        # Example: VLLM_NEO_SWAP_OUT_RATIO=0.1 → fires when KV usage > 10%.
+        import os as _os
+        try:
+            _ratio = float(_os.environ.get("VLLM_NEO_SWAP_OUT_RATIO", "1.0"))
+        except ValueError:
+            _ratio = 1.0
+        if not (0.0 < _ratio <= 1.0):
+            _ratio = 1.0
+        swap_out_threshold = round(self.num_gpu_blocks * _ratio)
         swap_in_threshold = round(swap_out_threshold * self.swap_in_threshold_ratio)
         cpu_threshold = self.num_cpu_blocks - self.num_gpu_blocks
 
