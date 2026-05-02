@@ -457,6 +457,15 @@ class NeoSchedulerAdapter(Scheduler):
         swap_out = list(self.last_neo_output.swap_out_reqs)
         if self._force_swap_out_pending:
             swap_out.extend(self._force_swap_out_pending)
+        # IDE_006 / TSK_015.B-3.a — finish ↔ swap_out mutex.
+        # cdec_req 가 prefill 끝나는 step 에 vLLM finish_requests 가
+        # 발화하면서 동시에 NEO swap_out 도 발화하면 EngineCore fatal.
+        # finish 우선 — 같은 step 의 finished_req_ids 에 들어간 req 는
+        # swap_out 에서 제거.
+        finished_set = set(getattr(output, "finished_req_ids", ()) or ())
+        if finished_set:
+            swap_out = [r for r in swap_out if r._str_id not in finished_set]
+            swap_in = [r for r in swap_in if r._str_id not in finished_set]
         if swap_in:
             output.neo_swap_in_req_ids = [r._str_id for r in swap_in]
         if swap_out:
