@@ -4034,6 +4034,12 @@ class GPUModelRunner(
             req_ids = self.input_batch.req_ids
             tokens = [scheduler_output.num_scheduled_tokens[i] for i in req_ids]
             num_scheduled_tokens_np = np.array(tokens, dtype=np.int32)
+            # IDE_006 / TSK_015.B-3.b — empty schedule (e.g. all running
+            # reqs are SWAPPED_OUT and excluded from num_scheduled_tokens)
+            # → empty .max() raises ValueError. Treat as no-op step.
+            if num_scheduled_tokens_np.size == 0:
+                from vllm.v1.outputs import EMPTY_MODEL_RUNNER_OUTPUT
+                return EMPTY_MODEL_RUNNER_OUTPUT
             max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
             num_tokens_unpadded = scheduler_output.total_num_scheduled_tokens
 
