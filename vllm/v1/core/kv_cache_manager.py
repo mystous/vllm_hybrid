@@ -336,6 +336,15 @@ class KVCacheManager:
         Returns:
             A list of new allocated blocks.
         """
+        # IDE_006 / TSK_015.B-2.b — SWAPPED_OUT request 는 KV blocks 가
+        # CPU 에 (NeoCpuKvBuffer) 있고 GPU 에는 없음. 정상 alloc path 가
+        # fail 하므로 *dummy empty success* 로 우회 — schedule 진행 + token
+        # 만 schedule. attention backend 가 unified_attention_with_output
+        # 의 cdec dispatch hook 으로 CPU pacpu 사용.
+        from vllm.v1.request import RequestStatus as _RS
+        if request.status == _RS.SWAPPED_OUT:
+            return self.empty_kv_cache_blocks
+
         # When loading KV data asynchronously, we may have zero new tokens to
         # compute while still allocating slots for externally computed tokens.
         if num_new_tokens == 0 and num_external_computed_tokens == 0:
