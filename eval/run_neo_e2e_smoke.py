@@ -24,13 +24,13 @@ Or in one shot (the default ``--log-file`` matches the suggested redirect):
 
 from __future__ import annotations
 
-# torch must load before vllm so that the dynamic loader caches
-# torch's libtorch_*.so paths (vllm._C imports them).
-import torch  # noqa: F401
-
 import argparse
 import sys
 from pathlib import Path
+
+# torch must load before vllm so that the dynamic loader caches
+# torch's libtorch_*.so paths (vllm._C imports them).
+import torch  # noqa: F401
 
 DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 DEFAULT_PROMPTS = [

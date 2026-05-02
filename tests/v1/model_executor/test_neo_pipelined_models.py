@@ -29,7 +29,8 @@ def _check_model_neo_forward(model_cls):
 
 def test_llama_neo_hooks_present():
     from vllm.model_executor.models.llama import (
-        LlamaDecoderLayer, LlamaModel,
+        LlamaDecoderLayer,
+        LlamaModel,
     )
     _check_decoder_neo_hooks(LlamaDecoderLayer)
     _check_model_neo_forward(LlamaModel)
@@ -37,7 +38,8 @@ def test_llama_neo_hooks_present():
 
 def test_qwen2_neo_hooks_present():
     from vllm.model_executor.models.qwen2 import (
-        Qwen2DecoderLayer, Qwen2Model,
+        Qwen2DecoderLayer,
+        Qwen2Model,
     )
     _check_decoder_neo_hooks(Qwen2DecoderLayer)
     _check_model_neo_forward(Qwen2Model)
@@ -49,7 +51,8 @@ def test_mistral_inherits_neo_hooks_from_llama():
     """MistralDecoderLayer / MistralModel extend their Llama counterparts —
     NEO hooks come for free via Python MRO."""
     from vllm.model_executor.models.mistral import (
-        MistralDecoderLayer, MistralModel,
+        MistralDecoderLayer,
+        MistralModel,
     )
     _check_decoder_neo_hooks(MistralDecoderLayer)
     _check_model_neo_forward(MistralModel)
@@ -57,8 +60,8 @@ def test_mistral_inherits_neo_hooks_from_llama():
 
 def test_phi3_inherits_neo_hooks_from_llama():
     """Phi3ForCausalLM extends LlamaForCausalLM — full inheritance."""
-    from vllm.model_executor.models.phi3 import Phi3ForCausalLM
     from vllm.model_executor.models.llama import LlamaForCausalLM
+    from vllm.model_executor.models.phi3 import Phi3ForCausalLM
     assert issubclass(Phi3ForCausalLM, LlamaForCausalLM)
 
 
@@ -66,7 +69,8 @@ def test_gemma_neo_hooks_present():
     """Gemma adds the four NEO hooks directly (own DecoderLayer / Model
     classes — no Llama inheritance)."""
     from vllm.model_executor.models.gemma import (
-        GemmaDecoderLayer, GemmaModel,
+        GemmaDecoderLayer,
+        GemmaModel,
     )
     _check_decoder_neo_hooks(GemmaDecoderLayer)
     _check_model_neo_forward(GemmaModel)
@@ -76,7 +80,8 @@ def test_gemma2_neo_hooks_present():
     """Gemma2 has extra non-residual norms (post_attention_layernorm,
     post_feedforward_layernorm) — verify the hooks are still wired."""
     from vllm.model_executor.models.gemma2 import (
-        Gemma2DecoderLayer, Gemma2Model,
+        Gemma2DecoderLayer,
+        Gemma2Model,
     )
     _check_decoder_neo_hooks(Gemma2DecoderLayer)
     _check_model_neo_forward(Gemma2Model)

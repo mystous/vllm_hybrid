@@ -23,8 +23,7 @@ See ``shadow_assists/features/IDE_006/NEO_code_deepdive.md`` §7.
 from __future__ import annotations
 
 import math
-from typing import Iterable, Literal
-
+from typing import Literal
 
 KernelKind = Literal["portable", "avx512", "amx"]
 

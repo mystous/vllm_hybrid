@@ -33,9 +33,7 @@ from typing import TYPE_CHECKING
 from vllm.v1.core.sched.scheduler import Scheduler
 
 if TYPE_CHECKING:
-    from vllm.config import VllmConfig
     from vllm.v1.core.sched.neo_scheduler import (
-        NeoScheduler,
         NeoSchedulerOutput,
     )
     from vllm.v1.core.sched.output import SchedulerOutput
@@ -65,7 +63,7 @@ class _NeoRequestView:
         self.prompt_len = int(getattr(request, "num_prompt_tokens", 0)) or 1
 
     @classmethod
-    def from_id(cls, rid_str: str) -> "_NeoRequestView":
+    def from_id(cls, rid_str: str) -> _NeoRequestView:
         """Build a stub view from just an id (for finish_requests)."""
         stub = object.__new__(cls)
         stub._req = None
@@ -167,7 +165,7 @@ class NeoSchedulerAdapter(Scheduler):
             num_layers=num_layers,
             predictor=self.predictor,
         )
-        self.last_neo_output: "NeoSchedulerOutput | None" = None
+        self.last_neo_output: NeoSchedulerOutput | None = None
         # add_request → finish_requests 사이에 같은 view 객체를 재사용
         # 하기 위한 cache. 매 finish 마다 hash 재계산을 피한다 + int-pool
         # 인덱스 stability 도 보장.
@@ -347,7 +345,7 @@ class NeoSchedulerAdapter(Scheduler):
     # schedule — drive both the default and NEO schedulers, attach the
     # NEO decision to the SchedulerOutput for the runner to consume.
     # ------------------------------------------------------------------
-    def schedule(self) -> "SchedulerOutput":
+    def schedule(self) -> SchedulerOutput:
         # Drive the default scheduler — this is the data path the engine
         # actually consumes for vanilla operation.
         output = super().schedule()

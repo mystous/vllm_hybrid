@@ -21,7 +21,6 @@ Run with the wrapper:
 
 from __future__ import annotations
 
-import torch  # noqa: F401  — torch must load before vllm
 import argparse
 import json
 import random
@@ -29,6 +28,8 @@ import re
 import sys
 import time
 from pathlib import Path
+
+import torch  # noqa: F401  — torch must load before vllm
 
 DEFAULT_LOG_FILE = "/tmp/neo_baseline.log"
 DEFAULT_OUTPUT_FILE = "/tmp/neo_baseline.json"

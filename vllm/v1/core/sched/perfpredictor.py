@@ -87,7 +87,7 @@ class TablePerfPredictor(PerfPredictor):
     interpolate the two row values along ``S``.
     """
 
-    def __init__(self, vllm_config: "VllmConfig") -> None:
+    def __init__(self, vllm_config: VllmConfig) -> None:
         sched = vllm_config.scheduler_config
         cache = vllm_config.cache_config
         model = vllm_config.model_config
@@ -218,15 +218,15 @@ class TablePerfPredictor(PerfPredictor):
     def get_cdec_T(self, S: int, N: int) -> float:
         if S <= 0 or N <= 0:
             return 0.0
-        if S > self.cdec_S_list[-1]:
+        if self.cdec_S_list[-1] < S:
             S = self.cdec_S_list[-1]
-        s_idx = self.cdec_S_lb_idx[S] if S < len(self.cdec_S_lb_idx) else \
+        s_idx = self.cdec_S_lb_idx[S] if len(self.cdec_S_lb_idx) > S else \
             len(self.cdec_S_list) - 1
         if s_idx >= len(self.cdec_S_list):
             s_idx = len(self.cdec_S_list) - 1
 
         ts1_row = self.cdec_T_lists[s_idx]
-        if s_idx == 0 or S == self.cdec_S_list[s_idx]:
+        if s_idx == 0 or self.cdec_S_list[s_idx] == S:
             return self._interp_1d(N, self.cdec_N_list_agg, ts1_row,
                                    self.cdec_N_lb_idx)
         ts0_row = self.cdec_T_lists[s_idx - 1]

@@ -23,7 +23,8 @@ import itertools
 import logging
 import math
 import os
-from typing import Iterable, Protocol
+from collections.abc import Iterable
+from typing import Protocol
 
 from vllm.v1.core.sched.perfpredictor import PerfPredictor
 from vllm.v1.core.sched.sub_batch import SubBatch

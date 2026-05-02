@@ -36,8 +36,9 @@ See ``shadow_assists/features/IDE_006/NEO_code_deepdive.md`` §4.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Sequence
+from typing import Any
 
 from vllm.v1.core.sched.sub_batch import SubBatch
 
