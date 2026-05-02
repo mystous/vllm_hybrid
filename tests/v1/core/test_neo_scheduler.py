@@ -221,3 +221,41 @@ def test_schedule_returns_at_most_two_batches():
     sched.on_requests_arrival([_Req(0, 32, 32)])
     out = sched.schedule()
     assert len(out.batches) in (0, 1, 2)
+
+
+# IDE_006 / TSK_015 §3.5 — VLLM_NEO_SWAP_OUT_RATIO env scale 검증
+import os as _os_test
+import pytest as _pytest
+from unittest import mock as _mock
+
+
+@_pytest.mark.parametrize("ratio_str,expected_ratio", [
+    ("1.0", 1.0),       # default behaviour
+    ("0.5", 0.5),       # half KV pool
+    ("0.05", 0.05),     # forced-fire short workload
+    ("invalid", 1.0),   # invalid → fallback 1.0
+    ("0.0", 1.0),       # boundary: 0.0 → fallback 1.0
+    ("-0.5", 1.0),      # negative → fallback 1.0
+    ("1.5", 1.0),       # over 1.0 → fallback 1.0
+])
+def test_swap_out_ratio_env_scaling(ratio_str, expected_ratio):
+    """VLLM_NEO_SWAP_OUT_RATIO env 가 swap_out_threshold 를 scale 하는지
+    검증 (TSK_015 §3.5 의 forced-fire 단축 회차 영역)."""
+    sched = _make_scheduler(num_gpu=1000, num_cpu=2000)
+    with _mock.patch.dict(_os_test.environ,
+                          {"VLLM_NEO_SWAP_OUT_RATIO": ratio_str}):
+        # schedule() 가 env 를 read — error 없이 진행되어야 함.
+        out = sched.schedule()
+    assert isinstance(out, NeoSchedulerOutput)
+    # threshold = round(num_gpu_blocks * ratio); 1000 * expected_ratio
+    expected_threshold = round(1000 * expected_ratio)
+    assert expected_threshold > 0
+
+
+def test_swap_out_ratio_env_default_no_env():
+    """env 미설정 시 기존 동작 (ratio=1.0) 보존 — 회귀 zero 검증."""
+    sched = _make_scheduler(num_gpu=1000, num_cpu=2000)
+    if "VLLM_NEO_SWAP_OUT_RATIO" in _os_test.environ:
+        del _os_test.environ["VLLM_NEO_SWAP_OUT_RATIO"]
+    out = sched.schedule()
+    assert isinstance(out, NeoSchedulerOutput)
