@@ -1864,12 +1864,32 @@ class GPUModelRunner(
         # NOTE(woosuk): We use torch.index_select instead of np.take here
         # because torch.index_select is much faster than np.take for large
         # tensors.
-        torch.index_select(
-            self.input_batch.token_ids_cpu_tensor.flatten(),
-            0,
-            token_indices_tensor,
-            out=self.input_ids.cpu[:total_num_scheduled_tokens],
-        )
+        # IDE_006 / TSK_015.B-5 fragile-spot guard — NEO swap-out 발화 step
+        # 에서 token_indices size 와 total_num_scheduled_tokens 가 일시적
+        # mismatch (cdec_req 의 token 카운트 정합 영역, multi-day fix 영역).
+        # vanilla path 는 항상 정합이므로 회귀 zero.
+        if token_indices_tensor.size(0) != total_num_scheduled_tokens:
+            _n = min(token_indices_tensor.size(0),
+                     total_num_scheduled_tokens)
+            logger.warning(
+                "[NEO] B-5 shape mismatch guard: token_indices=%d "
+                "total_num_scheduled_tokens=%d → truncate to %d",
+                token_indices_tensor.size(0),
+                total_num_scheduled_tokens, _n,
+            )
+            torch.index_select(
+                self.input_batch.token_ids_cpu_tensor.flatten(),
+                0,
+                token_indices_tensor[:_n],
+                out=self.input_ids.cpu[:_n],
+            )
+        else:
+            torch.index_select(
+                self.input_batch.token_ids_cpu_tensor.flatten(),
+                0,
+                token_indices_tensor,
+                out=self.input_ids.cpu[:total_num_scheduled_tokens],
+            )
         if self.enable_prompt_embeds:
             is_token_ids = self.input_batch.is_token_ids_tensor.flatten()
             torch.index_select(
