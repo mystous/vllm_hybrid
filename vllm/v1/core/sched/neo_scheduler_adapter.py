@@ -30,7 +30,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from vllm.v1.core.sched.scheduler import Scheduler
+from vllm.v1.core.sched.async_scheduler import AsyncScheduler
+from vllm.v1.core.sched.scheduler import Scheduler  # noqa: F401
 
 if TYPE_CHECKING:
     from vllm.v1.core.sched.neo_scheduler import (
@@ -82,7 +83,14 @@ class _NeoRequestView:
             return self.prompt_len
 
 
-class NeoSchedulerAdapter(Scheduler):
+class NeoSchedulerAdapter(AsyncScheduler):
+    # IDE_006 / TSK_015 Phase B (2026-05-03 root cause fix) — AsyncScheduler
+    # 상속으로 변경. config/scheduler.py:get_scheduler_cls 가
+    # enable_neo_asymmetric=True 시 본 adapter 를 return — 본 fix 전에는
+    # *Scheduler* 직접 상속이라 vLLM 의 async pipeline (schedule + forward
+    # overlap) 영역이 통째로 우회됨 → step 수 2× → wall 2× regression.
+    # AsyncScheduler 의 _update_after_schedule / _update_request_with_output
+    # 자동 상속으로 NEO ON 시도 vanilla 의 async pipeline 정합.
     """First-stage NEO wrapper around the default vLLM scheduler.
 
     Behaviour
@@ -170,6 +178,21 @@ class NeoSchedulerAdapter(Scheduler):
         # 하기 위한 cache. 매 finish 마다 hash 재계산을 피한다 + int-pool
         # 인덱스 stability 도 보장.
         self._neo_view_cache: dict[str, _NeoRequestView] = {}
+
+        # Phase B — NEO sibling overhead 실측 (VLLM_NEO_PROFILE_HOT_PATH=1).
+        # 매 step 의 (super.schedule / _sync / neo.schedule / attach / mutex)
+        # latency 누적. 100 step 마다 dump. default OFF — hot-path 비용 zero.
+        import os as _os_prof
+        self._neo_hp_profile: bool = (
+            _os_prof.environ.get("VLLM_NEO_PROFILE_HOT_PATH") == "1"
+        )
+        self._neo_hp_steps: int = 0
+        self._neo_hp_t_super: int = 0
+        self._neo_hp_t_sync: int = 0
+        self._neo_hp_t_neo: int = 0
+        self._neo_hp_t_attach: int = 0
+        self._neo_hp_t_mutex: int = 0
+        self._neo_hp_dump_every: int = 100
 
         # TSK_015 Phase 4.1 — CPU KV buffer 의 *데이터* 는 worker (
         # GPUModelRunner) 에 둠 — TP shard 별로 분산. Adapter (engine
@@ -346,9 +369,18 @@ class NeoSchedulerAdapter(Scheduler):
     # NEO decision to the SchedulerOutput for the runner to consume.
     # ------------------------------------------------------------------
     def schedule(self) -> SchedulerOutput:
+        # Phase B hot-path profile (env opt-in).
+        if self._neo_hp_profile:
+            import time as _time_hp
+            _hp_t0 = _time_hp.perf_counter_ns()
+
         # Drive the default scheduler — this is the data path the engine
         # actually consumes for vanilla operation.
         output = super().schedule()
+
+        if self._neo_hp_profile:
+            _hp_t1 = _time_hp.perf_counter_ns()
+            self._neo_hp_t_super += _hp_t1 - _hp_t0
 
         # Sibling skip — NEO scheduler 가 *의미 있는 결정* 을 내릴 수
         # 없는 환경에서는 sibling 의 schedule() 호출 자체를 skip 해서
@@ -359,6 +391,9 @@ class NeoSchedulerAdapter(Scheduler):
         # 둘 다 아니면 항상 sequential mode → sibling 작업 100% 폐기.
         if not self._neo_sibling_meaningful:
             self.last_neo_output = None
+            if self._neo_hp_profile:
+                self._neo_hp_steps += 1
+                self._maybe_dump_hot_path()
             return output
 
         # TSK_015 Phase 2 — sync NEO sibling's gpu_decoding_q with the
@@ -369,6 +404,9 @@ class NeoSchedulerAdapter(Scheduler):
         # sees the same decode workload vLLM does and can make
         # capacity-related decisions.
         self._sync_neo_gpu_decoding_q()
+        if self._neo_hp_profile:
+            _hp_t2 = _time_hp.perf_counter_ns()
+            self._neo_hp_t_sync += _hp_t2 - _hp_t1
 
         # TSK_015 Phase 4.6 — FORCE-cdec dev hook. With ``VLLM_NEO_FORCE_CDEC=1``
         # we artificially move 1 decoding req from gpu_decoding_q to
@@ -396,7 +434,12 @@ class NeoSchedulerAdapter(Scheduler):
         n_wait_before = len(self.neo_scheduler.waiting_q)
         n_gpu_dec_before = len(self.neo_scheduler.gpu_decoding_q)
         n_cpu_dec_before = len(self.neo_scheduler.cpu_decoding_q)
+        if self._neo_hp_profile:
+            _hp_t3a = _time_hp.perf_counter_ns()
         self.last_neo_output = self.neo_scheduler.schedule()
+        if self._neo_hp_profile:
+            _hp_t3 = _time_hp.perf_counter_ns()
+            self._neo_hp_t_neo += _hp_t3 - _hp_t3a
         # Per-iteration diagnostic — DEBUG only (no-op at default INFO
         # level, so zero hot-path cost). Re-enable with ``--log-level
         # DEBUG`` when investigating.
@@ -469,4 +512,29 @@ class NeoSchedulerAdapter(Scheduler):
         if swap_out:
             output.neo_swap_out_req_ids = [r._str_id for r in swap_out]
 
+        if self._neo_hp_profile:
+            _hp_t4 = _time_hp.perf_counter_ns()
+            self._neo_hp_t_attach += _hp_t4 - _hp_t3
+            self._neo_hp_steps += 1
+            self._maybe_dump_hot_path()
+
         return output
+
+    def _maybe_dump_hot_path(self) -> None:
+        """Phase B — periodic dump of accumulated NEO sibling overhead
+        per step. 100 step 마다 INFO log (매 step log 시 IPC 부하)."""
+        if self._neo_hp_steps % self._neo_hp_dump_every != 0:
+            return
+        n = self._neo_hp_steps
+        # 평균 ms / step
+        avg_super = self._neo_hp_t_super / n / 1e6
+        avg_sync = self._neo_hp_t_sync / n / 1e6
+        avg_neo = self._neo_hp_t_neo / n / 1e6
+        avg_attach = self._neo_hp_t_attach / n / 1e6
+        avg_total_neo = avg_sync + avg_neo + avg_attach
+        logger.info(
+            "[NEO HP] step=%d avg(ms/step) super=%.3f sync=%.3f neo=%.3f "
+            "attach=%.3f neo_total=%.3f neo_share=%.1f%%",
+            n, avg_super, avg_sync, avg_neo, avg_attach, avg_total_neo,
+            (avg_total_neo / (avg_super + avg_total_neo + 1e-9)) * 100.0,
+        )

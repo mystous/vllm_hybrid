@@ -3973,6 +3973,13 @@ class GPUModelRunner(
         scheduler_output: "SchedulerOutput",
         intermediate_tensors: IntermediateTensors | None = None,
     ) -> ModelRunnerOutput | AsyncModelRunnerOutput | IntermediateTensors | None:
+        # Phase B — execute_model step latency profile (env opt-in,
+        # VLLM_NEO_PROFILE_STEP=1).
+        import os as _os_step
+        _step_prof = _os_step.environ.get("VLLM_NEO_PROFILE_STEP") == "1"
+        if _step_prof:
+            import time as _time_step
+            _step_t0 = _time_step.perf_counter_ns()
         if self.execute_model_state is not None:
             raise RuntimeError(
                 "State error: sample_tokens() must be called "
@@ -4464,6 +4471,20 @@ class GPUModelRunner(
         if deferred_state_corrections_fn:
             deferred_state_corrections_fn()
 
+        if _step_prof:
+            _elapsed_ms = (_time_step.perf_counter_ns() - _step_t0) / 1e6
+            if not hasattr(self, "_step_count"):
+                self._step_count = 0
+                self._step_t_total_ms = 0.0
+            self._step_count += 1
+            self._step_t_total_ms += _elapsed_ms
+            if self._step_count % 100 == 0:
+                avg_ms = self._step_t_total_ms / self._step_count
+                print(
+                    f"[NEO STEP] count={self._step_count} avg={avg_ms:.3f}ms "
+                    f"last={_elapsed_ms:.3f}ms",
+                    flush=True,
+                )
         return None
 
     @torch.inference_mode
