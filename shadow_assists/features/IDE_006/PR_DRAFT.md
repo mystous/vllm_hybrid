@@ -100,19 +100,37 @@ HF_HUB_OFFLINE=1 LD_PRELOAD=/usr/lib64/libcuda.so.1 \
 
 **결과: token-id equality vanilla = NEO PASS**, NEO 인프라 회귀 zero, pacpu lib 정상 로드.
 
-### prod 단축 throughput 회차
+### Phase B 측정 — root cause 식별 + 1줄 fix
 
-| 회차 | 회귀 | NEO 발화 |
+**root cause**: `vllm/config/scheduler.py:get_scheduler_cls` 가 `enable_neo_asymmetric=True` 시 `NeoSchedulerAdapter` (Scheduler 직접 상속) 를 return → vLLM async pipeline (schedule + forward overlap) 우회 → step 수 2× → wall 2.5× regression.
+
+**fix (1줄)**: `class NeoSchedulerAdapter(AsyncScheduler)` 으로 변경. AsyncScheduler 의 `_update_after_schedule` (spec decode placeholder + `num_output_placeholders` 증분) + `_update_request_with_output` (async discard) 자동 상속.
+
+| 회차 | wall (vanilla) | wall (NEO ON) | regression |
+|---|---|---|---|
+| 50 × 2048/512 (Phase B 전) | 28.0s | 70.7s | 2.52× |
+| **50 × 2048/512 (Phase B 후)** | 28.0s | **28.9s** | **3% only** |
+
+### Phase C/D 측정 — Phase B fix 후 정식 회차 (Llama-70B + TP=8, VLLM_NEO_KV_FREE=1)
+
+| 회차 | vanilla wall | NEO ON wall | gain | NEO 발화 |
+|---|---|---|---|---|
+| 500 × 50:50 | 1869.6s | 1706.5s | **+8.72%** | 발화 zero (noise 영역) |
+| 1000 × 50:50 | 3502.0s | 3449.9s | **+1.49%** | 발화 zero |
+| **5000 × 50:50 (외부 보고)** | 16839.0s (4h 40m) | **17428.1s** (4h 50m) | **-3.50% regression** | 발화 zero |
+
+**해석**:
+- NEO 인프라 활성 + vanilla 동등 ±5% 영역 입증 (회귀 zero in correctness path).
+- KV cache usage 90~100% sustained 영역 (5000 회차의 1596 측정 sample) 에도 NEO swap_out 미발화 — NEO sibling 의 `_sync_neo_gpu_decoding_q` 가 decode 단계 reqs 만 매핑, prefill KV 추적 안 됨.
+- 진짜 NEO gain (논문 H100 14%) 은 별도 path: prefill KV 추적 보강 / RATIO env forced-fire / max_num_seqs+input ↑.
+
+### prod B-5 forced-fire 단축 회차 (RATIO=0.05, B-5 root fix 검증)
+
+| 회차 | wall | first fire |
 |---|---|---|
-| Vanilla 100×4096/2048 | wall 117.9s, out_tps 1737 | n/a |
-| NEO ON 100×4096/2048 | wall 312.5s, out_tps 656 (2.65× 회귀) | swap_out=0 (KV 미압력) |
-| NEO ON 200×4096/2048 + KV_FREE=1 + RATIO=0.05 | crash 후 진단 | **first fire: out=2 in=0** ✅ |
+| 200×4096/2048 + KV_FREE=1 + RATIO=0.05 (B-5 root fix 후) | 200/200 완주, 637s | `out=2 in=0` ✅ |
 
-→ **NEO swap dispatch hook 의 자연 발화 영역 진입 + first fire 발화 검증**. 첫 fire 직후 `gpu_model_runner.py:1867` `torch.index_select` shape mismatch crash — fragile spot 식별, 별도 multi-day fix 영역.
-
-### prod 본격 회차 (B-6, 미실행)
-
-Llama-70B + TP=8 + 5000 prompts × 50:50 + 8192/8192 + ~4.7 hour. single conversation turn 영역 외. `TSK_015.md §3.5 P-1~P-5` 절차 참고.
+→ NEO swap dispatch first fire 발화 + 200 prompts 완주 입증. B-5 root fix 후 fragile spot 정합.
 
 ---
 
