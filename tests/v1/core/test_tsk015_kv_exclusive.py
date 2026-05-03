@@ -249,7 +249,7 @@ def test_kv_cache_policy_accepts_exclusive():
 
 def test_kv_cache_policy_rejects_invalid():
     from vllm.config.scheduler import SchedulerConfig
-    with pytest.raises(Exception):
+    with pytest.raises((ValueError, TypeError)):
         SchedulerConfig.default_factory(max_model_len=128, max_num_seqs=4,
                                          max_num_batched_tokens=128,
                                          kv_cache_policy="bogus_value")

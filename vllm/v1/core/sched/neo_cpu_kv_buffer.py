@@ -184,8 +184,9 @@ class NeoCpuKvBuffer:
         self,
         req_id: str,
         layer_idx: int,
-        k_src: torch.Tensor,   # (num_blocks_for_req, num_kv_heads, block_size, head_dim)
-        v_src: torch.Tensor,   # same shape
+        # k_src/v_src: (num_blocks_for_req, num_kv_heads, block_size, head_dim)
+        k_src: torch.Tensor,
+        v_src: torch.Tensor,
     ) -> None:
         """GPU→CPU per-layer copy. Source tensor 는 req 의 GPU blocks 만
         포함 (caller responsible for slicing by GPU block_ids).

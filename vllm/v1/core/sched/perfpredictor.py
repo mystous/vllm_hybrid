@@ -140,7 +140,8 @@ class TablePerfPredictor(PerfPredictor):
             max_N = min(S * max_seq_len, max_cpu_tokens)
             top = max(min_N + 1, max_N)
             entries = [min_N]
-            for i in range(min_N.bit_length(), max(min_N.bit_length(), (top - 1).bit_length())):
+            _bl = min_N.bit_length()
+            for i in range(_bl, max(_bl, (top - 1).bit_length())):
                 v = 2**i
                 if v > min_N and v < top:
                     entries.append(v)

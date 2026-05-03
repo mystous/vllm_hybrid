@@ -33,6 +33,10 @@ from vllm.v1.core.sched.perfpredictor import (
 class _ReqLike(Protocol):
     """Minimum protocol the predictor needs from a request."""
     request_id: int
+    # IDE_006 / TSK_015 — adapter 가 vLLM Request 의 string id 를
+    # ``_NeoRequestView._str_id`` 으로 emit. SchedulerOutput.neo_*
+    # field 의 매핑 영역에서 사용.
+    _str_id: str
     @property
     def prompt_len(self) -> int: ...
     @property

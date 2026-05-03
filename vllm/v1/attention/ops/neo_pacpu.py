@@ -286,12 +286,12 @@ def forward_attention(
     seq_ids: list[int],
     seq_lengths: list[int],
     q: torch.Tensor,           # (batch_size, num_q_heads, head_dim) FP16
-    k_new: torch.Tensor,       # (batch_size, num_kv_heads, head_dim) — current step's KV
+    k_new: torch.Tensor,       # (batch_size, num_kv_heads, head_dim) — step KV
     v_new: torch.Tensor,
-    k_cache_layer: torch.Tensor,    # vLLM per-layer K cache (HND-shaped)
-    v_cache_layer: torch.Tensor,    # vLLM per-layer V cache (HND-shaped)
+    k_cache_layer: torch.Tensor,    # vLLM per-layer K cache (HND)
+    v_cache_layer: torch.Tensor,    # vLLM per-layer V cache (HND)
     block_table: torch.Tensor,      # (batch_size, max_blocks_per_seq) int32
-    output: torch.Tensor,           # (batch_size, num_q_heads * head_dim) FP32 — filled in-place
+    output: torch.Tensor,           # (batch_size, num_q_heads * head_dim) FP32
 ) -> None:
     """Call NEO's ``paged_attention_cpu`` after view-aliasing the
     per-layer KV to the multi-layer layout NEO expects.

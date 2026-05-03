@@ -80,8 +80,10 @@ def test_forward_pipeline_layer_offset_invariant():
     trace = _Trace()
     cb = _make_callbacks(trace)
     exe = SubBatchPipelineExecutor(num_layers=4, callbacks=cb)
-    a = SubBatch(); a._label = "A"
-    b = SubBatch(); b._label = "B"
+    a = SubBatch()
+    a._label = "A"
+    b = SubBatch()
+    b._label = "B"
 
     out0, out1 = exe.forward_pipeline([a, b], ["e0", "e1"])
 
@@ -106,8 +108,10 @@ def test_forward_pipeline_total_attention_call_count():
     cb = _make_callbacks(trace)
     L = 4
     exe = SubBatchPipelineExecutor(num_layers=L, callbacks=cb)
-    a = SubBatch(); a._label = "A"
-    b = SubBatch(); b._label = "B"
+    a = SubBatch()
+    a._label = "A"
+    b = SubBatch()
+    b._label = "B"
     exe.forward_pipeline([a, b], ["e0", "e1"])
 
     n_attn = sum(1 for e in trace.events if e[0] == "attention")
@@ -118,8 +122,10 @@ def test_forward_pipeline_total_attention_call_count():
 def test_forward_pipeline_requires_two_layers():
     cb = _make_callbacks(_Trace())
     exe = SubBatchPipelineExecutor(num_layers=1, callbacks=cb)
-    a = SubBatch(); a._label = "A"
-    b = SubBatch(); b._label = "B"
+    a = SubBatch()
+    a._label = "A"
+    b = SubBatch()
+    b._label = "B"
     with pytest.raises(ValueError, match="num_layers >= 2"):
         exe.forward_pipeline([a, b], ["e0", "e1"])
 
@@ -127,7 +133,8 @@ def test_forward_pipeline_requires_two_layers():
 def test_forward_pipeline_rejects_wrong_batch_count():
     cb = _make_callbacks(_Trace())
     exe = SubBatchPipelineExecutor(num_layers=2, callbacks=cb)
-    a = SubBatch(); a._label = "A"
+    a = SubBatch()
+    a._label = "A"
     with pytest.raises(ValueError, match="2 batches"):
         exe.forward_first_stage([a], ["e0"])
 
@@ -137,8 +144,10 @@ def test_forward_pipeline_two_layer_minimum():
     trace = _Trace()
     cb = _make_callbacks(trace)
     exe = SubBatchPipelineExecutor(num_layers=2, callbacks=cb)
-    a = SubBatch(); a._label = "A"
-    b = SubBatch(); b._label = "B"
+    a = SubBatch()
+    a._label = "A"
+    b = SubBatch()
+    b._label = "B"
 
     out0, out1 = exe.forward_pipeline([a, b], ["e0", "e1"])
 
