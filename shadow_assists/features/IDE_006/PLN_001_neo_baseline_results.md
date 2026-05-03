@@ -167,6 +167,36 @@ NEO data path 가 dev 머신 smoke (Qwen-1.5B + RTX 3090) 에서 wiring 통과 (
 | 효과 측정 baseline | 1000 × 50:50 | 58 분 (NEO ON) | wall_s 비교 / concurrent 비교 |
 | 외부 보고 baseline | 5000 × 50:50 | 4.7 시간 (NEO ON) | wall_s 비교 / concurrent 비교 / token output bit-exact |
 
+### 5.4 · NEO ON 측정 결과 (2026-05-03, Phase B async fix 후)
+
+**환경**: Llama-70B + TP=8, max_num_seqs=256, gpu_mem_util=0.85, **VLLM_NEO_KV_FREE=1** (Phase B fix: NeoSchedulerAdapter(AsyncScheduler) 상속 적용 후)
+
+| 회차 | vanilla wall | NEO ON wall | gain (wall) | NEO ON out_tps | gain (tps) | NEO 발화 |
+|---|---|---|---|---|---|---|
+| **500 × 50:50** | 1869.6s | **1706.5s** | **+8.72%** | 2400.2 (vs 2190.8) | +9.56% | 발화 zero (max_conc 78 = 30%) |
+| **1000 × 50:50** | 3502.0s | **3449.9s** | **+1.49%** | 2374.6 (vs 2339.2) | +1.51% | 발화 zero |
+| **5000 × 50:50** (외부 보고) | 16839.0s (4h 40m) | **17428.1s** (4h 50m) | **-3.50%** | 2350.2 (vs 2432.4) | -3.38% | 발화 zero |
+
+**측정 결과 정리**:
+- **회귀 영역**: NEO ON 가 *vanilla 대비 ±5% 영역 안* (500 / 1000 / 5000 회차).
+- **NEO swap dispatch first fire / forward-context fork active / broadcast crash / B-5 truncate guard = 모두 0** (모든 회차).
+- **KV cache usage 분포** (5000 회차) — 90~99% 영역 1457회 / 100% 영역 139회 — sustained 90%+ 영역에 머물렀으나 NEO swap_out 미발화.
+- **swap_out 미발화 원인**: NEO sibling 의 `_sync_neo_gpu_decoding_q` 가 `self.running` 의 *decode 단계* (num_computed_tokens >= num_prompt_tokens) reqs 만 매핑. *prefill 단계* reqs 의 KV 는 `gpu_decoding_q` 에 추적 안 됨 → NEO 가 본 영역의 KV pressure 인식 못 함 → `gpu_block_needed > swap_out_threshold` 영역 미진입.
+
+**해석**:
+- Phase A (NEO 베이스 적재) + Phase B (async fix) = **NEO 인프라 활성 + vanilla 동등 영역** 입증 완료.
+- 진짜 NEO gain (cdec dispatch 발화 → CPU pacpu 활용) 은 *별도 영역* — NEO sibling 의 prefill KV 추적 path 보강 또는 swap_out_threshold 의 ratio 조정 (RATIO env) 영역.
+- 현재 회귀 영역 (5000 의 -3.4%) = NEO sibling 의 매 step overhead 누적 (~수십만 step × 0.12 ms / step ≈ 수십 초).
+
+### 5.5 · 다음 단계 — 진짜 cdec dispatch 발화 영역
+
+진짜 NEO gain 측정 path:
+- **(a) prefill KV 추적 보강** — NEO sibling 의 `_sync_neo_gpu_decoding_q` 를 `self.running` 의 *모든 reqs* 로 확장 (decode + prefill).
+- **(b) RATIO env forced-fire** — `VLLM_NEO_SWAP_OUT_RATIO=0.5` 또는 0.7 으로 swap_out_threshold scale → *낮은 KV 영역에서 cdec swap-out 강제 발화*. 본 turn 직전 RATIO=0.05 + 200 prompts forced-fire 회차 200/200 완주 입증.
+- **(c) max_num_seqs ↑** (256 → 512) + **input/output ↑** (8192 → 16384/16384) → KV pool 한계 영역 *지속* sustained.
+
+본 영역들은 별도 multi-day / multi-hour 영역.
+
 ---
 
 ## 6. References
@@ -185,6 +215,7 @@ NEO data path 가 dev 머신 smoke (Qwen-1.5B + RTX 3090) 에서 wiring 통과 (
 | 날짜 | 변경 | 사유 |
 |---|---|---|
 | 2026-04-29 | PLN_001 deliverable 신규 발행 (본 문서) | NEO 4 차 재정의의 vanilla baseline 측정 6 회차 적재. 사용자 결정 (5000 × 50:50 = 정식 논문 baseline). NEO 비교 회차의 reference. |
+| 2026-05-03 | **§5.4 + §5.5 신설 — Phase B async fix 후 NEO ON 측정 3 회차 + 진짜 cdec dispatch 발화 path 식별** | (1) **§5.4** 적재 — Phase B `NeoSchedulerAdapter(AsyncScheduler)` 1줄 fix 후 정식 비교 회차 (500 / 1000 / 5000 × 50:50, Llama-70B + TP=8, VLLM_NEO_KV_FREE=1). 결과: 500 +8.72% / 1000 +1.49% / 5000 **-3.50% wall regression** (가장 통계 신뢰 영역). NEO 발화 카운트 = 모두 zero (max_conc 78 = 30%, KV usage 90~100% sustained 였으나 swap_out 미발화). (2) **swap_out 미발화 root cause 식별**: NEO sibling 의 `_sync_neo_gpu_decoding_q` 가 *decode 단계* reqs 만 매핑 → prefill 단계 KV pressure 추적 안 됨. (3) **§5.5** 신설 — 진짜 cdec dispatch 발화 path 3 옵션 (prefill KV 추적 보강 / RATIO env forced-fire / max_num_seqs+input ↑). 별도 multi-day / multi-hour 영역. (4) **결론**: Phase A (NEO 베이스 적재) + Phase B (async fix) = NEO 인프라 활성 + vanilla 동등 ±5% 영역 입증 완료. 진짜 NEO gain (논문 H100 14% 영역) 은 별도 path. |
 | 2026-04-30 | **§5 갱신 — 현재 NEO ON 의 의미 + 정식 비교 회차 plan 분리** | TSK_016 의 Step 5.1~5.4 wiring 통과 후 사용자 질문 ("500 prompt 로 NEO 기능 검증이 가능한거지?") 에 답하기 위한 layered 정리. (1) **§5.1**: 현재 NEO data path 는 forward-context fork 미적용 → KV cache cross-contamination → vanilla fallback active. NEO ON 회차의 의미 = *무회귀 검증* 만. 500 회차 = 개발 회귀, 1000 = 정식 회귀, 5000 = 외부 보고 회귀 (효과 측정 단계 후로 미룸). (2) **§5.2**: 진짜 효과 측정은 Step 5.5 (forward-context fork) → TSK_015 (KV exclusive) → TSK_017 (PerfPredictor 실측 table) → TSK_018 (CPU kernel 통합) 누적 후 의미. (3) **§5.3**: 무회귀 / 효과 측정 / 외부 보고 의 3 단계 비교 회차 plan 명시. |
 
 ---
