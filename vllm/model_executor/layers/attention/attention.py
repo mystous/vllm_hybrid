@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
-import os as _os_hook
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -736,50 +735,6 @@ direct_register_custom_op(
 )
 
 
-# Phase B — NEO dispatch hook profile (env opt-in,
-# VLLM_NEO_PROFILE_HOOK=1). Module-level counter — worker process 별.
-_neo_hook_profile_flag: bool | None = None
-_neo_hook_calls: int = 0
-_neo_hook_active_calls: int = 0
-_neo_hook_t_total_ns: int = 0
-_neo_hook_dump_every: int = 10000
-
-
-def _neo_hook_profile_enabled() -> bool:
-    """Lazy eval — first call 시 env read + log (worker propagation 진단)."""
-    global _neo_hook_profile_flag
-    if _neo_hook_profile_flag is None:
-        _neo_hook_profile_flag = (
-            _os_hook.environ.get("VLLM_NEO_PROFILE_HOOK") == "1"
-        )
-        from vllm.logger import init_logger as _init
-        _init("vllm.attention.neo_hook_profile").info(
-            "[NEO HOOK init] flag=%s pid=%d env=%r",
-            _neo_hook_profile_flag, _os_hook.getpid(),
-            _os_hook.environ.get("VLLM_NEO_PROFILE_HOOK"),
-        )
-    return _neo_hook_profile_flag
-
-
-def _neo_hook_record(elapsed_ns: int, active: bool) -> None:
-    """Record one dispatch-hook call's cost (and active flag = cdec
-    actually dispatched). dump_every 호출 마다 print (worker → tee → log)."""
-    global _neo_hook_calls, _neo_hook_active_calls, _neo_hook_t_total_ns
-    _neo_hook_calls += 1
-    _neo_hook_t_total_ns += elapsed_ns
-    if active:
-        _neo_hook_active_calls += 1
-    if _neo_hook_calls % _neo_hook_dump_every == 0:
-        avg_us = (_neo_hook_t_total_ns / _neo_hook_calls) / 1000.0
-        active_pct = (_neo_hook_active_calls / _neo_hook_calls) * 100.0
-        print(
-            f"[NEO HOOK] pid={_os_hook.getpid()} calls={_neo_hook_calls} "
-            f"avg={avg_us:.3f}us active={active_pct:.3f}% "
-            f"total_ms={_neo_hook_t_total_ns / 1e6:.1f}",
-            flush=True,
-        )
-
-
 @maybe_transfer_kv_layer
 def unified_attention_with_output(
     query: torch.Tensor,
@@ -820,11 +775,6 @@ def unified_attention_with_output(
     # All CPU-dispatch work is wrapped in ``try`` so any failure
     # (kernel not loaded, KV cache view mismatch, dtype mismatch, …)
     # falls back silently to the vanilla GPU output. 회귀 zero 보장.
-    # Phase B hook profile (env opt-in, VLLM_NEO_PROFILE_HOOK=1).
-    _hook_prof = _neo_hook_profile_enabled()
-    if _hook_prof:
-        import time as _time_h
-        _hook_t0 = _time_h.perf_counter_ns()
     try:
         from vllm.forward_context import get_forward_context as _get_fc
         _fc = _get_fc()
@@ -834,9 +784,6 @@ def unified_attention_with_output(
         if (_tok is None or _tok[1] <= _tok[0]
                 or _seq is None or _seq[1] <= _seq[0]
                 or not _req_ids):
-            if _hook_prof:
-                _neo_hook_record(_time_h.perf_counter_ns() - _hook_t0,
-                                 active=False)
             return
         # IDE_006 Step3.2 profile — VLLM_NEO_PROFILE=1 opt-in. 매 layer
         # call 의 단계별 timing log. once-fire (첫 호출만). hot path
