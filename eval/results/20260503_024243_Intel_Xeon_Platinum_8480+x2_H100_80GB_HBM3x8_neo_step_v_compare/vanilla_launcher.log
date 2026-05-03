@@ -1,0 +1,207 @@
+[baseline] model=meta-llama/Llama-3.3-70B-Instruct
+[baseline] TP=8 max_model_len=4096 max_num_seqs=64
+[baseline] num_prompts=50 target_input_len=2048 max_tokens=512
+[baseline] avg prompt chars: 8944
+[baseline] enable_neo_asymmetric=False
+INFO 05-03 02:42:51 [arg_utils.py:694] HF_HUB_OFFLINE is True, replace model_id [meta-llama/Llama-3.3-70B-Instruct] to model_path [/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b]
+INFO 05-03 02:42:51 [utils.py:233] non-default args: {'max_model_len': 4096, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.55, 'max_num_seqs': 64, 'enforce_eager': True, 'model': '/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b'}
+WARNING 05-03 02:42:51 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_PROFILE_STEP
+INFO 05-03 02:42:51 [model.py:554] Resolved architecture: LlamaForCausalLM
+INFO 05-03 02:42:51 [model.py:1685] Using max model len 4096
+INFO 05-03 02:42:51 [scheduler.py:267] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-03 02:42:51 [vllm.py:834] Asynchronous scheduling is enabled.
+WARNING 05-03 02:42:51 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-03 02:42:51 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-03 02:42:51 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+INFO 05-03 02:42:52 [vllm.py:1081] Cudagraph is disabled under eager mode
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+INFO 05-03 02:42:56 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+WARNING 05-03 02:42:57 [system_utils.py:157] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: CUDA is initialized
+(EngineCore pid=2143566) INFO 05-03 02:43:04 [core.py:107] Initializing a V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=4096, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=2143566) WARNING 05-03 02:43:04 [multiproc_executor.py:1029] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=2143566) INFO 05-03 02:43:04 [multiproc_executor.py:139] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=211.115.75.82 (local), world_size=8, local_world_size=8
+(Worker pid=2144250) INFO 05-03 02:43:19 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:33681 backend=nccl
+(Worker pid=2144255) INFO 05-03 02:43:19 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:33681 backend=nccl
+(Worker pid=2144254) INFO 05-03 02:43:19 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:33681 backend=nccl
+(Worker pid=2144256) INFO 05-03 02:43:19 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:33681 backend=nccl
+(Worker pid=2144252) INFO 05-03 02:43:19 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:33681 backend=nccl
+(Worker pid=2144251) INFO 05-03 02:43:19 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:33681 backend=nccl
+(Worker pid=2144257) INFO 05-03 02:43:19 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:33681 backend=nccl
+(Worker pid=2144253) INFO 05-03 02:43:19 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:33681 backend=nccl
+(Worker pid=2144250) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2144250) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2144250) INFO 05-03 02:43:20 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=2144253) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2144253) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2144252) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2144254) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2144252) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2144254) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2144256) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2144251) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2144255) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2144256) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2144251) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2144255) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2144257) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2144257) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2144250) INFO 05-03 02:43:23 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:24 [gpu_model_runner.py:5119] Starting to load model /root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b...
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:25 [cuda.py:368] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:25 [flash_attn.py:637] Using FlashAttention version 3
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:25 [weight_utils.py:904] Filesystem type for checkpoints: XFS. Checkpoint size: 131.42 GiB. Available RAM: 1929.19 GiB.
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:25 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:   0% Completed | 0/30 [00:00<?, ?it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:   3% Completed | 1/30 [00:00<00:06,  4.53it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:   7% Completed | 2/30 [00:00<00:08,  3.46it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  10% Completed | 3/30 [00:00<00:08,  3.25it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  13% Completed | 4/30 [00:01<00:08,  3.01it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  17% Completed | 5/30 [00:01<00:07,  3.16it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  20% Completed | 6/30 [00:01<00:07,  3.04it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  23% Completed | 7/30 [00:02<00:08,  2.83it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  27% Completed | 8/30 [00:02<00:08,  2.64it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  30% Completed | 9/30 [00:03<00:07,  2.63it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  33% Completed | 10/30 [00:03<00:07,  2.79it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  37% Completed | 11/30 [00:03<00:06,  2.76it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  40% Completed | 12/30 [00:04<00:06,  2.74it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  43% Completed | 13/30 [00:04<00:06,  2.78it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  47% Completed | 14/30 [00:05<00:06,  2.48it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  50% Completed | 15/30 [00:05<00:05,  2.54it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  53% Completed | 16/30 [00:05<00:05,  2.52it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  57% Completed | 17/30 [00:06<00:05,  2.45it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  60% Completed | 18/30 [00:06<00:04,  2.53it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  63% Completed | 19/30 [00:06<00:04,  2.59it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  67% Completed | 20/30 [00:07<00:03,  2.74it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  70% Completed | 21/30 [00:07<00:03,  2.78it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  73% Completed | 22/30 [00:08<00:02,  2.74it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  77% Completed | 23/30 [00:08<00:02,  2.79it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  80% Completed | 24/30 [00:08<00:02,  2.72it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  83% Completed | 25/30 [00:09<00:01,  2.84it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  87% Completed | 26/30 [00:09<00:01,  2.83it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  90% Completed | 27/30 [00:09<00:01,  2.82it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  93% Completed | 28/30 [00:10<00:00,  2.78it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards:  97% Completed | 29/30 [00:10<00:00,  2.76it/s]
+(Worker_TP0 pid=2144250) Loading safetensors checkpoint shards: 100% Completed | 30/30 [00:10<00:00,  2.83it/s]
+(Worker_TP0 pid=2144250) 
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:36 [default_loader.py:384] Loading weights took 10.61 seconds
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:37 [gpu_model_runner.py:5204] Model loading took 16.46 GiB memory and 11.148385 seconds
+(Worker_TP4 pid=2144254) INFO 05-03 02:43:39 [attention.py:756] [NEO HOOK init] flag=False pid=2144254 env=None
+(Worker_TP7 pid=2144257) INFO 05-03 02:43:39 [attention.py:756] [NEO HOOK init] flag=False pid=2144257 env=None
+(Worker_TP5 pid=2144255) INFO 05-03 02:43:39 [attention.py:756] [NEO HOOK init] flag=False pid=2144255 env=None
+(Worker_TP6 pid=2144256) INFO 05-03 02:43:39 [attention.py:756] [NEO HOOK init] flag=False pid=2144256 env=None
+(Worker_TP3 pid=2144253) INFO 05-03 02:43:39 [attention.py:756] [NEO HOOK init] flag=False pid=2144253 env=None
+(Worker_TP1 pid=2144251) INFO 05-03 02:43:39 [attention.py:756] [NEO HOOK init] flag=False pid=2144251 env=None
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:39 [attention.py:756] [NEO HOOK init] flag=False pid=2144250 env=None
+(Worker_TP2 pid=2144252) INFO 05-03 02:43:39 [attention.py:756] [NEO HOOK init] flag=False pid=2144252 env=None
+(Worker_TP0 pid=2144250) INFO 05-03 02:43:42 [gpu_worker.py:440] Available KV cache memory: 24.88 GiB
+(EngineCore pid=2143566) INFO 05-03 02:43:42 [kv_cache_utils.py:1319] GPU KV cache size: 652,128 tokens
+(EngineCore pid=2143566) INFO 05-03 02:43:42 [kv_cache_utils.py:1324] Maximum concurrency for 4,096 tokens per request: 159.21x
+(Worker_TP0 pid=2144250) 2026-05-03 02:43:42,333 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP6 pid=2144256) 2026-05-03 02:43:42,334 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=2144254) 2026-05-03 02:43:42,334 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP7 pid=2144257) 2026-05-03 02:43:42,334 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP3 pid=2144253) 2026-05-03 02:43:42,334 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=2144251) 2026-05-03 02:43:42,334 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP5 pid=2144255) 2026-05-03 02:43:42,334 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP2 pid=2144252) 2026-05-03 02:43:42,334 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=2144254) 2026-05-03 02:43:42,469 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP0 pid=2144250) 2026-05-03 02:43:42,469 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP7 pid=2144257) 2026-05-03 02:43:42,469 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP6 pid=2144256) 2026-05-03 02:43:42,469 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP5 pid=2144255) 2026-05-03 02:43:42,469 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP3 pid=2144253) 2026-05-03 02:43:42,469 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP1 pid=2144251) 2026-05-03 02:43:42,469 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP2 pid=2144252) 2026-05-03 02:43:42,471 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(EngineCore pid=2143566) INFO 05-03 02:43:43 [core.py:365] init engine (profile, create kv cache, warmup model) took 5.48 s
+(EngineCore pid=2143566) INFO 05-03 02:43:45 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=2143566) WARNING 05-03 02:43:45 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(EngineCore pid=2143566) WARNING 05-03 02:43:45 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(EngineCore pid=2143566) INFO 05-03 02:43:45 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+(EngineCore pid=2143566) INFO 05-03 02:43:45 [vllm.py:1081] Cudagraph is disabled under eager mode
+(EngineCore pid=2143566) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=2143566) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=2143566) INFO 05-03 02:43:46 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+[baseline] init 55.2s
+Rendering prompts:   0%|          | 0/50 [00:00<?, ?it/s]Rendering prompts:  28%|██▊       | 14/50 [00:00<00:00, 138.07it/s]Rendering prompts:  68%|██████▊   | 34/50 [00:00<00:00, 173.23it/s]Rendering prompts: 100%|██████████| 50/50 [00:00<00:00, 175.96it/s]
+Processed prompts:   0%|          | 0/50 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s](Worker_TP7 pid=2144257) [NEO STEP] count=100 avg=88.917ms last=49.593ms
+(Worker_TP5 pid=2144255) [NEO STEP] count=100 avg=88.908ms last=49.583ms
+(Worker_TP6 pid=2144256) [NEO STEP] count=100 avg=88.903ms last=49.595ms
+(Worker_TP1 pid=2144251) [NEO STEP] count=100 avg=88.845ms last=49.578ms
+(Worker_TP4 pid=2144254) [NEO STEP] count=100 avg=88.893ms last=49.594ms
+(Worker_TP3 pid=2144253) [NEO STEP] count=100 avg=88.709ms last=49.644ms
+(Worker_TP2 pid=2144252) [NEO STEP] count=100 avg=88.859ms last=50.203ms
+(Worker_TP0 pid=2144250) [NEO STEP] count=100 avg=88.906ms last=50.681ms
+INFO 05-03 02:43:56 [loggers.py:271] Engine 000: Avg prompt throughput: 9669.0 tokens/s, Avg generation throughput: 550.4 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 17.3%, Prefix cache hit rate: 0.0%
+(Worker_TP5 pid=2144255) [NEO STEP] count=200 avg=68.634ms last=47.133ms
+(Worker_TP6 pid=2144256) [NEO STEP] count=200 avg=68.627ms last=47.141ms
+(Worker_TP4 pid=2144254) [NEO STEP] count=200 avg=68.622ms last=47.125ms
+(Worker_TP2 pid=2144252) [NEO STEP] count=200 avg=68.600ms last=47.127ms
+(Worker_TP7 pid=2144257) [NEO STEP] count=200 avg=68.640ms last=47.150ms
+(Worker_TP3 pid=2144253) [NEO STEP] count=200 avg=68.507ms last=46.045ms
+(Worker_TP1 pid=2144251) [NEO STEP] count=200 avg=68.592ms last=47.135ms
+(Worker_TP0 pid=2144250) [NEO STEP] count=200 avg=68.546ms last=46.848ms
+(Worker_TP5 pid=2144255) [NEO STEP] count=300 avg=61.613ms last=47.289ms
+(Worker_TP7 pid=2144257) [NEO STEP] count=300 avg=61.619ms last=47.318ms
+(Worker_TP6 pid=2144256) [NEO STEP] count=300 avg=61.607ms last=47.305ms
+(Worker_TP4 pid=2144254) [NEO STEP] count=300 avg=61.605ms last=47.293ms
+(Worker_TP3 pid=2144253) [NEO STEP] count=300 avg=61.520ms last=47.257ms
+(Worker_TP1 pid=2144251) [NEO STEP] count=300 avg=61.581ms last=47.334ms
+(Worker_TP2 pid=2144252) [NEO STEP] count=300 avg=61.579ms last=47.281ms
+(Worker_TP0 pid=2144250) [NEO STEP] count=300 avg=61.513ms last=47.356ms
+INFO 05-03 02:44:06 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1030.6 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 18.9%, Prefix cache hit rate: 0.0%
+(Worker_TP5 pid=2144255) [NEO STEP] count=400 avg=58.143ms last=47.221ms
+(Worker_TP6 pid=2144256) [NEO STEP] count=400 avg=58.138ms last=47.238ms
+(Worker_TP4 pid=2144254) [NEO STEP] count=400 avg=58.138ms last=47.240ms
+(Worker_TP7 pid=2144257) [NEO STEP] count=400 avg=58.148ms last=46.929ms
+(Worker_TP3 pid=2144253) [NEO STEP] count=400 avg=58.070ms last=47.214ms
+(Worker_TP2 pid=2144252) [NEO STEP] count=400 avg=58.116ms last=47.228ms
+(Worker_TP1 pid=2144251) [NEO STEP] count=400 avg=58.117ms last=47.227ms
+(Worker_TP0 pid=2144250) [NEO STEP] count=400 avg=58.039ms last=47.067ms
+(Worker_TP4 pid=2144254) [NEO STEP] count=500 avg=56.045ms last=47.922ms
+(Worker_TP7 pid=2144257) [NEO STEP] count=500 avg=56.043ms last=47.899ms
+(Worker_TP6 pid=2144256) [NEO STEP] count=500 avg=56.041ms last=45.297ms
+(Worker_TP5 pid=2144255) [NEO STEP] count=500 avg=56.048ms last=47.905ms
+(Worker_TP3 pid=2144253) [NEO STEP] count=500 avg=55.988ms last=47.922ms
+(Worker_TP1 pid=2144251) [NEO STEP] count=500 avg=56.026ms last=47.941ms
+(Worker_TP2 pid=2144252) [NEO STEP] count=500 avg=56.026ms last=48.126ms
+(Worker_TP0 pid=2144250) [NEO STEP] count=500 avg=55.945ms last=47.697ms
+Processed prompts:   2%|▏         | 1/50 [00:28<23:26, 28.71s/it, est. speed input: 74.71 toks/s, output: 17.83 toks/s]Processed prompts:   4%|▍         | 2/50 [00:28<09:30, 11.89s/it, est. speed input: 148.52 toks/s, output: 35.52 toks/s]Processed prompts:  34%|███▍      | 17/50 [00:28<00:29,  1.13it/s, est. speed input: 1251.91 toks/s, output: 300.53 toks/s]Processed prompts:  64%|██████▍   | 32/50 [00:29<00:06,  2.60it/s, est. speed input: 2344.74 toks/s, output: 563.25 toks/s]Processed prompts: 100%|██████████| 50/50 [00:29<00:00,  2.60it/s, est. speed input: 3651.76 toks/s, output: 877.07 toks/s]Processed prompts: 100%|██████████| 50/50 [00:29<00:00,  1.71it/s, est. speed input: 3651.76 toks/s, output: 877.07 toks/s]
+[baseline] generate wall=29.5s
+[baseline] total_input_tokens=106588 total_output_tokens=25600
+[baseline] prompt_tps=3616.4 output_tps=868.6 req_per_s=1.70
+[baseline] log metrics: {'preempt_count': None, 'kv_cache_size_tokens': 652128, 'max_concurrency': 159.21}
+[baseline] wrote /workspace/vllm_hybrid/eval/results/20260503_024243_Intel_Xeon_Platinum_8480+x2_H100_80GB_HBM3x8_neo_step_v_compare/vanilla.json
+(EngineCore pid=2143566) INFO 05-03 02:44:15 [core.py:1353] Shutdown initiated (timeout=0)
+(EngineCore pid=2143566) INFO 05-03 02:44:15 [core.py:1376] Shutdown complete
+(Worker_TP1 pid=2144251) INFO 05-03 02:44:15 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP4 pid=2144254) INFO 05-03 02:44:15 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP6 pid=2144256) INFO 05-03 02:44:15 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP5 pid=2144255) INFO 05-03 02:44:15 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP0 pid=2144250) INFO 05-03 02:44:15 [multiproc_executor.py:775] Parent process exited, terminating worker queues
+(Worker_TP7 pid=2144257) INFO 05-03 02:44:15 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP3 pid=2144253) INFO 05-03 02:44:15 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP2 pid=2144252) INFO 05-03 02:44:15 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP0 pid=2144250) INFO 05-03 02:44:15 [multiproc_executor.py:872] WorkerProc shutting down.
+[rank2]:[W503 02:44:16.138798588 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=100, addr=[localhost]:58956, remote=[localhost]:33681): Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:682 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x147ecb97205d in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x6a9149d (0x147e325a549d in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x273 (0x147e325a33f3 in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x4a5 (0x147df733caa5 in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdc253 (0x147ecb4b0253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #5: <unknown function> + 0x94ac3 (0x147f0606bac3 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x1268d0 (0x147f060fd8d0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank2]:[W503 02:44:16.143374836 ProcessGroupNCCL.cpp:1826] [PG ID 0 PG GUID 0 Rank 2] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+[rank1]:[W503 02:44:16.140170279 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=100, addr=[localhost]:58960, remote=[localhost]:33681): Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:682 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x150ee6f7205d in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x6a9149d (0x150e4dba549d in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x273 (0x150e4dba33f3 in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x4a5 (0x150e1293caa5 in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdc253 (0x150ee6ab0253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #5: <unknown function> + 0x94ac3 (0x150f21584ac3 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x1268d0 (0x150f216168d0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W503 02:44:16.144265795 ProcessGroupNCCL.cpp:1826] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
