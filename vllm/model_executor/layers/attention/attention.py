@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
+import os as _os_hook
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -737,7 +738,6 @@ direct_register_custom_op(
 
 # Phase B — NEO dispatch hook profile (env opt-in,
 # VLLM_NEO_PROFILE_HOOK=1). Module-level counter — worker process 별.
-import os as _os_hook
 _neo_hook_profile_flag: bool | None = None
 _neo_hook_calls: int = 0
 _neo_hook_active_calls: int = 0

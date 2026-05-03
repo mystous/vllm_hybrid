@@ -178,8 +178,10 @@ def main() -> int:
     resolved = _resolve_model(args.model)
     print("=" * 60)
     print(f"MODEL: {resolved} (alias '{args.model}')")
-    print(f"TP={args.tensor_parallel_size} max_model_len={args.max_model_len}"
-          f" max_tokens={args.max_tokens} prompts={len(args.prompts or DEFAULT_PROMPTS)}")
+    _np = len(args.prompts or DEFAULT_PROMPTS)
+    print(f"TP={args.tensor_parallel_size} "
+          f"max_model_len={args.max_model_len} "
+          f"max_tokens={args.max_tokens} prompts={_np}")
     print("=" * 60)
 
     print("VANILLA RUN (enable_neo_asymmetric=False)")

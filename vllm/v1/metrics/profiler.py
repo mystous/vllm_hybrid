@@ -91,11 +91,10 @@ class ModelProfiler:
             self.predictor.cdec_T_lists.append(row)
 
         # Launch overhead — measure with a 1-token linear probe.
-        try:
+        # Keep default of 0.8 ms on NotImplementedError.
+        import contextlib
+        with contextlib.suppress(NotImplementedError):
             self.predictor.lnch_T = self._measure_avg("lnch", 1)
-        except NotImplementedError:
-            # Keep default of 0.8 ms.
-            pass
 
         elapsed = time.perf_counter() - start
         logger.info(
