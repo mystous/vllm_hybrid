@@ -445,74 +445,60 @@ class NeoSchedulerAdapter(AsyncScheduler):
         batches = self.last_neo_output.batches
         if len(batches) >= 2:
             try:
-                # IDE_006 / TSK_015 4.5.2.c — vLLM input_batch ↔ NEO cpu_q
-                # 정합. NEO sibling 의 batches 의 reqs 가 *vLLM scheduler
-                # 의 schedule() 결과* (output.num_scheduled_tokens.keys())
-                # 영역에 *없는 영역* (NEO 자체 cpu_decoding_q 의 cdec_req
-                # 등) 면 worker 의 input_batch 에도 없어서 fork branch 의
-                # contiguous check (b0+b1 == num_reqs) fail.
-                # → vLLM 영역 의 schedule 결과 영역 의 reqs 영역만 attach.
-                _vllm_ids = set(output.num_scheduled_tokens.keys())
-                _b0_filtered = [
-                    r for r in batches[0].all_reqs
-                    if r._str_id in _vllm_ids
-                ]
-                _b1_filtered = [
-                    r for r in batches[1].all_reqs
-                    if r._str_id in _vllm_ids
-                ]
-                if not _b0_filtered or not _b1_filtered:
-                    # 필터 후 한쪽 영역 비어있으면 fork branch 진입 불가.
-                    # 본 step 은 sequential mode 영역 (vanilla path).
-                    raise StopIteration  # skip attach
-                output.neo_sub_batches = [
-                    [r._str_id for r in _b0_filtered],
-                    [r._str_id for r in _b1_filtered],
-                ]
-                # cdec slice 영역의 token range 재계산 — filter 영역 후
-                # 의 batch 영역 정합. cdec_reqs 영역도 filter 정합.
-                _b0_cdec = [
-                    r for r in batches[0].cdec_reqs
-                    if r._str_id in _vllm_ids
-                ]
-                _b1_cdec = [
-                    r for r in batches[1].cdec_reqs
-                    if r._str_id in _vllm_ids
-                ]
-                # cdec_token_slice 영역 = batch 의 cdec rows 영역의
-                # (start, end) — filter 후 batch 의 prefill+gdec rows
-                # 끝의 영역 부터 cdec rows 영역 끝까지.
-                def _cdec_slice(batch_filtered, batch_cdec):
-                    """filter 후 batch 영역의 cdec rows token range."""
-                    # all_reqs 의 prefill+gdec 끝나는 영역 = cdec start
-                    n_pref_gdec = len(batch_filtered) - len(batch_cdec)
-                    # token row 영역 = req 별 num_scheduled_tokens 합
+                # IDE_006 / TSK_015 4.5.2.c — *진정한* fix.
+                # NEO sibling batches[0] 의 prefix 영역에 vLLM input_batch
+                # 외부 reqs (NEO 자체 waiting_q 영역의 새 prefill 영역의
+                # ids 영역) → fork branch 의 set_match check fail.
+                # 진정한 fix = vLLM scheduled ids 의 *순서 영역* 으로 정렬
+                # + cdec_reqs 영역 분리 (worker side input_batch.req_ids
+                # 와 동일 순서 정합).
+                vllm_ids = list(output.num_scheduled_tokens.keys())
+                cdec_id_set = {r._str_id for r in batches[1].cdec_reqs}
+                # vLLM 영역 의 ids 영역 영역 의 *순서 영역* 으로 split
+                b0_ids = [_id for _id in vllm_ids
+                          if _id not in cdec_id_set]
+                b1_ids = [_id for _id in vllm_ids
+                          if _id in cdec_id_set]
+                if not b0_ids or not b1_ids:
+                    # cdec 영역 0 또는 batches[0] 비어 — sequential mode.
+                    raise StopIteration
+                output.neo_sub_batches = [b0_ids, b1_ids]
+                # cdec_token_slice 영역 = batch 의 cdec rows 영역 영역의
+                # token range. batches[0]/[1] 의 *모든 reqs 영역* 의
+                # num_scheduled_tokens 영역 합 영역으로 정합.
+                def _slice(b_ids, b_cdec_ids):
+                    """batch 영역의 cdec rows 영역의 (start, end)."""
+                    pref_gdec_ids = [_id for _id in b_ids
+                                     if _id not in b_cdec_ids]
                     pref_gdec_tokens = sum(
-                        output.num_scheduled_tokens.get(r._str_id, 0)
-                        for r in batch_filtered[:n_pref_gdec]
+                        output.num_scheduled_tokens.get(_id, 0)
+                        for _id in pref_gdec_ids
                     )
                     cdec_tokens = sum(
-                        output.num_scheduled_tokens.get(r._str_id, 0)
-                        for r in batch_cdec
+                        output.num_scheduled_tokens.get(_id, 0)
+                        for _id in b_cdec_ids
                     )
                     return (
                         pref_gdec_tokens,
                         pref_gdec_tokens + cdec_tokens,
                     )
+                # batches[0] 영역에는 cdec 없음 (cdec_id_set 영역 외 영역
+                # 만). batches[1] 영역에 cdec 영역 영역 모두.
+                b0_cdec_set: set[str] = set()
+                b1_cdec_set = cdec_id_set
                 output.neo_sub_batch_cdec_slices = [
-                    _cdec_slice(_b0_filtered, _b0_cdec),
-                    _cdec_slice(_b1_filtered, _b1_cdec),
+                    _slice(b0_ids, b0_cdec_set),
+                    _slice(b1_ids, b1_cdec_set),
                 ]
-                # seq_slice 영역 = req-level (start, end) — filter 후
+                # seq_slice 영역 = req-level (start, end) — batches[0]
+                # 영역의 cdec 영역 zero, batches[1] 영역의 cdec 영역 모두.
                 output.neo_sub_batch_cdec_seq_slices = [
-                    (len(_b0_filtered) - len(_b0_cdec),
-                     len(_b0_filtered)),
-                    (len(_b1_filtered) - len(_b1_cdec),
-                     len(_b1_filtered)),
+                    (len(b0_ids), len(b0_ids)),  # cdec 영역 zero
+                    (0, len(b1_ids)),  # batches[1] 영역의 모든 ids
                 ]
                 output.neo_sub_batch_cdec_req_ids = [
-                    [r._str_id for r in _b0_cdec],
-                    [r._str_id for r in _b1_cdec],
+                    [],  # batches[0] 영역의 cdec 영역 zero
+                    list(b1_ids),
                 ]
             except StopIteration:
                 pass
