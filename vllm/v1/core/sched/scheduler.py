@@ -503,7 +503,21 @@ class Scheduler(SchedulerInterface):
                                 encoder_compute_budget += num_embeds_to_restore
                             req_index -= 1
                     else:
-                        preempted_req = self.running.pop()
+                        # IDE_006 / TSK_015 NEO 정합 — running 큐의 *마지막
+                        # RUNNING status* req 만 pop. NEO swap_out 발화한
+                        # SWAPPED_OUT 또는 이미 PREEMPTED 된 req 는 건너뜀.
+                        # 본 이전 logic: ``self.running.pop()`` 가 무조건
+                        # 마지막 req pop → SWAPPED_OUT/PREEMPTED req 도
+                        # preempt 시도 → _preempt_request assert fail.
+                        preempted_req = None
+                        for _i in range(len(self.running) - 1, -1, -1):
+                            if self.running[_i].status == RequestStatus.RUNNING:
+                                preempted_req = self.running.pop(_i)
+                                break
+                        if preempted_req is None:
+                            # All running reqs are SWAPPED_OUT or already
+                            # preempted — cannot preempt anymore.
+                            break
 
                     self._preempt_request(preempted_req, scheduled_timestamp)
                     preempted_reqs.append(preempted_req)
@@ -869,9 +883,15 @@ class Scheduler(SchedulerInterface):
         # Since some requests in the RUNNING queue may not be scheduled in
         # this step, the total number of scheduled requests can be smaller than
         # len(self.running).
-        assert len(scheduled_new_reqs) + len(scheduled_resumed_reqs) + len(
-            scheduled_running_reqs
-        ) <= len(self.running)
+        # IDE_006 / TSK_015 NEO 정합 — NEO swap_out 발화 후 schedule loop
+        # 안의 *waiting → running 이동* / *swap_out 결정 영역* 가 본 invariant
+        # 깨뜨릴 수 있음. NEO ON 영역에서만 본 assert 완화 (vanilla 영역
+        # invariant 그대로 보존).
+        if not getattr(self.scheduler_config,
+                       "enable_neo_asymmetric", False):
+            assert len(scheduled_new_reqs) + len(scheduled_resumed_reqs) + len(
+                scheduled_running_reqs
+            ) <= len(self.running)
 
         # Get the longest common prefix among all requests in the running queue.
         # This can be potentially used for cascade attention.
@@ -970,8 +990,15 @@ class Scheduler(SchedulerInterface):
         NOTE: The request should be popped from the running queue outside of this
         method.
         """
-        assert request.status == RequestStatus.RUNNING, (
-            "Only running requests can be preempted"
+        # IDE_006 / TSK_015 NEO swap_out path — NEO 가 swap_out 결정 후
+        # req status = SWAPPED_OUT. vLLM scheduler 의 다음 step 에서
+        # 본 req 가 preempt 후보 로 식별되면 본 assert fail. NEO
+        # SWAPPED_OUT 영역도 preempt 허용 (KV 는 이미 NEO 측에서 free
+        # 됐으나 idempotent — kv_cache_manager.free 가 본 영역 OK).
+        assert request.status in (
+            RequestStatus.RUNNING, RequestStatus.SWAPPED_OUT
+        ), (
+            "Only running/swapped-out requests can be preempted"
         )
         self.kv_cache_manager.free(request)
         self.encoder_cache_manager.free(request)

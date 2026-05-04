@@ -638,10 +638,20 @@ class EngineCore:
         ):
             model_output = future.result()
             if model_output is None:
-                # None from sample_tokens() implies that the original execute_model()
-                # call failed - raise that exception.
-                exec_model_fut.result()
-                raise RuntimeError("unexpected error")
+                # IDE_006 / TSK_015 NEO 정합 — NEO swap_out + vLLM preempt
+                # chain 영역에서 future.result() 가 None 일 수 있음 (empty
+                # step 의 async pipeline future 가 result set 못 한 영역).
+                # NEO ON 시 본 영역을 EMPTY_MODEL_RUNNER_OUTPUT 으로 우회 —
+                # vanilla 영역은 기존대로 raise.
+                if getattr(self.scheduler.scheduler_config,
+                           "enable_neo_asymmetric", False):
+                    from vllm.v1.outputs import EMPTY_MODEL_RUNNER_OUTPUT
+                    model_output = EMPTY_MODEL_RUNNER_OUTPUT
+                else:
+                    # None from sample_tokens() implies that the original
+                    # execute_model() call failed - raise that exception.
+                    exec_model_fut.result()
+                    raise RuntimeError("unexpected error")
 
         # Before processing the model output, process any aborts that happened
         # during the model execution.

@@ -233,23 +233,24 @@ class NeoSchedulerAdapter(AsyncScheduler):
     # 후에는 Phase 3/4 가 *진짜 swap* 을 추가; 본 Phase 는 *관찰* 만.
     # ------------------------------------------------------------------
     def _sync_neo_gpu_decoding_q(self) -> None:
-        """Mirror vLLM ``self.running`` (decoding subset) into the NEO
+        """Mirror vLLM ``self.running`` (all active reqs) into the NEO
         sibling's ``gpu_decoding_q``. Run after ``super().schedule()``.
 
-        The sibling uses this to (a) reserve budget for active decoders
+        The sibling uses this to (a) reserve budget for active reqs
         in Step 1, (b) consider preempting under pressure in Step 2,
         (c) drive ``decide_mode`` 's ``_get_remains`` analysis.
+
+        2026-05-03 fix — *prefill skip 제거*. 이전 버전은 decode 단계
+        (num_computed_tokens >= num_prompt_tokens) reqs 만 매핑 →
+        prefill 단계 KV pressure 가 NEO 측에 추적 안 됨 →
+        ``gpu_block_needed > swap_out_threshold`` 영역 미진입 →
+        cdec dispatch 자연 발화 zero. 본 fix 로 prefill + decode
+        모든 active reqs 매핑 → 진짜 KV pressure 인식 → swap_out
+        결정 path 정상 활성.
         """
         cache = self._neo_view_cache
         new_gdec: list[_NeoRequestView] = []
         for req in self.running:
-            # Decode phase = num_computed_tokens >= num_prompt_tokens.
-            # During chunked prefill, num_computed_tokens may equal
-            # num_prompt_tokens during the *last* chunk's iteration —
-            # treat as decoding from the next step onwards (correct for
-            # NEO's decode-budget reasoning).
-            if req.num_computed_tokens < req.num_prompt_tokens:
-                continue
             view = cache.get(req.request_id)
             if view is not None:
                 new_gdec.append(view)
