@@ -445,26 +445,77 @@ class NeoSchedulerAdapter(AsyncScheduler):
         batches = self.last_neo_output.batches
         if len(batches) >= 2:
             try:
+                # IDE_006 / TSK_015 4.5.2.c — vLLM input_batch ↔ NEO cpu_q
+                # 정합. NEO sibling 의 batches 의 reqs 가 *vLLM scheduler
+                # 의 schedule() 결과* (output.num_scheduled_tokens.keys())
+                # 영역에 *없는 영역* (NEO 자체 cpu_decoding_q 의 cdec_req
+                # 등) 면 worker 의 input_batch 에도 없어서 fork branch 의
+                # contiguous check (b0+b1 == num_reqs) fail.
+                # → vLLM 영역 의 schedule 결과 영역 의 reqs 영역만 attach.
+                _vllm_ids = set(output.num_scheduled_tokens.keys())
+                _b0_filtered = [
+                    r for r in batches[0].all_reqs
+                    if r._str_id in _vllm_ids
+                ]
+                _b1_filtered = [
+                    r for r in batches[1].all_reqs
+                    if r._str_id in _vllm_ids
+                ]
+                if not _b0_filtered or not _b1_filtered:
+                    # 필터 후 한쪽 영역 비어있으면 fork branch 진입 불가.
+                    # 본 step 은 sequential mode 영역 (vanilla path).
+                    raise StopIteration  # skip attach
                 output.neo_sub_batches = [
-                    [r._str_id for r in batch.all_reqs]
-                    for batch in batches
+                    [r._str_id for r in _b0_filtered],
+                    [r._str_id for r in _b1_filtered],
                 ]
-                # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — per-sub-batch
-                # cdec token row slice attach. Backend reads this via
-                # ``CommonAttentionMetadata.neo_cdec_token_slice`` and
-                # dispatches cdec rows to the CPU pacpu kernel. Each
-                # tuple is half-open ``(start, end)`` within the
-                # sub-batch's contiguous token tensor.
+                # cdec slice 영역의 token range 재계산 — filter 영역 후
+                # 의 batch 영역 정합. cdec_reqs 영역도 filter 정합.
+                _b0_cdec = [
+                    r for r in batches[0].cdec_reqs
+                    if r._str_id in _vllm_ids
+                ]
+                _b1_cdec = [
+                    r for r in batches[1].cdec_reqs
+                    if r._str_id in _vllm_ids
+                ]
+                # cdec_token_slice 영역 = batch 의 cdec rows 영역의
+                # (start, end) — filter 후 batch 의 prefill+gdec rows
+                # 끝의 영역 부터 cdec rows 영역 끝까지.
+                def _cdec_slice(batch_filtered, batch_cdec):
+                    """filter 후 batch 영역의 cdec rows token range."""
+                    # all_reqs 의 prefill+gdec 끝나는 영역 = cdec start
+                    n_pref_gdec = len(batch_filtered) - len(batch_cdec)
+                    # token row 영역 = req 별 num_scheduled_tokens 합
+                    pref_gdec_tokens = sum(
+                        output.num_scheduled_tokens.get(r._str_id, 0)
+                        for r in batch_filtered[:n_pref_gdec]
+                    )
+                    cdec_tokens = sum(
+                        output.num_scheduled_tokens.get(r._str_id, 0)
+                        for r in batch_cdec
+                    )
+                    return (
+                        pref_gdec_tokens,
+                        pref_gdec_tokens + cdec_tokens,
+                    )
                 output.neo_sub_batch_cdec_slices = [
-                    batch.cdec_token_slice for batch in batches
+                    _cdec_slice(_b0_filtered, _b0_cdec),
+                    _cdec_slice(_b1_filtered, _b1_cdec),
                 ]
+                # seq_slice 영역 = req-level (start, end) — filter 후
                 output.neo_sub_batch_cdec_seq_slices = [
-                    batch.cdec_seq_slice for batch in batches
+                    (len(_b0_filtered) - len(_b0_cdec),
+                     len(_b0_filtered)),
+                    (len(_b1_filtered) - len(_b1_cdec),
+                     len(_b1_filtered)),
                 ]
                 output.neo_sub_batch_cdec_req_ids = [
-                    [r._str_id for r in batch.cdec_reqs]
-                    for batch in batches
+                    [r._str_id for r in _b0_cdec],
+                    [r._str_id for r in _b1_cdec],
                 ]
+            except StopIteration:
+                pass
             except (AttributeError, TypeError) as e:
                 logger.debug("NEO output attach failed: %s", e)
 
