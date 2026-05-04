@@ -1046,6 +1046,46 @@ class GPUModelRunner(
                 decode_threshold=self.reorder_batch_threshold,
             )
 
+        # IDE_006 / TSK_015 4.5.2.c — NEO fork branch alignment.
+        # Adapter 가 num_scheduled_tokens.keys() 순서로 b0/b1 을 분리하지만
+        # input_batch.req_ids 는 *영구 슬롯 순서* 라 일치 보장 없음. fork
+        # branch 의 split_point 는 input_batch 순서 기반 토큰 합이라
+        # b1 (cdec) reqs 가 input_batch 의 *suffix* 에 있어야만 정합. 여기
+        # 서 swap_states 로 b1 reqs 를 강제 suffix 로 이동한다 (vLLM 이
+        # spec_decode reorder 에 사용 중인 동일 API).
+        if getattr(self, "_neo_enabled", False):
+            neo_subs = getattr(scheduler_output, "neo_sub_batches", None)
+            if (neo_subs is not None
+                    and len(neo_subs) == 2
+                    and neo_subs[0]
+                    and neo_subs[1]):
+                _b1_set = set(neo_subs[1])
+                _num_reqs = self.input_batch.num_reqs
+                _n_b1 = len(_b1_set)
+                _target_start = _num_reqs - _n_b1
+                if _target_start > 0:
+                    _move_in = [
+                        i for i in range(_target_start)
+                        if self.input_batch._req_ids[i] in _b1_set
+                    ]
+                    _move_out = [
+                        i for i in range(_target_start, _num_reqs)
+                        if self.input_batch._req_ids[i] not in _b1_set
+                    ]
+                    if _move_in and len(_move_in) == len(_move_out):
+                        if not hasattr(self, "_neo_swap_count"):
+                            self._neo_swap_count = 0
+                        for src, dst in zip(_move_in, _move_out):
+                            self.input_batch.swap_states(src, dst)
+                            self._neo_swap_count += 1
+                        if (self._neo_swap_count % 100 == 0
+                                and self._neo_swap_count > 0):
+                            logger.info(
+                                "[NEO] swap_states for fork alignment: "
+                                "total swaps=%d (b1_size=%d this step)",
+                                self._neo_swap_count, _n_b1,
+                            )
+
     def _init_kv_zero_meta(self) -> None:
         """One-time precomputation for _zero_block_ids.
 
@@ -4152,43 +4192,40 @@ class GPUModelRunner(
                 neo_subs_str = getattr(
                     scheduler_output, "neo_sub_batches", None
                 )
-                # IDE_006 — fork branch fail 진단 (rate-limited).
-                if neo_subs_str is not None and not getattr(
-                        self, "_neo_fork_diag_logged", False):
-                    _b0 = len(neo_subs_str[0]) if len(neo_subs_str) > 0 else 0
-                    _b1 = len(neo_subs_str[1]) if len(neo_subs_str) > 1 else 0
-                    _smatch = (
-                        set(neo_subs_str[0]) == set(
-                            self.input_batch.req_ids[:_b0]
-                        )) if _b0 > 0 else False
+                # IDE_006 / TSK_015 4.5.2.c — fork branch counter.
+                # split_point = num_scheduled_tokens_np[:boundary].sum()
+                # 인데 num_scheduled_tokens_np 는 input_batch.req_ids 순서
+                # (4071-4073). 따라서 fork 가 정합 invariant 를 지키려면
+                # neo_subs_str[0] 의 set == input_batch.req_ids[:boundary]
+                # 의 set 이 *반드시* 성립해야 한다 (prefix 정합).
+                # union+disjoint 만으로는 split_point 가 b0 토큰 합과
+                # misalign — attention 결과 손상.
+                if not hasattr(self, "_neo_fork_stat_total"):
+                    self._neo_fork_stat_total = 0
+                    self._neo_fork_stat_eligible = 0
+                    self._neo_fork_stat_active = 0
+                self._neo_fork_stat_total += 1
+                if (self._neo_fork_stat_total % 100 == 0):
                     logger.info(
-                        "[NEO FORK DIAG] b0=%d b1=%d num_reqs=%d "
-                        "set_match=%s b0_sample=%s req_ids_sample=%s",
-                        _b0, _b1, num_reqs, _smatch,
-                        list(neo_subs_str[0])[:3] if _b0 else [],
-                        list(self.input_batch.req_ids[:3]),
+                        "[NEO FORK STAT] total_neo_steps=%d "
+                        "eligible(b0+b1>0)=%d active(prefix_match)=%d",
+                        self._neo_fork_stat_total,
+                        self._neo_fork_stat_eligible,
+                        self._neo_fork_stat_active,
                     )
-                    self._neo_fork_diag_logged = True
-                # 빠른 short-circuit: list[list[str]] 길이 2 + 둘 다 비어있지
-                # 않을 때만 contiguous 검사로 진입.
                 if (
                     neo_subs_str is not None
                     and len(neo_subs_str) == 2
                     and neo_subs_str[0]
                     and neo_subs_str[1]
                 ):
-                    # NEO scheduler 는 request 추가 순서대로 batches[0]/[1] 에
-                    # 분배 — 자연스럽게 input_batch.req_ids 의 prefix/suffix
-                    # 를 차지. 따라서 set 비교로 contiguous-from-0 검증.
+                    self._neo_fork_stat_eligible += 1
                     boundary = len(neo_subs_str[0])
-                    if (
-                        boundary + len(neo_subs_str[1]) == num_reqs
-                        # Set 비교 — list 정렬보다 빠름 (둘 다 O(N) 이지만
-                        # set 은 hash, list sort 는 비교 + alloc).
-                        and set(neo_subs_str[0]) == set(
-                            self.input_batch.req_ids[:boundary]
-                        )
-                    ):
+                    _b0_set = set(neo_subs_str[0])
+                    _input_prefix_set = set(
+                        self.input_batch.req_ids[:boundary]
+                    )
+                    if _b0_set == _input_prefix_set:
                         # split_point 은 boundary req 이전까지의 token 합.
                         neo_split_point = int(
                             num_scheduled_tokens_np[:boundary].sum()
@@ -4196,6 +4233,7 @@ class GPUModelRunner(
                         if 0 < neo_split_point < num_tokens_padded:
                             should_ubatch = True
                             neo_split_used = True
+                            self._neo_fork_stat_active += 1
                             # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — capture
                             # per-sub-batch cdec token slices so the
                             # attention metadata builder can set
@@ -6966,7 +7004,10 @@ class GPUModelRunner(
         )
         if self.parallel_config.use_ubatching:
             num_builders = self.parallel_config.num_ubatches
-        elif enable_neo and _FORCE_PIPELINED:
+        elif enable_neo:
+            # IDE_006 / TSK_015 4.5.2.c — NEO fork 가 자연 발화 시
+            # (cdec eligible + suffix 정합) 도 ubatch=2 로 진입하므로
+            # FORCE_PIPELINED 와 무관하게 항상 2 builders 할당.
             num_builders = 2
         else:
             num_builders = 1
