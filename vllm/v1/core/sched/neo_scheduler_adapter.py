@@ -51,7 +51,7 @@ class _NeoRequestView:
     hashes the string to a stable integer slot and exposes the token
     counters NEO's mode-selection needs."""
 
-    __slots__ = ("_req", "request_id", "prompt_len", "_str_id")
+    __slots__ = ("_req", "request_id", "prompt_len", "_str_id", "_is_decode")
 
     def __init__(self, request) -> None:
         self._req = request
@@ -248,11 +248,22 @@ class NeoSchedulerAdapter(AsyncScheduler):
         모든 active reqs 매핑 → 진짜 KV pressure 인식 → swap_out
         결정 path 정상 활성.
         """
+        from vllm.v1.request import RequestStatus as _RS
         cache = self._neo_view_cache
         new_gdec: list[_NeoRequestView] = []
         for req in self.running:
+            # IDE_006 — NEO 가 이미 swap_out 한 SWAPPED_OUT req 는 *gpu_q
+            # 매핑 제외*. 본 영역 누락 시 매 step *같은 req 가 또
+            # swap_out 후보* → cpu_decoding_q 에 *중복 무한 누적* →
+            # schedule() line 283 의 sum() 영역 quadratic blow → deadlock.
+            if req.status == _RS.SWAPPED_OUT:
+                continue
             view = cache.get(req.request_id)
             if view is not None:
+                # prefill 단계 req 는 swap_out 후보 제외 (decode-only fix).
+                view._is_decode = (
+                    req.num_computed_tokens >= req.num_prompt_tokens
+                )
                 new_gdec.append(view)
         # NEO 의 gpu_decoding_q 는 ``list`` (not deque) — 직접 교체.
         self.neo_scheduler.gpu_decoding_q = new_gdec

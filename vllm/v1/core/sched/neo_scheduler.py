@@ -231,10 +231,23 @@ class NeoScheduler:
         budget.remaining_batch_size -= len(self.gpu_decoding_q)
         budget.remaining_tokens_in_batch -= len(self.gpu_decoding_q)
 
-        # Step 2 — preempt the most recent GPU decoding when budget over
+        # Step 2 — preempt the most recent GPU decoding when budget over.
+        # IDE_006 — (a) vLLM async pipeline 정합 — min 1 RUNNING 보장.
+        # (b) swap_out 후보 = *fully decoded only* (prefill 진행 중 req 는
+        # swap_out 시 finish 안 됨 → deadlock).
         while (budget.overspent
-               or gpu_block_needed > swap_out_threshold) and self.gpu_decoding_q:
-            victim = self.gpu_decoding_q.pop()
+               or gpu_block_needed > swap_out_threshold) \
+                and len(self.gpu_decoding_q) > 1:
+            # 후보 = decode 단계 만 — prefill 단계 swap_out 회피.
+            victim_idx = -1
+            for _i in range(len(self.gpu_decoding_q) - 1, -1, -1):
+                if getattr(self.gpu_decoding_q[_i], "_is_decode", True):
+                    victim_idx = _i
+                    break
+            if victim_idx < 0:
+                # 모든 reqs 가 prefill — swap_out 불가.
+                break
+            victim = self.gpu_decoding_q.pop(victim_idx)
             self._initiate_swap_out(victim)         # Phase 5.1 atomic
             swap_out_reqs.append(victim)
             gpu_block_needed -= self._get_block_needed(victim)
@@ -267,6 +280,17 @@ class NeoScheduler:
         assert not swap_out_reqs or not swap_in_reqs
 
         # Step 4 — classify newly arrived prefills (GPU first, then CPU)
+        # IDE_006 — cpu_decoding_q size sanity check. infinite-loop guard +
+        # log if oversize (NEO swap_in path mismatch 영역 진단).
+        _cpu_q_sz = len(self.cpu_decoding_q)
+        if _cpu_q_sz > 10000:
+            logger.warning(
+                "[NEO] cpu_decoding_q oversize: %d — capping to 1000",
+                _cpu_q_sz,
+            )
+            # Drop oldest beyond 1000 to prevent memory blow.
+            from collections import deque as _deque
+            self.cpu_decoding_q = _deque(list(self.cpu_decoding_q)[-1000:])
         cpu_block_needed = sum(self._get_block_needed(r)
                                for r in self.cpu_decoding_q)
         for cand in self.waiting_q:

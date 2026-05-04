@@ -4152,6 +4152,23 @@ class GPUModelRunner(
                 neo_subs_str = getattr(
                     scheduler_output, "neo_sub_batches", None
                 )
+                # IDE_006 — fork branch fail 진단 (rate-limited).
+                if neo_subs_str is not None and not getattr(
+                        self, "_neo_fork_diag_logged", False):
+                    _b0 = len(neo_subs_str[0]) if len(neo_subs_str) > 0 else 0
+                    _b1 = len(neo_subs_str[1]) if len(neo_subs_str) > 1 else 0
+                    _smatch = (
+                        set(neo_subs_str[0]) == set(
+                            self.input_batch.req_ids[:_b0]
+                        )) if _b0 > 0 else False
+                    logger.info(
+                        "[NEO FORK DIAG] b0=%d b1=%d num_reqs=%d "
+                        "set_match=%s b0_sample=%s req_ids_sample=%s",
+                        _b0, _b1, num_reqs, _smatch,
+                        list(neo_subs_str[0])[:3] if _b0 else [],
+                        list(self.input_batch.req_ids[:3]),
+                    )
+                    self._neo_fork_diag_logged = True
                 # 빠른 short-circuit: list[list[str]] 길이 2 + 둘 다 비어있지
                 # 않을 때만 contiguous 검사로 진입.
                 if (
