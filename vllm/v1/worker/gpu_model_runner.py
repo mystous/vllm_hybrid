@@ -4071,6 +4071,19 @@ class GPUModelRunner(
             req_ids = self.input_batch.req_ids
             tokens = [scheduler_output.num_scheduled_tokens[i] for i in req_ids]
             num_scheduled_tokens_np = np.array(tokens, dtype=np.int32)
+            # IDE_006 / TSK_015 NEO 정합 — empty num_scheduled_tokens 영역
+            # (NEO swap_out + vLLM standard preempt 가 모든 reqs 처리해
+            # input_batch.req_ids 가 empty 인 step). _dummy_run(1) 호출로
+            # async pipeline 의 future-result 영역 정합 보장 (본 호출
+            # 없이 return 시 step_with_batch_queue 가 model_output=None
+            # 받아 RuntimeError raise).
+            if num_scheduled_tokens_np.size == 0:
+                self._dummy_run(1)
+                if not has_kv_transfer_group():
+                    return EMPTY_MODEL_RUNNER_OUTPUT
+                return self.kv_connector_no_forward(
+                    scheduler_output, self.vllm_config
+                )
             max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
             # IDE_006 / TSK_015.B-5 root fix — input_batch 측 실제 합 사용.
             # scheduler_output.total_num_scheduled_tokens 는 finish ↔ schedule
