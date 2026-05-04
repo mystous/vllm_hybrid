@@ -183,30 +183,25 @@ def decide_mode(
             gpu_only_batch.add_pref(req, is_gpu=is_gpu)
             break
 
-    # Step 3 — distribute CPU-decode requests between batches[0]/[1]
-    min_out_cpu_len = math.inf
+    # Step 3 — distribute CPU-decode requests between batches[0]/[1].
+    # IDE_006 — predictor 의 latency 비교 (min(remains) < 0) 영역 제거.
+    # 본 영역 fallback 시 cdec_reqs 가 *영영 forward 안 됨* → finish 영역
+    # 도달 못함 → deadlock 외형. NEO 정통 path = cdec_reqs 영역 시 *항상*
+    # pipelined 활성 — alternate distribute 영역.
     next_batch_idx = 1
     for req in cpu_decoding_q:
         if not budget.check_and_substract(1):
             break
-        if req.num_tokens >= min_out_cpu_len:
-            budget.add(1)
-            continue
         batches[next_batch_idx].add_cdec(req)
-        remains = _get_remains(batches)
-        if min(remains) < 0 and num_gpu_blocks > 0:
-            min_out_cpu_len = req.num_tokens
-            budget.add(1)
-            batches[next_batch_idx].pop_cdec()
-            continue
-        next_batch_idx = int(remains[1] > remains[0])
+        next_batch_idx = 1 - next_batch_idx
 
     # Edge case: no cdec was packed → fall back to GPU-only.
-    # When ``VLLM_NEO_FORCE_PIPELINED=1`` we instead split batches[0]
-    # before falling back, so the forced two-sub-batch shape lands
-    # downstream and the dual-forward path actually fires.
+    # When ``VLLM_NEO_FORCE_PIPELINED=1`` *or* has_cdec is True we instead
+    # split batches[0] before falling back, so the forced two-sub-batch
+    # shape lands downstream and the dual-forward path actually fires.
     if not batches[1] and num_gpu_blocks > 0:
-        if _FORCE_PIPELINED:
+        # IDE_006 — has_cdec 시도 split (predictor 영역 무시).
+        if _FORCE_PIPELINED or has_cdec:
             half_gprf = len(batches[0].gprf_reqs) // 2
             for _ in range(half_gprf):
                 req = batches[0].gprf_reqs.pop()
