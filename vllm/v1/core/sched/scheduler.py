@@ -380,6 +380,23 @@ class Scheduler(SchedulerInterface):
 
         self.kv_cache_manager.new_step_starts()
 
+        # IDE_006 / TSK_015 4.5.2.c v29 — NEO 활성 시 SWAPPED_OUT → RUNNING
+        # 자동 swap_in. NEO 의 자체 Step 3 swap_in 제거 후 vllm side 에
+        # swap_in path 위임. KV pool 의 free_blocks 가 충분할 때 일부
+        # SWAPPED_OUT reqs 를 RUNNING 으로 복귀 → cdec dispatch fire 후
+        # forward 진행 + token 생성 → finish → KV free → cycle.
+        #
+        # vllm 의 standard schedule path 가 SWAPPED_OUT 영구 잔류 안 시킴.
+        # _neo_swap_in 자체가 KV alloc 시도 후 fail 시 False 반환 → 더
+        # 이상 swap_in 안 함 (KV 압력 균형).
+        if self.scheduler_config.enable_neo_asymmetric:
+            for req in list(self.running):
+                if req.status != RequestStatus.SWAPPED_OUT:
+                    continue
+                if not self._neo_swap_in(req, scheduled_timestamp):
+                    # KV alloc fail — 더 이상 swap_in 안 함 (KV 부족).
+                    break
+
         # First, schedule the RUNNING requests.
         req_index = 0
         while req_index < len(self.running) and token_budget > 0:
@@ -509,11 +526,27 @@ class Scheduler(SchedulerInterface):
                         # 본 이전 logic: ``self.running.pop()`` 가 무조건
                         # 마지막 req pop → SWAPPED_OUT/PREEMPTED req 도
                         # preempt 시도 → _preempt_request assert fail.
+                        #
+                        # IDE_006 4.5.2.c v26 race fix — NEO 활성 + decode
+                        # 단계 시 ``self.running.pop`` *skip*. ``_preempt_request``
+                        # 의 NEO hook 가 status 만 SWAPPED_OUT 로 변경
+                        # (RUNNING 잔류). schedule loop 의 ``while
+                        # req_index < len(self.running)`` invariant 보존
+                        # → multiproc race deadlock 제거.
                         preempted_req = None
                         for _i in range(len(self.running) - 1, -1, -1):
-                            if self.running[_i].status == RequestStatus.RUNNING:
+                            if self.running[_i].status != RequestStatus.RUNNING:
+                                continue
+                            candidate = self.running[_i]
+                            if (self.scheduler_config.enable_neo_asymmetric
+                                    and candidate.num_computed_tokens
+                                    >= candidate.num_prompt_tokens):
+                                # NEO path: pop 안 함, status 만 변경됨.
+                                preempted_req = candidate
+                            else:
+                                # vanilla path: 기존 동작.
                                 preempted_req = self.running.pop(_i)
-                                break
+                            break
                         if preempted_req is None:
                             # All running reqs are SWAPPED_OUT or already
                             # preempted — cannot preempt anymore.
@@ -526,7 +559,17 @@ class Scheduler(SchedulerInterface):
                         break
 
             if new_blocks is None:
-                # Cannot schedule this request.
+                # IDE_006 4.5.2.c v31 architectural — NEO 활성 시 outer
+                # break *대신* continue. RUNNING req 의 KV alloc fail 후
+                # 후속 *SWAPPED_OUT reqs* 는 dummy success 로 schedule 가능
+                # (line 345 kv_cache_manager.allocate_slots). FCFS outer
+                # break 시 SWAPPED_OUT 도 schedule 안 되어 forward 0 →
+                # circular deadlock. NEO 활성 시 RUNNING 만 skip 하고
+                # SWAPPED_OUT path 진행.
+                if self.scheduler_config.enable_neo_asymmetric:
+                    req_index += 1
+                    continue
+                # vanilla: FCFS 정책 보존.
                 break
 
             # Schedule the request.
@@ -995,18 +1038,17 @@ class Scheduler(SchedulerInterface):
         # vLLM 의 KV 부족 자동 발화 path 가 NEO 의 cdec dispatch 메커니즘
         # 과 *통합*: KV CPU copy + status SWAPPED_OUT + RUNNING 잔류 → 다음
         # step 에 cdec dispatch 발화 (KV alloc 0, attention layer 의 hook
-        # 가 CPU pacpu 로 attention 처리). 13 단계 progressive 우회 fix
-        # 의 진정한 대체.
+        # 가 CPU pacpu 로 attention 처리).
         #
-        # caller (scheduler.schedule()) 가 self.running.pop 한 후 본
-        # 메소드 호출 → NEO path 진입 시 self.running 에 append back
-        # 으로 잔류시킴.
+        # v26 race fix — caller (scheduler.schedule()) 가 NEO path 시
+        # self.running.pop *skip* (513 라인). 따라서 본 hook 도 append
+        # back 불필요. self.running 길이 변화 없어 schedule loop invariant
+        # 보존 → multiproc race deadlock 제거.
         if (request.status == RequestStatus.RUNNING
                 and self.scheduler_config.enable_neo_asymmetric
                 and request.num_computed_tokens
                     >= request.num_prompt_tokens):
             self._neo_swap_out(request, timestamp)
-            self.running.append(request)
             return
 
         assert request.status in (
