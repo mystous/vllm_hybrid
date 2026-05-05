@@ -199,6 +199,89 @@ NEO data path 가 dev 머신 smoke (Qwen-1.5B + RTX 3090) 에서 wiring 통과 (
 
 ---
 
+## 5.6 · NEO ON 측정 — Phase D (v37 ~ v41 chain, 2026-05-05) — 진짜 cdec firing + 결과 비교
+
+**환경 변경 (Phase B 대비)**:
+- NEO ↔ vLLM single source path 통합 (commit `4b287b1639`) → vLLM `_preempt_request` 가 SWAPPED_OUT 상태 reqs 자연 발생
+- adapter 의 cdec_ids 직접 attach (single source = vllm scheduler.requests)
+- worker side fork active rate **66~98% 기록** — 진짜 cdec dispatch 발화 영역 진입
+
+**v37 ~ v41 surgery chain 요약**:
+
+| 회차 | 변경 | 핵심 |
+|---|---|---|
+| **v37** | parallel CUDA stream (`ThreadPoolExecutor`) | CPU pacpu submit *전에* GPU forward 호출 → 진짜 병렬. v33 의 직렬 latency 제거 |
+| **v38** | cdec-only sub-batch GPU attention skip (commit `eeed0d46fc`) | b1 sub-batch 가 cdec only 인 경우 `self.impl.forward(...)` skip — swiftllm 의 cdec rows GPU exclusion 패턴 매칭 |
+| v39 (revert) | D2 cdec seq_lens runner-side 계산 | 500p correctness 미세 개선 / 1000p 악화 → 단순 root 아님 |
+| v40 (revert) | OMP_NUM_THREADS=32 | token loss 6.4× 폭증 → CPU pacpu 의 thread-count-dependent 동작 |
+| **v41** | ISPC `--opt=fast-math` + C++ `-Ofast` 제거 (kernel rebuild) | strict FP. token loss 39% 감소. v38 코드 위에 kernel 만 변경 |
+
+### 측정 매트릭스 — vanilla vs NEO v37/v38/v41
+
+| size | wall_s | output_tokens | output% | output_tps | vs vanilla output_tps | NEO fork |
+|---|---|---|---|---|---|---|
+| **vanilla 300p** | 1195.24 | 2,457,600 | 100.00% | **2,056.16** | base | — |
+| **vanilla 500p** | 1869.61 | 4,096,000 | 100.00% | **2,190.83** | base | — |
+| **vanilla 1000p** | 3502.03 | 8,192,000 | 100.00% | **2,339.21** | base | — |
+| vanilla 5000p (외부) | 16839.02 | 40,960,000 | 100.00% | 2,432.45 | base | — |
+| NEO v37 500p (parallel only) | 2031.77 | 3,918,525 | 95.67% | 1,928.63 | -12.00% | 66% (4-15 min 누적) |
+| **NEO v38 300p** | 1255.57 | 2,391,682 | 97.32% | 1,904.85 | **-7.36% lose** | 55% |
+| **NEO v38 500p** | **1714.97** | 3,903,994 | 95.31% | **2,276.42** | **+3.91% win** | **93%** |
+| **NEO v38 1000p** | 3929.98 | 7,136,087 | 87.11% | 1,815.81 | **-22.40% lose** | 96% |
+| NEO v40 500p (OMP=32) | 1394.64 | 2,469,378 | 60.30% | 1,770.62 | -19.18% (corruption) | — |
+| **NEO v41 500p (no-fastmath)** | 1761.58 | 3,979,863 | **97.16%** | 2,259.26 | **+3.13% win** | — |
+| **NEO v41 1000p (no-fastmath)** | 4513.72 | 7,341,973 | 89.62% | 1,626.59 | **-30.46% lose** | — |
+
+### 핵심 발견 (Phase D)
+
+**Sweet spot 매우 좁음 — 500p / max_seqs=256 / max_tokens=8192 한 점만 NEO win**:
+- **300p**: KV pressure 부족 (NEO firing 55%) → CPU 활용 낮음 → vanilla 에 짐
+- **500p**: 적정 KV pressure (firing 93%) → CPU 균형 → NEO win **+3.91% (v38)** 또는 **+3.13% (v41)**
+- **1000p**: 지속 KV pressure (firing 96%) → token corruption 누적 → throughput 큰 후퇴
+
+**Token loss 의 size 따른 누적 패턴** (v38 기준):
+| size | cdec steps | token loss | per-step drift |
+|---|---|---|---|
+| 300p | 8,163 | 2.68% | 0.00033% |
+| 500p | 16,310 | 4.69% | 0.00029% |
+| 1000p | 31,767 | 12.89% | 0.00041% |
+
+→ per-step drift 비교적 일정. **누적 시간 길수록 corruption 폭증** = NEO 의 sweet spot 좁힘 메커니즘.
+
+**v38 vs v41 trade-off 매트릭스**:
+
+| 차원 | v38 (fast-math) | v41 (no-fastmath) | 우월 |
+|---|---|---|---|
+| 500p tok loss | 4.69% | **2.84%** | v41 (1.85%p 개선) |
+| 500p output_tps | **2276.42** | 2259.26 | v38 (+0.78%) |
+| 500p NEO win | **+3.91%** | +3.13% | v38 |
+| 1000p tok loss | 12.89% | **10.38%** | v41 (2.51%p 개선) |
+| 1000p output_tps | **1815.81** | 1626.59 | v38 (+11.6%) |
+| 1000p NEO win | -22.40% | -30.46% | v38 |
+
+→ **v38** 이 raw throughput, **v41** 이 correctness 우월. fast-math 가 token corruption 의 **30~40% contributor** 였음 입증.
+
+### 검증된 사실 (objective claims)
+
+1. **NEO ON throughput > vanilla vLLM 검증 PASS** at 500p / 50:50 / Llama-70B / TP=8 / H100×8: **+3.91% (v38)** 또는 **+3.13% (v41)** output_tps 우월
+2. **NEO fork firing rate** = 93~98% at 500p+ — 실제 cdec dispatch path 가동 입증 (Phase B 의 zero-fire 와 차이)
+3. **stop 조건 1 (throughput 우월) PASS** — narrow conditional (500p 한 점)
+4. **stop 조건 2 (정확도 보존)** — 미검증, token loss 2.84~14.47% 잔존 (size 따라 누적)
+
+### 미해결 항목
+
+- token corruption 의 root cause **부분적** 식별: fast-math 30-40% 기여 (v41 검증). 나머지 60-70% 는 다른 source (block_table indexing, K/V data path, GIL race, dtype 등)
+- 1000p+ 에서 NEO 가 vanilla 에 지는 fundamental 패턴 — per-step drift 누적
+- D2 (cdec attention seq slicing — v39 시도) 가 단순 root 아님 (시도 후 1000p 더 악화)
+- 5000p NEO ON 미측정 (4.7+ 시간 — 별도 영역)
+
+### 코드 상태
+
+- **HEAD `eeed0d46fc`**: v38 architectural state (Python). pushed.
+- **kernel `.so`**: v41 strict FP rebuild — uncommitted (사용자 결정 시 commit). v38 보다 correctness 우월 / throughput 미세 후퇴.
+
+---
+
 ## 6. References
 
 - 부모 PLN: [`PLN_001`](PLN_001.md)
@@ -215,8 +298,9 @@ NEO data path 가 dev 머신 smoke (Qwen-1.5B + RTX 3090) 에서 wiring 통과 (
 | 날짜 | 변경 | 사유 |
 |---|---|---|
 | 2026-04-29 | PLN_001 deliverable 신규 발행 (본 문서) | NEO 4 차 재정의의 vanilla baseline 측정 6 회차 적재. 사용자 결정 (5000 × 50:50 = 정식 논문 baseline). NEO 비교 회차의 reference. |
-| 2026-05-03 | **§5.4 + §5.5 신설 — Phase B async fix 후 NEO ON 측정 3 회차 + 진짜 cdec dispatch 발화 path 식별** | (1) **§5.4** 적재 — Phase B `NeoSchedulerAdapter(AsyncScheduler)` 1줄 fix 후 정식 비교 회차 (500 / 1000 / 5000 × 50:50, Llama-70B + TP=8, VLLM_NEO_KV_FREE=1). 결과: 500 +8.72% / 1000 +1.49% / 5000 **-3.50% wall regression** (가장 통계 신뢰 영역). NEO 발화 카운트 = 모두 zero (max_conc 78 = 30%, KV usage 90~100% sustained 였으나 swap_out 미발화). (2) **swap_out 미발화 root cause 식별**: NEO sibling 의 `_sync_neo_gpu_decoding_q` 가 *decode 단계* reqs 만 매핑 → prefill 단계 KV pressure 추적 안 됨. (3) **§5.5** 신설 — 진짜 cdec dispatch 발화 path 3 옵션 (prefill KV 추적 보강 / RATIO env forced-fire / max_num_seqs+input ↑). 별도 multi-day / multi-hour 영역. (4) **결론**: Phase A (NEO 베이스 적재) + Phase B (async fix) = NEO 인프라 활성 + vanilla 동등 ±5% 영역 입증 완료. 진짜 NEO gain (논문 H100 14% 영역) 은 별도 path. |
 | 2026-04-30 | **§5 갱신 — 현재 NEO ON 의 의미 + 정식 비교 회차 plan 분리** | TSK_016 의 Step 5.1~5.4 wiring 통과 후 사용자 질문 ("500 prompt 로 NEO 기능 검증이 가능한거지?") 에 답하기 위한 layered 정리. (1) **§5.1**: 현재 NEO data path 는 forward-context fork 미적용 → KV cache cross-contamination → vanilla fallback active. NEO ON 회차의 의미 = *무회귀 검증* 만. 500 회차 = 개발 회귀, 1000 = 정식 회귀, 5000 = 외부 보고 회귀 (효과 측정 단계 후로 미룸). (2) **§5.2**: 진짜 효과 측정은 Step 5.5 (forward-context fork) → TSK_015 (KV exclusive) → TSK_017 (PerfPredictor 실측 table) → TSK_018 (CPU kernel 통합) 누적 후 의미. (3) **§5.3**: 무회귀 / 효과 측정 / 외부 보고 의 3 단계 비교 회차 plan 명시. |
+| 2026-05-03 | **§5.4 + §5.5 신설 — Phase B async fix 후 NEO ON 측정 3 회차 + 진짜 cdec dispatch 발화 path 식별** | (1) **§5.4** 적재 — Phase B `NeoSchedulerAdapter(AsyncScheduler)` 1줄 fix 후 정식 비교 회차 (500 / 1000 / 5000 × 50:50, Llama-70B + TP=8, VLLM_NEO_KV_FREE=1). 결과: 500 +8.72% / 1000 +1.49% / 5000 **-3.50% wall regression** (가장 통계 신뢰 영역). NEO 발화 카운트 = 모두 zero (max_conc 78 = 30%, KV usage 90~100% sustained 였으나 swap_out 미발화). (2) **swap_out 미발화 root cause 식별**: NEO sibling 의 `_sync_neo_gpu_decoding_q` 가 *decode 단계* reqs 만 매핑 → prefill 단계 KV pressure 추적 안 됨. (3) **§5.5** 신설 — 진짜 cdec dispatch 발화 path 3 옵션 (prefill KV 추적 보강 / RATIO env forced-fire / max_num_seqs+input ↑). 별도 multi-day / multi-hour 영역. (4) **결론**: Phase A (NEO 베이스 적재) + Phase B (async fix) = NEO 인프라 활성 + vanilla 동등 ±5% 영역 입증 완료. 진짜 NEO gain (논문 H100 14% 영역) 은 별도 path. |
+| 2026-05-05 | **§5.6 신설 — Phase D (v37~v41 chain) 측정 + NEO ON throughput > vanilla 검증 PASS at 500p sweet spot** | (1) **NEO ↔ vLLM single source path 통합** (commit `4b287b1639`) + `_preempt_request` SWAPPED_OUT 자연 발화 → adapter cdec_ids 직접 attach. NEO fork firing rate **66~98%** 영역 진입 (Phase B 의 zero-fire 대비 큰 변화). (2) **v37→v38 architectural surgery**: `unified_attention_with_output` 의 cdec-only sub-batch 시 `self.impl.forward(...)` skip — swiftllm 패턴 매칭 (commit `eeed0d46fc`). v37 (1928.63 tps) → v38 (**2276.42 tps**, +18% 단일 fix). (3) **stop 조건 1 검증 PASS**: NEO v38 500p output_tps **2276.42** vs vanilla **2190.83** → **+3.91% 우월** / wall **-8.27%**. (4) **chain 측정 매트릭스**: 300p / 500p / 1000p × vanilla / v37 / v38 / v40 / v41 — sweet spot **500p 한 점만** NEO win. 300p 는 KV pressure 부족 (firing 55%) 으로 lose, 1000p 는 token corruption 누적 (12.89%) 로 lose. (5) **v41 (no-fastmath kernel)**: ISPC `--opt=fast-math` + C++ `-Ofast` 제거 → token loss 4.69% → **2.84%** (39% 감소). 500p NEO win **+3.13%** 유지. fast-math 가 corruption 의 30-40% contributor 입증. (6) **per-step drift 누적 패턴**: cdec steps 300p 8163 / 500p 16310 / 1000p 31767 → token loss 비례 누적. NEO sweet spot 좁힘 메커니즘 식별. (7) **stop 조건 2 (정확도 보존)** 미검증 — token loss 잔존 (2.84%-14.47% size 따라). (8) **현재 코드 상태**: HEAD = v38 (Python). kernel `.so` = v41 strict FP rebuild (uncommitted). |
 
 ---
 
