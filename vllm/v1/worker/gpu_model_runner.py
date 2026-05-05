@@ -1046,15 +1046,14 @@ class GPUModelRunner(
                 decode_threshold=self.reorder_batch_threshold,
             )
 
-        # IDE_006 / TSK_015 4.5.2.c depth 5 — NEO fork branch alignment.
-        # Adapter 가 num_scheduled_tokens.keys() 순서로 b0/b1 을 분리하지만
-        # input_batch.req_ids 는 *영구 슬롯 순서* + this-step 에 schedule
-        # 안 된 *unscheduled* reqs 까지 포함. fork branch 가 정합하려면
-        # input_batch[:len(b0)] 가 정확히 b0 만 포함해야 함 (b1 + unscheduled
-        # 모두 [len(b0):] 로). 이전 fix (_b1_set 기준) 는 unscheduled reqs
-        # 를 처리 못해 prefix_match 91% fail (depth 5 진단 결과).
-        # 본 fix: _b0_set 기준 — input_batch[:boundary] 에 b0 외의 reqs
-        # (b1 *or* unscheduled) 를 발견하면 [boundary:] 의 b0 reqs 와 swap.
+        # IDE_006 / TSK_015 4.5.2.c depth 6 — NEO fork branch alignment.
+        # Adapter 가 num_scheduled_tokens.keys() 순서로 b0/b1 을 분리.
+        # input_batch.req_ids 는 *영구 슬롯 순서* + unscheduled reqs +
+        # SWAPPED_OUT cdec reqs 까지 포함하므로 분산 가능. 이전 _move_in /
+        # _move_out 짝-zip 은 b0 가 분산된 케이스 처리 못 함 (길이 mismatch
+        # → skip → prefix_fail). 본 fix: greedy walk — [:boundary] 를 순회
+        # 하면서 non-b0 자리에 [boundary:] 의 첫 b0 를 swap 으로 채워넣어
+        # input_batch[:boundary] = b0 invariant 강제.
         if getattr(self, "_neo_enabled", False):
             neo_subs = getattr(scheduler_output, "neo_sub_batches", None)
             if (neo_subs is not None
@@ -1064,44 +1063,50 @@ class GPUModelRunner(
                 _b0_set = set(neo_subs[0])
                 _num_reqs = self.input_batch.num_reqs
                 _boundary = len(_b0_set)
-                if 0 < _boundary < _num_reqs:
-                    # input_batch[:boundary] 에서 b0 가 *아닌* reqs (이동 OUT)
-                    _move_in = [
-                        i for i in range(_boundary)
-                        if self.input_batch._req_ids[i] not in _b0_set
-                    ]
-                    # input_batch[boundary:] 에서 b0 인 reqs (이동 IN)
-                    _move_out = [
-                        i for i in range(_boundary, _num_reqs)
-                        if self.input_batch._req_ids[i] in _b0_set
-                    ]
+                if 0 < _boundary <= _num_reqs:
                     if not hasattr(self, "_neo_swap_count"):
                         self._neo_swap_count = 0
-                        self._neo_swap_skip_count = 0
-                    if _move_in and len(_move_in) == len(_move_out):
-                        for src, dst in zip(_move_in, _move_out):
-                            self.input_batch.swap_states(src, dst)
-                            self._neo_swap_count += 1
-                        if (self._neo_swap_count <= 5
-                                or self._neo_swap_count % 50 == 0):
+                        self._neo_swap_step_count = 0
+                        self._neo_swap_unreachable = 0
+                    _step_swaps = 0
+                    _unreachable = False
+                    for i in range(_boundary):
+                        if (self.input_batch._req_ids[i] in _b0_set):
+                            continue
+                        # i 자리에 b0 가 아닌 req 가 있음. [boundary..num_reqs)
+                        # 에서 첫 b0 를 찾아 swap. 못 찾으면 b0 의 일부가
+                        # input_batch 전체에 없는 상태 — fork 진입 불가.
+                        j = _boundary
+                        while (j < _num_reqs
+                                and self.input_batch._req_ids[j]
+                                not in _b0_set):
+                            j += 1
+                        if j >= _num_reqs:
+                            _unreachable = True
+                            break
+                        self.input_batch.swap_states(i, j)
+                        self._neo_swap_count += 1
+                        _step_swaps += 1
+                    if _step_swaps > 0:
+                        self._neo_swap_step_count += 1
+                        if (self._neo_swap_step_count <= 5
+                                or self._neo_swap_step_count % 50 == 0):
                             logger.info(
-                                "[NEO SWAP] total swaps=%d skips=%d "
-                                "this_step boundary=%d move_in=%d",
+                                "[NEO SWAP] total_swaps=%d step_count=%d "
+                                "this_step swaps=%d boundary=%d num_reqs=%d",
                                 self._neo_swap_count,
-                                self._neo_swap_skip_count,
-                                _boundary, len(_move_in),
+                                self._neo_swap_step_count,
+                                _step_swaps, _boundary, _num_reqs,
                             )
-                    elif _move_in:
-                        # b0 가 input_batch 에 *없는* reqs 를 포함 (예:
-                        # adapter 가 vllm_ids 순서로 만들었으나 input_batch
-                        # 에 add_request 가 아직 안 됨). 이 경우 swap 불가.
-                        self._neo_swap_skip_count += 1
-                        if self._neo_swap_skip_count <= 3:
-                            logger.info(
-                                "[NEO SWAP SKIP] move_in_len=%d "
-                                "move_out_len=%d boundary=%d num_reqs=%d",
-                                len(_move_in), len(_move_out),
+                    if _unreachable:
+                        self._neo_swap_unreachable += 1
+                        if self._neo_swap_unreachable <= 3:
+                            logger.warning(
+                                "[NEO SWAP UNREACHABLE] b0 의 일부 reqs 가 "
+                                "input_batch 전체에 없음 — fork skip. "
+                                "boundary=%d num_reqs=%d unreachable_count=%d",
                                 _boundary, _num_reqs,
+                                self._neo_swap_unreachable,
                             )
 
     def _init_kv_zero_meta(self) -> None:
@@ -4275,12 +4280,14 @@ class GPUModelRunner(
                             logger.warning(
                                 "[NEO FORK REJECT] prefix_fail "
                                 "active_so_far=%d total=%d boundary=%d "
-                                "diff_b0_only=%s diff_input_only=%s "
-                                "input_prefix_sample=%s",
+                                "num_reqs=%d "
+                                "diff_b0_only_size=%d diff_input_only_size=%d "
+                                "diff_b0=%s diff_input=%s",
                                 self._neo_fork_stat_active,
                                 self._neo_fork_stat_total, boundary,
+                                self.input_batch.num_reqs,
+                                len(_diff_b0), len(_diff_in),
                                 list(_diff_b0)[:3], list(_diff_in)[:3],
-                                list(self.input_batch.req_ids[:5]),
                             )
                     else:
                         # split_point 은 boundary req 이전까지의 token 합.
