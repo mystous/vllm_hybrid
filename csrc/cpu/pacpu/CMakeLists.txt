@@ -9,7 +9,9 @@ set(ISPC_SRC_NAME pacpu)
 # (Alder Lake 12900KF) 은 AVX-512 fuse-off 시 ISPC 가 host fallback 으로
 # AVX2 강등 — compiler-managed. (TSK_018 cherry-pick)
 set(ISPC_TARGETS "avx512spr-x16")
-set(ISPC_FLAGS "-O3" "--opt=fast-math")
+# IDE_006 v41 — fast-math 제거. cdec output 의 누적 numerical drift 가
+# token loss (size↑ 시 4.7% → 12.9%) 의 가능 source — strict FP 로 검증.
+set(ISPC_FLAGS "-O3")
 set(TARGET_SOURCES "pacpu.cpp" "pacpu.ispc")
 
 set(ISPC_ARCH "x86-64")
@@ -29,7 +31,8 @@ function(target_add_common_options target model_name tp_degree)
   target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:ISPC>:--arch=${ISPC_ARCH}>)
 
   set(arch_flag "-m${ISPC_ARCH_BIT}")
-  target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-Ofast -march=native>)
+  # IDE_006 v41 — -Ofast 가 -ffast-math 를 enable. -O3 -march=native 로 변경.
+  target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-O3 -march=native>)
   target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fopenmp>)
   target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:${arch_flag}>)
   string(TOUPPER ${model_name} MODEL_NAME)
