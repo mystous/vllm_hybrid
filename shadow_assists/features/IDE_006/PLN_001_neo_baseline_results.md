@@ -268,12 +268,20 @@ NEO data path 가 dev 머신 smoke (Qwen-1.5B + RTX 3090) 에서 wiring 통과 (
 3. **stop 조건 1 (throughput 우월) PASS** — narrow conditional (500p 한 점)
 4. **stop 조건 2 (정확도 보존)** — 미검증, token loss 2.84~14.47% 잔존 (size 따라 누적)
 
-### 미해결 항목
+### 미해결 항목 (정식 sub-task = `SUB_001` ~ `SUB_006`, parent `TSK_019`)
 
-- token corruption 의 root cause **부분적** 식별: fast-math 30-40% 기여 (v41 검증). 나머지 60-70% 는 다른 source (block_table indexing, K/V data path, GIL race, dtype 등)
-- 1000p+ 에서 NEO 가 vanilla 에 지는 fundamental 패턴 — per-step drift 누적
-- D2 (cdec attention seq slicing — v39 시도) 가 단순 root 아님 (시도 후 1000p 더 악화)
-- 5000p NEO ON 미측정 (4.7+ 시간 — 별도 영역)
+본 chain 진단 중 swiftllm 원본 vs vLLM cdec dispatch 의 5 차이점 + 후속 가설 1 개 식별. 비공식 D 라벨 (D1~D5 + D2.3) 을 정식 `TSK_019` parent + 6 개 SUB sub-task 로 등재 (2026-05-05). 자세한 정의는 `shadow_assists/id_registry.md`:
+
+| sub-task | 라벨 | 상태 | 본 §5.6 의 시도 |
+|---|---|---|---|
+| `SUB_001` | D1 layer-offset verification | 대기 (검증 완료) | TSK_016 의 forward_neo_pipelined 적재로 swiftllm 와 동등 확인됨. 추가 surgery 불필요 |
+| `SUB_002` | D2 cdec seq_ids/seq_lens | 시도 후 revert | v39 — token loss 500p 4.69%→2.84% 개선 / 1000p 12.89%→14.47% 악화 → 단순 root 아님 |
+| `SUB_003` | D3 KV exclusive ownership | 대기 (TSK_015 중복) | TSK_015 가 정식 적재. 본 sub-task 는 swiftllm divergence 식별 시점 라벨 보존 |
+| `SUB_004` | D4 block_table 조립 | 대기 (미시도) | global vs cdec-only 축약. 매 step 재구성 비용 |
+| `SUB_005` | D5 Q/K/V 전송 timing | 대기 (미시도) | swiftllm `_transfer_qkv` pre-transfer vs vLLM synchronous `.cpu()` |
+| `SUB_006` | D2.3 BF16↔FP16 cast | 대기 (미시도) | `attention.py:827-829` 의 dtype cast overflow. TSK_018 §3.3 와 영역 동일 |
+
+본 chain 의 token corruption 의 root cause **부분적** 식별 — fast-math 30-40% 기여 (v41 측정). 나머지 60-70% 는 `SUB_004` / `SUB_005` / `SUB_006` 영역에 분포. 5000p NEO ON 측정 미진행 (4.7+ 시간 — 별도 영역).
 
 ### 코드 상태
 
