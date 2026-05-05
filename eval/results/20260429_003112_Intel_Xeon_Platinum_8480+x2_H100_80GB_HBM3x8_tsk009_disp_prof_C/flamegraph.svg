@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480" viewBox="0 0 1200 480">
+<rect width="1200" height="480" fill="white"/>
+<text x="600.0" y="28.0" font-size="18" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="middle" fill="#000">TSK_009 dispatcher profile — overhead breakdown</text>
+<text x="600.0" y="50.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#444">input_heavy: 100 prompts × 15360 input × 1024 output  ·  Llama-3.3-70B + TP=8</text>
+<text x="310.0" y="114.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="end" fill="#000">A: cold-tier OFF</text>
+<rect x="320.0" y="80" width="548.7" height="60" fill="#4ECDC4" stroke="black" stroke-width="0.7"/>
+<text x="594.4" y="108.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="middle" fill="#000">baseline GPU forward + decode</text>
+<text x="594.4" y="124.0" font-size="10.5" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">164.1 s</text>
+<text x="876.7" y="114.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="start" fill="#000">total 164.1 s</text>
+<text x="310.0" y="199.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="end" fill="#000">B: cold-tier ON, IDE_006 OFF</text>
+<rect x="320.0" y="165" width="548.7" height="60" fill="#4ECDC4" stroke="black" stroke-width="0.7"/>
+<text x="594.4" y="193.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="middle" fill="#000">baseline GPU forward + decode</text>
+<text x="594.4" y="209.0" font-size="10.5" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">164.1 s</text>
+<rect x="868.7" y="165" width="120.0" height="60" fill="#FFA500" stroke="black" stroke-width="0.7"/>
+<text x="928.7" y="193.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="middle" fill="#000">vLLM cold-tier store/metadata</text>
+<text x="928.7" y="209.0" font-size="10.5" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">35.9 s</text>
+<text x="996.7" y="199.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="start" fill="#000">total 200.0 s</text>
+<text x="310.0" y="284.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="end" fill="#000">C1: IDE_006 ON, fix v1</text>
+<rect x="320.0" y="250" width="548.7" height="60" fill="#4ECDC4" stroke="black" stroke-width="0.7"/>
+<text x="594.4" y="278.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="middle" fill="#000">baseline GPU forward + decode</text>
+<text x="594.4" y="294.0" font-size="10.5" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">164.1 s</text>
+<rect x="868.7" y="250" width="120.0" height="60" fill="#FFA500" stroke="black" stroke-width="0.7"/>
+<text x="928.7" y="278.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="middle" fill="#000">vLLM cold-tier store/metadata</text>
+<text x="928.7" y="294.0" font-size="10.5" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">35.9 s</text>
+<rect x="988.7" y="250" width="64.5" height="60" fill="#FF6B6B" stroke="black" stroke-width="0.7"/>
+<text x="1021.0" y="284.0" font-size="10" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">19.3s</text>
+<text x="1061.3" y="284.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="start" fill="#000">total 219.3 s</text>
+<text x="310.0" y="369.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="end" fill="#000">C2: IDE_006 ON, fix v2 (fast-path bypass)</text>
+<rect x="320.0" y="335" width="548.7" height="60" fill="#4ECDC4" stroke="black" stroke-width="0.7"/>
+<text x="594.4" y="363.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="middle" fill="#000">baseline GPU forward + decode</text>
+<text x="594.4" y="379.0" font-size="10.5" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">164.1 s</text>
+<rect x="868.7" y="335" width="120.0" height="60" fill="#FFA500" stroke="black" stroke-width="0.7"/>
+<text x="928.7" y="363.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="middle" fill="#000">vLLM cold-tier store/metadata</text>
+<text x="928.7" y="379.0" font-size="10.5" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">35.9 s</text>
+<rect x="988.7" y="335" width="50.8" height="60" fill="#9B59B6" stroke="black" stroke-width="0.7"/>
+<text x="1014.2" y="369.0" font-size="10" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#000">15.2s</text>
+<text x="1047.6" y="369.0" font-size="12" font-family="DejaVu Sans, sans-serif" font-weight="bold" text-anchor="start" fill="#000">total 215.2 s</text>
+<line x1="320" y1="425" x2="1070" y2="425" stroke="#888" stroke-width="0.8"/>
+<line x1="320.0" y1="425" x2="320.0" y2="430" stroke="#888" stroke-width="0.8"/>
+<text x="320.0" y="443.0" font-size="10" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#444">0s</text>
+<line x1="487.1868033883192" y1="425" x2="487.1868033883192" y2="430" stroke="#888" stroke-width="0.8"/>
+<text x="487.2" y="443.0" font-size="10" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#444">50s</text>
+<line x1="654.3736067766384" y1="425" x2="654.3736067766384" y2="430" stroke="#888" stroke-width="0.8"/>
+<text x="654.4" y="443.0" font-size="10" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#444">100s</text>
+<line x1="821.5604101649576" y1="425" x2="821.5604101649576" y2="430" stroke="#888" stroke-width="0.8"/>
+<text x="821.6" y="443.0" font-size="10" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#444">150s</text>
+<line x1="988.7472135532769" y1="425" x2="988.7472135532769" y2="430" stroke="#888" stroke-width="0.8"/>
+<text x="988.7" y="443.0" font-size="10" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#444">200s</text>
+<text x="695.0" y="463.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="middle" fill="#444">wall-time (s)</text>
+<text x="330.0" y="465.0" font-size="11" font-family="DejaVu Sans, sans-serif" font-weight="normal" text-anchor="start" fill="#444">fix v2 vs v1: 4.1 s 단축 (dispatcher path 8.4 ms → 80.6 μs/call)</text>
+</svg>
