@@ -1046,44 +1046,62 @@ class GPUModelRunner(
                 decode_threshold=self.reorder_batch_threshold,
             )
 
-        # IDE_006 / TSK_015 4.5.2.c — NEO fork branch alignment.
+        # IDE_006 / TSK_015 4.5.2.c depth 5 — NEO fork branch alignment.
         # Adapter 가 num_scheduled_tokens.keys() 순서로 b0/b1 을 분리하지만
-        # input_batch.req_ids 는 *영구 슬롯 순서* 라 일치 보장 없음. fork
-        # branch 의 split_point 는 input_batch 순서 기반 토큰 합이라
-        # b1 (cdec) reqs 가 input_batch 의 *suffix* 에 있어야만 정합. 여기
-        # 서 swap_states 로 b1 reqs 를 강제 suffix 로 이동한다 (vLLM 이
-        # spec_decode reorder 에 사용 중인 동일 API).
+        # input_batch.req_ids 는 *영구 슬롯 순서* + this-step 에 schedule
+        # 안 된 *unscheduled* reqs 까지 포함. fork branch 가 정합하려면
+        # input_batch[:len(b0)] 가 정확히 b0 만 포함해야 함 (b1 + unscheduled
+        # 모두 [len(b0):] 로). 이전 fix (_b1_set 기준) 는 unscheduled reqs
+        # 를 처리 못해 prefix_match 91% fail (depth 5 진단 결과).
+        # 본 fix: _b0_set 기준 — input_batch[:boundary] 에 b0 외의 reqs
+        # (b1 *or* unscheduled) 를 발견하면 [boundary:] 의 b0 reqs 와 swap.
         if getattr(self, "_neo_enabled", False):
             neo_subs = getattr(scheduler_output, "neo_sub_batches", None)
             if (neo_subs is not None
                     and len(neo_subs) == 2
                     and neo_subs[0]
                     and neo_subs[1]):
-                _b1_set = set(neo_subs[1])
+                _b0_set = set(neo_subs[0])
                 _num_reqs = self.input_batch.num_reqs
-                _n_b1 = len(_b1_set)
-                _target_start = _num_reqs - _n_b1
-                if _target_start > 0:
+                _boundary = len(_b0_set)
+                if 0 < _boundary < _num_reqs:
+                    # input_batch[:boundary] 에서 b0 가 *아닌* reqs (이동 OUT)
                     _move_in = [
-                        i for i in range(_target_start)
-                        if self.input_batch._req_ids[i] in _b1_set
+                        i for i in range(_boundary)
+                        if self.input_batch._req_ids[i] not in _b0_set
                     ]
+                    # input_batch[boundary:] 에서 b0 인 reqs (이동 IN)
                     _move_out = [
-                        i for i in range(_target_start, _num_reqs)
-                        if self.input_batch._req_ids[i] not in _b1_set
+                        i for i in range(_boundary, _num_reqs)
+                        if self.input_batch._req_ids[i] in _b0_set
                     ]
+                    if not hasattr(self, "_neo_swap_count"):
+                        self._neo_swap_count = 0
+                        self._neo_swap_skip_count = 0
                     if _move_in and len(_move_in) == len(_move_out):
-                        if not hasattr(self, "_neo_swap_count"):
-                            self._neo_swap_count = 0
                         for src, dst in zip(_move_in, _move_out):
                             self.input_batch.swap_states(src, dst)
                             self._neo_swap_count += 1
-                        if (self._neo_swap_count % 100 == 0
-                                and self._neo_swap_count > 0):
+                        if (self._neo_swap_count <= 5
+                                or self._neo_swap_count % 50 == 0):
                             logger.info(
-                                "[NEO] swap_states for fork alignment: "
-                                "total swaps=%d (b1_size=%d this step)",
-                                self._neo_swap_count, _n_b1,
+                                "[NEO SWAP] total swaps=%d skips=%d "
+                                "this_step boundary=%d move_in=%d",
+                                self._neo_swap_count,
+                                self._neo_swap_skip_count,
+                                _boundary, len(_move_in),
+                            )
+                    elif _move_in:
+                        # b0 가 input_batch 에 *없는* reqs 를 포함 (예:
+                        # adapter 가 vllm_ids 순서로 만들었으나 input_batch
+                        # 에 add_request 가 아직 안 됨). 이 경우 swap 불가.
+                        self._neo_swap_skip_count += 1
+                        if self._neo_swap_skip_count <= 3:
+                            logger.info(
+                                "[NEO SWAP SKIP] move_in_len=%d "
+                                "move_out_len=%d boundary=%d num_reqs=%d",
+                                len(_move_in), len(_move_out),
+                                _boundary, _num_reqs,
                             )
 
     def _init_kv_zero_meta(self) -> None:
@@ -2323,7 +2341,12 @@ class GPUModelRunner(
             kv_cache_spec = kv_cache_groups[kv_cache_gid].kv_cache_spec
             if isinstance(kv_cache_spec, UniformTypeKVCacheSpecs):
                 kv_cache_spec = kv_cache_spec.kv_cache_specs[attn_group.layer_names[0]]
-            cache_key = (kv_cache_spec, type(builder))
+            # IDE_006 / TSK_015 4.5.2.c depth 4 — cache_key 에 ubid 포함.
+            # ubid 가 빠지면 ubid=0 빌드 결과가 ubid=1 호출 시 cache hit 되어
+            # update_block_table path 로 빠지고, block_table/slot_mapping 만
+            # ubid=1 값으로 갱신되며 query_start_loc/seq_lens/num_actual_tokens
+            # 는 ubid=0 의 outer-sized 값 그대로 남아 batch_size mismatch.
+            cache_key = (kv_cache_spec, type(builder), ubid)
 
             cascade_attn_prefix_len = (
                 cascade_attn_prefix_lens[kv_cache_gid][attn_gid]
@@ -3737,12 +3760,17 @@ class GPUModelRunner(
                         return torch.cat(outputs, dim=0)
                     except Exception as e:  # noqa: BLE001
                         # Fallback 은 비정상 — 항상 알려야 함.
-                        logger.warning(
+                        # IDE_006 4.5.2.c chain depth 4 — fall through 시
+                        # outer forward_context.slot_mapping 이 list[dict]
+                        # 인 채로 vanilla model() 진입 → attention.py:689
+                        # assert fail → EngineDeadError. fall through 대신
+                        # full traceback 로 root 노출.
+                        logger.exception(
                             "[NEO] _model_forward: forked dual forward "
-                            "fell back, exception was %s: %s",
+                            "raised %s: %s — traceback below",
                             type(e).__name__, e,
                         )
-                        # fall through to vanilla
+                        raise
 
         return self.model(
             input_ids=input_ids,
@@ -4204,28 +4232,57 @@ class GPUModelRunner(
                     self._neo_fork_stat_total = 0
                     self._neo_fork_stat_eligible = 0
                     self._neo_fork_stat_active = 0
+                    # IDE_006 4.5.2.c depth 5 — reject 카테고리 분류.
+                    self._neo_fork_reject_no_subs = 0
+                    self._neo_fork_reject_b1_empty = 0
+                    self._neo_fork_reject_prefix_fail = 0
+                    self._neo_fork_reject_split_oob = 0
                 self._neo_fork_stat_total += 1
                 if (self._neo_fork_stat_total % 100 == 0):
                     logger.info(
-                        "[NEO FORK STAT] total_neo_steps=%d "
-                        "eligible(b0+b1>0)=%d active(prefix_match)=%d",
+                        "[NEO FORK STAT] total=%d eligible=%d active=%d | "
+                        "reject_no_subs=%d reject_b1_empty=%d "
+                        "reject_prefix_fail=%d reject_split_oob=%d",
                         self._neo_fork_stat_total,
                         self._neo_fork_stat_eligible,
                         self._neo_fork_stat_active,
+                        self._neo_fork_reject_no_subs,
+                        self._neo_fork_reject_b1_empty,
+                        self._neo_fork_reject_prefix_fail,
+                        self._neo_fork_reject_split_oob,
                     )
-                if (
-                    neo_subs_str is not None
-                    and len(neo_subs_str) == 2
-                    and neo_subs_str[0]
-                    and neo_subs_str[1]
-                ):
+                if (neo_subs_str is None or len(neo_subs_str) != 2):
+                    self._neo_fork_reject_no_subs += 1
+                elif not (neo_subs_str[0] and neo_subs_str[1]):
+                    self._neo_fork_reject_b1_empty += 1
+                else:
                     self._neo_fork_stat_eligible += 1
                     boundary = len(neo_subs_str[0])
                     _b0_set = set(neo_subs_str[0])
                     _input_prefix_set = set(
                         self.input_batch.req_ids[:boundary]
                     )
-                    if _b0_set == _input_prefix_set:
+                    if _b0_set != _input_prefix_set:
+                        self._neo_fork_reject_prefix_fail += 1
+                        # IDE_006 depth 5 — 첫 prefix_fail 시 details
+                        # 출력 (active>0 이후 reject 패턴 확인 핵심).
+                        if (self._neo_fork_reject_prefix_fail == 1
+                                or (self._neo_fork_stat_active > 0
+                                    and self._neo_fork_reject_prefix_fail
+                                    == self._neo_fork_stat_active + 1)):
+                            _diff_b0 = _b0_set - _input_prefix_set
+                            _diff_in = _input_prefix_set - _b0_set
+                            logger.warning(
+                                "[NEO FORK REJECT] prefix_fail "
+                                "active_so_far=%d total=%d boundary=%d "
+                                "diff_b0_only=%s diff_input_only=%s "
+                                "input_prefix_sample=%s",
+                                self._neo_fork_stat_active,
+                                self._neo_fork_stat_total, boundary,
+                                list(_diff_b0)[:3], list(_diff_in)[:3],
+                                list(self.input_batch.req_ids[:5]),
+                            )
+                    else:
                         # split_point 은 boundary req 이전까지의 token 합.
                         neo_split_point = int(
                             num_scheduled_tokens_np[:boundary].sum()
@@ -4262,6 +4319,8 @@ class GPUModelRunner(
                                     boundary, len(neo_subs_str[1]),
                                     self._neo_cdec_slices_for_step,
                                 )
+                        else:
+                            self._neo_fork_reject_split_oob += 1
 
             ubatch_slices, ubatch_slices_padded = maybe_create_ubatch_slices(
                 should_ubatch,
