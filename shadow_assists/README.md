@@ -143,6 +143,7 @@ CLAUDE.md Ground RULE 에 따라 본 저장소에서 사용되는 모든 ID 를 
 | `IDE` | Idea — 구현 후보 |
 | `PLN` | Plan — PoC / microbench 플랜 |
 | `TSK` | Task — feature 구현 작업 단위 |
+| `SUB` | Sub-task — 단일 TSK 내 여러 가설/path/Diff 를 분리해서 추적하는 sub-단위. parent TSK 의 비고 컬럼에 `parent` 명시 |
 | `TST` | Test — 정확도·throughput·통합성 검증 단위 |
 | `FEA` | Feature — 본 코드 베이스 단위 기능 |
 
@@ -179,6 +180,13 @@ flowchart TB
     PLN_001 --> TSK_010["TSK_010<br/>CPU 자원 확장<br/>(multi-OMP-team)"]
     PLN_001 --> TSK_011["TSK_011<br/>Speculative + GPU fallback<br/>(3차 재정의 코드화)"]
     PLN_001 --> TSK_012["TSK_012<br/>Decode-time cold→GPU reload<br/>(D-ii equivalence — TSK_011 sweep 발견)"]
+    PLN_001 --> TSK_019["TSK_019<br/>swiftllm cdec dispatch<br/>divergence 식별 + surgery"]
+    TSK_019 --> SUB_001["SUB_001<br/>D1 layer-offset<br/>(검증 완료)"]
+    TSK_019 --> SUB_002["SUB_002<br/>D2 cdec seq slicing<br/>(v39 시도 후 revert)"]
+    TSK_019 --> SUB_003["SUB_003<br/>D3 KV exclusive<br/>(TSK_015 중복)"]
+    TSK_019 --> SUB_004["SUB_004<br/>D4 block_table 조립<br/>(미시도)"]
+    TSK_019 --> SUB_005["SUB_005<br/>D5 Q/K/V 전송 timing<br/>(미시도)"]
+    TSK_019 --> SUB_006["SUB_006<br/>D2.3 BF16↔FP16 cast<br/>(미시도)"]
     PLN_001 --> TST_001["TST_001<br/>TSK_001 정확도<br/>(A · B(i) · C)"]
     PLN_001 --> TST_004["TST_004<br/>TSK_003 prod SIMD cross-check<br/>(B(ii) AVX-512 + B(iii) AMX)"]
     PLN_001 --> TST_003["TST_003<br/>e2e 통합 정확도<br/>(D-i + D-ii)"]
