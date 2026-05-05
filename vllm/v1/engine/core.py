@@ -585,8 +585,29 @@ class EngineCore:
 
         model_executed = False
         deferred_scheduler_output = None
+        # IDE_006 4.5.2.c multiproc race 진단 — step_with_batch_queue 호출
+        # 빈도 + scheduler_output 의 num_scheduled_tokens + batch_queue size.
+        if not hasattr(self, "_neo_step_diag_count"):
+            self._neo_step_diag_count = 0
         if self.scheduler.has_requests():
             scheduler_output = self.scheduler.schedule()
+            self._neo_step_diag_count += 1
+            if (self._neo_step_diag_count <= 5
+                    or self._neo_step_diag_count % 200 == 0):
+                _running = len(self.scheduler.running)
+                _waiting_size = (
+                    len(self.scheduler.waiting)
+                    if hasattr(self.scheduler, "waiting")
+                    else "n/a"
+                )
+                logger.info(
+                    "[NEO STEP DIAG] step=%d num_scheduled=%d "
+                    "batch_queue=%d/%d running=%d waiting=%s",
+                    self._neo_step_diag_count,
+                    scheduler_output.total_num_scheduled_tokens,
+                    len(batch_queue), self.batch_queue_size,
+                    _running, _waiting_size,
+                )
             with self.log_error_detail(scheduler_output):
                 exec_future = self.model_executor.execute_model(
                     scheduler_output, non_block=True

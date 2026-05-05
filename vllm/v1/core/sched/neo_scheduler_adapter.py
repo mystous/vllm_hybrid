@@ -401,138 +401,58 @@ class NeoSchedulerAdapter(AsyncScheduler):
         # actually consumes for vanilla operation.
         output = super().schedule()
 
-        # Sibling skip — NEO scheduler 가 *의미 있는 결정* 을 내릴 수
-        # 없는 환경에서는 sibling 의 schedule() 호출 자체를 skip 해서
-        # 매 step 의 SubBatch/BatchPerfData/ScheduleBudget 할당 + 6 단계
-        # 알고리즘 통째로 회피. 의미 있는 결정 = pipelined return 가능
-        # 한 환경 = (a) FORCE flag 활성 또는 (b) PerfPredictor 가
-        # ZeroPerfPredictor 가 아닌 진짜 측정 table 보유 (TSK_017 이후).
-        # 둘 다 아니면 항상 sequential mode → sibling 작업 100% 폐기.
-        if not self._neo_sibling_meaningful:
-            self.last_neo_output = None
-            return output
+        # IDE_006 4.5.2.c v32 architectural simplification — NEO sibling
+        # schedule() 호출 *완전 제거*.
+        #
+        # 이전: 매 step NEO sibling schedule (mode_selector / decide_mode /
+        # perfpredictor / SubBatch / BatchPerfData / ScheduleBudget 등) 호출
+        # → 64 reqs 환경 schedule cost 가 vanilla 의 ~10x 로 키워서 multiproc
+        # broadcast deadlock 야기 (v31 진단: hot path 에 perfpredictor._interp_1d).
+        #
+        # cdec dispatch fork 결정은 NEO decide_mode *없이* 도 가능 — vllm
+        # 의 SWAPPED_OUT 상태 reqs 를 cdec_ids 로 직접 attach (single
+        # source of truth = vllm scheduler.requests). NEO 의 forward-time
+        # wiring (worker fork branch + cdec dispatch hook) 만 살리고 schedule
+        # -time decision 은 vllm standard 로 위임.
+        self.last_neo_output = None
 
-        # TSK_015 Phase 2 — sync NEO sibling's gpu_decoding_q with the
-        # *actual* set of decoding requests in vLLM's running list.
-        # Without this, NEO's gpu_decoding_q never populates (its only
-        # source is Step 3 swap-in from cpu_decoding_q — itself empty)
-        # so Step 2 preempt + Step 3 swap-in are dead. With sync, NEO
-        # sees the same decode workload vLLM does and can make
-        # capacity-related decisions.
-        self._sync_neo_gpu_decoding_q()
-
-        # TSK_015 Phase 4.6 — FORCE-cdec dev hook. With ``VLLM_NEO_FORCE_CDEC=1``
-        # we artificially move 1 decoding req from gpu_decoding_q to
-        # cpu_decoding_q so NEO 's Step 3 / decide_mode / sub-batch
-        # populating with cdec_reqs path actually fires on smoke. Real
-        # production trigger is Step 2 budget overflow.
-        # 동시에 ``_force_swap_out_reqs`` 에 누적해서 본 schedule 의
-        # ``last_neo_output.swap_out_reqs`` 에 append — runner 의
-        # `_neo_handle_kv_swap` 가 실제 GPU→CPU KV move 를 수행.
-        self._force_swap_out_pending: list = []
-        if self._neo_force_cdec and self.neo_scheduler.gpu_decoding_q:
-            victim = self.neo_scheduler.gpu_decoding_q.pop()
-            self.neo_scheduler.cpu_decoding_q.appendleft(victim)
-            self._force_swap_out_pending.append(victim)
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(
-                    "[NEO FORCE-CDEC] artificially moved req %s to "
-                    "cpu_decoding_q (gdec→cdec) for path activation test",
-                    victim._str_id,
-                )
-
-        # Drive the NEO sibling. ``try/except`` is intentionally *narrow*
-        # — the sibling schedule itself runs without try-overhead on the
-        # hot path.
-        n_wait_before = len(self.neo_scheduler.waiting_q)
-        n_gpu_dec_before = len(self.neo_scheduler.gpu_decoding_q)
-        n_cpu_dec_before = len(self.neo_scheduler.cpu_decoding_q)
-        self.last_neo_output = self.neo_scheduler.schedule()
-        # Per-iteration diagnostic — DEBUG only (no-op at default INFO
-        # level, so zero hot-path cost). Re-enable with ``--log-level
-        # DEBUG`` when investigating.
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
-                "[NEO] schedule(): pre-queues "
-                "wait=%d gdec=%d cdec=%d → batches=%d swap_in=%d swap_out=%d",
-                n_wait_before, n_gpu_dec_before, n_cpu_dec_before,
-                len(self.last_neo_output.batches),
-                len(self.last_neo_output.swap_in_reqs),
-                len(self.last_neo_output.swap_out_reqs),
-            )
-            for i, b in enumerate(self.last_neo_output.batches):
-                logger.debug(
-                    "[NEO]   batch[%d]: gprf=%d cprf=%d gdec=%d cdec=%d total=%d",
-                    i, b.num_gprfs, b.num_cprfs, b.num_gdecs, b.num_cdecs,
-                    len(b),
-                )
-
-        # Attach NEO sub-batch decision to SchedulerOutput *only* when
-        # the runner actually needs it. Sequential mode (1 sub-batch)
-        # is functionally vanilla — the runner's NEO branch checks
-        # ``len(pending) == 2``. Attaching a 200+ string list every step
-        # for sequential mode just bloats IPC (pickle of SchedulerOutput
-        # broadcast to all TP workers) without any benefit. Skip it.
-        batches = self.last_neo_output.batches
-        if len(batches) >= 2:
+        # cdec_ids 직접 추출: vllm 의 scheduled reqs 중 SWAPPED_OUT 상태.
+        from vllm.v1.request import RequestStatus as _RS
+        vllm_ids = list(output.num_scheduled_tokens.keys())
+        cdec_ids = [
+            rid for rid in vllm_ids
+            if (_req := self.requests.get(rid)) is not None
+            and _req.status == _RS.SWAPPED_OUT
+        ]
+        if cdec_ids and len(cdec_ids) < len(vllm_ids):
             try:
-                # IDE_006 / TSK_015 4.5.2.c — *진정한* fix.
-                # NEO sibling batches[0] 의 prefix 영역에 vLLM input_batch
-                # 외부 reqs (NEO 자체 waiting_q 영역의 새 prefill 영역의
-                # ids 영역) → fork branch 의 set_match check fail.
-                # 진정한 fix = vLLM scheduled ids 의 *순서 영역* 으로 정렬
-                # + cdec_reqs 영역 분리 (worker side input_batch.req_ids
-                # 와 동일 순서 정합).
-                vllm_ids = list(output.num_scheduled_tokens.keys())
-                cdec_id_set = {r._str_id for r in batches[1].cdec_reqs}
-                # vLLM 영역 의 ids 영역 영역 의 *순서 영역* 으로 split
-                b0_ids = [_id for _id in vllm_ids
-                          if _id not in cdec_id_set]
-                b1_ids = [_id for _id in vllm_ids
-                          if _id in cdec_id_set]
-                if not b0_ids or not b1_ids:
-                    # cdec 영역 0 또는 batches[0] 비어 — sequential mode.
-                    raise StopIteration
+                cdec_id_set = set(cdec_ids)
+                b0_ids = [rid for rid in vllm_ids
+                          if rid not in cdec_id_set]
+                b1_ids = cdec_ids
                 output.neo_sub_batches = [b0_ids, b1_ids]
-                # cdec_token_slice 영역 = batch 의 cdec rows 영역 영역의
-                # token range. batches[0]/[1] 의 *모든 reqs 영역* 의
-                # num_scheduled_tokens 영역 합 영역으로 정합.
-                def _slice(b_ids, b_cdec_ids):
-                    """batch 영역의 cdec rows 영역의 (start, end)."""
-                    pref_gdec_ids = [_id for _id in b_ids
-                                     if _id not in b_cdec_ids]
-                    pref_gdec_tokens = sum(
-                        output.num_scheduled_tokens.get(_id, 0)
-                        for _id in pref_gdec_ids
-                    )
-                    cdec_tokens = sum(
-                        output.num_scheduled_tokens.get(_id, 0)
-                        for _id in b_cdec_ids
-                    )
-                    return (
-                        pref_gdec_tokens,
-                        pref_gdec_tokens + cdec_tokens,
-                    )
-                # batches[0] 영역에는 cdec 없음 (cdec_id_set 영역 외 영역
-                # 만). batches[1] 영역에 cdec 영역 영역 모두.
-                b0_cdec_set: set[str] = set()
-                b1_cdec_set = cdec_id_set
+                # cdec_token_slice — batches[0] 의 cdec rows zero,
+                # batches[1] 의 *모든 reqs* 의 num_scheduled_tokens 합.
+                _b0_tokens = sum(
+                    output.num_scheduled_tokens.get(_id, 0)
+                    for _id in b0_ids
+                )
+                _b1_tokens = sum(
+                    output.num_scheduled_tokens.get(_id, 0)
+                    for _id in b1_ids
+                )
                 output.neo_sub_batch_cdec_slices = [
-                    _slice(b0_ids, b0_cdec_set),
-                    _slice(b1_ids, b1_cdec_set),
+                    (_b0_tokens, _b0_tokens),  # b0: zero cdec
+                    (0, _b1_tokens),           # b1: 전체 cdec
                 ]
-                # seq_slice 영역 = req-level (start, end) — batches[0]
-                # 영역의 cdec 영역 zero, batches[1] 영역의 cdec 영역 모두.
                 output.neo_sub_batch_cdec_seq_slices = [
-                    (len(b0_ids), len(b0_ids)),  # cdec 영역 zero
-                    (0, len(b1_ids)),  # batches[1] 영역의 모든 ids
+                    (len(b0_ids), len(b0_ids)),
+                    (0, len(b1_ids)),
                 ]
                 output.neo_sub_batch_cdec_req_ids = [
-                    [],  # batches[0] 영역의 cdec 영역 zero
+                    [],
                     list(b1_ids),
                 ]
-            except StopIteration:
-                pass
             except (AttributeError, TypeError) as e:
                 logger.debug("NEO output attach failed: %s", e)
 
