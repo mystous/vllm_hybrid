@@ -332,6 +332,58 @@ class LlamaDecoderLayer(nn.Module):
         hidden_states = self.mlp(hidden_states)
         return hidden_states, residual
 
+    # ------------------------------------------------------------------
+    # NEO-style stage helpers (IDE_006 4 차 재정의 / TSK_016).
+    #
+    # ``neo_preproj`` + ``neo_attention`` + ``neo_postproj`` together
+    # produce the exact same outputs as ``forward()`` above. The split
+    # exists so that the asymmetric pipeline orchestrator
+    # (``vllm.v1.worker.sub_batch_executor.SubBatchPipelineExecutor``)
+    # can interleave two sub-batches at different stages of a layer.
+    #
+    # The vanilla forward path is untouched — these helpers are dead
+    # code unless ``SchedulerConfig.enable_neo_asymmetric`` is True.
+    # ------------------------------------------------------------------
+    def neo_preproj(
+        self,
+        hidden_states: torch.Tensor,
+        residual: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """RMSNorm + residual handoff. Produces the input to ``self_attn``.
+
+        Returns the normalized hidden_states and the propagated residual
+        in the same order as the vanilla forward path.
+        """
+        if residual is None:
+            residual = hidden_states
+            hidden_states = self.input_layernorm(hidden_states)
+        else:
+            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+        return hidden_states, residual
+
+    def neo_attention(
+        self,
+        positions: torch.Tensor,
+        hidden_states: torch.Tensor,
+    ) -> torch.Tensor:
+        """Self-attention (QKV proj + paged attention + output proj)."""
+        return self.self_attn(positions=positions, hidden_states=hidden_states)
+
+    def neo_postproj(
+        self,
+        hidden_states: torch.Tensor,
+        residual: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """post-attention LayerNorm + MLP. Returns the layer's output
+        (hidden_states, residual) — identical to the vanilla forward
+        return value.
+        """
+        hidden_states, residual = self.post_attention_layernorm(
+            hidden_states, residual
+        )
+        hidden_states = self.mlp(hidden_states)
+        return hidden_states, residual
+
     def get_quant_config(self, vllm_config: VllmConfig) -> QuantizationConfig | None:
         """Get quantization config for this layer. Override in subclasses."""
         return vllm_config.quant_config
@@ -437,6 +489,139 @@ class LlamaModel(nn.Module, EagleModelMixin):
         if len(aux_hidden_states) > 0:
             return hidden_states, aux_hidden_states
         return hidden_states
+
+    # ------------------------------------------------------------------
+    # NEO-style asymmetric pipeline forward (IDE_006 4 차 재정의 / TSK_016).
+    #
+    # Activated by ``SchedulerConfig.enable_neo_asymmetric=True`` — the
+    # GPU model runner calls this method instead of ``forward()`` when
+    # the scheduler returns two sub-batches. Vanilla single-batch path
+    # remains untouched.
+    #
+    # The actual layer-offset ping-pong is delegated to
+    # ``SubBatchPipelineExecutor``: per-layer ``neo_preproj`` /
+    # ``neo_attention`` / ``neo_postproj`` callbacks are wired against
+    # the layers in ``self.layers``. Each callback is layer-indexed so
+    # that batch[1]'s layer-i and batch[0]'s layer-(i+1) work happens
+    # in the same ``forward_double`` invocation (NEO §4.4).
+    # ------------------------------------------------------------------
+    def forward_neo_pipelined(
+        self,
+        sub_batches,                                   # list[SubBatch]
+        positions_list: list[torch.Tensor],            # one per sub-batch
+        embeddings_list: list[torch.Tensor],           # one per sub-batch
+        per_subbatch_contexts=None,                    # list[ForwardContext] | None
+    ):
+        """Pipelined forward for two sub-batches with layer offset.
+
+        ``sub_batches`` is a list of length 1 (sequential fallback) or
+        2 (full NEO ping-pong). Returns a list of final hidden_states
+        tensors, one per sub-batch.
+
+        When ``per_subbatch_contexts`` is provided, each sub-batch's
+        attention call runs under its own ``ForwardContext`` so the
+        attention backend reads disjoint ``slot_mapping`` /
+        ``cu_seqlens`` / ``block_table`` (KV cache exclusive ownership
+        on the GPU side, i.e. Step 5.5 forward-context fork).
+        """
+        from vllm.forward_context import override_forward_context
+        from vllm.v1.worker.sub_batch_executor import (
+            LayerPipelineCallbacks,
+            SubBatchPipelineExecutor,
+        )
+
+        if len(sub_batches) not in (1, 2):
+            raise ValueError(
+                f"forward_neo_pipelined expects 1 or 2 sub-batches, "
+                f"got {len(sub_batches)}"
+            )
+
+        layers = list(islice(self.layers, self.start_layer, self.end_layer))
+        num_layers = len(layers)
+
+        # Per-layer state: residual is threaded through preproj → postproj.
+        # We capture it in a closure indexed by (layer_idx, batch_id).
+        residuals: dict[tuple[int, int], torch.Tensor | None] = {}
+
+        # Pre-compute id(batch) → ubid mapping. ``attention`` callback
+        # is invoked O(L × num_subbatches) times — the linear scan over
+        # sub_batches inside each call would be O(L × N²) and visible
+        # in profiles. dict lookup is O(1).
+        _bid_to_ubid: dict[int, int] = {
+            id(sb): ubid for ubid, sb in enumerate(sub_batches)
+        }
+
+        def _bid(batch) -> int:
+            return id(batch)
+
+        def preproj(emb, batch, layer_idx, layer_off):
+            del layer_off  # vLLM layers are not consumed across layer
+                            # boundaries the way NEO's are; one-step ahead
+                            # accounting happens in our caller.
+            layer = layers[layer_idx]
+            residual = residuals.get((layer_idx, _bid(batch)))
+            hidden, residual = layer.neo_preproj(emb, residual)
+            residuals[(layer_idx, _bid(batch))] = residual
+            # We don't expose Q/K/V here — vLLM bundles the projection
+            # inside ``self_attn``. Pass ``hidden`` in all three slots
+            # so the downstream attention callback can invoke it.
+            return hidden, hidden, hidden
+
+        def attention(q, k, v, batch, cur_layer_id):
+            del k, v  # see preproj — q is the post-RMSNorm hidden state.
+            layer = layers[cur_layer_id]
+            ubid = _bid_to_ubid[id(batch)]  # O(1) dict lookup
+            pos = positions_list[ubid]
+            if per_subbatch_contexts is not None:
+                # Push the sub-batch's own forward context so the
+                # attention kernel reads its disjoint slot_mapping /
+                # cu_seqlens / block_table — KV writes land in *its*
+                # pool slots only.
+                with override_forward_context(per_subbatch_contexts[ubid]):
+                    return layer.neo_attention(
+                        positions=pos, hidden_states=q
+                    )
+            return layer.neo_attention(positions=pos, hidden_states=q)
+
+        def postproj(attn_out, batch, layer_idx):
+            layer = layers[layer_idx]
+            residual = residuals[(layer_idx, _bid(batch))]
+            hidden, residual = layer.neo_postproj(attn_out, residual)
+            # Carry the new residual to the *next* layer's slot.
+            residuals[(layer_idx + 1, _bid(batch))] = residual
+            return hidden
+
+        callbacks = LayerPipelineCallbacks(
+            preproj=preproj,
+            attention=attention,
+            postproj=postproj,
+        )
+        executor = SubBatchPipelineExecutor(
+            num_layers=num_layers, callbacks=callbacks
+        )
+
+        if len(sub_batches) == 1:
+            out = executor.forward_sequential(sub_batches[0], embeddings_list[0])
+            outputs = [out]
+        else:
+            out0, out1 = executor.forward_pipeline(sub_batches, embeddings_list)
+            outputs = [out0, out1]
+
+        # Apply the model's final RMSNorm + return.
+        if get_pp_group().is_last_rank:
+            finals = []
+            for hidden, sb in zip(outputs, sub_batches):
+                # ``residual`` for the post-loop normalization is whatever
+                # was emitted by the last layer's postproj. Use explicit
+                # ``is None`` — ``a or b`` triggers ``bool(tensor)`` which
+                # is ambiguous for multi-element tensors.
+                final_residual = residuals.get((num_layers, _bid(sb)))
+                if final_residual is None:
+                    final_residual = residuals.get((num_layers - 1, _bid(sb)))
+                hidden, _ = self.norm(hidden, final_residual)
+                finals.append(hidden)
+            return finals
+        return outputs
 
     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
         stacked_params_mapping = [

@@ -19,7 +19,12 @@ class AsyncScheduler(Scheduler):
         super()._update_after_schedule(scheduler_output)
         spec_decode_tokens = scheduler_output.scheduled_spec_decode_tokens
         for req_id in scheduler_output.num_scheduled_tokens:
-            request = self.requests[req_id]
+            # IDE_006 / TSK_015.B-3.b parallel — NEO swap_out 발화 후
+            # cdec_req 가 self.requests 에서 제거됐는데
+            # num_scheduled_tokens dict 에는 남는 영역 → KeyError 회피.
+            request = self.requests.get(req_id)
+            if request is None:
+                continue
             if request.is_prefill_chunk:
                 continue
 

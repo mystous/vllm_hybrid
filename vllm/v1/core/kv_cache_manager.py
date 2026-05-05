@@ -336,6 +336,15 @@ class KVCacheManager:
         Returns:
             A list of new allocated blocks.
         """
+        # IDE_006 / TSK_015.B-2.b — SWAPPED_OUT request 는 KV blocks 가
+        # CPU 에 (NeoCpuKvBuffer) 있고 GPU 에는 없음. 정상 alloc path 가
+        # fail 하므로 *dummy empty success* 로 우회 — schedule 진행 + token
+        # 만 schedule. attention backend 가 unified_attention_with_output
+        # 의 cdec dispatch hook 으로 CPU pacpu 사용.
+        from vllm.v1.request import RequestStatus as _RS
+        if request.status == _RS.SWAPPED_OUT:
+            return self.empty_kv_cache_blocks
+
         # When loading KV data asynchronously, we may have zero new tokens to
         # compute while still allocating slots for externally computed tokens.
         if num_new_tokens == 0 and num_external_computed_tokens == 0:
@@ -435,6 +444,58 @@ class KVCacheManager:
             request: The request to free the blocks.
         """
         self.coordinator.free(request.request_id)
+
+    # ------------------------------------------------------------------
+    # TSK_015 Phase 4.4.b — NEO 전용 swap-in alloc.
+    #
+    # NEO 의 swap-in 은 이미 ``num_computed_tokens`` 만큼 progress 된 req 의
+    # KV 를 CPU buffer 에서 GPU 로 복원하는 흐름. ``allocate_slots`` 는 prefill
+    # / decode forward 경로용으로 ``num_new_tokens`` 가 0 일 때 ValueError
+    # 를 던지므로 (`L341~345`), NEO swap-in 에는 직접 사용 불가.
+    #
+    # 본 entry 는 num_computed_tokens 길이만큼의 block_table 만 새로 alloc 하고
+    # caching 은 하지 않는다 (이미 한 번 만들어진 prefix — 다시 commit 할 필요
+    # 없음). prefix cache 활성/비활성 모두에서 동일 동작.
+    #
+    # Returns True on success / False on GPU pool exhaustion. caller (NEO
+    # scheduler / EngineCore hook in Phase 4.4.c) 가 False 시 throttle.
+    # ------------------------------------------------------------------
+    def neo_swap_in_alloc(self, request: Request) -> bool:
+        """Allocate GPU block_table entries for a SWAPPED_OUT request.
+
+        Distinct from ``allocate_slots`` — designed only for the
+        NEO-style swap-in path where the KV is already produced (held
+        on CPU by the worker-side ``NeoCpuKvBuffer``) and we just need
+        block_table entries on the GPU side at the current context
+        length.
+        """
+        n_tokens = request.num_computed_tokens
+        if n_tokens <= 0:
+            # 빈 req 는 swap-out 자체가 의미 없으므로 caller bug.
+            raise ValueError(
+                f"neo_swap_in_alloc: request {request.request_id} has "
+                f"num_computed_tokens={n_tokens}; nothing to restore."
+            )
+        num_blocks = self.coordinator.get_num_blocks_to_allocate(
+            request_id=request.request_id,
+            num_tokens=n_tokens,
+            new_computed_blocks=self.empty_kv_cache_blocks.blocks,
+            num_encoder_tokens=0,
+            total_computed_tokens=n_tokens,
+            num_tokens_main_model=n_tokens,
+        )
+        if num_blocks > self.block_pool.get_num_free_blocks():
+            return False
+        self.coordinator.allocate_new_blocks(
+            request_id=request.request_id,
+            num_tokens=n_tokens,
+            num_tokens_main_model=n_tokens,
+            num_encoder_tokens=0,
+        )
+        # NEO swap-in 은 prefix cache commit 안 함 — 본 req 의 prefix 는
+        # 이전 step 에서 이미 만들어졌고, 본 swap-in 은 GPU 측 block_table
+        # 만 다시 받는 것.
+        return True
 
     def remove_skipped_blocks(
         self, request_id: str, total_computed_tokens: int

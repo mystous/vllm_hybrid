@@ -154,6 +154,28 @@ class SchedulerConfig:
     while a larger value (e.g., 10) reduces host overhead and may increase throughput
     by batching multiple tokens before sending."""
 
+    enable_neo_asymmetric: bool = False
+    """Activate the NEO-style asymmetric GPU/CPU pipelining scheduler
+    (IDE_006 4 차 재정의). When True, the engine routes through the
+    NeoScheduler / NeoBlockManager / SubBatchPipelineExecutor path
+    instead of vLLM's default scheduler. Experimental; default off
+    keeps vanilla behaviour intact.
+
+    See ``shadow_assists/features/IDE_006/NEO_redesign.md``."""
+
+    kv_cache_policy: Literal["mirror", "exclusive"] = "mirror"
+    """KV cache ownership policy (IDE_006 / TSK_015).
+
+    * ``mirror`` (default, vanilla): cold blocks 가 CPU 로 offload 되어도
+      GPU 에 *복사본* 이 잔류 — vLLM 기본 OffloadingConnector 동작.
+    * ``exclusive``: cold blocks 가 CPU 로 *이전* (GPU 영역 free) — NEO
+      식 request 단위 GPU/CPU exclusive ownership. 이 정책 하에서만
+      NEO scheduler 가 cdec_reqs 를 진짜 populate 하고 TSK_018 의 CPU
+      sub-batch attention 가 발화.
+
+    ``exclusive`` 는 ``enable_neo_asymmetric=True`` 와 함께 사용 권장.
+    See ``shadow_assists/features/IDE_006/TSK_015.md``."""
+
     @staticmethod
     def default_factory(**kwargs):
         """
@@ -167,6 +189,12 @@ class SchedulerConfig:
 
     def get_scheduler_cls(self) -> type["SchedulerInterface"]:
         if self.scheduler_cls is None:
+            if self.enable_neo_asymmetric:
+                from vllm.v1.core.sched.neo_scheduler_adapter import (
+                    NeoSchedulerAdapter,
+                )
+
+                return NeoSchedulerAdapter
             if self.async_scheduling:
                 from vllm.v1.core.sched.async_scheduler import AsyncScheduler
 

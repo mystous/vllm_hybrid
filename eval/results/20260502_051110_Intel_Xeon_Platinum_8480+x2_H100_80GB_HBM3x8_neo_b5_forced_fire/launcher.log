@@ -1,0 +1,1024 @@
+[baseline] model=meta-llama/Llama-3.3-70B-Instruct
+[baseline] TP=8 max_model_len=8192 max_num_seqs=256
+[baseline] num_prompts=200 target_input_len=4096 max_tokens=2048
+[baseline] avg prompt chars: 17926
+[baseline] enable_neo_asymmetric=True
+INFO 05-02 05:11:18 [arg_utils.py:694] HF_HUB_OFFLINE is True, replace model_id [meta-llama/Llama-3.3-70B-Instruct] to model_path [/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b]
+INFO 05-02 05:11:18 [utils.py:233] non-default args: {'max_model_len': 8192, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.85, 'max_num_seqs': 256, 'enforce_eager': True, 'enable_neo_asymmetric': True, 'model': '/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b'}
+WARNING 05-02 05:11:18 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_SWAP_OUT_RATIO
+WARNING 05-02 05:11:18 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_KV_FREE
+INFO 05-02 05:11:18 [model.py:554] Resolved architecture: LlamaForCausalLM
+INFO 05-02 05:11:18 [model.py:1685] Using max model len 8192
+INFO 05-02 05:11:18 [scheduler.py:267] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-02 05:11:18 [vllm.py:834] Asynchronous scheduling is enabled.
+WARNING 05-02 05:11:18 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-02 05:11:18 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-02 05:11:18 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+INFO 05-02 05:11:20 [vllm.py:1081] Cudagraph is disabled under eager mode
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+INFO 05-02 05:11:24 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+WARNING 05-02 05:11:24 [system_utils.py:157] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: CUDA is initialized
+(EngineCore pid=2325732) INFO 05-02 05:11:32 [core.py:107] Initializing a V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=8192, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=2325732) WARNING 05-02 05:11:32 [multiproc_executor.py:1029] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=2325732) INFO 05-02 05:11:32 [multiproc_executor.py:139] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=211.115.75.82 (local), world_size=8, local_world_size=8
+(Worker pid=2326337) INFO 05-02 05:11:46 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:33163 backend=nccl
+(Worker pid=2326343) INFO 05-02 05:11:47 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:33163 backend=nccl
+(Worker pid=2326341) INFO 05-02 05:11:47 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:33163 backend=nccl
+(Worker pid=2326340) INFO 05-02 05:11:47 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:33163 backend=nccl
+(Worker pid=2326339) INFO 05-02 05:11:47 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:33163 backend=nccl
+(Worker pid=2326342) INFO 05-02 05:11:47 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:33163 backend=nccl
+(Worker pid=2326338) INFO 05-02 05:11:47 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:33163 backend=nccl
+(Worker pid=2326344) INFO 05-02 05:11:47 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:33163 backend=nccl
+(Worker pid=2326337) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2326337) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2326337) INFO 05-02 05:11:48 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=2326340) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2326340) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2326341) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2326341) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2326344) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2326344) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2326343) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2326343) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2326339) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2326339) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2326338) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2326338) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2326342) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2326342) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2326337) INFO 05-02 05:11:51 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(Worker_TP0 pid=2326337) INFO 05-02 05:11:52 [gpu_model_runner.py:5067] Starting to load model /root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b...
+(Worker_TP0 pid=2326337) INFO 05-02 05:11:52 [cuda.py:368] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(Worker_TP0 pid=2326337) INFO 05-02 05:11:52 [flash_attn.py:637] Using FlashAttention version 3
+(Worker_TP0 pid=2326337) INFO 05-02 05:11:52 [weight_utils.py:904] Filesystem type for checkpoints: XFS. Checkpoint size: 131.42 GiB. Available RAM: 1929.89 GiB.
+(Worker_TP0 pid=2326337) INFO 05-02 05:11:52 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:   0% Completed | 0/30 [00:00<?, ?it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:   3% Completed | 1/30 [00:00<00:06,  4.57it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:   7% Completed | 2/30 [00:00<00:08,  3.42it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  10% Completed | 3/30 [00:00<00:08,  3.19it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  13% Completed | 4/30 [00:01<00:08,  3.09it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  17% Completed | 5/30 [00:01<00:07,  3.25it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  20% Completed | 6/30 [00:01<00:07,  3.20it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  23% Completed | 7/30 [00:02<00:07,  3.10it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  27% Completed | 8/30 [00:02<00:07,  2.99it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  30% Completed | 9/30 [00:02<00:07,  2.93it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  33% Completed | 10/30 [00:03<00:06,  3.10it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  37% Completed | 11/30 [00:03<00:06,  3.09it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  40% Completed | 12/30 [00:03<00:05,  3.08it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  43% Completed | 13/30 [00:04<00:05,  3.01it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  47% Completed | 14/30 [00:04<00:05,  2.68it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  50% Completed | 15/30 [00:05<00:05,  2.71it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  53% Completed | 16/30 [00:05<00:05,  2.64it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  57% Completed | 17/30 [00:05<00:04,  2.68it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  60% Completed | 18/30 [00:06<00:04,  2.66it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  63% Completed | 19/30 [00:06<00:04,  2.66it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  67% Completed | 20/30 [00:06<00:03,  2.80it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  70% Completed | 21/30 [00:07<00:03,  2.80it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  73% Completed | 22/30 [00:07<00:02,  2.75it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  77% Completed | 23/30 [00:07<00:02,  2.77it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  80% Completed | 24/30 [00:08<00:02,  2.72it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  83% Completed | 25/30 [00:08<00:01,  2.82it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  87% Completed | 26/30 [00:08<00:01,  2.84it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  90% Completed | 27/30 [00:09<00:01,  2.80it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  93% Completed | 28/30 [00:09<00:00,  2.82it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards:  97% Completed | 29/30 [00:10<00:00,  2.75it/s]
+(Worker_TP0 pid=2326337) Loading safetensors checkpoint shards: 100% Completed | 30/30 [00:10<00:00,  2.95it/s]
+(Worker_TP0 pid=2326337) 
+(Worker_TP0 pid=2326337) INFO 05-02 05:12:03 [default_loader.py:384] Loading weights took 10.19 seconds
+(Worker_TP0 pid=2326337) INFO 05-02 05:12:03 [gpu_model_runner.py:5152] Model loading took 16.46 GiB memory and 10.717644 seconds
+(Worker_TP0 pid=2326337) INFO 05-02 05:12:08 [gpu_worker.py:440] Available KV cache memory: 48.63 GiB
+(EngineCore pid=2325732) INFO 05-02 05:12:08 [kv_cache_utils.py:1319] GPU KV cache size: 1,274,800 tokens
+(EngineCore pid=2325732) INFO 05-02 05:12:08 [kv_cache_utils.py:1324] Maximum concurrency for 8,192 tokens per request: 155.62x
+(Worker_TP6 pid=2326343) 2026-05-02 05:12:08,623 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=2326338) 2026-05-02 05:12:08,623 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP7 pid=2326344) 2026-05-02 05:12:08,623 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP2 pid=2326339) 2026-05-02 05:12:08,623 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=2326341) 2026-05-02 05:12:08,623 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP5 pid=2326342) 2026-05-02 05:12:08,624 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP3 pid=2326340) 2026-05-02 05:12:08,624 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=2326337) 2026-05-02 05:12:08,624 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=2326338) 2026-05-02 05:12:08,759 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP6 pid=2326343) 2026-05-02 05:12:08,759 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP2 pid=2326339) 2026-05-02 05:12:08,759 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP5 pid=2326342) 2026-05-02 05:12:08,759 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP7 pid=2326344) 2026-05-02 05:12:08,759 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP3 pid=2326340) 2026-05-02 05:12:08,759 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP0 pid=2326337) 2026-05-02 05:12:08,759 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP4 pid=2326341) 2026-05-02 05:12:08,759 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(EngineCore pid=2325732) INFO 05-02 05:12:09 [core.py:365] init engine (profile, create kv cache, warmup model) took 5.56 s
+(EngineCore pid=2325732) INFO 05-02 05:12:11 [neo_scheduler_adapter.py:201] NeoSchedulerAdapter: enable_neo_asymmetric activated. First-stage wiring — vanilla data path retained, NEO decisions are recorded but not yet executed.
+(EngineCore pid=2325732) INFO 05-02 05:12:11 [neo_perfpredictor_cache.py:129] NEO predictor cache: HIT /root/.cache/vllm/neo_predictor/c7f8a66a43bb9f6f5c3931408fbf9cce.json
+(EngineCore pid=2325732) INFO 05-02 05:12:11 [neo_scheduler_adapter.py:285] NEO: num_gpu_blocks sync 79675 → 79675 (Phase 3.1 — Step 2 swap-out threshold reflects real KV pool).
+(EngineCore pid=2325732) INFO 05-02 05:12:11 [neo_scheduler_adapter.py:319] NEO: PerfPredictor populated (linr=18/pref=21/gdec=21 points, lnch_T=31.29ms). NEO scheduler now makes real sequential vs pipelined decisions.
+(EngineCore pid=2325732) INFO 05-02 05:12:11 [core.py:247] NEO PerfPredictor profile took 0.00s (cache)
+(EngineCore pid=2325732) INFO 05-02 05:12:11 [neo_pacpu.py:115] neo_pacpu: loaded /workspace/vllm_hybrid/csrc/cpu/pacpu/build/libpacpu-llama3_3_70b-tp8.so
+(EngineCore pid=2325732) INFO 05-02 05:12:12 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=2325732) WARNING 05-02 05:12:12 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(EngineCore pid=2325732) WARNING 05-02 05:12:12 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(EngineCore pid=2325732) INFO 05-02 05:12:12 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+(EngineCore pid=2325732) INFO 05-02 05:12:12 [vllm.py:1081] Cudagraph is disabled under eager mode
+(EngineCore pid=2325732) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=2325732) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=2325732) INFO 05-02 05:12:12 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+[baseline] init 54.1s
+Rendering prompts:   0%|          | 0/200 [00:00<?, ?it/s](Worker_TP6 pid=2326343) INFO 05-02 05:12:12 [gpu_model_runner.py:3966] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP3 pid=2326340) INFO 05-02 05:12:12 [gpu_model_runner.py:3966] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP5 pid=2326342) INFO 05-02 05:12:12 [gpu_model_runner.py:3966] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP2 pid=2326339) INFO 05-02 05:12:12 [gpu_model_runner.py:3966] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP4 pid=2326341) INFO 05-02 05:12:12 [gpu_model_runner.py:3966] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP7 pid=2326344) INFO 05-02 05:12:12 [gpu_model_runner.py:3966] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP0 pid=2326337) INFO 05-02 05:12:12 [gpu_model_runner.py:3966] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP1 pid=2326338) INFO 05-02 05:12:12 [gpu_model_runner.py:3966] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+Rendering prompts:   2%|▏         | 4/200 [00:00<00:05, 36.83it/s]Rendering prompts:   5%|▌         | 10/200 [00:00<00:03, 49.90it/s]Rendering prompts:   8%|▊         | 17/200 [00:00<00:03, 57.15it/s]Rendering prompts:  14%|█▎        | 27/200 [00:00<00:02, 72.08it/s]Rendering prompts:  18%|█▊        | 37/200 [00:00<00:02, 81.43it/s]Rendering prompts:  24%|██▎       | 47/200 [00:00<00:01, 86.75it/s]Rendering prompts:  29%|██▉       | 58/200 [00:00<00:01, 91.78it/s]Rendering prompts:  34%|███▍      | 69/200 [00:00<00:01, 95.28it/s]Rendering prompts:  40%|████      | 80/200 [00:00<00:01, 96.95it/s]Rendering prompts:  46%|████▌     | 91/200 [00:01<00:01, 98.69it/s]Rendering prompts:  51%|█████     | 102/200 [00:01<00:00, 100.20it/s]Rendering prompts:  56%|█████▋    | 113/200 [00:01<00:00, 101.16it/s]Rendering prompts:  62%|██████▏   | 124/200 [00:01<00:00, 101.43it/s]Rendering prompts:  68%|██████▊   | 135/200 [00:01<00:00, 101.43it/s]Rendering prompts:  73%|███████▎  | 146/200 [00:01<00:00, 101.79it/s]Rendering prompts:  78%|███████▊  | 157/200 [00:01<00:00, 101.31it/s]Rendering prompts:  84%|████████▍ | 168/200 [00:01<00:00, 101.67it/s]Rendering prompts:  90%|████████▉ | 179/200 [00:01<00:00, 101.80it/s]Rendering prompts:  95%|█████████▌| 190/200 [00:02<00:00, 102.21it/s]Rendering prompts: 100%|██████████| 200/200 [00:02<00:00, 94.24it/s] 
+Processed prompts:   0%|          | 0/200 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s](EngineCore pid=2325732) INFO 05-02 05:12:15 [core.py:487] NEO swap dispatch active (VLLM_NEO_KV_FREE=1) — first fire: out=2 in=0
+INFO 05-02 05:12:25 [loggers.py:271] Engine 000: Avg prompt throughput: 22617.1 tokens/s, Avg generation throughput: 26.7 tokens/s, Running: 74 reqs, Waiting: 126 reqs, GPU KV cache usage: 6.3%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:12:35 [loggers.py:271] Engine 000: Avg prompt throughput: 24460.9 tokens/s, Avg generation throughput: 75.6 tokens/s, Running: 132 reqs, Waiting: 68 reqs, GPU KV cache usage: 6.1%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:12:45 [loggers.py:271] Engine 000: Avg prompt throughput: 23877.8 tokens/s, Avg generation throughput: 116.7 tokens/s, Running: 189 reqs, Waiting: 11 reqs, GPU KV cache usage: 6.1%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:12:55 [loggers.py:271] Engine 000: Avg prompt throughput: 6817.1 tokens/s, Avg generation throughput: 876.2 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.8%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:13:05 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1128.1 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.8%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:13:15 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1128.7 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.9%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:13:25 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1112.6 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.0%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:13:35 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1105.2 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.7%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:13:45 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1080.5 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.7%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:13:55 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1065.8 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.8%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:14:05 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1044.0 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.8%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:14:15 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1071.3 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.9%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:14:25 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1056.6 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.9%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:14:35 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1039.1 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.0%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:14:45 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1016.8 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.7%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:14:55 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 996.0 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.7%, Prefix cache hit rate: 0.0%
+INFO 05-02 05:15:05 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 976.7 tokens/s, Running: 200 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.8%, Prefix cache hit rate: 0.0%
+Processed prompts:   0%|          | 1/200 [02:51<9:28:05, 171.28s/it, est. speed input: 24.91 toks/s, output: 4.31 toks/s](Worker_TP5 pid=2326342) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [101], which does not match the required output shape [100]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP5 pid=2326342)   torch.index_select(
+(Worker_TP1 pid=2326338) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [101], which does not match the required output shape [100]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP1 pid=2326338)   torch.index_select(
+(Worker_TP0 pid=2326337) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [101], which does not match the required output shape [100]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP0 pid=2326337)   torch.index_select(
+(Worker_TP3 pid=2326340) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [101], which does not match the required output shape [100]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP3 pid=2326340)   torch.index_select(
+(Worker_TP4 pid=2326341) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [101], which does not match the required output shape [100]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP4 pid=2326341)   torch.index_select(
+(Worker_TP6 pid=2326343) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [101], which does not match the required output shape [100]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP6 pid=2326343)   torch.index_select(
+(Worker_TP2 pid=2326339) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [101], which does not match the required output shape [100]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP2 pid=2326339)   torch.index_select(
+(Worker_TP7 pid=2326344) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [101], which does not match the required output shape [100]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP7 pid=2326344)   torch.index_select(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (100,) into shape (101,)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [dump_input.py:72] Dumping input data for V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=8192, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 32, 16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto'), 
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [dump_input.py:79] Dumping scheduler output for model execution: SchedulerOutput(scheduled_new_reqs=[], scheduled_cached_reqs=CachedRequestData(req_ids=['0-9c3d3a65', '1-91347c34', '2-813320de', '3-bf00c0b9', '8-869a32bb', '9-ac3b5e75', '10-919be268', '11-a96ff3dc', '16-b4205243', '17-879a4b15', '18-96d69e99', '19-a134d4f5', '23-8a1476d9', '24-a754894f', '25-ba1924e6', '26-bc8f582e', '31-a655a443', '32-abea8b5c', '33-9d006152', '34-9a0f9238', '39-a83f7f3b', '40-bdb6aab2', '41-b4171b99', '42-97f2a17e', '46-8cc1f092', '47-8c9e96db', '48-bbae70e7', '49-89636c0b', '54-91e668f0', '55-8334afe2', '56-93d23f94', '57-9560b39c', '62-9272a185', '63-b0ad062f', '64-8747615b', '65-8541cc2d', '69-a696185d', '70-aafc5f42', '71-a96b73f4', '72-a22ddc70', '77-b8e1986c', '78-bb8eb2fe', '79-94930510', '80-a689b007', '85-9885dcc4', '86-b383cb78', '87-9e56517a', '92-b2bef266', '93-b734d430', '94-9affbc0c', '95-bb0dd934', '100-a642e087', '101-b720d804', '102-b9f17143', '103-8fc9df22', '108-a3bbcbc7', '109-9e5e0717', '110-8e3080a6', '115-bc2a8efe', '116-adf68795', '117-8e3be140', '118-b9dd242c', '123-bc107f5f', '124-acf1febf', '125-980ecec3', '126-94102801', '131-8e32d8fb', '132-851aec6d', '133-ae856372', '138-9d03e218', '139-90a785ec', '140-bf19354c', '141-8b1a282f', '146-a37e9e13', '147-b666de15', '148-b4a43860', '149-a85e5886', '153-912c9257', '154-a56b5566', '155-95075a99', '156-8e55cb9d', '161-a035b01d', '162-9010f93a', '163-9d56f093', '164-ad271e8b', '169-87a5297c', '170-83cd2985', '171-b09d3115', '176-bb910b7f', '177-b553cc0a', '178-9e271a42', '179-8134d391', '184-a6a11a79', '185-8b78d4f5', '186-834623d4', '187-bdfc7516', '191-a1b1b3b7', '192-bf3594f6', '193-b4cc099c', '194-a5ed9570', '199-880d39de'],resumed_req_ids=set(),new_token_ids_lens=[],all_token_ids_lens={'0-9c3d3a65': 5053, '1-91347c34': 5054, '2-813320de': 5061, '3-bf00c0b9': 5047, '8-869a32bb': 5039, '9-ac3b5e75': 5055, '10-919be268': 5025, '11-a96ff3dc': 5042, '16-b4205243': 5050, '17-879a4b15': 5030, '18-96d69e99': 5012, '19-a134d4f5': 5053, '23-8a1476d9': 5013, '24-a754894f': 5060, '25-ba1924e6': 5047, '26-bc8f582e': 5059, '31-a655a443': 5052, '32-abea8b5c': 5074, '33-9d006152': 5028, '34-9a0f9238': 5016, '39-a83f7f3b': 5018, '40-bdb6aab2': 5024, '41-b4171b99': 5041, '42-97f2a17e': 5012, '46-8cc1f092': 5057, '47-8c9e96db': 5049, '48-bbae70e7': 5001, '49-89636c0b': 5005, '54-91e668f0': 5021, '55-8334afe2': 5032, '56-93d23f94': 5050, '57-9560b39c': 5016, '62-9272a185': 5038, '63-b0ad062f': 5061, '64-8747615b': 5044, '65-8541cc2d': 5032, '69-a696185d': 5049, '70-aafc5f42': 4996, '71-a96b73f4': 5030, '72-a22ddc70': 5038, '77-b8e1986c': 5028, '78-bb8eb2fe': 5031, '79-94930510': 5045, '80-a689b007': 5013, '85-9885dcc4': 5027, '86-b383cb78': 5028, '87-9e56517a': 5057, '92-b2bef266': 5023, '93-b734d430': 4999, '94-9affbc0c': 5018, '95-bb0dd934': 5021, '100-a642e087': 5015, '101-b720d804': 5027, '102-b9f17143': 5031, '103-8fc9df22': 5044, '108-a3bbcbc7': 5005, '109-9e5e0717': 5025, '110-8e3080a6': 5023, '115-bc2a8efe': 5023, '116-adf68795': 5047, '117-8e3be140': 5033, '118-b9dd242c': 4998, '123-bc107f5f': 5026, '124-acf1febf': 5041, '125-980ecec3': 5024, '126-94102801': 5031, '131-8e32d8fb': 5049, '132-851aec6d': 5019, '133-ae856372': 5032, '138-9d03e218': 5023, '139-90a785ec': 5024, '140-bf19354c': 5012, '141-8b1a282f': 5048, '146-a37e9e13': 5017, '147-b666de15': 5017, '148-b4a43860': 4998, '149-a85e5886': 5026, '153-912c9257': 5028, '154-a56b5566': 5031, '155-95075a99': 5028, '156-8e55cb9d': 5004, '161-a035b01d': 5026, '162-9010f93a': 5021, '163-9d56f093': 5045, '164-ad271e8b': 5019, '169-87a5297c': 5019, '170-83cd2985': 5019, '171-b09d3115': 5034, '176-bb910b7f': 5020, '177-b553cc0a': 5045, '178-9e271a42': 5010, '179-8134d391': 5040, '184-a6a11a79': 4987, '185-8b78d4f5': 5035, '186-834623d4': 5014, '187-bdfc7516': 5006, '191-a1b1b3b7': 5008, '192-bf3594f6': 5014, '193-b4cc099c': 4997, '194-a5ed9570': 4999, '199-880d39de': 5023},new_block_ids=[None, None, None, None, None, None, ([54193],), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, ([54194, 54195, 54196, 54197, 54198, 54199, 54200, 54201, 54202, 54203, 54204, 54205, 54206, 54207, 54208, 54209, 54210, 54211, 54212, 54213, 54214, 54215, 54216, 54217, 54218, 54219, 54220, 54221, 54222, 54223, 54224, 54225, 54226, 54227, 54228, 54229, 54230, 54231, 54232, 54233, 54234, 54235, 54236, 54237, 54238, 54239, 54240, 54241, 54242, 54243, 54244, 54245, 54246, 54247, 54248, 54249, 54250, 54251, 54252, 54253, 54254, 54255, 54256, 54257, 54258, 54259, 54260, 54261, 54262, 54263, 54264, 54265, 54266, 54267, 54268, 54269, 54270, 54271, 54272, 54273, 54274, 54275, 54276, 54277, 54278, 54279, 54280, 54281, 54282, 54283, 54284, 54285, 54286, 54287, 54288, 54289, 54290, 54291, 54292, 54293, 54294, 54295, 54296, 54297, 54298, 54299, 54300, 54301, 54302, 54303, 54304, 54305, 54306, 54307, 54308, 54309, 54310, 54311, 54312, 54313, 54314, 54315, 54316, 54317, 54318, 54319, 54320, 54321, 54322, 54323, 54324, 54325, 54326, 54327, 54328, 54329, 54330, 54331, 54332, 54333, 54334, 54335, 54336, 54337, 54338, 54339, 54340, 54341, 54342, 54343, 54344, 54345, 54346, 54347, 54348, 54349, 54350, 54351, 54352, 54353, 54354, 54355, 54356, 54357, 54358, 54359, 54360, 54361, 54362, 54363, 54364, 54365, 54366, 54367, 54368, 54369, 54370, 54371, 54372, 54373, 54374, 54375, 54376, 54377, 54378, 54379, 54380, 54381, 54382, 54383, 54384, 54385, 54386, 54387, 54388, 54389, 54390, 54391, 54392, 54393, 54394, 54395, 54396, 54397, 54398, 54399, 54400, 54401, 54402, 54403, 54404, 54405, 54406, 54407, 54408, 54409, 54410, 54411, 54412, 54413, 54414, 54415, 54416, 54417, 54418, 54419, 54420, 54421, 54422, 54423, 54424, 54425, 54426, 54427, 54428, 54429, 54430, 54431, 54432, 54433, 54434, 54435, 54436, 54437, 54438, 54439, 54440, 54441, 54442, 54443, 54444, 54445, 54446, 54447, 54448, 54449, 54450, 54451, 54452, 54453, 54454, 54455, 54456, 54457, 54458, 54459, 54460, 54461, 54462, 54463, 54464, 54465, 54466, 54467, 54468, 54469, 54470, 54471, 54472, 54473, 54474, 54475, 54476, 54477, 54478, 54479, 54480, 54481, 54482, 54483, 54484, 54485, 54486, 54487, 54488, 54489, 54490, 54491, 54492, 54493, 54494, 54495, 54496, 54497, 54498, 54499, 54500, 54501, 54502, 54503, 54504, 54505, 54506],), None, None, None, None, None],num_computed_tokens=[5052, 5053, 5060, 5046, 5038, 5054, 5024, 5041, 5049, 5029, 5011, 5052, 5012, 5059, 5046, 5058, 5051, 5073, 5027, 5015, 5017, 5023, 5040, 5011, 5056, 5048, 5000, 5004, 5020, 5031, 5049, 5015, 5037, 5060, 5043, 5031, 5048, 4995, 5029, 5037, 5027, 5030, 5044, 5012, 5026, 5027, 5056, 5022, 4998, 5017, 5020, 5014, 5026, 5030, 5043, 5004, 5024, 5022, 5022, 5046, 5032, 4997, 5025, 5040, 5023, 5030, 5048, 5018, 5031, 5022, 5023, 5011, 5047, 5016, 5016, 4997, 5025, 5027, 5030, 5027, 5003, 5025, 5020, 5044, 5018, 5018, 5018, 5033, 5019, 5044, 5009, 5039, 4986, 5034, 5013, 5005, 5007, 5013, 4996, 4998, 5022],num_output_tokens=[764, 763, 763, 763, 762, 762, 762, 762, 761, 761, 761, 761, 760, 760, 760, 760, 759, 759, 759, 759, 758, 758, 758, 758, 757, 757, 757, 757, 756, 756, 756, 756, 755, 755, 755, 755, 754, 754, 754, 754, 753, 753, 753, 753, 752, 752, 752, 751, 751, 751, 751, 750, 750, 750, 750, 749, 749, 749, 748, 748, 748, 748, 747, 747, 747, 747, 746, 746, 746, 745, 745, 745, 745, 744, 744, 744, 744, 743, 743, 743, 743, 742, 742, 742, 742, 741, 741, 741, 740, 740, 740, 740, 739, 739, 739, 739, 738, 738, 738, 738, 737]), num_scheduled_tokens={32-abea8b5c: 1, 132-851aec6d: 1, 162-9010f93a: 1, 178-9e271a42: 1, 16-b4205243: 1, 115-bc2a8efe: 1, 33-9d006152: 1, 194-a5ed9570: 1, 125-980ecec3: 1, 24-a754894f: 1, 186-834623d4: 1, 191-a1b1b3b7: 1, 63-b0ad062f: 1, 71-a96b73f4: 1, 40-bdb6aab2: 1, 138-9d03e218: 1, 140-bf19354c: 1, 103-8fc9df22: 1, 141-8b1a282f: 1, 1-91347c34: 1, 124-acf1febf: 1, 9-ac3b5e75: 1, 149-a85e5886: 1, 148-b4a43860: 1, 48-bbae70e7: 1, 164-ad271e8b: 1, 123-bc107f5f: 1, 176-bb910b7f: 1, 169-87a5297c: 1, 47-8c9e96db: 1, 94-9affbc0c: 1, 92-b2bef266: 1, 100-a642e087: 1, 55-8334afe2: 1, 19-a134d4f5: 1, 65-8541cc2d: 1, 126-94102801: 1, 93-b734d430: 1, 187-bdfc7516: 1, 31-a655a443: 1, 156-8e55cb9d: 1, 25-ba1924e6: 1, 26-bc8f582e: 1, 79-94930510: 1, 10-919be268: 1, 179-8134d391: 1, 117-8e3be140: 1, 86-b383cb78: 1, 85-9885dcc4: 1, 109-9e5e0717: 1, 155-95075a99: 1, 116-adf68795: 1, 49-89636c0b: 1, 146-a37e9e13: 1, 46-8cc1f092: 1, 163-9d56f093: 1, 199-880d39de: 1, 42-97f2a17e: 1, 80-a689b007: 1, 2-813320de: 1, 64-8747615b: 1, 34-9a0f9238: 1, 171-b09d3115: 1, 192-bf3594f6: 1, 41-b4171b99: 1, 3-bf00c0b9: 1, 154-a56b5566: 1, 0-9c3d3a65: 1, 147-b666de15: 1, 161-a035b01d: 1, 17-879a4b15: 1, 118-b9dd242c: 1, 72-a22ddc70: 1, 18-96d69e99: 1, 139-90a785ec: 1, 23-8a1476d9: 1, 39-a83f7f3b: 1, 95-bb0dd934: 1, 57-9560b39c: 1, 177-b553cc0a: 1, 69-a696185d: 1, 102-b9f17143: 1, 133-ae856372: 1, 54-91e668f0: 1, 78-bb8eb2fe: 1, 62-9272a185: 1, 56-93d23f94: 1, 184-a6a11a79: 1, 170-83cd2985: 1, 70-aafc5f42: 1, 153-912c9257: 1, 110-8e3080a6: 1, 101-b720d804: 1, 131-8e32d8fb: 1, 193-b4cc099c: 1, 87-9e56517a: 1, 185-8b78d4f5: 1, 77-b8e1986c: 1, 11-a96ff3dc: 1, 8-869a32bb: 1, 108-a3bbcbc7: 1}, total_num_scheduled_tokens=101, scheduled_spec_decode_tokens={}, scheduled_encoder_inputs={}, num_common_prefix_blocks=[0], finished_req_ids=['187-bdfc7516'], free_encoder_mm_hashes=[], preempted_req_ids=[], has_structured_output_requests=false, pending_structured_output_tokens=false, num_invalid_spec_tokens=null, kv_connector_metadata=null, ec_connector_metadata=null, new_block_ids_to_zero=null, neo_sub_batches=[['0-9c3d3a65', '1-91347c34', '2-813320de', '3-bf00c0b9', '4-ab45a157', '5-bc9733d9', '6-9a388b6f', '7-ba884073', '8-869a32bb', '9-ac3b5e75', '10-919be268', '11-a96ff3dc', '13-9738908b', '14-83d45fd5', '15-8f9a7251', '16-b4205243', '17-879a4b15', '18-96d69e99', '19-a134d4f5', '20-bc66f2e3', '21-a24910b0', '22-ac40a42f', '23-8a1476d9', '24-a754894f', '25-ba1924e6', '26-bc8f582e', '27-82ec3ca9', '28-a1a88918', '29-a0dbcbbc', '30-9b066fe3', '31-a655a443', '32-abea8b5c', '33-9d006152', '34-9a0f9238', '35-9e38c78d', '36-bda3877d', '37-8c46ed49', '38-8262ca1d', '39-a83f7f3b', '40-bdb6aab2', '41-b4171b99', '42-97f2a17e', '43-9420b94a', '44-9f4db6dd', '45-aeb2bf62', '46-8cc1f092', '47-8c9e96db', '48-bbae70e7', '49-89636c0b', '50-929641c2', '51-983b33db', '52-a69904c6', '53-b19bc29f', '54-91e668f0', '55-8334afe2', '56-93d23f94', '57-9560b39c', '58-be630b4d', '59-9aa00311', '60-bd87ad84', '61-91fb0221', '62-9272a185', '63-b0ad062f', '64-8747615b', '65-8541cc2d', '66-9bdc2261', '67-86308440', '68-8304755e', '69-a696185d', '70-aafc5f42', '71-a96b73f4', '72-a22ddc70', '73-aa8e38d3', '74-8b4676d8', '75-91207f05', '76-821ed4bd', '77-b8e1986c', '78-bb8eb2fe', '79-94930510', '80-a689b007', '81-8e591a66', '82-8f00ac5d', '83-a3141142', '84-8c8707dc', '85-9885dcc4', '86-b383cb78', '87-9e56517a', '88-b0e9c9d0', '89-b7544c6a', '90-b8039066', '91-9975fe10', '92-b2bef266', '93-b734d430', '94-9affbc0c', '95-bb0dd934', '96-9555a2bc', '97-94ea89bc', '98-b1361e9b', '99-ba907811', '100-a642e087', '101-b720d804', '102-b9f17143', '103-8fc9df22', '104-ae3de82e', '105-9fe7a7b7', '106-bfe4f089', '107-8adb841d', '108-a3bbcbc7', '109-9e5e0717', '110-8e3080a6', '111-a7c6a3b0', '112-8a94c961', '113-ae493bba', '114-aaa1fab3', '115-bc2a8efe', '116-adf68795', '117-8e3be140', '118-b9dd242c', '119-af4f9311', '120-a4df4735', '121-b0d60a20', '122-a95c7626', '123-bc107f5f', '124-acf1febf', '125-980ecec3', '126-94102801', '127-a54978f2', '128-9cd24f41', '129-9a3db340', '130-be904d41', '131-8e32d8fb', '132-851aec6d', '133-ae856372', '134-8beb58e6', '135-b3441bde', '136-89a4441c', '137-8b75ee8f', '138-9d03e218', '139-90a785ec', '140-bf19354c', '141-8b1a282f', '142-bfbc9422', '143-a2f993f1', '144-aba4a0e2', '145-b8b22bcc', '146-a37e9e13', '147-b666de15', '148-b4a43860', '149-a85e5886', '150-bcef0575', '151-9b194061', '152-8c033562', '153-912c9257', '154-a56b5566', '155-95075a99', '156-8e55cb9d', '157-83f115ea', '158-94de719d', '159-a0d93099', '160-b51c54d6', '161-a035b01d', '162-9010f93a', '163-9d56f093', '164-ad271e8b', '165-b1a0022d', '166-ad58f25f', '167-b156afcc', '168-ac296d03', '169-87a5297c', '170-83cd2985', '171-b09d3115', '172-90ad24bd', '173-b8f8f354', '174-b7128ff1', '175-a78aad2d', '176-bb910b7f', '177-b553cc0a', '178-9e271a42', '179-8134d391', '180-939a753a', '181-926e0dcd', '182-83380c08', '183-bb6fb018', '184-a6a11a79', '185-8b78d4f5', '186-834623d4', '187-bdfc7516', '188-ab41f418', '189-a80875d6', '190-a022bb24', '191-a1b1b3b7', '192-bf3594f6', '193-b4cc099c', '194-a5ed9570', '195-b521a2d9', '196-8f493c1b', '197-a1d89a95', '198-a308d821', '199-880d39de', '12-98974e7d', '13-9738908b', '14-83d45fd5', '15-8f9a7251', '16-b4205243', '17-879a4b15', '18-96d69e99', '19-a134d4f5', '20-bc66f2e3', '21-a24910b0', '22-ac40a42f', '23-8a1476d9', '24-a754894f', '25-ba1924e6', '26-bc8f582e', '27-82ec3ca9', '28-a1a88918', '29-a0dbcbbc', '30-9b066fe3', '31-a655a443', '32-abea8b5c', '33-9d006152', '34-9a0f9238', '35-9e38c78d', '36-bda3877d', '37-8c46ed49', '38-8262ca1d', '39-a83f7f3b', '40-bdb6aab2', '41-b4171b99', '42-97f2a17e', '43-9420b94a', '44-9f4db6dd', '45-aeb2bf62', '46-8cc1f092', '47-8c9e96db', '48-bbae70e7', '49-89636c0b', '50-929641c2', '51-983b33db', '52-a69904c6', '53-b19bc29f', '54-91e668f0', '55-8334afe2', '56-93d23f94', '57-9560b39c', '58-be630b4d', '59-9aa00311', '60-bd87ad84', '61-91fb0221', '62-9272a185', '63-b0ad062f', '64-8747615b', '65-8541cc2d', '66-9bdc2261', '67-86308440'], ['12-98974e7d']], neo_swap_in_req_ids=null, neo_swap_out_req_ids=['199-880d39de', '198-a308d821', '197-a1d89a95', '196-8f493c1b', '195-b521a2d9', '194-a5ed9570', '193-b4cc099c', '192-bf3594f6', '191-a1b1b3b7', '190-a022bb24', '189-a80875d6', '188-ab41f418', '186-834623d4', '185-8b78d4f5', '184-a6a11a79', '183-bb6fb018', '182-83380c08', '181-926e0dcd', '180-939a753a', '179-8134d391', '178-9e271a42', '177-b553cc0a', '176-bb910b7f', '175-a78aad2d', '174-b7128ff1', '173-b8f8f354', '172-90ad24bd', '171-b09d3115', '170-83cd2985', '169-87a5297c', '168-ac296d03', '167-b156afcc', '166-ad58f25f', '165-b1a0022d', '164-ad271e8b', '163-9d56f093', '162-9010f93a', '161-a035b01d', '160-b51c54d6', '159-a0d93099', '158-94de719d', '157-83f115ea', '156-8e55cb9d', '155-95075a99', '154-a56b5566', '153-912c9257', '152-8c033562', '151-9b194061', '150-bcef0575', '149-a85e5886', '148-b4a43860', '147-b666de15', '146-a37e9e13', '145-b8b22bcc', '144-aba4a0e2', '143-a2f993f1', '142-bfbc9422', '141-8b1a282f', '140-bf19354c', '139-90a785ec', '138-9d03e218', '137-8b75ee8f', '136-89a4441c', '135-b3441bde', '134-8beb58e6', '133-ae856372', '132-851aec6d', '131-8e32d8fb', '130-be904d41', '129-9a3db340', '128-9cd24f41', '127-a54978f2', '126-94102801', '125-980ecec3', '124-acf1febf', '123-bc107f5f', '122-a95c7626', '121-b0d60a20', '120-a4df4735', '119-af4f9311', '118-b9dd242c', '117-8e3be140', '116-adf68795', '115-bc2a8efe', '114-aaa1fab3', '113-ae493bba', '112-8a94c961', '111-a7c6a3b0', '110-8e3080a6', '109-9e5e0717', '108-a3bbcbc7', '107-8adb841d', '106-bfe4f089', '105-9fe7a7b7', '104-ae3de82e', '103-8fc9df22', '102-b9f17143', '101-b720d804', '100-a642e087', '99-ba907811', '98-b1361e9b', '97-94ea89bc', '96-9555a2bc', '95-bb0dd934', '94-9affbc0c', '93-b734d430', '92-b2bef266', '91-9975fe10', '90-b8039066', '89-b7544c6a', '88-b0e9c9d0', '87-9e56517a', '86-b383cb78', '85-9885dcc4', '84-8c8707dc', '83-a3141142', '82-8f00ac5d', '81-8e591a66', '80-a689b007', '79-94930510', '78-bb8eb2fe', '77-b8e1986c', '76-821ed4bd', '75-91207f05', '74-8b4676d8', '73-aa8e38d3', '72-a22ddc70', '71-a96b73f4', '70-aafc5f42', '69-a696185d', '68-8304755e', '67-86308440', '66-9bdc2261', '65-8541cc2d', '64-8747615b', '63-b0ad062f', '62-9272a185', '61-91fb0221', '60-bd87ad84', '59-9aa00311', '58-be630b4d', '57-9560b39c', '56-93d23f94', '55-8334afe2', '54-91e668f0', '53-b19bc29f', '52-a69904c6', '51-983b33db', '50-929641c2', '49-89636c0b', '48-bbae70e7', '47-8c9e96db', '46-8cc1f092', '45-aeb2bf62', '44-9f4db6dd', '43-9420b94a', '42-97f2a17e', '41-b4171b99', '40-bdb6aab2', '39-a83f7f3b', '38-8262ca1d', '37-8c46ed49', '36-bda3877d', '35-9e38c78d', '34-9a0f9238', '33-9d006152', '32-abea8b5c', '31-a655a443', '30-9b066fe3', '29-a0dbcbbc', '28-a1a88918', '27-82ec3ca9', '26-bc8f582e', '25-ba1924e6', '24-a754894f', '23-8a1476d9', '22-ac40a42f', '21-a24910b0', '20-bc66f2e3', '19-a134d4f5', '18-96d69e99', '17-879a4b15', '16-b4205243', '15-8f9a7251', '14-83d45fd5', '13-9738908b', '12-98974e7d'], neo_sub_batch_cdec_slices=[[12, 255], [0, 1]], neo_sub_batch_cdec_seq_slices=[[12, 255], [0, 1]], neo_sub_batch_cdec_req_ids=[['13-9738908b', '14-83d45fd5', '15-8f9a7251', '16-b4205243', '17-879a4b15', '18-96d69e99', '19-a134d4f5', '20-bc66f2e3', '21-a24910b0', '22-ac40a42f', '23-8a1476d9', '24-a754894f', '25-ba1924e6', '26-bc8f582e', '27-82ec3ca9', '28-a1a88918', '29-a0dbcbbc', '30-9b066fe3', '31-a655a443', '32-abea8b5c', '33-9d006152', '34-9a0f9238', '35-9e38c78d', '36-bda3877d', '37-8c46ed49', '38-8262ca1d', '39-a83f7f3b', '40-bdb6aab2', '41-b4171b99', '42-97f2a17e', '43-9420b94a', '44-9f4db6dd', '45-aeb2bf62', '46-8cc1f092', '47-8c9e96db', '48-bbae70e7', '49-89636c0b', '50-929641c2', '51-983b33db', '52-a69904c6', '53-b19bc29f', '54-91e668f0', '55-8334afe2', '56-93d23f94', '57-9560b39c', '58-be630b4d', '59-9aa00311', '60-bd87ad84', '61-91fb0221', '62-9272a185', '63-b0ad062f', '64-8747615b', '65-8541cc2d', '66-9bdc2261', '67-86308440', '68-8304755e', '69-a696185d', '70-aafc5f42', '71-a96b73f4', '72-a22ddc70', '73-aa8e38d3', '74-8b4676d8', '75-91207f05', '76-821ed4bd', '77-b8e1986c', '78-bb8eb2fe', '79-94930510', '80-a689b007', '81-8e591a66', '82-8f00ac5d', '83-a3141142', '84-8c8707dc', '85-9885dcc4', '86-b383cb78', '87-9e56517a', '88-b0e9c9d0', '89-b7544c6a', '90-b8039066', '91-9975fe10', '92-b2bef266', '93-b734d430', '94-9affbc0c', '95-bb0dd934', '96-9555a2bc', '97-94ea89bc', '98-b1361e9b', '99-ba907811', '100-a642e087', '101-b720d804', '102-b9f17143', '103-8fc9df22', '104-ae3de82e', '105-9fe7a7b7', '106-bfe4f089', '107-8adb841d', '108-a3bbcbc7', '109-9e5e0717', '110-8e3080a6', '111-a7c6a3b0', '112-8a94c961', '113-ae493bba', '114-aaa1fab3', '115-bc2a8efe', '116-adf68795', '117-8e3be140', '118-b9dd242c', '119-af4f9311', '120-a4df4735', '121-b0d60a20', '122-a95c7626', '123-bc107f5f', '124-acf1febf', '125-980ecec3', '126-94102801', '127-a54978f2', '128-9cd24f41', '129-9a3db340', '130-be904d41', '131-8e32d8fb', '132-851aec6d', '133-ae856372', '134-8beb58e6', '135-b3441bde', '136-89a4441c', '137-8b75ee8f', '138-9d03e218', '139-90a785ec', '140-bf19354c', '141-8b1a282f', '142-bfbc9422', '143-a2f993f1', '144-aba4a0e2', '145-b8b22bcc', '146-a37e9e13', '147-b666de15', '148-b4a43860', '149-a85e5886', '150-bcef0575', '151-9b194061', '152-8c033562', '153-912c9257', '154-a56b5566', '155-95075a99', '156-8e55cb9d', '157-83f115ea', '158-94de719d', '159-a0d93099', '160-b51c54d6', '161-a035b01d', '162-9010f93a', '163-9d56f093', '164-ad271e8b', '165-b1a0022d', '166-ad58f25f', '167-b156afcc', '168-ac296d03', '169-87a5297c', '170-83cd2985', '171-b09d3115', '172-90ad24bd', '173-b8f8f354', '174-b7128ff1', '175-a78aad2d', '176-bb910b7f', '177-b553cc0a', '178-9e271a42', '179-8134d391', '180-939a753a', '181-926e0dcd', '182-83380c08', '183-bb6fb018', '184-a6a11a79', '185-8b78d4f5', '186-834623d4', '187-bdfc7516', '188-ab41f418', '189-a80875d6', '190-a022bb24', '191-a1b1b3b7', '192-bf3594f6', '193-b4cc099c', '194-a5ed9570', '195-b521a2d9', '196-8f493c1b', '197-a1d89a95', '198-a308d821', '199-880d39de', '12-98974e7d', '13-9738908b', '14-83d45fd5', '15-8f9a7251', '16-b4205243', '17-879a4b15', '18-96d69e99', '19-a134d4f5', '20-bc66f2e3', '21-a24910b0', '22-ac40a42f', '23-8a1476d9', '24-a754894f', '25-ba1924e6', '26-bc8f582e', '27-82ec3ca9', '28-a1a88918', '29-a0dbcbbc', '30-9b066fe3', '31-a655a443', '32-abea8b5c', '33-9d006152', '34-9a0f9238', '35-9e38c78d', '36-bda3877d', '37-8c46ed49', '38-8262ca1d', '39-a83f7f3b', '40-bdb6aab2', '41-b4171b99', '42-97f2a17e', '43-9420b94a', '44-9f4db6dd', '45-aeb2bf62', '46-8cc1f092', '47-8c9e96db', '48-bbae70e7', '49-89636c0b', '50-929641c2', '51-983b33db', '52-a69904c6', '53-b19bc29f', '54-91e668f0', '55-8334afe2', '56-93d23f94', '57-9560b39c', '58-be630b4d', '59-9aa00311', '60-bd87ad84', '61-91fb0221', '62-9272a185', '63-b0ad062f', '64-8747615b', '65-8541cc2d', '66-9bdc2261', '67-86308440'], ['12-98974e7d']])
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [dump_input.py:81] Dumping scheduler stats: SchedulerStats(num_running_reqs=200, num_waiting_reqs=0, num_skipped_waiting_reqs=0, step_counter=0, current_wave=0, kv_cache_usage=0.051497351708211014, prefix_cache_stats=PrefixCacheStats(reset=False, requests=0, queries=0, hits=0, preempted_requests=0, preempted_queries=0, preempted_hits=0), connector_prefix_cache_stats=None, kv_cache_eviction_events=[], spec_decoding_stats=None, kv_connector_stats=None, waiting_lora_adapters={}, running_lora_adapters={}, cudagraph_stats=None, perf_stats=None)
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253] EngineCore encountered a fatal error.
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253] Traceback (most recent call last):
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/engine/core.py", line 1244, in run_engine_core
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     engine_core.run_busy_loop()
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/engine/core.py", line 1285, in run_busy_loop
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     self._process_engine_step()
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/engine/core.py", line 1324, in _process_engine_step
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     outputs, model_executed = self.step_fn()
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]                               ^^^^^^^^^^^^^^
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/engine/core.py", line 643, in step_with_batch_queue
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     exec_model_fut.result()
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 90, in result
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     return super().result()
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]            ^^^^^^^^^^^^^^^^
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     return self.__get_result()
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     raise self._exception
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 94, in _wait_for_response
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     response = self.aggregate(self.get_response())
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]                               ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 390, in get_response
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253]     raise RuntimeError(
+(EngineCore pid=2325732) ERROR 05-02 05:15:06 [core.py:1253] RuntimeError: Worker failed with error 'could not broadcast input array from shape (100,) into shape (101,)', please check the stack trace above for the root cause
+Traceback (most recent call last):
+  File "/workspace/vllm_hybrid/eval/run_neo_baseline.py", line 219, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/vllm_hybrid/eval/run_neo_baseline.py", line 175, in main
+    outputs = llm.generate(prompts, params)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/entrypoints/llm.py", line 498, in generate
+    return self._run_completion(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/entrypoints/llm.py", line 1615, in _run_completion
+    return self._run_engine(use_tqdm=use_tqdm, output_type=output_type)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/entrypoints/llm.py", line 1825, in _run_engine
+    step_outputs = self.llm_engine.step()
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/v1/engine/llm_engine.py", line 296, in step
+    outputs = self.engine_core.get_output()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/v1/engine/core_client.py", line 793, in get_output
+    raise self._format_exception(outputs) from None
+vllm.v1.engine.exceptions.EngineDeadError: EngineCore encountered an issue. See stack trace (above) for the root cause.
+(Worker_TP5 pid=2326342) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [100], which does not match the required output shape [99]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP5 pid=2326342)   torch.index_select(
+(Worker_TP0 pid=2326337) INFO 05-02 05:15:06 [multiproc_executor.py:775] Parent process exited, terminating worker queues
+(Worker_TP3 pid=2326340) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [100], which does not match the required output shape [99]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP3 pid=2326340)   torch.index_select(
+(Worker_TP4 pid=2326341) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [100], which does not match the required output shape [99]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP4 pid=2326341)   torch.index_select(
+(Worker_TP1 pid=2326338) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [100], which does not match the required output shape [99]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP1 pid=2326338)   torch.index_select(
+(Worker_TP0 pid=2326337) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [100], which does not match the required output shape [99]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP0 pid=2326337)   torch.index_select(
+(Worker_TP6 pid=2326343) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [100], which does not match the required output shape [99]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP6 pid=2326343)   torch.index_select(
+(Worker_TP2 pid=2326339) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [100], which does not match the required output shape [99]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP2 pid=2326339)   torch.index_select(
+(Worker_TP7 pid=2326344) /workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py:1867: UserWarning: An output with one or more elements was resized since it had shape [100], which does not match the required output shape [99]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /pytorch/aten/src/ATen/native/Resize.cpp:31.)
+(Worker_TP7 pid=2326344)   torch.index_select(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP5 pid=2326342) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP3 pid=2326340) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP4 pid=2326341) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP0 pid=2326337) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP1 pid=2326338) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP6 pid=2326343) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP0 pid=2326337) INFO 05-02 05:15:06 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP2 pid=2326339) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4050, in execute_model
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     logits_indices, spec_decode_metadata = self._prepare_inputs(
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]                                            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 2011, in _prepare_inputs
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     self.req_indices.np[:total_num_scheduled_tokens] = req_indices
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962]     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] ValueError: could not broadcast input array from shape (99,) into shape (100,)
+(Worker_TP7 pid=2326344) ERROR 05-02 05:15:06 [multiproc_executor.py:962] 
+(Worker_TP5 pid=2326342) INFO 05-02 05:15:06 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP3 pid=2326340) INFO 05-02 05:15:06 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP2 pid=2326339) INFO 05-02 05:15:06 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP6 pid=2326343) INFO 05-02 05:15:06 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP4 pid=2326341) INFO 05-02 05:15:06 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP1 pid=2326338) INFO 05-02 05:15:06 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP7 pid=2326344) INFO 05-02 05:15:06 [multiproc_executor.py:872] WorkerProc shutting down.
+Processed prompts:   0%|          | 1/200 [02:51<9:30:23, 171.98s/it, est. speed input: 24.91 toks/s, output: 4.31 toks/s]
+[rank6]:[W502 05:15:07.306379701 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=100, addr=[localhost]:54718, remote=[localhost]:33163): Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:682 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x14cd5f77205d in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x6a9149d (0x14cc8c9a549d in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x273 (0x14cc8c9a33f3 in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x4a5 (0x14cc5173caa5 in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdc253 (0x14cd258b0253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #5: <unknown function> + 0x94ac3 (0x14cd60584ac3 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x1268d0 (0x14cd606168d0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank6]:[W502 05:15:07.311079202 ProcessGroupNCCL.cpp:1826] [PG ID 0 PG GUID 0 Rank 6] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 1 leaked shared_memory objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

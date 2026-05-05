@@ -148,6 +148,24 @@ class ForwardContext:
 
     ubatch_slices: UBatchSlices | None = None
 
+    # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — NEO cdec dispatch. When the
+    # current forward call corresponds to a NEO sub-batch that carries
+    # CPU-decoding rows, this field gives the half-open ``(start, end)``
+    # row range those cdec rows occupy in the sub-batch's contiguous
+    # token tensor. ``unified_attention_with_output`` reads this field
+    # to dispatch cdec rows to the CPU pacpu kernel; ``None`` means
+    # the backend takes its default (vanilla) path. This is the *single
+    # source of truth* for cdec routing — model code and per-backend
+    # metadata builders are unaware of it.
+    neo_cdec_token_slice: tuple[int, int] | None = None
+    # Step 3.2.C-1 — seq-row range for cdec rows. block_table_tensor is
+    # indexed by *seq* (one row per request). cprf / gprf contribute
+    # multi-token / 1-seq, so this differs from token slice above.
+    neo_cdec_seq_slice: tuple[int, int] | None = None
+    # Step 3.2.c.7 — request id list for cdec rows. Used by attention
+    # dispatch hook to look up CPU KV via NeoCpuKvBuffer.
+    neo_cdec_req_ids: list[str] | None = None
+
     # If True, bypass the compiled model call, e.g. by using .forward() directly
     skip_compiled: bool = False
 
