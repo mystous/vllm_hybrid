@@ -990,11 +990,25 @@ class Scheduler(SchedulerInterface):
         NOTE: The request should be popped from the running queue outside of this
         method.
         """
-        # IDE_006 / TSK_015 NEO swap_out path — NEO 가 swap_out 결정 후
-        # req status = SWAPPED_OUT. vLLM scheduler 의 다음 step 에서
-        # 본 req 가 preempt 후보 로 식별되면 본 assert fail. NEO
-        # SWAPPED_OUT 영역도 preempt 허용 (KV 는 이미 NEO 측에서 free
-        # 됐으나 idempotent — kv_cache_manager.free 가 본 영역 OK).
+        # IDE_006 / TSK_015 4.5.2.c architectural fix — NEO 활성 + decode
+        # 단계 시 vLLM standard preempt 대신 ``_neo_swap_out`` 으로 위임.
+        # vLLM 의 KV 부족 자동 발화 path 가 NEO 의 cdec dispatch 메커니즘
+        # 과 *통합*: KV CPU copy + status SWAPPED_OUT + RUNNING 잔류 → 다음
+        # step 에 cdec dispatch 발화 (KV alloc 0, attention layer 의 hook
+        # 가 CPU pacpu 로 attention 처리). 13 단계 progressive 우회 fix
+        # 의 진정한 대체.
+        #
+        # caller (scheduler.schedule()) 가 self.running.pop 한 후 본
+        # 메소드 호출 → NEO path 진입 시 self.running 에 append back
+        # 으로 잔류시킴.
+        if (request.status == RequestStatus.RUNNING
+                and self.scheduler_config.enable_neo_asymmetric
+                and request.num_computed_tokens
+                    >= request.num_prompt_tokens):
+            self._neo_swap_out(request, timestamp)
+            self.running.append(request)
+            return
+
         assert request.status in (
             RequestStatus.RUNNING, RequestStatus.SWAPPED_OUT
         ), (

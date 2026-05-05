@@ -361,6 +361,37 @@ class NeoSchedulerAdapter(AsyncScheduler):
         ]
         self.neo_scheduler.remove_finished_requests(wrappers)
 
+    def _neo_swap_out(self, request, timestamp=None):  # type: ignore[override]
+        """IDE_006 / TSK_015 4.5.2.c architectural fix —
+        ``_preempt_request`` 의 NEO hook 이 호출 시 vLLM standard 의
+        ``_neo_swap_out`` (KV CPU copy + status SWAPPED_OUT + RUNNING
+        잔류) 후 NEO scheduler 의 ``cpu_decoding_q`` 에 view 추가.
+        mode_selector 가 그것을 cdec_reqs 로 인식 → adapter 가 fork
+        sub_batches attach → worker fork branch 진입 + cdec dispatch
+        hook 발화.
+
+        13 단계 progressive 우회 fix 의 *진정한 대체*: NEO 의 cdec
+        queue 가 vLLM 의 standard preempt path 와 *single source*
+        로 통합.
+        """
+        # vLLM standard _neo_swap_out (KV free + status + RUNNING 잔류)
+        super()._neo_swap_out(request, timestamp)
+        # NEO scheduler 의 cdec queue 에 view 추가 (mode_selector 가
+        # cdec_reqs 로 활용).
+        rid = request.request_id
+        view = self._neo_view_cache.get(rid)
+        if view is not None:
+            # 이미 cpu_decoding_q 에 있으면 중복 추가 회피.
+            if not any(r._str_id == rid
+                       for r in self.neo_scheduler.cpu_decoding_q):
+                self.neo_scheduler.cpu_decoding_q.appendleft(view)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(
+                        "[NEO ARCH-FIX] _preempt → _neo_swap_out → "
+                        "cpu_decoding_q 추가: rid=%s queue_size=%d",
+                        rid, len(self.neo_scheduler.cpu_decoding_q),
+                    )
+
     # ------------------------------------------------------------------
     # schedule — drive both the default and NEO schedulers, attach the
     # NEO decision to the SchedulerOutput for the runner to consume.
@@ -505,25 +536,22 @@ class NeoSchedulerAdapter(AsyncScheduler):
             except (AttributeError, TypeError) as e:
                 logger.debug("NEO output attach failed: %s", e)
 
-        # Swap lists rarely populated (only when KV exclusive ownership
-        # is active — TSK_015). Skip attach when empty.
-        # FORCE-CDEC 의 swap_out 도 합산해서 runner 가 처리.
-        swap_in = self.last_neo_output.swap_in_reqs
-        swap_out = list(self.last_neo_output.swap_out_reqs)
-        if self._force_swap_out_pending:
-            swap_out.extend(self._force_swap_out_pending)
-        # IDE_006 / TSK_015.B-3.a — finish ↔ swap_out mutex.
-        # cdec_req 가 prefill 끝나는 step 에 vLLM finish_requests 가
-        # 발화하면서 동시에 NEO swap_out 도 발화하면 EngineCore fatal.
-        # finish 우선 — 같은 step 의 finished_req_ids 에 들어간 req 는
-        # swap_out 에서 제거.
-        finished_set = set(getattr(output, "finished_req_ids", ()) or ())
-        if finished_set:
-            swap_out = [r for r in swap_out if r._str_id not in finished_set]
-            swap_in = [r for r in swap_in if r._str_id not in finished_set]
-        if swap_in:
-            output.neo_swap_in_req_ids = [r._str_id for r in swap_in]
-        if swap_out:
-            output.neo_swap_out_req_ids = [r._str_id for r in swap_out]
+        # IDE_006 / TSK_015 4.5.2.c architectural fix —
+        # NEO 의 자체 swap_out / swap_in path 비활성화. NEO 의 cdec
+        # state machine (gpu_decoding_q / cpu_decoding_q + _initiate_swap_*)
+        # 이 vLLM 의 standard preempt path 와 desync 하여 KV deadlock
+        # 발생 (13 단계 progressive fix 모두 *증상 우회* 였음). 진짜
+        # 해결: vLLM 의 standard preempt 가 KV pressure 시 자체 발화
+        # (scheduler.py:480 영역). NEO 는 *fork wiring* 만 유지하고 swap
+        # path 는 vLLM 에 위임.
+        #
+        # 결과: KV cycle 이 vLLM standard 로 정상 동작. NEO 의 cdec
+        # dispatch 실효 효과는 별도 phase 에서 검증 (현재는 wiring 만
+        # 적재된 상태로 deadlock 없는 안정 운용 보장).
+        #
+        # ``neo_swap_out_req_ids`` / ``neo_swap_in_req_ids`` 를 attach
+        # 하지 않으면 ``engine/core.py:_handle_neo_swaps`` 가 즉시 return
+        # (gate 조건). worker 측 ``_neo_handle_kv_swap`` 도 swap_out_ids
+        # 가 None 이라 자연 skip.
 
         return output
