@@ -1,0 +1,174 @@
+[baseline] model=meta-llama/Llama-3.3-70B-Instruct
+[baseline] TP=8 max_model_len=4096 max_num_seqs=64
+[baseline] num_prompts=50 target_input_len=2048 max_tokens=512
+[baseline] avg prompt chars: 8944
+[baseline] enable_neo_asymmetric=True
+INFO 05-03 01:43:41 [arg_utils.py:694] HF_HUB_OFFLINE is True, replace model_id [meta-llama/Llama-3.3-70B-Instruct] to model_path [/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b]
+INFO 05-03 01:43:41 [utils.py:233] non-default args: {'max_model_len': 4096, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.55, 'max_num_seqs': 64, 'enforce_eager': True, 'enable_neo_asymmetric': True, 'model': '/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b'}
+WARNING 05-03 01:43:41 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_PROFILE_HOT_PATH
+WARNING 05-03 01:43:41 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_KV_FREE
+INFO 05-03 01:43:41 [model.py:554] Resolved architecture: LlamaForCausalLM
+INFO 05-03 01:43:41 [model.py:1685] Using max model len 4096
+INFO 05-03 01:43:41 [scheduler.py:267] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-03 01:43:41 [vllm.py:834] Asynchronous scheduling is enabled.
+WARNING 05-03 01:43:41 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-03 01:43:41 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-03 01:43:41 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+INFO 05-03 01:43:43 [vllm.py:1081] Cudagraph is disabled under eager mode
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+INFO 05-03 01:43:47 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+WARNING 05-03 01:43:47 [system_utils.py:157] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: CUDA is initialized
+(EngineCore pid=1954110) INFO 05-03 01:43:55 [core.py:107] Initializing a V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=4096, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=1954110) WARNING 05-03 01:43:55 [multiproc_executor.py:1029] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=1954110) INFO 05-03 01:43:55 [multiproc_executor.py:139] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=211.115.75.82 (local), world_size=8, local_world_size=8
+(Worker pid=1954826) INFO 05-03 01:44:06 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:34649 backend=nccl
+(Worker pid=1954824) INFO 05-03 01:44:09 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:34649 backend=nccl
+(Worker pid=1954829) INFO 05-03 01:44:09 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:34649 backend=nccl
+(Worker pid=1954828) INFO 05-03 01:44:09 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:34649 backend=nccl
+(Worker pid=1954825) INFO 05-03 01:44:09 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:34649 backend=nccl
+(Worker pid=1954831) INFO 05-03 01:44:09 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:34649 backend=nccl
+(Worker pid=1954830) INFO 05-03 01:44:09 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:34649 backend=nccl
+(Worker pid=1954827) INFO 05-03 01:44:10 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:34649 backend=nccl
+(Worker pid=1954829) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1954828) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1954829) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1954825) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1954828) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1954825) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1954831) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1954831) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1954826) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1954826) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1954824) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1954824) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1954830) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1954830) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1954824) INFO 05-03 01:44:11 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=1954827) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1954827) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1954824) INFO 05-03 01:44:15 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(Worker_TP0 pid=1954824) INFO 05-03 01:44:15 [gpu_model_runner.py:5098] Starting to load model /root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b...
+(Worker_TP0 pid=1954824) INFO 05-03 01:44:16 [cuda.py:368] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(Worker_TP0 pid=1954824) INFO 05-03 01:44:16 [flash_attn.py:637] Using FlashAttention version 3
+(Worker_TP0 pid=1954824) INFO 05-03 01:44:16 [weight_utils.py:904] Filesystem type for checkpoints: XFS. Checkpoint size: 131.42 GiB. Available RAM: 1929.45 GiB.
+(Worker_TP0 pid=1954824) INFO 05-03 01:44:16 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:   0% Completed | 0/30 [00:00<?, ?it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:   3% Completed | 1/30 [00:00<00:06,  4.55it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:   7% Completed | 2/30 [00:00<00:08,  3.13it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  10% Completed | 3/30 [00:00<00:09,  2.92it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  13% Completed | 4/30 [00:01<00:09,  2.85it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  17% Completed | 5/30 [00:01<00:08,  2.97it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  20% Completed | 6/30 [00:02<00:08,  2.92it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  23% Completed | 7/30 [00:02<00:08,  2.75it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  27% Completed | 8/30 [00:02<00:08,  2.58it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  30% Completed | 9/30 [00:03<00:08,  2.57it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  33% Completed | 10/30 [00:03<00:07,  2.75it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  37% Completed | 11/30 [00:03<00:06,  2.76it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  40% Completed | 12/30 [00:04<00:06,  2.75it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  43% Completed | 13/30 [00:04<00:06,  2.71it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  47% Completed | 14/30 [00:05<00:06,  2.41it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  50% Completed | 15/30 [00:05<00:06,  2.45it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  53% Completed | 16/30 [00:06<00:05,  2.38it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  57% Completed | 17/30 [00:06<00:05,  2.39it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  60% Completed | 18/30 [00:06<00:04,  2.46it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  63% Completed | 19/30 [00:07<00:04,  2.50it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  67% Completed | 20/30 [00:07<00:03,  2.69it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  70% Completed | 21/30 [00:07<00:03,  2.68it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  73% Completed | 22/30 [00:08<00:02,  2.70it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  77% Completed | 23/30 [00:08<00:02,  2.73it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  80% Completed | 24/30 [00:08<00:02,  2.70it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  83% Completed | 25/30 [00:09<00:01,  2.83it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  87% Completed | 26/30 [00:09<00:01,  2.78it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  90% Completed | 27/30 [00:10<00:01,  2.74it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  93% Completed | 28/30 [00:10<00:00,  2.74it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards:  97% Completed | 29/30 [00:10<00:00,  2.74it/s]
+(Worker_TP0 pid=1954824) Loading safetensors checkpoint shards: 100% Completed | 30/30 [00:10<00:00,  2.76it/s]
+(Worker_TP0 pid=1954824) 
+(Worker_TP0 pid=1954824) INFO 05-03 01:44:27 [default_loader.py:384] Loading weights took 10.87 seconds
+(Worker_TP0 pid=1954824) INFO 05-03 01:44:28 [gpu_model_runner.py:5183] Model loading took 16.46 GiB memory and 11.394951 seconds
+(Worker_TP0 pid=1954824) INFO 05-03 01:44:33 [gpu_worker.py:440] Available KV cache memory: 24.88 GiB
+(EngineCore pid=1954110) INFO 05-03 01:44:33 [kv_cache_utils.py:1319] GPU KV cache size: 652,128 tokens
+(EngineCore pid=1954110) INFO 05-03 01:44:33 [kv_cache_utils.py:1324] Maximum concurrency for 4,096 tokens per request: 159.21x
+(Worker_TP5 pid=1954829) 2026-05-03 01:44:33,751 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP2 pid=1954826) 2026-05-03 01:44:33,751 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=1954828) 2026-05-03 01:44:33,751 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=1954824) 2026-05-03 01:44:33,752 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP6 pid=1954830) 2026-05-03 01:44:33,753 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP7 pid=1954831) 2026-05-03 01:44:33,753 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP3 pid=1954827) 2026-05-03 01:44:33,753 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=1954825) 2026-05-03 01:44:33,754 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=1954824) 2026-05-03 01:44:33,885 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP2 pid=1954826) 2026-05-03 01:44:33,885 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP7 pid=1954831) 2026-05-03 01:44:33,885 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP3 pid=1954827) 2026-05-03 01:44:33,885 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP5 pid=1954829) 2026-05-03 01:44:33,885 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP1 pid=1954825) 2026-05-03 01:44:33,885 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP4 pid=1954828) 2026-05-03 01:44:33,885 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP6 pid=1954830) 2026-05-03 01:44:33,885 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(EngineCore pid=1954110) INFO 05-03 01:44:34 [core.py:365] init engine (profile, create kv cache, warmup model) took 5.76 s
+(EngineCore pid=1954110) INFO 05-03 01:44:36 [neo_scheduler_adapter.py:214] NeoSchedulerAdapter: enable_neo_asymmetric activated. First-stage wiring — vanilla data path retained, NEO decisions are recorded but not yet executed.
+(Worker_TP7 pid=1954831) INFO 05-03 01:45:00 [gpu_model_runner.py:6385] [NEO] profile_neo_predictor: 61 points × 5 forwards in 23.22s (linr=18, pref=21, gdec=21, lnch_T=37.93ms)
+(Worker_TP4 pid=1954828) INFO 05-03 01:45:00 [gpu_model_runner.py:6385] [NEO] profile_neo_predictor: 61 points × 5 forwards in 23.22s (linr=18, pref=21, gdec=21, lnch_T=37.93ms)
+(Worker_TP6 pid=1954830) INFO 05-03 01:45:00 [gpu_model_runner.py:6385] [NEO] profile_neo_predictor: 61 points × 5 forwards in 23.22s (linr=18, pref=21, gdec=21, lnch_T=37.93ms)
+(Worker_TP5 pid=1954829) INFO 05-03 01:45:00 [gpu_model_runner.py:6385] [NEO] profile_neo_predictor: 61 points × 5 forwards in 23.22s (linr=18, pref=21, gdec=21, lnch_T=37.93ms)
+(Worker_TP2 pid=1954826) INFO 05-03 01:45:00 [gpu_model_runner.py:6385] [NEO] profile_neo_predictor: 61 points × 5 forwards in 23.22s (linr=18, pref=21, gdec=21, lnch_T=37.93ms)
+(Worker_TP0 pid=1954824) INFO 05-03 01:45:00 [gpu_model_runner.py:6385] [NEO] profile_neo_predictor: 61 points × 5 forwards in 23.22s (linr=18, pref=21, gdec=21, lnch_T=37.93ms)
+(Worker_TP1 pid=1954825) INFO 05-03 01:45:00 [gpu_model_runner.py:6385] [NEO] profile_neo_predictor: 61 points × 5 forwards in 23.22s (linr=18, pref=21, gdec=21, lnch_T=37.93ms)
+(Worker_TP3 pid=1954827) INFO 05-03 01:45:00 [gpu_model_runner.py:6385] [NEO] profile_neo_predictor: 61 points × 5 forwards in 23.22s (linr=18, pref=21, gdec=21, lnch_T=37.92ms)
+(EngineCore pid=1954110) INFO 05-03 01:45:00 [neo_perfpredictor_cache.py:161] NEO predictor cache: SAVED /root/.cache/vllm/neo_predictor/d8e9eeb02a084b2392f9ba32d37aa30f.json
+(EngineCore pid=1954110) INFO 05-03 01:45:00 [neo_scheduler_adapter.py:298] NEO: num_gpu_blocks sync 40758 → 40758 (Phase 3.1 — Step 2 swap-out threshold reflects real KV pool).
+(EngineCore pid=1954110) INFO 05-03 01:45:00 [neo_scheduler_adapter.py:332] NEO: PerfPredictor populated (linr=18/pref=21/gdec=21 points, lnch_T=37.93ms). NEO scheduler now makes real sequential vs pipelined decisions.
+(EngineCore pid=1954110) INFO 05-03 01:45:00 [core.py:247] NEO PerfPredictor profile took 23.23s (measured)
+(EngineCore pid=1954110) INFO 05-03 01:45:00 [neo_pacpu.py:123] neo_pacpu: loaded /workspace/vllm_hybrid/csrc/cpu/pacpu/build/libpacpu-llama3_3_70b-tp8.so
+(EngineCore pid=1954110) INFO 05-03 01:45:00 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=1954110) WARNING 05-03 01:45:00 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(EngineCore pid=1954110) WARNING 05-03 01:45:00 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(EngineCore pid=1954110) INFO 05-03 01:45:00 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+(EngineCore pid=1954110) INFO 05-03 01:45:00 [vllm.py:1081] Cudagraph is disabled under eager mode
+(EngineCore pid=1954110) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=1954110) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=1954110) INFO 05-03 01:45:01 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+[baseline] init 79.4s
+Rendering prompts:   0%|          | 0/50 [00:00<?, ?it/s](Worker_TP5 pid=1954829) INFO 05-03 01:45:01 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP4 pid=1954828) INFO 05-03 01:45:01 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP7 pid=1954831) INFO 05-03 01:45:01 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP6 pid=1954830) INFO 05-03 01:45:01 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP1 pid=1954825) INFO 05-03 01:45:01 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP2 pid=1954826) INFO 05-03 01:45:01 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP0 pid=1954824) INFO 05-03 01:45:01 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP3 pid=1954827) INFO 05-03 01:45:01 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+Rendering prompts:  28%|██▊       | 14/50 [00:00<00:00, 134.59it/s]Rendering prompts:  68%|██████▊   | 34/50 [00:00<00:00, 167.96it/s]Rendering prompts: 100%|██████████| 50/50 [00:00<00:00, 170.20it/s]
+Processed prompts:   0%|          | 0/50 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s](EngineCore pid=1954110) INFO 05-03 01:45:11 [neo_scheduler_adapter.py:527] [NEO HP] step=100 avg(ms/step) super=0.636 sync=0.016 neo=0.102 attach=0.004 neo_total=0.123 neo_share=16.1%
+INFO 05-03 01:45:11 [loggers.py:271] Engine 000: Avg prompt throughput: 9608.4 tokens/s, Avg generation throughput: 227.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 16.8%, Prefix cache hit rate: 0.0%
+(EngineCore pid=1954110) INFO 05-03 01:45:17 [neo_scheduler_adapter.py:527] [NEO HP] step=200 avg(ms/step) super=0.613 sync=0.016 neo=0.103 attach=0.004 neo_total=0.123 neo_share=16.8%
+INFO 05-03 01:45:21 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 398.6 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 17.4%, Prefix cache hit rate: 0.0%
+(EngineCore pid=1954110) INFO 05-03 01:45:23 [neo_scheduler_adapter.py:527] [NEO HP] step=300 avg(ms/step) super=0.602 sync=0.016 neo=0.103 attach=0.004 neo_total=0.123 neo_share=16.9%
+(EngineCore pid=1954110) INFO 05-03 01:45:29 [neo_scheduler_adapter.py:527] [NEO HP] step=400 avg(ms/step) super=0.597 sync=0.016 neo=0.102 attach=0.004 neo_total=0.122 neo_share=17.0%
+INFO 05-03 01:45:31 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 395.7 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 18.0%, Prefix cache hit rate: 0.0%
+(EngineCore pid=1954110) INFO 05-03 01:45:36 [neo_scheduler_adapter.py:527] [NEO HP] step=500 avg(ms/step) super=0.597 sync=0.016 neo=0.102 attach=0.004 neo_total=0.122 neo_share=17.0%
+INFO 05-03 01:45:41 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 397.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 18.6%, Prefix cache hit rate: 0.0%
+(EngineCore pid=1954110) INFO 05-03 01:45:42 [neo_scheduler_adapter.py:527] [NEO HP] step=600 avg(ms/step) super=0.597 sync=0.016 neo=0.102 attach=0.004 neo_total=0.122 neo_share=17.0%
+(EngineCore pid=1954110) INFO 05-03 01:45:48 [neo_scheduler_adapter.py:527] [NEO HP] step=700 avg(ms/step) super=0.599 sync=0.016 neo=0.102 attach=0.004 neo_total=0.122 neo_share=17.0%
+INFO 05-03 01:45:51 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 394.9 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 19.2%, Prefix cache hit rate: 0.0%
+(EngineCore pid=1954110) INFO 05-03 01:45:55 [neo_scheduler_adapter.py:527] [NEO HP] step=800 avg(ms/step) super=0.601 sync=0.016 neo=0.102 attach=0.004 neo_total=0.122 neo_share=16.9%
+(EngineCore pid=1954110) INFO 05-03 01:46:01 [neo_scheduler_adapter.py:527] [NEO HP] step=900 avg(ms/step) super=0.602 sync=0.016 neo=0.102 attach=0.004 neo_total=0.122 neo_share=16.9%
+INFO 05-03 01:46:01 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 392.8 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 19.8%, Prefix cache hit rate: 0.0%
+(EngineCore pid=1954110) INFO 05-03 01:46:07 [neo_scheduler_adapter.py:527] [NEO HP] step=1000 avg(ms/step) super=0.604 sync=0.016 neo=0.102 attach=0.004 neo_total=0.122 neo_share=16.8%
+Processed prompts:   2%|▏         | 1/50 [01:08<55:39, 68.16s/it, est. speed input: 31.47 toks/s, output: 7.51 toks/s]Processed prompts:   4%|▍         | 2/50 [01:08<22:30, 28.14s/it, est. speed input: 62.70 toks/s, output: 14.99 toks/s]Processed prompts:  34%|███▍      | 17/50 [01:08<01:08,  2.08s/it, est. speed input: 529.92 toks/s, output: 127.21 toks/s]Processed prompts:  64%|██████▍   | 32/50 [01:08<00:16,  1.11it/s, est. speed input: 995.11 toks/s, output: 239.04 toks/s]Processed prompts:  96%|█████████▌| 48/50 [01:08<00:00,  2.07it/s, est. speed input: 1490.54 toks/s, output: 358.03 toks/s]Processed prompts: 100%|██████████| 50/50 [01:08<00:00,  2.07it/s, est. speed input: 1552.80 toks/s, output: 372.95 toks/s]Processed prompts: 100%|██████████| 50/50 [01:08<00:00,  1.37s/it, est. speed input: 1552.80 toks/s, output: 372.95 toks/s]
+[baseline] generate wall=68.9s
+[baseline] total_input_tokens=106588 total_output_tokens=25600
+[baseline] prompt_tps=1546.1 output_tps=371.3 req_per_s=0.73
+[baseline] log metrics: {'preempt_count': None, 'kv_cache_size_tokens': 652128, 'max_concurrency': 159.21}
+[baseline] wrote /workspace/vllm_hybrid/eval/results/20260503_014333_Intel_Xeon_Platinum_8480+x2_H100_80GB_HBM3x8_neo_hp_profile_short/neo_on.json
+(EngineCore pid=1954110) INFO 05-03 01:46:10 [core.py:1353] Shutdown initiated (timeout=0)
+(EngineCore pid=1954110) INFO 05-03 01:46:10 [core.py:1376] Shutdown complete
+(Worker_TP0 pid=1954824) INFO 05-03 01:46:10 [multiproc_executor.py:775] Parent process exited, terminating worker queues
+(Worker_TP4 pid=1954828) INFO 05-03 01:46:10 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP7 pid=1954831) INFO 05-03 01:46:10 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP6 pid=1954830) INFO 05-03 01:46:10 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP5 pid=1954829) INFO 05-03 01:46:10 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP1 pid=1954825) INFO 05-03 01:46:10 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP0 pid=1954824) INFO 05-03 01:46:10 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP3 pid=1954827) INFO 05-03 01:46:10 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP2 pid=1954826) INFO 05-03 01:46:10 [multiproc_executor.py:872] WorkerProc shutting down.

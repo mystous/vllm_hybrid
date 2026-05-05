@@ -1,0 +1,901 @@
+[baseline] model=meta-llama/Llama-3.3-70B-Instruct
+[baseline] TP=8 max_model_len=16384 max_num_seqs=256
+[baseline] num_prompts=50 target_input_len=8192 max_tokens=8192
+[baseline] avg prompt chars: 22706
+[baseline] enable_neo_asymmetric=True
+INFO 05-05 11:17:55 [arg_utils.py:694] HF_HUB_OFFLINE is True, replace model_id [meta-llama/Llama-3.3-70B-Instruct] to model_path [/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b]
+INFO 05-05 11:17:55 [utils.py:233] non-default args: {'max_model_len': 16384, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.85, 'max_num_seqs': 256, 'enforce_eager': True, 'enable_neo_asymmetric': True, 'model': '/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b'}
+INFO 05-05 11:17:55 [model.py:554] Resolved architecture: LlamaForCausalLM
+INFO 05-05 11:17:55 [model.py:1685] Using max model len 16384
+INFO 05-05 11:17:55 [scheduler.py:267] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-05 11:17:55 [vllm.py:834] Asynchronous scheduling is enabled.
+WARNING 05-05 11:17:55 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-05 11:17:55 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-05 11:17:55 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+INFO 05-05 11:17:57 [vllm.py:1081] Cudagraph is disabled under eager mode
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+INFO 05-05 11:18:00 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+WARNING 05-05 11:18:01 [system_utils.py:157] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: CUDA is initialized
+(EngineCore pid=168134) INFO 05-05 11:18:08 [core.py:107] Initializing a V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=168134) WARNING 05-05 11:18:08 [multiproc_executor.py:1029] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=168134) INFO 05-05 11:18:08 [multiproc_executor.py:139] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=211.115.75.82 (local), world_size=8, local_world_size=8
+(Worker pid=168729) INFO 05-05 11:18:20 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:55923 backend=nccl
+(Worker pid=168725) INFO 05-05 11:18:23 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:55923 backend=nccl
+(Worker pid=168732) INFO 05-05 11:18:23 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:55923 backend=nccl
+(Worker pid=168727) INFO 05-05 11:18:23 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:55923 backend=nccl
+(Worker pid=168730) INFO 05-05 11:18:23 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:55923 backend=nccl
+(Worker pid=168728) INFO 05-05 11:18:23 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:55923 backend=nccl
+(Worker pid=168731) INFO 05-05 11:18:23 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:55923 backend=nccl
+(Worker pid=168726) INFO 05-05 11:18:23 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:55923 backend=nccl
+(Worker pid=168725) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=168725) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=168725) INFO 05-05 11:18:24 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=168732) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=168732) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=168728) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=168728) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=168726) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=168726) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=168730) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=168730) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=168731) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=168731) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=168727) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=168727) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=168729) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=168729) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=168725) INFO 05-05 11:18:27 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(Worker_TP0 pid=168725) INFO 05-05 11:18:28 [gpu_model_runner.py:5283] Starting to load model /root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b...
+(Worker_TP0 pid=168725) INFO 05-05 11:18:28 [cuda.py:368] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(Worker_TP0 pid=168725) INFO 05-05 11:18:28 [flash_attn.py:637] Using FlashAttention version 3
+(Worker_TP0 pid=168725) INFO 05-05 11:18:29 [weight_utils.py:904] Filesystem type for checkpoints: XFS. Checkpoint size: 131.42 GiB. Available RAM: 1927.74 GiB.
+(Worker_TP0 pid=168725) INFO 05-05 11:18:29 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:   0% Completed | 0/30 [00:00<?, ?it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:   3% Completed | 1/30 [00:00<00:06,  4.43it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:   7% Completed | 2/30 [00:00<00:08,  3.40it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  10% Completed | 3/30 [00:00<00:08,  3.05it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  13% Completed | 4/30 [00:01<00:08,  2.95it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  17% Completed | 5/30 [00:01<00:08,  3.07it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  20% Completed | 6/30 [00:01<00:08,  2.99it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  23% Completed | 7/30 [00:02<00:08,  2.82it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  27% Completed | 8/30 [00:02<00:08,  2.66it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  30% Completed | 9/30 [00:03<00:07,  2.63it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  33% Completed | 10/30 [00:03<00:07,  2.81it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  37% Completed | 11/30 [00:03<00:06,  2.77it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  40% Completed | 12/30 [00:04<00:06,  2.75it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  43% Completed | 13/30 [00:04<00:06,  2.72it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  47% Completed | 14/30 [00:05<00:06,  2.43it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  50% Completed | 15/30 [00:05<00:05,  2.51it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  53% Completed | 16/30 [00:05<00:05,  2.44it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  57% Completed | 17/30 [00:06<00:05,  2.44it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  60% Completed | 18/30 [00:06<00:04,  2.57it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  63% Completed | 19/30 [00:06<00:04,  2.67it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  67% Completed | 20/30 [00:07<00:03,  2.89it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  70% Completed | 21/30 [00:07<00:03,  2.97it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  73% Completed | 22/30 [00:07<00:02,  3.02it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  77% Completed | 23/30 [00:08<00:02,  3.04it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  80% Completed | 24/30 [00:08<00:01,  3.02it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  83% Completed | 25/30 [00:08<00:01,  3.18it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  87% Completed | 26/30 [00:09<00:01,  3.17it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  90% Completed | 27/30 [00:09<00:00,  3.14it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  93% Completed | 28/30 [00:09<00:00,  3.13it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards:  97% Completed | 29/30 [00:10<00:00,  2.99it/s]
+(Worker_TP0 pid=168725) Loading safetensors checkpoint shards: 100% Completed | 30/30 [00:10<00:00,  2.93it/s]
+(Worker_TP0 pid=168725) 
+(Worker_TP0 pid=168725) INFO 05-05 11:18:39 [default_loader.py:384] Loading weights took 10.25 seconds
+(Worker_TP0 pid=168725) INFO 05-05 11:18:39 [gpu_model_runner.py:5368] Model loading took 16.46 GiB memory and 10.755422 seconds
+(Worker_TP0 pid=168725) INFO 05-05 11:18:44 [gpu_worker.py:440] Available KV cache memory: 48.63 GiB
+(EngineCore pid=168134) INFO 05-05 11:18:45 [kv_cache_utils.py:1319] GPU KV cache size: 1,274,800 tokens
+(EngineCore pid=168134) INFO 05-05 11:18:45 [kv_cache_utils.py:1324] Maximum concurrency for 16,384 tokens per request: 77.81x
+(Worker_TP7 pid=168732) 2026-05-05 11:18:45,308 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP6 pid=168731) 2026-05-05 11:18:45,309 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP5 pid=168730) 2026-05-05 11:18:45,309 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP3 pid=168728) 2026-05-05 11:18:45,309 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=168729) 2026-05-05 11:18:45,309 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=168726) 2026-05-05 11:18:45,309 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=168725) 2026-05-05 11:18:45,309 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP2 pid=168727) 2026-05-05 11:18:45,309 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP5 pid=168730) 2026-05-05 11:18:45,441 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP4 pid=168729) 2026-05-05 11:18:45,441 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP3 pid=168728) 2026-05-05 11:18:45,441 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP6 pid=168731) 2026-05-05 11:18:45,441 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP0 pid=168725) 2026-05-05 11:18:45,441 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP7 pid=168732) 2026-05-05 11:18:45,441 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP1 pid=168726) 2026-05-05 11:18:45,441 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP2 pid=168727) 2026-05-05 11:18:45,441 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(EngineCore pid=168134) INFO 05-05 11:18:46 [core.py:365] init engine (profile, create kv cache, warmup model) took 6.01 s
+(EngineCore pid=168134) INFO 05-05 11:18:48 [neo_scheduler_adapter.py:207] NeoSchedulerAdapter: enable_neo_asymmetric activated. First-stage wiring — vanilla data path retained, NEO decisions are recorded but not yet executed.
+(EngineCore pid=168134) INFO 05-05 11:18:48 [neo_perfpredictor_cache.py:129] NEO predictor cache: HIT /root/.cache/vllm/neo_predictor/5e10aa739a1a2ac25fc1fc7e793926c9.json
+(EngineCore pid=168134) INFO 05-05 11:18:48 [neo_scheduler_adapter.py:303] NEO: num_gpu_blocks sync 79675 → 79675 (Phase 3.1 — Step 2 swap-out threshold reflects real KV pool).
+(EngineCore pid=168134) INFO 05-05 11:18:48 [neo_scheduler_adapter.py:337] NEO: PerfPredictor populated (linr=18/pref=21/gdec=21 points, lnch_T=30.94ms). NEO scheduler now makes real sequential vs pipelined decisions.
+(EngineCore pid=168134) INFO 05-05 11:18:48 [core.py:247] NEO PerfPredictor profile took 0.00s (cache)
+(EngineCore pid=168134) INFO 05-05 11:18:48 [neo_pacpu.py:123] neo_pacpu: loaded /workspace/vllm_hybrid/csrc/cpu/pacpu/build/libpacpu-llama3_3_70b-tp8.so
+(EngineCore pid=168134) INFO 05-05 11:18:48 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=168134) WARNING 05-05 11:18:48 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(EngineCore pid=168134) WARNING 05-05 11:18:48 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(EngineCore pid=168134) INFO 05-05 11:18:48 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+(EngineCore pid=168134) INFO 05-05 11:18:48 [vllm.py:1081] Cudagraph is disabled under eager mode
+(EngineCore pid=168134) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=168134) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=168134) INFO 05-05 11:18:49 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+[baseline] init 53.9s
+Rendering prompts:   0%|          | 0/50 [00:00<?, ?it/s](EngineCore pid=168134) INFO 05-05 11:18:49 [core.py:603] [NEO STEP DIAG] step=1 num_scheduled=5418 batch_queue=0/2 running=1 waiting=0
+(EngineCore pid=168134) INFO 05-05 11:18:49 [core.py:603] [NEO STEP DIAG] step=2 num_scheduled=1 batch_queue=1/2 running=1 waiting=0
+(Worker_TP5 pid=168730) INFO 05-05 11:18:49 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP7 pid=168732) INFO 05-05 11:18:49 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP4 pid=168729) INFO 05-05 11:18:49 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP3 pid=168728) INFO 05-05 11:18:49 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP1 pid=168726) INFO 05-05 11:18:49 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP2 pid=168727) INFO 05-05 11:18:49 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP0 pid=168725) INFO 05-05 11:18:49 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP6 pid=168731) INFO 05-05 11:18:49 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+Rendering prompts:  12%|█▏        | 6/50 [00:00<00:00, 56.03it/s]Rendering prompts:  30%|███       | 15/50 [00:00<00:00, 71.43it/s](EngineCore pid=168134) INFO 05-05 11:18:49 [core.py:603] [NEO STEP DIAG] step=3 num_scheduled=16384 batch_queue=1/2 running=5 waiting=17
+Rendering prompts:  46%|████▌     | 23/50 [00:00<00:00, 74.12it/s]Rendering prompts:  64%|██████▍   | 32/50 [00:00<00:00, 77.44it/s](EngineCore pid=168134) INFO 05-05 11:18:49 [core.py:603] [NEO STEP DIAG] step=4 num_scheduled=16384 batch_queue=1/2 running=8 waiting=28
+Rendering prompts:  82%|████████▏ | 41/50 [00:00<00:00, 79.02it/s]Rendering prompts: 100%|██████████| 50/50 [00:00<00:00, 80.64it/s]Rendering prompts: 100%|██████████| 50/50 [00:00<00:00, 77.27it/s]
+Processed prompts:   0%|          | 0/50 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s](EngineCore pid=168134) INFO 05-05 11:18:50 [core.py:603] [NEO STEP DIAG] step=5 num_scheduled=16384 batch_queue=1/2 running=11 waiting=39
+INFO 05-05 11:19:00 [loggers.py:271] Engine 000: Avg prompt throughput: 22281.6 tokens/s, Avg generation throughput: 35.8 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 21.3%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:19:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=0 active=0 | reject_no_subs=99 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=0 active=0 | reject_no_subs=99 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=0 active=0 | reject_no_subs=99 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=0 active=0 | reject_no_subs=99 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=0 active=0 | reject_no_subs=99 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=0 active=0 | reject_no_subs=99 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=0 active=0 | reject_no_subs=99 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=0 active=0 | reject_no_subs=99 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:19:09 [core.py:603] [NEO STEP DIAG] step=200 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=0 active=0 | reject_no_subs=199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=0 active=0 | reject_no_subs=199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=0 active=0 | reject_no_subs=199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=0 active=0 | reject_no_subs=199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=0 active=0 | reject_no_subs=199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=0 active=0 | reject_no_subs=199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=0 active=0 | reject_no_subs=199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=0 active=0 | reject_no_subs=199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:19:10 [loggers.py:271] Engine 000: Avg prompt throughput: 541.7 tokens/s, Avg generation throughput: 1024.8 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 22.1%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:19:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=0 active=0 | reject_no_subs=299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=0 active=0 | reject_no_subs=299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=0 active=0 | reject_no_subs=299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=0 active=0 | reject_no_subs=299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=0 active=0 | reject_no_subs=299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=0 active=0 | reject_no_subs=299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=0 active=0 | reject_no_subs=299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=0 active=0 | reject_no_subs=299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:19:19 [core.py:603] [NEO STEP DIAG] step=400 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=0 active=0 | reject_no_subs=399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=0 active=0 | reject_no_subs=399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=0 active=0 | reject_no_subs=399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=0 active=0 | reject_no_subs=399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=0 active=0 | reject_no_subs=399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=0 active=0 | reject_no_subs=399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=0 active=0 | reject_no_subs=399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=0 active=0 | reject_no_subs=399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:19:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1034.9 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 22.9%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:19:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=0 active=0 | reject_no_subs=499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=0 active=0 | reject_no_subs=499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=0 active=0 | reject_no_subs=499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=0 active=0 | reject_no_subs=499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=0 active=0 | reject_no_subs=499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=0 active=0 | reject_no_subs=499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=0 active=0 | reject_no_subs=499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=0 active=0 | reject_no_subs=499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:19:28 [core.py:603] [NEO STEP DIAG] step=600 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=0 active=0 | reject_no_subs=599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=0 active=0 | reject_no_subs=599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=0 active=0 | reject_no_subs=599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=0 active=0 | reject_no_subs=599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=0 active=0 | reject_no_subs=599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=0 active=0 | reject_no_subs=599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=0 active=0 | reject_no_subs=599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=0 active=0 | reject_no_subs=599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:19:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1048.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 23.8%, Prefix cache hit rate: 0.0%
+(Worker_TP1 pid=168726) INFO 05-05 11:19:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=0 active=0 | reject_no_subs=699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=0 active=0 | reject_no_subs=699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=0 active=0 | reject_no_subs=699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=0 active=0 | reject_no_subs=699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=0 active=0 | reject_no_subs=699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=0 active=0 | reject_no_subs=699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=0 active=0 | reject_no_subs=699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=0 active=0 | reject_no_subs=699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:19:38 [core.py:603] [NEO STEP DIAG] step=800 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=0 active=0 | reject_no_subs=799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=0 active=0 | reject_no_subs=799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=0 active=0 | reject_no_subs=799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=0 active=0 | reject_no_subs=799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=0 active=0 | reject_no_subs=799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=0 active=0 | reject_no_subs=799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=0 active=0 | reject_no_subs=799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=0 active=0 | reject_no_subs=799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:19:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1039.6 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 24.6%, Prefix cache hit rate: 0.0%
+(Worker_TP1 pid=168726) INFO 05-05 11:19:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=0 active=0 | reject_no_subs=899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=0 active=0 | reject_no_subs=899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=0 active=0 | reject_no_subs=899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=0 active=0 | reject_no_subs=899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=0 active=0 | reject_no_subs=899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=0 active=0 | reject_no_subs=899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=0 active=0 | reject_no_subs=899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=0 active=0 | reject_no_subs=899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:19:47 [core.py:603] [NEO STEP DIAG] step=1000 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=0 active=0 | reject_no_subs=999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=0 active=0 | reject_no_subs=999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=0 active=0 | reject_no_subs=999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=0 active=0 | reject_no_subs=999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=0 active=0 | reject_no_subs=999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=0 active=0 | reject_no_subs=999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=0 active=0 | reject_no_subs=999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=0 active=0 | reject_no_subs=999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:19:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1048.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 25.4%, Prefix cache hit rate: 0.0%
+(Worker_TP5 pid=168730) INFO 05-05 11:19:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=0 active=0 | reject_no_subs=1099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=0 active=0 | reject_no_subs=1099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=0 active=0 | reject_no_subs=1099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=0 active=0 | reject_no_subs=1099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=0 active=0 | reject_no_subs=1099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=0 active=0 | reject_no_subs=1099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=0 active=0 | reject_no_subs=1099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=0 active=0 | reject_no_subs=1099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:19:57 [core.py:603] [NEO STEP DIAG] step=1200 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP1 pid=168726) INFO 05-05 11:19:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=0 active=0 | reject_no_subs=1199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:19:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=0 active=0 | reject_no_subs=1199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:19:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=0 active=0 | reject_no_subs=1199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:19:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=0 active=0 | reject_no_subs=1199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:19:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=0 active=0 | reject_no_subs=1199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:19:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=0 active=0 | reject_no_subs=1199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:19:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=0 active=0 | reject_no_subs=1199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:19:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=0 active=0 | reject_no_subs=1199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:20:00 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1051.9 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 26.2%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:20:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=0 active=0 | reject_no_subs=1299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=0 active=0 | reject_no_subs=1299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=0 active=0 | reject_no_subs=1299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=0 active=0 | reject_no_subs=1299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=0 active=0 | reject_no_subs=1299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=0 active=0 | reject_no_subs=1299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=0 active=0 | reject_no_subs=1299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=0 active=0 | reject_no_subs=1299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:20:06 [core.py:603] [NEO STEP DIAG] step=1400 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=0 active=0 | reject_no_subs=1399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=0 active=0 | reject_no_subs=1399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=0 active=0 | reject_no_subs=1399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=0 active=0 | reject_no_subs=1399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=0 active=0 | reject_no_subs=1399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=0 active=0 | reject_no_subs=1399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=0 active=0 | reject_no_subs=1399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=0 active=0 | reject_no_subs=1399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:20:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1056.9 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 27.1%, Prefix cache hit rate: 0.0%
+(Worker_TP1 pid=168726) INFO 05-05 11:20:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=0 active=0 | reject_no_subs=1499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=0 active=0 | reject_no_subs=1499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=0 active=0 | reject_no_subs=1499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=0 active=0 | reject_no_subs=1499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=0 active=0 | reject_no_subs=1499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=0 active=0 | reject_no_subs=1499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=0 active=0 | reject_no_subs=1499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=0 active=0 | reject_no_subs=1499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:20:16 [core.py:603] [NEO STEP DIAG] step=1600 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=0 active=0 | reject_no_subs=1599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=0 active=0 | reject_no_subs=1599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=0 active=0 | reject_no_subs=1599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=0 active=0 | reject_no_subs=1599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=0 active=0 | reject_no_subs=1599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=0 active=0 | reject_no_subs=1599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=0 active=0 | reject_no_subs=1599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=0 active=0 | reject_no_subs=1599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:20:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1066.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 27.9%, Prefix cache hit rate: 0.0%
+(Worker_TP3 pid=168728) INFO 05-05 11:20:20 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=0 active=0 | reject_no_subs=1699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:20 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=0 active=0 | reject_no_subs=1699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:20 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=0 active=0 | reject_no_subs=1699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:20 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=0 active=0 | reject_no_subs=1699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:20 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=0 active=0 | reject_no_subs=1699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:20 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=0 active=0 | reject_no_subs=1699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:20 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=0 active=0 | reject_no_subs=1699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:20 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=0 active=0 | reject_no_subs=1699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:20:25 [core.py:603] [NEO STEP DIAG] step=1800 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=0 active=0 | reject_no_subs=1799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=0 active=0 | reject_no_subs=1799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=0 active=0 | reject_no_subs=1799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=0 active=0 | reject_no_subs=1799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=0 active=0 | reject_no_subs=1799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=0 active=0 | reject_no_subs=1799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=0 active=0 | reject_no_subs=1799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=0 active=0 | reject_no_subs=1799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=0 active=0 | reject_no_subs=1899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=0 active=0 | reject_no_subs=1899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=0 active=0 | reject_no_subs=1899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=0 active=0 | reject_no_subs=1899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=0 active=0 | reject_no_subs=1899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=0 active=0 | reject_no_subs=1899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=0 active=0 | reject_no_subs=1899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=0 active=0 | reject_no_subs=1899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:20:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1061.6 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 28.7%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:20:34 [core.py:603] [NEO STEP DIAG] step=2000 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=0 active=0 | reject_no_subs=1999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=0 active=0 | reject_no_subs=1999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=0 active=0 | reject_no_subs=1999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=0 active=0 | reject_no_subs=1999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=0 active=0 | reject_no_subs=1999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=0 active=0 | reject_no_subs=1999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=0 active=0 | reject_no_subs=1999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=0 active=0 | reject_no_subs=1999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=0 active=0 | reject_no_subs=2099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=0 active=0 | reject_no_subs=2099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=0 active=0 | reject_no_subs=2099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=0 active=0 | reject_no_subs=2099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=0 active=0 | reject_no_subs=2099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=0 active=0 | reject_no_subs=2099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=0 active=0 | reject_no_subs=2099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=0 active=0 | reject_no_subs=2099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:20:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1058.5 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 29.6%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:20:44 [core.py:603] [NEO STEP DIAG] step=2200 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=0 active=0 | reject_no_subs=2199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=0 active=0 | reject_no_subs=2199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=0 active=0 | reject_no_subs=2199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=0 active=0 | reject_no_subs=2199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=0 active=0 | reject_no_subs=2199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=0 active=0 | reject_no_subs=2199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=0 active=0 | reject_no_subs=2199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=0 active=0 | reject_no_subs=2199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=0 active=0 | reject_no_subs=2299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=0 active=0 | reject_no_subs=2299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=0 active=0 | reject_no_subs=2299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=0 active=0 | reject_no_subs=2299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=0 active=0 | reject_no_subs=2299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=0 active=0 | reject_no_subs=2299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=0 active=0 | reject_no_subs=2299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=0 active=0 | reject_no_subs=2299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:20:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1058.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 30.4%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:20:53 [core.py:603] [NEO STEP DIAG] step=2400 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=0 active=0 | reject_no_subs=2399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=0 active=0 | reject_no_subs=2399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=0 active=0 | reject_no_subs=2399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=0 active=0 | reject_no_subs=2399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=0 active=0 | reject_no_subs=2399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=0 active=0 | reject_no_subs=2399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=0 active=0 | reject_no_subs=2399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=0 active=0 | reject_no_subs=2399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:20:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=0 active=0 | reject_no_subs=2499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:20:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=0 active=0 | reject_no_subs=2499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:20:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=0 active=0 | reject_no_subs=2499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:20:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=0 active=0 | reject_no_subs=2499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:20:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=0 active=0 | reject_no_subs=2499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:20:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=0 active=0 | reject_no_subs=2499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:20:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=0 active=0 | reject_no_subs=2499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:20:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=0 active=0 | reject_no_subs=2499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:21:00 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1048.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 31.2%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:21:03 [core.py:603] [NEO STEP DIAG] step=2600 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:03 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=0 active=0 | reject_no_subs=2599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:03 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=0 active=0 | reject_no_subs=2599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:03 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=0 active=0 | reject_no_subs=2599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:03 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=0 active=0 | reject_no_subs=2599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:03 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=0 active=0 | reject_no_subs=2599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:03 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=0 active=0 | reject_no_subs=2599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:03 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=0 active=0 | reject_no_subs=2599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:03 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=0 active=0 | reject_no_subs=2599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:08 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=0 active=0 | reject_no_subs=2699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:08 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=0 active=0 | reject_no_subs=2699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:08 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=0 active=0 | reject_no_subs=2699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:08 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=0 active=0 | reject_no_subs=2699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:08 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=0 active=0 | reject_no_subs=2699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:08 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=0 active=0 | reject_no_subs=2699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:08 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=0 active=0 | reject_no_subs=2699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:08 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=0 active=0 | reject_no_subs=2699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:21:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1036.0 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 32.0%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:21:13 [core.py:603] [NEO STEP DIAG] step=2800 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=0 active=0 | reject_no_subs=2799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=0 active=0 | reject_no_subs=2799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=0 active=0 | reject_no_subs=2799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=0 active=0 | reject_no_subs=2799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=0 active=0 | reject_no_subs=2799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=0 active=0 | reject_no_subs=2799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=0 active=0 | reject_no_subs=2799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=0 active=0 | reject_no_subs=2799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=0 active=0 | reject_no_subs=2899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=0 active=0 | reject_no_subs=2899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=0 active=0 | reject_no_subs=2899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=0 active=0 | reject_no_subs=2899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=0 active=0 | reject_no_subs=2899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=0 active=0 | reject_no_subs=2899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=0 active=0 | reject_no_subs=2899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=0 active=0 | reject_no_subs=2899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:21:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 856.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 32.7%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:21:25 [core.py:603] [NEO STEP DIAG] step=3000 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=0 active=0 | reject_no_subs=2999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=0 active=0 | reject_no_subs=2999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=0 active=0 | reject_no_subs=2999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=0 active=0 | reject_no_subs=2999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=0 active=0 | reject_no_subs=2999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=0 active=0 | reject_no_subs=2999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=0 active=0 | reject_no_subs=2999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=0 active=0 | reject_no_subs=2999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:21:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 861.7 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 33.4%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:21:31 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=0 active=0 | reject_no_subs=3099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:31 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=0 active=0 | reject_no_subs=3099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:31 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=0 active=0 | reject_no_subs=3099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:31 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=0 active=0 | reject_no_subs=3099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:31 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=0 active=0 | reject_no_subs=3099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:31 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=0 active=0 | reject_no_subs=3099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:31 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=0 active=0 | reject_no_subs=3099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:31 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=0 active=0 | reject_no_subs=3099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:21:36 [core.py:603] [NEO STEP DIAG] step=3200 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:36 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=0 active=0 | reject_no_subs=3199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:36 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=0 active=0 | reject_no_subs=3199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:36 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=0 active=0 | reject_no_subs=3199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:36 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=0 active=0 | reject_no_subs=3199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:36 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=0 active=0 | reject_no_subs=3199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:36 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=0 active=0 | reject_no_subs=3199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:36 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=0 active=0 | reject_no_subs=3199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:36 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=0 active=0 | reject_no_subs=3199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:21:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 892.9 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 34.1%, Prefix cache hit rate: 0.0%
+(Worker_TP4 pid=168729) INFO 05-05 11:21:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=0 active=0 | reject_no_subs=3299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=0 active=0 | reject_no_subs=3299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=0 active=0 | reject_no_subs=3299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=0 active=0 | reject_no_subs=3299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=0 active=0 | reject_no_subs=3299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=0 active=0 | reject_no_subs=3299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=0 active=0 | reject_no_subs=3299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:42 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=0 active=0 | reject_no_subs=3299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:21:46 [core.py:603] [NEO STEP DIAG] step=3400 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:46 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=0 active=0 | reject_no_subs=3399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:46 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=0 active=0 | reject_no_subs=3399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:46 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=0 active=0 | reject_no_subs=3399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:46 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=0 active=0 | reject_no_subs=3399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:46 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=0 active=0 | reject_no_subs=3399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:46 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=0 active=0 | reject_no_subs=3399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:46 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=0 active=0 | reject_no_subs=3399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:46 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=0 active=0 | reject_no_subs=3399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:21:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1056.7 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 34.9%, Prefix cache hit rate: 0.0%
+(Worker_TP3 pid=168728) INFO 05-05 11:21:51 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=0 active=0 | reject_no_subs=3499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:51 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=0 active=0 | reject_no_subs=3499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:51 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=0 active=0 | reject_no_subs=3499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:51 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=0 active=0 | reject_no_subs=3499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:51 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=0 active=0 | reject_no_subs=3499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:51 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=0 active=0 | reject_no_subs=3499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:51 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=0 active=0 | reject_no_subs=3499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:51 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=0 active=0 | reject_no_subs=3499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:21:56 [core.py:603] [NEO STEP DIAG] step=3600 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:21:56 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=0 active=0 | reject_no_subs=3599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:21:56 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=0 active=0 | reject_no_subs=3599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:21:56 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=0 active=0 | reject_no_subs=3599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:21:56 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=0 active=0 | reject_no_subs=3599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:21:56 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=0 active=0 | reject_no_subs=3599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:21:56 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=0 active=0 | reject_no_subs=3599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:21:56 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=0 active=0 | reject_no_subs=3599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:21:56 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=0 active=0 | reject_no_subs=3599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:00 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=0 active=0 | reject_no_subs=3699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:00 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=0 active=0 | reject_no_subs=3699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:00 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=0 active=0 | reject_no_subs=3699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:00 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=0 active=0 | reject_no_subs=3699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:00 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=0 active=0 | reject_no_subs=3699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:00 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=0 active=0 | reject_no_subs=3699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:00 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=0 active=0 | reject_no_subs=3699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:00 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=0 active=0 | reject_no_subs=3699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:22:01 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1066.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 35.8%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:22:05 [core.py:603] [NEO STEP DIAG] step=3800 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=0 active=0 | reject_no_subs=3799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=0 active=0 | reject_no_subs=3799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=0 active=0 | reject_no_subs=3799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=0 active=0 | reject_no_subs=3799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=0 active=0 | reject_no_subs=3799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=0 active=0 | reject_no_subs=3799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=0 active=0 | reject_no_subs=3799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=0 active=0 | reject_no_subs=3799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:10 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=0 active=0 | reject_no_subs=3899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:10 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=0 active=0 | reject_no_subs=3899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:10 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=0 active=0 | reject_no_subs=3899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:10 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=0 active=0 | reject_no_subs=3899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:10 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=0 active=0 | reject_no_subs=3899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:10 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=0 active=0 | reject_no_subs=3899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:10 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=0 active=0 | reject_no_subs=3899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:10 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=0 active=0 | reject_no_subs=3899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:22:11 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1060.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 36.6%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:22:15 [core.py:603] [NEO STEP DIAG] step=4000 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:15 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=0 active=0 | reject_no_subs=3999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:15 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=0 active=0 | reject_no_subs=3999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:15 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=0 active=0 | reject_no_subs=3999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:15 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=0 active=0 | reject_no_subs=3999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:15 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=0 active=0 | reject_no_subs=3999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:15 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=0 active=0 | reject_no_subs=3999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:15 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=0 active=0 | reject_no_subs=3999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:15 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=0 active=0 | reject_no_subs=3999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=0 active=0 | reject_no_subs=4099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=0 active=0 | reject_no_subs=4099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=0 active=0 | reject_no_subs=4099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=0 active=0 | reject_no_subs=4099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=0 active=0 | reject_no_subs=4099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=0 active=0 | reject_no_subs=4099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=0 active=0 | reject_no_subs=4099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:19 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=0 active=0 | reject_no_subs=4099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:22:21 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1053.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 37.4%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:22:24 [core.py:603] [NEO STEP DIAG] step=4200 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:24 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=0 active=0 | reject_no_subs=4199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:24 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=0 active=0 | reject_no_subs=4199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:24 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=0 active=0 | reject_no_subs=4199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:24 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=0 active=0 | reject_no_subs=4199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:24 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=0 active=0 | reject_no_subs=4199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:24 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=0 active=0 | reject_no_subs=4199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:24 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=0 active=0 | reject_no_subs=4199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:24 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=0 active=0 | reject_no_subs=4199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=0 active=0 | reject_no_subs=4299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=0 active=0 | reject_no_subs=4299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=0 active=0 | reject_no_subs=4299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=0 active=0 | reject_no_subs=4299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=0 active=0 | reject_no_subs=4299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=0 active=0 | reject_no_subs=4299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=0 active=0 | reject_no_subs=4299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=0 active=0 | reject_no_subs=4299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:22:31 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1057.0 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 38.3%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:22:34 [core.py:603] [NEO STEP DIAG] step=4400 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=0 active=0 | reject_no_subs=4399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=0 active=0 | reject_no_subs=4399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=0 active=0 | reject_no_subs=4399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=0 active=0 | reject_no_subs=4399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=0 active=0 | reject_no_subs=4399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=0 active=0 | reject_no_subs=4399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=0 active=0 | reject_no_subs=4399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=0 active=0 | reject_no_subs=4399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=0 active=0 | reject_no_subs=4499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=0 active=0 | reject_no_subs=4499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=0 active=0 | reject_no_subs=4499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=0 active=0 | reject_no_subs=4499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=0 active=0 | reject_no_subs=4499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=0 active=0 | reject_no_subs=4499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=0 active=0 | reject_no_subs=4499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=0 active=0 | reject_no_subs=4499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:22:41 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1046.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 39.1%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:22:43 [core.py:603] [NEO STEP DIAG] step=4600 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=0 active=0 | reject_no_subs=4599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=0 active=0 | reject_no_subs=4599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=0 active=0 | reject_no_subs=4599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=0 active=0 | reject_no_subs=4599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=0 active=0 | reject_no_subs=4599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=0 active=0 | reject_no_subs=4599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=0 active=0 | reject_no_subs=4599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=0 active=0 | reject_no_subs=4599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=0 active=0 | reject_no_subs=4699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=0 active=0 | reject_no_subs=4699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=0 active=0 | reject_no_subs=4699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=0 active=0 | reject_no_subs=4699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=0 active=0 | reject_no_subs=4699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=0 active=0 | reject_no_subs=4699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=0 active=0 | reject_no_subs=4699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=0 active=0 | reject_no_subs=4699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:22:51 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1061.7 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 39.9%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:22:52 [core.py:603] [NEO STEP DIAG] step=4800 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=0 active=0 | reject_no_subs=4799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=0 active=0 | reject_no_subs=4799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=0 active=0 | reject_no_subs=4799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=0 active=0 | reject_no_subs=4799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=0 active=0 | reject_no_subs=4799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=0 active=0 | reject_no_subs=4799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=0 active=0 | reject_no_subs=4799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=0 active=0 | reject_no_subs=4799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=0 active=0 | reject_no_subs=4899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=0 active=0 | reject_no_subs=4899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=0 active=0 | reject_no_subs=4899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=0 active=0 | reject_no_subs=4899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=0 active=0 | reject_no_subs=4899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=0 active=0 | reject_no_subs=4899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=0 active=0 | reject_no_subs=4899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=0 active=0 | reject_no_subs=4899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:23:01 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1058.7 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 40.7%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:23:02 [core.py:603] [NEO STEP DIAG] step=5000 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=0 active=0 | reject_no_subs=4999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=0 active=0 | reject_no_subs=4999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=0 active=0 | reject_no_subs=4999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=0 active=0 | reject_no_subs=4999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=0 active=0 | reject_no_subs=4999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=0 active=0 | reject_no_subs=4999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=0 active=0 | reject_no_subs=4999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=0 active=0 | reject_no_subs=4999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5100 eligible=0 active=0 | reject_no_subs=5099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5100 eligible=0 active=0 | reject_no_subs=5099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5100 eligible=0 active=0 | reject_no_subs=5099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5100 eligible=0 active=0 | reject_no_subs=5099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5100 eligible=0 active=0 | reject_no_subs=5099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5100 eligible=0 active=0 | reject_no_subs=5099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5100 eligible=0 active=0 | reject_no_subs=5099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5100 eligible=0 active=0 | reject_no_subs=5099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:23:11 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1052.8 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 41.6%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:23:11 [core.py:603] [NEO STEP DIAG] step=5200 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5200 eligible=0 active=0 | reject_no_subs=5199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5200 eligible=0 active=0 | reject_no_subs=5199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5200 eligible=0 active=0 | reject_no_subs=5199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5200 eligible=0 active=0 | reject_no_subs=5199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5200 eligible=0 active=0 | reject_no_subs=5199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5200 eligible=0 active=0 | reject_no_subs=5199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5200 eligible=0 active=0 | reject_no_subs=5199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5200 eligible=0 active=0 | reject_no_subs=5199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5300 eligible=0 active=0 | reject_no_subs=5299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5300 eligible=0 active=0 | reject_no_subs=5299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5300 eligible=0 active=0 | reject_no_subs=5299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5300 eligible=0 active=0 | reject_no_subs=5299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5300 eligible=0 active=0 | reject_no_subs=5299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5300 eligible=0 active=0 | reject_no_subs=5299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5300 eligible=0 active=0 | reject_no_subs=5299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5300 eligible=0 active=0 | reject_no_subs=5299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:23:21 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1062.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 42.4%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:23:21 [core.py:603] [NEO STEP DIAG] step=5400 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5400 eligible=0 active=0 | reject_no_subs=5399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5400 eligible=0 active=0 | reject_no_subs=5399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5400 eligible=0 active=0 | reject_no_subs=5399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5400 eligible=0 active=0 | reject_no_subs=5399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5400 eligible=0 active=0 | reject_no_subs=5399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5400 eligible=0 active=0 | reject_no_subs=5399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5400 eligible=0 active=0 | reject_no_subs=5399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5400 eligible=0 active=0 | reject_no_subs=5399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5500 eligible=0 active=0 | reject_no_subs=5499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5500 eligible=0 active=0 | reject_no_subs=5499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5500 eligible=0 active=0 | reject_no_subs=5499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5500 eligible=0 active=0 | reject_no_subs=5499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5500 eligible=0 active=0 | reject_no_subs=5499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5500 eligible=0 active=0 | reject_no_subs=5499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5500 eligible=0 active=0 | reject_no_subs=5499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5500 eligible=0 active=0 | reject_no_subs=5499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:23:30 [core.py:603] [NEO STEP DIAG] step=5600 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5600 eligible=0 active=0 | reject_no_subs=5599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5600 eligible=0 active=0 | reject_no_subs=5599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5600 eligible=0 active=0 | reject_no_subs=5599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5600 eligible=0 active=0 | reject_no_subs=5599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5600 eligible=0 active=0 | reject_no_subs=5599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5600 eligible=0 active=0 | reject_no_subs=5599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5600 eligible=0 active=0 | reject_no_subs=5599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5600 eligible=0 active=0 | reject_no_subs=5599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:23:31 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1060.4 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 43.2%, Prefix cache hit rate: 0.0%
+(Worker_TP7 pid=168732) INFO 05-05 11:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5700 eligible=0 active=0 | reject_no_subs=5699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5700 eligible=0 active=0 | reject_no_subs=5699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5700 eligible=0 active=0 | reject_no_subs=5699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5700 eligible=0 active=0 | reject_no_subs=5699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5700 eligible=0 active=0 | reject_no_subs=5699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5700 eligible=0 active=0 | reject_no_subs=5699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5700 eligible=0 active=0 | reject_no_subs=5699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5700 eligible=0 active=0 | reject_no_subs=5699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:23:40 [core.py:603] [NEO STEP DIAG] step=5800 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:40 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5800 eligible=0 active=0 | reject_no_subs=5799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:40 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5800 eligible=0 active=0 | reject_no_subs=5799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:40 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5800 eligible=0 active=0 | reject_no_subs=5799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:40 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5800 eligible=0 active=0 | reject_no_subs=5799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:40 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5800 eligible=0 active=0 | reject_no_subs=5799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:40 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5800 eligible=0 active=0 | reject_no_subs=5799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:40 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5800 eligible=0 active=0 | reject_no_subs=5799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:40 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5800 eligible=0 active=0 | reject_no_subs=5799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:23:41 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1036.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 44.1%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:23:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5900 eligible=0 active=0 | reject_no_subs=5899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5900 eligible=0 active=0 | reject_no_subs=5899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5900 eligible=0 active=0 | reject_no_subs=5899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5900 eligible=0 active=0 | reject_no_subs=5899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5900 eligible=0 active=0 | reject_no_subs=5899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5900 eligible=0 active=0 | reject_no_subs=5899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5900 eligible=0 active=0 | reject_no_subs=5899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5900 eligible=0 active=0 | reject_no_subs=5899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:23:50 [core.py:603] [NEO STEP DIAG] step=6000 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:50 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6000 eligible=0 active=0 | reject_no_subs=5999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:50 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6000 eligible=0 active=0 | reject_no_subs=5999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:50 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6000 eligible=0 active=0 | reject_no_subs=5999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:50 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6000 eligible=0 active=0 | reject_no_subs=5999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:50 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6000 eligible=0 active=0 | reject_no_subs=5999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:50 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6000 eligible=0 active=0 | reject_no_subs=5999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:50 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6000 eligible=0 active=0 | reject_no_subs=5999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:50 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6000 eligible=0 active=0 | reject_no_subs=5999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:23:51 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1038.2 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 44.9%, Prefix cache hit rate: 0.0%
+(Worker_TP7 pid=168732) INFO 05-05 11:23:54 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6100 eligible=0 active=0 | reject_no_subs=6099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:54 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6100 eligible=0 active=0 | reject_no_subs=6099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:54 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6100 eligible=0 active=0 | reject_no_subs=6099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:54 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6100 eligible=0 active=0 | reject_no_subs=6099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:54 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6100 eligible=0 active=0 | reject_no_subs=6099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:54 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6100 eligible=0 active=0 | reject_no_subs=6099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:54 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6100 eligible=0 active=0 | reject_no_subs=6099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:54 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6100 eligible=0 active=0 | reject_no_subs=6099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:23:59 [core.py:603] [NEO STEP DIAG] step=6200 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:23:59 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6200 eligible=0 active=0 | reject_no_subs=6199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:23:59 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6200 eligible=0 active=0 | reject_no_subs=6199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:23:59 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6200 eligible=0 active=0 | reject_no_subs=6199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:23:59 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6200 eligible=0 active=0 | reject_no_subs=6199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:23:59 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6200 eligible=0 active=0 | reject_no_subs=6199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:23:59 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6200 eligible=0 active=0 | reject_no_subs=6199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:23:59 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6200 eligible=0 active=0 | reject_no_subs=6199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:23:59 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6200 eligible=0 active=0 | reject_no_subs=6199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:24:01 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1038.7 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 45.7%, Prefix cache hit rate: 0.0%
+(Worker_TP7 pid=168732) INFO 05-05 11:24:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6300 eligible=0 active=0 | reject_no_subs=6299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6300 eligible=0 active=0 | reject_no_subs=6299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6300 eligible=0 active=0 | reject_no_subs=6299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6300 eligible=0 active=0 | reject_no_subs=6299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6300 eligible=0 active=0 | reject_no_subs=6299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6300 eligible=0 active=0 | reject_no_subs=6299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6300 eligible=0 active=0 | reject_no_subs=6299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:04 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6300 eligible=0 active=0 | reject_no_subs=6299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:24:09 [core.py:603] [NEO STEP DIAG] step=6400 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6400 eligible=0 active=0 | reject_no_subs=6399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6400 eligible=0 active=0 | reject_no_subs=6399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6400 eligible=0 active=0 | reject_no_subs=6399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6400 eligible=0 active=0 | reject_no_subs=6399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6400 eligible=0 active=0 | reject_no_subs=6399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6400 eligible=0 active=0 | reject_no_subs=6399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6400 eligible=0 active=0 | reject_no_subs=6399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6400 eligible=0 active=0 | reject_no_subs=6399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:24:11 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1042.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 46.5%, Prefix cache hit rate: 0.0%
+(Worker_TP1 pid=168726) INFO 05-05 11:24:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6500 eligible=0 active=0 | reject_no_subs=6499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6500 eligible=0 active=0 | reject_no_subs=6499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6500 eligible=0 active=0 | reject_no_subs=6499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6500 eligible=0 active=0 | reject_no_subs=6499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6500 eligible=0 active=0 | reject_no_subs=6499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6500 eligible=0 active=0 | reject_no_subs=6499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6500 eligible=0 active=0 | reject_no_subs=6499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:14 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6500 eligible=0 active=0 | reject_no_subs=6499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:24:18 [core.py:603] [NEO STEP DIAG] step=6600 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:18 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6600 eligible=0 active=0 | reject_no_subs=6599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:18 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6600 eligible=0 active=0 | reject_no_subs=6599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:18 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6600 eligible=0 active=0 | reject_no_subs=6599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:18 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6600 eligible=0 active=0 | reject_no_subs=6599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:18 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6600 eligible=0 active=0 | reject_no_subs=6599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:18 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6600 eligible=0 active=0 | reject_no_subs=6599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:18 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6600 eligible=0 active=0 | reject_no_subs=6599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:18 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6600 eligible=0 active=0 | reject_no_subs=6599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:24:21 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1038.1 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 47.3%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:24:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6700 eligible=0 active=0 | reject_no_subs=6699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6700 eligible=0 active=0 | reject_no_subs=6699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6700 eligible=0 active=0 | reject_no_subs=6699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6700 eligible=0 active=0 | reject_no_subs=6699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6700 eligible=0 active=0 | reject_no_subs=6699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6700 eligible=0 active=0 | reject_no_subs=6699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6700 eligible=0 active=0 | reject_no_subs=6699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:23 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6700 eligible=0 active=0 | reject_no_subs=6699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:24:28 [core.py:603] [NEO STEP DIAG] step=6800 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6800 eligible=0 active=0 | reject_no_subs=6799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6800 eligible=0 active=0 | reject_no_subs=6799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6800 eligible=0 active=0 | reject_no_subs=6799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6800 eligible=0 active=0 | reject_no_subs=6799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6800 eligible=0 active=0 | reject_no_subs=6799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6800 eligible=0 active=0 | reject_no_subs=6799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6800 eligible=0 active=0 | reject_no_subs=6799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:28 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6800 eligible=0 active=0 | reject_no_subs=6799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:24:31 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1036.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 48.1%, Prefix cache hit rate: 0.0%
+(Worker_TP3 pid=168728) INFO 05-05 11:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6900 eligible=0 active=0 | reject_no_subs=6899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6900 eligible=0 active=0 | reject_no_subs=6899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6900 eligible=0 active=0 | reject_no_subs=6899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6900 eligible=0 active=0 | reject_no_subs=6899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6900 eligible=0 active=0 | reject_no_subs=6899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6900 eligible=0 active=0 | reject_no_subs=6899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6900 eligible=0 active=0 | reject_no_subs=6899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=6900 eligible=0 active=0 | reject_no_subs=6899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:24:38 [core.py:603] [NEO STEP DIAG] step=7000 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7000 eligible=0 active=0 | reject_no_subs=6999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7000 eligible=0 active=0 | reject_no_subs=6999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7000 eligible=0 active=0 | reject_no_subs=6999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7000 eligible=0 active=0 | reject_no_subs=6999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7000 eligible=0 active=0 | reject_no_subs=6999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7000 eligible=0 active=0 | reject_no_subs=6999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7000 eligible=0 active=0 | reject_no_subs=6999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7000 eligible=0 active=0 | reject_no_subs=6999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:24:41 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1034.4 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 49.0%, Prefix cache hit rate: 0.0%
+(Worker_TP3 pid=168728) INFO 05-05 11:24:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7100 eligible=0 active=0 | reject_no_subs=7099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7100 eligible=0 active=0 | reject_no_subs=7099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7100 eligible=0 active=0 | reject_no_subs=7099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7100 eligible=0 active=0 | reject_no_subs=7099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7100 eligible=0 active=0 | reject_no_subs=7099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7100 eligible=0 active=0 | reject_no_subs=7099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7100 eligible=0 active=0 | reject_no_subs=7099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7100 eligible=0 active=0 | reject_no_subs=7099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:24:47 [core.py:603] [NEO STEP DIAG] step=7200 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7200 eligible=0 active=0 | reject_no_subs=7199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7200 eligible=0 active=0 | reject_no_subs=7199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7200 eligible=0 active=0 | reject_no_subs=7199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7200 eligible=0 active=0 | reject_no_subs=7199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7200 eligible=0 active=0 | reject_no_subs=7199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7200 eligible=0 active=0 | reject_no_subs=7199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7200 eligible=0 active=0 | reject_no_subs=7199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:47 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7200 eligible=0 active=0 | reject_no_subs=7199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:24:51 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1041.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 49.8%, Prefix cache hit rate: 0.0%
+(Worker_TP7 pid=168732) INFO 05-05 11:24:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7300 eligible=0 active=0 | reject_no_subs=7299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7300 eligible=0 active=0 | reject_no_subs=7299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7300 eligible=0 active=0 | reject_no_subs=7299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7300 eligible=0 active=0 | reject_no_subs=7299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7300 eligible=0 active=0 | reject_no_subs=7299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7300 eligible=0 active=0 | reject_no_subs=7299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7300 eligible=0 active=0 | reject_no_subs=7299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7300 eligible=0 active=0 | reject_no_subs=7299 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:24:57 [core.py:603] [NEO STEP DIAG] step=7400 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP6 pid=168731) INFO 05-05 11:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7400 eligible=0 active=0 | reject_no_subs=7399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7400 eligible=0 active=0 | reject_no_subs=7399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7400 eligible=0 active=0 | reject_no_subs=7399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7400 eligible=0 active=0 | reject_no_subs=7399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7400 eligible=0 active=0 | reject_no_subs=7399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7400 eligible=0 active=0 | reject_no_subs=7399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7400 eligible=0 active=0 | reject_no_subs=7399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7400 eligible=0 active=0 | reject_no_subs=7399 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:25:01 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1045.0 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 50.6%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:25:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7500 eligible=0 active=0 | reject_no_subs=7499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:25:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7500 eligible=0 active=0 | reject_no_subs=7499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:25:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7500 eligible=0 active=0 | reject_no_subs=7499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:25:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7500 eligible=0 active=0 | reject_no_subs=7499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:25:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7500 eligible=0 active=0 | reject_no_subs=7499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:25:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7500 eligible=0 active=0 | reject_no_subs=7499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:25:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7500 eligible=0 active=0 | reject_no_subs=7499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:25:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7500 eligible=0 active=0 | reject_no_subs=7499 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:25:07 [core.py:603] [NEO STEP DIAG] step=7600 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP7 pid=168732) INFO 05-05 11:25:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7600 eligible=0 active=0 | reject_no_subs=7599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:25:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7600 eligible=0 active=0 | reject_no_subs=7599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:25:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7600 eligible=0 active=0 | reject_no_subs=7599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:25:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7600 eligible=0 active=0 | reject_no_subs=7599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:25:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7600 eligible=0 active=0 | reject_no_subs=7599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:25:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7600 eligible=0 active=0 | reject_no_subs=7599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:25:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7600 eligible=0 active=0 | reject_no_subs=7599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:25:07 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7600 eligible=0 active=0 | reject_no_subs=7599 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:25:11 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1040.3 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 51.4%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=168731) INFO 05-05 11:25:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7700 eligible=0 active=0 | reject_no_subs=7699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:25:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7700 eligible=0 active=0 | reject_no_subs=7699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:25:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7700 eligible=0 active=0 | reject_no_subs=7699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:25:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7700 eligible=0 active=0 | reject_no_subs=7699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:25:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7700 eligible=0 active=0 | reject_no_subs=7699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:25:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7700 eligible=0 active=0 | reject_no_subs=7699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:25:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7700 eligible=0 active=0 | reject_no_subs=7699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:25:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7700 eligible=0 active=0 | reject_no_subs=7699 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=168134) INFO 05-05 11:25:16 [core.py:603] [NEO STEP DIAG] step=7800 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP1 pid=168726) INFO 05-05 11:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7800 eligible=0 active=0 | reject_no_subs=7799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7800 eligible=0 active=0 | reject_no_subs=7799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7800 eligible=0 active=0 | reject_no_subs=7799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7800 eligible=0 active=0 | reject_no_subs=7799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7800 eligible=0 active=0 | reject_no_subs=7799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7800 eligible=0 active=0 | reject_no_subs=7799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7800 eligible=0 active=0 | reject_no_subs=7799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7800 eligible=0 active=0 | reject_no_subs=7799 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7900 eligible=0 active=0 | reject_no_subs=7899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7900 eligible=0 active=0 | reject_no_subs=7899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7900 eligible=0 active=0 | reject_no_subs=7899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7900 eligible=0 active=0 | reject_no_subs=7899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7900 eligible=0 active=0 | reject_no_subs=7899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7900 eligible=0 active=0 | reject_no_subs=7899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7900 eligible=0 active=0 | reject_no_subs=7899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=7900 eligible=0 active=0 | reject_no_subs=7899 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:25:21 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1048.8 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 52.2%, Prefix cache hit rate: 0.0%
+(EngineCore pid=168134) INFO 05-05 11:25:26 [core.py:603] [NEO STEP DIAG] step=8000 num_scheduled=50 batch_queue=1/2 running=50 waiting=0
+(Worker_TP3 pid=168728) INFO 05-05 11:25:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8000 eligible=0 active=0 | reject_no_subs=7999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:25:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8000 eligible=0 active=0 | reject_no_subs=7999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:25:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8000 eligible=0 active=0 | reject_no_subs=7999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:25:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8000 eligible=0 active=0 | reject_no_subs=7999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:25:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8000 eligible=0 active=0 | reject_no_subs=7999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:25:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8000 eligible=0 active=0 | reject_no_subs=7999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:25:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8000 eligible=0 active=0 | reject_no_subs=7999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:25:26 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8000 eligible=0 active=0 | reject_no_subs=7999 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:25:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8100 eligible=0 active=0 | reject_no_subs=8099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:25:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8100 eligible=0 active=0 | reject_no_subs=8099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:25:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8100 eligible=0 active=0 | reject_no_subs=8099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:25:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8100 eligible=0 active=0 | reject_no_subs=8099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:25:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8100 eligible=0 active=0 | reject_no_subs=8099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:25:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8100 eligible=0 active=0 | reject_no_subs=8099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=168732) INFO 05-05 11:25:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8100 eligible=0 active=0 | reject_no_subs=8099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:25:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8100 eligible=0 active=0 | reject_no_subs=8099 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 11:25:31 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1045.7 tokens/s, Running: 50 reqs, Waiting: 0 reqs, GPU KV cache usage: 53.1%, Prefix cache hit rate: 0.0%
+Processed prompts:   2%|▏         | 1/50 [06:45<5:31:09, 405.49s/it, est. speed input: 13.36 toks/s, output: 20.20 toks/s]Processed prompts:   4%|▍         | 2/50 [06:45<2:13:37, 167.04s/it, est. speed input: 26.72 toks/s, output: 40.39 toks/s]Processed prompts:  16%|█▌        | 8/50 [06:45<19:21, 27.66s/it, est. speed input: 106.83 toks/s, output: 161.52 toks/s] (EngineCore pid=168134) INFO 05-05 11:25:35 [core.py:603] [NEO STEP DIAG] step=8200 num_scheduled=31 batch_queue=1/2 running=34 waiting=0
+Processed prompts:  28%|██▊       | 14/50 [06:45<07:34, 12.63s/it, est. speed input: 186.89 toks/s, output: 282.58 toks/s](Worker_TP7 pid=168732) INFO 05-05 11:25:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8200 eligible=0 active=0 | reject_no_subs=8199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=168731) INFO 05-05 11:25:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8200 eligible=0 active=0 | reject_no_subs=8199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=168728) INFO 05-05 11:25:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8200 eligible=0 active=0 | reject_no_subs=8199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=168726) INFO 05-05 11:25:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8200 eligible=0 active=0 | reject_no_subs=8199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=168730) INFO 05-05 11:25:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8200 eligible=0 active=0 | reject_no_subs=8199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=168729) INFO 05-05 11:25:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8200 eligible=0 active=0 | reject_no_subs=8199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=168727) INFO 05-05 11:25:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8200 eligible=0 active=0 | reject_no_subs=8199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=168725) INFO 05-05 11:25:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=8200 eligible=0 active=0 | reject_no_subs=8199 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+Processed prompts:  40%|████      | 20/50 [06:45<03:33,  7.12s/it, est. speed input: 266.91 toks/s, output: 403.57 toks/s]Processed prompts:  52%|█████▏    | 26/50 [06:46<01:45,  4.39s/it, est. speed input: 346.89 toks/s, output: 524.49 toks/s]Processed prompts:  64%|██████▍   | 32/50 [06:46<00:51,  2.84s/it, est. speed input: 426.82 toks/s, output: 645.34 toks/s]Processed prompts:  76%|███████▌  | 38/50 [06:46<00:22,  1.89s/it, est. speed input: 506.71 toks/s, output: 766.14 toks/s]Processed prompts:  94%|█████████▍| 47/50 [06:46<00:03,  1.11s/it, est. speed input: 626.52 toks/s, output: 947.28 toks/s]Processed prompts: 100%|██████████| 50/50 [06:46<00:00,  1.11s/it, est. speed input: 666.44 toks/s, output: 1007.64 toks/s]Processed prompts: 100%|██████████| 50/50 [06:46<00:00,  8.13s/it, est. speed input: 666.44 toks/s, output: 1007.64 toks/s]
+[baseline] generate wall=407.1s
+[baseline] total_input_tokens=270905 total_output_tokens=409600
+[baseline] prompt_tps=665.4 output_tps=1006.0 req_per_s=0.12
+[baseline] log metrics: {'preempt_count': None, 'kv_cache_size_tokens': 1274800, 'max_concurrency': 77.81}
+[baseline] wrote /workspace/vllm_hybrid/eval/results/20260505_111715_Intel_Xeon_Platinum_8480+x2_H100_80GB_HBM3x8_neo_cb_50_smoke_v36/neo_on.json
+(EngineCore pid=168134) INFO 05-05 11:25:36 [core.py:1384] Shutdown initiated (timeout=0)
+(EngineCore pid=168134) INFO 05-05 11:25:36 [core.py:1407] Shutdown complete
+(Worker_TP0 pid=168725) INFO 05-05 11:25:36 [multiproc_executor.py:775] Parent process exited, terminating worker queues
+(Worker_TP4 pid=168729) INFO 05-05 11:25:36 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP5 pid=168730) INFO 05-05 11:25:36 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP7 pid=168732) INFO 05-05 11:25:36 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP3 pid=168728) INFO 05-05 11:25:36 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP6 pid=168731) INFO 05-05 11:25:36 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP2 pid=168727) INFO 05-05 11:25:36 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP1 pid=168726) INFO 05-05 11:25:36 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP0 pid=168725) INFO 05-05 11:25:36 [multiproc_executor.py:872] WorkerProc shutting down.
+[rank4]:[W505 11:25:37.721462381 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=101, addr=[localhost]:48838, remote=[localhost]:55923): Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+Exception raised from recvBytes at /pytorch/torch/csrc/distributed/c10d/Utils.hpp:682 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x148e10f7205d in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x6a9149d (0x148d77ba549d in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x273 (0x148d77ba33f3 in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x4a5 (0x148d3c93caa5 in /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #4: <unknown function> + 0xdc253 (0x148e10ab0253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #5: <unknown function> + 0x94ac3 (0x148e4b66bac3 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #6: <unknown function> + 0x1268d0 (0x148e4b6fd8d0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank4]:[W505 11:25:37.726240880 ProcessGroupNCCL.cpp:1826] [PG ID 0 PG GUID 0 Rank 4] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?

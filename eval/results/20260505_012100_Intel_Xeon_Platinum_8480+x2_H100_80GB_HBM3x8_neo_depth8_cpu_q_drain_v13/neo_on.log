@@ -1,0 +1,917 @@
+[baseline] model=meta-llama/Llama-3.3-70B-Instruct
+[baseline] TP=8 max_model_len=16384 max_num_seqs=64
+[baseline] num_prompts=100 target_input_len=8192 max_tokens=4096
+[baseline] avg prompt chars: 22706
+[baseline] enable_neo_asymmetric=True
+INFO 05-05 01:21:17 [arg_utils.py:694] HF_HUB_OFFLINE is True, replace model_id [meta-llama/Llama-3.3-70B-Instruct] to model_path [/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b]
+INFO 05-05 01:21:17 [utils.py:233] non-default args: {'max_model_len': 16384, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.35, 'max_num_seqs': 64, 'enforce_eager': True, 'enable_neo_asymmetric': True, 'model': '/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b'}
+WARNING 05-05 01:21:17 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_SWAP_OUT_RATIO
+WARNING 05-05 01:21:17 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_KV_FREE
+INFO 05-05 01:21:17 [model.py:554] Resolved architecture: LlamaForCausalLM
+INFO 05-05 01:21:17 [model.py:1685] Using max model len 16384
+INFO 05-05 01:21:17 [scheduler.py:267] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-05 01:21:17 [vllm.py:834] Asynchronous scheduling is enabled.
+WARNING 05-05 01:21:17 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-05 01:21:17 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-05 01:21:17 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+INFO 05-05 01:21:18 [vllm.py:1081] Cudagraph is disabled under eager mode
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+INFO 05-05 01:21:22 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+WARNING 05-05 01:21:23 [system_utils.py:157] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: CUDA is initialized
+(EngineCore pid=2472327) INFO 05-05 01:21:30 [core.py:107] Initializing a V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=2472327) WARNING 05-05 01:21:30 [multiproc_executor.py:1029] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=2472327) INFO 05-05 01:21:30 [multiproc_executor.py:139] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=211.115.75.82 (local), world_size=8, local_world_size=8
+(Worker pid=2472916) INFO 05-05 01:21:42 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:32775 backend=nccl
+(Worker pid=2472915) INFO 05-05 01:21:44 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:32775 backend=nccl
+(Worker pid=2472920) INFO 05-05 01:21:45 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:32775 backend=nccl
+(Worker pid=2472918) INFO 05-05 01:21:45 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:32775 backend=nccl
+(Worker pid=2472921) INFO 05-05 01:21:45 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:32775 backend=nccl
+(Worker pid=2472922) INFO 05-05 01:21:45 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:32775 backend=nccl
+(Worker pid=2472917) INFO 05-05 01:21:45 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:32775 backend=nccl
+(Worker pid=2472919) INFO 05-05 01:21:45 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:32775 backend=nccl
+(Worker pid=2472915) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2472915) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2472919) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2472919) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2472917) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2472917) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2472922) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2472922) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2472921) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2472921) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2472920) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2472920) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2472915) INFO 05-05 01:21:46 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=2472918) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2472918) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2472916) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=2472916) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=2472915) INFO 05-05 01:21:49 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(Worker_TP0 pid=2472915) INFO 05-05 01:21:50 [gpu_model_runner.py:5283] Starting to load model /root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b...
+(Worker_TP0 pid=2472915) INFO 05-05 01:21:50 [cuda.py:368] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(Worker_TP0 pid=2472915) INFO 05-05 01:21:50 [flash_attn.py:637] Using FlashAttention version 3
+(Worker_TP0 pid=2472915) INFO 05-05 01:21:51 [weight_utils.py:904] Filesystem type for checkpoints: XFS. Checkpoint size: 131.42 GiB. Available RAM: 1927.98 GiB.
+(Worker_TP0 pid=2472915) INFO 05-05 01:21:51 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:   0% Completed | 0/30 [00:00<?, ?it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:   3% Completed | 1/30 [00:00<00:06,  4.75it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:   7% Completed | 2/30 [00:00<00:08,  3.21it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  10% Completed | 3/30 [00:00<00:09,  2.91it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  13% Completed | 4/30 [00:01<00:09,  2.78it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  17% Completed | 5/30 [00:01<00:08,  2.92it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  20% Completed | 6/30 [00:02<00:08,  2.87it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  23% Completed | 7/30 [00:02<00:07,  2.89it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  27% Completed | 8/30 [00:02<00:07,  2.82it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  30% Completed | 9/30 [00:03<00:07,  2.69it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  33% Completed | 10/30 [00:03<00:07,  2.83it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  37% Completed | 11/30 [00:03<00:06,  2.81it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  40% Completed | 12/30 [00:04<00:06,  2.78it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  43% Completed | 13/30 [00:04<00:06,  2.80it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  47% Completed | 14/30 [00:04<00:06,  2.63it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  50% Completed | 15/30 [00:05<00:05,  2.66it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  53% Completed | 16/30 [00:05<00:05,  2.59it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  57% Completed | 17/30 [00:06<00:05,  2.53it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  60% Completed | 18/30 [00:06<00:04,  2.58it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  63% Completed | 19/30 [00:06<00:04,  2.62it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  67% Completed | 20/30 [00:07<00:03,  2.81it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  70% Completed | 21/30 [00:07<00:03,  2.80it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  73% Completed | 22/30 [00:07<00:02,  2.80it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  77% Completed | 23/30 [00:08<00:02,  2.79it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  80% Completed | 24/30 [00:08<00:02,  2.76it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  83% Completed | 25/30 [00:08<00:01,  2.88it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  87% Completed | 26/30 [00:09<00:01,  2.85it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  90% Completed | 27/30 [00:09<00:01,  2.81it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  93% Completed | 28/30 [00:10<00:00,  2.78it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards:  97% Completed | 29/30 [00:10<00:00,  2.74it/s]
+(Worker_TP0 pid=2472915) Loading safetensors checkpoint shards: 100% Completed | 30/30 [00:10<00:00,  2.85it/s]
+(Worker_TP0 pid=2472915) 
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:01 [default_loader.py:384] Loading weights took 10.54 seconds
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:02 [gpu_model_runner.py:5368] Model loading took 16.46 GiB memory and 10.991130 seconds
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:06 [gpu_worker.py:440] Available KV cache memory: 9.04 GiB
+(EngineCore pid=2472327) INFO 05-05 01:22:07 [kv_cache_utils.py:1319] GPU KV cache size: 236,992 tokens
+(EngineCore pid=2472327) INFO 05-05 01:22:07 [kv_cache_utils.py:1324] Maximum concurrency for 16,384 tokens per request: 14.46x
+(Worker_TP6 pid=2472921) 2026-05-05 01:22:07,156 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP7 pid=2472922) 2026-05-05 01:22:07,156 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP5 pid=2472920) 2026-05-05 01:22:07,156 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP3 pid=2472918) 2026-05-05 01:22:07,156 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=2472919) 2026-05-05 01:22:07,156 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=2472916) 2026-05-05 01:22:07,156 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP2 pid=2472917) 2026-05-05 01:22:07,156 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=2472915) 2026-05-05 01:22:07,157 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=2472916) 2026-05-05 01:22:07,310 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP6 pid=2472921) 2026-05-05 01:22:07,310 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP2 pid=2472917) 2026-05-05 01:22:07,310 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP7 pid=2472922) 2026-05-05 01:22:07,310 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP5 pid=2472920) 2026-05-05 01:22:07,311 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP0 pid=2472915) 2026-05-05 01:22:07,311 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP3 pid=2472918) 2026-05-05 01:22:07,311 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP4 pid=2472919) 2026-05-05 01:22:07,311 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(EngineCore pid=2472327) INFO 05-05 01:22:07 [core.py:365] init engine (profile, create kv cache, warmup model) took 5.44 s
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [neo_scheduler_adapter.py:207] NeoSchedulerAdapter: enable_neo_asymmetric activated. First-stage wiring — vanilla data path retained, NEO decisions are recorded but not yet executed.
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [neo_perfpredictor_cache.py:129] NEO predictor cache: HIT /root/.cache/vllm/neo_predictor/71fc06df82a6988a71a80e5e2b5378b5.json
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [neo_scheduler_adapter.py:347] NEO: num_gpu_blocks sync 14812 → 14812 (Phase 3.1 — Step 2 swap-out threshold reflects real KV pool).
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [neo_scheduler_adapter.py:381] NEO: PerfPredictor populated (linr=18/pref=21/gdec=21 points, lnch_T=30.76ms). NEO scheduler now makes real sequential vs pipelined decisions.
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [core.py:247] NEO PerfPredictor profile took 0.00s (cache)
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [neo_pacpu.py:123] neo_pacpu: loaded /workspace/vllm_hybrid/csrc/cpu/pacpu/build/libpacpu-llama3_3_70b-tp8.so
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=2472327) WARNING 05-05 01:22:10 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(EngineCore pid=2472327) WARNING 05-05 01:22:10 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+(EngineCore pid=2472327) INFO 05-05 01:22:10 [vllm.py:1081] Cudagraph is disabled under eager mode
+(EngineCore pid=2472327) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=2472327) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=2472327) INFO 05-05 01:22:11 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+[baseline] init 53.9s
+Rendering prompts:   0%|          | 0/100 [00:00<?, ?it/s](Worker_TP1 pid=2472916) INFO 05-05 01:22:11 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:11 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:11 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:11 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:11 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:11 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:11 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:11 [gpu_model_runner.py:4089] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+Rendering prompts:   6%|▌         | 6/100 [00:00<00:01, 53.40it/s]Rendering prompts:  15%|█▌        | 15/100 [00:00<00:01, 69.75it/s]Rendering prompts:  24%|██▍       | 24/100 [00:00<00:00, 76.14it/s]Rendering prompts:  33%|███▎      | 33/100 [00:00<00:00, 79.11it/s]Rendering prompts:  42%|████▏     | 42/100 [00:00<00:00, 80.65it/s]Rendering prompts:  51%|█████     | 51/100 [00:00<00:00, 81.85it/s]Rendering prompts:  60%|██████    | 60/100 [00:00<00:00, 81.90it/s]Rendering prompts:  69%|██████▉   | 69/100 [00:00<00:00, 82.34it/s]Rendering prompts:  78%|███████▊  | 78/100 [00:00<00:00, 79.05it/s]Rendering prompts:  87%|████████▋ | 87/100 [00:01<00:00, 80.46it/s]Rendering prompts:  96%|█████████▌| 96/100 [00:01<00:00, 81.69it/s]Rendering prompts: 100%|██████████| 100/100 [00:01<00:00, 79.68it/s]
+Processed prompts:   0%|          | 0/100 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s](Worker_TP3 pid=2472918) INFO 05-05 01:22:20 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=1 step_count=1 this_step swaps=1 boundary=42 num_reqs=43
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:20 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=1 step_count=1 this_step swaps=1 boundary=42 num_reqs=43
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:20 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=1 step_count=1 this_step swaps=1 boundary=42 num_reqs=43
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:20 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=1 step_count=1 this_step swaps=1 boundary=42 num_reqs=43
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:20 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=1 step_count=1 this_step swaps=1 boundary=42 num_reqs=43
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:20 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=1 step_count=1 this_step swaps=1 boundary=42 num_reqs=43
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:20 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=1 step_count=1 this_step swaps=1 boundary=42 num_reqs=43
+(EngineCore pid=2472327) INFO 05-05 01:22:20 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2 step_count=1
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:20 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=1 step_count=1 this_step swaps=1 boundary=42 num_reqs=43
+(EngineCore pid=2472327) INFO 05-05 01:22:20 [core.py:487] NEO swap dispatch active (VLLM_NEO_KV_FREE=1) — first fire: out=2 in=0
+(EngineCore pid=2472327) INFO 05-05 01:22:20 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4 step_count=2
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=2 step_count=2 this_step swaps=1 boundary=44 num_reqs=45
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=2 step_count=2 this_step swaps=1 boundary=44 num_reqs=45
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=2 step_count=2 this_step swaps=1 boundary=44 num_reqs=45
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=2 step_count=2 this_step swaps=1 boundary=44 num_reqs=45
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=2 step_count=2 this_step swaps=1 boundary=44 num_reqs=45
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=2 step_count=2 this_step swaps=1 boundary=44 num_reqs=45
+(EngineCore pid=2472327) INFO 05-05 01:22:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=6 step_count=3
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=2 step_count=2 this_step swaps=1 boundary=44 num_reqs=45
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=2 step_count=2 this_step swaps=1 boundary=44 num_reqs=45
+(EngineCore pid=2472327) INFO 05-05 01:22:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=8 step_count=4
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=3 step_count=3 this_step swaps=1 boundary=46 num_reqs=47
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=3 step_count=3 this_step swaps=1 boundary=46 num_reqs=47
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=3 step_count=3 this_step swaps=1 boundary=46 num_reqs=47
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=3 step_count=3 this_step swaps=1 boundary=46 num_reqs=47
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=3 step_count=3 this_step swaps=1 boundary=46 num_reqs=47
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=3 step_count=3 this_step swaps=1 boundary=46 num_reqs=47
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=3 step_count=3 this_step swaps=1 boundary=46 num_reqs=47
+(EngineCore pid=2472327) INFO 05-05 01:22:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=10 step_count=5
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:21 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=3 step_count=3 this_step swaps=1 boundary=46 num_reqs=47
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=4 step_count=4 this_step swaps=1 boundary=48 num_reqs=49
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=4 step_count=4 this_step swaps=1 boundary=48 num_reqs=49
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=4 step_count=4 this_step swaps=1 boundary=48 num_reqs=49
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=4 step_count=4 this_step swaps=1 boundary=48 num_reqs=49
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=4 step_count=4 this_step swaps=1 boundary=48 num_reqs=49
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=4 step_count=4 this_step swaps=1 boundary=48 num_reqs=49
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=4 step_count=4 this_step swaps=1 boundary=48 num_reqs=49
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=4 step_count=4 this_step swaps=1 boundary=48 num_reqs=49
+INFO 05-05 01:22:22 [loggers.py:271] Engine 000: Avg prompt throughput: 21934.3 tokens/s, Avg generation throughput: 50.1 tokens/s, Running: 49 reqs, Waiting: 51 reqs, GPU KV cache usage: 94.1%, Prefix cache hit rate: 0.0%
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=5 step_count=5 this_step swaps=1 boundary=50 num_reqs=51
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=5 step_count=5 this_step swaps=1 boundary=50 num_reqs=51
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=5 step_count=5 this_step swaps=1 boundary=50 num_reqs=51
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=5 step_count=5 this_step swaps=1 boundary=50 num_reqs=51
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=5 step_count=5 this_step swaps=1 boundary=50 num_reqs=51
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=5 step_count=5 this_step swaps=1 boundary=50 num_reqs=51
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=5 step_count=5 this_step swaps=1 boundary=50 num_reqs=51
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:22 [gpu_model_runner.py:1114] [NEO SWAP] total_swaps=5 step_count=5 this_step swaps=1 boundary=50 num_reqs=51
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=22 active=22 | reject_no_subs=77 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=22 active=22 | reject_no_subs=77 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=22 active=22 | reject_no_subs=77 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=22 active=22 | reject_no_subs=77 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=22 active=22 | reject_no_subs=77 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=22 active=22 | reject_no_subs=77 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=22 active=22 | reject_no_subs=77 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=100 eligible=22 active=22 | reject_no_subs=77 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 01:22:32 [loggers.py:271] Engine 000: Avg prompt throughput: 8115.2 tokens/s, Avg generation throughput: 915.3 tokens/s, Running: 64 reqs, Waiting: 36 reqs, GPU KV cache usage: 94.3%, Prefix cache hit rate: 0.0%
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=22 active=22 | reject_no_subs=177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=22 active=22 | reject_no_subs=177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=22 active=22 | reject_no_subs=177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=22 active=22 | reject_no_subs=177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=22 active=22 | reject_no_subs=177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=22 active=22 | reject_no_subs=177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=22 active=22 | reject_no_subs=177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=200 eligible=22 active=22 | reject_no_subs=177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+Processed prompts:   1%|          | 1/100 [00:22<36:34, 22.16s/it, est. speed input: 244.47 toks/s, output: 8.03 toks/s](EngineCore pid=2472327) INFO 05-05 01:22:35 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=74 step_count=50
+(EngineCore pid=2472327) INFO 05-05 01:22:38 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=124 step_count=100
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=22 active=22 | reject_no_subs=277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=22 active=22 | reject_no_subs=277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=22 active=22 | reject_no_subs=277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=22 active=22 | reject_no_subs=277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=22 active=22 | reject_no_subs=277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=22 active=22 | reject_no_subs=277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=22 active=22 | reject_no_subs=277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=300 eligible=22 active=22 | reject_no_subs=277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:22:40 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=174 step_count=150
+INFO 05-05 01:22:42 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1331.1 tokens/s, Running: 64 reqs, Waiting: 36 reqs, GPU KV cache usage: 95.3%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:22:43 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=226 step_count=200
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=22 active=22 | reject_no_subs=377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=22 active=22 | reject_no_subs=377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=22 active=22 | reject_no_subs=377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=22 active=22 | reject_no_subs=377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=22 active=22 | reject_no_subs=377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=22 active=22 | reject_no_subs=377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=22 active=22 | reject_no_subs=377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=400 eligible=22 active=22 | reject_no_subs=377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:22:45 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=276 step_count=250
+(EngineCore pid=2472327) INFO 05-05 01:22:47 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=326 step_count=300
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=22 active=22 | reject_no_subs=477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=22 active=22 | reject_no_subs=477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=22 active=22 | reject_no_subs=477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=22 active=22 | reject_no_subs=477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=22 active=22 | reject_no_subs=477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=22 active=22 | reject_no_subs=477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=22 active=22 | reject_no_subs=477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=500 eligible=22 active=22 | reject_no_subs=477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:22:50 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=378 step_count=350
+(EngineCore pid=2472327) INFO 05-05 01:22:52 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=428 step_count=400
+INFO 05-05 01:22:52 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1350.6 tokens/s, Running: 64 reqs, Waiting: 36 reqs, GPU KV cache usage: 96.2%, Prefix cache hit rate: 0.0%
+Processed prompts:   2%|▏         | 2/100 [00:40<32:19, 19.79s/it, est. speed input: 268.93 toks/s, output: 18.64 toks/s](Worker_TP6 pid=2472921) INFO 05-05 01:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=22 active=22 | reject_no_subs=577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=22 active=22 | reject_no_subs=577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=22 active=22 | reject_no_subs=577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=22 active=22 | reject_no_subs=577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=22 active=22 | reject_no_subs=577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=22 active=22 | reject_no_subs=577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=22 active=22 | reject_no_subs=577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=600 eligible=22 active=22 | reject_no_subs=577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:22:54 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=526 step_count=450
+(EngineCore pid=2472327) INFO 05-05 01:22:57 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=620 step_count=500
+(Worker_TP5 pid=2472920) INFO 05-05 01:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=22 active=22 | reject_no_subs=677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=22 active=22 | reject_no_subs=677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=22 active=22 | reject_no_subs=677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=22 active=22 | reject_no_subs=677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=22 active=22 | reject_no_subs=677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=22 active=22 | reject_no_subs=677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=22 active=22 | reject_no_subs=677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:22:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=700 eligible=22 active=22 | reject_no_subs=677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:22:59 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=720 step_count=550
+(EngineCore pid=2472327) INFO 05-05 01:23:01 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=820 step_count=600
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=22 active=22 | reject_no_subs=777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=22 active=22 | reject_no_subs=777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=22 active=22 | reject_no_subs=777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=22 active=22 | reject_no_subs=777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=22 active=22 | reject_no_subs=777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=22 active=22 | reject_no_subs=777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=22 active=22 | reject_no_subs=777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=800 eligible=22 active=22 | reject_no_subs=777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 01:23:02 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1270.9 tokens/s, Running: 62 reqs, Waiting: 38 reqs, GPU KV cache usage: 99.4%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:23:04 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=920 step_count=650
+(EngineCore pid=2472327) INFO 05-05 01:23:06 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1010 step_count=700
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=22 active=22 | reject_no_subs=877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=22 active=22 | reject_no_subs=877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=22 active=22 | reject_no_subs=877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=22 active=22 | reject_no_subs=877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=22 active=22 | reject_no_subs=877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=22 active=22 | reject_no_subs=877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=22 active=22 | reject_no_subs=877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=900 eligible=22 active=22 | reject_no_subs=877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:08 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1110 step_count=750
+(EngineCore pid=2472327) INFO 05-05 01:23:11 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1210 step_count=800
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=22 active=22 | reject_no_subs=977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=22 active=22 | reject_no_subs=977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=22 active=22 | reject_no_subs=977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=22 active=22 | reject_no_subs=977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=22 active=22 | reject_no_subs=977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=22 active=22 | reject_no_subs=977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=22 active=22 | reject_no_subs=977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1000 eligible=22 active=22 | reject_no_subs=977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+Processed prompts:   4%|▍         | 4/100 [00:59<21:21, 13.35s/it, est. speed input: 365.29 toks/s, output: 38.67 toks/s]Processed prompts:  12%|█▏        | 12/100 [00:59<04:19,  2.95s/it, est. speed input: 1088.61 toks/s, output: 169.03 toks/s]INFO 05-05 01:23:12 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1206.8 tokens/s, Running: 52 reqs, Waiting: 48 reqs, GPU KV cache usage: 99.7%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:23:13 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1311 step_count=850
+(EngineCore pid=2472327) INFO 05-05 01:23:16 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=1370 step_count=900
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=22 active=22 | reject_no_subs=1077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=22 active=22 | reject_no_subs=1077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=22 active=22 | reject_no_subs=1077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=22 active=22 | reject_no_subs=1077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=22 active=22 | reject_no_subs=1077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=22 active=22 | reject_no_subs=1077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=22 active=22 | reject_no_subs=1077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1100 eligible=22 active=22 | reject_no_subs=1077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+Processed prompts:  15%|█▌        | 15/100 [01:04<03:38,  2.57s/it, est. speed input: 1256.23 toks/s, output: 206.70 toks/s](EngineCore pid=2472327) INFO 05-05 01:23:18 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1465 step_count=950
+(EngineCore pid=2472327) INFO 05-05 01:23:20 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1565 step_count=1000
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=22 active=22 | reject_no_subs=1177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=22 active=22 | reject_no_subs=1177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=22 active=22 | reject_no_subs=1177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=22 active=22 | reject_no_subs=1177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=22 active=22 | reject_no_subs=1177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=22 active=22 | reject_no_subs=1177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=22 active=22 | reject_no_subs=1177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1200 eligible=22 active=22 | reject_no_subs=1177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 01:23:22 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 741.1 tokens/s, Running: 47 reqs, Waiting: 53 reqs, GPU KV cache usage: 98.9%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:23:23 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1665 step_count=1050
+(EngineCore pid=2472327) INFO 05-05 01:23:25 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1765 step_count=1100
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=22 active=22 | reject_no_subs=1277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=22 active=22 | reject_no_subs=1277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=22 active=22 | reject_no_subs=1277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=22 active=22 | reject_no_subs=1277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=22 active=22 | reject_no_subs=1277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=22 active=22 | reject_no_subs=1277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=22 active=22 | reject_no_subs=1277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1300 eligible=22 active=22 | reject_no_subs=1277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:27 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1865 step_count=1150
+(EngineCore pid=2472327) INFO 05-05 01:23:30 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=1939 step_count=1200
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=22 active=22 | reject_no_subs=1377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=22 active=22 | reject_no_subs=1377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=22 active=22 | reject_no_subs=1377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=22 active=22 | reject_no_subs=1377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=22 active=22 | reject_no_subs=1377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=22 active=22 | reject_no_subs=1377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=22 active=22 | reject_no_subs=1377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:30 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1400 eligible=22 active=22 | reject_no_subs=1377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:32 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=1995 step_count=1250
+INFO 05-05 01:23:32 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 657.7 tokens/s, Running: 46 reqs, Waiting: 54 reqs, GPU KV cache usage: 97.8%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:23:34 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2095 step_count=1300
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=22 active=22 | reject_no_subs=1477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=22 active=22 | reject_no_subs=1477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=22 active=22 | reject_no_subs=1477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=22 active=22 | reject_no_subs=1477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=22 active=22 | reject_no_subs=1477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=22 active=22 | reject_no_subs=1477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=22 active=22 | reject_no_subs=1477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:35 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1500 eligible=22 active=22 | reject_no_subs=1477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:36 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2195 step_count=1350
+(EngineCore pid=2472327) INFO 05-05 01:23:39 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2295 step_count=1400
+Processed prompts:  17%|█▋        | 17/100 [01:26<06:09,  4.45s/it, est. speed input: 1058.85 toks/s, output: 184.41 toks/s](Worker_TP5 pid=2472920) INFO 05-05 01:23:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=22 active=22 | reject_no_subs=1577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=22 active=22 | reject_no_subs=1577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=22 active=22 | reject_no_subs=1577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=22 active=22 | reject_no_subs=1577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=22 active=22 | reject_no_subs=1577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=22 active=22 | reject_no_subs=1577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=22 active=22 | reject_no_subs=1577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:39 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1600 eligible=22 active=22 | reject_no_subs=1577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:41 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2395 step_count=1450
+INFO 05-05 01:23:42 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 630.7 tokens/s, Running: 45 reqs, Waiting: 55 reqs, GPU KV cache usage: 99.5%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:23:43 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2495 step_count=1500
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=22 active=22 | reject_no_subs=1677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=22 active=22 | reject_no_subs=1677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=22 active=22 | reject_no_subs=1677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=22 active=22 | reject_no_subs=1677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=22 active=22 | reject_no_subs=1677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=22 active=22 | reject_no_subs=1677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=22 active=22 | reject_no_subs=1677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:44 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1700 eligible=22 active=22 | reject_no_subs=1677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:46 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=2577 step_count=1550
+(EngineCore pid=2472327) INFO 05-05 01:23:48 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=2627 step_count=1600
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=22 active=22 | reject_no_subs=1777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=22 active=22 | reject_no_subs=1777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=22 active=22 | reject_no_subs=1777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=22 active=22 | reject_no_subs=1777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=22 active=22 | reject_no_subs=1777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=22 active=22 | reject_no_subs=1777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=22 active=22 | reject_no_subs=1777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1800 eligible=22 active=22 | reject_no_subs=1777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:50 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2686 step_count=1650
+Processed prompts:  18%|█▊        | 18/100 [01:38<07:24,  5.42s/it, est. speed input: 989.07 toks/s, output: 181.03 toks/s] INFO 05-05 01:23:52 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 579.0 tokens/s, Running: 43 reqs, Waiting: 57 reqs, GPU KV cache usage: 98.0%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:23:53 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2786 step_count=1700
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=22 active=22 | reject_no_subs=1877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=22 active=22 | reject_no_subs=1877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=22 active=22 | reject_no_subs=1877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=22 active=22 | reject_no_subs=1877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=22 active=22 | reject_no_subs=1877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=22 active=22 | reject_no_subs=1877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=22 active=22 | reject_no_subs=1877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=1900 eligible=22 active=22 | reject_no_subs=1877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:55 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2886 step_count=1750
+Processed prompts:  19%|█▉        | 19/100 [01:44<07:27,  5.52s/it, est. speed input: 983.77 toks/s, output: 189.25 toks/s]Processed prompts:  21%|██        | 21/100 [01:44<04:59,  3.79s/it, est. speed input: 1086.21 toks/s, output: 226.46 toks/s](EngineCore pid=2472327) INFO 05-05 01:23:57 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=2986 step_count=1800
+(Worker_TP1 pid=2472916) INFO 05-05 01:23:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=22 active=22 | reject_no_subs=1977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:23:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=22 active=22 | reject_no_subs=1977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:23:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=22 active=22 | reject_no_subs=1977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:23:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=22 active=22 | reject_no_subs=1977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:23:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=22 active=22 | reject_no_subs=1977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:23:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=22 active=22 | reject_no_subs=1977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:23:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=22 active=22 | reject_no_subs=1977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:23:58 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2000 eligible=22 active=22 | reject_no_subs=1977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:23:59 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=3086 step_count=1850
+(EngineCore pid=2472327) INFO 05-05 01:24:01 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=3186 step_count=1900
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=22 active=22 | reject_no_subs=2077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=22 active=22 | reject_no_subs=2077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=22 active=22 | reject_no_subs=2077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=22 active=22 | reject_no_subs=2077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=22 active=22 | reject_no_subs=2077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=22 active=22 | reject_no_subs=2077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=22 active=22 | reject_no_subs=2077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2100 eligible=22 active=22 | reject_no_subs=2077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 01:24:02 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 420.7 tokens/s, Running: 37 reqs, Waiting: 63 reqs, GPU KV cache usage: 99.3%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:24:03 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=3286 step_count=1950
+(EngineCore pid=2472327) INFO 05-05 01:24:05 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=3386 step_count=2000
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=22 active=22 | reject_no_subs=2177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=22 active=22 | reject_no_subs=2177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=22 active=22 | reject_no_subs=2177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=22 active=22 | reject_no_subs=2177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=22 active=22 | reject_no_subs=2177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=22 active=22 | reject_no_subs=2177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=22 active=22 | reject_no_subs=2177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2200 eligible=22 active=22 | reject_no_subs=2177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:07 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=3486 step_count=2050
+(EngineCore pid=2472327) INFO 05-05 01:24:09 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=3586 step_count=2100
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=22 active=22 | reject_no_subs=2277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=22 active=22 | reject_no_subs=2277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=22 active=22 | reject_no_subs=2277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=22 active=22 | reject_no_subs=2277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=22 active=22 | reject_no_subs=2277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=22 active=22 | reject_no_subs=2277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=22 active=22 | reject_no_subs=2277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2300 eligible=22 active=22 | reject_no_subs=2277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+Processed prompts:  24%|██▍       | 24/100 [01:58<04:48,  3.79s/it, est. speed input: 1240.76 toks/s, output: 282.33 toks/s](EngineCore pid=2472327) INFO 05-05 01:24:11 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=3638 step_count=2150
+INFO 05-05 01:24:12 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 322.3 tokens/s, Running: 36 reqs, Waiting: 64 reqs, GPU KV cache usage: 97.0%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:24:13 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=3688 step_count=2200
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=22 active=22 | reject_no_subs=2377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=22 active=22 | reject_no_subs=2377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=22 active=22 | reject_no_subs=2377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=22 active=22 | reject_no_subs=2377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=22 active=22 | reject_no_subs=2377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=22 active=22 | reject_no_subs=2377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=22 active=22 | reject_no_subs=2377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:13 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2400 eligible=22 active=22 | reject_no_subs=2377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:15 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=3738 step_count=2250
+(EngineCore pid=2472327) INFO 05-05 01:24:17 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=3788 step_count=2300
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:17 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=22 active=22 | reject_no_subs=2477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:17 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=22 active=22 | reject_no_subs=2477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:17 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=22 active=22 | reject_no_subs=2477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:17 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=22 active=22 | reject_no_subs=2477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:17 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=22 active=22 | reject_no_subs=2477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:17 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=22 active=22 | reject_no_subs=2477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:17 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=22 active=22 | reject_no_subs=2477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:17 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2500 eligible=22 active=22 | reject_no_subs=2477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:19 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=3838 step_count=2350
+(EngineCore pid=2472327) INFO 05-05 01:24:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=3929 step_count=2400
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=22 active=22 | reject_no_subs=2577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=22 active=22 | reject_no_subs=2577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=22 active=22 | reject_no_subs=2577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=22 active=22 | reject_no_subs=2577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=22 active=22 | reject_no_subs=2577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=22 active=22 | reject_no_subs=2577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=22 active=22 | reject_no_subs=2577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2600 eligible=22 active=22 | reject_no_subs=2577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 01:24:22 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 305.3 tokens/s, Running: 36 reqs, Waiting: 64 reqs, GPU KV cache usage: 98.0%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:24:23 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4029 step_count=2450
+(EngineCore pid=2472327) INFO 05-05 01:24:25 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4129 step_count=2500
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=22 active=22 | reject_no_subs=2677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=22 active=22 | reject_no_subs=2677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=22 active=22 | reject_no_subs=2677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=22 active=22 | reject_no_subs=2677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=22 active=22 | reject_no_subs=2677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=22 active=22 | reject_no_subs=2677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=22 active=22 | reject_no_subs=2677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:25 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2700 eligible=22 active=22 | reject_no_subs=2677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:27 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4229 step_count=2550
+(EngineCore pid=2472327) INFO 05-05 01:24:29 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4329 step_count=2600
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=22 active=22 | reject_no_subs=2777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=22 active=22 | reject_no_subs=2777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=22 active=22 | reject_no_subs=2777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=22 active=22 | reject_no_subs=2777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=22 active=22 | reject_no_subs=2777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=22 active=22 | reject_no_subs=2777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=22 active=22 | reject_no_subs=2777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:29 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2800 eligible=22 active=22 | reject_no_subs=2777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:31 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4429 step_count=2650
+INFO 05-05 01:24:32 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 305.5 tokens/s, Running: 36 reqs, Waiting: 64 reqs, GPU KV cache usage: 99.0%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:24:33 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4529 step_count=2700
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=22 active=22 | reject_no_subs=2877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=22 active=22 | reject_no_subs=2877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=22 active=22 | reject_no_subs=2877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=22 active=22 | reject_no_subs=2877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=22 active=22 | reject_no_subs=2877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=22 active=22 | reject_no_subs=2877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=22 active=22 | reject_no_subs=2877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:33 [gpu_model_runner.py:4270] [NEO FORK STAT] total=2900 eligible=22 active=22 | reject_no_subs=2877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:35 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4629 step_count=2750
+(EngineCore pid=2472327) INFO 05-05 01:24:37 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4729 step_count=2800
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:37 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=22 active=22 | reject_no_subs=2977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:37 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=22 active=22 | reject_no_subs=2977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:37 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=22 active=22 | reject_no_subs=2977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:37 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=22 active=22 | reject_no_subs=2977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:37 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=22 active=22 | reject_no_subs=2977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:37 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=22 active=22 | reject_no_subs=2977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:37 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=22 active=22 | reject_no_subs=2977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:37 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3000 eligible=22 active=22 | reject_no_subs=2977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:39 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4829 step_count=2850
+(EngineCore pid=2472327) INFO 05-05 01:24:41 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=4929 step_count=2900
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:41 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=22 active=22 | reject_no_subs=3077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:41 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=22 active=22 | reject_no_subs=3077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:41 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=22 active=22 | reject_no_subs=3077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:41 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=22 active=22 | reject_no_subs=3077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:41 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=22 active=22 | reject_no_subs=3077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:41 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=22 active=22 | reject_no_subs=3077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:41 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=22 active=22 | reject_no_subs=3077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:41 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3100 eligible=22 active=22 | reject_no_subs=3077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 01:24:42 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 302.9 tokens/s, Running: 36 reqs, Waiting: 64 reqs, GPU KV cache usage: 100.0%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:24:43 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=5029 step_count=2950
+(EngineCore pid=2472327) INFO 05-05 01:24:45 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=5082 step_count=3000
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=22 active=22 | reject_no_subs=3177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=22 active=22 | reject_no_subs=3177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=22 active=22 | reject_no_subs=3177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=22 active=22 | reject_no_subs=3177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=22 active=22 | reject_no_subs=3177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=22 active=22 | reject_no_subs=3177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=22 active=22 | reject_no_subs=3177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:45 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3200 eligible=22 active=22 | reject_no_subs=3177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:47 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=5132 step_count=3050
+(EngineCore pid=2472327) INFO 05-05 01:24:49 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=5182 step_count=3100
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=22 active=22 | reject_no_subs=3277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=22 active=22 | reject_no_subs=3277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=22 active=22 | reject_no_subs=3277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=22 active=22 | reject_no_subs=3277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=22 active=22 | reject_no_subs=3277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=22 active=22 | reject_no_subs=3277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=22 active=22 | reject_no_subs=3277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:49 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3300 eligible=22 active=22 | reject_no_subs=3277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:51 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=5232 step_count=3150
+INFO 05-05 01:24:52 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 281.0 tokens/s, Running: 35 reqs, Waiting: 65 reqs, GPU KV cache usage: 97.2%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:24:52 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=5282 step_count=3200
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=22 active=22 | reject_no_subs=3377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=22 active=22 | reject_no_subs=3377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=22 active=22 | reject_no_subs=3377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=22 active=22 | reject_no_subs=3377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=22 active=22 | reject_no_subs=3377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=22 active=22 | reject_no_subs=3377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=22 active=22 | reject_no_subs=3377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:53 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3400 eligible=22 active=22 | reject_no_subs=3377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:54 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=5332 step_count=3250
+(EngineCore pid=2472327) INFO 05-05 01:24:56 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=5382 step_count=3300
+(Worker_TP7 pid=2472922) INFO 05-05 01:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=22 active=22 | reject_no_subs=3477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=22 active=22 | reject_no_subs=3477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=22 active=22 | reject_no_subs=3477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=22 active=22 | reject_no_subs=3477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=22 active=22 | reject_no_subs=3477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=22 active=22 | reject_no_subs=3477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=22 active=22 | reject_no_subs=3477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:24:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3500 eligible=22 active=22 | reject_no_subs=3477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:24:58 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=5432 step_count=3350
+(EngineCore pid=2472327) INFO 05-05 01:25:00 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=5529 step_count=3400
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:01 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=22 active=22 | reject_no_subs=3577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:01 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=22 active=22 | reject_no_subs=3577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:01 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=22 active=22 | reject_no_subs=3577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:01 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=22 active=22 | reject_no_subs=3577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:01 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=22 active=22 | reject_no_subs=3577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:01 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=22 active=22 | reject_no_subs=3577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:01 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=22 active=22 | reject_no_subs=3577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:01 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3600 eligible=22 active=22 | reject_no_subs=3577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:25:02 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=5629 step_count=3450
+INFO 05-05 01:25:02 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 279.2 tokens/s, Running: 35 reqs, Waiting: 65 reqs, GPU KV cache usage: 98.1%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:25:04 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=5729 step_count=3500
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=22 active=22 | reject_no_subs=3677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=22 active=22 | reject_no_subs=3677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=22 active=22 | reject_no_subs=3677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=22 active=22 | reject_no_subs=3677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=22 active=22 | reject_no_subs=3677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=22 active=22 | reject_no_subs=3677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=22 active=22 | reject_no_subs=3677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:05 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3700 eligible=22 active=22 | reject_no_subs=3677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:25:06 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=5829 step_count=3550
+(EngineCore pid=2472327) INFO 05-05 01:25:08 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=5929 step_count=3600
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=22 active=22 | reject_no_subs=3777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=22 active=22 | reject_no_subs=3777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=22 active=22 | reject_no_subs=3777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=22 active=22 | reject_no_subs=3777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=22 active=22 | reject_no_subs=3777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=22 active=22 | reject_no_subs=3777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=22 active=22 | reject_no_subs=3777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:09 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3800 eligible=22 active=22 | reject_no_subs=3777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:25:10 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=6029 step_count=3650
+(EngineCore pid=2472327) INFO 05-05 01:25:12 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=6129 step_count=3700
+INFO 05-05 01:25:12 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 278.8 tokens/s, Running: 35 reqs, Waiting: 65 reqs, GPU KV cache usage: 98.9%, Prefix cache hit rate: 0.0%
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:12 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=22 active=22 | reject_no_subs=3877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:12 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=22 active=22 | reject_no_subs=3877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:12 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=22 active=22 | reject_no_subs=3877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:12 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=22 active=22 | reject_no_subs=3877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:12 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=22 active=22 | reject_no_subs=3877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:12 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=22 active=22 | reject_no_subs=3877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:12 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=22 active=22 | reject_no_subs=3877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:12 [gpu_model_runner.py:4270] [NEO FORK STAT] total=3900 eligible=22 active=22 | reject_no_subs=3877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:25:14 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=6229 step_count=3750
+(EngineCore pid=2472327) INFO 05-05 01:25:16 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=6329 step_count=3800
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=22 active=22 | reject_no_subs=3977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=22 active=22 | reject_no_subs=3977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=22 active=22 | reject_no_subs=3977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=22 active=22 | reject_no_subs=3977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=22 active=22 | reject_no_subs=3977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=22 active=22 | reject_no_subs=3977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=22 active=22 | reject_no_subs=3977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:16 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4000 eligible=22 active=22 | reject_no_subs=3977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:25:18 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=6429 step_count=3850
+(EngineCore pid=2472327) INFO 05-05 01:25:20 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=6529 step_count=3900
+Processed prompts:  25%|██▌       | 25/100 [03:08<14:54, 11.92s/it, est. speed input: 719.05 toks/s, output: 178.82 toks/s] Processed prompts:  26%|██▌       | 26/100 [03:08<12:38, 10.25s/it, est. speed input: 746.33 toks/s, output: 200.16 toks/s](Worker_TP5 pid=2472920) INFO 05-05 01:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=22 active=22 | reject_no_subs=4077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=22 active=22 | reject_no_subs=4077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=22 active=22 | reject_no_subs=4077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=22 active=22 | reject_no_subs=4077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=22 active=22 | reject_no_subs=4077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=22 active=22 | reject_no_subs=4077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=22 active=22 | reject_no_subs=4077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:21 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4100 eligible=22 active=22 | reject_no_subs=4077 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+Processed prompts:  32%|███▏      | 32/100 [03:09<05:14,  4.63s/it, est. speed input: 915.24 toks/s, output: 329.17 toks/s]INFO 05-05 01:25:23 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 219.5 tokens/s, Running: 37 reqs, Waiting: 55 reqs, GPU KV cache usage: 95.1%, Prefix cache hit rate: 0.0%
+Processed prompts:  33%|███▎      | 33/100 [03:16<05:26,  4.87s/it, est. speed input: 911.78 toks/s, output: 338.88 toks/s]Processed prompts:  34%|███▍      | 34/100 [03:16<04:38,  4.21s/it, est. speed input: 938.05 toks/s, output: 359.24 toks/s]Processed prompts:  35%|███▌      | 35/100 [03:16<03:50,  3.55s/it, est. speed input: 964.28 toks/s, output: 379.57 toks/s]INFO 05-05 01:25:33 [loggers.py:271] Engine 000: Avg prompt throughput: 4330.8 tokens/s, Avg generation throughput: 234.2 tokens/s, Running: 64 reqs, Waiting: 28 reqs, GPU KV cache usage: 92.3%, Prefix cache hit rate: 0.0%
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=22 active=22 | reject_no_subs=4177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=22 active=22 | reject_no_subs=4177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=22 active=22 | reject_no_subs=4177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=22 active=22 | reject_no_subs=4177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=22 active=22 | reject_no_subs=4177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=22 active=22 | reject_no_subs=4177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=22 active=22 | reject_no_subs=4177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:34 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4200 eligible=22 active=22 | reject_no_subs=4177 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=22 active=22 | reject_no_subs=4277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=22 active=22 | reject_no_subs=4277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=22 active=22 | reject_no_subs=4277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=22 active=22 | reject_no_subs=4277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=22 active=22 | reject_no_subs=4277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=22 active=22 | reject_no_subs=4277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=22 active=22 | reject_no_subs=4277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:38 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4300 eligible=22 active=22 | reject_no_subs=4277 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+Processed prompts:  36%|███▌      | 36/100 [03:28<05:31,  5.19s/it, est. speed input: 934.97 toks/s, output: 362.89 toks/s](EngineCore pid=2472327) INFO 05-05 01:25:41 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=6613 step_count=3950
+INFO 05-05 01:25:43 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 790.8 tokens/s, Running: 64 reqs, Waiting: 28 reqs, GPU KV cache usage: 95.3%, Prefix cache hit rate: 0.0%
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=22 active=22 | reject_no_subs=4377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=22 active=22 | reject_no_subs=4377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=22 active=22 | reject_no_subs=4377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=22 active=22 | reject_no_subs=4377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=22 active=22 | reject_no_subs=4377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=22 active=22 | reject_no_subs=4377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=22 active=22 | reject_no_subs=4377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:43 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4400 eligible=22 active=22 | reject_no_subs=4377 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:25:43 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=6663 step_count=4000
+(EngineCore pid=2472327) INFO 05-05 01:25:46 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=6713 step_count=4050
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=22 active=22 | reject_no_subs=4477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=22 active=22 | reject_no_subs=4477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=22 active=22 | reject_no_subs=4477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=22 active=22 | reject_no_subs=4477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=22 active=22 | reject_no_subs=4477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=22 active=22 | reject_no_subs=4477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=22 active=22 | reject_no_subs=4477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:48 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4500 eligible=22 active=22 | reject_no_subs=4477 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:25:48 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=6763 step_count=4100
+(EngineCore pid=2472327) INFO 05-05 01:25:50 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=6813 step_count=4150
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=22 active=22 | reject_no_subs=4577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=22 active=22 | reject_no_subs=4577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=22 active=22 | reject_no_subs=4577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=22 active=22 | reject_no_subs=4577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=22 active=22 | reject_no_subs=4577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=22 active=22 | reject_no_subs=4577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=22 active=22 | reject_no_subs=4577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:52 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4600 eligible=22 active=22 | reject_no_subs=4577 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+INFO 05-05 01:25:53 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 775.6 tokens/s, Running: 64 reqs, Waiting: 28 reqs, GPU KV cache usage: 95.7%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:25:53 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=6863 step_count=4200
+(EngineCore pid=2472327) INFO 05-05 01:25:55 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=6913 step_count=4250
+(Worker_TP1 pid=2472916) INFO 05-05 01:25:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=22 active=22 | reject_no_subs=4677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:25:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=22 active=22 | reject_no_subs=4677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:25:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=22 active=22 | reject_no_subs=4677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:25:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=22 active=22 | reject_no_subs=4677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:25:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=22 active=22 | reject_no_subs=4677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:25:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=22 active=22 | reject_no_subs=4677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:25:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=22 active=22 | reject_no_subs=4677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:25:57 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4700 eligible=22 active=22 | reject_no_subs=4677 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:25:58 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=6963 step_count=4300
+(EngineCore pid=2472327) INFO 05-05 01:26:00 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=7013 step_count=4350
+(Worker_TP1 pid=2472916) INFO 05-05 01:26:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=22 active=22 | reject_no_subs=4777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:26:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=22 active=22 | reject_no_subs=4777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:26:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=22 active=22 | reject_no_subs=4777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:26:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=22 active=22 | reject_no_subs=4777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:26:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=22 active=22 | reject_no_subs=4777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:26:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=22 active=22 | reject_no_subs=4777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:26:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=22 active=22 | reject_no_subs=4777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:26:02 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4800 eligible=22 active=22 | reject_no_subs=4777 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:26:02 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=7063 step_count=4400
+INFO 05-05 01:26:03 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 764.8 tokens/s, Running: 64 reqs, Waiting: 28 reqs, GPU KV cache usage: 96.1%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:26:04 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=7113 step_count=4450
+(Worker_TP1 pid=2472916) INFO 05-05 01:26:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=22 active=22 | reject_no_subs=4877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:26:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=22 active=22 | reject_no_subs=4877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:26:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=22 active=22 | reject_no_subs=4877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:26:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=22 active=22 | reject_no_subs=4877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:26:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=22 active=22 | reject_no_subs=4877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:26:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=22 active=22 | reject_no_subs=4877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:26:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=22 active=22 | reject_no_subs=4877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP5 pid=2472920) INFO 05-05 01:26:06 [gpu_model_runner.py:4270] [NEO FORK STAT] total=4900 eligible=22 active=22 | reject_no_subs=4877 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:26:07 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=7163 step_count=4500
+(EngineCore pid=2472327) INFO 05-05 01:26:09 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=7213 step_count=4550
+(Worker_TP5 pid=2472920) INFO 05-05 01:26:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=22 active=22 | reject_no_subs=4977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP7 pid=2472922) INFO 05-05 01:26:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=22 active=22 | reject_no_subs=4977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP6 pid=2472921) INFO 05-05 01:26:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=22 active=22 | reject_no_subs=4977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP3 pid=2472918) INFO 05-05 01:26:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=22 active=22 | reject_no_subs=4977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP0 pid=2472915) INFO 05-05 01:26:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=22 active=22 | reject_no_subs=4977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP1 pid=2472916) INFO 05-05 01:26:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=22 active=22 | reject_no_subs=4977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP4 pid=2472919) INFO 05-05 01:26:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=22 active=22 | reject_no_subs=4977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(Worker_TP2 pid=2472917) INFO 05-05 01:26:11 [gpu_model_runner.py:4270] [NEO FORK STAT] total=5000 eligible=22 active=22 | reject_no_subs=4977 reject_b1_empty=0 reject_prefix_fail=0 reject_split_oob=0
+(EngineCore pid=2472327) INFO 05-05 01:26:11 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=1 (before=1 after=0) total_drained=7263 step_count=4600
+Processed prompts:  37%|███▋      | 37/100 [04:00<11:32, 10.99s/it, est. speed input: 833.75 toks/s, output: 331.79 toks/s]Processed prompts:  39%|███▉      | 39/100 [04:00<06:54,  6.79s/it, est. speed input: 878.45 toks/s, output: 349.57 toks/s]INFO 05-05 01:26:13 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 768.3 tokens/s, Running: 61 reqs, Waiting: 31 reqs, GPU KV cache usage: 99.8%, Prefix cache hit rate: 0.0%
+(EngineCore pid=2472327) INFO 05-05 01:26:14 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=2 (before=2 after=0) total_drained=7342 step_count=4650
+Processed prompts:  41%|████      | 41/100 [04:02<04:43,  4.80s/it, est. speed input: 914.59 toks/s, output: 366.16 toks/s]Processed prompts:  43%|████▎     | 43/100 [04:03<03:03,  3.21s/it, est. speed input: 958.68 toks/s, output: 382.05 toks/s]Processed prompts:  44%|████▍     | 44/100 [04:03<02:26,  2.62s/it, est. speed input: 980.34 toks/s, output: 390.39 toks/s]Processed prompts:  46%|████▌     | 46/100 [04:03<01:32,  1.72s/it, est. speed input: 1024.22 toks/s, output: 410.40 toks/s](EngineCore pid=2472327) INFO 05-05 01:26:16 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=7576 step_count=4700
+(EngineCore pid=2472327) INFO 05-05 01:26:17 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=7976 step_count=4750
+(EngineCore pid=2472327) INFO 05-05 01:26:19 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=8376 step_count=4800
+(EngineCore pid=2472327) INFO 05-05 01:26:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=8776 step_count=4850
+(EngineCore pid=2472327) INFO 05-05 01:26:22 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=9176 step_count=4900
+(EngineCore pid=2472327) INFO 05-05 01:26:24 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=9576 step_count=4950
+(EngineCore pid=2472327) INFO 05-05 01:26:25 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=9976 step_count=5000
+(EngineCore pid=2472327) INFO 05-05 01:26:27 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=10376 step_count=5050
+(EngineCore pid=2472327) INFO 05-05 01:26:29 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=10776 step_count=5100
+(EngineCore pid=2472327) INFO 05-05 01:26:30 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=11176 step_count=5150
+(EngineCore pid=2472327) INFO 05-05 01:26:32 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=11576 step_count=5200
+(EngineCore pid=2472327) INFO 05-05 01:26:33 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=11976 step_count=5250
+(EngineCore pid=2472327) INFO 05-05 01:26:35 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=12376 step_count=5300
+(EngineCore pid=2472327) INFO 05-05 01:26:37 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=12776 step_count=5350
+(EngineCore pid=2472327) INFO 05-05 01:26:38 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=13176 step_count=5400
+(EngineCore pid=2472327) INFO 05-05 01:26:40 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=13576 step_count=5450
+(EngineCore pid=2472327) INFO 05-05 01:26:42 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=13976 step_count=5500
+(EngineCore pid=2472327) INFO 05-05 01:26:43 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=14376 step_count=5550
+(EngineCore pid=2472327) INFO 05-05 01:26:45 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=14776 step_count=5600
+(EngineCore pid=2472327) INFO 05-05 01:26:47 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=15176 step_count=5650
+(EngineCore pid=2472327) INFO 05-05 01:26:49 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=15576 step_count=5700
+(EngineCore pid=2472327) INFO 05-05 01:26:51 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=15976 step_count=5750
+(EngineCore pid=2472327) INFO 05-05 01:26:52 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=16376 step_count=5800
+(EngineCore pid=2472327) INFO 05-05 01:26:54 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=16776 step_count=5850
+(EngineCore pid=2472327) INFO 05-05 01:26:56 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=17176 step_count=5900
+(EngineCore pid=2472327) INFO 05-05 01:26:58 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=17576 step_count=5950
+(EngineCore pid=2472327) INFO 05-05 01:27:00 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=17976 step_count=6000
+(EngineCore pid=2472327) INFO 05-05 01:27:02 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=18376 step_count=6050
+(EngineCore pid=2472327) INFO 05-05 01:27:04 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=18776 step_count=6100
+(EngineCore pid=2472327) INFO 05-05 01:27:06 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=19176 step_count=6150
+(EngineCore pid=2472327) INFO 05-05 01:27:08 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=19576 step_count=6200
+(EngineCore pid=2472327) INFO 05-05 01:27:09 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=19976 step_count=6250
+(EngineCore pid=2472327) INFO 05-05 01:27:11 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=20376 step_count=6300
+(EngineCore pid=2472327) INFO 05-05 01:27:13 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=20776 step_count=6350
+(EngineCore pid=2472327) INFO 05-05 01:27:15 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=21176 step_count=6400
+(EngineCore pid=2472327) INFO 05-05 01:27:17 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=21576 step_count=6450
+(EngineCore pid=2472327) INFO 05-05 01:27:19 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=21976 step_count=6500
+(EngineCore pid=2472327) INFO 05-05 01:27:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=22376 step_count=6550
+(EngineCore pid=2472327) INFO 05-05 01:27:23 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=22776 step_count=6600
+(EngineCore pid=2472327) INFO 05-05 01:27:25 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=23176 step_count=6650
+(EngineCore pid=2472327) INFO 05-05 01:27:26 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=23576 step_count=6700
+(EngineCore pid=2472327) INFO 05-05 01:27:28 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=23976 step_count=6750
+(EngineCore pid=2472327) INFO 05-05 01:27:30 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=24376 step_count=6800
+(EngineCore pid=2472327) INFO 05-05 01:27:32 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=24776 step_count=6850
+(EngineCore pid=2472327) INFO 05-05 01:27:34 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=25176 step_count=6900
+(EngineCore pid=2472327) INFO 05-05 01:27:36 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=25576 step_count=6950
+(EngineCore pid=2472327) INFO 05-05 01:27:38 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=25976 step_count=7000
+(EngineCore pid=2472327) INFO 05-05 01:27:40 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=26376 step_count=7050
+(EngineCore pid=2472327) INFO 05-05 01:27:42 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=26776 step_count=7100
+(EngineCore pid=2472327) INFO 05-05 01:27:43 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=27176 step_count=7150
+(EngineCore pid=2472327) INFO 05-05 01:27:45 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=27576 step_count=7200
+(EngineCore pid=2472327) INFO 05-05 01:27:47 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=27976 step_count=7250
+(EngineCore pid=2472327) INFO 05-05 01:27:49 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=28376 step_count=7300
+(EngineCore pid=2472327) INFO 05-05 01:27:51 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=28776 step_count=7350
+(EngineCore pid=2472327) INFO 05-05 01:27:53 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=29176 step_count=7400
+(EngineCore pid=2472327) INFO 05-05 01:27:55 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=29576 step_count=7450
+(EngineCore pid=2472327) INFO 05-05 01:27:57 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=29976 step_count=7500
+(EngineCore pid=2472327) INFO 05-05 01:27:59 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=30376 step_count=7550
+(EngineCore pid=2472327) INFO 05-05 01:28:00 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=30776 step_count=7600
+(EngineCore pid=2472327) INFO 05-05 01:28:02 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=31176 step_count=7650
+(EngineCore pid=2472327) INFO 05-05 01:28:04 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=31576 step_count=7700
+(EngineCore pid=2472327) INFO 05-05 01:28:06 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=31976 step_count=7750
+(EngineCore pid=2472327) INFO 05-05 01:28:08 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=32376 step_count=7800
+(EngineCore pid=2472327) INFO 05-05 01:28:10 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=32776 step_count=7850
+(EngineCore pid=2472327) INFO 05-05 01:28:12 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=33176 step_count=7900
+(EngineCore pid=2472327) INFO 05-05 01:28:14 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=33576 step_count=7950
+(EngineCore pid=2472327) INFO 05-05 01:28:16 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=33976 step_count=8000
+(EngineCore pid=2472327) INFO 05-05 01:28:17 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=34376 step_count=8050
+(EngineCore pid=2472327) INFO 05-05 01:28:19 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=34776 step_count=8100
+(EngineCore pid=2472327) INFO 05-05 01:28:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=35176 step_count=8150
+(EngineCore pid=2472327) INFO 05-05 01:28:23 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=35576 step_count=8200
+(EngineCore pid=2472327) INFO 05-05 01:28:25 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=35976 step_count=8250
+(EngineCore pid=2472327) INFO 05-05 01:28:27 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=36376 step_count=8300
+(EngineCore pid=2472327) INFO 05-05 01:28:29 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=36776 step_count=8350
+(EngineCore pid=2472327) INFO 05-05 01:28:31 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=37176 step_count=8400
+(EngineCore pid=2472327) INFO 05-05 01:28:33 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=37576 step_count=8450
+(EngineCore pid=2472327) INFO 05-05 01:28:34 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=37976 step_count=8500
+(EngineCore pid=2472327) INFO 05-05 01:28:36 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=38376 step_count=8550
+(EngineCore pid=2472327) INFO 05-05 01:28:38 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=38776 step_count=8600
+(EngineCore pid=2472327) INFO 05-05 01:28:40 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=39176 step_count=8650
+(EngineCore pid=2472327) INFO 05-05 01:28:42 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=39576 step_count=8700
+(EngineCore pid=2472327) INFO 05-05 01:28:44 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=39976 step_count=8750
+(EngineCore pid=2472327) INFO 05-05 01:28:46 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=40376 step_count=8800
+(EngineCore pid=2472327) INFO 05-05 01:28:48 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=40776 step_count=8850
+(EngineCore pid=2472327) INFO 05-05 01:28:49 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=41176 step_count=8900
+(EngineCore pid=2472327) INFO 05-05 01:28:51 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=41576 step_count=8950
+(EngineCore pid=2472327) INFO 05-05 01:28:53 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=41976 step_count=9000
+(EngineCore pid=2472327) INFO 05-05 01:28:55 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=42376 step_count=9050
+(EngineCore pid=2472327) INFO 05-05 01:28:57 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=42776 step_count=9100
+(EngineCore pid=2472327) INFO 05-05 01:28:59 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=43176 step_count=9150
+(EngineCore pid=2472327) INFO 05-05 01:29:01 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=43576 step_count=9200
+(EngineCore pid=2472327) INFO 05-05 01:29:03 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=43976 step_count=9250
+(EngineCore pid=2472327) INFO 05-05 01:29:04 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=44376 step_count=9300
+(EngineCore pid=2472327) INFO 05-05 01:29:06 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=44776 step_count=9350
+(EngineCore pid=2472327) INFO 05-05 01:29:08 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=45176 step_count=9400
+(EngineCore pid=2472327) INFO 05-05 01:29:10 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=45576 step_count=9450
+(EngineCore pid=2472327) INFO 05-05 01:29:12 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=45976 step_count=9500
+(EngineCore pid=2472327) INFO 05-05 01:29:14 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=46376 step_count=9550
+(EngineCore pid=2472327) INFO 05-05 01:29:16 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=46776 step_count=9600
+(EngineCore pid=2472327) INFO 05-05 01:29:18 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=47176 step_count=9650
+(EngineCore pid=2472327) INFO 05-05 01:29:20 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=47576 step_count=9700
+(EngineCore pid=2472327) INFO 05-05 01:29:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=47976 step_count=9750
+(EngineCore pid=2472327) INFO 05-05 01:29:23 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=48376 step_count=9800
+(EngineCore pid=2472327) INFO 05-05 01:29:25 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=48776 step_count=9850
+(EngineCore pid=2472327) INFO 05-05 01:29:27 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=49176 step_count=9900
+(EngineCore pid=2472327) INFO 05-05 01:29:29 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=49576 step_count=9950
+(EngineCore pid=2472327) INFO 05-05 01:29:31 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=49976 step_count=10000
+(EngineCore pid=2472327) INFO 05-05 01:29:33 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=50376 step_count=10050
+(EngineCore pid=2472327) INFO 05-05 01:29:35 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=50776 step_count=10100
+(EngineCore pid=2472327) INFO 05-05 01:29:36 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=51176 step_count=10150
+(EngineCore pid=2472327) INFO 05-05 01:29:38 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=51576 step_count=10200
+(EngineCore pid=2472327) INFO 05-05 01:29:40 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=51976 step_count=10250
+(EngineCore pid=2472327) INFO 05-05 01:29:42 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=52376 step_count=10300
+(EngineCore pid=2472327) INFO 05-05 01:29:44 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=52776 step_count=10350
+(EngineCore pid=2472327) INFO 05-05 01:29:46 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=53176 step_count=10400
+(EngineCore pid=2472327) INFO 05-05 01:29:48 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=53576 step_count=10450
+(EngineCore pid=2472327) INFO 05-05 01:29:50 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=53976 step_count=10500
+(EngineCore pid=2472327) INFO 05-05 01:29:52 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=54376 step_count=10550
+(EngineCore pid=2472327) INFO 05-05 01:29:53 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=54776 step_count=10600
+(EngineCore pid=2472327) INFO 05-05 01:29:55 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=55176 step_count=10650
+(EngineCore pid=2472327) INFO 05-05 01:29:57 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=55576 step_count=10700
+(EngineCore pid=2472327) INFO 05-05 01:29:59 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=55976 step_count=10750
+(EngineCore pid=2472327) INFO 05-05 01:30:01 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=56376 step_count=10800
+(EngineCore pid=2472327) INFO 05-05 01:30:03 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=56776 step_count=10850
+(EngineCore pid=2472327) INFO 05-05 01:30:05 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=57176 step_count=10900
+(EngineCore pid=2472327) INFO 05-05 01:30:07 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=57576 step_count=10950
+(EngineCore pid=2472327) INFO 05-05 01:30:09 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=57976 step_count=11000
+(EngineCore pid=2472327) INFO 05-05 01:30:10 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=58376 step_count=11050
+(EngineCore pid=2472327) INFO 05-05 01:30:12 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=58776 step_count=11100
+(EngineCore pid=2472327) INFO 05-05 01:30:14 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=59176 step_count=11150
+(EngineCore pid=2472327) INFO 05-05 01:30:16 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=59576 step_count=11200
+(EngineCore pid=2472327) INFO 05-05 01:30:18 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=59976 step_count=11250
+(EngineCore pid=2472327) INFO 05-05 01:30:20 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=60376 step_count=11300
+(EngineCore pid=2472327) INFO 05-05 01:30:22 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=60776 step_count=11350
+(EngineCore pid=2472327) INFO 05-05 01:30:24 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=61176 step_count=11400
+(EngineCore pid=2472327) INFO 05-05 01:30:26 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=61576 step_count=11450
+(EngineCore pid=2472327) INFO 05-05 01:30:28 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=61976 step_count=11500
+(EngineCore pid=2472327) INFO 05-05 01:30:29 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=62376 step_count=11550
+(EngineCore pid=2472327) INFO 05-05 01:30:31 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=62776 step_count=11600
+(EngineCore pid=2472327) INFO 05-05 01:30:33 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=63176 step_count=11650
+(EngineCore pid=2472327) INFO 05-05 01:30:35 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=63576 step_count=11700
+(EngineCore pid=2472327) INFO 05-05 01:30:37 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=63976 step_count=11750
+(EngineCore pid=2472327) INFO 05-05 01:30:39 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=64376 step_count=11800
+(EngineCore pid=2472327) INFO 05-05 01:30:41 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=64776 step_count=11850
+(EngineCore pid=2472327) INFO 05-05 01:30:43 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=65176 step_count=11900
+(EngineCore pid=2472327) INFO 05-05 01:30:45 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=65576 step_count=11950
+(EngineCore pid=2472327) INFO 05-05 01:30:46 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=65976 step_count=12000
+(EngineCore pid=2472327) INFO 05-05 01:30:48 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=66376 step_count=12050
+(EngineCore pid=2472327) INFO 05-05 01:30:50 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=66776 step_count=12100
+(EngineCore pid=2472327) INFO 05-05 01:30:52 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=67176 step_count=12150
+(EngineCore pid=2472327) INFO 05-05 01:30:54 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=67576 step_count=12200
+(EngineCore pid=2472327) INFO 05-05 01:30:56 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=67976 step_count=12250
+(EngineCore pid=2472327) INFO 05-05 01:30:58 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=68376 step_count=12300
+(EngineCore pid=2472327) INFO 05-05 01:31:00 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=68776 step_count=12350
+(EngineCore pid=2472327) INFO 05-05 01:31:02 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=69176 step_count=12400
+(EngineCore pid=2472327) INFO 05-05 01:31:03 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=69576 step_count=12450
+(EngineCore pid=2472327) INFO 05-05 01:31:05 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=69976 step_count=12500
+(EngineCore pid=2472327) INFO 05-05 01:31:07 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=70376 step_count=12550
+(EngineCore pid=2472327) INFO 05-05 01:31:09 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=70776 step_count=12600
+(EngineCore pid=2472327) INFO 05-05 01:31:11 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=71176 step_count=12650
+(EngineCore pid=2472327) INFO 05-05 01:31:13 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=71576 step_count=12700
+(EngineCore pid=2472327) INFO 05-05 01:31:15 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=71976 step_count=12750
+(EngineCore pid=2472327) INFO 05-05 01:31:17 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=72376 step_count=12800
+(EngineCore pid=2472327) INFO 05-05 01:31:19 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=72776 step_count=12850
+(EngineCore pid=2472327) INFO 05-05 01:31:20 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=73176 step_count=12900
+(EngineCore pid=2472327) INFO 05-05 01:31:22 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=73576 step_count=12950
+(EngineCore pid=2472327) INFO 05-05 01:31:24 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=73976 step_count=13000
+(EngineCore pid=2472327) INFO 05-05 01:31:26 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=74376 step_count=13050
+(EngineCore pid=2472327) INFO 05-05 01:31:28 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=74776 step_count=13100
+(EngineCore pid=2472327) INFO 05-05 01:31:30 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=75176 step_count=13150
+(EngineCore pid=2472327) INFO 05-05 01:31:32 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=75576 step_count=13200
+(EngineCore pid=2472327) INFO 05-05 01:31:34 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=75976 step_count=13250
+(EngineCore pid=2472327) INFO 05-05 01:31:36 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=76376 step_count=13300
+(EngineCore pid=2472327) INFO 05-05 01:31:37 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=76776 step_count=13350
+(EngineCore pid=2472327) INFO 05-05 01:31:39 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=77176 step_count=13400
+(EngineCore pid=2472327) INFO 05-05 01:31:41 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=77576 step_count=13450
+(EngineCore pid=2472327) INFO 05-05 01:31:43 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=77976 step_count=13500
+(EngineCore pid=2472327) INFO 05-05 01:31:45 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=78376 step_count=13550
+(EngineCore pid=2472327) INFO 05-05 01:31:47 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=78776 step_count=13600
+(EngineCore pid=2472327) INFO 05-05 01:31:49 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=79176 step_count=13650
+(EngineCore pid=2472327) INFO 05-05 01:31:51 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=79576 step_count=13700
+(EngineCore pid=2472327) INFO 05-05 01:31:53 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=79976 step_count=13750
+(EngineCore pid=2472327) INFO 05-05 01:31:54 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=80376 step_count=13800
+(EngineCore pid=2472327) INFO 05-05 01:31:56 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=80776 step_count=13850
+(EngineCore pid=2472327) INFO 05-05 01:31:58 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=81176 step_count=13900
+(EngineCore pid=2472327) INFO 05-05 01:32:00 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=81576 step_count=13950
+(EngineCore pid=2472327) INFO 05-05 01:32:02 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=81976 step_count=14000
+(EngineCore pid=2472327) INFO 05-05 01:32:04 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=82376 step_count=14050
+(EngineCore pid=2472327) INFO 05-05 01:32:06 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=82776 step_count=14100
+(EngineCore pid=2472327) INFO 05-05 01:32:08 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=83176 step_count=14150
+(EngineCore pid=2472327) INFO 05-05 01:32:10 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=83576 step_count=14200
+(EngineCore pid=2472327) INFO 05-05 01:32:12 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=83976 step_count=14250
+(EngineCore pid=2472327) INFO 05-05 01:32:13 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=84376 step_count=14300
+(EngineCore pid=2472327) INFO 05-05 01:32:15 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=84776 step_count=14350
+(EngineCore pid=2472327) INFO 05-05 01:32:17 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=85176 step_count=14400
+(EngineCore pid=2472327) INFO 05-05 01:32:19 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=85576 step_count=14450
+(EngineCore pid=2472327) INFO 05-05 01:32:21 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=85976 step_count=14500
+(EngineCore pid=2472327) INFO 05-05 01:32:23 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=86376 step_count=14550
+(EngineCore pid=2472327) INFO 05-05 01:32:25 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=86776 step_count=14600
+(EngineCore pid=2472327) INFO 05-05 01:32:27 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=87176 step_count=14650
+(EngineCore pid=2472327) INFO 05-05 01:32:29 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=87576 step_count=14700
+(EngineCore pid=2472327) INFO 05-05 01:32:31 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=87976 step_count=14750
+(EngineCore pid=2472327) INFO 05-05 01:32:32 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=88376 step_count=14800
+(EngineCore pid=2472327) INFO 05-05 01:32:34 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=88776 step_count=14850
+(EngineCore pid=2472327) INFO 05-05 01:32:36 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=89176 step_count=14900
+(EngineCore pid=2472327) INFO 05-05 01:32:38 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=89576 step_count=14950
+(EngineCore pid=2472327) INFO 05-05 01:32:40 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=89976 step_count=15000
+(EngineCore pid=2472327) INFO 05-05 01:32:42 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=90376 step_count=15050
+(EngineCore pid=2472327) INFO 05-05 01:32:44 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=90776 step_count=15100
+(EngineCore pid=2472327) INFO 05-05 01:32:46 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=91176 step_count=15150
+(EngineCore pid=2472327) INFO 05-05 01:32:48 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=91576 step_count=15200
+(EngineCore pid=2472327) INFO 05-05 01:32:50 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=91976 step_count=15250
+(EngineCore pid=2472327) INFO 05-05 01:32:52 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=92376 step_count=15300
+(EngineCore pid=2472327) INFO 05-05 01:32:53 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=92776 step_count=15350
+(EngineCore pid=2472327) INFO 05-05 01:32:55 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=93176 step_count=15400
+(EngineCore pid=2472327) INFO 05-05 01:32:57 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=93576 step_count=15450
+(EngineCore pid=2472327) INFO 05-05 01:32:59 [neo_scheduler_adapter.py:271] [NEO CPU-Q DRAIN] this_step drained=8 (before=8 after=0) total_drained=93976 step_count=15500
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 8 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 10 leaked shared_memory objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
