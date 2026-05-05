@@ -1,0 +1,991 @@
+[baseline] model=meta-llama/Llama-3.3-70B-Instruct
+[baseline] TP=8 max_model_len=16384 max_num_seqs=64
+[baseline] num_prompts=100 target_input_len=8192 max_tokens=4096
+[baseline] avg prompt chars: 22706
+[baseline] enable_neo_asymmetric=True
+INFO 05-03 23:39:14 [arg_utils.py:694] HF_HUB_OFFLINE is True, replace model_id [meta-llama/Llama-3.3-70B-Instruct] to model_path [/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b]
+INFO 05-03 23:39:14 [utils.py:233] non-default args: {'max_model_len': 16384, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.35, 'max_num_seqs': 64, 'enforce_eager': True, 'enable_neo_asymmetric': True, 'model': '/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b'}
+WARNING 05-03 23:39:14 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_SWAP_OUT_RATIO
+WARNING 05-03 23:39:14 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NEO_KV_FREE
+INFO 05-03 23:39:14 [model.py:554] Resolved architecture: LlamaForCausalLM
+INFO 05-03 23:39:14 [model.py:1685] Using max model len 16384
+INFO 05-03 23:39:14 [scheduler.py:267] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-03 23:39:14 [vllm.py:834] Asynchronous scheduling is enabled.
+WARNING 05-03 23:39:14 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-03 23:39:14 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-03 23:39:14 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+INFO 05-03 23:39:15 [vllm.py:1081] Cudagraph is disabled under eager mode
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+INFO 05-03 23:39:19 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+WARNING 05-03 23:39:20 [system_utils.py:157] We must use the `spawn` multiprocessing start method. Overriding VLLM_WORKER_MULTIPROC_METHOD to 'spawn'. See https://docs.vllm.ai/en/latest/usage/troubleshooting.html#python-multiprocessing for more information. Reasons: CUDA is initialized
+(EngineCore pid=1851523) INFO 05-03 23:39:27 [core.py:107] Initializing a V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=1851523) WARNING 05-03 23:39:27 [multiproc_executor.py:1029] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=1851523) INFO 05-03 23:39:27 [multiproc_executor.py:139] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=211.115.75.82 (local), world_size=8, local_world_size=8
+(Worker pid=1852133) INFO 05-03 23:39:39 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:56785 backend=nccl
+(Worker pid=1852129) INFO 05-03 23:39:41 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:56785 backend=nccl
+(Worker pid=1852128) INFO 05-03 23:39:42 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:56785 backend=nccl
+(Worker pid=1852135) INFO 05-03 23:39:42 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:56785 backend=nccl
+(Worker pid=1852132) INFO 05-03 23:39:42 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:56785 backend=nccl
+(Worker pid=1852130) INFO 05-03 23:39:42 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:56785 backend=nccl
+(Worker pid=1852131) INFO 05-03 23:39:42 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:56785 backend=nccl
+(Worker pid=1852134) INFO 05-03 23:39:42 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:56785 backend=nccl
+(Worker pid=1852128) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1852128) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1852131) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1852131) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1852133) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1852133) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1852129) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1852128) INFO 05-03 23:39:45 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=1852129) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1852135) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1852135) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1852130) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1852130) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1852132) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1852132) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1852134) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=1852134) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=1852128) INFO 05-03 23:39:48 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(Worker_TP0 pid=1852128) INFO 05-03 23:39:49 [gpu_model_runner.py:5098] Starting to load model /root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b...
+(Worker_TP0 pid=1852128) INFO 05-03 23:39:49 [cuda.py:368] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(Worker_TP0 pid=1852128) INFO 05-03 23:39:49 [flash_attn.py:637] Using FlashAttention version 3
+(Worker_TP0 pid=1852128) INFO 05-03 23:39:50 [weight_utils.py:904] Filesystem type for checkpoints: XFS. Checkpoint size: 131.42 GiB. Available RAM: 1928.59 GiB.
+(Worker_TP0 pid=1852128) INFO 05-03 23:39:50 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (XFS) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:   0% Completed | 0/30 [00:00<?, ?it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:   3% Completed | 1/30 [00:00<00:06,  4.53it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:   7% Completed | 2/30 [00:00<00:08,  3.49it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  10% Completed | 3/30 [00:00<00:08,  3.28it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  13% Completed | 4/30 [00:01<00:08,  3.15it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  17% Completed | 5/30 [00:01<00:07,  3.34it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  20% Completed | 6/30 [00:01<00:07,  3.25it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  23% Completed | 7/30 [00:02<00:07,  3.12it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  27% Completed | 8/30 [00:02<00:07,  2.91it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  30% Completed | 9/30 [00:02<00:07,  2.77it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  33% Completed | 10/30 [00:03<00:06,  2.90it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  37% Completed | 11/30 [00:03<00:06,  2.83it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  40% Completed | 12/30 [00:03<00:06,  2.90it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  43% Completed | 13/30 [00:04<00:05,  2.84it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  47% Completed | 14/30 [00:04<00:06,  2.49it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  50% Completed | 15/30 [00:05<00:05,  2.54it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  53% Completed | 16/30 [00:05<00:05,  2.47it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  57% Completed | 17/30 [00:06<00:05,  2.46it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  60% Completed | 18/30 [00:06<00:04,  2.50it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  63% Completed | 19/30 [00:06<00:04,  2.53it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  67% Completed | 20/30 [00:07<00:03,  2.70it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  70% Completed | 21/30 [00:07<00:03,  2.70it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  73% Completed | 22/30 [00:07<00:02,  2.70it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  77% Completed | 23/30 [00:08<00:02,  2.71it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  80% Completed | 24/30 [00:08<00:02,  2.76it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  83% Completed | 25/30 [00:08<00:01,  2.89it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  87% Completed | 26/30 [00:09<00:01,  2.84it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  90% Completed | 27/30 [00:09<00:01,  2.76it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  93% Completed | 28/30 [00:10<00:00,  2.74it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards:  97% Completed | 29/30 [00:10<00:00,  2.72it/s]
+(Worker_TP0 pid=1852128) Loading safetensors checkpoint shards: 100% Completed | 30/30 [00:10<00:00,  2.86it/s]
+(Worker_TP0 pid=1852128) 
+(Worker_TP0 pid=1852128) INFO 05-03 23:40:00 [default_loader.py:384] Loading weights took 10.49 seconds
+(Worker_TP0 pid=1852128) INFO 05-03 23:40:01 [gpu_model_runner.py:5183] Model loading took 16.46 GiB memory and 10.987149 seconds
+(Worker_TP0 pid=1852128) INFO 05-03 23:40:05 [gpu_worker.py:440] Available KV cache memory: 9.04 GiB
+(EngineCore pid=1851523) INFO 05-03 23:40:06 [kv_cache_utils.py:1319] GPU KV cache size: 236,992 tokens
+(EngineCore pid=1851523) INFO 05-03 23:40:06 [kv_cache_utils.py:1324] Maximum concurrency for 16,384 tokens per request: 14.46x
+(Worker_TP6 pid=1852134) 2026-05-03 23:40:06,122 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=1852132) 2026-05-03 23:40:06,122 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP3 pid=1852131) 2026-05-03 23:40:06,122 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP5 pid=1852133) 2026-05-03 23:40:06,122 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP2 pid=1852130) 2026-05-03 23:40:06,122 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP7 pid=1852135) 2026-05-03 23:40:06,122 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP1 pid=1852129) 2026-05-03 23:40:06,123 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=1852128) 2026-05-03 23:40:06,123 - INFO - autotuner.py:446 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP6 pid=1852134) 2026-05-03 23:40:06,256 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP3 pid=1852131) 2026-05-03 23:40:06,256 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP5 pid=1852133) 2026-05-03 23:40:06,256 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP2 pid=1852130) 2026-05-03 23:40:06,256 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP1 pid=1852129) 2026-05-03 23:40:06,256 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP4 pid=1852132) 2026-05-03 23:40:06,256 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP7 pid=1852135) 2026-05-03 23:40:06,256 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP0 pid=1852128) 2026-05-03 23:40:06,256 - INFO - autotuner.py:455 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(EngineCore pid=1851523) INFO 05-03 23:40:06 [core.py:365] init engine (profile, create kv cache, warmup model) took 5.57 s
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [neo_scheduler_adapter.py:207] NeoSchedulerAdapter: enable_neo_asymmetric activated. First-stage wiring — vanilla data path retained, NEO decisions are recorded but not yet executed.
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [neo_perfpredictor_cache.py:129] NEO predictor cache: HIT /root/.cache/vllm/neo_predictor/71fc06df82a6988a71a80e5e2b5378b5.json
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [neo_scheduler_adapter.py:292] NEO: num_gpu_blocks sync 14812 → 14812 (Phase 3.1 — Step 2 swap-out threshold reflects real KV pool).
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [neo_scheduler_adapter.py:326] NEO: PerfPredictor populated (linr=18/pref=21/gdec=21 points, lnch_T=30.76ms). NEO scheduler now makes real sequential vs pipelined decisions.
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [core.py:247] NEO PerfPredictor profile took 0.00s (cache)
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [neo_pacpu.py:123] neo_pacpu: loaded /workspace/vllm_hybrid/csrc/cpu/pacpu/build/libpacpu-llama3_3_70b-tp8.so
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=1851523) WARNING 05-03 23:40:09 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(EngineCore pid=1851523) WARNING 05-03 23:40:09 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+(EngineCore pid=1851523) INFO 05-03 23:40:09 [vllm.py:1081] Cudagraph is disabled under eager mode
+(EngineCore pid=1851523) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=1851523) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=1851523) INFO 05-03 23:40:10 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+[baseline] init 55.9s
+Rendering prompts:   0%|          | 0/100 [00:00<?, ?it/s](Worker_TP3 pid=1852131) INFO 05-03 23:40:10 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP7 pid=1852135) INFO 05-03 23:40:10 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP2 pid=1852130) INFO 05-03 23:40:10 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP4 pid=1852132) INFO 05-03 23:40:10 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP6 pid=1852134) INFO 05-03 23:40:10 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP1 pid=1852129) INFO 05-03 23:40:10 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP5 pid=1852133) INFO 05-03 23:40:10 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+(Worker_TP0 pid=1852128) INFO 05-03 23:40:10 [gpu_model_runner.py:3993] execute_model: enable_neo_asymmetric=True observed. NEO scheduler sibling is recording mode decisions in NeoSchedulerAdapter.last_neo_output.
+Rendering prompts:   6%|▌         | 6/100 [00:00<00:01, 54.60it/s]Rendering prompts:  14%|█▍        | 14/100 [00:00<00:01, 68.88it/s]Rendering prompts:  22%|██▏       | 22/100 [00:00<00:01, 73.19it/s]Rendering prompts:  31%|███       | 31/100 [00:00<00:00, 76.74it/s]Rendering prompts:  40%|████      | 40/100 [00:00<00:00, 78.53it/s]Rendering prompts:  49%|████▉     | 49/100 [00:00<00:00, 79.97it/s]Rendering prompts:  58%|█████▊    | 58/100 [00:00<00:00, 81.14it/s]Rendering prompts:  67%|██████▋   | 67/100 [00:00<00:00, 81.97it/s]Rendering prompts:  76%|███████▌  | 76/100 [00:00<00:00, 81.74it/s]Rendering prompts:  85%|████████▌ | 85/100 [00:01<00:00, 82.29it/s]Rendering prompts:  94%|█████████▍| 94/100 [00:01<00:00, 82.37it/s]Rendering prompts: 100%|██████████| 100/100 [00:01<00:00, 79.60it/s]
+Processed prompts:   0%|          | 0/100 [00:00<?, ?it/s, est. speed input: 0.00 toks/s, output: 0.00 toks/s](EngineCore pid=1851523) INFO 05-03 23:40:19 [core.py:487] NEO swap dispatch active (VLLM_NEO_KV_FREE=1) — first fire: out=2 in=0
+INFO 05-03 23:40:21 [loggers.py:271] Engine 000: Avg prompt throughput: 22206.7 tokens/s, Avg generation throughput: 54.9 tokens/s, Running: 51 reqs, Waiting: 49 reqs, GPU KV cache usage: 98.7%, Prefix cache hit rate: 0.0%
+Processed prompts:   1%|          | 1/100 [00:20<33:02, 20.03s/it, est. speed input: 270.51 toks/s, output: 7.04 toks/s]INFO 05-03 23:40:31 [loggers.py:271] Engine 000: Avg prompt throughput: 8098.0 tokens/s, Avg generation throughput: 972.2 tokens/s, Running: 64 reqs, Waiting: 36 reqs, GPU KV cache usage: 96.8%, Prefix cache hit rate: 0.0%
+Processed prompts:   2%|▏         | 2/100 [00:25<18:15, 11.18s/it, est. speed input: 433.15 toks/s, output: 16.15 toks/s]Processed prompts:   3%|▎         | 3/100 [00:26<10:53,  6.74s/it, est. speed input: 613.92 toks/s, output: 26.51 toks/s]Processed prompts:   4%|▍         | 4/100 [00:26<06:46,  4.23s/it, est. speed input: 806.91 toks/s, output: 37.57 toks/s]Processed prompts:   5%|▌         | 5/100 [00:28<05:21,  3.38s/it, est. speed input: 942.61 toks/s, output: 46.94 toks/s]Processed prompts:   8%|▊         | 8/100 [00:28<02:04,  1.35s/it, est. speed input: 1502.60 toks/s, output: 82.54 toks/s]Processed prompts:  13%|█▎        | 13/100 [00:28<00:49,  1.77it/s, est. speed input: 2433.06 toks/s, output: 140.66 toks/s]INFO 05-03 23:40:41 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1245.6 tokens/s, Running: 52 reqs, Waiting: 48 reqs, GPU KV cache usage: 97.7%, Prefix cache hit rate: 0.0%
+Processed prompts:  16%|█▌        | 16/100 [00:31<00:56,  1.48it/s, est. speed input: 2739.95 toks/s, output: 166.09 toks/s]Processed prompts:  18%|█▊        | 18/100 [00:36<01:26,  1.05s/it, est. speed input: 2701.24 toks/s, output: 169.90 toks/s]Processed prompts:  20%|██        | 20/100 [00:37<01:20,  1.01s/it, est. speed input: 2860.15 toks/s, output: 190.09 toks/s]Processed prompts:  23%|██▎       | 23/100 [00:39<01:02,  1.24it/s, est. speed input: 3180.59 toks/s, output: 224.47 toks/s]INFO 05-03 23:40:51 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 627.6 tokens/s, Running: 42 reqs, Waiting: 58 reqs, GPU KV cache usage: 99.6%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:41:01 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 391.0 tokens/s, Running: 41 reqs, Waiting: 59 reqs, GPU KV cache usage: 98.5%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:41:11 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 382.4 tokens/s, Running: 41 reqs, Waiting: 59 reqs, GPU KV cache usage: 99.9%, Prefix cache hit rate: 0.0%
+Processed prompts:  24%|██▍       | 24/100 [01:01<04:57,  3.92s/it, est. speed input: 2114.21 toks/s, output: 159.74 toks/s]INFO 05-03 23:41:21 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 377.7 tokens/s, Running: 39 reqs, Waiting: 61 reqs, GPU KV cache usage: 98.7%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:41:31 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 377.7 tokens/s, Running: 38 reqs, Waiting: 62 reqs, GPU KV cache usage: 97.3%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:41:41 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 355.9 tokens/s, Running: 38 reqs, Waiting: 62 reqs, GPU KV cache usage: 98.7%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:41:51 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 351.2 tokens/s, Running: 37 reqs, Waiting: 63 reqs, GPU KV cache usage: 96.9%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:42:01 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 329.6 tokens/s, Running: 37 reqs, Waiting: 63 reqs, GPU KV cache usage: 98.2%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:42:11 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 327.8 tokens/s, Running: 37 reqs, Waiting: 63 reqs, GPU KV cache usage: 99.5%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:42:21 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 312.3 tokens/s, Running: 36 reqs, Waiting: 64 reqs, GPU KV cache usage: 97.3%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:42:31 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 304.5 tokens/s, Running: 36 reqs, Waiting: 64 reqs, GPU KV cache usage: 98.5%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:42:41 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 300.8 tokens/s, Running: 36 reqs, Waiting: 64 reqs, GPU KV cache usage: 99.6%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:42:51 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 286.2 tokens/s, Running: 35 reqs, Waiting: 65 reqs, GPU KV cache usage: 97.0%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:43:01 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 277.9 tokens/s, Running: 35 reqs, Waiting: 65 reqs, GPU KV cache usage: 98.1%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:43:11 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 278.7 tokens/s, Running: 35 reqs, Waiting: 65 reqs, GPU KV cache usage: 99.1%, Prefix cache hit rate: 0.0%
+Processed prompts:  25%|██▌       | 25/100 [03:01<29:48, 23.85s/it, est. speed input: 745.37 toks/s, output: 76.60 toks/s]  Processed prompts:  26%|██▌       | 26/100 [03:02<23:42, 19.23s/it, est. speed input: 773.68 toks/s, output: 98.95 toks/s]Processed prompts:  32%|███▏      | 32/100 [03:02<08:11,  7.23s/it, est. speed input: 948.65 toks/s, output: 233.05 toks/s]INFO 05-03 23:43:21 [loggers.py:271] Engine 000: Avg prompt throughput: 3688.3 tokens/s, Avg generation throughput: 64.9 tokens/s, Running: 64 reqs, Waiting: 26 reqs, GPU KV cache usage: 85.3%, Prefix cache hit rate: 0.0%
+Processed prompts:  35%|███▌      | 35/100 [03:11<06:24,  5.92s/it, est. speed input: 989.22 toks/s, output: 286.28 toks/s]INFO 05-03 23:43:32 [loggers.py:271] Engine 000: Avg prompt throughput: 1622.8 tokens/s, Avg generation throughput: 803.5 tokens/s, Running: 64 reqs, Waiting: 26 reqs, GPU KV cache usage: 82.8%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:43:42 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 834.0 tokens/s, Running: 64 reqs, Waiting: 26 reqs, GPU KV cache usage: 83.4%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:43:52 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 830.9 tokens/s, Running: 64 reqs, Waiting: 26 reqs, GPU KV cache usage: 84.0%, Prefix cache hit rate: 0.0%
+Processed prompts:  36%|███▌      | 36/100 [03:43<09:54,  9.28s/it, est. speed input: 871.45 toks/s, output: 263.50 toks/s]Processed prompts:  37%|███▋      | 37/100 [03:45<08:32,  8.13s/it, est. speed input: 888.21 toks/s, output: 266.45 toks/s]Processed prompts:  40%|████      | 40/100 [03:47<05:05,  5.09s/it, est. speed input: 953.86 toks/s, output: 279.09 toks/s]Processed prompts:  42%|████▏     | 42/100 [03:47<03:34,  3.70s/it, est. speed input: 1001.11 toks/s, output: 287.61 toks/s]Processed prompts:  46%|████▌     | 46/100 [03:48<01:57,  2.17s/it, est. speed input: 1091.92 toks/s, output: 305.07 toks/s]INFO 05-03 23:44:02 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 689.6 tokens/s, Running: 58 reqs, Waiting: 32 reqs, GPU KV cache usage: 97.3%, Prefix cache hit rate: 0.0%
+Processed prompts:  48%|████▊     | 48/100 [03:50<01:41,  1.96s/it, est. speed input: 1126.70 toks/s, output: 312.16 toks/s]Processed prompts:  50%|█████     | 50/100 [03:51<01:18,  1.57s/it, est. speed input: 1169.36 toks/s, output: 326.46 toks/s]INFO 05-03 23:44:12 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 47.9 tokens/s, Running: 58 reqs, Waiting: 32 reqs, GPU KV cache usage: 97.3%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:44:22 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 25.4 tokens/s, Running: 58 reqs, Waiting: 32 reqs, GPU KV cache usage: 97.3%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:44:32 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 25.3 tokens/s, Running: 58 reqs, Waiting: 32 reqs, GPU KV cache usage: 97.3%, Prefix cache hit rate: 0.0%
+INFO 05-03 23:44:42 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 25.6 tokens/s, Running: 58 reqs, Waiting: 32 reqs, GPU KV cache usage: 97.3%, Prefix cache hit rate: 0.0%
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+Processed prompts:  52%|█████▏    | 52/100 [04:38<05:54,  7.39s/it, est. speed input: 1011.78 toks/s, output: 291.44 toks/s](Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP6 pid=1852134) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP4 pid=1852132) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP7 pid=1852135) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP5 pid=1852133) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP2 pid=1852130) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [dump_input.py:72] Dumping input data for V1 LLM engine (v0.1.dev15917+g0a6396b45) with config: model='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [32, 32, 16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=True, moe_backend='auto'), 
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP3 pid=1852131) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP1 pid=1852129) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] WorkerProc hit an exception.
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] Traceback (most recent call last):
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 957, in worker_busy_loop
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/worker_base.py", line 337, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return self.worker.execute_model(scheduler_output)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_worker.py", line 815, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     output = self.model_runner.execute_model(
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return func(*args, **kwargs)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_hybrid/vllm/v1/worker/gpu_model_runner.py", line 4074, in execute_model
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/numpy/_core/_methods.py", line 44, in _amax
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]     return umr_maximum(a, axis, None, out, keepdims, initial, where)
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] ValueError: zero-size array to reduction operation maximum which has no identity
+(Worker_TP0 pid=1852128) ERROR 05-03 23:44:49 [multiproc_executor.py:962] 
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [dump_input.py:79] Dumping scheduler output for model execution: SchedulerOutput(scheduled_new_reqs=[], scheduled_cached_reqs=CachedRequestData(req_ids=['39-afd90ff1', '40-a842c3e4', '41-80cf6a20', '42-a5549d39', '43-8155a7d0', '44-870c2f22', '45-a289f6ee', '46-bc2ac332', '47-9e7808c1', '48-a362e5db', '49-95bd085a', '50-a7d9520b', '51-87a358cd', '52-9979865e', '53-8d4a6998', '54-87b0004a', '55-861dae68', '56-a4648833', '57-8abad40c', '58-8dd56223', '59-aa97c16f', '60-832efa49', '61-a035f18a', '62-a37bff4a', '63-bb01df08', '10-9500e972'],resumed_req_ids=set(),new_token_ids_lens=[],all_token_ids_lens={},new_block_ids=[None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],num_computed_tokens=[5726, 5716, 5764, 5957, 5764, 5764, 5681, 5763, 5758, 5758, 5759, 5816, 5947, 5911, 6448, 5813, 5944, 9513, 5808, 5942, 5748, 5748, 5559, 5805, 5962, 9513],num_output_tokens=[308, 299, 347, 540, 347, 347, 264, 345, 341, 341, 342, 399, 530, 493, 1031, 396, 526, 4096, 391, 525, 331, 331, 142, 388, 545, 4096]), num_scheduled_tokens={53-8d4a6998: 1, 57-8abad40c: 1, 58-8dd56223: 1, 48-a362e5db: 1, 43-8155a7d0: 1, 52-9979865e: 1, 60-832efa49: 1, 56-a4648833: 1, 54-87b0004a: 1, 40-a842c3e4: 1, 63-bb01df08: 1, 50-a7d9520b: 1, 10-9500e972: 1, 44-870c2f22: 1, 51-87a358cd: 1, 45-a289f6ee: 1, 46-bc2ac332: 1, 59-aa97c16f: 1, 62-a37bff4a: 1, 41-80cf6a20: 1, 39-afd90ff1: 1, 42-a5549d39: 1, 55-861dae68: 1, 49-95bd085a: 1, 47-9e7808c1: 1, 61-a035f18a: 1}, total_num_scheduled_tokens=26, scheduled_spec_decode_tokens={}, scheduled_encoder_inputs={}, num_common_prefix_blocks=[0], finished_req_ids=[], free_encoder_mm_hashes=[], preempted_req_ids=[], has_structured_output_requests=false, pending_structured_output_tokens=false, num_invalid_spec_tokens=null, kv_connector_metadata=null, ec_connector_metadata=null, new_block_ids_to_zero=null, neo_sub_batches=[['39-afd90ff1', '40-a842c3e4', '41-80cf6a20', '42-a5549d39', '43-8155a7d0', '44-870c2f22', '45-a289f6ee', '46-bc2ac332', '47-9e7808c1', '48-a362e5db', '49-95bd085a', '50-a7d9520b', '51-87a358cd', '52-9979865e', '53-8d4a6998', '54-87b0004a', '55-861dae68', '56-a4648833', '57-8abad40c', '58-8dd56223', '59-aa97c16f', '60-832efa49', '61-a035f18a', '62-a37bff4a', '63-bb01df08', '10-9500e972', '12-a4990f57', '13-81d1a7dd', '19-ab403a80', '20-a16a93d2', '21-b284db2a', '22-9fbe20ec', '23-befb79fb', '24-8d5da9eb', '25-bf5dee97', '27-82fbcc07', '28-8fafe1e6', '29-965e91c2', '30-8103101e', '31-96ded8b2', '32-a6f49e66', '33-bc668cee', '34-91c3b571', '35-8bce4b5c', '36-926ad143', '37-85d06ef2', '38-96719b89', '64-8cbe6be5', '65-b8c20149', '66-b7c275f6', '67-93d72774', '68-b6912b96', '69-bf0abffa', '70-a2c05305', '71-b509152a', '72-85396655', '73-afc2a157', '26-a703077b', '27-82fbcc07', '28-8fafe1e6', '29-965e91c2', '30-8103101e', '31-96ded8b2'], ['26-a703077b']], neo_swap_in_req_ids=null, neo_swap_out_req_ids=['73-afc2a157', '72-85396655', '71-b509152a', '70-a2c05305', '69-bf0abffa', '68-b6912b96', '67-93d72774', '66-b7c275f6', '65-b8c20149', '64-8cbe6be5', '38-96719b89', '37-85d06ef2', '36-926ad143', '35-8bce4b5c', '34-91c3b571', '33-bc668cee', '32-a6f49e66', '31-96ded8b2', '30-8103101e', '29-965e91c2', '28-8fafe1e6', '27-82fbcc07', '26-a703077b'], neo_sub_batch_cdec_slices=[[35, 63], [0, 1]], neo_sub_batch_cdec_seq_slices=[[35, 63], [0, 1]], neo_sub_batch_cdec_req_ids=[['27-82fbcc07', '28-8fafe1e6', '29-965e91c2', '30-8103101e', '31-96ded8b2', '32-a6f49e66', '33-bc668cee', '34-91c3b571', '35-8bce4b5c', '36-926ad143', '37-85d06ef2', '38-96719b89', '64-8cbe6be5', '65-b8c20149', '66-b7c275f6', '67-93d72774', '68-b6912b96', '69-bf0abffa', '70-a2c05305', '71-b509152a', '72-85396655', '73-afc2a157', '26-a703077b', '27-82fbcc07', '28-8fafe1e6', '29-965e91c2', '30-8103101e', '31-96ded8b2'], ['26-a703077b']])
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [dump_input.py:81] Dumping scheduler stats: SchedulerStats(num_running_reqs=58, num_waiting_reqs=32, num_skipped_waiting_reqs=0, step_counter=0, current_wave=0, kv_cache_usage=0.9734656674093579, prefix_cache_stats=PrefixCacheStats(reset=False, requests=0, queries=0, hits=0, preempted_requests=0, preempted_queries=0, preempted_hits=0), connector_prefix_cache_stats=None, kv_cache_eviction_events=[], spec_decoding_stats=None, kv_connector_stats=None, waiting_lora_adapters={}, running_lora_adapters={}, cudagraph_stats=None, perf_stats=None)
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253] EngineCore encountered a fatal error.
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253] Traceback (most recent call last):
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/engine/core.py", line 1244, in run_engine_core
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     engine_core.run_busy_loop()
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/engine/core.py", line 1285, in run_busy_loop
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     self._process_engine_step()
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/engine/core.py", line 1324, in _process_engine_step
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     outputs, model_executed = self.step_fn()
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]                               ^^^^^^^^^^^^^^
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/engine/core.py", line 643, in step_with_batch_queue
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     exec_model_fut.result()
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 90, in result
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     return super().result()
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]            ^^^^^^^^^^^^^^^^
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     return self.__get_result()
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]            ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/usr/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     raise self._exception
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 94, in _wait_for_response
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     response = self.aggregate(self.get_response())
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]                               ^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]   File "/workspace/vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 390, in get_response
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253]     raise RuntimeError(
+(EngineCore pid=1851523) ERROR 05-03 23:44:49 [core.py:1253] RuntimeError: Worker failed with error 'zero-size array to reduction operation maximum which has no identity', please check the stack trace above for the root cause
+Traceback (most recent call last):
+  File "/workspace/vllm_hybrid/eval/run_neo_baseline.py", line 220, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/vllm_hybrid/eval/run_neo_baseline.py", line 176, in main
+    outputs = llm.generate(prompts, params)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/entrypoints/llm.py", line 498, in generate
+    return self._run_completion(
+           ^^^^^^^^^^(Worker_TP0 pid=1852128) INFO 05-03 23:44:49 [multiproc_executor.py:775] Parent process exited, terminating worker queues
+^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/entrypoints/llm.py", line 1615, in _run_completion
+(Worker_TP4 pid=1852132) INFO 05-03 23:44:49 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP5 pid=1852133) INFO 05-03 23:44:49 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP2 pid=1852130) INFO 05-03 23:44:49 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP6 pid=1852134) INFO 05-03 23:44:49 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP7 pid=1852135) INFO 05-03 23:44:49 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP3 pid=1852131) INFO 05-03 23:44:49 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP1 pid=1852129) INFO 05-03 23:44:49 [multiproc_executor.py:872] WorkerProc shutting down.
+(Worker_TP0 pid=1852128) INFO 05-03 23:44:49 [multiproc_executor.py:872] WorkerProc shutting down.
+    return self._run_engine(use_tqdm=use_tqdm, output_type=output_type)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/entrypoints/llm.py", line 1825, in _run_engine
+    step_outputs = self.llm_engine.step()
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/v1/engine/llm_engine.py", line 296, in step
+    outputs = self.engine_core.get_output()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/v1/engine/core_client.py", line 793, in get_output
+    raise self._format_exception(outputs) from None
+vllm.v1.engine.exceptions.EngineDeadError: EngineCore encountered an issue. See stack trace (above) for the root cause.
+Processed prompts:  52%|█████▏    | 52/100 [04:38<04:17,  5.36s/it, est. speed input: 1011.78 toks/s, output: 291.44 toks/s]
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 1 leaked shared_memory objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

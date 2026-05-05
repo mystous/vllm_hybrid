@@ -753,17 +753,214 @@ def unified_attention_with_output(
     layer_name = _resolve_layer_name(layer_name)
     attn_metadata, self, kv_cache, _ = get_attention_context(layer_name)
 
-    self.impl.forward(
-        self,
-        query,
-        key,
-        value,
-        kv_cache,
-        attn_metadata,
-        output=output,
-        output_scale=output_scale,
-        output_block_scale=output_block_scale,
+    # IDE_006 4.5.2.c v33 architectural — CUDA stream 분리: NEO cdec
+    # dispatch 의 *CPU computation* (``_pa.forward_attention``) 을
+    # background thread 로 submit *전에* vanilla GPU forward 호출 →
+    # 두 작업 진짜 병렬 실행. C extension 호출 시 GIL release 가
+    # main thread (GPU forward) 의 진행 보장.
+    #
+    # 이전: 직렬 — vanilla GPU + CPU pacpu = 합산 latency
+    # 본 fix: 병렬 — max(GPU, CPU) latency. NEO advantage 의 *진짜* 발휘.
+    cdec_future = None
+    cdec_t0 = cdec_t1 = 0
+    try:
+        from vllm.forward_context import get_forward_context as _get_fc
+        _fc = _get_fc()
+        _tok = getattr(_fc, "neo_cdec_token_slice", None)
+        _seq = getattr(_fc, "neo_cdec_seq_slice", None)
+        _req_ids = getattr(_fc, "neo_cdec_req_ids", None)
+        if (_tok is None or _tok[1] <= _tok[0]
+                or _seq is None or _seq[1] <= _seq[0]
+                or not _req_ids):
+            cdec_future = None
+        elif not hasattr(torch.ops, "pacpu"):
+            cdec_future = None
+        else:
+            from vllm.v1.core.sched import neo_cpu_kv_buffer as _ncb
+            buf = _ncb.get_active_buffer()
+            if buf is None:
+                cdec_future = None
+            else:
+                _t0, _t1 = _tok
+                _s0, _s1 = _seq
+                cdec_count = _t1 - _t0
+                nh = self.impl.num_heads
+                nkh = self.impl.num_kv_heads
+                hd = self.impl.head_size
+                # Setup (main thread) — GIL safe state copy.
+                q_cdec = query[_t0:_t1].view(cdec_count, nh, hd)
+                k_cdec = key[_t0:_t1].view(cdec_count, nkh, hd)
+                v_cdec = value[_t0:_t1].view(cdec_count, nkh, hd)
+                import re
+                m = re.search(r"layers\.(\d+)", layer_name)
+                if m is not None:
+                    layer_idx = int(m.group(1))
+                    max_blocks_per_seq = max(
+                        len(buf.get_block_ids(rid) or [])
+                        for rid in _req_ids
+                    ) or 1
+                    block_table_rows = []
+                    valid = True
+                    for rid in _req_ids:
+                        ids = buf.get_block_ids(rid)
+                        if ids is None:
+                            valid = False
+                            break
+                        row = list(ids) + [0] * (
+                            max_blocks_per_seq - len(ids)
+                        )
+                        block_table_rows.append(row)
+                    if valid:
+                        block_table_cpu = torch.tensor(
+                            block_table_rows, dtype=torch.int32,
+                        )
+                        seq_lens_attr = getattr(
+                            attn_metadata, "seq_lens", None
+                        )
+                        if seq_lens_attr is not None:
+                            seq_ids_list = list(range(cdec_count))
+                            seq_lengths = (
+                                seq_lens_attr[_s0:_s1]
+                                .to(torch.int64).cpu().tolist()
+                            )
+                            # GPU → CPU copy (cdec rows only — small).
+                            q_cpu = q_cdec.to(torch.float16).cpu()
+                            k_cpu = k_cdec.to(torch.float16).cpu()
+                            v_cpu = v_cdec.to(torch.float16).cpu()
+                            # Submit CPU pacpu kernel to background
+                            # thread — 진짜 병렬 시작.
+                            cdec_future = (
+                                _get_neo_cdec_executor().submit(
+                                    _neo_cdec_compute_cpu,
+                                    layer_idx,
+                                    float(self.impl.scale),
+                                    seq_ids_list,
+                                    seq_lengths,
+                                    q_cpu, k_cpu, v_cpu,
+                                    buf.k_cpu, buf.v_cpu,
+                                    block_table_cpu,
+                                    cdec_count, nh, hd,
+                                )
+                            )
+                            cdec_t0 = _t0
+                            cdec_t1 = _t1
+    except Exception as _cdec_setup_e:  # noqa: BLE001
+        cdec_future = None
+        try:
+            from vllm.logger import init_logger as _einit
+            _ne_logger = _einit("vllm.attention.neo_cdec_error")
+            _stat_attr = "_neo_cdec_fail_count"
+            _cnt = getattr(self, _stat_attr, 0) + 1
+            setattr(self, _stat_attr, _cnt)
+            if _cnt <= 5 or _cnt % 1000 == 0:
+                import traceback as _tb
+                _ne_logger.error(
+                    "[NEO CDEC SETUP FAIL] count=%d type=%s msg=%s\n%s",
+                    _cnt, type(_cdec_setup_e).__name__, _cdec_setup_e,
+                    _tb.format_exc(),
+                )
+        except Exception:
+            pass
+
+    # IDE_006 4.5.2.c v38 — cdec-only sub-batch GPU attention skip.
+    # b1 sub-batch 의 모든 row 가 cdec 인 경우 GPU attention 결과는
+    # CPU pacpu 결과로 100% overwrite → GPU compute 완전 낭비.
+    # swiftllm 원본도 cdec rows 를 GPU attention path 에서 제외.
+    # 조건: cdec_future 활성 + cdec slice 가 query 전체 cover (b1).
+    skip_gpu_attn = (
+        cdec_future is not None
+        and cdec_t0 == 0
+        and cdec_t1 == query.size(0)
     )
+    if not skip_gpu_attn:
+        # Vanilla GPU forward (main thread, parallel with CPU pacpu).
+        self.impl.forward(
+            self,
+            query,
+            key,
+            value,
+            kv_cache,
+            attn_metadata,
+            output=output,
+            output_scale=output_scale,
+            output_block_scale=output_block_scale,
+        )
+
+    # Wait for CPU pacpu task + apply result to output[cdec rows].
+    if cdec_future is not None:
+        try:
+            out_buf = cdec_future.result()
+            out_gpu = out_buf.to(output.device).to(output.dtype)
+            output[cdec_t0:cdec_t1].copy_(out_gpu)
+        except Exception as _cdec_apply_e:  # noqa: BLE001
+            try:
+                from vllm.logger import init_logger as _einit
+                _ne_logger = _einit("vllm.attention.neo_cdec_error")
+                _stat_attr = "_neo_cdec_fail_count"
+                _cnt = getattr(self, _stat_attr, 0) + 1
+                setattr(self, _stat_attr, _cnt)
+                if _cnt <= 5 or _cnt % 1000 == 0:
+                    import traceback as _tb
+                    _ne_logger.error(
+                        "[NEO CDEC APPLY FAIL] count=%d type=%s msg=%s\n%s",
+                        _cnt, type(_cdec_apply_e).__name__,
+                        _cdec_apply_e, _tb.format_exc(),
+                    )
+            except Exception:
+                pass
+
+
+def _neo_cdec_compute_cpu(
+    layer_idx: int,
+    softmax_scale: float,
+    seq_ids: list[int],
+    seq_lengths: list[int],
+    q_cpu: torch.Tensor,
+    k_cpu: torch.Tensor,
+    v_cpu: torch.Tensor,
+    k_cache_layer: torch.Tensor,
+    v_cache_layer: torch.Tensor,
+    block_table_cpu: torch.Tensor,
+    cdec_count: int,
+    nh: int,
+    hd: int,
+) -> torch.Tensor:
+    """IDE_006 4.5.2.c v33 — NEO cdec dispatch 의 *CPU computation* 단계
+    만 별 thread 에서 실행. C extension (``_pa.forward_attention``) 호출
+    시 GIL release → main thread 의 GPU forward 와 진짜 병렬 진행.
+    """
+    from vllm.v1.attention.ops import neo_pacpu as _pa
+    out_buf = torch.empty(cdec_count, nh * hd, dtype=torch.float32)
+    _pa.forward_attention(
+        cur_layer=layer_idx,
+        softmax_scale=softmax_scale,
+        seq_ids=seq_ids,
+        seq_lengths=seq_lengths,
+        q=q_cpu,
+        k_new=k_cpu,
+        v_new=v_cpu,
+        k_cache_layer=k_cache_layer,
+        v_cache_layer=v_cache_layer,
+        block_table=block_table_cpu,
+        output=out_buf,
+    )
+    return out_buf
+
+
+_neo_cdec_executor = None
+
+
+def _get_neo_cdec_executor():
+    """ThreadPoolExecutor (max_workers=1) — main thread 의 GPU forward
+    와 *진짜 병렬* CPU pacpu 호출. lazy init (첫 NEO 활성 호출 시)."""
+    global _neo_cdec_executor
+    if _neo_cdec_executor is None:
+        import concurrent.futures
+        _neo_cdec_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="neo-cdec",
+        )
+    return _neo_cdec_executor
 
 
 def unified_attention_with_output_fake(

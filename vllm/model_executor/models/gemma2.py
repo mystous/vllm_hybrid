@@ -249,6 +249,45 @@ class Gemma2DecoderLayer(nn.Module):
         hidden_states = self.post_feedforward_layernorm(hidden_states)
         return hidden_states, residual
 
+    # ------------------------------------------------------------------
+    # TSK_016 Step 5.6 — NEO sub-batch stage helpers. Same algorithmic
+    # split as Llama (preproj / attention / postproj), but Gemma2 has
+    # an extra pair of norms (post_attention_layernorm and
+    # post_feedforward_layernorm) without residual fusion — those land
+    # inside ``neo_postproj``.
+    # ------------------------------------------------------------------
+    def neo_preproj(
+        self,
+        hidden_states: torch.Tensor,
+        residual: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if residual is None:
+            residual = hidden_states
+            hidden_states = self.input_layernorm(hidden_states)
+        else:
+            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+        return hidden_states, residual
+
+    def neo_attention(
+        self,
+        positions: torch.Tensor,
+        hidden_states: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.self_attn(positions=positions, hidden_states=hidden_states)
+
+    def neo_postproj(
+        self,
+        hidden_states: torch.Tensor,
+        residual: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        hidden_states = self.post_attention_layernorm(hidden_states)
+        hidden_states, residual = self.pre_feedforward_layernorm(
+            hidden_states, residual
+        )
+        hidden_states = self.mlp(hidden_states)
+        hidden_states = self.post_feedforward_layernorm(hidden_states)
+        return hidden_states, residual
+
 
 @support_torch_compile
 class Gemma2Model(nn.Module):
@@ -315,6 +354,91 @@ class Gemma2Model(nn.Module):
             )
         hidden_states, _ = self.norm(hidden_states, residual)
         return hidden_states
+
+    # ------------------------------------------------------------------
+    # TSK_016 Step 5.6 — NEO asymmetric pipelined forward. Mirrors
+    # ``LlamaModel.forward_neo_pipelined``; the per-layer body uses
+    # Gemma2's ``neo_preproj/attention/postproj`` (which fold the
+    # extra non-residual norms into postproj).
+    # ------------------------------------------------------------------
+    def forward_neo_pipelined(
+        self,
+        sub_batches,                                   # list[SubBatch]
+        positions_list: list[torch.Tensor],
+        embeddings_list: list[torch.Tensor],
+        per_subbatch_contexts=None,
+    ):
+        from vllm.forward_context import override_forward_context
+        from vllm.v1.worker.sub_batch_executor import (
+            LayerPipelineCallbacks,
+            SubBatchPipelineExecutor,
+        )
+
+        if len(sub_batches) not in (1, 2):
+            raise ValueError(
+                f"forward_neo_pipelined expects 1 or 2 sub-batches, "
+                f"got {len(sub_batches)}"
+            )
+
+        layers = list(islice(self.layers, self.start_layer, self.end_layer))
+        num_layers = len(layers)
+        residuals: dict[tuple[int, int], torch.Tensor | None] = {}
+        _bid_to_ubid: dict[int, int] = {
+            id(sb): ubid for ubid, sb in enumerate(sub_batches)
+        }
+
+        def _bid(batch) -> int:
+            return id(batch)
+
+        def preproj(emb, batch, layer_idx, layer_off):
+            del layer_off
+            layer = layers[layer_idx]
+            residual = residuals.get((layer_idx, _bid(batch)))
+            hidden, residual = layer.neo_preproj(emb, residual)
+            residuals[(layer_idx, _bid(batch))] = residual
+            return hidden, hidden, hidden
+
+        def attention(q, k, v, batch, cur_layer_id):
+            del k, v
+            layer = layers[cur_layer_id]
+            ubid = _bid_to_ubid[id(batch)]
+            pos = positions_list[ubid]
+            if per_subbatch_contexts is not None:
+                with override_forward_context(per_subbatch_contexts[ubid]):
+                    return layer.neo_attention(positions=pos, hidden_states=q)
+            return layer.neo_attention(positions=pos, hidden_states=q)
+
+        def postproj(attn_out, batch, layer_idx):
+            layer = layers[layer_idx]
+            residual = residuals[(layer_idx, _bid(batch))]
+            hidden, residual = layer.neo_postproj(attn_out, residual)
+            residuals[(layer_idx + 1, _bid(batch))] = residual
+            return hidden
+
+        callbacks = LayerPipelineCallbacks(
+            preproj=preproj, attention=attention, postproj=postproj,
+        )
+        executor = SubBatchPipelineExecutor(
+            num_layers=num_layers, callbacks=callbacks,
+        )
+
+        if len(sub_batches) == 1:
+            out = executor.forward_sequential(sub_batches[0], embeddings_list[0])
+            outputs = [out]
+        else:
+            out0, out1 = executor.forward_pipeline(sub_batches, embeddings_list)
+            outputs = [out0, out1]
+
+        if get_pp_group().is_last_rank:
+            finals = []
+            for hidden, sb in zip(outputs, sub_batches):
+                final_residual = residuals.get((num_layers, _bid(sb)))
+                if final_residual is None:
+                    final_residual = residuals.get((num_layers - 1, _bid(sb)))
+                hidden, _ = self.norm(hidden, final_residual)
+                finals.append(hidden)
+            return finals
+        return outputs
 
     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
         stacked_params_mapping = [

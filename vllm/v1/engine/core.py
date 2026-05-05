@@ -218,6 +218,64 @@ class EngineCore:
 
         self._idle_state_callbacks: list[Callable] = []
 
+        # NEO PerfPredictor profile (TSK_017 Step 1.6) — only when NEO
+        # scheduler is active. Done AFTER warmup (model + KV cache ready)
+        # so dummy_run sees the production setup. Step 1.7 adds disk
+        # cache — cache HIT skips the RPC entirely (saves ~21s @ prod
+        # / ~4s @ dev each startup); MISS falls back to fresh measure
+        # then persists the result for the next launch.
+        if hasattr(self.scheduler, "populate_predictor_from_profile"):
+            try:
+                from vllm.v1.core.sched import neo_perfpredictor_cache as _ppc
+                t_profile_0 = time.time()
+                profile_data = _ppc.load(vllm_config)
+                source = "cache"
+                if profile_data is None:
+                    # collective_rpc broadcasts the call to all TP workers.
+                    # Each returns its dict; use worker_0 (rank 0) since
+                    # profiling is deterministic per (model, GPU, dtype).
+                    rpc_results = self.model_executor.collective_rpc(
+                        "profile_neo_predictor"
+                    )
+                    profile_data = (
+                        rpc_results[0] if rpc_results else {}
+                    )
+                    source = "measured"
+                    # Best-effort persist; never raises.
+                    _ppc.save(vllm_config, profile_data)
+                self.scheduler.populate_predictor_from_profile(profile_data)
+                logger.info(
+                    "NEO PerfPredictor profile took %.2fs (%s)",
+                    time.time() - t_profile_0, source,
+                )
+            except Exception as e:  # noqa: BLE001
+                import traceback as _tb
+                logger.warning(
+                    "NEO: predictor profile hook failed (%s: %s) — running"
+                    " with ZeroPerfPredictor (NEO scheduler always sequential)."
+                    " trace=\n%s",
+                    type(e).__name__, e, _tb.format_exc(),
+                )
+
+        # TSK_018 Phase 3.4.b — NEO pacpu kernel auto-load (and
+        # auto-build on cache miss when ``VLLM_NEO_AUTO_BUILD=1``).
+        # Best-effort; never blocks startup. Skipped when the NEO
+        # scheduler is inactive (``enable_neo_asymmetric=False``).
+        if getattr(vllm_config.scheduler_config,
+                   "enable_neo_asymmetric", False):
+            try:
+                from vllm.v1.attention.ops import neo_pacpu as _neo_pacpu
+                _neo_pacpu.ensure_loaded(
+                    vllm_config.model_config.model,
+                    vllm_config.parallel_config.tensor_parallel_size,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "NEO: pacpu ensure_loaded failed (%s: %s) — falling "
+                    "back to vanilla GPU attention for cdec rows",
+                    type(e).__name__, e,
+                )
+
         # Mark the startup heap as static so that it's ignored by GC.
         # Reduces pause times of oldest generation collections.
         freeze_gc_heap()
@@ -309,6 +367,7 @@ class EngineCore:
                 elapsed,
                 scope="local",
             )
+
         return scheduler_kv_cache_config
 
     def get_supported_tasks(self) -> tuple[SupportedTask, ...]:
@@ -401,6 +460,61 @@ class EngineCore:
         )
         self._iteration_index += 1
 
+    # ------------------------------------------------------------------
+    # TSK_015 Phase 4.4.c — NEO swap-out / swap-in dispatch hook.
+    #
+    # Off by default (env-gated). Activates only when the operator opts
+    # in with ``VLLM_NEO_KV_FREE=1``. Reads ``neo_swap_out_req_ids`` /
+    # ``neo_swap_in_req_ids`` from SchedulerOutput (attached by the NEO
+    # adapter), then dispatches to ``Scheduler._neo_swap_out`` /
+    # ``_neo_swap_in`` (Phase 4.4.a/b helpers).
+    #
+    # Important — runs *between* ``execute_model`` (so the worker has
+    # already finished the GPU↔CPU KV copy via ``_neo_handle_kv_swap``)
+    # and ``update_from_output`` (so the swap'd req's status is correct
+    # by the time outputs are folded in).
+    # ------------------------------------------------------------------
+    def _handle_neo_swaps(self, scheduler_output: SchedulerOutput) -> None:
+        if os.environ.get("VLLM_NEO_KV_FREE") != "1":
+            return
+        swap_out_ids = getattr(scheduler_output, "neo_swap_out_req_ids", None)
+        swap_in_ids = getattr(scheduler_output, "neo_swap_in_req_ids", None)
+        if not swap_out_ids and not swap_in_ids:
+            return
+        # One-time INFO log on first activation so the gate is visible
+        # without DEBUG. Subsequent dispatches stay silent (hot path).
+        if not getattr(self, "_neo_swap_logged_once", False):
+            logger.info(
+                "NEO swap dispatch active (VLLM_NEO_KV_FREE=1) — first fire: "
+                "out=%d in=%d",
+                len(swap_out_ids or ()),
+                len(swap_in_ids or ()),
+            )
+            self._neo_swap_logged_once = True
+        sched = self.scheduler
+        # IDE_006 / TSK_015.B-1 — Out: RUNNING → SWAPPED_OUT, GPU blocks
+        # freed but req **stays in running**. NEO 의 정통: cdec req 도
+        # forward 에 참여 (Q embedding 만 GPU, attention backend 단계에서만
+        # CPU pacpu 분기). running 에서 제거하면 vLLM input_batch 가 cdec
+        # 를 모르고 → fork branch 의 num_reqs mismatch → dispatch dead code.
+        if swap_out_ids:
+            for req_id in swap_out_ids:
+                req = sched.requests.get(req_id)
+                if req is None or req.status != RequestStatus.RUNNING:
+                    continue
+                sched._neo_swap_out(req)
+                # running 유지 — vLLM scheduler 의 schedule() 이 SWAPPED_OUT
+                # status 도 input_batch 에 포함하도록 갱신 (B-2)
+        # In: SWAPPED_OUT → RUNNING. running 에 이미 있으므로 append 하지
+        # 않고 status 만 복귀.
+        if swap_in_ids:
+            for req_id in swap_in_ids:
+                req = sched.requests.get(req_id)
+                if req is None or req.status != RequestStatus.SWAPPED_OUT:
+                    continue
+                sched._neo_swap_in(req)
+                # running 에 이미 있음 — append 안 함 (B-1)
+
     def step(self) -> tuple[dict[int, EngineCoreOutputs], bool]:
         """Schedule, execute, and make output.
 
@@ -426,6 +540,8 @@ class EngineCore:
         # Before processing the model output, process any aborts that happened
         # during the model execution.
         self._process_aborts_queue()
+        # TSK_015 Phase 4.4.c — opt-in NEO swap dispatch (env-gated).
+        self._handle_neo_swaps(scheduler_output)
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, model_output
         )
@@ -469,8 +585,29 @@ class EngineCore:
 
         model_executed = False
         deferred_scheduler_output = None
+        # IDE_006 4.5.2.c multiproc race 진단 — step_with_batch_queue 호출
+        # 빈도 + scheduler_output 의 num_scheduled_tokens + batch_queue size.
+        if not hasattr(self, "_neo_step_diag_count"):
+            self._neo_step_diag_count = 0
         if self.scheduler.has_requests():
             scheduler_output = self.scheduler.schedule()
+            self._neo_step_diag_count += 1
+            if (self._neo_step_diag_count <= 5
+                    or self._neo_step_diag_count % 200 == 0):
+                _running = len(self.scheduler.running)
+                _waiting_size = (
+                    len(self.scheduler.waiting)
+                    if hasattr(self.scheduler, "waiting")
+                    else "n/a"
+                )
+                logger.info(
+                    "[NEO STEP DIAG] step=%d num_scheduled=%d "
+                    "batch_queue=%d/%d running=%d waiting=%s",
+                    self._neo_step_diag_count,
+                    scheduler_output.total_num_scheduled_tokens,
+                    len(batch_queue), self.batch_queue_size,
+                    _running, _waiting_size,
+                )
             with self.log_error_detail(scheduler_output):
                 exec_future = self.model_executor.execute_model(
                     scheduler_output, non_block=True
@@ -522,14 +659,27 @@ class EngineCore:
         ):
             model_output = future.result()
             if model_output is None:
-                # None from sample_tokens() implies that the original execute_model()
-                # call failed - raise that exception.
-                exec_model_fut.result()
-                raise RuntimeError("unexpected error")
+                # IDE_006 / TSK_015 NEO 정합 — NEO swap_out + vLLM preempt
+                # chain 영역에서 future.result() 가 None 일 수 있음 (empty
+                # step 의 async pipeline future 가 result set 못 한 영역).
+                # NEO ON 시 본 영역을 EMPTY_MODEL_RUNNER_OUTPUT 으로 우회 —
+                # vanilla 영역은 기존대로 raise.
+                if getattr(self.scheduler.scheduler_config,
+                           "enable_neo_asymmetric", False):
+                    from vllm.v1.outputs import EMPTY_MODEL_RUNNER_OUTPUT
+                    model_output = EMPTY_MODEL_RUNNER_OUTPUT
+                else:
+                    # None from sample_tokens() implies that the original
+                    # execute_model() call failed - raise that exception.
+                    exec_model_fut.result()
+                    raise RuntimeError("unexpected error")
 
         # Before processing the model output, process any aborts that happened
         # during the model execution.
         self._process_aborts_queue()
+        # TSK_015 Phase 4.4.c — opt-in NEO swap dispatch (env-gated).
+        # Mirrors the hook in ``step()`` for the batch-queue execution path.
+        self._handle_neo_swaps(scheduler_output)
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, model_output
         )

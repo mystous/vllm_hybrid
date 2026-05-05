@@ -238,6 +238,53 @@ class SchedulerOutput:
     # preventing stale NaN/data from corrupting attention or SSM computation.
     new_block_ids_to_zero: list[int] | None = None
 
+    # ──────────────────────────────────────────────────────────────────
+    # NEO-style asymmetric pipeline attachment
+    # (IDE_006 4 차 재정의 / TSK_014).
+    #
+    # When ``SchedulerConfig.enable_neo_asymmetric=True`` and the
+    # NeoSchedulerAdapter has decided that a NEO-style pipelined step
+    # is profitable, ``neo_sub_batches`` carries the per-sub-batch
+    # request lists that the GPU model runner uses to fork attention
+    # metadata and dispatch the dual forward path.
+    #
+    # ``neo_sub_batches`` is a list of length 1 (sequential mode —
+    # vanilla equivalent) or 2 (pipelined mode). Each element is a
+    # list of request IDs assigned to that sub-batch.
+    #
+    # ``neo_swap_in_req_ids`` / ``neo_swap_out_req_ids`` carry the
+    # request IDs that the NEO scheduler decided to migrate between
+    # GPU and CPU on this step (KV exclusive ownership).
+    #
+    # All three fields default to ``None`` so that vanilla schedulers
+    # remain wire-compatible (no NEO awareness required).
+    # ──────────────────────────────────────────────────────────────────
+    neo_sub_batches: list[list[str]] | None = None
+    neo_swap_in_req_ids: list[str] | None = None
+    neo_swap_out_req_ids: list[str] | None = None
+    # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — per-sub-batch (start, end)
+    # row range that the cdec rows occupy within each sub-batch's
+    # contiguous token tensor. The GPU model runner copies this onto
+    # the per-sub-batch ``CommonAttentionMetadata.neo_cdec_token_slice``
+    # field so the attention backend can dispatch cdec rows to the
+    # CPU pacpu kernel without any model-side decision.
+    #
+    # Length matches ``neo_sub_batches`` (1 or 2). Empty cdec slice
+    # is encoded as ``(end, end)`` (zero width). ``None`` (default)
+    # means no NEO override — backend takes the vanilla path.
+    neo_sub_batch_cdec_slices: list[tuple[int, int]] | None = None
+    # IDE_006 Step 3.2.C-1 — seq-row range for cdec rows. cprf / gprf
+    # contribute multi-token / 1-seq, so the *seq* slice (used to
+    # index ``block_table_tensor``) differs from the *token* slice
+    # (used to index hidden_state row buffers).
+    neo_sub_batch_cdec_seq_slices: list[tuple[int, int]] | None = None
+    # IDE_006 / TSK_015.Step3.2.c.7 — per-sub-batch cdec request id list.
+    # Worker-side dispatch hook uses these ids to look up the CPU KV view
+    # in ``NeoCpuKvBuffer.copy_layer_out(req_id, layer_idx)`` — avoiding
+    # a per-layer GPU→CPU memcpy of the whole KV cache.
+    # ``len(neo_sub_batch_cdec_req_ids[i]) == cdec_seq_slice[i] width``.
+    neo_sub_batch_cdec_req_ids: list[list[str]] | None = None
+
     @classmethod
     def make_empty(cls) -> "SchedulerOutput":
         return cls(

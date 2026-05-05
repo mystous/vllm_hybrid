@@ -634,6 +634,9 @@ class EngineArgs:
 
     stream_interval: int = SchedulerConfig.stream_interval
 
+    enable_neo_asymmetric: bool = SchedulerConfig.enable_neo_asymmetric
+    kv_cache_policy: str = SchedulerConfig.kv_cache_policy
+
     kv_sharing_fast_prefill: bool = CacheConfig.kv_sharing_fast_prefill
     optimization_level: OptimizationLevel = VllmConfig.optimization_level
     performance_mode: PerformanceMode = VllmConfig.performance_mode
@@ -1916,6 +1919,8 @@ class EngineArgs:
             disable_hybrid_kv_cache_manager=self.disable_hybrid_kv_cache_manager,
             async_scheduling=self.async_scheduling,
             stream_interval=self.stream_interval,
+            enable_neo_asymmetric=self.enable_neo_asymmetric,
+            kv_cache_policy=self.kv_cache_policy,
         )
 
         if not model_config.is_multimodal_model and self.default_mm_loras:

@@ -380,10 +380,33 @@ class Scheduler(SchedulerInterface):
 
         self.kv_cache_manager.new_step_starts()
 
+        # IDE_006 / TSK_015 4.5.2.c v29 — NEO 활성 시 SWAPPED_OUT → RUNNING
+        # 자동 swap_in. NEO 의 자체 Step 3 swap_in 제거 후 vllm side 에
+        # swap_in path 위임. KV pool 의 free_blocks 가 충분할 때 일부
+        # SWAPPED_OUT reqs 를 RUNNING 으로 복귀 → cdec dispatch fire 후
+        # forward 진행 + token 생성 → finish → KV free → cycle.
+        #
+        # vllm 의 standard schedule path 가 SWAPPED_OUT 영구 잔류 안 시킴.
+        # _neo_swap_in 자체가 KV alloc 시도 후 fail 시 False 반환 → 더
+        # 이상 swap_in 안 함 (KV 압력 균형).
+        if self.scheduler_config.enable_neo_asymmetric:
+            for req in list(self.running):
+                if req.status != RequestStatus.SWAPPED_OUT:
+                    continue
+                if not self._neo_swap_in(req, scheduled_timestamp):
+                    # KV alloc fail — 더 이상 swap_in 안 함 (KV 부족).
+                    break
+
         # First, schedule the RUNNING requests.
         req_index = 0
         while req_index < len(self.running) and token_budget > 0:
             request = self.running[req_index]
+
+            # IDE_006 / TSK_015.B-2.b — SWAPPED_OUT req 도 정상 schedule.
+            # KVCacheManager.allocate_slots 가 SWAPPED_OUT 시 dummy empty
+            # success 반환 (KV 가 CPU 에 있으므로 GPU 새 alloc 안 함).
+            # attention backend 의 unified_attention_with_output 가 cdec
+            # dispatch hook 으로 CPU pacpu 사용 (Step3.2.c).
 
             if (
                 request.num_output_placeholders > 0
@@ -497,7 +520,37 @@ class Scheduler(SchedulerInterface):
                                 encoder_compute_budget += num_embeds_to_restore
                             req_index -= 1
                     else:
-                        preempted_req = self.running.pop()
+                        # IDE_006 / TSK_015 NEO 정합 — running 큐의 *마지막
+                        # RUNNING status* req 만 pop. NEO swap_out 발화한
+                        # SWAPPED_OUT 또는 이미 PREEMPTED 된 req 는 건너뜀.
+                        # 본 이전 logic: ``self.running.pop()`` 가 무조건
+                        # 마지막 req pop → SWAPPED_OUT/PREEMPTED req 도
+                        # preempt 시도 → _preempt_request assert fail.
+                        #
+                        # IDE_006 4.5.2.c v26 race fix — NEO 활성 + decode
+                        # 단계 시 ``self.running.pop`` *skip*. ``_preempt_request``
+                        # 의 NEO hook 가 status 만 SWAPPED_OUT 로 변경
+                        # (RUNNING 잔류). schedule loop 의 ``while
+                        # req_index < len(self.running)`` invariant 보존
+                        # → multiproc race deadlock 제거.
+                        preempted_req = None
+                        for _i in range(len(self.running) - 1, -1, -1):
+                            if self.running[_i].status != RequestStatus.RUNNING:
+                                continue
+                            candidate = self.running[_i]
+                            if (self.scheduler_config.enable_neo_asymmetric
+                                    and candidate.num_computed_tokens
+                                    >= candidate.num_prompt_tokens):
+                                # NEO path: pop 안 함, status 만 변경됨.
+                                preempted_req = candidate
+                            else:
+                                # vanilla path: 기존 동작.
+                                preempted_req = self.running.pop(_i)
+                            break
+                        if preempted_req is None:
+                            # All running reqs are SWAPPED_OUT or already
+                            # preempted — cannot preempt anymore.
+                            break
 
                     self._preempt_request(preempted_req, scheduled_timestamp)
                     preempted_reqs.append(preempted_req)
@@ -506,7 +559,17 @@ class Scheduler(SchedulerInterface):
                         break
 
             if new_blocks is None:
-                # Cannot schedule this request.
+                # IDE_006 4.5.2.c v31 architectural — NEO 활성 시 outer
+                # break *대신* continue. RUNNING req 의 KV alloc fail 후
+                # 후속 *SWAPPED_OUT reqs* 는 dummy success 로 schedule 가능
+                # (line 345 kv_cache_manager.allocate_slots). FCFS outer
+                # break 시 SWAPPED_OUT 도 schedule 안 되어 forward 0 →
+                # circular deadlock. NEO 활성 시 RUNNING 만 skip 하고
+                # SWAPPED_OUT path 진행.
+                if self.scheduler_config.enable_neo_asymmetric:
+                    req_index += 1
+                    continue
+                # vanilla: FCFS 정책 보존.
                 break
 
             # Schedule the request.
@@ -863,9 +926,15 @@ class Scheduler(SchedulerInterface):
         # Since some requests in the RUNNING queue may not be scheduled in
         # this step, the total number of scheduled requests can be smaller than
         # len(self.running).
-        assert len(scheduled_new_reqs) + len(scheduled_resumed_reqs) + len(
-            scheduled_running_reqs
-        ) <= len(self.running)
+        # IDE_006 / TSK_015 NEO 정합 — NEO swap_out 발화 후 schedule loop
+        # 안의 *waiting → running 이동* / *swap_out 결정 영역* 가 본 invariant
+        # 깨뜨릴 수 있음. NEO ON 영역에서만 본 assert 완화 (vanilla 영역
+        # invariant 그대로 보존).
+        if not getattr(self.scheduler_config,
+                       "enable_neo_asymmetric", False):
+            assert len(scheduled_new_reqs) + len(scheduled_resumed_reqs) + len(
+                scheduled_running_reqs
+            ) <= len(self.running)
 
         # Get the longest common prefix among all requests in the running queue.
         # This can be potentially used for cascade attention.
@@ -964,8 +1033,28 @@ class Scheduler(SchedulerInterface):
         NOTE: The request should be popped from the running queue outside of this
         method.
         """
-        assert request.status == RequestStatus.RUNNING, (
-            "Only running requests can be preempted"
+        # IDE_006 / TSK_015 4.5.2.c architectural fix — NEO 활성 + decode
+        # 단계 시 vLLM standard preempt 대신 ``_neo_swap_out`` 으로 위임.
+        # vLLM 의 KV 부족 자동 발화 path 가 NEO 의 cdec dispatch 메커니즘
+        # 과 *통합*: KV CPU copy + status SWAPPED_OUT + RUNNING 잔류 → 다음
+        # step 에 cdec dispatch 발화 (KV alloc 0, attention layer 의 hook
+        # 가 CPU pacpu 로 attention 처리).
+        #
+        # v26 race fix — caller (scheduler.schedule()) 가 NEO path 시
+        # self.running.pop *skip* (513 라인). 따라서 본 hook 도 append
+        # back 불필요. self.running 길이 변화 없어 schedule loop invariant
+        # 보존 → multiproc race deadlock 제거.
+        if (request.status == RequestStatus.RUNNING
+                and self.scheduler_config.enable_neo_asymmetric
+                and request.num_computed_tokens
+                    >= request.num_prompt_tokens):
+            self._neo_swap_out(request, timestamp)
+            return
+
+        assert request.status in (
+            RequestStatus.RUNNING, RequestStatus.SWAPPED_OUT
+        ), (
+            "Only running/swapped-out requests can be preempted"
         )
         self.kv_cache_manager.free(request)
         self.encoder_cache_manager.free(request)
@@ -980,6 +1069,78 @@ class Scheduler(SchedulerInterface):
         # Put the request back to the waiting queue.
         self.waiting.prepend_request(request)
 
+    # ------------------------------------------------------------------
+    # TSK_015 Phase 4.4.a — NEO 전용 GPU→CPU swap-out helper.
+    #
+    # vLLM 의 ``_preempt_request`` 와 의미가 다름:
+    # - KV: free (GPU 풀로 회수). CPU 사본은 worker (`_neo_handle_kv_swap`)
+    #   가 별도로 보관.
+    # - ``num_computed_tokens``: **보존** (재 prefill 안 함; swap-in 시
+    #   그대로 복귀).
+    # - ``spec_token_ids``: 보존 (preempt 와 차이점).
+    # - ``num_preemptions``: unchanged (preempt 가 아님).
+    # - status: ``SWAPPED_OUT`` (PREEMPTED 와 별개 trace).
+    # - 다음 위치: ``waiting`` 으로 가지 않음. NEO scheduler 의
+    #   ``cpu_decoding_q`` 가 source of truth.
+    #
+    # NOTE — 호출자 책임:
+    # - ``self.running`` 에서 popping 은 caller 가 처리 (Phase 4.4.c
+    #   EngineCore hook 에서 SchedulerOutput.neo_swap_out_req_ids 기반).
+    # - GPU→CPU KV 사본은 본 helper 호출 *전에* worker 가 완료해야 함
+    #   (`_neo_handle_kv_swap` `gpu_model_runner.py`).
+    # ------------------------------------------------------------------
+    def _neo_swap_in(self, request: Request, timestamp: float | None = None) -> bool:
+        """NEO 식 CPU→GPU swap-in (counterpart of ``_neo_swap_out``).
+
+        Re-allocates GPU block_table entries via
+        ``KVCacheManager.neo_swap_in_alloc`` for an already-progressed
+        request whose KV is held in the worker-side CPU buffer. On
+        success, restores ``status`` from ``SWAPPED_OUT`` to
+        ``RUNNING``. ``num_computed_tokens`` / ``spec_token_ids`` are
+        already preserved from the swap-out side.
+
+        Returns True on success, False on GPU pool exhaustion. caller
+        is responsible for putting the request back into ``self.running``
+        on success and arranging the CPU→GPU KV restore on the worker
+        side (``_neo_handle_kv_swap`` in ``gpu_model_runner.py``).
+        """
+        assert request.status == RequestStatus.SWAPPED_OUT, (
+            f"Only SWAPPED_OUT requests can be NEO-swapped-in; got {request.status}"
+        )
+        if not self.kv_cache_manager.neo_swap_in_alloc(request):
+            return False
+        request.status = RequestStatus.RUNNING
+        if self.log_stats and timestamp is not None:
+            # No dedicated event type yet — telemetry-only refinement is
+            # a low-priority follow-up.
+            pass
+        return True
+
+    def _neo_swap_out(self, request: Request, timestamp: float | None = None) -> None:
+        """NEO 식 GPU→CPU swap-out.
+
+        See class-level note above for semantic differences vs
+        ``_preempt_request``. This is a *swap*, not a preempt — KV is
+        moved to CPU (caller-side), GPU blocks are reclaimed, but
+        progress (``num_computed_tokens`` / ``spec_token_ids``) is
+        preserved for swap-in.
+        """
+        assert request.status == RequestStatus.RUNNING, (
+            f"Only running requests can be NEO-swapped-out; got {request.status}"
+        )
+        # Reclaim GPU KV blocks. CPU copy is held by the worker-side
+        # NeoCpuKvBuffer keyed by request_id.
+        self.kv_cache_manager.free(request)
+        # Encoder cache is typically empty post-prefill; defensive free
+        # is a no-op when already cleared.
+        self.encoder_cache_manager.free(request)
+        request.status = RequestStatus.SWAPPED_OUT
+        # num_computed_tokens / spec_token_ids / num_preemptions 보존.
+        if self.log_stats and timestamp is not None:
+            # Reuse PREEMPTED event type until a dedicated SWAPPED_OUT
+            # event is added (low-priority — telemetry only).
+            request.record_event(EngineCoreEventType.PREEMPTED, timestamp)
+
     def _update_after_schedule(self, scheduler_output: SchedulerOutput) -> None:
         # Advance the number of computed tokens for the request AFTER
         # the request is scheduled.
@@ -992,7 +1153,12 @@ class Scheduler(SchedulerInterface):
         #    computed tokens will be adjusted in update_from_output.
         num_scheduled_tokens = scheduler_output.num_scheduled_tokens
         for req_id, num_scheduled_token in num_scheduled_tokens.items():
-            request = self.requests[req_id]
+            # IDE_006 / TSK_015.B-2.b — cdec req (SWAPPED_OUT) 가 schedule
+            # 됐다가 다른 path 에서 self.requests 에서 제거된 경우 — 임시
+            # guard. Root cause 분석은 후속 sub-step.
+            request = self.requests.get(req_id)
+            if request is None:
+                continue
             request.num_computed_tokens += num_scheduled_token
             request.is_prefill_chunk = request.num_computed_tokens < (
                 request.num_tokens + request.num_output_placeholders
@@ -1790,7 +1956,11 @@ class Scheduler(SchedulerInterface):
                 continue
 
             valid_requests.append(request)
-            if request.status == RequestStatus.RUNNING:
+            # IDE_006 / TSK_015.B-3.b — SWAPPED_OUT 도 running 에 있음
+            # (B-1 의 running 유지 정책). finish 시 running 에서 정상
+            # 제거되도록 SWAPPED_OUT 도 RUNNING 과 같은 path.
+            if request.status in (
+                    RequestStatus.RUNNING, RequestStatus.SWAPPED_OUT):
                 running_requests_to_remove.add(request)
             else:
                 if request.status == RequestStatus.WAITING_FOR_STREAMING_REQ:

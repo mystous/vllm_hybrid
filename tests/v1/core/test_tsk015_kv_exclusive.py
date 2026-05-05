@@ -1,0 +1,670 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+"""Unit tests for TSK_015 — KV cache exclusive ownership.
+
+Coverage
+--------
+* ``NeoCpuKvBuffer`` — alloc/free/get_block_ids, capacity bounds.
+* ``copy_layer_in/out`` — BF16 ↔ FP16 cast, roundtrip equality.
+* ``NeoScheduler`` atomic swap helpers — XOR invariant on
+  gpu_decoding_q / cpu_decoding_q under swap_in/out sequences.
+* SchedulerConfig.kv_cache_policy default + literal validation.
+
+See ``shadow_assists/features/IDE_006/TSK_015.md``.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import pytest
+import torch
+
+from vllm.v1.core.sched.neo_cpu_kv_buffer import (
+    NeoCpuKvBuffer,
+    NeoCpuKvBufferSpec,
+)
+from vllm.v1.core.sched.neo_scheduler import NeoScheduler
+from vllm.v1.core.sched.perfpredictor import ZeroPerfPredictor
+
+
+# ----------------------------------------------------------------------
+# NeoCpuKvBuffer — alloc / free / capacity
+# ----------------------------------------------------------------------
+def _mini_spec(num_blocks: int = 16) -> NeoCpuKvBufferSpec:
+    return NeoCpuKvBufferSpec(
+        num_layers=2,
+        num_kv_heads=2,
+        block_size=4,
+        head_dim=8,
+        num_cpu_blocks=num_blocks,
+        dtype=torch.float16,
+    )
+
+
+def test_buffer_alloc_consumes_pool_and_free_returns_blocks():
+    buf = NeoCpuKvBuffer(_mini_spec(num_blocks=10))
+    assert buf.num_free_blocks == 10
+    assert buf.num_resident_reqs == 0
+
+    ids_a = buf.alloc("req_a", num_blocks=3)
+    assert ids_a is not None and len(ids_a) == 3
+    assert buf.num_free_blocks == 7
+    assert buf.num_resident_reqs == 1
+
+    ids_b = buf.alloc("req_b", num_blocks=2)
+    assert ids_b is not None and set(ids_a).isdisjoint(set(ids_b))
+    assert buf.num_free_blocks == 5
+
+    # Freed blocks return to pool, count drops back.
+    freed = buf.free("req_a")
+    assert freed == ids_a
+    assert buf.num_free_blocks == 8
+    assert buf.num_resident_reqs == 1
+    # Re-alloc same id after free works (no stale state).
+    ids_a2 = buf.alloc("req_a", num_blocks=4)
+    assert ids_a2 is not None and len(ids_a2) == 4
+
+
+def test_buffer_alloc_returns_none_when_pool_exhausted():
+    buf = NeoCpuKvBuffer(_mini_spec(num_blocks=4))
+    assert buf.alloc("req_x", num_blocks=10) is None
+    assert buf.num_free_blocks == 4         # pool untouched on failure
+
+
+def test_buffer_double_alloc_raises():
+    buf = NeoCpuKvBuffer(_mini_spec())
+    buf.alloc("req_dup", num_blocks=1)
+    with pytest.raises(ValueError):
+        buf.alloc("req_dup", num_blocks=1)
+
+
+def test_buffer_get_block_ids_returns_none_for_missing():
+    buf = NeoCpuKvBuffer(_mini_spec())
+    assert buf.get_block_ids("never_alloc") is None
+
+
+# ----------------------------------------------------------------------
+# NeoCpuKvBuffer — copy_layer_in / copy_layer_out roundtrip
+# ----------------------------------------------------------------------
+def test_copy_layer_roundtrip_fp16_input():
+    spec = _mini_spec(num_blocks=8)
+    buf = NeoCpuKvBuffer(spec)
+    buf.alloc("req_rt", num_blocks=2)
+
+    k = torch.randn(2, spec.num_kv_heads, spec.block_size, spec.head_dim,
+                    dtype=torch.float16)
+    v = torch.randn(2, spec.num_kv_heads, spec.block_size, spec.head_dim,
+                    dtype=torch.float16)
+    buf.copy_layer_in("req_rt", layer_idx=0, k_src=k, v_src=v)
+
+    k_out, v_out = buf.copy_layer_out("req_rt", layer_idx=0)
+    # FP16-in / FP16-out → bit-exact.
+    assert torch.equal(k_out, k)
+    assert torch.equal(v_out, v)
+
+
+def test_copy_layer_bf16_to_fp16_cast():
+    spec = _mini_spec(num_blocks=8)
+    buf = NeoCpuKvBuffer(spec)
+    buf.alloc("req_cast", num_blocks=1)
+
+    k_bf16 = torch.randn(1, spec.num_kv_heads, spec.block_size, spec.head_dim,
+                         dtype=torch.bfloat16)
+    v_bf16 = torch.randn(1, spec.num_kv_heads, spec.block_size, spec.head_dim,
+                         dtype=torch.bfloat16)
+    buf.copy_layer_in("req_cast", layer_idx=0, k_src=k_bf16, v_src=v_bf16)
+
+    k_out, _ = buf.copy_layer_out("req_cast", layer_idx=0)
+    assert k_out.dtype is torch.float16
+    # Roundtrip via FP16 — equal to FP16 cast of input.
+    assert torch.equal(k_out, k_bf16.to(torch.float16))
+
+
+def test_copy_layer_in_rejects_shape_mismatch():
+    spec = _mini_spec(num_blocks=8)
+    buf = NeoCpuKvBuffer(spec)
+    buf.alloc("req_bad", num_blocks=2)
+
+    bad_k = torch.zeros(1, spec.num_kv_heads, spec.block_size, spec.head_dim,
+                        dtype=torch.float16)        # 1 block, expected 2
+    bad_v = torch.zeros(1, spec.num_kv_heads, spec.block_size, spec.head_dim,
+                        dtype=torch.float16)
+    with pytest.raises(ValueError, match=r"src tensors expect 2 blocks"):
+        buf.copy_layer_in("req_bad", layer_idx=0, k_src=bad_k, v_src=bad_v)
+
+
+def test_copy_layer_in_rejects_invalid_layer():
+    spec = _mini_spec(num_blocks=4)
+    buf = NeoCpuKvBuffer(spec)
+    buf.alloc("req_lyr", num_blocks=1)
+    k = torch.zeros(1, spec.num_kv_heads, spec.block_size, spec.head_dim,
+                    dtype=torch.float16)
+    with pytest.raises(ValueError, match=r"layer_idx 99"):
+        buf.copy_layer_in("req_lyr", layer_idx=99, k_src=k, v_src=k)
+
+
+# ----------------------------------------------------------------------
+# NeoScheduler atomic swap helpers — XOR invariant (Phase 5.1)
+# ----------------------------------------------------------------------
+@dataclass
+class _Req:
+    request_id: int
+    prompt_len: int
+    num_tokens: int
+
+
+def _scheduler_under_test() -> NeoScheduler:
+    return NeoScheduler(
+        max_batch_size=4,
+        max_tokens_in_batch=64,
+        block_size=4,
+        num_gpu_blocks=64,
+        num_cpu_blocks=128,
+        num_layers=2,
+        predictor=ZeroPerfPredictor(),
+    )
+
+
+def test_initiate_swap_out_moves_req_atomically():
+    sch = _scheduler_under_test()
+    r = _Req(request_id=42, prompt_len=4, num_tokens=4)
+    sch.gpu_decoding_q.append(r)
+    # caller pops then hands to helper
+    victim = sch.gpu_decoding_q.pop()
+    sch._initiate_swap_out(victim)
+    assert r not in sch.gpu_decoding_q
+    assert sch.cpu_decoding_q[0] is r
+
+
+def test_initiate_swap_in_moves_req_atomically():
+    sch = _scheduler_under_test()
+    r = _Req(request_id=7, prompt_len=4, num_tokens=4)
+    sch.cpu_decoding_q.appendleft(r)
+    sch._initiate_swap_in(r)
+    assert r not in sch.cpu_decoding_q
+    assert sch.gpu_decoding_q[-1] is r
+
+
+def test_xor_invariant_holds_after_swap_sequence(monkeypatch):
+    """Repeated swap-out / swap-in sequence preserves the XOR invariant
+    when ``ENABLE_NEO_INV=1`` is set."""
+    monkeypatch.setenv("ENABLE_NEO_INV", "1")
+    sch = _scheduler_under_test()
+    reqs = [_Req(request_id=i, prompt_len=4, num_tokens=4) for i in range(3)]
+    for r in reqs:
+        sch.gpu_decoding_q.append(r)
+    # Out → in → out cycle for each, invariant must hold throughout.
+    for r in reqs:
+        v = sch.gpu_decoding_q.pop()
+        sch._initiate_swap_out(v)
+        sch._assert_exclusive_invariant(where="post_out")
+        sch._initiate_swap_in(v)
+        sch._assert_exclusive_invariant(where="post_in")
+        v2 = sch.gpu_decoding_q.pop()
+        sch._initiate_swap_out(v2)
+        sch._assert_exclusive_invariant(where="post_out2")
+
+
+def test_xor_invariant_detects_violation(monkeypatch):
+    """Manually create a both-queues state to confirm the invariant
+    actually fires (so the assertion isn't a no-op)."""
+    monkeypatch.setenv("ENABLE_NEO_INV", "1")
+    sch = _scheduler_under_test()
+    r = _Req(request_id=99, prompt_len=4, num_tokens=4)
+    sch.gpu_decoding_q.append(r)
+    sch.cpu_decoding_q.appendleft(r)        # corrupt state — both queues
+    with pytest.raises(AssertionError, match="XOR invariant"):
+        sch._assert_exclusive_invariant(where="manual_violation")
+
+
+def test_xor_invariant_disabled_when_flag_unset(monkeypatch):
+    """The check is opt-in — without the env flag, even a corrupted
+    state must not raise (so prod hot path stays free)."""
+    monkeypatch.delenv("ENABLE_NEO_INV", raising=False)
+    sch = _scheduler_under_test()
+    r = _Req(request_id=1, prompt_len=4, num_tokens=4)
+    sch.gpu_decoding_q.append(r)
+    sch.cpu_decoding_q.appendleft(r)        # corrupt state
+    sch._assert_exclusive_invariant()       # no raise, assertion off
+
+
+# ----------------------------------------------------------------------
+# kv_cache_policy config flag
+# ----------------------------------------------------------------------
+def test_kv_cache_policy_default_is_mirror():
+    from vllm.config.scheduler import SchedulerConfig
+    cfg = SchedulerConfig.default_factory(max_model_len=128, max_num_seqs=4,
+                                           max_num_batched_tokens=128)
+    assert cfg.kv_cache_policy == "mirror"
+
+
+def test_kv_cache_policy_accepts_exclusive():
+    from vllm.config.scheduler import SchedulerConfig
+    cfg = SchedulerConfig.default_factory(max_model_len=128, max_num_seqs=4,
+                                           max_num_batched_tokens=128,
+                                           kv_cache_policy="exclusive")
+    assert cfg.kv_cache_policy == "exclusive"
+
+
+def test_kv_cache_policy_rejects_invalid():
+    from vllm.config.scheduler import SchedulerConfig
+    with pytest.raises((ValueError, TypeError)):
+        SchedulerConfig.default_factory(max_model_len=128, max_num_seqs=4,
+                                         max_num_batched_tokens=128,
+                                         kv_cache_policy="bogus_value")
+
+
+# ----------------------------------------------------------------------
+# Buffer free is no-op for unknown req (defensive)
+# ----------------------------------------------------------------------
+def test_buffer_free_unknown_returns_none():
+    buf = NeoCpuKvBuffer(_mini_spec())
+    assert buf.free("never_existed") is None
+
+
+# ----------------------------------------------------------------------
+# Phase 5.3 — Buffer capacity stress (TST_015 partial — prod-scale concurrent
+# in-flight measurement is deferred until Phase 4.4 real wiring lands; what
+# we *can* verify here is the buffer-level claim that exclusive policy never
+# under-allocates the CPU pool and recycles correctly under churn).
+# ----------------------------------------------------------------------
+def test_buffer_fills_pool_to_exact_capacity():
+    """50 reqs each taking 2 blocks should fit into a 100-block pool with
+    zero waste; the 51st must fail (None)."""
+    spec = _mini_spec(num_blocks=100)
+    buf = NeoCpuKvBuffer(spec)
+    for i in range(50):
+        ids = buf.alloc(f"r{i}", num_blocks=2)
+        assert ids is not None and len(ids) == 2
+    assert buf.num_free_blocks == 0
+    assert buf.num_resident_reqs == 50
+    # 51st must fail without partial alloc
+    assert buf.alloc("r_overflow", num_blocks=1) is None
+    assert buf.num_free_blocks == 0           # pool not corrupted on failure
+
+
+def test_buffer_alloc_free_churn_preserves_pool_size():
+    """Repeated alloc/free across many cycles never leaks blocks."""
+    spec = _mini_spec(num_blocks=64)
+    buf = NeoCpuKvBuffer(spec)
+    for cycle in range(20):
+        # alloc 8 reqs, 4 blocks each → consumes pool fully
+        for i in range(8):
+            ids = buf.alloc(f"c{cycle}_r{i}", num_blocks=4)
+            assert ids is not None
+        assert buf.num_free_blocks == 32      # 64 - 8*4
+        for i in range(8):
+            buf.free(f"c{cycle}_r{i}")
+        assert buf.num_free_blocks == 64      # full restore each cycle
+
+
+def test_active_buffer_register_and_get():
+    """Step3.2.c.6 — module-level singleton register / get."""
+    from vllm.v1.core.sched import neo_cpu_kv_buffer as _ncb
+    # baseline — no active
+    _ncb.set_active_buffer(None)
+    assert _ncb.get_active_buffer() is None
+    # register
+    buf = NeoCpuKvBuffer(_mini_spec(num_blocks=8))
+    _ncb.set_active_buffer(buf)
+    assert _ncb.get_active_buffer() is buf
+    # overwrite
+    buf2 = NeoCpuKvBuffer(_mini_spec(num_blocks=4))
+    _ncb.set_active_buffer(buf2)
+    assert _ncb.get_active_buffer() is buf2
+    # clear
+    _ncb.set_active_buffer(None)
+    assert _ncb.get_active_buffer() is None
+
+
+def test_buffer_id_uniqueness_under_full_pool():
+    """Disjoint id sets across all resident reqs (no double-handing)."""
+    spec = _mini_spec(num_blocks=32)
+    buf = NeoCpuKvBuffer(spec)
+    seen: set[int] = set()
+    for i in range(8):
+        ids = buf.alloc(f"u{i}", num_blocks=4)
+        assert ids is not None
+        s = set(ids)
+        assert s.isdisjoint(seen)             # no id reused while alive
+        seen.update(s)
+    assert len(seen) == 32                    # full pool partitioned
+
+
+# ----------------------------------------------------------------------
+# Phase 4.4.a — Scheduler._neo_swap_out helper (NEO-style swap-out
+# semantics distinct from vLLM ``_preempt_request``).
+# ----------------------------------------------------------------------
+class _StubKvCacheManager:
+    def __init__(self) -> None:
+        self.free_calls: list = []
+
+    def free(self, request) -> None:
+        self.free_calls.append(request)
+
+
+class _StubEncoderCacheManager:
+    def __init__(self) -> None:
+        self.free_calls: list = []
+
+    def free(self, request) -> None:
+        self.free_calls.append(request)
+
+
+class _StubScheduler:
+    """Minimal Scheduler shim that hosts ``_neo_swap_out`` for unit
+    testing without the full Scheduler init machinery (KVCacheConfig,
+    ModelConfig, etc.). The helper itself only touches
+    ``self.kv_cache_manager`` / ``self.encoder_cache_manager`` /
+    ``self.log_stats`` — bind the real method onto this stub."""
+
+    def __init__(self) -> None:
+        self.kv_cache_manager = _StubKvCacheManager()
+        self.encoder_cache_manager = _StubEncoderCacheManager()
+        self.log_stats = False
+
+    # Bind the real method off the Scheduler class — this is what we're
+    # actually testing. Done lazily so the import lives inside the
+    # function body (keeps top-of-file import light).
+    def _bind(self):
+        from vllm.v1.core.sched.scheduler import Scheduler
+        self._neo_swap_out = Scheduler._neo_swap_out.__get__(self, type(self))
+
+
+class _StubRequest:
+    def __init__(self, request_id: str, num_computed_tokens: int = 0) -> None:
+        from vllm.v1.request import RequestStatus
+        self.request_id = request_id
+        self.status = RequestStatus.RUNNING
+        self.num_computed_tokens = num_computed_tokens
+        self.spec_token_ids: list[int] = []
+        self.num_preemptions = 0
+
+    def record_event(self, *_args, **_kwargs):
+        pass
+
+
+def test_request_status_swapped_out_is_not_finished():
+    """SWAPPED_OUT must be < PREEMPTED so ``is_finished`` returns False."""
+    from vllm.v1.request import RequestStatus
+    assert RequestStatus.SWAPPED_OUT < RequestStatus.PREEMPTED
+    assert not RequestStatus.is_finished(RequestStatus.SWAPPED_OUT)
+
+
+def test_neo_swap_out_preserves_progress_and_frees_kv():
+    """_neo_swap_out: status→SWAPPED_OUT, KV freed, num_computed_tokens preserved."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubScheduler()
+    sch._bind()
+    req = _StubRequest("r0", num_computed_tokens=42)
+    req.spec_token_ids = [9, 8, 7]
+
+    sch._neo_swap_out(req)
+
+    assert req.status == RequestStatus.SWAPPED_OUT
+    assert req.num_computed_tokens == 42       # 보존
+    assert req.spec_token_ids == [9, 8, 7]     # 보존
+    assert req.num_preemptions == 0            # preempt 가 아님
+    assert sch.kv_cache_manager.free_calls == [req]
+    assert sch.encoder_cache_manager.free_calls == [req]
+
+
+def test_neo_swap_out_rejects_non_running():
+    """Only RUNNING requests can be NEO-swapped-out."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubScheduler()
+    sch._bind()
+    req = _StubRequest("r1")
+    req.status = RequestStatus.PREEMPTED      # already preempted
+    with pytest.raises(AssertionError, match=r"NEO-swapped-out"):
+        sch._neo_swap_out(req)
+
+
+def test_neo_swap_out_no_event_when_logging_disabled():
+    """log_stats=False (default) must not require timestamp."""
+    sch = _StubScheduler()
+    sch._bind()
+    req = _StubRequest("r2", num_computed_tokens=1)
+    sch._neo_swap_out(req)                     # no timestamp arg
+    # Did not raise — pass.
+
+
+# ----------------------------------------------------------------------
+# Phase 4.4.b — Scheduler._neo_swap_in helper + KVCacheManager.neo_swap_in_alloc
+# ----------------------------------------------------------------------
+class _StubKvCacheManagerWithSwapIn(_StubKvCacheManager):
+    """Adds neo_swap_in_alloc with a configurable return value to test
+    both success and pool-exhaustion branches of _neo_swap_in."""
+
+    def __init__(self, alloc_returns: bool = True) -> None:
+        super().__init__()
+        self.alloc_returns = alloc_returns
+        self.alloc_calls: list = []
+
+    def neo_swap_in_alloc(self, request) -> bool:
+        self.alloc_calls.append(request)
+        return self.alloc_returns
+
+
+class _StubSchedulerForSwapIn:
+    """Lightweight shim binding both _neo_swap_out and _neo_swap_in
+    methods off the real Scheduler class."""
+
+    def __init__(self, alloc_returns: bool = True) -> None:
+        self.kv_cache_manager = _StubKvCacheManagerWithSwapIn(
+            alloc_returns=alloc_returns)
+        self.encoder_cache_manager = _StubEncoderCacheManager()
+        self.log_stats = False
+
+    def _bind(self):
+        from vllm.v1.core.sched.scheduler import Scheduler
+        self._neo_swap_out = Scheduler._neo_swap_out.__get__(self, type(self))
+        self._neo_swap_in = Scheduler._neo_swap_in.__get__(self, type(self))
+
+
+def test_neo_swap_in_restores_running_on_alloc_success():
+    """Successful neo_swap_in_alloc → status=RUNNING + return True."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubSchedulerForSwapIn(alloc_returns=True)
+    sch._bind()
+    req = _StubRequest("r3", num_computed_tokens=10)
+    req.status = RequestStatus.SWAPPED_OUT
+    req.spec_token_ids = [5, 6]
+
+    ok = sch._neo_swap_in(req)
+
+    assert ok is True
+    assert req.status == RequestStatus.RUNNING
+    assert req.num_computed_tokens == 10       # 보존
+    assert req.spec_token_ids == [5, 6]        # 보존
+    assert sch.kv_cache_manager.alloc_calls == [req]
+
+
+def test_neo_swap_in_keeps_swapped_on_alloc_failure():
+    """Pool exhausted → status remains SWAPPED_OUT + return False."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubSchedulerForSwapIn(alloc_returns=False)
+    sch._bind()
+    req = _StubRequest("r4", num_computed_tokens=10)
+    req.status = RequestStatus.SWAPPED_OUT
+
+    ok = sch._neo_swap_in(req)
+
+    assert ok is False
+    assert req.status == RequestStatus.SWAPPED_OUT  # rollback
+    assert sch.kv_cache_manager.alloc_calls == [req]
+
+
+def test_neo_swap_in_rejects_non_swapped():
+    """Only SWAPPED_OUT requests can be NEO-swapped-in."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubSchedulerForSwapIn()
+    sch._bind()
+    req = _StubRequest("r5")
+    req.status = RequestStatus.RUNNING        # already running
+    with pytest.raises(AssertionError, match=r"NEO-swapped-in"):
+        sch._neo_swap_in(req)
+
+
+def test_neo_swap_out_then_swap_in_roundtrip_preserves_progress():
+    """Full out→in cycle preserves num_computed_tokens / spec_token_ids."""
+    from vllm.v1.request import RequestStatus
+    sch = _StubSchedulerForSwapIn(alloc_returns=True)
+    sch._bind()
+    req = _StubRequest("r6", num_computed_tokens=99)
+    req.spec_token_ids = [1, 2, 3, 4, 5]
+
+    sch._neo_swap_out(req)
+    assert req.status == RequestStatus.SWAPPED_OUT
+    assert req.num_computed_tokens == 99
+    assert req.spec_token_ids == [1, 2, 3, 4, 5]
+
+    ok = sch._neo_swap_in(req)
+    assert ok is True
+    assert req.status == RequestStatus.RUNNING
+    assert req.num_computed_tokens == 99       # 보존
+    assert req.spec_token_ids == [1, 2, 3, 4, 5]  # 보존
+
+
+# ----------------------------------------------------------------------
+# Phase 4.4.c — EngineCore._handle_neo_swaps env-gated dispatch.
+# ----------------------------------------------------------------------
+class _StubFullScheduler(_StubSchedulerForSwapIn):
+    """Adds the bits ``_handle_neo_swaps`` reads: ``requests`` dict and
+    ``running`` list."""
+
+    def __init__(self, alloc_returns: bool = True) -> None:
+        super().__init__(alloc_returns=alloc_returns)
+        self.requests: dict[str, _StubRequest] = {}
+        self.running: list[_StubRequest] = []
+
+
+class _StubEngineCore:
+    """Hosts ``_handle_neo_swaps`` bound off the real EngineCore class.
+    ``self.scheduler`` provides ``requests`` / ``running`` /
+    ``_neo_swap_out`` / ``_neo_swap_in`` like the real one."""
+
+    def __init__(self, scheduler) -> None:
+        self.scheduler = scheduler
+
+    def _bind(self):
+        from vllm.v1.engine.core import EngineCore
+        self._handle_neo_swaps = EngineCore._handle_neo_swaps.__get__(
+            self, type(self))
+
+
+class _StubSchedOut:
+    def __init__(self, swap_out=None, swap_in=None) -> None:
+        self.neo_swap_out_req_ids = swap_out
+        self.neo_swap_in_req_ids = swap_in
+
+
+def test_handle_neo_swaps_noop_when_env_off(monkeypatch):
+    """With VLLM_NEO_KV_FREE unset (prod default), no swap dispatch
+    occurs even when SchedulerOutput has populated swap lists."""
+    from vllm.v1.request import RequestStatus
+    monkeypatch.delenv("VLLM_NEO_KV_FREE", raising=False)
+
+    sch = _StubFullScheduler()
+    sch._bind()
+    req = _StubRequest("r_off", num_computed_tokens=5)
+    sch.requests[req.request_id] = req
+    sch.running.append(req)
+
+    core = _StubEngineCore(sch)
+    core._bind()
+    core._handle_neo_swaps(_StubSchedOut(swap_out=[req.request_id]))
+
+    # No-op: status unchanged, KV not freed, still in running.
+    assert req.status == RequestStatus.RUNNING
+    assert sch.kv_cache_manager.free_calls == []
+    assert req in sch.running
+
+
+def test_handle_neo_swaps_dispatches_swap_out_on_env(monkeypatch):
+    """B-1: swap-out → status SWAPPED_OUT + KV freed, but req **stays
+    in running** so vLLM input_batch still includes it (NEO 정통 —
+    cdec req 도 forward 에 참여)."""
+    from vllm.v1.request import RequestStatus
+    monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
+
+    sch = _StubFullScheduler()
+    sch._bind()
+    req = _StubRequest("r_out", num_computed_tokens=12)
+    sch.requests[req.request_id] = req
+    sch.running.append(req)
+
+    core = _StubEngineCore(sch)
+    core._bind()
+    core._handle_neo_swaps(_StubSchedOut(swap_out=[req.request_id]))
+
+    assert req.status == RequestStatus.SWAPPED_OUT
+    assert sch.kv_cache_manager.free_calls == [req]
+    assert req in sch.running                       # B-1: stays in running
+
+
+def test_handle_neo_swaps_dispatches_swap_in_on_env(monkeypatch):
+    """B-1: swap-in → status SWAPPED_OUT→RUNNING. req 는 이미 running
+    에 있으므로 append 안 함 (B-1 후 cdec 가 forward 참여 영역)."""
+    from vllm.v1.request import RequestStatus
+    monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
+
+    sch = _StubFullScheduler(alloc_returns=True)
+    sch._bind()
+    req = _StubRequest("r_in", num_computed_tokens=20)
+    req.status = RequestStatus.SWAPPED_OUT
+    sch.requests[req.request_id] = req
+    sch.running.append(req)                          # already in running
+
+    core = _StubEngineCore(sch)
+    core._bind()
+    core._handle_neo_swaps(_StubSchedOut(swap_in=[req.request_id]))
+
+    assert req.status == RequestStatus.RUNNING
+    assert req in sch.running
+    # only one occurrence (no double-append after B-1)
+    assert sch.running.count(req) == 1
+    assert sch.kv_cache_manager.alloc_calls == [req]
+
+
+def test_handle_neo_swaps_skips_unknown_req_ids(monkeypatch):
+    """Stale req_id (not in requests dict) is silently skipped."""
+    monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
+    sch = _StubFullScheduler()
+    sch._bind()
+    core = _StubEngineCore(sch)
+    core._bind()
+    # No matching request in dict — must not raise.
+    core._handle_neo_swaps(_StubSchedOut(
+        swap_out=["does_not_exist"],
+        swap_in=["also_missing"],
+    ))
+    assert sch.kv_cache_manager.free_calls == []
+
+
+def test_handle_neo_swaps_skips_stale_status(monkeypatch):
+    """Req in dict but status mismatch (e.g. already SWAPPED_OUT for an
+    out-id, or already RUNNING for an in-id) is skipped to avoid
+    double-transitions."""
+    from vllm.v1.request import RequestStatus
+    monkeypatch.setenv("VLLM_NEO_KV_FREE", "1")
+    sch = _StubFullScheduler()
+    sch._bind()
+    # already-out req — must NOT free again
+    r1 = _StubRequest("r_already_out", num_computed_tokens=5)
+    r1.status = RequestStatus.SWAPPED_OUT
+    sch.requests[r1.request_id] = r1
+    # already-running req — must NOT swap-in again
+    r2 = _StubRequest("r_already_in", num_computed_tokens=5)
+    r2.status = RequestStatus.RUNNING
+    sch.requests[r2.request_id] = r2
+
+    core = _StubEngineCore(sch)
+    core._bind()
+    core._handle_neo_swaps(_StubSchedOut(
+        swap_out=[r1.request_id],     # status mismatch → skip
+        swap_in=[r2.request_id],      # status mismatch → skip
+    ))
+    assert sch.kv_cache_manager.free_calls == []
+    assert sch.kv_cache_manager.alloc_calls == []
