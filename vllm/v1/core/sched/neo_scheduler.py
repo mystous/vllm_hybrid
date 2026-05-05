@@ -231,53 +231,25 @@ class NeoScheduler:
         budget.remaining_batch_size -= len(self.gpu_decoding_q)
         budget.remaining_tokens_in_batch -= len(self.gpu_decoding_q)
 
-        # Step 2 — preempt the most recent GPU decoding when budget over.
-        # IDE_006 — (a) vLLM async pipeline 정합 — min 1 RUNNING 보장.
-        # (b) swap_out 후보 = *fully decoded only* (prefill 진행 중 req 는
-        # swap_out 시 finish 안 됨 → deadlock).
-        while (budget.overspent
-               or gpu_block_needed > swap_out_threshold) \
-                and len(self.gpu_decoding_q) > 1:
-            # 후보 = decode 단계 만 — prefill 단계 swap_out 회피.
-            victim_idx = -1
-            for _i in range(len(self.gpu_decoding_q) - 1, -1, -1):
-                if getattr(self.gpu_decoding_q[_i], "_is_decode", True):
-                    victim_idx = _i
-                    break
-            if victim_idx < 0:
-                # 모든 reqs 가 prefill — swap_out 불가.
-                break
-            victim = self.gpu_decoding_q.pop(victim_idx)
-            self._initiate_swap_out(victim)         # Phase 5.1 atomic
-            swap_out_reqs.append(victim)
-            gpu_block_needed -= self._get_block_needed(victim)
-            budget.add(1)
+        # Step 2 — IDE_006 / TSK_015 4.5.2.c architectural fix —
+        # NEO 의 자체 swap_out logic 제거. KV pressure 시 swap_out 결정은
+        # vLLM 의 standard preempt path 가 자동 발화. vLLM scheduler 의
+        # ``_preempt_request`` 가 NEO 활성 + decode 단계 시 ``_neo_swap_out``
+        # 으로 위임 (KV CPU copy + status SWAPPED_OUT + RUNNING 잔류).
+        # 즉 NEO 는 자체 KV pressure 추산 / victim 선택 / state 변경 모두
+        # 안 하고 vLLM 의 표준 path 활용. cdec_reqs 의 source 는 vLLM 의
+        # SWAPPED_OUT 상태 reqs (mode_selector 가 그것을 cdec 으로 처리).
+        #
+        # 13 단계 progressive 우회 fix 의 *진정한 대체*: NEO state machine
+        # 과 vLLM state machine 의 desync 자체 제거.
         self._assert_exclusive_invariant(where="step2")
 
-        # Step 3 — swap-in head-of-queue CPU decode (mutually exclusive
-        # with swap-out).
-        # IDE_006 Step 3.2.C-5 dev hook — VLLM_NEO_FORCE_CDEC_DISPATCH=1 면
-        # swap_in 자체를 skip 시켜 cpu_decoding_q 가 그대로 유지 → mode_selector
-        # 의 step 3 가 그 reqs 를 cdec_reqs 로 batches 에 add → unified_
-        # attention_with_output 의 dispatch hook 이 dev 환경에서 실제 발화.
-        # prod 워크로드 의 KV pool pressure 영역 검증을 dev 에서 시뮬레이션.
-        import os as _os
-        _force_cdec_dispatch = (
-            _os.environ.get("VLLM_NEO_FORCE_CDEC_DISPATCH") == "1"
-        )
-        while (self.cpu_decoding_q and not swap_out_reqs
-               and not _force_cdec_dispatch):
-            candidate = self.cpu_decoding_q[0]
-            need = self._get_block_needed(candidate)
-            if (gpu_block_needed + need > swap_in_threshold
-                    or not budget.check_and_substract(1)):
-                break
-            gpu_block_needed += need
-            swap_in_reqs.append(candidate)
-            self._initiate_swap_in(candidate)       # Phase 5.1 atomic
+        # Step 3 — IDE_006 / TSK_015 4.5.2.c architectural fix —
+        # NEO 의 자체 swap_in logic 제거. SWAPPED_OUT reqs 의 GPU 복귀는
+        # vLLM scheduler.schedule() 의 line 386 영역 path (B-2.b 변경)
+        # 가 처리 — SWAPPED_OUT 도 schedule 시도 + KV alloc dummy success
+        # + cdec dispatch path 활성. swap_in 별도 발화 불필요.
         self._assert_exclusive_invariant(where="step3")
-        # Mutually exclusive
-        assert not swap_out_reqs or not swap_in_reqs
 
         # Step 4 — classify newly arrived prefills (GPU first, then CPU)
         # IDE_006 — cpu_decoding_q size sanity check. infinite-loop guard +

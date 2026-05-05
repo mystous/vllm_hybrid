@@ -1046,24 +1046,47 @@ class GPUModelRunner(
                 decode_threshold=self.reorder_batch_threshold,
             )
 
-        # IDE_006 / TSK_015 4.5.2.c depth 6 — NEO fork branch alignment.
-        # Adapter 가 num_scheduled_tokens.keys() 순서로 b0/b1 을 분리.
-        # input_batch.req_ids 는 *영구 슬롯 순서* + unscheduled reqs +
-        # SWAPPED_OUT cdec reqs 까지 포함하므로 분산 가능. 이전 _move_in /
-        # _move_out 짝-zip 은 b0 가 분산된 케이스 처리 못 함 (길이 mismatch
-        # → skip → prefix_fail). 본 fix: greedy walk — [:boundary] 를 순회
-        # 하면서 non-b0 자리에 [boundary:] 의 첫 b0 를 swap 으로 채워넣어
-        # input_batch[:boundary] = b0 invariant 강제.
+        # IDE_006 / TSK_015 4.5.2.c depth 7 — NEO fork branch alignment.
+        # vLLM core scheduler 가 self.running 의 stale reqs 를 schedule 하면
+        # output.num_scheduled_tokens 에 input_batch 에 없는 ids 포함됨.
+        # adapter 의 b0/b1 은 num_scheduled_tokens 부분집합 → b0 일부가
+        # input_batch 외부일 수 있음 (depth 6 의 prefix_fail 잔여 원인).
+        #
+        # fix: worker 가 b0/b1 을 input_batch 와 *교집합* 으로 reduce —
+        # b0_eff = b0 ∩ input_batch_ids, b1_eff = b1 ∩ input_batch_ids.
+        # b0_eff 가 input_batch 의 부분집합임을 *원천적으로* 보장 →
+        # swap_states 가 input_batch[:len(b0_eff)] = b0_eff invariant 달성
+        # 가능. attach 단계의 cdec slices 는 b0_eff 기준으로 worker 가
+        # 직접 재계산 (4.5.2.c 의 ``effective b0/b1`` 영역에 저장).
         if getattr(self, "_neo_enabled", False):
             neo_subs = getattr(scheduler_output, "neo_sub_batches", None)
             if (neo_subs is not None
                     and len(neo_subs) == 2
                     and neo_subs[0]
                     and neo_subs[1]):
-                _b0_set = set(neo_subs[0])
                 _num_reqs = self.input_batch.num_reqs
+                _input_ids_set = set(
+                    self.input_batch.req_ids[:_num_reqs]
+                )
+                # depth 7 — worker side 교집합 필터링.
+                _b0_eff = [
+                    r for r in neo_subs[0] if r in _input_ids_set
+                ]
+                _b1_eff = [
+                    r for r in neo_subs[1] if r in _input_ids_set
+                ]
+                _b0_set = set(_b0_eff)
                 _boundary = len(_b0_set)
-                if 0 < _boundary <= _num_reqs:
+                # 양쪽 다 non-empty 여야 fork 의미. 한쪽 비면 sequential.
+                # effective sub-batches 를 self 에 stash — execute_model 의
+                # fork branch + cdec slice 재계산이 이걸 사용.
+                self._neo_b0_eff_for_step = (
+                    _b0_eff if _b0_eff and _b1_eff else None
+                )
+                self._neo_b1_eff_for_step = (
+                    _b1_eff if _b0_eff and _b1_eff else None
+                )
+                if 0 < _boundary <= _num_reqs and _b1_eff:
                     if not hasattr(self, "_neo_swap_count"):
                         self._neo_swap_count = 0
                         self._neo_swap_step_count = 0
@@ -1073,9 +1096,6 @@ class GPUModelRunner(
                     for i in range(_boundary):
                         if (self.input_batch._req_ids[i] in _b0_set):
                             continue
-                        # i 자리에 b0 가 아닌 req 가 있음. [boundary..num_reqs)
-                        # 에서 첫 b0 를 찾아 swap. 못 찾으면 b0 의 일부가
-                        # input_batch 전체에 없는 상태 — fork 진입 불가.
                         j = _boundary
                         while (j < _num_reqs
                                 and self.input_batch._req_ids[j]
@@ -1102,12 +1122,15 @@ class GPUModelRunner(
                         self._neo_swap_unreachable += 1
                         if self._neo_swap_unreachable <= 3:
                             logger.warning(
-                                "[NEO SWAP UNREACHABLE] b0 의 일부 reqs 가 "
-                                "input_batch 전체에 없음 — fork skip. "
-                                "boundary=%d num_reqs=%d unreachable_count=%d",
+                                "[NEO SWAP UNREACHABLE] depth 7 filter 후에도 "
+                                "b0_eff 일부가 input_batch 에 없음 — fork skip. "
+                                "boundary=%d num_reqs=%d count=%d",
                                 _boundary, _num_reqs,
                                 self._neo_swap_unreachable,
                             )
+            else:
+                self._neo_b0_eff_for_step = None
+                self._neo_b1_eff_for_step = None
 
     def _init_kv_zero_meta(self) -> None:
         """One-time precomputation for _zero_block_ids.
@@ -4144,14 +4167,14 @@ class GPUModelRunner(
             req_ids = self.input_batch.req_ids
             tokens = [scheduler_output.num_scheduled_tokens[i] for i in req_ids]
             num_scheduled_tokens_np = np.array(tokens, dtype=np.int32)
-            # IDE_006 / TSK_015 NEO 정합 — empty num_scheduled_tokens 영역
-            # (NEO swap_out + vLLM standard preempt 가 모든 reqs 처리해
-            # input_batch.req_ids 가 empty 인 step). _dummy_run(1) 호출로
-            # async pipeline 의 future-result 영역 정합 보장 (본 호출
-            # 없이 return 시 step_with_batch_queue 가 model_output=None
-            # 받아 RuntimeError raise).
+            # IDE_006 / TSK_015 4.5.2.c depth 10 — empty step 시 dummy_run
+            # 제거. 이전 fix 는 async pipeline 의 future.result() None 회피
+            # 용 _dummy_run(1) 호출이었으나, *어떤 worker 만* dummy_run 발화
+            # 시 TP rank desync (NCCL collective op 매치 실패 → 19 분 hang).
+            # engine/core.py 의 None guard (NEO ON 시 EMPTY_MODEL_RUNNER_OUTPUT
+            # 우회) 가 이미 추가되었으므로 worker 는 *모든 rank 동일하게*
+            # EMPTY 반환 가능. 이로써 desync 원천 제거.
             if num_scheduled_tokens_np.size == 0:
-                self._dummy_run(1)
                 if not has_kv_transfer_group():
                     return EMPTY_MODEL_RUNNER_OUTPUT
                 return self.kv_connector_no_forward(
@@ -4256,21 +4279,29 @@ class GPUModelRunner(
                         self._neo_fork_reject_prefix_fail,
                         self._neo_fork_reject_split_oob,
                     )
+                # IDE_006 4.5.2.c depth 7 — effective b0/b1 사용 (worker 가
+                # _may_reorder_batch 단계에서 input_batch 와 교집합으로 이미
+                # reduce 했음).
+                _b0_eff_step = getattr(
+                    self, "_neo_b0_eff_for_step", None
+                )
+                _b1_eff_step = getattr(
+                    self, "_neo_b1_eff_for_step", None
+                )
                 if (neo_subs_str is None or len(neo_subs_str) != 2):
                     self._neo_fork_reject_no_subs += 1
-                elif not (neo_subs_str[0] and neo_subs_str[1]):
+                elif not (_b0_eff_step and _b1_eff_step):
                     self._neo_fork_reject_b1_empty += 1
                 else:
                     self._neo_fork_stat_eligible += 1
-                    boundary = len(neo_subs_str[0])
-                    _b0_set = set(neo_subs_str[0])
+                    boundary = len(_b0_eff_step)
+                    _b0_set = set(_b0_eff_step)
                     _input_prefix_set = set(
                         self.input_batch.req_ids[:boundary]
                     )
                     if _b0_set != _input_prefix_set:
                         self._neo_fork_reject_prefix_fail += 1
-                        # IDE_006 depth 5 — 첫 prefix_fail 시 details
-                        # 출력 (active>0 이후 reject 패턴 확인 핵심).
+                        # IDE_006 depth 5 — 첫 prefix_fail 시 details.
                         if (self._neo_fork_reject_prefix_fail == 1
                                 or (self._neo_fork_stat_active > 0
                                     and self._neo_fork_reject_prefix_fail
@@ -4278,7 +4309,7 @@ class GPUModelRunner(
                             _diff_b0 = _b0_set - _input_prefix_set
                             _diff_in = _input_prefix_set - _b0_set
                             logger.warning(
-                                "[NEO FORK REJECT] prefix_fail "
+                                "[NEO FORK REJECT] prefix_fail (post-filter) "
                                 "active_so_far=%d total=%d boundary=%d "
                                 "num_reqs=%d "
                                 "diff_b0_only_size=%d diff_input_only_size=%d "
@@ -4291,6 +4322,10 @@ class GPUModelRunner(
                             )
                     else:
                         # split_point 은 boundary req 이전까지의 token 합.
+                        # b0_eff 는 input_batch[:boundary] 와 set 일치
+                        # (위 prefix_match 통과). num_scheduled_tokens_np
+                        # 가 input_batch 순서이므로 [:boundary].sum() 은
+                        # b0_eff 의 토큰 합과 정합.
                         neo_split_point = int(
                             num_scheduled_tokens_np[:boundary].sum()
                         )
@@ -4298,33 +4333,49 @@ class GPUModelRunner(
                             should_ubatch = True
                             neo_split_used = True
                             self._neo_fork_stat_active += 1
-                            # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — capture
-                            # per-sub-batch cdec token slices so the
-                            # attention metadata builder can set
-                            # ``CommonAttentionMetadata.neo_cdec_token_slice``
-                            # on each forked sub-batch's metadata. Backend
-                            # then dispatches cdec rows to the CPU pacpu
-                            # kernel without any model-side decision.
-                            self._neo_cdec_slices_for_step = getattr(
-                                scheduler_output,
-                                "neo_sub_batch_cdec_slices", None,
+                            # IDE_006 4.5.2.c depth 7 — cdec slice 재계산.
+                            # adapter 가 attach 한 cdec_slices 는 *원본*
+                            # b0/b1 기준이라 effective b0/b1 (input_batch
+                            # 와 교집합) 와 desync. worker 가 effective
+                            # b0_eff/b1_eff 와 input_batch 순서 기준으로
+                            # 직접 재계산.
+                            #
+                            # b0_eff (= input_batch[:boundary]) 에는 cdec
+                            # 없음 (cdec 는 b1_eff 에만). b1_eff (=
+                            # input_batch[boundary:boundary+|b1_eff|])
+                            # 의 모든 reqs 가 cdec.
+                            _b1_eff_size = len(_b1_eff_step)
+                            _b0_eff_tokens = neo_split_point  # b0 토큰 합
+                            _b1_eff_tokens = int(
+                                num_scheduled_tokens_np[
+                                    boundary:boundary + _b1_eff_size
+                                ].sum()
                             )
-                            self._neo_cdec_seq_slices_for_step = getattr(
-                                scheduler_output,
-                                "neo_sub_batch_cdec_seq_slices", None,
-                            )
-                            self._neo_cdec_req_ids_for_step = getattr(
-                                scheduler_output,
-                                "neo_sub_batch_cdec_req_ids", None,
-                            )
+                            # cdec_token_slice: per-sub-batch (start, end)
+                            # 의 cdec rows 위치. b0_eff 는 zero, b1_eff 는
+                            # 전체 토큰.
+                            self._neo_cdec_slices_for_step = [
+                                (_b0_eff_tokens, _b0_eff_tokens),
+                                (0, _b1_eff_tokens),
+                            ]
+                            # cdec_seq_slice: per-sub-batch (start, end) 의
+                            # cdec req 위치. b0_eff zero, b1_eff 전체.
+                            self._neo_cdec_seq_slices_for_step = [
+                                (boundary, boundary),
+                                (0, _b1_eff_size),
+                            ]
+                            self._neo_cdec_req_ids_for_step = [
+                                [],
+                                list(_b1_eff_step),
+                            ]
                             if logger.isEnabledFor(logging.DEBUG):
                                 logger.debug(
                                     "[NEO] forward-context fork active: "
                                     "split_point=%d (boundary=%d, "
-                                    "sub-batch sizes=%d/%d, cdec_slices=%s)",
+                                    "b0_eff=%d/b1_eff=%d, b1_tokens=%d)",
                                     neo_split_point, boundary,
-                                    boundary, len(neo_subs_str[1]),
-                                    self._neo_cdec_slices_for_step,
+                                    boundary, _b1_eff_size,
+                                    _b1_eff_tokens,
                                 )
                         else:
                             self._neo_fork_reject_split_oob += 1
