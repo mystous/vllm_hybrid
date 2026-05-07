@@ -823,15 +823,51 @@ def unified_attention_with_output(
                                 seq_lens_attr[_s0:_s1]
                                 .to(torch.int64).cpu().tolist()
                             )
-                            # GPU → CPU copy (cdec rows only — small).
-                            q_cpu = q_cdec.to(torch.float16).cpu()
-                            k_cpu = k_cdec.to(torch.float16).cpu()
-                            v_cpu = v_cdec.to(torch.float16).cpu()
+                            # TSK_019 SUB_022 (R4) — pinned q/k/v 1 회
+                            # alloc 재사용 + cross-dtype copy_ 로 cast +
+                            # transfer 1 step. 매 layer alloc 폐기.
+                            # SUB_017 (R4) — 별 CUDA stream 위 비동기
+                            # H2D, main stream GPU compute 와 자동
+                            # overlap. main thread 가 submit 직전
+                            # event.synchronize() 호출 (GIL 안전 — worker
+                            # thread sync 는 SUB_005 회귀 root).
+                            q_cpu, k_cpu, v_cpu = _get_neo_pinned_qkv(
+                                cdec_count, nh, nkh, hd,
+                            )
+                            _xfer_stream = _get_neo_communication_stream()
+                            _xfer_stream.wait_stream(
+                                torch.cuda.current_stream()
+                            )
+                            # TSK_019 SUB_024 (R6 변형) — GPU 측 명시
+                            # cast (BF16 → FP16) 후 same-dtype copy.
+                            # NEO 는 GPU/CPU 모두 FP16 이라 cast 자체
+                            # 없음. vllm_hybrid 는 GPU BF16 / CPU FP16
+                            # 불가피 — implicit (SUB_022) vs explicit
+                            # (본 회차) 위치 측정.
+                            with torch.cuda.stream(_xfer_stream):
+                                q_cpu.copy_(
+                                    q_cdec.to(torch.float16),
+                                    non_blocking=True,
+                                )
+                                k_cpu.copy_(
+                                    k_cdec.to(torch.float16),
+                                    non_blocking=True,
+                                )
+                                v_cpu.copy_(
+                                    v_cdec.to(torch.float16),
+                                    non_blocking=True,
+                                )
+                            _xfer_event = _xfer_stream.record_event()
+                            # TSK_019 root #1 fix — main thread sync 제거.
+                            # worker thread (_neo_cdec_compute_cpu 의 첫
+                            # 줄) 가 host-side wait. main thread 가
+                            # GPU forward launch + backlog 형성 가능.
                             # Submit CPU pacpu kernel to background
                             # thread — 진짜 병렬 시작.
                             cdec_future = (
                                 _get_neo_cdec_executor().submit(
                                     _neo_cdec_compute_cpu,
+                                    _xfer_event,
                                     layer_idx,
                                     float(self.impl.scale),
                                     seq_ids_list,
@@ -842,6 +878,15 @@ def unified_attention_with_output(
                                     cdec_count, nh, hd,
                                 )
                             )
+                            # TSK_019 — cdec dispatch counter (measurement)
+                            global _neo_cdec_call_count
+                            _neo_cdec_call_count += 1
+                            if _neo_cdec_call_count % 100 == 0:
+                                from vllm.logger import init_logger as _einit
+                                _einit("vllm.attention.neo_cdec_metric").info(
+                                    "[NEO CDEC CALL] count=%d",
+                                    _neo_cdec_call_count,
+                                )
                             cdec_t0 = _t0
                             cdec_t1 = _t1
     except Exception as _cdec_setup_e:  # noqa: BLE001
@@ -887,11 +932,24 @@ def unified_attention_with_output(
         )
 
     # Wait for CPU pacpu task + apply result to output[cdec rows].
+    # TSK_019 plan B3 — host fence 위치 layer-end (NEO 원본
+    # `transformer_layer.py:336` 의 inline call 위치 동등). cdec_future
+    # submit (line 853) 후 GPU forward launch (line 913) 직렬 — backlog
+    # 형성. 그 후 layer-end 에서 host wait. KV cache sequential
+    # dependency (layer i output → layer i+1 input) 로 layer-pipeline
+    # X. 본 위치가 NEO 패턴.
     if cdec_future is not None:
         try:
             out_buf = cdec_future.result()
             out_gpu = out_buf.to(output.device).to(output.dtype)
-            output[cdec_t0:cdec_t1].copy_(out_gpu)
+            # TSK_019 fix — out_buf shape = (cdec_count, nh * hd).
+            # output 의 cdec slice 가 (cdec_count, nh, hd) 3D 또는
+            # (cdec_count, nh*hd) 2D 가능. ``.reshape`` 사용 — view 가
+            # contiguous 보장 안 될 때 copy fallback. shape mismatch 회피.
+            _n_rows = cdec_t1 - cdec_t0
+            output[cdec_t0:cdec_t1].reshape(_n_rows, -1).copy_(
+                out_gpu.reshape(_n_rows, -1)
+            )
         except Exception as _cdec_apply_e:  # noqa: BLE001
             try:
                 from vllm.logger import init_logger as _einit
@@ -910,7 +968,11 @@ def unified_attention_with_output(
                 pass
 
 
+_neo_cdec_call_count = 0  # TSK_019 — cdec dispatch 호출 빈도 measurement
+
+
 def _neo_cdec_compute_cpu(
+    xfer_event,
     layer_idx: int,
     softmax_scale: float,
     seq_ids: list[int],
@@ -928,7 +990,13 @@ def _neo_cdec_compute_cpu(
     """IDE_006 4.5.2.c v33 — NEO cdec dispatch 의 *CPU computation* 단계
     만 별 thread 에서 실행. C extension (``_pa.forward_attention``) 호출
     시 GIL release → main thread 의 GPU forward 와 진짜 병렬 진행.
+
+    TSK_019 root #1 fix — main thread 에서 ``_xfer_event.synchronize()``
+    호출 X. worker thread 가 첫 줄에서 host-side wait. main thread block
+    제거 → GPU stream backlog 형성 가능.
     """
+    if xfer_event is not None:
+        xfer_event.synchronize()
     from vllm.v1.attention.ops import neo_pacpu as _pa
     out_buf = torch.empty(cdec_count, nh * hd, dtype=torch.float32)
     _pa.forward_attention(
@@ -948,16 +1016,69 @@ def _neo_cdec_compute_cpu(
 
 
 _neo_cdec_executor = None
+_neo_pinned_qkv = None  # (q, k, v) pinned tensors — TSK_019 SUB_022 (R4)
+_neo_pinned_qkv_capacity = 0  # current capacity (num_tokens)
+_neo_communication_stream = None  # TSK_019 SUB_017 — 별 stream (R4)
+
+
+def _get_neo_communication_stream():
+    """TSK_019 SUB_017 (R4) — module-level lazy CUDA stream for GPU→CPU
+    async H2D. NEO `swiftllm/worker/model.py:153` `cpu_communication_stream`
+    동등 패턴. main stream 의 GPU compute 와 자동 overlap.
+    """
+    global _neo_communication_stream
+    if _neo_communication_stream is None:
+        _neo_communication_stream = torch.cuda.Stream()
+    return _neo_communication_stream
+
+
+def _get_neo_pinned_qkv(num_tokens, num_q_heads, num_kv_heads, head_dim,
+                        dtype=torch.float16):
+    """TSK_019 SUB_022 (R4) — module-level pinned q/k/v cache.
+
+    Single max-size alloc; view-overwrite per layer. cdec dispatch 의
+    매 layer 매 step `q_cdec.to(torch.float16).cpu()` 새 alloc + cast 를
+    한 번 alloc + cross-dtype `copy_` 로 대체. NEO `block_swapper.py:57-63`
+    동등 패턴.
+    """
+    global _neo_pinned_qkv, _neo_pinned_qkv_capacity
+    if _neo_pinned_qkv is None or num_tokens > _neo_pinned_qkv_capacity:
+        capacity = max(num_tokens, 256)
+        q = torch.empty(
+            (capacity, num_q_heads, head_dim),
+            dtype=dtype, pin_memory=True,
+        )
+        k = torch.empty(
+            (capacity, num_kv_heads, head_dim),
+            dtype=dtype, pin_memory=True,
+        )
+        v = torch.empty(
+            (capacity, num_kv_heads, head_dim),
+            dtype=dtype, pin_memory=True,
+        )
+        _neo_pinned_qkv = (q, k, v)
+        _neo_pinned_qkv_capacity = capacity
+    q, k, v = _neo_pinned_qkv
+    return q[:num_tokens], k[:num_tokens], v[:num_tokens]
 
 
 def _get_neo_cdec_executor():
-    """ThreadPoolExecutor (max_workers=1) — main thread 의 GPU forward
-    와 *진짜 병렬* CPU pacpu 호출. lazy init (첫 NEO 활성 호출 시)."""
+    """TSK_019 SUB_023 (R7) — ThreadPoolExecutor max_workers 단계적
+    증가. 1 → 2 → 4 + py-spy GIL profile 검증 후 적정 값 결정. 본
+    회차 max_workers=2: layer 간 cdec 직렬화 일부 해제. NEO
+    `transformer_layer.py:336` 은 OMP-free 패턴 — vllm_hybrid 의
+    ThreadPool 은 GIL 환경, contention 측정 필수.
+    Override 가능 — env ``VLLM_NEO_CDEC_WORKERS``.
+    """
     global _neo_cdec_executor
     if _neo_cdec_executor is None:
         import concurrent.futures
+        import os as _os_env
+        _max_workers = int(
+            _os_env.environ.get("VLLM_NEO_CDEC_WORKERS", "2")
+        )
         _neo_cdec_executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1,
+            max_workers=_max_workers,
             thread_name_prefix="neo-cdec",
         )
     return _neo_cdec_executor

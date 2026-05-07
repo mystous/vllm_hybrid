@@ -248,6 +248,25 @@ class EngineCore:
                     "NEO PerfPredictor profile took %.2fs (%s)",
                     time.time() - t_profile_0, source,
                 )
+                # TSK_019 plan F1 — cache HIT/MISS 무관 worker process 의
+                # ``torch.ops.pacpu.paged_attention_cpu`` 등록 보장. cache
+                # HIT 시 ``profile_neo_predictor`` 가 skip 되어 worker
+                # 측 ensure_loaded 가 호출 안 되는 root 회피. idempotent
+                # 이라 MISS path 에서도 안전.
+                try:
+                    rpc_loaded = self.model_executor.collective_rpc(
+                        "ensure_neo_kernel_loaded"
+                    )
+                    logger.info(
+                        "NEO kernel ensure_loaded RPC: %s "
+                        "(workers loaded=%s)",
+                        "OK" if all(rpc_loaded) else "PARTIAL",
+                        rpc_loaded,
+                    )
+                except Exception as _ek:  # noqa: BLE001
+                    logger.warning(
+                        "NEO kernel ensure_loaded RPC failed: %s", _ek,
+                    )
             except Exception as e:  # noqa: BLE001
                 import traceback as _tb
                 logger.warning(
@@ -475,8 +494,82 @@ class EngineCore:
     # by the time outputs are folded in).
     # ------------------------------------------------------------------
     def _handle_neo_swaps(self, scheduler_output: SchedulerOutput) -> None:
-        if os.environ.get("VLLM_NEO_KV_FREE") != "1":
-            return
+        # TSK_019 plan A3 — env gate 제거. enable_neo_asymmetric flag +
+        # swap_out_req_ids / swap_in_req_ids 의 non-empty 만으로 자연 동작.
+        # NEO 원본 (`swiftllm/server/engine.py:202`) 의 block_manager.prepare
+        # 위치 동등.
+        # TSK_019 try22 deadlock root fix — deferred_free 영역을 *gate 앞*
+        # 으로 이동. 이전 버그: 새 swap_out X 인 step 에서는 early-return
+        # 으로 deferred_free_reqs 영구 미실행 → SWAPPED_OUT 256 reqs 의
+        # GPU KV block 영구 reserved → KV pool 99.33% 고정 → allocate_slots
+        # 매 step fail → forward 0 → eternal deadlock.
+        # py-spy 진단 결과 main thread 4/5 sample 이 scheduler.py:539 의
+        # preempt scan loop spinning. 본 fix 후 deferred free 가 매 step
+        # 자연 발화 → KV pool 정상화 → forward progress 회복.
+        sched = self.scheduler
+        deferred = getattr(sched, "_neo_deferred_free_reqs", None)
+        if deferred:
+            # TSK_019 try26 architectural fix — abort path 폐기, vLLM
+            # standard preempt path 채택.
+            # 직전 try24/25: `finish_requests(FINISHED_ABORTED)` 가
+            # `finished_req_ids` 등록만 하고 client 측 RequestOutput 미생성
+            # → eval tqdm 영원 stuck (vllm v1 의 finished_requests 는
+            # core_client.py:1395 의 reqs_in_flight cleanup 만 trigger).
+            # py-spy 진단: main thread `_process_input_queue` queue wait
+            # → schedule 멈춤. Aborted reqs 의 output 을 client 가 영원
+            # 못 받음.
+            # Fix: vanilla preempt path 채택 — status=PREEMPTED +
+            # num_computed_tokens=0 + waiting.prepend → 재 prefill + decode
+            # → 정상 RequestOutput emit → tqdm 정상 진행 + run 정상 완료.
+            # 진행 loss (decode tokens) 발생하지만 measurement progresses.
+            # 진짜 NEO benefit 은 swap_in path / cdec dispatch chain 활성화
+            # 후 발현.
+            from vllm.v1.engine import EngineCoreEventType as _ECET
+            _preempted_count = 0
+            for req in deferred:
+                if req.status == RequestStatus.SWAPPED_OUT:
+                    try:
+                        # KV blocks free (Path A defer-free 의 본래 의도)
+                        sched.kv_cache_manager.free(req)
+                        sched.encoder_cache_manager.free(req)
+                        # vanilla preempt 의 state transitions
+                        req.status = RequestStatus.PREEMPTED
+                        req.num_computed_tokens = 0
+                        if req.spec_token_ids:
+                            req.spec_token_ids = []
+                        req.num_preemptions += 1
+                        if sched.log_stats:
+                            req.record_event(
+                                _ECET.PREEMPTED, time.time()
+                            )
+                        # self.running 에서 제거 (NEO swap_out 시 잔류했음)
+                        try:
+                            sched.running.remove(req)
+                        except ValueError:
+                            pass
+                        # waiting 에 다시 추가 → 재 prefill + decode
+                        sched.waiting.prepend_request(req)
+                        _preempted_count += 1
+                    except Exception as _pe:  # noqa: BLE001
+                        logger.warning(
+                            "NEO deferred preempt failed for %s: %s",
+                            req.request_id, _pe,
+                        )
+            sched._neo_deferred_free_reqs = []
+            if _preempted_count > 0 and not getattr(
+                self, "_neo_deferred_free_logged", False
+            ):
+                logger.info(
+                    "NEO deferred preempt first dispatch: preempted=%d "
+                    "reqs (KV freed + waiting.prepend → re-prefill "
+                    "+ decode normally).",
+                    _preempted_count,
+                )
+                self._neo_deferred_free_logged = True
+
+        # 본 step 에서 새 swap_out_ids / swap_in_ids 가 attach 된 경우만
+        # worker side _neo_handle_kv_swap (CPU buffer 영역) 진행. deferred
+        # free 와는 독립.
         swap_out_ids = getattr(scheduler_output, "neo_swap_out_req_ids", None)
         swap_in_ids = getattr(scheduler_output, "neo_swap_in_req_ids", None)
         if not swap_out_ids and not swap_in_ids:
@@ -485,35 +578,11 @@ class EngineCore:
         # without DEBUG. Subsequent dispatches stay silent (hot path).
         if not getattr(self, "_neo_swap_logged_once", False):
             logger.info(
-                "NEO swap dispatch active (VLLM_NEO_KV_FREE=1) — first fire: "
-                "out=%d in=%d",
+                "NEO swap dispatch active — first fire: out=%d in=%d",
                 len(swap_out_ids or ()),
                 len(swap_in_ids or ()),
             )
             self._neo_swap_logged_once = True
-        sched = self.scheduler
-        # IDE_006 / TSK_015.B-1 — Out: RUNNING → SWAPPED_OUT, GPU blocks
-        # freed but req **stays in running**. NEO 의 정통: cdec req 도
-        # forward 에 참여 (Q embedding 만 GPU, attention backend 단계에서만
-        # CPU pacpu 분기). running 에서 제거하면 vLLM input_batch 가 cdec
-        # 를 모르고 → fork branch 의 num_reqs mismatch → dispatch dead code.
-        if swap_out_ids:
-            for req_id in swap_out_ids:
-                req = sched.requests.get(req_id)
-                if req is None or req.status != RequestStatus.RUNNING:
-                    continue
-                sched._neo_swap_out(req)
-                # running 유지 — vLLM scheduler 의 schedule() 이 SWAPPED_OUT
-                # status 도 input_batch 에 포함하도록 갱신 (B-2)
-        # In: SWAPPED_OUT → RUNNING. running 에 이미 있으므로 append 하지
-        # 않고 status 만 복귀.
-        if swap_in_ids:
-            for req_id in swap_in_ids:
-                req = sched.requests.get(req_id)
-                if req is None or req.status != RequestStatus.SWAPPED_OUT:
-                    continue
-                sched._neo_swap_in(req)
-                # running 에 이미 있음 — append 안 함 (B-1)
 
     def step(self) -> tuple[dict[int, EngineCoreOutputs], bool]:
         """Schedule, execute, and make output.

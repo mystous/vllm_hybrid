@@ -475,6 +475,13 @@ class MultiprocExecutor(Executor):
     def max_concurrent_batches(self) -> int:
         # PP requires PP-size concurrent batches to fill the pipeline.
         pp_size = self.parallel_config.pipeline_parallel_size
+        # TSK_019 plan B fix — NEO 활성 시 async batch_queue 비활성.
+        # async_scheduling=True + max_concurrent_batches=2 환경에서
+        # step N 의 swap_out copy 와 step N+1 의 schedule() 가 동시
+        # 진행 → block_id 재할당 race → GPU MMU error (Xid 94) 의 root.
+        # NEO 활성 시 직렬 step 으로 race 회피.
+        if getattr(self.scheduler_config, "enable_neo_asymmetric", False):
+            return pp_size if pp_size > 1 else 1
         return 2 if pp_size <= 1 and self.scheduler_config.async_scheduling else pp_size
 
     def _get_output_rank(self) -> int:

@@ -28,6 +28,7 @@ See ``shadow_assists/features/IDE_006/NEO_redesign.md``,
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from vllm.v1.core.sched.async_scheduler import AsyncScheduler
@@ -323,6 +324,30 @@ class NeoSchedulerAdapter(AsyncScheduler):
                 pred.gdec_N_list = [p[0] for p in gdec_pairs]
                 pred.gdec_T_list = [p[1] for p in gdec_pairs]
                 pred.gdec_N_lb_idx = pred._get_lb_idx_list(pred.gdec_N_list)
+            # TSK_019 SUB_016 — cdec_T 2D table (S × N) populate.
+            cdec_pairs = profile_data.get("cdec_T_pairs", [])
+            if cdec_pairs:
+                cdec_grouped: dict[int, list[tuple[int, float]]] = {}
+                for entry in cdec_pairs:
+                    S, N, T = entry  # tuple/list both work
+                    cdec_grouped.setdefault(int(S), []).append(
+                        (int(N), float(T))
+                    )
+                sorted_S = sorted(cdec_grouped.keys())
+                pred.cdec_S_list = sorted_S
+                pred.cdec_N_lists = []
+                pred.cdec_T_lists = []
+                for S in sorted_S:
+                    pairs = sorted(cdec_grouped[S], key=lambda p: p[0])
+                    pred.cdec_N_lists.append([p[0] for p in pairs])
+                    pred.cdec_T_lists.append([p[1] for p in pairs])
+                pred.cdec_N_list_agg = sorted({
+                    n for lst in pred.cdec_N_lists for n in lst
+                })
+                pred.cdec_S_lb_idx = pred._get_lb_idx_list(pred.cdec_S_list)
+                pred.cdec_N_lb_idx = pred._get_lb_idx_list(
+                    pred.cdec_N_list_agg
+                )
             pred.lnch_T = float(profile_data.get("lnch_T", 0.8))
 
             # Atomic swap. NeoScheduler 도 같은 ref 를 사용하므로 한 번만.
@@ -396,7 +421,165 @@ class NeoSchedulerAdapter(AsyncScheduler):
     # schedule — drive both the default and NEO schedulers, attach the
     # NEO decision to the SchedulerOutput for the runner to consume.
     # ------------------------------------------------------------------
+    def _get_kv_pool_usage(self) -> float:
+        """TSK_019 plan A1 — current GPU KV pool usage ratio (0.0~1.0).
+        Returns 0.0 if attributes unavailable. Logger 보강 — 첫 5 회
+        호출 + Exception 시 traceback INFO log.
+        """
+        try:
+            block_pool = self.kv_cache_manager.block_pool
+            total = block_pool.num_gpu_blocks
+            free = block_pool.get_num_free_blocks()
+            if total > 0:
+                usage = 1.0 - (free / total)
+                if not getattr(self, "_neo_kv_pool_first_logged", False):
+                    self._neo_kv_pool_first_log_count = (
+                        getattr(self, "_neo_kv_pool_first_log_count", 0) + 1
+                    )
+                    if self._neo_kv_pool_first_log_count <= 5:
+                        logger.info(
+                            "[NEO KV POOL] usage=%.4f total=%d free=%d "
+                            "(call %d/5)",
+                            usage, total, free,
+                            self._neo_kv_pool_first_log_count,
+                        )
+                    if self._neo_kv_pool_first_log_count >= 5:
+                        self._neo_kv_pool_first_logged = True
+                return usage
+            else:
+                logger.warning(
+                    "[NEO KV POOL] total blocks 0 — block_pool not init?"
+                )
+        except Exception as _e:  # noqa: BLE001
+            import traceback as _tb
+            logger.warning(
+                "[NEO KV POOL] exception (%s): %s\n%s",
+                type(_e).__name__, _e, _tb.format_exc(),
+            )
+        return 0.0
+
     def schedule(self) -> SchedulerOutput:
+        # TSK_019 plan A1 + F2 — predictive swap_out trigger.
+        # NEO 원본 (`swiftllm/server/scheduler.py:265-270`) 의 100%
+        # threshold + 95% hysteresis 동등. F2 fix — 0.95 → 1.0 (NEO 원본).
+        # try4 thrashing root (95% 가 너무 적극적 — sustained 영역 매 step
+        # swap_out 발화) 회피. env override 가능.
+        from vllm.v1.request import RequestStatus as _RS_pre
+        import os as _os_th
+        try:
+            _SWAP_OUT_THRESHOLD = float(
+                _os_th.environ.get("VLLM_NEO_PREDICTIVE_THRESHOLD", "1.0")
+            )
+        except ValueError:
+            _SWAP_OUT_THRESHOLD = 1.0
+        if not (0.5 <= _SWAP_OUT_THRESHOLD <= 1.0):
+            _SWAP_OUT_THRESHOLD = 1.0
+        _SWAP_IN_THRESHOLD = _SWAP_OUT_THRESHOLD * 0.95  # hysteresis 5%
+        # TSK_019 plan F2 — cooldown. swap_out 후 N step 동안 추가 swap_out
+        # 회피 (thrashing 회피). module-level counter.
+        _COOLDOWN_STEPS = int(
+            _os_th.environ.get("VLLM_NEO_SWAP_COOLDOWN", "5")
+        )
+        if not hasattr(self, "_neo_swap_cooldown_remaining"):
+            self._neo_swap_cooldown_remaining = 0
+        _swap_out_predictive_ids: list[str] = []
+        _swap_out_predictive_block_ids: dict[str, list[int]] = {}
+        # cooldown 처리 — swap_out 후 N step 동안 추가 swap_out 회피.
+        if self._neo_swap_cooldown_remaining > 0:
+            self._neo_swap_cooldown_remaining -= 1
+        # TSK_019 try21 deadlock fix — spurious trigger 회피 + RUNNING 드레인
+        # 한계.
+        # Fix #1 (spurious trigger): kv_usage > threshold sustained + 모든
+        # RUNNING SWAPPED_OUT (running_decode=0) → 매 step 진입 → log 12k/min
+        # + schedule cost. cooldown set 후 break 로 무한 진입 회피.
+        # Fix #2 (RUNNING 드레인): swap_out 가 RUNNING list 의 모든 reqs 를
+        # SWAPPED_OUT 으로 비우면 vllm scheduler 가 num_scheduled_tokens=0
+        # 만 emit → forward progress 0. cdec 부재 + swap_in 부재 영역에서
+        # min_running_decode 보장.
+        _MIN_RUNNING_DECODE = int(
+            _os_th.environ.get("VLLM_NEO_MIN_RUNNING_DECODE", "32")
+        )
+        try:
+            kv_usage = self._get_kv_pool_usage()
+            if (kv_usage > _SWAP_OUT_THRESHOLD
+                    and self._neo_swap_cooldown_remaining <= 0):
+                running_decode = [
+                    r for r in self.running
+                    if r.status == _RS_pre.RUNNING
+                    and r.num_computed_tokens >= r.num_prompt_tokens
+                ]
+                # Fix #1 — running_decode empty 면 cooldown 설정 후 즉시
+                # return (무한 spurious 진입 차단).
+                if not running_decode:
+                    self._neo_swap_cooldown_remaining = _COOLDOWN_STEPS
+                    if not getattr(self, "_neo_spurious_logged", False):
+                        logger.info(
+                            "[NEO predictive] running_decode=0 "
+                            "(all SWAPPED_OUT or prefill) — cooldown %d steps "
+                            "set to suppress spurious trigger.",
+                            _COOLDOWN_STEPS,
+                        )
+                        self._neo_spurious_logged = True
+                    raise StopIteration  # exit try block to skip swap_out
+                logger.info(
+                    "[NEO predictive trigger entered] "
+                    "kv_usage=%.4f threshold=%.3f running_decode=%d",
+                    kv_usage, _SWAP_OUT_THRESHOLD, len(running_decode),
+                )
+                _now_ts = time.time()
+                # Fix #2 — running_decode 의 마지막 _MIN_RUNNING_DECODE 개는
+                # 보존. swap_out 후보를 (len - MIN) 까지만.
+                _max_swap_out = max(
+                    0, len(running_decode) - _MIN_RUNNING_DECODE
+                )
+                _victim_count = 0
+                while (kv_usage > _SWAP_IN_THRESHOLD
+                       and running_decode
+                       and _victim_count < _max_swap_out):
+                    victim = running_decode.pop()
+                    rid = victim.request_id
+                    # TSK_019 plan A4 fix — _preempt_request 가 KV cache_
+                    # manager.free 호출 *전* 에 GPU block_ids 추출. free 후
+                    # 호출하면 input_batch.block_table 의 row 정리됨 → worker
+                    # 가 None 받음 → silent skip (chain break root).
+                    try:
+                        block_groups = (
+                            self.kv_cache_manager.get_block_ids(rid)
+                        )
+                        if block_groups and len(block_groups) > 0:
+                            _swap_out_predictive_block_ids[rid] = list(
+                                block_groups[0]
+                            )
+                    except Exception as _be:  # noqa: BLE001
+                        logger.warning(
+                            "[NEO predictive] get_block_ids failed for %s: %s",
+                            rid, _be,
+                        )
+                    self._preempt_request(victim, _now_ts)
+                    _swap_out_predictive_ids.append(rid)
+                    _victim_count += 1
+                    kv_usage = self._get_kv_pool_usage()
+                logger.info(
+                    "[NEO predictive swap_out] count=%d "
+                    "block_ids_captured=%d kv_usage_final=%.4f "
+                    "running_decode_kept=%d (min=%d)",
+                    len(_swap_out_predictive_ids),
+                    len(_swap_out_predictive_block_ids),
+                    kv_usage,
+                    len(running_decode), _MIN_RUNNING_DECODE,
+                )
+                # F2 cooldown — swap_out 발화 시 cooldown 적용
+                if _swap_out_predictive_ids:
+                    self._neo_swap_cooldown_remaining = _COOLDOWN_STEPS
+        except StopIteration:
+            pass  # spurious-trigger short-circuit — 정상 path
+        except Exception as _e:  # noqa: BLE001
+            import traceback as _tb
+            logger.warning(
+                "NEO predictive swap_out exception (%s): %s\n%s",
+                type(_e).__name__, _e, _tb.format_exc(),
+            )
+
         # Drive the default scheduler — this is the data path the engine
         # actually consumes for vanilla operation.
         output = super().schedule()
@@ -456,22 +639,34 @@ class NeoSchedulerAdapter(AsyncScheduler):
             except (AttributeError, TypeError) as e:
                 logger.debug("NEO output attach failed: %s", e)
 
-        # IDE_006 / TSK_015 4.5.2.c architectural fix —
-        # NEO 의 자체 swap_out / swap_in path 비활성화. NEO 의 cdec
-        # state machine (gpu_decoding_q / cpu_decoding_q + _initiate_swap_*)
-        # 이 vLLM 의 standard preempt path 와 desync 하여 KV deadlock
-        # 발생 (13 단계 progressive fix 모두 *증상 우회* 였음). 진짜
-        # 해결: vLLM 의 standard preempt 가 KV pressure 시 자체 발화
-        # (scheduler.py:480 영역). NEO 는 *fork wiring* 만 유지하고 swap
-        # path 는 vLLM 에 위임.
-        #
-        # 결과: KV cycle 이 vLLM standard 로 정상 동작. NEO 의 cdec
-        # dispatch 실효 효과는 별도 phase 에서 검증 (현재는 wiring 만
-        # 적재된 상태로 deadlock 없는 안정 운용 보장).
-        #
-        # ``neo_swap_out_req_ids`` / ``neo_swap_in_req_ids`` 를 attach
-        # 하지 않으면 ``engine/core.py:_handle_neo_swaps`` 가 즉시 return
-        # (gate 조건). worker 측 ``_neo_handle_kv_swap`` 도 swap_out_ids
-        # 가 None 이라 자연 skip.
+        # TSK_019 plan A2 — swap_out_req_ids attach 활성.
+        # 본 turn 의 predictive trigger (A1) 로 _preempt_request 호출 한
+        # req 들을 SchedulerOutput 에 attach → engine/core 의
+        # _handle_neo_swaps (A3 gate 해제) → worker _neo_handle_kv_swap
+        # (A4 stream wrap) → KV bytes per-layer GPU→CPU 진짜 이동.
+        if _swap_out_predictive_ids:
+            try:
+                output.neo_swap_out_req_ids = list(_swap_out_predictive_ids)
+                # TSK_019 plan A4 fix — block_ids dict attach 도 함께.
+                if _swap_out_predictive_block_ids:
+                    output.neo_swap_out_block_ids = dict(
+                        _swap_out_predictive_block_ids
+                    )
+            except (AttributeError, TypeError) as _ae:
+                logger.debug(
+                    "NEO swap_out attach failed: %s", _ae,
+                )
+
+        # TSK_019 plan B-NEW 진짜 fix — predictive swap_in 도 비활성.
+        # 기존: _neo_swap_in() 호출 → 새 GPU block 할당 → status RUNNING.
+        # 그러나 새 block_ids 가 input_batch.block_table.np[req_idx] 에
+        # 갱신 안 됨 (req_to_new_blocks populate 안 함, worker 의
+        # _get_req_gpu_block_ids 가 stale 읽음) → cross-req KV
+        # contamination → CUDA device-side assert → silent worker crash.
+        # Fix: 모든 swap_in path 제거. SWAPPED_OUT req 는 cdec dispatch
+        # (NeoCpuKvBuffer 의 KV 로 CPU pacpu attention) 만 통해 처리.
+        # NEO 본가 의 *bidirectional cycle* 는 별도 phase (req_to_new_blocks
+        # populate + block_ids dict attach + worker swap_in_one_req 의
+        # block_ids 사용 모두 적재 후 활성).
 
         return output

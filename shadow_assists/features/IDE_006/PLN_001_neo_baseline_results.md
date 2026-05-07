@@ -268,7 +268,43 @@ NEO data path 가 dev 머신 smoke (Qwen-1.5B + RTX 3090) 에서 wiring 통과 (
 3. **stop 조건 1 (throughput 우월) PASS** — narrow conditional (500p 한 점)
 4. **stop 조건 2 (정확도 보존)** — 미검증, token loss 2.84~14.47% 잔존 (size 따라 누적)
 
-### 미해결 항목 (정식 sub-task = `SUB_001` ~ `SUB_006`, parent `TSK_019`)
+## 5.7 · TSK_019 measurement chain — SUB_004/005/006 surgery + measurement-driven reject (2026-05-06)
+
+본 회차들은 사용자 directive ("성능 최대치까지") 에 따라 SUB_004 / SUB_005 / SUB_006 모두 architectural surgery 진행. 각 sub-task 별 separate 측정으로 attribution 명확. 결과: **모든 surgery 측정 기반 reject — v41 NEO draft 가 best**.
+
+**환경 (모든 v 회차 공통)**: Llama-3.3-70B + TP=8 + max_num_seqs=256 + max_tokens=8192 + target_input_len=8192 + 500 prompts. branch `feat/ide006-tsk019-neo-performance-max`.
+
+### 측정 매트릭스 (vanilla / NEO draft / 수정 버전)
+
+| 회차 | 변경 내용 | wall_s | output_tokens (%) | output_tps | NEO 차 (vanilla 2190.83) | token loss |
+|---|---|---|---|---|---|---|
+| **vLLM vanilla** | NEO OFF | 1869.61 | 4,096,000 (100.00%) | **2190.83** | base | 0% |
+| **NEO draft (v41)** | main HEAD — no-fastmath FP16 kernel | 1761.58 | 3,979,863 (97.16%) | **2259.26** | **+3.13% win** | **2.84%** |
+| 수정 v42 (SUB_006 FP32) | data_t=float (kernel rebuild) + .to(torch.float32) | 1802.81 | 3,944,147 (96.30%) | 2187.77 | -0.14% lose | 3.70% |
+| 수정 v43 (SUB_005 async) | dedicated CUDA stream + non_blocking + event.sync | 1757.46 | 3,947,673 (96.38%) | 2246.24 | +2.53% | 3.62% |
+| 수정 v44 (SUB_005 + SUB_004) | + global block_table cache (NeoCpuKvBuffer) | 1771.63 | 3,926,190 (95.85%) | 2216.15 | +1.16% | 4.15% |
+
+### Surgery 별 결정
+
+**SUB_006 (D2.3 BF16↔FP16 cast)** — Plan A (BF16 native ISPC) 시도 → ISPC v1.23 의 `bfloat16` keyword 미지원으로 컴파일 fail. Plan C (FP32) 로 fallback 시도 → output_tps **-3.16%** vs v41 / token loss **+0.86%p 악화**. FP32 의 2× 메모리 + 2× compute 비용이 정확도 이득 압도. v41 의 itmd_t=FP32 accumulator 가 이미 누적 overflow 회피하므로 input cast 변경의 marginal value. **revert**.
+
+**SUB_005 (D5 async transfer)** — `_get_neo_transfer_stream()` lazy-init `torch.cuda.Stream` + `transfer_stream.wait_stream(current)` + `with stream():` 안에서 `non_blocking=True` cpu copy + `record_event()` + worker thread `event.synchronize()` 후 kernel. **결과**: output_tps **-0.58%** vs v41 / token loss **+0.78%p 악화**. Worker thread 의 event.synchronize 가 GIL 와 상호작용하면서 main 의 GPU forward 와 진짜 병렬 안 됨. **revert**.
+
+**SUB_004 (D4 global block_table)** — `NeoCpuKvBuffer` 에 global block_table tensor pre-alloc + alloc/free 시점 row 갱신 + `get_global_block_table()` view API. 매 step cdec-only 재구성 회피. **결과 (v44 누적, SUB_005 + SUB_004 합산)**: output_tps **-1.91%** vs v41 / token loss **+1.31%p 악화**. row 갱신 cost 가 매-step 재구성 절감보다 큰 듯. **revert**.
+
+### 종료 조건 vs 결과
+
+| 종료 조건 | 목표 | v44 결과 | 판정 |
+|---|---|---|---|
+| 500p output_tps ≥ 2300 | vanilla +5% 이상 win | 2216.15 (vanilla +1.16%) | **미충족** |
+| token loss ≤ 2.0% | v41 보다 개선 | 4.15% (v41 2.84% 보다 악화) | **미충족** |
+| 회귀 0 | smoke + 500p 정상 완주 | crash 0 / 정상 완주 | 충족 |
+
+**결정**: 모든 surgery measurement-driven reject. v41 NEO draft (HEAD `27b1bf15fa` 기준 = no-fastmath FP16 kernel + skip_gpu_attn) 가 max performance state. 본 branch 의 source 변경 v41 baseline 으로 revert. 측정 결과 (eval/results 6 dirs) 만 main 에 land — TSK_019 의 정직한 closing 자료.
+
+---
+
+### 미해결 항목 (정식 sub-task = `SUB_001` ~ `SUB_006`, parent `TSK_019`) — closed
 
 본 chain 진단 중 swiftllm 원본 vs vLLM cdec dispatch 의 5 차이점 + 후속 가설 1 개 식별. 비공식 D 라벨 (D1~D5 + D2.3) 을 정식 `TSK_019` parent + 6 개 SUB sub-task 로 등재 (2026-05-05). 자세한 정의는 `shadow_assists/id_registry.md`:
 

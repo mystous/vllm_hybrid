@@ -214,11 +214,10 @@ void ispc_attention(
   delete [] attn_score_buf;
 }
 
-// Here we use global buffers to store intermediate results
-itmd_t attn_score_buf[MAX_TOK_NUM * NUM_Q_HEADS];
-otpt_t o_buf [MAX_TASK_NUM * NUM_Q_HEADS * HEAD_DIM];
-itmd_t attn_sum_buf[MAX_TASK_NUM * NUM_Q_HEADS];
-
+// TSK_019 plan F12 진짜 fix — global buffer 폐기. multi-dispatch
+// (max_workers > 1 cdec executor) 시 동일 global buffer 동시 쓰기로
+// race + segfault. thread_local std::vector 사용 — 각 caller thread
+// 별 별 buffer. 함수 내부 정의로 header multiple-definition 회피.
 void ispc_attention_tasks(
   int cur_layer,
   int num_blocks,
@@ -227,7 +226,7 @@ void ispc_attention_tasks(
   double softmax_scale,
   const std::vector<int64_t> &seq_ids,
   const std::vector<int64_t> &seq_lengths,
-  
+
   data_t qbatch_p[],
   data_t kbatch_p[],
   data_t vbatch_p[],
@@ -236,6 +235,17 @@ void ispc_attention_tasks(
   data_t vcache_p[],
   int block_table_p[]
 ) {
+  // F12 fix — thread_local heap-alloc. 각 caller thread (cdec executor
+  // worker) 별 별 buffer 1 회 init 후 재사용. race 0.
+  static thread_local std::vector<itmd_t> _tl_attn_score_buf_vec(
+    MAX_TOK_NUM * NUM_Q_HEADS);
+  static thread_local std::vector<otpt_t> _tl_o_buf_vec(
+    MAX_TASK_NUM * NUM_Q_HEADS * HEAD_DIM);
+  static thread_local std::vector<itmd_t> _tl_attn_sum_buf_vec(
+    MAX_TASK_NUM * NUM_Q_HEADS);
+  itmd_t* attn_score_buf = _tl_attn_score_buf_vec.data();
+  otpt_t* o_buf = _tl_o_buf_vec.data();
+  itmd_t* attn_sum_buf = _tl_attn_sum_buf_vec.data();
   int ws = omp_get_max_threads();
   int bch_blk_size = (batch_size - 1) / ws + 1;
   int tot_blks = 0;

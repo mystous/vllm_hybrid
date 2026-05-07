@@ -75,6 +75,20 @@ class _PerReqAllocation:
     # 변하면 ``last_block_offset`` 추가.
 
 
+def _neo_synchronized(method):
+    """TSK_019 plan B2 fix — instance lock 보호 decorator. cdec worker
+    thread (read) + main thread (alloc/free/scatter) 사이 host memory
+    race 회피. GIL release (C ext) + advanced indexing 영역 보호."""
+    def _wrapped(self, *args, **kwargs):
+        if hasattr(self, "_lock"):
+            with self._lock:
+                return method(self, *args, **kwargs)
+        return method(self, *args, **kwargs)
+    _wrapped.__name__ = method.__name__
+    _wrapped.__doc__ = method.__doc__
+    return _wrapped
+
+
 class NeoCpuKvBuffer:
     """CPU-resident KV cache buffer + per-request block index.
 
@@ -119,6 +133,11 @@ class NeoCpuKvBuffer:
 
         self._free_block_ids: list[int] = list(range(spec.num_cpu_blocks))
         self._req_alloc: dict[str, _PerReqAllocation] = {}
+        # TSK_019 plan B2 fix — re-entrant lock. alloc/free/copy_layer_in/
+        # copy_layer_out 모두 보호. main thread (scatter) + cdec worker
+        # thread (read) 사이 host memory race 회피.
+        import threading as _th
+        self._lock = _th.RLock()
 
         logger.info(
             "NeoCpuKvBuffer allocated: shape=%s dtype=%s pinned=%s "
@@ -132,23 +151,57 @@ class NeoCpuKvBuffer:
     # ------------------------------------------------------------------
     # Per-request allocation API (Phase 4.1 — bookkeeping only)
     # ------------------------------------------------------------------
+    @_neo_synchronized
     def alloc(self, req_id: str, num_blocks: int) -> list[int] | None:
         """Reserve ``num_blocks`` CPU block_ids for ``req_id``. Returns
         the assigned block_ids, or ``None`` if the free pool is
         insufficient (caller should treat as a swap-out failure).
         Re-alloc for the same req_id raises (caller should ``free``
-        first)."""
+        first).
+
+        TSK_019 plan F3 — capacity log 강화. alloc 빈도 / free 비율
+        측정으로 CPU pool overflow 영역 추적.
+        """
         if req_id in self._req_alloc:
             raise ValueError(
                 f"NeoCpuKvBuffer.alloc: req_id {req_id!r} already allocated"
             )
         if num_blocks > len(self._free_block_ids):
+            # F3 — capacity 부족 detail log
+            try:
+                import logging as _lg
+                _lg.getLogger(__name__).info(
+                    "[NEO BUF ALLOC FAIL] req=%s needed=%d free=%d "
+                    "total=%d active_reqs=%d",
+                    req_id, num_blocks, len(self._free_block_ids),
+                    self.spec.num_cpu_blocks, len(self._req_alloc),
+                )
+            except Exception:  # noqa: BLE001
+                pass
             return None
         ids = self._free_block_ids[-num_blocks:]
         del self._free_block_ids[-num_blocks:]
         self._req_alloc[req_id] = _PerReqAllocation(block_ids=ids)
+        # F3 — alloc 첫 5 회 + 매 100 회 capacity log
+        try:
+            import logging as _lg
+            self._neo_alloc_count = (
+                getattr(self, "_neo_alloc_count", 0) + 1
+            )
+            if (self._neo_alloc_count <= 5
+                    or self._neo_alloc_count % 100 == 0):
+                _lg.getLogger(__name__).info(
+                    "[NEO BUF ALLOC] count=%d req=%s blocks=%d "
+                    "free_after=%d/%d active_reqs=%d",
+                    self._neo_alloc_count, req_id, num_blocks,
+                    len(self._free_block_ids),
+                    self.spec.num_cpu_blocks, len(self._req_alloc),
+                )
+        except Exception:  # noqa: BLE001
+            pass
         return ids
 
+    @_neo_synchronized
     def free(self, req_id: str) -> list[int] | None:
         """Release the block_ids belonging to ``req_id``. Returns the
         freed block_ids (so callers can wipe them). Returns ``None`` if
@@ -159,6 +212,7 @@ class NeoCpuKvBuffer:
         self._free_block_ids.extend(alloc.block_ids)
         return alloc.block_ids
 
+    @_neo_synchronized
     def get_block_ids(self, req_id: str) -> list[int] | None:
         alloc = self._req_alloc.get(req_id)
         return alloc.block_ids if alloc is not None else None
@@ -180,6 +234,7 @@ class NeoCpuKvBuffer:
     # 처리. dtype mismatch 의 정밀도 손실은 attention 수준에서 vanilla
     # 와 *분포 동등* (CLAUDE.md Constraint 운영 해석).
 
+    @_neo_synchronized
     def copy_layer_in(
         self,
         req_id: str,
@@ -220,6 +275,14 @@ class NeoCpuKvBuffer:
         # *copy*, not a view — ``.copy_()`` on it would not write back.
         # Use ``index_put_`` or direct indexed assignment instead.
         # Move src to CPU first if needed (it may be on GPU).
+        # TSK_019 plan F8 fix — silent worker crash root.
+        # 기존: `to("cpu", non_blocking=True)` + non-pinned 임시 dst →
+        # PyTorch 의 unsafe async fallback (driver-dependent UB) → 직후
+        # advanced indexing scatter 가 *partial-filled host buffer* 읽음
+        # → CUDA caching allocator + memcpy state corruption →
+        # ~20 swap_out 후 silent worker crash.
+        # 변경: `to("cpu", non_blocking=False)` 로 동기 H2D — caching
+        # allocator state corruption 회피. NEO 본가 패턴 동등.
         idx = torch.tensor(block_ids, dtype=torch.long)
         k_cpu_src = k_src.detach().to("cpu", non_blocking=False)
         v_cpu_src = v_src.detach().to("cpu", non_blocking=False)
@@ -229,6 +292,7 @@ class NeoCpuKvBuffer:
         self.k_cpu[layer_idx, idx] = k_cpu_src
         self.v_cpu[layer_idx, idx] = v_cpu_src
 
+    @_neo_synchronized
     def copy_layer_out(
         self,
         req_id: str,

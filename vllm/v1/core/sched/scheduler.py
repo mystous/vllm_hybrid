@@ -389,24 +389,29 @@ class Scheduler(SchedulerInterface):
         # vllm 의 standard schedule path 가 SWAPPED_OUT 영구 잔류 안 시킴.
         # _neo_swap_in 자체가 KV alloc 시도 후 fail 시 False 반환 → 더
         # 이상 swap_in 안 함 (KV 압력 균형).
-        if self.scheduler_config.enable_neo_asymmetric:
-            for req in list(self.running):
-                if req.status != RequestStatus.SWAPPED_OUT:
-                    continue
-                if not self._neo_swap_in(req, scheduled_timestamp):
-                    # KV alloc fail — 더 이상 swap_in 안 함 (KV 부족).
-                    break
+        # TSK_019 plan B-NEW 진짜 fix — auto-swap-in 제거.
+        # 기존: 본 영역에서 _neo_swap_in 호출 → KV alloc + status RUNNING
+        # 변경 → output.neo_swap_in_req_ids 에 attach 안 함 → worker
+        # 가 KV CPU→GPU copy 안 함 → input_batch.block_table.np[req_idx]
+        # stale → cross-req KV contamination → CUDA device-side assert
+        # → silent worker crash (try10~try15 의 root).
+        # Fix: 본 auto path 폐기. 모든 swap-in 결정을 adapter
+        # (`neo_scheduler_adapter.py:625-666`) 의 predictive 영역에 일원화.
+        # adapter 가 swap_in_req_ids attach + req_to_new_blocks populate.
 
         # First, schedule the RUNNING requests.
         req_index = 0
         while req_index < len(self.running) and token_budget > 0:
             request = self.running[req_index]
 
-            # IDE_006 / TSK_015.B-2.b — SWAPPED_OUT req 도 정상 schedule.
-            # KVCacheManager.allocate_slots 가 SWAPPED_OUT 시 dummy empty
-            # success 반환 (KV 가 CPU 에 있으므로 GPU 새 alloc 안 함).
-            # attention backend 의 unified_attention_with_output 가 cdec
-            # dispatch hook 으로 CPU pacpu 사용 (Step3.2.c).
+            # TSK_019 try22 — SWAPPED_OUT outer-loop skip (try32 cdec 활성화
+            # 시도 → 동일 AssertionError, revert).
+            if (
+                self.scheduler_config.enable_neo_asymmetric
+                and request.status == RequestStatus.SWAPPED_OUT
+            ):
+                req_index += 1
+                continue
 
             if (
                 request.num_output_placeholders > 0
@@ -1128,13 +1133,23 @@ class Scheduler(SchedulerInterface):
         assert request.status == RequestStatus.RUNNING, (
             f"Only running requests can be NEO-swapped-out; got {request.status}"
         )
-        # Reclaim GPU KV blocks. CPU copy is held by the worker-side
-        # NeoCpuKvBuffer keyed by request_id.
-        self.kv_cache_manager.free(request)
-        # Encoder cache is typically empty post-prefill; defensive free
-        # is a no-op when already cleared.
+        # TSK_019 Path A (Defer free pattern) — silent crash root fix.
+        # 기존: kv_cache_manager.free 호출이 *worker D2H copy 시작 전*에
+        # block_pool.free_blocks 로 GPU block 즉시 반환 → 같은 step 의
+        # super().schedule() 의 allocate_slots 가 *즉시 재할당* →
+        # worker _neo_swap_out_one_req 가 invalid GPU memory access
+        # (Xid 94 GPU MMU error).
+        # Fix: free 호출 제거. 대신 engine/core._handle_neo_swaps 가
+        # worker D2H 완료 *후* deferred free 진행. NEO 본가 의
+        # `_initiate_swap` (block_manager.py:188-192) atomic free+alloc
+        # invariant 의 vllm_hybrid timing 차원 재현.
+        # Encoder cache 만 즉시 free (KV race 와 무관, post-prefill empty).
         self.encoder_cache_manager.free(request)
         request.status = RequestStatus.SWAPPED_OUT
+        # Deferred free 추적 — step() 끝에서 실제 free 발화.
+        if not hasattr(self, "_neo_deferred_free_reqs"):
+            self._neo_deferred_free_reqs = []
+        self._neo_deferred_free_reqs.append(request)
         # num_computed_tokens / spec_token_ids / num_preemptions 보존.
         if self.log_stats and timestamp is not None:
             # Reuse PREEMPTED event type until a dedicated SWAPPED_OUT

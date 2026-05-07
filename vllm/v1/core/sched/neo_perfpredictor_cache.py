@@ -43,12 +43,13 @@ logger = logging.getLogger(__name__)
 # Bumped when the on-disk schema changes. Old entries are silently
 # ignored (treated as miss) so a downgrade or upgrade never hangs
 # startup on a corrupt cache.
-_SCHEMA_VERSION = 1
+# v2 (TSK_019 SUB_016) — cdec_T_pairs (2D grid) added.
+_SCHEMA_VERSION = 2
 
 # Required keys in the profile_data dict. A cache entry missing any
 # of them is treated as miss (forces a fresh measurement).
 _REQUIRED_PROFILE_KEYS = ("linr_T_pairs", "pref_T_pairs",
-                          "gdec_T_pairs", "lnch_T")
+                          "gdec_T_pairs", "cdec_T_pairs", "lnch_T")
 
 
 def _cache_dir() -> Path:
@@ -123,7 +124,9 @@ def load(vllm_config: VllmConfig) -> dict | None:
         return None
     # JSON encodes (S, ms) tuples as [S, ms] lists. Convert back so
     # the adapter's downstream consumers see the original shape.
-    for k in ("linr_T_pairs", "pref_T_pairs", "gdec_T_pairs"):
+    # cdec is 3-tuple (S, N, ms).
+    for k in ("linr_T_pairs", "pref_T_pairs", "gdec_T_pairs",
+              "cdec_T_pairs"):
         if k in profile:
             profile[k] = [tuple(p) for p in profile[k]]
     logger.info("NEO predictor cache: HIT %s", path)
