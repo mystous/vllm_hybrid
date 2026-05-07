@@ -37,10 +37,19 @@ See ``shadow_assists/features/IDE_006/NEO_code_deepdive.md`` §4.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from vllm.v1.core.sched.sub_batch import SubBatch
+
+
+def _noop_transfer(q: Any, k: Any, v: Any, batch: SubBatch,
+                   layer_idx: int) -> None:
+    """TSK_019 plan B1 — default no-op transfer callback. cdec dispatch
+    의 H2D transfer 가 attention callback 안 implicit 으로 처리되는
+    현재 구현에서는 별도 동작 X. NEO 원본 `_transfer_qkv` 동등 callback
+    contract 만 적재."""
+    return None
 
 
 # ----------------------------------------------------------------------
@@ -74,6 +83,18 @@ class LayerPipelineCallbacks:
     postproj: Callable[[Any, SubBatch, int], Any]
     """``postproj(attention_output, batch, layer_idx) -> next_embeddings``."""
 
+    transfer: Callable[[Any, Any, Any, SubBatch, int], Any] = field(
+        default=_noop_transfer
+    )
+    """TSK_019 plan B1 — ``transfer(q, k, v, batch, layer_idx) -> None``.
+
+    NEO `swiftllm/worker/layers/transformer_layer.py:158-178`
+    `_transfer_qkv` 동등. preproj 직후 / attention 직전 별 stage 로
+    cdec H2D 시작 — attention callback 이 *별도 host fence* 없이 GPU
+    forward launch 가능. 본 callback 의 default 는 no-op (현재
+    attention.py 의 cdec dispatch 가 implicit transfer 처리). model 별
+    wiring 시점에 explicit transfer 할당."""
+
 
 # ----------------------------------------------------------------------
 # Pipeline runner
@@ -99,6 +120,21 @@ class SubBatchPipelineExecutor:
             raise ValueError(f"num_layers must be >= 1, got {num_layers}")
         self.num_layers = num_layers
         self.cb = callbacks
+        # TSK_019 SUB_019 — 별 CUDA stream 두 개 (R4: lazy init reuse).
+        # batch[0] / batch[1] 가 *동시 GPU 진입* 위해 분리. NEO 원본
+        # `transformer_layer.py:430-501` `forward_double` 의 stage 0/1
+        # 동시 launch 패턴.
+        self._batch_streams: tuple | None = None
+
+    def _get_batch_streams(self):
+        """Module-level lazy stream pair — TSK_019 SUB_019 (R4)."""
+        import torch
+        if self._batch_streams is None:
+            self._batch_streams = (
+                torch.cuda.Stream(),
+                torch.cuda.Stream(),
+            )
+        return self._batch_streams
 
     # ------------------------------------------------------------------
     # Sequential path — single sub-batch
@@ -169,16 +205,37 @@ class SubBatchPipelineExecutor:
 
         Returns ``(q1', k1', v1', next_emb0')`` for the next call.
         """
-        # Stage 0
-        attn1 = self.cb.attention(q1, k1, v1, batches[1], layer_idx)
+        # TSK_019 SUB_019 — 별 stream 위 stage 0 의 batch[1].attention
+        # + batch[0].preproj 동시 GPU 진입. NEO 원본 forward_double 의
+        # 핵심 — KV-bound 영역 (batch[1] attn) 과 GEMM-bound 영역
+        # (batch[0] preproj) 동시 실행. CUDA dependency 만 명시, main
+        # thread block 없음.
+        import torch
+        s0, s1 = self._get_batch_streams()
+        cur_stream = torch.cuda.current_stream()
+        s0.wait_stream(cur_stream)
+        s1.wait_stream(cur_stream)
+
+        # Stage 0 — batch[1] attn on s1, batch[0] preproj on s0 동시.
+        # TSK_019 plan B2 — transfer callback 호출 site 명시. NEO 원본
+        # `transformer_layer.py:373-394` 의 4-stage interleave (preproj /
+        # transfer / attention / postproj). default no-op transfer 이지만
+        # signature 명시로 후속 phase 의 callback wiring 가능.
+        with torch.cuda.stream(s1):
+            self.cb.transfer(q1, k1, v1, batches[1], layer_idx)
+            attn1 = self.cb.attention(q1, k1, v1, batches[1], layer_idx)
         # Use layer_off=0 because next_emb0 represents the *output* of
         # batch[0]'s previous layer; the upcoming preproj is for that
         # layer's successor (which is layer_idx + 1).
-        q0_next, k0_next, v0_next = self.cb.preproj(
-            next_emb0, batches[0], layer_idx + 1, 0
-        )
+        with torch.cuda.stream(s0):
+            q0_next, k0_next, v0_next = self.cb.preproj(
+                next_emb0, batches[0], layer_idx + 1, 0
+            )
 
-        # Stage 1
+        # Stage 1 — sequential dependency. main stream rejoin via
+        # wait_stream, then run on default stream.
+        cur_stream.wait_stream(s0)
+        cur_stream.wait_stream(s1)
         attn0_next = self.cb.attention(q0_next, k0_next, v0_next,
                                        batches[0], layer_idx + 1)
         next_emb0_new = self.cb.postproj(attn0_next, batches[0],
