@@ -131,6 +131,45 @@ def main() -> int:
         help="Activate NEO asymmetric scheduler (IDE_006 4 차 재정의). "
              "Default off — vanilla baseline.",
     )
+    # v1.1 → v1.2 perf options — vLLM config 만, NEO 코드 변경 없음.
+    ap.add_argument(
+        "--max-num-batched-tokens",
+        type=int,
+        default=None,
+        help="Max tokens per scheduling batch. None = vLLM default (2048).",
+    )
+    ap.add_argument(
+        "--async-scheduling",
+        action="store_true",
+        help="Explicitly enable async scheduling (schedule + forward overlap).",
+    )
+    ap.add_argument(
+        "--enable-prefix-caching",
+        action="store_true",
+        help="Explicitly enable prefix caching (default: vLLM auto).",
+    )
+    ap.add_argument(
+        "--disable-log-stats",
+        action="store_true",
+        help="Disable vLLM log stats (reduce host overhead).",
+    )
+    ap.add_argument(
+        "--enforce-eager",
+        type=lambda v: v.lower() in ("true", "1", "yes"),
+        default=True,
+        help="enforce_eager (CUDA graph 비활성). True=eager, False=graph.",
+    )
+    ap.add_argument(
+        "--kv-cache-dtype",
+        type=str,
+        default="auto",
+        help="KV cache dtype: auto / fp8 / fp8_e4m3 / fp8_e5m2.",
+    )
+    ap.add_argument(
+        "--disable-chunked-prefill",
+        action="store_true",
+        help="Disable chunked prefill (homogeneous prompt 영역 +효과).",
+    )
     args = ap.parse_args()
 
     print(f"[baseline] model={_resolve_model(args.model)}", flush=True)
@@ -154,17 +193,34 @@ def main() -> int:
           flush=True)
 
     init_t0 = time.perf_counter()
-    llm = LLM(
+    _llm_kwargs = dict(
         model=_resolve_model(args.model),
         enable_neo_asymmetric=args.enable_neo_asymmetric,
         tensor_parallel_size=args.tensor_parallel_size,
         max_model_len=args.max_model_len,
         max_num_seqs=args.max_num_seqs,
         gpu_memory_utilization=args.gpu_memory_utilization,
-        enforce_eager=True,
-        disable_log_stats=False,
+        enforce_eager=args.enforce_eager,
+        disable_log_stats=args.disable_log_stats,
         seed=args.seed,
+        kv_cache_dtype=args.kv_cache_dtype,
     )
+    if args.max_num_batched_tokens is not None:
+        _llm_kwargs["max_num_batched_tokens"] = args.max_num_batched_tokens
+    if args.async_scheduling:
+        _llm_kwargs["async_scheduling"] = True
+    if args.enable_prefix_caching:
+        _llm_kwargs["enable_prefix_caching"] = True
+    if args.disable_chunked_prefill:
+        _llm_kwargs["enable_chunked_prefill"] = False
+    print(f"[baseline] LLM kwargs: enforce_eager={args.enforce_eager} "
+          f"async_sched={args.async_scheduling} "
+          f"prefix_cache={args.enable_prefix_caching} "
+          f"max_batched={args.max_num_batched_tokens} "
+          f"kv_dtype={args.kv_cache_dtype} "
+          f"chunked_prefill={'disable' if args.disable_chunked_prefill else 'default'}",
+          flush=True)
+    llm = LLM(**_llm_kwargs)
     init_s = time.perf_counter() - init_t0
     print(f"[baseline] init {init_s:.1f}s", flush=True)
 
