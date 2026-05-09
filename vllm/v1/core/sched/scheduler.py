@@ -469,6 +469,15 @@ class Scheduler(SchedulerInterface):
                 + request.num_output_placeholders
                 - request.num_computed_tokens
             )
+            # [Plan v4 D5] SWAPPED_OUT decode req 가 num_new_tokens=0 인 경우
+            # cdec dispatch 를 통해 1 token decode 진행 가능. 명시적 1 부여.
+            # 본 fix 가 scheduler 의 num_scheduled_tokens 에 SWAPPED_OUT
+            # reqs 가 포함되도록 함 → adapter cdec_ids 추출 → fork chain 활성.
+            # NEO 의 *bidirectional migration loop* 의 결정적 enabler.
+            if (num_new_tokens == 0
+                    and request.status == RequestStatus.SWAPPED_OUT
+                    and self.scheduler_config.enable_neo_asymmetric):
+                num_new_tokens = 1
             if 0 < self.scheduler_config.long_prefill_token_threshold < num_new_tokens:
                 num_new_tokens = self.scheduler_config.long_prefill_token_threshold
             num_new_tokens = min(num_new_tokens, token_budget)

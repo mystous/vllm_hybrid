@@ -509,6 +509,32 @@ class EngineCore:
         sched = self.scheduler
         deferred = getattr(sched, "_neo_deferred_free_reqs", None)
 
+        # [Plan v4 / Phase H] CPU-resident reqs 는 deferred preempt SKIP.
+        # 이 reqs 의 KV 는 워커 _neo_handle_kv_swap 가 GPU→CPU 복사 완료 →
+        # buf.contains(rid) True → cdec dispatch 의 입력. self.running 에
+        # SWAPPED_OUT 으로 *잔류* → 다음 step adapter cdec_ids 추출 시 포함
+        # → cdec dispatch chain 매 step fire.
+        # NEO 논문 의 *bidirectional migration loop* 정합. vanilla preempt
+        # 등가 path 는 mirror set 미포함 reqs 만 적용.
+        _cpu_resident_mirror = getattr(sched, "_neo_cpu_resident_mirror", None)
+        if deferred and _cpu_resident_mirror:
+            _filtered_deferred = [
+                r for r in deferred
+                if r.request_id not in _cpu_resident_mirror
+            ]
+            _kept_count = len(deferred) - len(_filtered_deferred)
+            if _kept_count > 0 and not getattr(
+                self, "_neo_cpu_resident_skip_logged", False
+            ):
+                logger.info(
+                    "[Plan v4 H] CPU-resident skip: %d reqs 가 SWAPPED_OUT "
+                    "잔류 (cdec dispatch 대상). mirror_size=%d",
+                    _kept_count, len(_cpu_resident_mirror),
+                )
+                self._neo_cpu_resident_skip_logged = True
+            sched._neo_deferred_free_reqs = _filtered_deferred
+            deferred = _filtered_deferred
+
         # [TSK_019 v3 / Phase B-2] swap_in 처리 — deferred preempt *전*
         # 에 candidate reqs 의 status 를 SWAPPED_OUT → RUNNING 복원.
         # KV 는 아직 GPU 에 있어 block_table 갱신 불필요 (try10~15 stale 회피).

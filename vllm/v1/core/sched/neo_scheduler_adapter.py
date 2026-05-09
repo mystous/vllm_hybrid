@@ -391,20 +391,63 @@ class NeoSchedulerAdapter(AsyncScheduler):
             for rid in request_ids
         ]
         self.neo_scheduler.remove_finished_requests(wrappers)
+        # [Plan v4 / Phase I] CPU-resident mirror set cleanup. req finish 시
+        # 워커 측 _neo_cpu_resident_reqs + buf 도 자연 free 되지만 adapter
+        # 의 mirror set 은 별도 cleanup 필요.
+        mirror = getattr(self, "_neo_cpu_resident_mirror", None)
+        if mirror:
+            for rid in request_ids:
+                mirror.discard(rid)
 
     def _neo_swap_out(self, request, timestamp=None):  # type: ignore[override]
         """IDE_006 / TSK_015 4.5.2.c architectural fix —
         ``_preempt_request`` 의 NEO hook 이 호출 시 vLLM standard 의
         ``_neo_swap_out`` (KV CPU copy + status SWAPPED_OUT + RUNNING
         잔류) 후 NEO scheduler 의 ``cpu_decoding_q`` 에 view 추가.
-        mode_selector 가 그것을 cdec_reqs 로 인식 → adapter 가 fork
-        sub_batches attach → worker fork branch 진입 + cdec dispatch
-        hook 발화.
 
-        13 단계 progressive 우회 fix 의 *진정한 대체*: NEO 의 cdec
-        queue 가 vLLM 의 standard preempt path 와 *single source*
-        로 통합.
+        [Plan v4 / Phase G] block_ids 추출 *before* super() — KV 가 아직
+        GPU 에 살아있는 시점에 추출 후 self._neo_natural_swap_block_ids
+        dict 에 저장. adapter.schedule() 종료 시 output.neo_swap_out_*
+        attach 에 사용 → 워커 _neo_handle_kv_swap 가 GPU→CPU per-layer
+        copy 발화.
         """
+        # [Plan v4 / Phase G] block_ids 추출 — super() 가 status 만 SWAPPED_OUT
+        # 으로 set 하지만 KV 는 deferred 처리 시점까지 GPU 잔류. 본 시점에
+        # kv_cache_manager.coordinator.get_blocks(rid) 로 block_ids 추출
+        # 후 워커 _neo_handle_kv_swap 에 전달.
+        try:
+            rid = request.request_id
+            blocks = None
+            if hasattr(self, "kv_cache_manager"):
+                coord = getattr(self.kv_cache_manager, "coordinator", None)
+                if coord is not None and hasattr(coord, "get_blocks"):
+                    # get_blocks 는 group 별 tuple. 첫 group (Llama 등 single
+                    # group 모델) 의 blocks 를 사용.
+                    groups = coord.get_blocks(rid)
+                    if groups and len(groups) > 0:
+                        first_group_blocks = groups[0]
+                        if first_group_blocks:
+                            blocks = [
+                                int(b.block_id) for b in first_group_blocks
+                                if hasattr(b, "block_id")
+                            ]
+            if blocks:
+                if not hasattr(self, "_neo_natural_swap_block_ids"):
+                    self._neo_natural_swap_block_ids: dict[str, list[int]] = {}
+                self._neo_natural_swap_block_ids[rid] = blocks
+                if not getattr(self, "_neo_first_blockid_logged", False):
+                    logger.info(
+                        "[Plan v4 G] first natural-preempt block_id capture: "
+                        "rid=%s nblocks=%d sample=%s",
+                        rid, len(blocks), blocks[:5],
+                    )
+                    self._neo_first_blockid_logged = True
+        except Exception as _e:  # noqa: BLE001
+            logger.warning(
+                "[Plan v4 G] block_ids 추출 실패 rid=%s: %s",
+                getattr(request, "request_id", "?"), _e,
+            )
+
         # vLLM standard _neo_swap_out (KV free + status + RUNNING 잔류)
         super()._neo_swap_out(request, timestamp)
         # NEO scheduler 의 cdec queue 에 view 추가 (mode_selector 가
@@ -650,14 +693,70 @@ class NeoSchedulerAdapter(AsyncScheduler):
         # req 들을 SchedulerOutput 에 attach → engine/core 의
         # _handle_neo_swaps (A3 gate 해제) → worker _neo_handle_kv_swap
         # (A4 stream wrap) → KV bytes per-layer GPU→CPU 진짜 이동.
-        if _swap_out_predictive_ids:
+        # [Plan v4 / Phase G] *natural-preempt* path (vLLM scheduler 의
+        # KV pressure preempt) 도 같은 attach. _neo_swap_out override
+        # 가 captured _neo_natural_swap_block_ids 의 reqs 를 합산.
+        _all_swap_out_ids = list(_swap_out_predictive_ids)
+        _all_swap_out_block_ids = dict(_swap_out_predictive_block_ids)
+        _natural_blocks = getattr(self, "_neo_natural_swap_block_ids", None)
+        if _natural_blocks:
+            for _rid, _blocks in _natural_blocks.items():
+                if _rid not in _all_swap_out_block_ids:
+                    _all_swap_out_ids.append(_rid)
+                    _all_swap_out_block_ids[_rid] = _blocks
+            # 추출된 dict 비우기 (다음 step 에 새로 채움).
+            self._neo_natural_swap_block_ids = {}
+
+        if _all_swap_out_ids:
             try:
-                output.neo_swap_out_req_ids = list(_swap_out_predictive_ids)
-                # TSK_019 plan A4 fix — block_ids dict attach 도 함께.
-                if _swap_out_predictive_block_ids:
-                    output.neo_swap_out_block_ids = dict(
-                        _swap_out_predictive_block_ids
-                    )
+                # [Plan v4 G/H v3] mirror set 에 bound 적용 — CPU pool
+                # capacity 보다 작게 유지. 초과 시 새 reqs 는 mirror 에 추가
+                # 안 함 → vanilla preempt path 로 흘러감 (hang 회피).
+                # Cap: max_cpu_resident_reqs (default 64) × 0.9 = ~57 reqs.
+                # env override: VLLM_NEO_MIRROR_MAX (default 56).
+                _MIRROR_MAX = int(_os_th.environ.get(
+                    "VLLM_NEO_MIRROR_MAX", "56"
+                ))
+                if not hasattr(self, "_neo_cpu_resident_mirror"):
+                    self._neo_cpu_resident_mirror: set[str] = set()
+
+                # 추가 가능한 슬롯 계산.
+                _slots_available = max(
+                    0, _MIRROR_MAX - len(self._neo_cpu_resident_mirror)
+                )
+                _attached_ids = []
+                _attached_block_ids = {}
+                _mirror_added = 0
+                for _rid in _all_swap_out_ids:
+                    # block_ids 미캡처 → 워커 copy 불가 → mirror 에 안 넣고
+                    # attach 도 skip. vanilla preempt 가 처리.
+                    if _rid not in _all_swap_out_block_ids:
+                        continue
+                    # mirror 슬롯 부족 → attach skip (vanilla preempt 로).
+                    if _slots_available <= 0:
+                        continue
+                    _attached_ids.append(_rid)
+                    _attached_block_ids[_rid] = _all_swap_out_block_ids[_rid]
+                    self._neo_cpu_resident_mirror.add(_rid)
+                    _mirror_added += 1
+                    _slots_available -= 1
+
+                if _attached_ids:
+                    output.neo_swap_out_req_ids = list(_attached_ids)
+                    output.neo_swap_out_block_ids = dict(_attached_block_ids)
+
+                logger.info(
+                    "[Plan v4 G/H] swap_out attach: predictive=%d natural=%d "
+                    "candidates=%d attached=%d mirror+=%d "
+                    "(mirror_set_size=%d / cap=%d)",
+                    len(_swap_out_predictive_ids),
+                    len(_natural_blocks or {}),
+                    len(_all_swap_out_ids),
+                    len(_attached_ids),
+                    _mirror_added,
+                    len(self._neo_cpu_resident_mirror),
+                    _MIRROR_MAX,
+                )
             except (AttributeError, TypeError) as _ae:
                 logger.debug(
                     "NEO swap_out attach failed: %s", _ae,
@@ -678,7 +777,73 @@ class NeoSchedulerAdapter(AsyncScheduler):
         #
         # Kill switch: VLLM_NEO_DISABLE_SWAP_IN=1 → 본 path 비활성 (B-NEW
         # 등가, vanilla preempt 만 사용).
+        # [Plan v4 / Phase I D4] swap_in 의 *진짜* CPU→GPU restore.
+        # mirror set 의 reqs 중 oldest pick → self._neo_swap_in 호출
+        # (kv_cache_manager.neo_swap_in_alloc 으로 GPU blocks 새 alloc
+        # + status SWAPPED_OUT → RUNNING) → output.neo_swap_in_req_ids
+        # attach → 워커 _neo_handle_kv_swap 가 KV CPU→GPU copy + buf.free.
+        # NEO 의 *진짜 bidirectional migration loop* 활성화.
+        # GPU KV usage < threshold 시 + mirror non-empty 시 fire.
+        _mirror_d4 = getattr(self, "_neo_cpu_resident_mirror", None)
         if (_os_th.environ.get("VLLM_NEO_DISABLE_SWAP_IN") != "1"
+                and _mirror_d4):
+            try:
+                from vllm.v1.request import RequestStatus as _RS_d4
+                import time as _time_d4
+                _now_d4 = _time_d4.time()
+                _kv_usage_d4 = self._get_kv_pool_usage()
+                if _kv_usage_d4 < _SWAP_IN_THRESHOLD:
+                    _max_swap_in = int(_os_th.environ.get(
+                        "VLLM_NEO_MAX_SWAP_IN_PER_STEP", "8"
+                    ))
+                    _mirror_order = _os_th.environ.get(
+                        "VLLM_NEO_SWAP_IN_ORDER", "oldest"
+                    ).lower()
+                    if _mirror_order == "newest":
+                        _candidates = list(_mirror_d4)[-_max_swap_in:]
+                    else:
+                        _candidates = list(_mirror_d4)[:_max_swap_in]
+                    _swap_in_ids: list[str] = []
+                    _failed_pool = 0
+                    for _rid in _candidates:
+                        _req = self.requests.get(_rid)
+                        if _req is None:
+                            _mirror_d4.discard(_rid)
+                            continue
+                        if _req.status != _RS_d4.SWAPPED_OUT:
+                            _mirror_d4.discard(_rid)
+                            continue
+                        if self._neo_swap_in(_req, _now_d4):
+                            _mirror_d4.discard(_rid)
+                            _swap_in_ids.append(_rid)
+                            if _req not in self.running:
+                                self.running.append(_req)
+                        else:
+                            _failed_pool += 1
+                            break
+                    if _swap_in_ids:
+                        try:
+                            output.neo_swap_in_req_ids = list(_swap_in_ids)
+                            if not getattr(self, "_neo_swap_in_attached_logged", False):
+                                logger.info(
+                                    "[Plan v4 D4] swap_in attach first fire: "
+                                    "ids=%d (pool_failed=%d, kv_usage=%.3f, "
+                                    "threshold=%.3f, mirror_remaining=%d)",
+                                    len(_swap_in_ids), _failed_pool,
+                                    _kv_usage_d4, _SWAP_IN_THRESHOLD,
+                                    len(_mirror_d4),
+                                )
+                                self._neo_swap_in_attached_logged = True
+                        except (AttributeError, TypeError) as _ae:
+                            logger.debug(
+                                "Plan v4 D4 swap_in attach fail: %s", _ae,
+                            )
+            except Exception as _e:  # noqa: BLE001
+                logger.debug(
+                    "Plan v4 D4 swap_in eval exception: %s", _e,
+                )
+
+        if False and (_os_th.environ.get("VLLM_NEO_DISABLE_SWAP_IN") != "1"
                 and hasattr(self, "_neo_deferred_free_reqs")
                 and self._neo_deferred_free_reqs):
             try:
