@@ -402,10 +402,12 @@ def make_spec_from_config(vllm_config) -> NeoCpuKvBufferSpec | None:
                     hf_cfg.hidden_size // hf_cfg.num_attention_heads)
         )
         block_size = max(int(cache_cfg.block_size), 1)
-        # CPU pool sizing — vLLM 의 ``CacheConfig.swap_space`` (GB) 가 명시된
-        # 경우 그 값을 cap 으로 사용. 안 명시되면 max_seqs/8 × max_model_len
-        # 의 보수적 default (예: 256 max_seqs × 16384 max_len + 80 layer +
-        # FP16 = ~80 GB 까지 자라므로 1/8 cap 으로 ~10 GB 영역).
+        # CPU pool sizing — TSK_019 plan v3 Phase A-0 (2026-05-08):
+        # default 를 max_seqs/8 → max_seqs/4 로 2× 확대. 직전 default
+        # 32 reqs (256/8) 만으로는 swap_out 시 vanilla preempt path 로
+        # 흘러서 CDEC dispatch 미발화. 다만 host pinned memory 폭주 위험
+        # 회피 위해 absolute cap (128) + host available memory 50% guard
+        # + env override (VLLM_NEO_CPU_RESIDENT_REQS) 로 안전화.
         max_seqs = max(int(sched_cfg.max_num_seqs), 1)
         max_model_len = max(int(model_cfg.max_model_len), 1)
         blocks_per_req = (max_model_len + block_size - 1) // block_size
@@ -418,14 +420,64 @@ def make_spec_from_config(vllm_config) -> NeoCpuKvBufferSpec | None:
         per_layer_per_req_bytes = per_block_bytes * blocks_per_req
         all_layers_per_req_bytes = per_layer_per_req_bytes * num_layers
 
-        # vLLM's swap_space (GB) — if user set it, treat as our cap.
-        swap_space_gb = float(getattr(cache_cfg, "swap_space", 0) or 0)
-        if swap_space_gb > 0:
-            cap_bytes = int(swap_space_gb * (1024 ** 3))
-            max_cpu_resident_reqs = max(1, cap_bytes // all_layers_per_req_bytes)
+        # ABSOLUTE_CAP — host memory 폭주 방어선. 어떤 settings 조합서도
+        # 본 값 초과 reqs 는 cap. (예: 128 reqs × 1024 blocks_per_req
+        # × 80 layers × 8 KiB/block ≈ 80 GiB host RAM — Llama-70B 기준).
+        ABSOLUTE_CAP = 128
+
+        # 1) 사용자 명시 env override 우선 (cap 까지만 적용).
+        import os as _os_env
+        env_override = _os_env.environ.get("VLLM_NEO_CPU_RESIDENT_REQS")
+        if env_override:
+            try:
+                max_cpu_resident_reqs = max(1, min(int(env_override), ABSOLUTE_CAP))
+                logger.info(
+                    "NeoCpuKvBuffer: VLLM_NEO_CPU_RESIDENT_REQS=%s applied (capped to %d)",
+                    env_override, max_cpu_resident_reqs,
+                )
+            except ValueError:
+                env_override = None  # ignore malformed
+                max_cpu_resident_reqs = None
         else:
-            # No explicit cap — pick a reasonable default (1/8 of max_seqs).
-            max_cpu_resident_reqs = max(1, max_seqs // 8)
+            max_cpu_resident_reqs = None
+
+        if max_cpu_resident_reqs is None:
+            # 2) vLLM's swap_space (GB) — if user set it, treat as our cap.
+            swap_space_gb = float(getattr(cache_cfg, "swap_space", 0) or 0)
+            if swap_space_gb > 0:
+                cap_bytes = int(swap_space_gb * (1024 ** 3))
+                max_cpu_resident_reqs = max(
+                    1, min(cap_bytes // all_layers_per_req_bytes, ABSOLUTE_CAP)
+                )
+            else:
+                # 3) Default — 2× of prior (max_seqs // 4) with absolute cap.
+                max_cpu_resident_reqs = max(1, min(max_seqs // 4, ABSOLUTE_CAP))
+
+        # Host memory guard — 사전 추정한 alloc 크기가 available memory 의
+        # 50% 를 넘으면 절반으로 cap (graceful degradation).
+        try:
+            import psutil as _psutil_guard
+            available_bytes = _psutil_guard.virtual_memory().available
+            estimated_bytes = (
+                max_cpu_resident_reqs * blocks_per_req
+                * per_block_bytes * num_layers
+            )
+            if estimated_bytes > available_bytes // 2:
+                halved = max(1, max_cpu_resident_reqs // 2)
+                logger.warning(
+                    "NeoCpuKvBuffer: estimated alloc %.2f GiB > 50%% of "
+                    "available host memory %.2f GiB. halving to %d reqs.",
+                    estimated_bytes / (1024 ** 3),
+                    available_bytes / (1024 ** 3),
+                    halved,
+                )
+                max_cpu_resident_reqs = halved
+        except ImportError:
+            # psutil 미설치 시 host guard skip — env override 또는 ABSOLUTE_CAP 의존
+            logger.info(
+                "NeoCpuKvBuffer: psutil unavailable — host memory guard skipped"
+            )
+
         num_cpu_blocks = max_cpu_resident_reqs * blocks_per_req
 
         logger.info(
