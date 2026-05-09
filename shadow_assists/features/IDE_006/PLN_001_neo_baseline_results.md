@@ -326,6 +326,77 @@ NEO data path 가 dev 머신 smoke (Qwen-1.5B + RTX 3090) 에서 wiring 통과 (
 
 ---
 
+## 5.8 · TSK_019 v3 / Phase A 검증 — chain 발화 root fix + throughput 큰 폭 우월 (2026-05-09)
+
+### 배경
+
+분석 plan v2 (Phase 0~7) 산출물 `Objective-for-NEO-porting.md` 의 19 항목 중 동작 ⚠️/❌ 인 16 항목을 ✅ 으로 승격하는 *수정 plan v3* 의 Phase A 적용 + 검증 회차.
+
+### 적용 fix (commit 미적용 — review 대기)
+
+| commit | Phase | 변경 |
+|---|---|---|
+| C0 | A-0 | `neo_cpu_kv_buffer.py:430` default `max_seqs//8` → `min(max_seqs//4, 128)` 2x + ABSOLUTE_CAP + psutil host memory 50% guard + `VLLM_NEO_CPU_RESIDENT_REQS` env override / `mode_selector.py:117` decide_mode 에 `force_pipelined` keyword + GPU mem guard + `VLLM_NEO_DISABLE_FORCE_PIPELINED` kill switch / `config/scheduler.py:166` `enable_neo_force_pipelined` config flag |
+| C1 | A-1 | `models/llama.py` 의 `_neo_rmsnorm_inplace()` helper 추가 — `forward_cuda` 직접 호출로 `forward_native` 의 f32 promotion (try45 OOM root) 회피. `VLLM_NEO_DISABLE_FUSED_RMSNORM` kill switch |
+| C2 | A-2 | `scheduler.py:407` try22 skip default off + `_neo_chain_skip_enabled()` lazy env (default False) + `VLLM_NEO_DISABLE_CHAIN` kill switch |
+| C2 | A-2 follow-up | `engine/core.py:_handle_neo_swaps` 의 deferred preempt 분기에 `prev_step_scheduled_req_ids.discard(req.request_id)` 추가 — invariant 2 (`assert not scheduled_in_prev_step`) fire 회피 (try50 1차 측정에서 새 fire 발견) |
+
+### 측정
+
+**workload**: 표준 — 500p × 50:50 / Llama-70B / TP=8 / fp8 KV / async / `gpu_memory_utilization=0.85` / `--enforce-eager false` / `VLLM_NEO_FORCE_PIPELINED=1` env.
+**dir**: `eval/results/20260509_002003_try50_v3_C3_phaseA_verify_neo_on/`
+
+| 지표 | try44 (v1.2 baseline) | try46 (v38 baseline) | **C3 try50 (Phase A 적용)** | 비교 |
+|---|---|---|---|---|
+| init s | 163.81 | 84.44 | 87.43 | — |
+| **generate wall s** | 3548.05 | 2075.58 | **1061.55** | **-49% vs try46 / -70% vs try44** |
+| **output_tps** | 1154.44 | 1804.23 | **3858.52** | **+114% vs try46 / +234% vs try44** |
+| prompt_tps | 763.53 | 1305.20 | 2551.97 | +95% / +234% |
+| total_output_tokens | 4,096,000 | 3,744,825 | 4,096,000 | 정상 (max_tokens 도달) |
+| AssertionError | 0 | 0 | **0** | ✅ |
+| OOM | 0 | 0 | **0** | ✅ |
+| run 정상 종료 | ✅ | ✅ | **✅** | ✅ |
+| NEO FORK STAT active / total | 0 / 4,210 | 11,443 / 12,300 (93%) | **130 / 22,800 (0.57%)** | chain 활성하나 비율 낮음 |
+
+### Phase A 결과 분석
+
+**달성**:
+- ✅ throughput 큰 폭 우월 — vanilla baseline (try44 의 1154) 대비 **+234%**, v38 baseline (try46 의 1804) 대비 **+114%** 우월.
+- ✅ crash-free — AssertionError 0, OOM 0, CUDA assert 0, run 정상 종료.
+- ✅ `Objective-for-NEO-porting.md` 항목 #15 (NEO > vanilla throughput) 큰 폭 달성.
+- ✅ 항목 #3, #4 (forward_double, stage 분할) 의 OOM 회피 — RMSNorm fused 강제 fix 효과.
+- ✅ 항목 #18, #19 (deadlock / silent crash) 유지.
+
+**미달성 (Phase B 영역)**:
+- ⚠️ NEO FORK active 비율 0.57% — 목표 80% 미달. adapter 의 cdec_ids 추출이 `num_scheduled_tokens.keys()` 에 SWAPPED_OUT 잔류 시에만 발화. deferred preempt 가 빨리 빼서 잔류 기간 짧음. 80% 는 Phase B (sibling schedule 복원 + swap_in path) 후 달성 가능.
+- ⚠️ `kv_cache_policy="exclusive"` 미사용 → NeoCpuKvBuffer 미초기화 → CPU pool 2x sizing log 미발화. infrastructure 만 준비.
+
+### 새 finding — invariant 2 의 *진짜* fire 영역
+
+분석 plan v2 의 Phase 2-B (try45) 에서 "AssertionError 0" 라 결론냈으나, 이는 OOM 이 invariant 2 보다 *먼저* fire 한 false negative 였음. C0+C1 으로 OOM 회피되자 새 failure mode (assertion 2 fire) 가 surface — 다음 lifecycle 에서:
+
+1. SWAPPED_OUT req 가 prev_step 에서 schedule 받음 → `prev_step_scheduled_req_ids` 에 등록
+2. swap_out fire → `_handle_neo_swaps` 의 deferred preempt path 진입
+3. status: SWAPPED_OUT → PREEMPTED, KV freed, `waiting.prepend`
+4. **`prev_step_scheduled_req_ids` 미정리 (← 본 fix 영역)**
+5. 다음 step: PREEMPTED → resumed slice 진입 (idx ≥ num_running_reqs)
+6. `_make_cached_request_data:1306` 의 `assert not scheduled_in_prev_step` fire (set 에 잔류 → True)
+
+**fix**: deferred preempt 분기에 `sched.prev_step_scheduled_req_ids.discard(req.request_id)` 추가. 본 1줄 fix 가 Phase A 전체 성공의 *enabler*.
+
+### 결론
+
+Phase A 의 1차 목표 = chain 발화 fire + crash-free + throughput > vanilla. 1차 측정에서 invariant 2 fire 발견 → 즉시 fix → 재측정 PASS.
+
+throughput 결과 (3,858 tps) 는 v38 (2,276) 보다도 **+70% 우월** — 의외의 결과. 가능 원인:
+- v38 측정은 enforce_eager=true (graph X) 였을 가능성 / 현 측정은 enforce_eager=false (CUDA graph)
+- fp8 KV 도 v38 대비 더 효과적으로 작동
+- C0+C1+C2 의 path 청소가 vLLM 의 내부 optimizer 활성화 영역 풀어줌
+
+다음 phase: B (chain firing 비율 ↑ via swap_in path activation).
+
+---
+
 ## 6. References
 
 - 부모 PLN: [`PLN_001`](PLN_001.md)
