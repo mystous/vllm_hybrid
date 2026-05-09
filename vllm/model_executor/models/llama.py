@@ -78,6 +78,46 @@ from .utils import (
 )
 
 
+# [TSK_019 v3 / Phase A-1] CustomOp dispatch 가 forward_native (f32 promotion) 으로
+# 떨어지는 환경에서 NEO mode 의 layer 별 RMSNorm 호출이 80×2 path 에 새 buffer
+# 를 생성 → forward_double OOM (try45 root). 본 helper 는 CUDA + NEO mode 시
+# in-place fused path 직접 호출로 회피.
+import os as _os_neo_rmsnorm  # noqa: E402
+
+_NEO_DISABLE_FUSED_RMSNORM_CACHED: bool | None = None
+
+
+def _neo_use_fused_rmsnorm() -> bool:
+    """Lazy env check (snapshot once). Kill switch: VLLM_NEO_DISABLE_FUSED_RMSNORM=1."""
+    global _NEO_DISABLE_FUSED_RMSNORM_CACHED  # noqa: PLW0603
+    if _NEO_DISABLE_FUSED_RMSNORM_CACHED is None:
+        _NEO_DISABLE_FUSED_RMSNORM_CACHED = (
+            _os_neo_rmsnorm.environ.get("VLLM_NEO_DISABLE_FUSED_RMSNORM") == "1"
+        )
+    return not _NEO_DISABLE_FUSED_RMSNORM_CACHED
+
+
+def _neo_rmsnorm_inplace(
+    layernorm: "RMSNorm",
+    hidden_states: torch.Tensor,
+    residual: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """In-place RMSNorm + residual add — forward_native f32 promotion 회피.
+
+    CUDA 활성 + kill switch off + RMSNorm 인 경우 ``forward_cuda`` 직접 호출.
+    그 외 (CPU / kill switch / 비-RMSNorm) 는 vanilla dispatch 으로 폴백.
+    """
+    if (_neo_use_fused_rmsnorm()
+            and hasattr(layernorm, "forward_cuda")
+            and hidden_states.is_cuda):
+        try:
+            return layernorm.forward_cuda(hidden_states, residual)
+        except (NotImplementedError, AttributeError, RuntimeError):
+            # graceful fallback to vanilla dispatch
+            pass
+    return layernorm(hidden_states, residual)
+
+
 class LlamaMLP(nn.Module):
     def __init__(
         self,
@@ -353,12 +393,24 @@ class LlamaDecoderLayer(nn.Module):
 
         Returns the normalized hidden_states and the propagated residual
         in the same order as the vanilla forward path.
+
+        [TSK_019 v3 / Phase A-1] CustomOp dispatch 가 ``forward_native``
+        으로 떨어지는 환경 (예: VLLM_DISABLE_CUSTOM_OP, eager 백엔드)
+        에서 ``forward_static`` 의 f32 promotion 이 layer 별 새 buffer
+        를 생성 → 80 layer × 2 path = OOM (try45 root). 본 fix 는
+        CUDA + NEO mode 에서 fused in-place path (``forward_cuda``) 를
+        직접 호출해 회피.
+
+        Kill switch: ``VLLM_NEO_DISABLE_FUSED_RMSNORM=1`` 시 vanilla
+        dispatch (혹시 fused 경로에 회귀 발생 시 비상 회피).
         """
         if residual is None:
             residual = hidden_states
             hidden_states = self.input_layernorm(hidden_states)
         else:
-            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+            hidden_states, residual = _neo_rmsnorm_inplace(
+                self.input_layernorm, hidden_states, residual
+            )
         return hidden_states, residual
 
     def neo_attention(
@@ -377,9 +429,12 @@ class LlamaDecoderLayer(nn.Module):
         """post-attention LayerNorm + MLP. Returns the layer's output
         (hidden_states, residual) — identical to the vanilla forward
         return value.
+
+        [TSK_019 v3 / Phase A-1] In-place RMSNorm path 사용 — neo_preproj
+        와 동일 이유 (forward_native f32 promotion 회피).
         """
-        hidden_states, residual = self.post_attention_layernorm(
-            hidden_states, residual
+        hidden_states, residual = _neo_rmsnorm_inplace(
+            self.post_attention_layernorm, hidden_states, residual
         )
         hidden_states = self.mlp(hidden_states)
         return hidden_states, residual
