@@ -663,6 +663,83 @@ class NeoSchedulerAdapter(AsyncScheduler):
                     "NEO swap_out attach failed: %s", _ae,
                 )
 
+        # [TSK_019 v3 / Phase B-1] Lightweight swap_in candidate evaluation.
+        # 기존 (B-NEW fix): predictive swap_in 완전 비활성 — block_table 정합
+        # 이슈 (try10~15 root) 회피.
+        # 본 fix: deferred preempt 가 *fire 하기 전* 의 SWAPPED_OUT reqs 를
+        # 대상으로 swap_in. 이 reqs 의 KV 는 *아직 GPU 에 살아있음* (deferred
+        # 단계는 _handle_neo_swaps 에서 처리). 따라서 status 만 SWAPPED_OUT →
+        # RUNNING 복원하면 block_table 갱신 불필요 (KV 위치 변동 없음).
+        # NEO 의 진짜 bidirectional cycle 의 *근본 안전 path*.
+        #
+        # GPU KV usage < swap_in_threshold (hysteresis 5% deadband) 이고
+        # deferred 큐에 reqs 가 있으면 가장 최근 추가된 reqs 부터 FIFO 로
+        # swap_in. C5 에서 LRU 로 교체 가능.
+        #
+        # Kill switch: VLLM_NEO_DISABLE_SWAP_IN=1 → 본 path 비활성 (B-NEW
+        # 등가, vanilla preempt 만 사용).
+        if (_os_th.environ.get("VLLM_NEO_DISABLE_SWAP_IN") != "1"
+                and hasattr(self, "_neo_deferred_free_reqs")
+                and self._neo_deferred_free_reqs):
+            try:
+                # [Phase B-1 fix v2] KV usage check 제거. vllm preempt path
+                # 가 deferred 에 append 시 KV 는 *아직 GPU 에 살아있음* —
+                # _handle_neo_swaps 의 deferred preempt loop 가 free 함.
+                # 따라서 본 시점의 kv_usage 는 *pre-free* 수치 (높음).
+                # threshold check 부여 시 swap_in 영영 미발화.
+                # 본 path 의 안전성 = 매 step max N reqs 만 rescue (per-step cap)
+                # → KV 보존 우선 + 나머지는 vanilla preempt.
+                if True:
+                    # Cap per-step swap_in to avoid oscillation.
+                    _max_swap_in = int(_os_th.environ.get(
+                        "VLLM_NEO_MAX_SWAP_IN_PER_STEP", "8"
+                    ))
+                    _deferred = self._neo_deferred_free_reqs
+                    _swap_in_count = min(len(_deferred), _max_swap_in)
+                    if _swap_in_count > 0:
+                        # [TSK_019 v3 / Phase B-3] LRU policy stub —
+                        # ordering 선택. NEO 표준은 LRU based bidirectional
+                        # 이지만 본 plan 의 swap_in 은 deferred-only (KV 보존)
+                        # 영역이라 ordering 의 의미가 다름:
+                        # - 'newest' (default): 가장 최근 swap_out → freshest
+                        #   KV → 안전. NEO 의 stack 기반 안전 path.
+                        # - 'oldest': head from deferred → 가장 오래 기다린
+                        #   reqs 우선 → fairness. NEO 표준 LRU 와 가까움.
+                        # Kill switch / fallback: VLLM_NEO_LRU_FALLBACK_FIFO=1
+                        # 시 무조건 newest (기존 동작).
+                        _swap_in_order = _os_th.environ.get(
+                            "VLLM_NEO_SWAP_IN_ORDER", "newest"
+                        ).lower()
+                        if (_swap_in_order == "oldest"
+                                and _os_th.environ.get(
+                                    "VLLM_NEO_LRU_FALLBACK_FIFO"
+                                ) != "1"):
+                            # Pop from head — oldest first (NEO LRU 정합).
+                            _swap_in_candidates = _deferred[:_swap_in_count]
+                        else:
+                            # Default newest first — freshest KV / 가장 안전.
+                            _swap_in_candidates = _deferred[-_swap_in_count:]
+                        _swap_in_ids = [
+                            r.request_id for r in _swap_in_candidates
+                        ]
+                        try:
+                            output.neo_swap_in_req_ids = list(_swap_in_ids)
+                            logger.info(
+                                "[NEO SWAP_IN] candidates=%d kv_usage=%.3f "
+                                "threshold=%.3f ids=%s",
+                                _swap_in_count, _kv_usage_now,
+                                _SWAP_IN_THRESHOLD,
+                                _swap_in_ids[:5],
+                            )
+                        except (AttributeError, TypeError) as _ae:
+                            logger.debug(
+                                "NEO swap_in attach failed: %s", _ae,
+                            )
+            except Exception as _e:  # noqa: BLE001
+                logger.debug(
+                    "NEO swap_in evaluation exception: %s", _e,
+                )
+
         # TSK_019 plan B-NEW 진짜 fix — predictive swap_in 도 비활성.
         # 기존: _neo_swap_in() 호출 → 새 GPU block 할당 → status RUNNING.
         # 그러나 새 block_ids 가 input_batch.block_table.np[req_idx] 에

@@ -508,6 +508,43 @@ class EngineCore:
         # 자연 발화 → KV pool 정상화 → forward progress 회복.
         sched = self.scheduler
         deferred = getattr(sched, "_neo_deferred_free_reqs", None)
+
+        # [TSK_019 v3 / Phase B-2] swap_in 처리 — deferred preempt *전*
+        # 에 candidate reqs 의 status 를 SWAPPED_OUT → RUNNING 복원.
+        # KV 는 아직 GPU 에 있어 block_table 갱신 불필요 (try10~15 stale 회피).
+        # adapter B-1 가 attach 한 ids 만 처리.
+        # Kill switch: VLLM_NEO_DISABLE_SWAP_IN=1 (adapter 와 동일 env).
+        _swap_in_ids = getattr(scheduler_output, "neo_swap_in_req_ids", None)
+        if deferred and _swap_in_ids:
+            try:
+                _swap_in_set = set(_swap_in_ids)
+                _kept_deferred = []
+                _restored_count = 0
+                for req in deferred:
+                    if req.request_id in _swap_in_set:
+                        # Restore status — KV 보존됨 (deferred preempt 미실행).
+                        req.status = RequestStatus.RUNNING
+                        _restored_count += 1
+                    else:
+                        _kept_deferred.append(req)
+                # deferred 큐에서 swap_in 된 reqs 제거.
+                sched._neo_deferred_free_reqs = _kept_deferred
+                deferred = _kept_deferred
+                if _restored_count > 0 and not getattr(
+                    self, "_neo_swap_in_logged", False
+                ):
+                    logger.info(
+                        "[NEO SWAP_IN dispatch] first fire: restored=%d "
+                        "reqs (status SWAPPED_OUT → RUNNING, KV 보존).",
+                        _restored_count,
+                    )
+                    self._neo_swap_in_logged = True
+            except Exception as _swap_in_e:  # noqa: BLE001
+                logger.warning(
+                    "NEO swap_in handling exception (%s): %s",
+                    type(_swap_in_e).__name__, _swap_in_e,
+                )
+
         if deferred:
             # TSK_019 try26 architectural fix — abort path 폐기, vLLM
             # standard preempt path 채택.
