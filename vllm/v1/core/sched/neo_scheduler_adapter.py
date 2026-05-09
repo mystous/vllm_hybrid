@@ -173,6 +173,12 @@ class NeoSchedulerAdapter(AsyncScheduler):
             num_cpu_blocks=num_cpu_blocks,
             num_layers=num_layers,
             predictor=self.predictor,
+            # [TSK_019 v3 / Phase A-0] CDEC default 활성 옵션 plumb.
+            # mode_selector 가 fast-path 의 sequential 폴백 시 NEO 비활성
+            # 화하는 default 행동 우회. config 미명시 시 False (안전).
+            force_pipelined=getattr(
+                sched_cfg, "enable_neo_force_pipelined", False
+            ),
         )
         self.last_neo_output: NeoSchedulerOutput | None = None
         # add_request → finish_requests 사이에 같은 view 객체를 재사용

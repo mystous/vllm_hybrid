@@ -547,6 +547,18 @@ class EngineCore:
                             sched.running.remove(req)
                         except ValueError:
                             pass
+                        # [TSK_019 v3 / Phase A-2 follow-up] prev_step_scheduled
+                        # 에서도 제거 — invariant 2 (`assert not
+                        # scheduled_in_prev_step` @ scheduler.py:1271) fire 회피.
+                        # 본 req 는 다음 step 에 PREEMPTED → resumed_reqs slice
+                        # 진입 (idx >= num_running_reqs) 가능. 그때
+                        # scheduled_in_prev_step=True 이면 즉시 assertion.
+                        try:
+                            sched.prev_step_scheduled_req_ids.discard(
+                                req.request_id
+                            )
+                        except (AttributeError, KeyError):
+                            pass
                         # waiting 에 다시 추가 → 재 prefill + decode
                         sched.waiting.prepend_request(req)
                         _preempted_count += 1

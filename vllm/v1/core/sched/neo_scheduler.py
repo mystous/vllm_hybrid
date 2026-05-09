@@ -117,6 +117,7 @@ class NeoScheduler:
         predictor: PerfPredictor | None = None,
         linr_S_threshold: int = 128,
         swap_in_threshold_ratio: float = 0.95,
+        force_pipelined: bool = False,
     ) -> None:
         self.max_batch_size = max_batch_size
         self.max_tokens_in_batch = max_tokens_in_batch
@@ -127,6 +128,9 @@ class NeoScheduler:
         self.predictor: PerfPredictor = predictor or ZeroPerfPredictor()
         self.linr_S_threshold = linr_S_threshold
         self.swap_in_threshold_ratio = swap_in_threshold_ratio
+        # [TSK_019 v3 / Phase A-0] caller (adapter) 가
+        # ``scheduler_config.enable_neo_force_pipelined`` 기반 set.
+        self.force_pipelined = force_pipelined
 
         self.waiting_q: deque[_ReqLike] = deque()
         self.gpu_decoding_q: list[_ReqLike] = []
@@ -300,6 +304,7 @@ class NeoScheduler:
             num_layers=self.num_layers,
             num_gpu_blocks=self.num_gpu_blocks,
             linr_S_threshold=self.linr_S_threshold,
+            force_pipelined=self.force_pipelined,
         )
 
         # Step 6 — actually promote the chosen prefills out of waiting_q

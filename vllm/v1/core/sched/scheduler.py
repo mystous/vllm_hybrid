@@ -64,6 +64,34 @@ from vllm.v1.utils import record_function_or_nullcontext
 logger = init_logger(__name__)
 
 
+# [TSK_019 v3 / Phase A-2] try22 skip 제어. Module-level cached.
+# Kill switch env: ``VLLM_NEO_DISABLE_CHAIN=1`` → skip 강제 활성 (vanilla
+# preempt 등가 안전 path). Default off → chain firing 활성.
+import os as _os_neo_chain  # noqa: E402
+
+_NEO_CHAIN_SKIP_ENABLED_CACHED: bool | None = None
+
+
+def _neo_chain_skip_enabled() -> bool:
+    """Return True if try22 SWAPPED_OUT skip should be applied (= chain disabled).
+
+    Default False (chain enabled). Set ``VLLM_NEO_DISABLE_CHAIN=1`` to
+    force-enable skip (긴급 회피 — chain 비활성, vanilla 등가).
+    """
+    global _NEO_CHAIN_SKIP_ENABLED_CACHED  # noqa: PLW0603
+    if _NEO_CHAIN_SKIP_ENABLED_CACHED is None:
+        _NEO_CHAIN_SKIP_ENABLED_CACHED = (
+            _os_neo_chain.environ.get("VLLM_NEO_DISABLE_CHAIN") == "1"
+        )
+        if _NEO_CHAIN_SKIP_ENABLED_CACHED:
+            logger.warning(
+                "[NEO Phase A-2] VLLM_NEO_DISABLE_CHAIN=1 detected — "
+                "try22 SWAPPED_OUT skip 강제 활성. NEO chain 비활성 "
+                "(vanilla preempt 등가)."
+            )
+    return _NEO_CHAIN_SKIP_ENABLED_CACHED
+
+
 class Scheduler(SchedulerInterface):
     def __init__(
         self,
@@ -404,11 +432,18 @@ class Scheduler(SchedulerInterface):
         while req_index < len(self.running) and token_budget > 0:
             request = self.running[req_index]
 
-            # TSK_019 try22 — SWAPPED_OUT outer-loop skip (try32 cdec 활성화
-            # 시도 → 동일 AssertionError, revert).
+            # [TSK_019 v3 / Phase A-2] try22 SWAPPED_OUT outer-loop skip —
+            # default OFF (chain firing 활성화). 직전 v1.2 의 unconditional
+            # skip 이 cdec_ids 를 비워 chain 미발화 root 였음 (try44 P2=4,207).
+            # try45 측정에서 skip 제거 후 AssertionError 0 회 입증 (invariant
+            # 가 실제 block 아님).
+            #
+            # Kill switch: ``VLLM_NEO_DISABLE_CHAIN=1`` env 시 skip 강제 활성
+            # → vanilla preempt 등가 (try44 안전 path).
             if (
                 self.scheduler_config.enable_neo_asymmetric
                 and request.status == RequestStatus.SWAPPED_OUT
+                and _neo_chain_skip_enabled()
             ):
                 req_index += 1
                 continue
