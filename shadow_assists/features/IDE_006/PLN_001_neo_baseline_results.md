@@ -496,6 +496,130 @@ Phase A 적용 후 swap_in 미발화 (chain firing rate 0.57%). C4-C5 의 B-1/B-
 
 ---
 
+## 5.10 · TSK_019 v4 / Phase D0-D5 검증 — chain trigger 인프라 적재 + pacpu store_kv segfault 식별 (2026-05-09 → 05-10)
+
+### 배경
+
+§5.9 결론: Phase A+B 적용 후 chain firing rate **0.60%** sparse → NEO 인프라 overhead 가 vanilla 대비 **-21.2% 회귀**. 사용자 ground rule 변경 (2026-05-09): **NEO 19 항목 모두 발화 + 정상 동작 우선, 성능은 out of scope, vanilla 회귀 금지**. v4 = chain firing rate ↑ 를 결정적 목표로 두는 Phase D 영역.
+
+**Root cause (Plan v3 한계)**: `SWAPPED_OUT` 요청이 schedule loop 의 `num_scheduled_tokens` 에 포함되지 않아 adapter 의 cdec_ids 추출 input 결핍 — D5 가 본 결핍을 해소하는 결정적 enabler.
+
+### 적용 fix (commit `df2cb7c81e`, 2026-05-09 05:24)
+
+| Phase | 위치 | 변경 |
+|---|---|---|
+| D0 G | `vllm/v1/core/sched/neo_scheduler_adapter.py` | natural-preempt path 의 worker KV CPU copy. `_neo_swap_out` override 가 `super()` 직전에 `kv_cache_manager.coordinator.get_blocks(rid)` 로 block_ids 추출 → `output.neo_swap_out_*` attach → 워커 `_neo_handle_kv_swap` (`gpu_model_runner.py:6367`) 가 GPU→CPU per-layer copy 발화 |
+| D1 H | `vllm/v1/engine/core.py:_handle_neo_swaps` | `_neo_cpu_resident_mirror` set 추가, mirror reqs 는 deferred preempt loop SKIP → `self.running` 에 `SWAPPED_OUT` 으로 잔류 → 다음 step 에 cdec_ids 포함. mirror MAX 56 (env override). v3 fix: block_ids 캡처된 reqs 만 mirror add (미캡처 reqs hang 회피) |
+| D2 I | adapter `finish_requests` | mirror set cleanup |
+| D4 | adapter swap_in path | mirror 에서 oldest pick → `_neo_swap_in` (`kv_cache_manager.neo_swap_in_alloc` → GPU blocks 새 alloc + status RUNNING) → `output.neo_swap_in_req_ids` attach → 워커 CPU→GPU copy |
+| **D5** | adapter `schedule` | `SWAPPED_OUT` decode req 가 `num_new_tokens=0` 인 경우 (`num_tokens_with_spec == num_computed_tokens`) cdec dispatch 통해 1 token decode 진행 → `num_scheduled_tokens` 에 포함 → fork chain 활성. **결정적 enabler** |
+
+변경 파일: `neo_scheduler_adapter.py` (+178 / -13), `engine/core.py` (+26), `scheduler.py` (+9). Python only — pacpu lib (`csrc/cpu/pacpu/build/libpacpu-llama3_3_70b-tp8.so`) 별도 빌드 필요.
+
+### 측정 — try60 회차 3 개
+
+**workload**: 표준 — 500p × 8192 max_tokens / Llama-70B / TP=8 / fp8 KV / async / `gpu_memory_utilization=0.85` / `--enforce-eager false`. NEO env default ON.
+
+| 회차 | 시각 | 적용 단계 | 결과 |
+|---|---|---|---|
+| try60-α | 03:01 | D0~D2 | NEO CDEC CALL 255,600 fire / FORK active 45%. `pacpu` lib 미빌드 → AttributeError. **chain trigger path 정상 입증** |
+| try60-β | 05:06 | D0~D5 + pacpu build | NEO SWAP fire (boundary=199), SWAP_OUT_CALL=50 (KV 진짜 GPU→CPU). 8 분 진행 후 외부 종료, result.json 미생성. complete chain mechanism 동작 입증 |
+| **try60-γ** | 05:22 | D0~D5 + pacpu build (full 500p) | **실패** — `EngineDeadError: cancelled`, 11분 18초만에 dead. CDEC CALL count=3000/worker, SWAP_OUT_CALL=50, fork chain 0/4400 (0%) |
+
+dir: `eval/results/20260509_{030103,050628,052225}_try60_v4_J_verify_neo_full_migration/`
+
+### Crash root cause — pacpu `brute::store_kv` segfault
+
+try60-γ 의 진짜 fault: **EngineDead 는 결과 (worker-0 사망 8 초 후 shm_broadcast cancel)**. 진짜 원인은 worker-0 의 pacpu kernel 내부 segfault.
+
+**Crash stack** (engine.log:991-1011):
+```
+brute::store_kv          ← csrc/cpu/pacpu/core.h:11-31 (memcpy at line 28-29)
+ispc_attention_tasks._omp_fn.0  ← OMP parallel block, core.h:309-311
+GOMP_parallel
+paged_attention_cpu      ← csrc/cpu/pacpu/pacpu.cpp:78
+```
+
+**기전 (D5 fix 의 부작용)**:
+
+1. swap_out 시점 — req 의 GPU blocks 를 `NeoCpuKvBuffer` 에 alloc (예: 606 blocks = 9696 tokens 분).
+2. D1 mirror set 으로 req 가 SWAPPED_OUT 잔류 + D5 fix 로 매 step `num_scheduled_tokens=1` 으로 decode 진행.
+3. `gpu_model_runner.py:2139`: `seq_lens = num_computed_tokens + num_scheduled_tokens` — SWAPPED_OUT decode req 도 매 step `seq_lens` +1 누적.
+4. cdec dispatch (`attention.py:802-816`): `block_table_cpu` 는 `buf.get_block_ids(rid)` 로 width 결정 = swap-out 시점 block_count (예: 606~608) + zero-padding.
+5. 그러나 `seq_lengths = attn_metadata.seq_lens[_s0:_s1]` 은 *현재* seq_len (~9700+, swap 이후 누적).
+6. pacpu `store_kv` (core.h:21): `block_pos = (seq_len-1) / BLOCK_SIZE` — `seq_len` 이 swap 이후 누적되어 결국 `block_pos >= block_table_width` 진입.
+7. `block_id = block_table[block_pos]` 의 OOB read → garbage `block_id` (행 경계 넘어 읽음) → `cache_off = (cur_layer * num_blocks + block_id) * BLOCK_NELEM` 이 `buf.k_cpu` 의 mapped memory 밖.
+8. `memcpy(kp + i * BLOCK_SIZE * HEAD_DIM, k + ...)` SIGSEGV.
+
+**왜 13 분 동안 firing 후 SEGV**: 매 step 1 token 누적 → 16 token 마다 block_pos 1 증가 → swap-out 후 평균 ~16~32 token 후 OOB 영역 진입 시작 → 누적 reqs (mirror 64 개 모두) 중 *어떤* req 의 garbage block_id 가 unmapped page 를 가리켜 SEGV. 시간 = mean-time-to-failure.
+
+**시점별 카운터 추적** (workers 8 모두 동일):
+- 05:28:15 — NEO BUF ALLOC 첫 발화 (req 255 blocks=606)
+- 05:28:17 ~ 05:28:25 — SWAP_OUT_CALL 10/20/30/40/50 (req 246 → 206)
+- 05:35:04 — NEO CDEC CALL count=3000
+- 05:35:12 — worker-0 segfault
+- 05:35:20 — EngineCore receives `RuntimeError: cancelled`
+
+**fix 방향 후보** (별도 phase):
+- (A) Mirror set 의 SWAPPED_OUT decode 시 *swap_in* 강제 (`SWAP_IN_DONE > 0` 활성화) — 가장 정합. v3 의 swap_in path 는 deferred-only 였음.
+- (B) cdec dispatch 가 SWAPPED_OUT reqs 의 `seq_len` 을 CPU buffer 의 block_count 까지로 truncate — token 손실, correctness 회귀.
+- (C) CPU buffer 에 매 decode step 마다 block alloc + K/V 갱신 — host memory 비용 큼.
+- (D) D5 의 `num_scheduled_tokens=1` 부여 조건을 *block_count 이내* reqs 로 제한 — 가장 안전한 정합 가드.
+
+### 19 항목 status (Plan v4 D5 + try60-γ measured)
+
+| # | 항목 | commit msg 주장 | try60-γ measured |
+|---|---|---|---|
+| 1 KV exclusive ownership | ✅ | ✅ (SO_CALL=40 skip=1 first_bid=1) |
+| 2 CPU attention 직접 | ✅ | ❌ (active=0, fork chain 0%) |
+| 3 forward_double | ✅ | ✅ (OOM=0) |
+| 4 stage 분할 | ✅ | ✅ (OOM=0) |
+| 5 6 단계 Scheduler | ✅ | ✅ (attach=1, swap_in_done=0) |
+| 6 Mode Select | 🔶 | ❌ (active/total=0/4400, 0%) |
+| 7 3-way attention dispatch | ✅ | ❌ (eligible=0, active=0) |
+| 8 swap 동시 invariant | ✅ | — (P8 trace 미적재) |
+| 9 pacpu kernel | ✅ | ❌ (active=0 — segfault 직전 fire 했으나 chain inactive) |
+| 10 Q/K/V D2H | ✅ | ❌ (active=0) |
+| 11 sub_batches attach | ✅ | ❌ (eligible=0) |
+| 12 b0_eff/b1_eff | ✅ | ❌ (active=0) |
+| 13 forward_pipeline overlap | ✅ | ❌ (active=0) |
+| 14 KV migration LRU | 🔶 | 🔶 (swap_out=40, **swap_in=0**) |
+| 15 NEO > vanilla | ⚠️ (out of scope) | ⏳ (post-run only — crash 로 측정 불가) |
+| 16 CPU util HIGH | ⚠️ | — (worker py-spy 미수행) |
+| 17 token correctness | ⚠️ | — (TST_003 미수행) |
+| 18 deadlock 회피 | ✅ | ❌ (engine_dead=1) |
+| 19 silent worker crash 0 | ✅ | ✅ (assert=0, cuda_assert=0 — segfault 는 worker C++ kernel) |
+
+**commit msg 의 "complete chain 동작 입증"** = try60-β (8 분 외부 종료 회차) 의 *gates fire 관찰* 만. try60-γ 의 *완전 회차 measurement* 는 SEGV 로 미달성.
+
+### 결론 + 다음 phase 의 input
+
+**Plan v4 D0-D5 의 *infra-level* 성과**:
+- ✅ chain trigger root fix (`num_new_tokens=0` 분기) — SWAPPED_OUT decode req 가 `num_scheduled_tokens` 에 포함됨을 입증.
+- ✅ natural-preempt → CPU mirror → 잔류 → next-step decode 의 6 단계 lifecycle 인프라 적재.
+- ✅ swap_out 의 *진짜* GPU→CPU per-layer copy 발화 (NEO BUF ALLOC + SWAP_OUT_CALL).
+- ✅ SWAP_IN dispatch path 코드 적재 (D4).
+
+**Plan v4 D5 의 *crash-level* 한계 — 새 root cause 발견**:
+- ❌ pacpu `store_kv` 의 OOB segfault (block_table OOB read at decode step ~16-32 후).
+- ❌ SWAP_IN_DONE = 0 — D4 swap_in path 가 실제 발화하지 않음 (mirror 의 oldest pick 조건 미충족 또는 capacity 미꽉참).
+- ❌ FORK chain active = 0 — 본 v3 한계 미해소. cdec dispatch 는 CDEC CALL 카운터로는 fire 했으나 `[NEO FORK STAT]` 의 active 가 0 이라 sub_batches 단위 fork 는 미발화.
+
+**다음 phase 의 input** (별도 plan 영역):
+1. **(우선) D6: SWAP_IN_DONE 활성화** — mirror 가 차자마자 oldest 를 GPU 로 복귀 강제 (per-step cap 1~2). 본 fix 가 pacpu segfault 의 근본 회피책 — SWAPPED_OUT 잔류 시간 ↓ → block_pos OOB 영역 진입 전 swap_in.
+2. **(가드) D7: D5 의 condition 강화** — `num_new_tokens=0` 분기에 `num_computed_tokens < buf.block_count(rid) * BLOCK_SIZE` 추가 가드. CPU buffer 가 cover 하는 영역 너머의 decode 회피.
+3. **(독립) D8: FORK chain 미발화 추적** — `attach=1` 인데 `active=0` 라는 비대칭 root. `[NEO FORK STAT] reject_no_subs` 가 4399/4400 로 fire — sub_batches metadata 의 worker-side propagation root 식별 영역.
+4. **(독립) #17 TST_003 verdict** — D5 fix 가 정확도에 미치는 영향 측정 필요. SWAPPED_OUT decode 의 stale CPU KV 사용 여부에 따라 token loss 크게 달라질 수 있음.
+
+### 측정/관측 산출물
+
+- 회차 dir: `eval/results/20260509_030103_*` (D0-D2), `20260509_050628_*` (D0-D5 8min), `20260509_052225_*` (D0-D5 13min crash)
+- launcher: `eval/run_v4_J_verify.sh` (full 500p), `eval/run_v4_J_verify_small.sh` (50p / 1024 tok)
+- worker py-spy script (미실행): `eval/run_v4_D5_worker_pyspy.sh`
+- 모니터링: 자동 task `b8pb5njfp` ("19 항목 표 — 즉시 fire + 15분 주기 (persistent)") 가 try60-γ 회차 19 항목 표 산출 (DONE).
+
+---
+
 ## 6. References
 
 - 부모 PLN: [`PLN_001`](PLN_001.md)
@@ -515,6 +639,7 @@ Phase A 적용 후 swap_in 미발화 (chain firing rate 0.57%). C4-C5 의 B-1/B-
 | 2026-04-30 | **§5 갱신 — 현재 NEO ON 의 의미 + 정식 비교 회차 plan 분리** | TSK_016 의 Step 5.1~5.4 wiring 통과 후 사용자 질문 ("500 prompt 로 NEO 기능 검증이 가능한거지?") 에 답하기 위한 layered 정리. (1) **§5.1**: 현재 NEO data path 는 forward-context fork 미적용 → KV cache cross-contamination → vanilla fallback active. NEO ON 회차의 의미 = *무회귀 검증* 만. 500 회차 = 개발 회귀, 1000 = 정식 회귀, 5000 = 외부 보고 회귀 (효과 측정 단계 후로 미룸). (2) **§5.2**: 진짜 효과 측정은 Step 5.5 (forward-context fork) → TSK_015 (KV exclusive) → TSK_017 (PerfPredictor 실측 table) → TSK_018 (CPU kernel 통합) 누적 후 의미. (3) **§5.3**: 무회귀 / 효과 측정 / 외부 보고 의 3 단계 비교 회차 plan 명시. |
 | 2026-05-03 | **§5.4 + §5.5 신설 — Phase B async fix 후 NEO ON 측정 3 회차 + 진짜 cdec dispatch 발화 path 식별** | (1) **§5.4** 적재 — Phase B `NeoSchedulerAdapter(AsyncScheduler)` 1줄 fix 후 정식 비교 회차 (500 / 1000 / 5000 × 50:50, Llama-70B + TP=8, VLLM_NEO_KV_FREE=1). 결과: 500 +8.72% / 1000 +1.49% / 5000 **-3.50% wall regression** (가장 통계 신뢰 영역). NEO 발화 카운트 = 모두 zero (max_conc 78 = 30%, KV usage 90~100% sustained 였으나 swap_out 미발화). (2) **swap_out 미발화 root cause 식별**: NEO sibling 의 `_sync_neo_gpu_decoding_q` 가 *decode 단계* reqs 만 매핑 → prefill 단계 KV pressure 추적 안 됨. (3) **§5.5** 신설 — 진짜 cdec dispatch 발화 path 3 옵션 (prefill KV 추적 보강 / RATIO env forced-fire / max_num_seqs+input ↑). 별도 multi-day / multi-hour 영역. (4) **결론**: Phase A (NEO 베이스 적재) + Phase B (async fix) = NEO 인프라 활성 + vanilla 동등 ±5% 영역 입증 완료. 진짜 NEO gain (논문 H100 14% 영역) 은 별도 path. |
 | 2026-05-05 | **§5.6 신설 — Phase D (v37~v41 chain) 측정 + NEO ON throughput > vanilla 검증 PASS at 500p sweet spot** | (1) **NEO ↔ vLLM single source path 통합** (commit `4b287b1639`) + `_preempt_request` SWAPPED_OUT 자연 발화 → adapter cdec_ids 직접 attach. NEO fork firing rate **66~98%** 영역 진입 (Phase B 의 zero-fire 대비 큰 변화). (2) **v37→v38 architectural surgery**: `unified_attention_with_output` 의 cdec-only sub-batch 시 `self.impl.forward(...)` skip — swiftllm 패턴 매칭 (commit `eeed0d46fc`). v37 (1928.63 tps) → v38 (**2276.42 tps**, +18% 단일 fix). (3) **stop 조건 1 검증 PASS**: NEO v38 500p output_tps **2276.42** vs vanilla **2190.83** → **+3.91% 우월** / wall **-8.27%**. (4) **chain 측정 매트릭스**: 300p / 500p / 1000p × vanilla / v37 / v38 / v40 / v41 — sweet spot **500p 한 점만** NEO win. 300p 는 KV pressure 부족 (firing 55%) 으로 lose, 1000p 는 token corruption 누적 (12.89%) 로 lose. (5) **v41 (no-fastmath kernel)**: ISPC `--opt=fast-math` + C++ `-Ofast` 제거 → token loss 4.69% → **2.84%** (39% 감소). 500p NEO win **+3.13%** 유지. fast-math 가 corruption 의 30-40% contributor 입증. (6) **per-step drift 누적 패턴**: cdec steps 300p 8163 / 500p 16310 / 1000p 31767 → token loss 비례 누적. NEO sweet spot 좁힘 메커니즘 식별. (7) **stop 조건 2 (정확도 보존)** 미검증 — token loss 잔존 (2.84%-14.47% size 따라). (8) **현재 코드 상태**: HEAD = v38 (Python). kernel `.so` = v41 strict FP rebuild (uncommitted). |
+| 2026-05-10 | **§5.10 신설 — TSK_019 v4 D0-D5 검증 + pacpu store_kv segfault root 식별** | commit `df2cb7c81e` 의 D0~D5 (mirror set / num_new_tokens=0 fix) 검증 회차 try60 3 개 적재. (1) **infra-level 성과**: chain trigger path 인프라 적재 + natural-preempt → CPU mirror 잔류 → next-step decode lifecycle 동작 확인. (2) **try60-γ (05:22) crash root 식별**: worker pacpu kernel `brute::store_kv` 의 SIGSEGV. EngineDead 는 결과적 증상. 기전 = D5 fix 의 부작용 — SWAPPED_OUT decode req 의 `seq_lens` 가 매 step +1 누적되지만 CPU buffer block_count 는 swap-out 시점에 고정 → `block_pos = (seq_len-1)/BLOCK_SIZE` 가 결국 `block_table` row width OOB → garbage `block_id` → invalid `cache_off` → memcpy SEGV. (3) **19 항목 measured**: chain active 0/4400 (0%), SWAP_IN_DONE=0, EngineDead=1. commit msg 의 "complete chain 입증" = try60-β (8min 외부 종료) 의 gates fire 관찰만. (4) **다음 phase input**: D6 (SWAP_IN_DONE 강제 활성), D7 (D5 condition 가드), D8 (FORK chain attach=1 → active=0 비대칭 추적), TST_003 verdict. |
 
 ---
 
