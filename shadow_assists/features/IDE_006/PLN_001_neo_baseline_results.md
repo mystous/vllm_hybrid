@@ -622,6 +622,10 @@ paged_attention_cpu      ← csrc/cpu/pacpu/pacpu.cpp:78
 
 ## 5.11 · TSK_019 v4 / Phase K (D6~D12) — SEGV 0 + run 완주 안정화 + bistability 발견 (2026-05-10)
 
+### 버전 명명
+
+본 Phase K 의 D6~D12 stack 중 **try68** 회차 (D6+D7+D8+D10+D11 적용, D12 default 0, 12:18 KST 진행, **active 평형 진입**) 결과를 **v1.3** 으로 명명. v1.0~v1.2 (TSK_019 시작 ~ try43, chain firing 0~0% claimed) 대비 chain firing **6.4%** + swap_in done **771** + crash 0 + run 정상 완주 — NEO 의 *진정한 발화* 측면에서 첫 의미 있는 진척. 단 reproducibility 미확보 (try69~72 inactive 평형) — D13+ 별도 영역.
+
 ### 배경
 
 §5.10 의 try60-γ pacpu `brute::store_kv` SIGSEGV root 분석 결과를 input 으로, *crash 0 + run 정상 완주* 를 1차 목표로 12 회차 (try60-γ ~ try71) 누적 fix 적용. 사용자 명시 ground rule: "NEO 비활성화 옵션 절대 금지" (메모리 기록).
