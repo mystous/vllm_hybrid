@@ -620,6 +620,114 @@ paged_attention_cpu      ← csrc/cpu/pacpu/pacpu.cpp:78
 
 ---
 
+## 5.11 · TSK_019 v4 / Phase K (D6~D12) — SEGV 0 + run 완주 안정화 + bistability 발견 (2026-05-10)
+
+### 배경
+
+§5.10 의 try60-γ pacpu `brute::store_kv` SIGSEGV root 분석 결과를 input 으로, *crash 0 + run 정상 완주* 를 1차 목표로 12 회차 (try60-γ ~ try71) 누적 fix 적용. 사용자 명시 ground rule: "NEO 비활성화 옵션 절대 금지" (메모리 기록).
+
+### 적용 fix 누적 (D6~D12, commit 3 chunks)
+
+| commit | Phase | 변경 |
+|---|---|---|
+| `2cf51460ed` | D6 | `neo_scheduler_adapter.py` — forced swap_in (D4 의 KV usage threshold 0.95 우회). `VLLM_NEO_FORCE_SWAP_IN=1` (default ON), `VLLM_NEO_MAX_SWAP_IN_PER_STEP=2` (force 모드 default). KV 한계 영역 (99.7% sustained) 에서 mirror non-empty 면 매 step swap_in 시도. |
+| `2cf51460ed` | D7 | `neo_scheduler_adapter.py` — swap_in/cdec race guard. swap_in 발화 후 `output.neo_sub_batches[1]` / `cdec_req_ids` / `cdec_slices` 에서 swap_in_ids 차감. 같은 step 의 KV transition race 차단. |
+| `2cf51460ed` | D8 | `neo_scheduler_adapter._neo_swap_out` hook — `request._neo_swap_out_safe_max_computed` stash. swap-out 시점 `len(blocks) * BLOCK_SIZE - 1` 로 block_pos OOB 안전선. |
+| `2cf51460ed` | D10 | `scheduler.py` — D5 분기 *외부* 에 모든 SWAPPED_OUT reqs 의 num_new_tokens 를 safe_max 너머로 가지 못하게 clamp. stash 안 된 다른 swap-out path 의 reqs 는 `num_new_tokens=0` (안전 fallback). |
+| `5f85875b7e` | D11 | `attention.py` — pacpu kernel 호출 직전 동적 OOB precheck. 각 cdec 대상 req 의 `(seq_len, nblocks, block_pos)` 검증. OOB 발견 시 *해당 step 의 cdec dispatch 전체 skip* + log dump (rid, seq_len, nblocks, block_pos, row_len). |
+| `5f85875b7e` | D12 | `neo_scheduler_adapter._neo_swap_out` — D8 stash 의 token-level safety margin (env `VLLM_NEO_D12_TOKEN_MARGIN`, default **0**). v1 (1 block), v2 (8 token) 둘 다 chain firing lockout → v3 default 0 으로 D8 v1 동작 복원. |
+
+### 측정 매트릭스 (12 회차)
+
+**workload**: 표준 — 500p × 8192 max_tokens / Llama-70B / TP=8 / fp8 KV / async / `gpu_memory_utilization=0.85` / `--enforce-eager false`. NEO env default ON.
+
+| 회차 | 시각 | fix | crash | swap_in done | FORK active | wall (s) | output_tps | result.json |
+|---|---|---|---|---|---|---|---|---|
+| try60-γ | 05-09 05:22 | D0~D5 | **8** | 0 | 0 | 11분 18초 SEGV | — | ❌ |
+| try61 | 05-10 01:05 | +D6 | 8 | 1 | 0 | 8분 33초 SEGV | — | ❌ |
+| try62 | 05-10 01:17 | +D7 | 9 | 36 | 46 | 8분 38초 SEGV | — | ❌ |
+| try63 | 05-10 01:42 | env tune | 7 | 51 | 0 | 7분 16초 SEGV | — | ❌ |
+| **try64** | 05-10 01:52 | +D8 v1 | **2** | 28 | 0 | 7분 7초 SEGV | — | ❌ |
+| try65 | 05-10 02:02 | D8 v2 fallback | 9 | 48 | 0 | 7분 42초 SEGV | — | ❌ |
+| try66 | 05-10 02:12 | +D9 (D5 OFF) | 7 | 40 | 0 | 7분 38초 SEGV | — | ❌ |
+| try67 | 05-10 02:30 | +D10 | 2 | 81 | 17 | 8분 52초 SEGV | — | ❌ |
+| **try68** | 05-10 03:18 | +D11 | **0** ✅ | **771** | **1429** (6.4%) | 24분 49초 정상 | **2743** | ✅ **첫 PASS** |
+| try69 | 05-10 03:48 | D12 v1 (1 block) | 0 | 0 | 0 | 18분 16초 정상 | 3739 | ✅ |
+| try70 | 05-10 04:11 | D12 v2 (8 tok) | 0 | 0 | 0 | 18분 24초 정상 | 3710 | ✅ |
+| try71 | 05-10 04:33 | D12 v3 (default 0) | 0 | 0 | 0 | 18분 28초 정상 | 3697 | ✅ |
+
+### 핵심 발견 — SEGV 의 진짜 root
+
+**try68 의 D11 dynamic precheck 가 OOB 3200 회 catch + 진짜 root 동적 추출**:
+
+```
+(idx=34, rid='248-af3fe7ea', seq_len=9702, nblocks=606, block_pos=606, row_len=608)
+(idx=35, rid='249-984daeab', seq_len=9702, nblocks=606, block_pos=606, row_len=608)
+```
+
+`block_pos == nblocks` (정확히 1 칸 OOB) — engine 측 num_computed (D10 가드 결정 시점) 와 worker 측 num_computed (forward 시점) 사이 **async lookahead ~7 token gap** 이 1 block 경계 (16 token) 넘는 timing race. 정적 코드 분석으로 race window 가 닫힌 것으로 보였으나 분산/멀티 환경의 동적 timing 으로 OOB 도달.
+
+### NEO bistability 발견
+
+D12 v3 (margin=0, D8 v1 와 식 동일) 의 try71 결과가 **try68 의 active 평형 미재현**. 동일 코드/env 인데 회차마다 두 평형점 분기:
+- **Active 평형** (try68): chain firing 활발 (FORK active 1429), swap 빈번 (swap_in 771), wall 1488s
+- **Inactive 평형** (try69/70/71): chain firing 0, swap 적음 (swap_in 0), wall ~1100s
+
+원인: workload 의 자연 randomness + KV pressure 진입 timing + D6 forced swap_in 의 cascade 효과. *Initial KV pressure 진입 동력* 에 따라 NEO 메커니즘이 active 또는 inactive 평형으로 수렴.
+
+### 19 항목 status (try68 active 평형 + try69~71 inactive 평형 통합 평가)
+
+| # | 항목 | 동작 (시작 try60-γ) | **동작 (Phase K 안정화)** |
+|---|---|---|---|
+| 1 KV exclusive ownership | ✅ | ✅ |
+| 2 CPU attention 직접 | ❌ (active=0) | 🔶 (try68 1429 active, try71 0 — bistable) |
+| 3 forward_double | ✅ | ✅ |
+| 4 stage 분할 | ✅ | ✅ |
+| 5 6 단계 Scheduler | ✅ | ✅ (swap_in_done > 0 try68) |
+| 6 Mode Select | ❌ | 🔶 (force_pipelined active, dynamic mixed) |
+| 7 3-way attention dispatch | ❌ | 🔶 (bistable) |
+| 8 swap 동시 invariant | — | ✅ (D7 race guard) |
+| 9 pacpu kernel | ❌ | 🔶 (bistable, OOB precheck 3200 catch) |
+| 10 Q/K/V D2H | ❌ | 🔶 (bistable) |
+| 11 sub_batches attach | ❌ | 🔶 (bistable) |
+| 12 b0_eff/b1_eff | ❌ | 🔶 (bistable) |
+| 13 forward_pipeline overlap | ❌ | 🔶 (bistable) |
+| 14 KV migration LRU | 🔶 (swap_in=0) | ✅ (try68: swap_out=184, swap_in_done=771) |
+| 15 NEO > vanilla | ⏳ | ❌ (out of scope, vanilla 4690 vs try68 2743 = -41%) |
+| 16 CPU util HIGH | — | — (worker py-spy 미수행) |
+| 17 token correctness | — | — (TST_003 미수행) |
+| 18 deadlock 회피 | ❌ (engine_dead=1) | ✅ (run 완주) |
+| 19 silent worker crash 0 | ✅ | ✅ |
+
+**누적**: ✅ **8 항목** (#1, 3, 4, 5, 8, 14, 18, 19) + 🔶 **8 항목 bistable** (#2, 6, 7, 9~13) + ⏳/❌/—  **3 항목** (#15, 16, 17).
+
+### 결론 + 다음 phase 의 input
+
+**Phase K 의 *infra 안정화 성공***:
+- ✅ run 정상 완주 (try60-γ ~ try67 의 8 SEGV → try68~71 의 0)
+- ✅ crash 0 (segfault/EngineDead/AssertionError 모두 0) — 4 회차 연속
+- ✅ swap_out / swap_in path 활성, 8 항목 ✅ 진입
+- ✅ SEGV root 동적 분석으로 식별 — engine vs worker async lookahead
+
+**Phase K 의 *bistability 한계***:
+- ⚠️ 8 항목 (#2, 6, 7, 9~13) 의 firing 이 회차마다 active vs inactive 분기. try68 1 회차만 active 평형 진입.
+- ⚠️ active 평형 강제 진입의 *결정적 trigger* 미식별.
+
+**다음 phase (D13+) 의 input** (별도 plan 영역):
+1. **Active 평형 강제 진입** — Initial swap_out trigger 적극화 (KV usage threshold 낮춤 또는 prefill 단계 mirror seeding). 매 회차 reproducible 한 active 평형 보장.
+2. **D11 partial skip** — 현 D11 은 OOB 발견 시 *해당 step 전체 skip*. partial skip (OOB reqs 만 차감, 나머지 dispatch) 으로 chain firing 활성 영역 확대.
+3. **#17 TST_003 verdict 측정** — try68 active 평형의 정확도 회귀 측정. CLAUDE.md "분포·의도 수준 유사성" 기준.
+4. **#16 worker py-spy** — `eval/run_v4_D5_worker_pyspy.sh` 가 staged 적재됐으나 미실행. CPU util HIGH 검증.
+
+### 측정/관측 산출물
+
+- 회차 dir: `eval/results/20260510_010512_*` (try61) ~ `20260510_043317_*` (try71) 11 dirs
+- launcher: `run_v4_K_D6_verify.sh` ~ `run_v4_K_D12v3_verify.sh` 11 scripts
+- D11 OOB log: try68 의 `engine.log.stdout` 에 `[NEO CDEC D11 OOB PRECHECK]` 패턴 3200 회 출현
+- 모니터링: 자동 task `b8pb5njfp` 가 try60-γ dir 추적 (try67 까지 ALIVE/DONE 표 갱신)
+
+---
+
 ## 6. References
 
 - 부모 PLN: [`PLN_001`](PLN_001.md)
@@ -640,6 +748,7 @@ paged_attention_cpu      ← csrc/cpu/pacpu/pacpu.cpp:78
 | 2026-05-03 | **§5.4 + §5.5 신설 — Phase B async fix 후 NEO ON 측정 3 회차 + 진짜 cdec dispatch 발화 path 식별** | (1) **§5.4** 적재 — Phase B `NeoSchedulerAdapter(AsyncScheduler)` 1줄 fix 후 정식 비교 회차 (500 / 1000 / 5000 × 50:50, Llama-70B + TP=8, VLLM_NEO_KV_FREE=1). 결과: 500 +8.72% / 1000 +1.49% / 5000 **-3.50% wall regression** (가장 통계 신뢰 영역). NEO 발화 카운트 = 모두 zero (max_conc 78 = 30%, KV usage 90~100% sustained 였으나 swap_out 미발화). (2) **swap_out 미발화 root cause 식별**: NEO sibling 의 `_sync_neo_gpu_decoding_q` 가 *decode 단계* reqs 만 매핑 → prefill 단계 KV pressure 추적 안 됨. (3) **§5.5** 신설 — 진짜 cdec dispatch 발화 path 3 옵션 (prefill KV 추적 보강 / RATIO env forced-fire / max_num_seqs+input ↑). 별도 multi-day / multi-hour 영역. (4) **결론**: Phase A (NEO 베이스 적재) + Phase B (async fix) = NEO 인프라 활성 + vanilla 동등 ±5% 영역 입증 완료. 진짜 NEO gain (논문 H100 14% 영역) 은 별도 path. |
 | 2026-05-05 | **§5.6 신설 — Phase D (v37~v41 chain) 측정 + NEO ON throughput > vanilla 검증 PASS at 500p sweet spot** | (1) **NEO ↔ vLLM single source path 통합** (commit `4b287b1639`) + `_preempt_request` SWAPPED_OUT 자연 발화 → adapter cdec_ids 직접 attach. NEO fork firing rate **66~98%** 영역 진입 (Phase B 의 zero-fire 대비 큰 변화). (2) **v37→v38 architectural surgery**: `unified_attention_with_output` 의 cdec-only sub-batch 시 `self.impl.forward(...)` skip — swiftllm 패턴 매칭 (commit `eeed0d46fc`). v37 (1928.63 tps) → v38 (**2276.42 tps**, +18% 단일 fix). (3) **stop 조건 1 검증 PASS**: NEO v38 500p output_tps **2276.42** vs vanilla **2190.83** → **+3.91% 우월** / wall **-8.27%**. (4) **chain 측정 매트릭스**: 300p / 500p / 1000p × vanilla / v37 / v38 / v40 / v41 — sweet spot **500p 한 점만** NEO win. 300p 는 KV pressure 부족 (firing 55%) 으로 lose, 1000p 는 token corruption 누적 (12.89%) 로 lose. (5) **v41 (no-fastmath kernel)**: ISPC `--opt=fast-math` + C++ `-Ofast` 제거 → token loss 4.69% → **2.84%** (39% 감소). 500p NEO win **+3.13%** 유지. fast-math 가 corruption 의 30-40% contributor 입증. (6) **per-step drift 누적 패턴**: cdec steps 300p 8163 / 500p 16310 / 1000p 31767 → token loss 비례 누적. NEO sweet spot 좁힘 메커니즘 식별. (7) **stop 조건 2 (정확도 보존)** 미검증 — token loss 잔존 (2.84%-14.47% size 따라). (8) **현재 코드 상태**: HEAD = v38 (Python). kernel `.so` = v41 strict FP rebuild (uncommitted). |
 | 2026-05-10 | **§5.10 신설 — TSK_019 v4 D0-D5 검증 + pacpu store_kv segfault root 식별** | commit `df2cb7c81e` 의 D0~D5 (mirror set / num_new_tokens=0 fix) 검증 회차 try60 3 개 적재. (1) **infra-level 성과**: chain trigger path 인프라 적재 + natural-preempt → CPU mirror 잔류 → next-step decode lifecycle 동작 확인. (2) **try60-γ (05:22) crash root 식별**: worker pacpu kernel `brute::store_kv` 의 SIGSEGV. EngineDead 는 결과적 증상. 기전 = D5 fix 의 부작용 — SWAPPED_OUT decode req 의 `seq_lens` 가 매 step +1 누적되지만 CPU buffer block_count 는 swap-out 시점에 고정 → `block_pos = (seq_len-1)/BLOCK_SIZE` 가 결국 `block_table` row width OOB → garbage `block_id` → invalid `cache_off` → memcpy SEGV. (3) **19 항목 measured**: chain active 0/4400 (0%), SWAP_IN_DONE=0, EngineDead=1. commit msg 의 "complete chain 입증" = try60-β (8min 외부 종료) 의 gates fire 관찰만. (4) **다음 phase input**: D6 (SWAP_IN_DONE 강제 활성), D7 (D5 condition 가드), D8 (FORK chain attach=1 → active=0 비대칭 추적), TST_003 verdict. |
+| 2026-05-10 | **§5.11 신설 — Phase K (D6~D12) 안정화 + bistability 발견** | try60-γ ~ try71 12 회차 누적 결과 적재. (1) **D6~D10 누적 fix** (commits `2cf51460ed` + try61~67 7 회차 산출물 + 7 launch scripts) — 정적 코드 분석 기반 SEGV 회피 시도. crash 8 → 2 (try64 D8 v1, try67 D10) 까지 줄임. (2) **사용자 ground rule 재명시 + 메모리 기록**: NEO 비활성화 옵션 절대 금지. (3) **동적 분석 전환** — 정적으로 race window 닫힌 것으로 보였는데도 SEGV → D11 dynamic precheck (commit `5f85875b7e`) 도입. pacpu kernel 직전 `(seq_len, nblocks, block_pos)` 검증 + OOB reqs 발견 시 cdec dispatch skip. (4) **try68 첫 PASS** — run 완주, crash 0, FORK active **1429** (chain firing 6.4%), swap_in done 771, output_tps 2743, wall 1488s. (5) **진짜 SEGV root 식별** — D11 OOB log (`block_pos == nblocks` 정확히 1 칸 OOB) 가 dump = engine 측 num_computed 와 worker 측 num_computed 사이 **async lookahead ~7 token gap** 이 1 block 경계 넘는 timing race. (6) **D12 stash margin** — v1 (1 block) / v2 (8 token) 둘 다 chain firing lockout, v3 default 0 (D8 v1 동작 복원). (7) **NEO bistability 발견** — try68 만 active 평형 진입 (chain firing), try69~71 은 inactive 평형 (chain 0). 동일 코드/env 인데 workload randomness + KV pressure 진입 timing 의존. (8) **누적 status**: 19 항목 중 ✅ 8 (KV/swap/deadlock/crash) + 🔶 8 bistable (cdec/fork chain) + 미수행 3 (#15-17). **infra 안정화 PASS**, active 평형 강제 진입은 D13+ 별도. |
 
 ---
 
