@@ -442,8 +442,20 @@ class NeoSchedulerAdapter(AsyncScheduler):
                 # request.num_computed_tokens 를 비교해 num_new_tokens=1
                 # 부여 여부 결정. 너머면 decode 보류 → seq_len 동결 →
                 # pacpu store_kv 의 block_table OOB 도달 차단.
+                # [Plan v4 D12 v3] try70 측정 결과 — D12 의 *어떤* margin
+                # 이든 (1 block 또는 8 token) chain firing 을 cascade-
+                # deactivate. 정적으로는 동일 reqs 통과 영역인데 동적
+                # 으로는 NEO 메커니즘 자체 비활성. D11 dynamic precheck
+                # 가 *진짜* root (async lookahead) 를 이미 처리.
+                # 따라서 D12 default margin=0 (D8 v1 동일) + env 로
+                # 조정 가능 (디버깅용 보존). D11 가 잔존 OOB catch.
                 _block_size_d8 = getattr(self, "block_size", 16)
-                _safe_max = len(blocks) * _block_size_d8 - 1
+                _d12_margin = int(_os_th.environ.get(
+                    "VLLM_NEO_D12_TOKEN_MARGIN", "0",
+                )) if hasattr(_os_th, "environ") else 0
+                _safe_max = (
+                    len(blocks) * _block_size_d8 - 1 - _d12_margin
+                )
                 request._neo_swap_out_safe_max_computed = _safe_max
                 if not getattr(self, "_neo_first_blockid_logged", False):
                     logger.info(

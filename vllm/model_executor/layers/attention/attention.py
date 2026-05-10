@@ -823,6 +823,56 @@ def unified_attention_with_output(
                                 seq_lens_attr[_s0:_s1]
                                 .to(torch.int64).cpu().tolist()
                             )
+                            # [Plan v4 D11 dynamic-debug] pacpu kernel
+                            # input 의 *동적* 정합성 검증. SEGV stack 이
+                            # 매 회차 brute::store_kv 의 memcpy 인데
+                            # 정적 코드 분석으로는 *어떤 req* 의 *어떤
+                            # 값* 이 invalid 인지 식별 불가. 본 precheck
+                            # 가 dispatch 직전 OOB 영역 진입 reqs 를
+                            # log + skip → SEGV 회피 + root data
+                            # 추출. BLOCK_SIZE=16 (Llama default).
+                            _BLOCK_SIZE_D11 = 16
+                            _oob_reqs_d11 = []
+                            for _i_d11, _rid_d11 in enumerate(_req_ids):
+                                _seq_len_d11 = seq_lengths[_i_d11]
+                                _row_d11 = block_table_rows[_i_d11]
+                                _nblk_d11 = len(buf.get_block_ids(_rid_d11) or [])
+                                _block_pos_d11 = (_seq_len_d11 - 1) // _BLOCK_SIZE_D11
+                                if (_block_pos_d11 < 0
+                                        or _block_pos_d11 >= _nblk_d11
+                                        or _block_pos_d11 >= len(_row_d11)):
+                                    _oob_reqs_d11.append((
+                                        _i_d11, _rid_d11, _seq_len_d11,
+                                        _nblk_d11, _block_pos_d11,
+                                        len(_row_d11),
+                                    ))
+                            if _oob_reqs_d11:
+                                from vllm.logger import init_logger as _einit_d11
+                                _d11_logger = _einit_d11(
+                                    "vllm.attention.neo_cdec_d11",
+                                )
+                                _d11_cnt = getattr(
+                                    self, "_neo_d11_oob_cnt", 0,
+                                ) + len(_oob_reqs_d11)
+                                self._neo_d11_oob_cnt = _d11_cnt
+                                if (_d11_cnt <= 30
+                                        or _d11_cnt % 100 == 0):
+                                    _d11_logger.error(
+                                        "[NEO CDEC D11 OOB PRECHECK] "
+                                        "found %d OOB reqs (total=%d): %s",
+                                        len(_oob_reqs_d11), _d11_cnt,
+                                        _oob_reqs_d11[:5],
+                                    )
+                                # OOB reqs 가 하나라도 있으면 cdec
+                                # dispatch 자체 skip — pacpu kernel
+                                # SEGV 회피. data 손실은 vanilla GPU
+                                # attention 으로 fallback (cdec_future
+                                # = None 으로 흘러감).
+                                cdec_future = None
+                                raise RuntimeError(
+                                    f"D11 OOB precheck: skipping cdec "
+                                    f"dispatch ({len(_oob_reqs_d11)} OOB)"
+                                )
                             # TSK_019 SUB_022 (R4) — pinned q/k/v 1 회
                             # alloc 재사용 + cross-dtype copy_ 로 cast +
                             # transfer 1 step. 매 layer alloc 폐기.
