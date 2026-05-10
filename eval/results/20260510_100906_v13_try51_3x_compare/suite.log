@@ -1,0 +1,57 @@
+[2026-05-10T19:09:06+09:00] ===== suite start — v1.3 (=try51) 3 회 측정 =====
+[2026-05-10T19:09:06+09:00] v1.3 reference commit: f2678c2f4
+[2026-05-10T19:09:06+09:00] vanilla 3 회 source (재사용): /workspace/vllm_hybrid/eval/results/20260510_081620_perf_compare_v13_vs_vanilla
+[2026-05-10T19:09:06+09:00] suite dir: /workspace/vllm_hybrid/eval/results/20260510_100906_v13_try51_3x_compare
+[2026-05-10T19:09:06+09:00] [checkout] git checkout f2678c2f4
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at f2678c2f4 feat(IDE_006/TSK_019 v3 C4-C5): swap_in path 활성화 + LRU stub (Phase B)
+[2026-05-10T19:09:06+09:00] [checkout] HEAD now at: f2678c2f4
+[2026-05-10T19:09:06+09:00] [v13 run 1/3] starting
+[2026-05-10T19:29:59+09:00] [v13 run 1/3] exit=0 result=OK
+[2026-05-10T19:30:04+09:00] [v13 run 2/3] starting
+[2026-05-10T19:50:50+09:00] [v13 run 2/3] exit=0 result=OK
+[2026-05-10T19:50:55+09:00] [v13 run 3/3] starting
+[2026-05-10T20:11:39+09:00] [v13 run 3/3] exit=0 result=OK
+[2026-05-10T20:11:45+09:00] ===== v13 3 회 완료 — branch 복귀 + 집계 =====
+Previous HEAD position was f2678c2f4 feat(IDE_006/TSK_019 v3 C4-C5): swap_in path 활성화 + LRU stub (Phase B)
+Switched to branch 'feat/ide006-tsk019-neo-performance-max'
+[2026-05-10T20:11:45+09:00] [checkout] HEAD restored to: ae02d7a8e (feat/ide006-tsk019-neo-performance-max)
+
+vanilla runs: 3  (source: /workspace/vllm_hybrid/eval/results/20260510_081620_perf_compare_v13_vs_vanilla)
+v13 runs    : 3  (source: /workspace/vllm_hybrid/eval/results/20260510_100906_v13_try51_3x_compare)
+
+====================================================================================================
+metric                 | config   |           avg |           min |           max | n |
+----------------------------------------------------------------------------------------------------
+output tokens/s        | vanilla  |       4690.72 |       4690.44 |       4691.04 | 3 |
+output tokens/s        | v1.3     |       3708.63 |       3702.75 |       3713.37 | 3 |
+
+prompt tokens/s        | vanilla  |       3102.37 |       3102.19 |       3102.59 | 3 |
+prompt tokens/s        | v1.3     |       2455.29 |       2451.39 |       2458.43 | 3 |
+
+generate wall (s)      | vanilla  |        873.21 |        873.15 |        873.27 | 3 |
+generate wall (s)      | v1.3     |       1103.35 |       1101.94 |       1105.10 | 3 |
+
+req/s                  | vanilla  |        0.5726 |        0.5726 |        0.5726 | 3 |
+req/s                  | v1.3     |        0.4532 |        0.4524 |        0.4537 | 3 |
+
+init (s)               | vanilla  |         88.81 |         86.84 |         91.44 | 3 |
+init (s)               | v1.3     |        102.68 |         87.97 |        131.74 | 3 |
+
+total out tokens       | vanilla  |       4096000 |       4096000 |       4096000 | 3 |
+total out tokens       | v1.3     |       4091911 |       4091911 |       4091911 | 3 |
+
+====================================================================================================
+v1.3 vs vanilla (avg 기준, % 차이):
+----------------------------------------------------------------------------------------------------
+output tokens/s        :  -20.94% ↓  (worse)
+prompt tokens/s        :  -20.86% ↓  (worse)
+generate wall (s)      : +  26.35% ↑  (worse)
+req/s                  :  -20.86% ↓  (worse)
+init (s)               : +  15.62% ↑  (worse)
+total out tokens       :   -0.10% ↓  (worse)
+====================================================================================================
+v1.3 suite dir   : /workspace/vllm_hybrid/eval/results/20260510_100906_v13_try51_3x_compare
+vanilla suite dir: /workspace/vllm_hybrid/eval/results/20260510_081620_perf_compare_v13_vs_vanilla
+[2026-05-10T20:11:45+09:00] ===== suite DONE =====
