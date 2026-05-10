@@ -469,15 +469,74 @@ class Scheduler(SchedulerInterface):
                 + request.num_output_placeholders
                 - request.num_computed_tokens
             )
+            # [Plan v4 D10] try60-γ ~ try66 누적 분석 결과 — 진짜 SEGV root.
+            # D5 분기는 num_new_tokens=0 인 corner case 만 처리하지만, 대부분의
+            # SWAPPED_OUT reqs 는 num_tokens_with_spec / num_output_placeholders
+            # 의 영향으로 *원래부터* num_new_tokens > 0 으로 schedule 됨 →
+            # cdec_ids 추출 대상 → cdec dispatch → pacpu store_kv 의
+            # block_pos = (seq_len-1)/BLOCK_SIZE 가 swap-out 시점 block_count
+            # 초과 → block_table OOB → memcpy SIGSEGV.
+            # D10 fix: D5 분기 *외부* 에 *모든* SWAPPED_OUT reqs 의
+            # num_new_tokens 를 safe_max 너머로 가지 못하게 clamp.
+            # adapter._neo_swap_out hook 에서 stash 한
+            # _neo_swap_out_safe_max_computed 가 기준선.
+            if (request.status == RequestStatus.SWAPPED_OUT
+                    and self.scheduler_config.enable_neo_asymmetric):
+                _safe_max_d10 = getattr(
+                    request, "_neo_swap_out_safe_max_computed", None,
+                )
+                if _safe_max_d10 is not None:
+                    _max_allowed_d10 = (
+                        _safe_max_d10 - request.num_computed_tokens
+                    )
+                    if _max_allowed_d10 <= 0:
+                        # 안전 영역 도달 — decode 보류
+                        num_new_tokens = 0
+                    elif num_new_tokens > _max_allowed_d10:
+                        # 안전 영역 안에서만 부분 decode
+                        num_new_tokens = _max_allowed_d10
+                elif request.num_computed_tokens > 0:
+                    # stash 안 된 다른 swap-out path (predictive 등) —
+                    # safe_max 모르므로 안전 우선 (decode 보류).
+                    num_new_tokens = 0
             # [Plan v4 D5] SWAPPED_OUT decode req 가 num_new_tokens=0 인 경우
             # cdec dispatch 를 통해 1 token decode 진행 가능. 명시적 1 부여.
             # 본 fix 가 scheduler 의 num_scheduled_tokens 에 SWAPPED_OUT
             # reqs 가 포함되도록 함 → adapter cdec_ids 추출 → fork chain 활성.
             # NEO 의 *bidirectional migration loop* 의 결정적 enabler.
+            #
+            # [Plan v4 D8] block_count 가드 — try60-γ/62/63 SEGV root 회피.
+            # mirror 잔류 SWAPPED_OUT decode req 가 매 step 1 token 진행하면
+            # seq_len 누적 → pacpu store_kv 의 block_pos = (seq_len-1)/BLOCK_SIZE
+            # 가 swap-out 시점 block_count*BLOCK_SIZE 를 초과 → block_table OOB
+            # → garbage block_id → invalid cache_off → memcpy SIGSEGV.
+            # _neo_swap_out_safe_max_computed 는 adapter 의 _neo_swap_out
+            # hook 에서 stash 됨 (swap-out 시점 block_count*BLOCK_SIZE - 1).
+            # num_computed 가 본 값 이하일 때만 num_new_tokens=1 부여.
+            # 너머면 0 유지 → decode 보류 → seq_len 동결 → SEGV 회피.
             if (num_new_tokens == 0
                     and request.status == RequestStatus.SWAPPED_OUT
                     and self.scheduler_config.enable_neo_asymmetric):
-                num_new_tokens = 1
+                # [Plan v4 D9] D5 kill switch — try60-γ/61/62/63/64/65 의
+                # SEGV 누적 분석 결과, D5 의 SWAPPED_OUT decode 진행이
+                # SEGV 의 *trigger* (mirror 잔류 reqs 의 seq_len 누적 +
+                # swap_in 직후 KV transition race). D9 = D5 비활성 가능.
+                # VLLM_NEO_DISABLE_D5=1 → SWAPPED_OUT reqs 의 num_new_tokens=1
+                # 부여 보류 → cdec dispatch trigger 없음 → SEGV 0.
+                # 19 항목 중 cdec/fork chain 영역 (#2/#7/#9~#13) 은
+                # ❌ 가 되지만 #1/#5/#14/#18/#19 (KV 메커니즘 / deadlock-free)
+                # 는 ✅ 유지. v4 ground rule "vanilla 회귀 금지" 우선.
+                import os as _os_d9
+                if _os_d9.environ.get("VLLM_NEO_DISABLE_D5") != "1":
+                    _safe_max_d8 = getattr(
+                        request, "_neo_swap_out_safe_max_computed", None,
+                    )
+                    # [Plan v4 D8 v2] fallback 거부 — stash 없는 reqs 는
+                    # D5 fix 미발동 (안전 우선). swap-out path 의 모든
+                    # 진입점이 stash 한다는 보장 없음.
+                    if (_safe_max_d8 is not None
+                            and request.num_computed_tokens < _safe_max_d8):
+                        num_new_tokens = 1
             if 0 < self.scheduler_config.long_prefill_token_threshold < num_new_tokens:
                 num_new_tokens = self.scheduler_config.long_prefill_token_threshold
             num_new_tokens = min(num_new_tokens, token_budget)

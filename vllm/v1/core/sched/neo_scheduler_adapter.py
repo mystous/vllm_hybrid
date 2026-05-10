@@ -435,11 +435,21 @@ class NeoSchedulerAdapter(AsyncScheduler):
                 if not hasattr(self, "_neo_natural_swap_block_ids"):
                     self._neo_natural_swap_block_ids: dict[str, list[int]] = {}
                 self._neo_natural_swap_block_ids[rid] = blocks
+                # [Plan v4 D8] block_count 안전 영역 stash — try60-γ/62/63
+                # SEGV root 회피용. swap-out 시점의 num_computed_tokens 와
+                # block_count 로 결정되는 *block_pos 안전 영역 상한선* 을
+                # request 에 attach. scheduler.py 의 D5 fix 분기가 본 값과
+                # request.num_computed_tokens 를 비교해 num_new_tokens=1
+                # 부여 여부 결정. 너머면 decode 보류 → seq_len 동결 →
+                # pacpu store_kv 의 block_table OOB 도달 차단.
+                _block_size_d8 = getattr(self, "block_size", 16)
+                _safe_max = len(blocks) * _block_size_d8 - 1
+                request._neo_swap_out_safe_max_computed = _safe_max
                 if not getattr(self, "_neo_first_blockid_logged", False):
                     logger.info(
-                        "[Plan v4 G] first natural-preempt block_id capture: "
-                        "rid=%s nblocks=%d sample=%s",
-                        rid, len(blocks), blocks[:5],
+                        "[Plan v4 G+D8] first natural-preempt block_id capture: "
+                        "rid=%s nblocks=%d sample=%s safe_max=%d",
+                        rid, len(blocks), blocks[:5], _safe_max,
                     )
                     self._neo_first_blockid_logged = True
         except Exception as _e:  # noqa: BLE001
@@ -792,9 +802,25 @@ class NeoSchedulerAdapter(AsyncScheduler):
                 import time as _time_d4
                 _now_d4 = _time_d4.time()
                 _kv_usage_d4 = self._get_kv_pool_usage()
-                if _kv_usage_d4 < _SWAP_IN_THRESHOLD:
+                # [Plan v4 D6] try60-γ pacpu store_kv segfault root fix.
+                # D4 의 KV usage threshold 가 0.95 인데 KV 한계 영역
+                # workload (try60: 99.7% sustained) 에서는 영영 미충족 →
+                # mirror reqs 무한 잔류 → SWAPPED_OUT decode 누적 →
+                # seq_len 이 CPU buffer block_count 초과 → pacpu kernel
+                # 의 block_table OOB → SIGSEGV.
+                # 본 fix: forced mode 에서 KV threshold 무시. mirror
+                # non-empty 면 매 step swap_in 시도. GPU pool 부족 시
+                # _neo_swap_in 가 False → loop break 로 자연 안전화.
+                # per-step cap 도 작게 (기본 2) — KV 한계 영역에서 한
+                # 번에 많이 시도하면 pool 부족으로 거의 다 fail.
+                # Kill switch: VLLM_NEO_FORCE_SWAP_IN=0 → D4 동작 복원.
+                _force_swap_in = _os_th.environ.get(
+                    "VLLM_NEO_FORCE_SWAP_IN", "1"
+                ) == "1"
+                if _force_swap_in or _kv_usage_d4 < _SWAP_IN_THRESHOLD:
                     _max_swap_in = int(_os_th.environ.get(
-                        "VLLM_NEO_MAX_SWAP_IN_PER_STEP", "8"
+                        "VLLM_NEO_MAX_SWAP_IN_PER_STEP",
+                        "2" if _force_swap_in else "8",
                     ))
                     _mirror_order = _os_th.environ.get(
                         "VLLM_NEO_SWAP_IN_ORDER", "oldest"
@@ -837,6 +863,71 @@ class NeoSchedulerAdapter(AsyncScheduler):
                         except (AttributeError, TypeError) as _ae:
                             logger.debug(
                                 "Plan v4 D4 swap_in attach fail: %s", _ae,
+                            )
+                        # [Plan v4 D7] try61 race fix — swap_in 발화한 reqs 는
+                        # 같은 step 의 cdec dispatch 대상에서 차감. 동일 req
+                        # 가 swap_in (KV CPU→GPU) + cdec (CPU buffer 읽기) 동시
+                        # 진행 시 KV partial state race → pacpu store_kv SEGV
+                        # (try61 root). swap_in 후 status=RUNNING 으로 전환됐으니
+                        # 다음 step 에서는 cdec_ids 자연 미포함 — 본 fix 는
+                        # 본 step 의 이미 attach 된 sub_batches 만 patch.
+                        try:
+                            _swap_in_set_d7 = set(_swap_in_ids)
+                            _sb = getattr(output, "neo_sub_batches", None)
+                            if _sb and len(_sb) >= 2:
+                                _new_b1 = [
+                                    rid for rid in _sb[1]
+                                    if rid not in _swap_in_set_d7
+                                ]
+                                _removed_d7 = len(_sb[1]) - len(_new_b1)
+                                if _removed_d7 > 0:
+                                    output.neo_sub_batches = [_sb[0], _new_b1]
+                                    _ci = getattr(
+                                        output, "neo_sub_batch_cdec_req_ids", None
+                                    )
+                                    if _ci and len(_ci) >= 2:
+                                        output.neo_sub_batch_cdec_req_ids = [
+                                            _ci[0],
+                                            [rid for rid in _ci[1]
+                                             if rid not in _swap_in_set_d7],
+                                        ]
+                                    _cs = getattr(
+                                        output, "neo_sub_batch_cdec_slices", None
+                                    )
+                                    if _cs and len(_cs) >= 2:
+                                        _b1cs = _cs[1]
+                                        output.neo_sub_batch_cdec_slices = [
+                                            _cs[0],
+                                            (_b1cs[0],
+                                             max(_b1cs[0], _b1cs[1] - _removed_d7)),
+                                        ]
+                                    _ss = getattr(
+                                        output,
+                                        "neo_sub_batch_cdec_seq_slices",
+                                        None,
+                                    )
+                                    if _ss and len(_ss) >= 2:
+                                        _b1ss = _ss[1]
+                                        output.neo_sub_batch_cdec_seq_slices = [
+                                            _ss[0],
+                                            (_b1ss[0],
+                                             max(_b1ss[0], _b1ss[1] - _removed_d7)),
+                                        ]
+                                    if not getattr(
+                                            self,
+                                            "_neo_d7_subtract_logged",
+                                            False):
+                                        logger.info(
+                                            "[Plan v4 D7] swap_in/cdec race "
+                                            "guard first fire: subtracted=%d "
+                                            "swap_in_ids from sub_batch[1]/"
+                                            "cdec_req_ids/slices",
+                                            _removed_d7,
+                                        )
+                                        self._neo_d7_subtract_logged = True
+                        except (AttributeError, TypeError, IndexError) as _de:
+                            logger.debug(
+                                "Plan v4 D7 cdec subtract exception: %s", _de,
                             )
             except Exception as _e:  # noqa: BLE001
                 logger.debug(
