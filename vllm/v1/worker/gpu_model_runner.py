@@ -6512,16 +6512,50 @@ class GPUModelRunner(
         """Reverse of ``_neo_swap_out_one_req`` — copy CPU buffer back
         to GPU blocks (Phase 4.4 will hand-off into a freshly allocated
         GPU range; for now we copy back into the *same* blocks the req
-        previously occupied, assuming they're still reserved)."""
+        previously occupied, assuming they're still reserved).
+
+        [Plan v4 Option M2] worker-side size sync — CPU buf 의 block 수
+        와 GPU alloc 의 block 수가 *async lookahead gap* 으로 mismatch
+        가능 (worker 의 ensure_capacity 가 engine 의 num_computed 보다
+        ahead). NEO 정통은 *single process* 라 자연 동기 — vllm multiproc
+        에서 등가 처리: 더 작은 쪽으로 truncate. worker ahead 분의 KV 는
+        engine 측 num_computed 가 그 영역 도달 안 했으므로 *output token
+        에도 미포함* — truncate 안전 (다음 step 자연 재생성).
+        env: VLLM_NEO_OPTION_M2 (default 1).
+        """
+        import os as _os_m2
+        _opt_m2 = (_os_m2.environ.get("VLLM_NEO_OPTION_M2", "1") == "1")
         buf = self._neo_cpu_kv_buffer
         nlayers = len(self.kv_caches)
+        n_gpu = len(gpu_block_ids)
         gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
                                device=self.device)
+        _truncate_logged = False
         for layer in range(nlayers):
             kv = self.kv_caches[layer]
             if kv is None:
                 continue
             k_cpu, v_cpu = buf.copy_layer_out(req_id, layer)
+            # [Option M2] CPU/GPU size sync.
+            if _opt_m2 and k_cpu.shape[0] != n_gpu:
+                _n_cpu = k_cpu.shape[0]
+                if _n_cpu > n_gpu:
+                    # CPU ahead — truncate to GPU size.
+                    k_cpu = k_cpu[:n_gpu]
+                    v_cpu = v_cpu[:n_gpu]
+                else:
+                    # GPU ahead (rare) — also handle by trimming gpu_idx.
+                    gpu_idx = gpu_idx[:_n_cpu]
+                if (not _truncate_logged
+                        and not getattr(self, "_neo_m2_logged", False)):
+                    logger.info(
+                        "[Option M2] swap-in size sync first fire: "
+                        "req=%s cpu_blocks=%d gpu_blocks=%d "
+                        "→ truncate to %d",
+                        req_id, _n_cpu, n_gpu, min(_n_cpu, n_gpu),
+                    )
+                    self._neo_m2_logged = True
+                    _truncate_logged = True
             # CPU tensors are HND ``(num_blocks, num_kv_heads, block_size,
             # head_dim)``. vLLM destination layout detected via
             # ``kv[0].shape[2]``:
