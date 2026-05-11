@@ -485,20 +485,32 @@ class Scheduler(SchedulerInterface):
                 _safe_max_d10 = getattr(
                     request, "_neo_swap_out_safe_max_computed", None,
                 )
+                # [Plan v4 Option K] D10 가드 완화 분기 — mirror 의
+                # SWAPPED_OUT reqs 가 D10 가드로 num_new_tokens=0 클램프되어
+                # scheduler.py:573 의 ``continue`` 로 output 제외 → adapter
+                # 의 Option C/A cdec_ids 추출이 fire 영역 진입 불가.
+                # Option K 활성 시: _max_allowed_d10 <= 0 영역도 *1* 부여
+                # → output 포함 → cdec_ids 추출 영역 진입 가능. SEGV 회피는
+                # ``attention.py:798-880`` 의 D11 dynamic precheck 가 pacpu
+                # kernel 직전 block_pos OOB 검증 + skip 으로 보장.
+                # env: VLLM_NEO_OPTION_K (default 0).
+                _option_k_d10 = (_os_neo_chain.environ.get(
+                    "VLLM_NEO_OPTION_K", "0") == "1")
                 if _safe_max_d10 is not None:
                     _max_allowed_d10 = (
                         _safe_max_d10 - request.num_computed_tokens
                     )
                     if _max_allowed_d10 <= 0:
-                        # 안전 영역 도달 — decode 보류
-                        num_new_tokens = 0
+                        # 안전 영역 도달 — decode 보류 (default) 또는
+                        # Option K 활성 시 1 부여 (D11 precheck 의존).
+                        num_new_tokens = 1 if _option_k_d10 else 0
                     elif num_new_tokens > _max_allowed_d10:
                         # 안전 영역 안에서만 부분 decode
                         num_new_tokens = _max_allowed_d10
                 elif request.num_computed_tokens > 0:
                     # stash 안 된 다른 swap-out path (predictive 등) —
-                    # safe_max 모르므로 안전 우선 (decode 보류).
-                    num_new_tokens = 0
+                    # safe_max 모르므로 default 보류, Option K 시 1.
+                    num_new_tokens = 1 if _option_k_d10 else 0
             # [Plan v4 D5] SWAPPED_OUT decode req 가 num_new_tokens=0 인 경우
             # cdec dispatch 를 통해 1 token decode 진행 가능. 명시적 1 부여.
             # 본 fix 가 scheduler 의 num_scheduled_tokens 에 SWAPPED_OUT

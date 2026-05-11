@@ -116,17 +116,24 @@ class NeoSchedulerAdapter(AsyncScheduler):
         from vllm.v1.core.sched.perfpredictor import (
             TablePerfPredictor,
             ZeroPerfPredictor,
+            make_predictor_from_env,
         )
 
         sched_cfg = self.vllm_config.scheduler_config
         cache_cfg = self.vllm_config.cache_config
         model_cfg = self.vllm_config.model_config
 
-        # Until ModelProfiler runs, fall back to the zero predictor so
-        # that mode selection always picks sequential (vanilla
-        # behaviour). ``TablePerfPredictor`` is wired here for later
-        # stages but its tables remain unfilled.
-        self.predictor = ZeroPerfPredictor()
+        # [Plan v4 D14] env 기반 predictor 선택 — default ``heuristic``
+        # (interp-free 상수 시간). v31 measurement 의 deadlock root 였던
+        # ``TablePerfPredictor._interp_1d`` hot path 회피 + load-aware
+        # _get_remains 가 *비제로* 값 반환 (ZeroPerfPredictor 의 항상-0
+        # 한계 해소 → ``decide_mode`` sequential 폴백 회피).
+        # env: VLLM_NEO_PREDICTOR ∈ {heuristic, zero, table}.
+        self.predictor = make_predictor_from_env(self.vllm_config)
+        try:
+            self.table_predictor_legacy = TablePerfPredictor(self.vllm_config)
+        except Exception as _e:  # noqa: BLE001
+            self.table_predictor_legacy = None
         try:
             self.table_predictor = TablePerfPredictor(self.vllm_config)
         except Exception as e:  # noqa: BLE001
@@ -357,7 +364,16 @@ class NeoSchedulerAdapter(AsyncScheduler):
             pred.lnch_T = float(profile_data.get("lnch_T", 0.8))
 
             # Atomic swap. NeoScheduler 도 같은 ref 를 사용하므로 한 번만.
-            self.predictor = pred
+            # [Plan v4 D14] env VLLM_NEO_PREDICTOR != "table" 이면 self.predictor
+            # 는 *덮어쓰지 않음* — adapter __init__ 의 make_predictor_from_env
+            # 결과 (Heuristic 또는 Zero) 보호. table_predictor 와
+            # neo_scheduler.predictor 만 갱신 (legacy compat).
+            import os as _os_d14
+            _pred_choice_d14 = _os_d14.environ.get(
+                "VLLM_NEO_PREDICTOR", "heuristic"
+            ).lower()
+            if _pred_choice_d14 == "table":
+                self.predictor = pred
             self.table_predictor = pred
             self.neo_scheduler.predictor = pred
 
@@ -651,6 +667,102 @@ class NeoSchedulerAdapter(AsyncScheduler):
                 type(_e).__name__, _e, _tb.format_exc(),
             )
 
+        # [Plan v4 D15+D16] Load-aware active swap_out — KV pressure 와
+        # *무관* 하게 NEO paper (MLSys 2025) 의 진짜 design 정합. heuristic
+        # predictor 의 _get_remains 식 직접 계산 → GPU 시간 - CPU 시간 양수
+        # ⇒ CPU slack 가능 → 일부 RUNNING decode reqs 를 active swap_out.
+        # 다음 step 에 status=SWAPPED_OUT → 기존 cdec_ids 추출 path 자연
+        # 포함 → cdec dispatch 발화. paper 의 *load-aware sub-batch
+        # decision* 의 경량 reproduction.
+        #
+        # v31 deadlock root 회피: SubBatch / decide_mode / _interp_1d 호출
+        # X. 매 step 산술 비용 < 5µs (interp-free heuristic 만).
+        #
+        # KV pressure trigger 가 *이미 fire 한* 회차에서는 load-aware skip
+        # (thrashing 회피). cooldown 중에도 skip.
+        try:
+            from vllm.v1.core.sched.perfpredictor import HeuristicPerfPredictor
+            if (isinstance(self.predictor, HeuristicPerfPredictor)
+                    and self._neo_swap_cooldown_remaining <= 0
+                    and len(_swap_out_predictive_ids) == 0):
+                _running_decode_la = [
+                    r for r in self.running
+                    if r.status == _RS_pre.RUNNING
+                    and r.num_computed_tokens >= r.num_prompt_tokens
+                ]
+                _n_running_la = len(_running_decode_la)
+                _min_running_la = int(_os_th.environ.get(
+                    "VLLM_NEO_LOAD_AWARE_MIN_RUNNING", "32"
+                ))
+                if _n_running_la >= _min_running_la:
+                    _total_kv_la = sum(
+                        r.num_computed_tokens for r in _running_decode_la
+                    )
+                    _gdec_T_la = self.predictor.get_gdec_T(_total_kv_la)
+                    _linr_T_la = self.predictor.get_linr_T(_n_running_la)
+                    _gpu_total_T_la = _gdec_T_la + _linr_T_la
+
+                    _cap_la = int(_os_th.environ.get(
+                        "VLLM_NEO_LOAD_AWARE_SWAP_OUT_CAP_PER_STEP", "2"
+                    ))
+                    # short KV first — cdec_T 작음, 안전.
+                    _sorted_la = sorted(
+                        _running_decode_la,
+                        key=lambda r: r.num_computed_tokens,
+                    )
+
+                    _cdec_kv_la = 0
+                    _cdec_cnt_la = 0
+                    _now_ts_la = time.time()
+                    for _victim_la in _sorted_la:
+                        if _cdec_cnt_la >= _cap_la:
+                            break
+                        _trial_cnt = _cdec_cnt_la + 1
+                        _trial_kv = (_cdec_kv_la
+                                     + _victim_la.num_computed_tokens)
+                        _cdec_T_la = self.predictor.get_cdec_T(
+                            _trial_cnt, _trial_kv
+                        )
+                        # _get_remains 식: GPU 시간 - CPU 시간. positive ⇒
+                        # CPU slack 가능. negative ⇒ CPU bottleneck.
+                        if _gpu_total_T_la - _cdec_T_la <= 0:
+                            break
+                        _rid_la = _victim_la.request_id
+                        try:
+                            _bg_la = (
+                                self.kv_cache_manager.get_block_ids(_rid_la)
+                            )
+                            if _bg_la and len(_bg_la) > 0:
+                                _swap_out_predictive_block_ids[_rid_la] = (
+                                    list(_bg_la[0])
+                                )
+                        except Exception:  # noqa: BLE001
+                            pass
+                        self._preempt_request(_victim_la, _now_ts_la)
+                        _swap_out_predictive_ids.append(_rid_la)
+                        _cdec_kv_la = _trial_kv
+                        _cdec_cnt_la = _trial_cnt
+
+                    if _cdec_cnt_la > 0:
+                        self._neo_swap_cooldown_remaining = _COOLDOWN_STEPS
+                        if not getattr(self, "_neo_d15_logged", False):
+                            logger.info(
+                                "[Plan v4 D15+D16] load-aware active "
+                                "swap_out first fire: count=%d "
+                                "running_decode=%d gpu_T=%.2fms "
+                                "cdec_T=%.2fms",
+                                _cdec_cnt_la, _n_running_la,
+                                _gpu_total_T_la,
+                                self.predictor.get_cdec_T(
+                                    _cdec_cnt_la, _cdec_kv_la
+                                ),
+                            )
+                            self._neo_d15_logged = True
+        except Exception as _le:  # noqa: BLE001
+            logger.debug(
+                "Plan v4 D15+D16 load-aware exception: %s", _le,
+            )
+
         # Drive the default scheduler — this is the data path the engine
         # actually consumes for vanilla operation.
         output = super().schedule()
@@ -673,11 +785,121 @@ class NeoSchedulerAdapter(AsyncScheduler):
         # cdec_ids 직접 추출: vllm 의 scheduled reqs 중 SWAPPED_OUT 상태.
         from vllm.v1.request import RequestStatus as _RS
         vllm_ids = list(output.num_scheduled_tokens.keys())
-        cdec_ids = [
-            rid for rid in vllm_ids
-            if (_req := self.requests.get(rid)) is not None
-            and _req.status == _RS.SWAPPED_OUT
-        ]
+
+        # [Option C / D17C] mirror 의 reqs → cdec 후보 + decide_mode
+        # 호출하여 load-balanced 배포 (NEO _decide_mode_and_gen_batch Step
+        # 3 등가). batches[1].cdec_reqs → cdec_ids.
+        # env VLLM_NEO_OPTION_C=1 활성. Option A 와 둘 중 하나만 활성.
+        # [Option A / D19] cdec_ids = SWAPPED_OUT ∪ mirror (brute force).
+        # env VLLM_NEO_OPTION_A=1 활성. budget check / load balance X.
+        _option_c_d17c = _os_th.environ.get("VLLM_NEO_OPTION_C", "0") == "1"
+        _option_a_d19 = _os_th.environ.get("VLLM_NEO_OPTION_A", "0") == "1"
+        _mirror_oc = getattr(self, "_neo_cpu_resident_mirror", set()) or set()
+        cdec_ids: list[str] = []
+        if _option_c_d17c:
+            _vid_set_oc = set(vllm_ids)
+            _cdec_cands_oc: list[_NeoRequestView] = []
+            for _rid in _mirror_oc:
+                if _rid not in _vid_set_oc:
+                    continue
+                _r = self.requests.get(_rid)
+                if _r is None:
+                    continue
+                _cdec_cands_oc.append(_NeoRequestView(_r))
+            _gpu_dec_cands_oc: list[_NeoRequestView] = []
+            _gpu_pref_cands_oc: list[_NeoRequestView] = []
+            for _rid in vllm_ids:
+                if _rid in _mirror_oc:
+                    continue
+                _r = self.requests.get(_rid)
+                if _r is None:
+                    continue
+                if _r.num_computed_tokens >= _r.num_prompt_tokens:
+                    _gpu_dec_cands_oc.append(_NeoRequestView(_r))
+                else:
+                    _gpu_pref_cands_oc.append(_NeoRequestView(_r))
+            if _cdec_cands_oc:
+                try:
+                    from vllm.v1.core.sched.mode_selector import (
+                        decide_mode as _decide_mode_oc,
+                        ScheduleBudget as _SB_oc,
+                    )
+                    _budget_oc = _SB_oc(
+                        max(self.scheduler_config.max_num_seqs * 2, 256),
+                        max(self.scheduler_config.max_num_batched_tokens * 2,
+                            16384),
+                    )
+                    try:
+                        _num_layers_oc = (
+                            self.vllm_config.model_config.get_num_layers(
+                                self.vllm_config.parallel_config,
+                            )
+                        )
+                    except Exception:  # noqa: BLE001
+                        _num_layers_oc = 32
+                    _num_gpu_blocks_oc = 1
+                    try:
+                        _coord = getattr(self.kv_cache_manager,
+                                         "coordinator", None)
+                        if _coord is not None:
+                            _num_gpu_blocks_oc = getattr(
+                                _coord, "num_gpu_blocks", 1) or 1
+                    except Exception:  # noqa: BLE001
+                        pass
+                    _batches_oc = _decide_mode_oc(
+                        gpu_prefill_reqs=_gpu_pref_cands_oc,
+                        cpu_prefill_reqs=[],
+                        gpu_decoding_q=_gpu_dec_cands_oc,
+                        cpu_decoding_q=_cdec_cands_oc,
+                        budget=_budget_oc,
+                        predictor=self.predictor,
+                        num_layers=_num_layers_oc,
+                        num_gpu_blocks=_num_gpu_blocks_oc,
+                    )
+                    if len(_batches_oc) == 2:
+                        cdec_ids = [v._str_id
+                                    for v in _batches_oc[1].cdec_reqs]
+                    if not getattr(self, "_neo_option_c_logged", False):
+                        logger.info(
+                            "[Option C / D17C] first fire: mirror=%d "
+                            "cdec_cands=%d gpu_dec=%d gpu_pref=%d "
+                            "cdec_ids=%d batches_len=%d",
+                            len(_mirror_oc), len(_cdec_cands_oc),
+                            len(_gpu_dec_cands_oc), len(_gpu_pref_cands_oc),
+                            len(cdec_ids), len(_batches_oc),
+                        )
+                        self._neo_option_c_logged = True
+                except Exception as _oce:  # noqa: BLE001
+                    logger.warning(
+                        "[Option C / D17C] exception (%s): %s",
+                        type(_oce).__name__, _oce,
+                    )
+                    cdec_ids = [
+                        rid for rid in vllm_ids
+                        if (_r := self.requests.get(rid)) is not None
+                        and _r.status == _RS.SWAPPED_OUT
+                    ]
+        elif _option_a_d19:
+            _swapped_out_a = set()
+            for rid in vllm_ids:
+                _r = self.requests.get(rid)
+                if _r is not None and _r.status == _RS.SWAPPED_OUT:
+                    _swapped_out_a.add(rid)
+            _cdec_set_a = _swapped_out_a | (_mirror_oc & set(vllm_ids))
+            cdec_ids = [rid for rid in vllm_ids if rid in _cdec_set_a]
+            if cdec_ids and not getattr(self, "_neo_option_a_logged", False):
+                logger.info(
+                    "[Option A / D19] first fire: mirror=%d "
+                    "swapped_out=%d cdec_ids=%d",
+                    len(_mirror_oc), len(_swapped_out_a), len(cdec_ids),
+                )
+                self._neo_option_a_logged = True
+        else:
+            cdec_ids = [
+                rid for rid in vllm_ids
+                if (_req := self.requests.get(rid)) is not None
+                and _req.status == _RS.SWAPPED_OUT
+            ]
         if cdec_ids and len(cdec_ids) < len(vllm_ids):
             try:
                 cdec_id_set = set(cdec_ids)
@@ -834,10 +1056,32 @@ class NeoSchedulerAdapter(AsyncScheduler):
                         "VLLM_NEO_MAX_SWAP_IN_PER_STEP",
                         "2" if _force_swap_in else "8",
                     ))
+                    # [Plan v4 Option I] MIN_BUFFER guard — mirror size 가
+                    # MIN_BUFFER 너머일 때만 (len - MIN_BUFFER) 만큼 swap_in.
+                    # 그 미만이면 _max_swap_in=0 으로 swap_in skip.
+                    # NEO 의 cpu_decoding_q 영구 큐 시간 확보 (chain firing
+                    # 활성화 prerequisite). D17C/D19 가 보는 mirror size 가
+                    # *항상 MIN_BUFFER 부근* 안정 영역 유지.
+                    # env: VLLM_NEO_MIRROR_MIN_BUFFER (default 8).
+                    _min_buffer = int(_os_th.environ.get(
+                        "VLLM_NEO_MIRROR_MIN_BUFFER", "8"
+                    ))
+                    _excess = max(0, len(_mirror_d4) - _min_buffer)
+                    _max_swap_in = min(_max_swap_in, _excess)
+                    if _max_swap_in == 0 and not getattr(
+                            self, "_neo_option_i_skip_logged", False):
+                        logger.info(
+                            "[Option I] mirror buffer 유지 — swap_in skip "
+                            "first fire (mirror_size=%d MIN_BUFFER=%d)",
+                            len(_mirror_d4), _min_buffer,
+                        )
+                        self._neo_option_i_skip_logged = True
                     _mirror_order = _os_th.environ.get(
                         "VLLM_NEO_SWAP_IN_ORDER", "oldest"
                     ).lower()
-                    if _mirror_order == "newest":
+                    if _max_swap_in == 0:
+                        _candidates = []
+                    elif _mirror_order == "newest":
                         _candidates = list(_mirror_d4)[-_max_swap_in:]
                     else:
                         _candidates = list(_mirror_d4)[:_max_swap_in]

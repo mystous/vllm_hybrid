@@ -795,6 +795,51 @@ def unified_attention_with_output(
                 m = re.search(r"layers\.(\d+)", layer_name)
                 if m is not None:
                     layer_idx = int(m.group(1))
+                    # [Plan v4 Option L] NEO 정통 정합 — cdec dispatch 직전
+                    # 증분 alloc. ``seq_len`` 의 nblock 부족 시 buf.extend
+                    # → block_table[block_pos] 항상 valid.
+                    # NEO ``BlockManager.prepare()`` 의 ``cpu_block_manager
+                    # .alloc(cdec_reqs, omit_last=False)`` 호출 등가.
+                    # env VLLM_NEO_OPTION_L (default 1) 로 비활성 가능.
+                    import os as _os_optL
+                    _option_l_enabled = (_os_optL.environ.get(
+                        "VLLM_NEO_OPTION_L", "1") == "1")
+                    if _option_l_enabled and hasattr(
+                            buf, "ensure_capacity"):
+                        _seq_lens_attr_optL = getattr(
+                            attn_metadata, "seq_lens", None,
+                        )
+                        if _seq_lens_attr_optL is not None:
+                            _seq_lens_optL = (
+                                _seq_lens_attr_optL[_s0:_s1]
+                                .to(torch.int64).cpu().tolist()
+                            )
+                            _BLOCK_SIZE_L = 16
+                            for _i_l, _rid_l in enumerate(_req_ids):
+                                _seq_len_l = _seq_lens_optL[_i_l]
+                                _target_nblk_l = (
+                                    (_seq_len_l + _BLOCK_SIZE_L - 1)
+                                    // _BLOCK_SIZE_L
+                                )
+                                _r = buf.ensure_capacity(
+                                    _rid_l, _target_nblk_l,
+                                )
+                                if _r is None:
+                                    if not getattr(
+                                            self,
+                                            "_neo_option_l_fail_logged",
+                                            False):
+                                        from vllm.logger import (
+                                            init_logger as _il_l,
+                                        )
+                                        _il_l(
+                                            "vllm.attention.neo_optL"
+                                        ).warning(
+                                            "[Option L] ensure_capacity "
+                                            "fail rid=%s target_nblk=%d",
+                                            _rid_l, _target_nblk_l,
+                                        )
+                                        self._neo_option_l_fail_logged = True
                     max_blocks_per_seq = max(
                         len(buf.get_block_ids(rid) or [])
                         for rid in _req_ids

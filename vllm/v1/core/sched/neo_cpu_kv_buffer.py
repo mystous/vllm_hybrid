@@ -202,6 +202,68 @@ class NeoCpuKvBuffer:
         return ids
 
     @_neo_synchronized
+    def ensure_capacity(
+        self, req_id: str, target_num_blocks: int,
+    ) -> list[int] | None:
+        """[Plan v4 Option L] NEO 정통 정합 — *증분 alloc*.
+
+        NEO ``DeviceBlockManager.alloc`` 의 logic 모방
+        (``swiftllm/server/block_manager.py:78-112``).
+
+        매 step cdec dispatch 직전 호출되어, req_id 의 현재 alloc 된
+        block 수가 target_num_blocks 미만이면 *차이만큼 추가 alloc*.
+        이미 충분히 alloc 됐으면 noop.
+
+        Args:
+            req_id: 대상 req.
+            target_num_blocks: ``ceil(seq_len / block_size)``.
+
+        Returns:
+            None: req_id 가 alloc 안 됐거나, free pool 부족.
+            list[int]: 현재 (확장 후) block_ids.
+        """
+        alloc = self._req_alloc.get(req_id)
+        if alloc is None:
+            return None
+        cur = len(alloc.block_ids)
+        if cur >= target_num_blocks:
+            return alloc.block_ids
+        need = target_num_blocks - cur
+        if need > len(self._free_block_ids):
+            try:
+                import logging as _lg
+                _lg.getLogger(__name__).info(
+                    "[NEO BUF EXTEND FAIL] req=%s need=%d free=%d "
+                    "cur=%d target=%d",
+                    req_id, need, len(self._free_block_ids),
+                    cur, target_num_blocks,
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            return None
+        # Pop from free pool.
+        added = self._free_block_ids[-need:]
+        del self._free_block_ids[-need:]
+        alloc.block_ids.extend(added)
+        try:
+            import logging as _lg
+            self._neo_extend_count = (
+                getattr(self, "_neo_extend_count", 0) + 1
+            )
+            if (self._neo_extend_count <= 5
+                    or self._neo_extend_count % 100 == 0):
+                _lg.getLogger(__name__).info(
+                    "[NEO BUF EXTEND] count=%d req=%s added=%d "
+                    "total=%d free_after=%d/%d",
+                    self._neo_extend_count, req_id, need,
+                    len(alloc.block_ids), len(self._free_block_ids),
+                    self.spec.num_cpu_blocks,
+                )
+        except Exception:  # noqa: BLE001
+            pass
+        return alloc.block_ids
+
+    @_neo_synchronized
     def free(self, req_id: str) -> list[int] | None:
         """Release the block_ids belonging to ``req_id``. Returns the
         freed block_ids (so callers can wipe them). Returns ``None`` if
