@@ -28,6 +28,7 @@ See ``shadow_assists/features/IDE_006/NEO_redesign.md``,
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import TYPE_CHECKING
 
@@ -466,9 +467,8 @@ class NeoSchedulerAdapter(AsyncScheduler):
                 # 따라서 D12 default margin=0 (D8 v1 동일) + env 로
                 # 조정 가능 (디버깅용 보존). D11 가 잔존 OOB catch.
                 _block_size_d8 = getattr(self, "block_size", 16)
-                _d12_margin = int(_os_th.environ.get(
-                    "VLLM_NEO_D12_TOKEN_MARGIN", "0",
-                )) if hasattr(_os_th, "environ") else 0
+                _d12_margin = int(os.environ.get(
+                    "VLLM_NEO_D12_TOKEN_MARGIN", "0"))
                 _safe_max = (
                     len(blocks) * _block_size_d8 - 1 - _d12_margin
                 )

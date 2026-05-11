@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+import faulthandler  # [D-phase1] silent SEGV stack trap
 import multiprocessing
 import os
 import pickle
 import queue
 import signal
+import sys  # [D-phase1] faulthandler file=sys.stderr
 import threading
 import time
 import traceback
@@ -817,6 +819,12 @@ class WorkerProc:
         # Either SIGTERM or SIGINT will terminate the worker
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
+
+        # [D-phase1 step1 검증] faulthandler.enable 임시 비활성 — 이전
+        # Phase 1+2 v2 의 crash 0 결과 가 *faulthandler 부수 효과* 인지
+        # *환경 차이* 인지 분리 측정. env VLLM_DEBUG_FAULTHANDLER=1 시만 활성.
+        if os.environ.get("VLLM_DEBUG_FAULTHANDLER", "0") == "1":
+            faulthandler.enable(file=sys.stderr, all_threads=True)
 
         worker = None
         ready_writer = kwargs.pop("ready_pipe")
