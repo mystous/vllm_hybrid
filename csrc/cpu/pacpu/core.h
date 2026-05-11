@@ -1,5 +1,6 @@
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 #include <omp.h>
 #include <vector>
 #include <algorithm>
@@ -312,7 +313,7 @@ void ispc_attention_tasks(
     }
     # pragma omp barrier
 
-    // Step 1: 
+    // Step 1:
     //   compute intermediate output for each sequence block
     //   output is stored in o_buf and attn_sum_buf
     for (auto t = thrd_start_task[tid]; t < thrd_start_task[tid + 1]; t++) {
@@ -340,9 +341,9 @@ void ispc_attention_tasks(
         int as_off = seq_start_task[i] * NUM_Q_HEADS;
         auto oip = obatch_p + i * NUM_Q_HEADS * HEAD_DIM;
         ispc::gather_output_one_seq(
-          num_tasks, 
-          o_buf + o_off, 
-          attn_sum_buf + as_off, 
+          num_tasks,
+          o_buf + o_off,
+          attn_sum_buf + as_off,
           oip
         );
       }

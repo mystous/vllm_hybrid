@@ -798,6 +798,18 @@ class NeoSchedulerAdapter(AsyncScheduler):
         cdec_ids: list[str] = []
         if _option_c_d17c:
             _vid_set_oc = set(vllm_ids)
+            # [Option C v2 — try99 fact 기반 fix]
+            # 직전 (try99) 측정 결과: cdec batch_size=1 → store_kv (Step 0)
+            # 가 tid=0 만 work → 13 thread Barrier 1 wait = 370us (41% wall).
+            # root: decide_mode 의 alternate 분배 (batches[0]/[1]) 가 mirror
+            # 의 reqs 를 절반씩 분배 → batches[1] (cdec) batch_size = mirror/2.
+            # mirror=4 인 영역에서는 batch=1-2.
+            # v2: decide_mode 호출 제거. mirror ∩ vllm_ids 의 *전체* 를
+            # cdec_ids 로. batch_size = full mirror size (~14+) → store_kv
+            # 도 14 thread 분배 → Bar 1 wait ~0 → wall 2.4× 단축 기대.
+            # env VLLM_NEO_OPTION_C_FULL_MIRROR=0 시 v1 (decide_mode) 복원.
+            _full_mirror = (_os_th.environ.get(
+                "VLLM_NEO_OPTION_C_FULL_MIRROR", "1") == "1")
             _cdec_cands_oc: list[_NeoRequestView] = []
             for _rid in _mirror_oc:
                 if _rid not in _vid_set_oc:
@@ -806,6 +818,18 @@ class NeoSchedulerAdapter(AsyncScheduler):
                 if _r is None:
                     continue
                 _cdec_cands_oc.append(_NeoRequestView(_r))
+            if _full_mirror and _cdec_cands_oc:
+                # Direct path — mirror 전체 cdec_ids (decide_mode 우회).
+                cdec_ids = [v._str_id for v in _cdec_cands_oc]
+                if not getattr(self, "_neo_option_c_logged", False):
+                    logger.info(
+                        "[Option C / D17C v2 — full mirror] cdec_ids=%d "
+                        "(mirror 전체 ∩ vllm_ids)",
+                        len(cdec_ids),
+                    )
+                    self._neo_option_c_logged = True
+                # decide_mode 분기 skip (cands 보존 위해 empty 로)
+                _cdec_cands_oc = []
             _gpu_dec_cands_oc: list[_NeoRequestView] = []
             _gpu_pref_cands_oc: list[_NeoRequestView] = []
             for _rid in vllm_ids:
@@ -1068,6 +1092,39 @@ class NeoSchedulerAdapter(AsyncScheduler):
                     ))
                     _excess = max(0, len(_mirror_d4) - _min_buffer)
                     _max_swap_in = min(_max_swap_in, _excess)
+                    # [Plan v5 Option O2 v2] NEO budget coupling 정합 — D4
+                    # 가 self.running 안의 *RUNNING 상태* 슬롯만 카운트.
+                    # try85 의 O2 v1 결함: self.running 이 SWAPPED_OUT reqs
+                    # 도 포함 → 항상 max_num_seqs (256) 도달 → swap_in 영구
+                    # silent → throughput 67 tps 추가 cliff.
+                    # v2 fix: RUNNING 상태만 카운트하여 GPU 실제 활성 슬롯
+                    # 측정. mirror (SWAPPED_OUT) 반환된 reqs 가 D4 swap_in
+                    # 으로 RUNNING 복귀 가능 영역 보장.
+                    # NEO swiftllm/server/scheduler.py:278 의
+                    # `budget.check_and_substract(1)` 의 *intent 정합*
+                    # — NEO 의 budget 은 한 iteration 의 batch 안의 새 슬롯,
+                    # 우리는 *현재 GPU 측 active* 측정.
+                    _max_batch_size_o2 = self.scheduler_config.max_num_seqs
+                    _running_only_o2 = sum(
+                        1 for _r in self.running
+                        if _r.status == _RS_d4.RUNNING
+                    )
+                    _remaining_slots_o2 = max(
+                        0, _max_batch_size_o2 - _running_only_o2
+                    )
+                    _max_swap_in = min(_max_swap_in, _remaining_slots_o2)
+                    if (_max_swap_in == 0 and _remaining_slots_o2 == 0
+                            and not getattr(
+                                self, "_neo_option_o2_logged", False)):
+                        logger.info(
+                            "[Option O2 v2] D4 budget guard fire — "
+                            "remaining_slots=%d running_only=%d "
+                            "max_seqs=%d mirror=%d total_running=%d",
+                            _remaining_slots_o2, _running_only_o2,
+                            _max_batch_size_o2, len(_mirror_d4),
+                            len(self.running),
+                        )
+                        self._neo_option_o2_logged = True
                     if _max_swap_in == 0 and not getattr(
                             self, "_neo_option_i_skip_logged", False):
                         logger.info(

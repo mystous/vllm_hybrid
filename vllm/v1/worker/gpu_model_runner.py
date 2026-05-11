@@ -6403,6 +6403,16 @@ class GPUModelRunner(
         # KV consistency. swap_stream.wait_stream(current) 으로 ordering.
         swap_stream.wait_stream(torch.cuda.current_stream())
 
+        # [PROFILE] 동적 분석 instrumentation — env VLLM_NEO_PROFILE=1 활성.
+        # 1) swap-out / swap-in 각각의 elapsed_ms 측정 (CUDA sync 포함)
+        # 2) swap-out 시점 timestamp stash → swap-in 시 cycle_age_ms 측정
+        # 3) per-req cumulative count (cycle 횟수)
+        import time as _t_prof, os as _os_prof
+        _prof_on = (_os_prof.environ.get("VLLM_NEO_PROFILE", "0") == "1")
+        if _prof_on and not hasattr(self, "_neo_prof_cycle_state"):
+            self._neo_prof_cycle_state: dict = {}  # rid -> {last_so_ts, so_count, si_count}
+        _cycle_state = getattr(self, "_neo_prof_cycle_state", None)
+
         with torch.cuda.stream(swap_stream):
             # ── swap-out: GPU → CPU per-layer copy ────────────────
             for req_id in (swap_out_ids or []):
@@ -6430,7 +6440,26 @@ class GPUModelRunner(
                     )
                     continue
                 try:
+                    _t0_so = _t_prof.perf_counter() if _prof_on else 0.0
                     self._neo_swap_out_one_req(req_id, gpu_blocks)
+                    if _prof_on:
+                        # sync 제거 — cudagraph capture 충돌 회피.
+                        pass
+                        _elapsed_so_ms = (_t_prof.perf_counter() - _t0_so) * 1000
+                        _state = _cycle_state.setdefault(req_id,
+                            {"so_count": 0, "si_count": 0, "last_so_ts": 0.0})
+                        _state["so_count"] += 1
+                        _state["last_so_ts"] = _t_prof.perf_counter()
+                        # MiB transferred = blocks × kv_heads × block_size × head_dim × 2 (K+V) × bytes
+                        _bytes = (len(gpu_blocks) * buf.spec.num_kv_heads
+                                  * buf.spec.block_size * buf.spec.head_dim
+                                  * 2 * 2 * buf.spec.num_layers)
+                        logger.info(
+                            "[PROFILE SWAP_OUT] req=%s blocks=%d "
+                            "elapsed_ms=%.2f bytes_MiB=%.2f cycle_count=%d",
+                            req_id, len(gpu_blocks), _elapsed_so_ms,
+                            _bytes/(1024*1024), _state["so_count"],
+                        )
                     self._neo_cpu_resident_reqs.add(req_id)
                     _neo_swap_out_call_count += 1
                     if _neo_swap_out_call_count % 10 == 0:
@@ -6453,7 +6482,29 @@ class GPUModelRunner(
                 if gpu_blocks is None:
                     continue
                 try:
+                    _t0_si = _t_prof.perf_counter() if _prof_on else 0.0
                     self._neo_swap_in_one_req(req_id, gpu_blocks)
+                    if _prof_on:
+                        # sync 제거 — cudagraph capture 충돌 회피.
+                        pass
+                        _elapsed_si_ms = (_t_prof.perf_counter() - _t0_si) * 1000
+                        _state = _cycle_state.get(req_id, {})
+                        _state["si_count"] = _state.get("si_count", 0) + 1
+                        _cycle_age_ms = ((_t_prof.perf_counter()
+                                          - _state.get("last_so_ts", 0.0))
+                                         * 1000) if _state.get("last_so_ts") else -1.0
+                        _bytes = (len(gpu_blocks) * buf.spec.num_kv_heads
+                                  * buf.spec.block_size * buf.spec.head_dim
+                                  * 2 * 2 * buf.spec.num_layers)
+                        logger.info(
+                            "[PROFILE SWAP_IN] req=%s blocks=%d "
+                            "elapsed_ms=%.2f bytes_MiB=%.2f "
+                            "cycle_age_ms=%.1f si_count=%d so_count=%d",
+                            req_id, len(gpu_blocks), _elapsed_si_ms,
+                            _bytes/(1024*1024), _cycle_age_ms,
+                            _state.get("si_count", 0),
+                            _state.get("so_count", 0),
+                        )
                     buf.free(req_id)
                     self._neo_cpu_resident_reqs.discard(req_id)
                     logger.info(

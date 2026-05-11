@@ -806,13 +806,23 @@ def unified_attention_with_output(
                         "VLLM_NEO_OPTION_L", "1") == "1")
                     if _option_l_enabled and hasattr(
                             buf, "ensure_capacity"):
+                        # [try101 fact fix] 진짜 root — 이전 코드의
+                        # `attn_metadata.seq_lens.cpu()` 가 GPU→CPU sync 호출.
+                        # 매 attention layer × cdec step 마다 fire →
+                        # forward_pipeline 의 22.7% MainThread blocked (py-spy).
+                        # fix: `attn_metadata.seq_lens_cpu` (또는 `_seq_lens_cpu`)
+                        # 가 *이미 CPU* — sync 0.
                         _seq_lens_attr_optL = getattr(
-                            attn_metadata, "seq_lens", None,
+                            attn_metadata, "seq_lens_cpu", None,
                         )
+                        if _seq_lens_attr_optL is None:
+                            _seq_lens_attr_optL = getattr(
+                                attn_metadata, "_seq_lens_cpu", None,
+                            )
                         if _seq_lens_attr_optL is not None:
+                            # 이미 CPU tensor — .cpu() 호출 X, .tolist() 만.
                             _seq_lens_optL = (
-                                _seq_lens_attr_optL[_s0:_s1]
-                                .to(torch.int64).cpu().tolist()
+                                _seq_lens_attr_optL[_s0:_s1].tolist()
                             )
                             _BLOCK_SIZE_L = 16
                             for _i_l, _rid_l in enumerate(_req_ids):
@@ -859,14 +869,19 @@ def unified_attention_with_output(
                         block_table_cpu = torch.tensor(
                             block_table_rows, dtype=torch.int32,
                         )
+                        # [try101 fact fix] seq_lens_cpu (이미 CPU) 사용.
+                        # 이전 코드의 seq_lens.cpu() 가 GPU→CPU sync.
                         seq_lens_attr = getattr(
-                            attn_metadata, "seq_lens", None
+                            attn_metadata, "seq_lens_cpu", None
                         )
+                        if seq_lens_attr is None:
+                            seq_lens_attr = getattr(
+                                attn_metadata, "_seq_lens_cpu", None
+                            )
                         if seq_lens_attr is not None:
                             seq_ids_list = list(range(cdec_count))
                             seq_lengths = (
-                                seq_lens_attr[_s0:_s1]
-                                .to(torch.int64).cpu().tolist()
+                                seq_lens_attr[_s0:_s1].tolist()
                             )
                             # [Plan v4 D11 dynamic-debug] pacpu kernel
                             # input 의 *동적* 정합성 검증. SEGV stack 이
@@ -1012,6 +1027,24 @@ def unified_attention_with_output(
         and cdec_t0 == 0
         and cdec_t1 == query.size(0)
     )
+    # [PROFILE per-layer] env VLLM_NEO_PROFILE=1 활성. GPU forward + cdec
+    # wait elapsed 측정. batch[0]/batch[1] count 도 cumulative stats.
+    # [try92 fix] 모듈 전역 stats — 각 layer instance 별 self attribute 가
+    # 아니라 모든 worker 의 모든 layer 합산. log_freq=500 도달 가능.
+    import os as _os_pl_prof
+    _pl_prof_on = (_os_pl_prof.environ.get("VLLM_NEO_PROFILE", "0") == "1")
+    _t_gpu_start = 0.0
+    if _pl_prof_on:
+        import time as _t_pl_prof
+        _t_gpu_start = _t_pl_prof.perf_counter()
+        global _NEO_PL_GLOBAL_STATS
+        if "_NEO_PL_GLOBAL_STATS" not in globals():
+            _NEO_PL_GLOBAL_STATS = {
+                "gpu_ms_sum": 0.0, "gpu_count": 0, "gpu_ms_max": 0.0,
+                "cdec_ms_sum": 0.0, "cdec_count": 0, "cdec_ms_max": 0.0,
+                "b0_count_sum": 0, "b1_count_sum": 0,
+                "skip_gpu_count": 0, "log_freq": 500,
+            }
     if not skip_gpu_attn:
         # Vanilla GPU forward (main thread, parallel with CPU pacpu).
         self.impl.forward(
@@ -1025,6 +1058,15 @@ def unified_attention_with_output(
             output_scale=output_scale,
             output_block_scale=output_block_scale,
         )
+    if _pl_prof_on and not skip_gpu_attn:
+        _gpu_ms = (_t_pl_prof.perf_counter() - _t_gpu_start) * 1000
+        _st = _NEO_PL_GLOBAL_STATS
+        _st["gpu_ms_sum"] += _gpu_ms
+        _st["gpu_count"] += 1
+        if _gpu_ms > _st["gpu_ms_max"]:
+            _st["gpu_ms_max"] = _gpu_ms
+        _st["b0_count_sum"] += query.size(0) - (cdec_t1 - cdec_t0)
+        _st["b1_count_sum"] += (cdec_t1 - cdec_t0) if cdec_future is not None else 0
 
     # Wait for CPU pacpu task + apply result to output[cdec rows].
     # TSK_019 plan B3 — host fence 위치 layer-end (NEO 원본
@@ -1034,8 +1076,44 @@ def unified_attention_with_output(
     # dependency (layer i output → layer i+1 input) 로 layer-pipeline
     # X. 본 위치가 NEO 패턴.
     if cdec_future is not None:
+        _t_cdec_wait_start = 0.0
+        if _pl_prof_on:
+            _t_cdec_wait_start = _t_pl_prof.perf_counter()
         try:
             out_buf = cdec_future.result()
+            if _pl_prof_on:
+                _cdec_wait_ms = (
+                    _t_pl_prof.perf_counter() - _t_cdec_wait_start
+                ) * 1000
+                _st = _NEO_PL_GLOBAL_STATS
+                _st["cdec_ms_sum"] += _cdec_wait_ms
+                _st["cdec_count"] += 1
+                if _cdec_wait_ms > _st["cdec_ms_max"]:
+                    _st["cdec_ms_max"] = _cdec_wait_ms
+                if skip_gpu_attn:
+                    _st["skip_gpu_count"] += 1
+                # log every N
+                if _st["cdec_count"] % _st["log_freq"] == 0:
+                    from vllm.logger import init_logger as _init_pl
+                    _pl_log = _init_pl("vllm.attention.neo_pl_prof")
+                    _gpu_avg = (_st["gpu_ms_sum"] / max(1, _st["gpu_count"]))
+                    _cdec_avg = (_st["cdec_ms_sum"]
+                                 / max(1, _st["cdec_count"]))
+                    _b0_avg = _st["b0_count_sum"] / max(1, _st["gpu_count"])
+                    _b1_avg = _st["b1_count_sum"] / max(1, _st["cdec_count"])
+                    _pl_log.info(
+                        "[PROFILE PER-LAYER] cdec_count=%d "
+                        "gpu_avg=%.2fms gpu_max=%.2fms "
+                        "cdec_wait_avg=%.2fms cdec_wait_max=%.2fms "
+                        "ratio=%.2fx b0_avg=%.0f b1_avg=%.0f "
+                        "skip_gpu=%d (gpu_count=%d)",
+                        _st["cdec_count"],
+                        _gpu_avg, _st["gpu_ms_max"],
+                        _cdec_avg, _st["cdec_ms_max"],
+                        _cdec_avg / max(_gpu_avg, 0.01),
+                        _b0_avg, _b1_avg,
+                        _st["skip_gpu_count"], _st["gpu_count"],
+                    )
             out_gpu = out_buf.to(output.device).to(output.dtype)
             # TSK_019 fix — out_buf shape = (cdec_count, nh * hd).
             # output 의 cdec slice 가 (cdec_count, nh, hd) 3D 또는
