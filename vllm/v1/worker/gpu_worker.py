@@ -755,6 +755,51 @@ class Worker(WorkerBase):
     def execute_model(
         self, scheduler_output: "SchedulerOutput"
     ) -> ModelRunnerOutput | AsyncModelRunnerOutput | None:
+        # [E18 torch.profiler] env-gated. VLLM_DEBUG_TORCH_PROFILER=1 활성 시
+        # 첫 호출에 profile context manager + schedule(wait, warmup, active)
+        # 시작. 매 execute_model 의 prof.step() 호출. trace 자동 export.
+        # default off — production 영역 영향 0.
+        import os as _os_tp
+        if _os_tp.environ.get("VLLM_DEBUG_TORCH_PROFILER", "0") == "1":
+            if not hasattr(self, "_e18_prof"):
+                from torch.profiler import (
+                    profile as _e18_profile,
+                    ProfilerActivity as _e18_PA,
+                    schedule as _e18_schedule,
+                )
+                _e18_out_dir = _os_tp.environ.get(
+                    "VLLM_E18_TRACE_DIR", "/tmp/e18_trace"
+                )
+                _os_tp.makedirs(_e18_out_dir, exist_ok=True)
+                _e18_rank = getattr(self, "rank", 0)
+                def _e18_handler(prof):
+                    import time as _e18_time
+                    _ts = int(_e18_time.time())
+                    _path = f"{_e18_out_dir}/trace_rank{_e18_rank}_{_ts}.json"
+                    prof.export_chrome_trace(_path)
+                # schedule: wait 200 step → warmup 5 → active 20 → stop
+                self._e18_prof = _e18_profile(
+                    activities=[_e18_PA.CPU, _e18_PA.CUDA],
+                    schedule=_e18_schedule(
+                        wait=200, warmup=5, active=20, repeat=1,
+                    ),
+                    on_trace_ready=_e18_handler,
+                    record_shapes=False,
+                    profile_memory=False,
+                    with_stack=False,
+                )
+                self._e18_prof.__enter__()
+                self._e18_step_count = 0
+            try:
+                self._e18_prof.step()
+                self._e18_step_count += 1
+                # active 영역 종료 후 cleanup (wait+warmup+active = 225)
+                if self._e18_step_count >= 226:
+                    self._e18_prof.__exit__(None, None, None)
+                    del self._e18_prof
+            except Exception:  # noqa: BLE001
+                pass
+
         # ensure any previous non-blocking PP sends are complete
         if self._pp_send_work:
             for handle in self._pp_send_work:

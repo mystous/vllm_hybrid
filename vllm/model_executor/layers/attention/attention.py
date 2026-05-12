@@ -769,6 +769,55 @@ def unified_attention_with_output(
         _tok = getattr(_fc, "neo_cdec_token_slice", None)
         _seq = getattr(_fc, "neo_cdec_seq_slice", None)
         _req_ids = getattr(_fc, "neo_cdec_req_ids", None)
+        # [D-cdec-trace] 분석 단계 한정 — env VLLM_DEBUG_CDEC_PATH=1 시 활성.
+        # cdec dispatch path 진입 조건 별 fire count 추적.
+        import os as _os_cdt
+        if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+            global _CDEC_PATH_STATS
+            if "_CDEC_PATH_STATS" not in globals():
+                _CDEC_PATH_STATS = {
+                    "total": 0, "tok_none": 0, "tok_empty": 0,
+                    "seq_none": 0, "seq_empty": 0, "req_ids_empty": 0,
+                    "pacpu_missing": 0, "buf_none": 0,
+                    "entered": 0, "log_freq": 200,
+                }
+            _CDEC_PATH_STATS["total"] += 1
+            if _tok is None:
+                _CDEC_PATH_STATS["tok_none"] += 1
+            elif _tok[1] <= _tok[0]:
+                _CDEC_PATH_STATS["tok_empty"] += 1
+            if _seq is None:
+                _CDEC_PATH_STATS["seq_none"] += 1
+            elif _seq[1] <= _seq[0]:
+                _CDEC_PATH_STATS["seq_empty"] += 1
+            if not _req_ids:
+                _CDEC_PATH_STATS["req_ids_empty"] += 1
+            if not hasattr(torch.ops, "pacpu"):
+                _CDEC_PATH_STATS["pacpu_missing"] += 1
+            if _CDEC_PATH_STATS["total"] % _CDEC_PATH_STATS["log_freq"] == 0:
+                from vllm.logger import init_logger as _einit_cdt
+                _einit_cdt("vllm.attention.cdec_trace").warning(
+                    "[D-cdec-trace] total=%d entered=%d "
+                    "tok_none=%d tok_empty=%d seq_none=%d seq_empty=%d "
+                    "req_ids_empty=%d pacpu_missing=%d buf_none=%d "
+                    "layer_name_no_match=%d invalid_block_table=%d "
+                    "seq_lens_attr_none=%d d11_oob_skip=%d "
+                    "pre_submit=%d post_submit=%d valid_branch=%d",
+                    _CDEC_PATH_STATS["total"], _CDEC_PATH_STATS["entered"],
+                    _CDEC_PATH_STATS["tok_none"],
+                    _CDEC_PATH_STATS["tok_empty"], _CDEC_PATH_STATS["seq_none"],
+                    _CDEC_PATH_STATS["seq_empty"],
+                    _CDEC_PATH_STATS["req_ids_empty"],
+                    _CDEC_PATH_STATS["pacpu_missing"],
+                    _CDEC_PATH_STATS["buf_none"],
+                    _CDEC_PATH_STATS.get("layer_name_no_match", 0),
+                    _CDEC_PATH_STATS.get("invalid_block_table", 0),
+                    _CDEC_PATH_STATS.get("seq_lens_attr_none", 0),
+                    _CDEC_PATH_STATS.get("d11_oob_skip", 0),
+                    _CDEC_PATH_STATS.get("pre_submit", 0),
+                    _CDEC_PATH_STATS.get("post_submit", 0),
+                    _CDEC_PATH_STATS.get("valid_branch", 0),
+                )
         if (_tok is None or _tok[1] <= _tok[0]
                 or _seq is None or _seq[1] <= _seq[0]
                 or not _req_ids):
@@ -780,7 +829,11 @@ def unified_attention_with_output(
             buf = _ncb.get_active_buffer()
             if buf is None:
                 cdec_future = None
+                if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+                    _CDEC_PATH_STATS["buf_none"] += 1
             else:
+                if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+                    _CDEC_PATH_STATS["entered"] += 1
                 _t0, _t1 = _tok
                 _s0, _s1 = _seq
                 cdec_count = _t1 - _t0
@@ -793,6 +846,11 @@ def unified_attention_with_output(
                 v_cdec = value[_t0:_t1].view(cdec_count, nkh, hd)
                 import re
                 m = re.search(r"layers\.(\d+)", layer_name)
+                # [D-cdec-trace-2]
+                if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+                    if m is None:
+                        _CDEC_PATH_STATS["layer_name_no_match"] = \
+                            _CDEC_PATH_STATS.get("layer_name_no_match", 0) + 1
                 if m is not None:
                     layer_idx = int(m.group(1))
                     # [Plan v4 Option L] NEO 정통 정합 — cdec dispatch 직전
@@ -806,12 +864,12 @@ def unified_attention_with_output(
                         "VLLM_NEO_OPTION_L", "1") == "1")
                     if _option_l_enabled and hasattr(
                             buf, "ensure_capacity"):
-                        # [try101 fact fix] 진짜 root — 이전 코드의
-                        # `attn_metadata.seq_lens.cpu()` 가 GPU→CPU sync 호출.
-                        # 매 attention layer × cdec step 마다 fire →
-                        # forward_pipeline 의 22.7% MainThread blocked (py-spy).
-                        # fix: `attn_metadata.seq_lens_cpu` (또는 `_seq_lens_cpu`)
-                        # 가 *이미 CPU* — sync 0.
+                        # [v1.5.2 root fix] FlashAttentionMetadata 는
+                        # ``seq_lens_cpu`` / ``_seq_lens_cpu`` attribute 미존재.
+                        # v1.5 의 "이미 CPU" 가정 fail → seq_lens_attr = None →
+                        # cdec dispatch silent skip. fallback: ``seq_lens.cpu()``.
+                        # 1회 cache on forward_context — 80 layers × N sub-batches
+                        # 의 GPU→CPU sync 80x → 1x 축소.
                         _seq_lens_attr_optL = getattr(
                             attn_metadata, "seq_lens_cpu", None,
                         )
@@ -819,6 +877,22 @@ def unified_attention_with_output(
                             _seq_lens_attr_optL = getattr(
                                 attn_metadata, "_seq_lens_cpu", None,
                             )
+                        if _seq_lens_attr_optL is None:
+                            _seq_lens_attr_optL = getattr(
+                                _fc, "_neo_cdec_seq_lens_cpu_cache", None,
+                            )
+                        if _seq_lens_attr_optL is None:
+                            _seq_lens_gpu_optL = getattr(
+                                attn_metadata, "seq_lens", None,
+                            )
+                            if _seq_lens_gpu_optL is not None:
+                                _seq_lens_attr_optL = _seq_lens_gpu_optL.cpu()
+                                try:
+                                    _fc._neo_cdec_seq_lens_cpu_cache = (
+                                        _seq_lens_attr_optL
+                                    )
+                                except Exception:
+                                    pass
                         if _seq_lens_attr_optL is not None:
                             # 이미 CPU tensor — .cpu() 호출 X, .tolist() 만.
                             _seq_lens_optL = (
@@ -860,6 +934,10 @@ def unified_attention_with_output(
                         ids = buf.get_block_ids(rid)
                         if ids is None:
                             valid = False
+                            # [D-cdec-trace-2]
+                            if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+                                _CDEC_PATH_STATS["invalid_block_table"] = \
+                                    _CDEC_PATH_STATS.get("invalid_block_table", 0) + 1
                             break
                         row = list(ids) + [0] * (
                             max_blocks_per_seq - len(ids)
@@ -869,8 +947,11 @@ def unified_attention_with_output(
                         block_table_cpu = torch.tensor(
                             block_table_rows, dtype=torch.int32,
                         )
-                        # [try101 fact fix] seq_lens_cpu (이미 CPU) 사용.
-                        # 이전 코드의 seq_lens.cpu() 가 GPU→CPU sync.
+                        # [v1.5.2 root fix] FlashAttentionMetadata 는
+                        # ``seq_lens_cpu`` / ``_seq_lens_cpu`` attribute 미존재.
+                        # v1.5 의 "이미 CPU" 가정 fail → seq_lens_attr = None →
+                        # cdec dispatch silent skip. fallback: ``seq_lens.cpu()``.
+                        # 1회 cache on forward_context — 80 layers 의 sync 1회로.
                         seq_lens_attr = getattr(
                             attn_metadata, "seq_lens_cpu", None
                         )
@@ -878,6 +959,28 @@ def unified_attention_with_output(
                             seq_lens_attr = getattr(
                                 attn_metadata, "_seq_lens_cpu", None
                             )
+                        if seq_lens_attr is None:
+                            seq_lens_attr = getattr(
+                                _fc, "_neo_cdec_seq_lens_cpu_cache", None,
+                            )
+                        if seq_lens_attr is None:
+                            _seq_lens_gpu = getattr(
+                                attn_metadata, "seq_lens", None,
+                            )
+                            if _seq_lens_gpu is not None:
+                                seq_lens_attr = _seq_lens_gpu.cpu()
+                                try:
+                                    _fc._neo_cdec_seq_lens_cpu_cache = seq_lens_attr
+                                except Exception:
+                                    pass
+                        # [D-cdec-trace-4] seq_lens_attr 의 진짜 상태 trace
+                        if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+                            if seq_lens_attr is None:
+                                _CDEC_PATH_STATS["seq_lens_attr_none"] = \
+                                    _CDEC_PATH_STATS.get("seq_lens_attr_none", 0) + 1
+                            else:
+                                _CDEC_PATH_STATS["valid_branch"] = \
+                                    _CDEC_PATH_STATS.get("valid_branch", 0) + 1
                         if seq_lens_attr is not None:
                             seq_ids_list = list(range(cdec_count))
                             seq_lengths = (
@@ -907,6 +1010,10 @@ def unified_attention_with_output(
                                         len(_row_d11),
                                     ))
                             if _oob_reqs_d11:
+                                # [D-cdec-trace-2]
+                                if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+                                    _CDEC_PATH_STATS["d11_oob_skip"] = \
+                                        _CDEC_PATH_STATS.get("d11_oob_skip", 0) + 1
                                 from vllm.logger import init_logger as _einit_d11
                                 _d11_logger = _einit_d11(
                                     "vllm.attention.neo_cdec_d11",
@@ -974,6 +1081,10 @@ def unified_attention_with_output(
                             # GPU forward launch + backlog 형성 가능.
                             # Submit CPU pacpu kernel to background
                             # thread — 진짜 병렬 시작.
+                            # [D-cdec-trace-3] cdec_future submit 직전 counter
+                            if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+                                _CDEC_PATH_STATS["pre_submit"] = \
+                                    _CDEC_PATH_STATS.get("pre_submit", 0) + 1
                             cdec_future = (
                                 _get_neo_cdec_executor().submit(
                                     _neo_cdec_compute_cpu,
@@ -988,12 +1099,17 @@ def unified_attention_with_output(
                                     cdec_count, nh, hd,
                                 )
                             )
+                            # [D-cdec-trace-3] cdec_future submit 직후 counter
+                            if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
+                                _CDEC_PATH_STATS["post_submit"] = \
+                                    _CDEC_PATH_STATS.get("post_submit", 0) + 1
                             # TSK_019 — cdec dispatch counter (measurement)
                             global _neo_cdec_call_count
                             _neo_cdec_call_count += 1
                             if _neo_cdec_call_count % 100 == 0:
+                                # [D-cdec-trace-3] WARNING level (INFO 영역 의심)
                                 from vllm.logger import init_logger as _einit
-                                _einit("vllm.attention.neo_cdec_metric").info(
+                                _einit("vllm.attention.cdec_trace").warning(
                                     "[NEO CDEC CALL] count=%d",
                                     _neo_cdec_call_count,
                                 )
@@ -1043,7 +1159,7 @@ def unified_attention_with_output(
                 "gpu_ms_sum": 0.0, "gpu_count": 0, "gpu_ms_max": 0.0,
                 "cdec_ms_sum": 0.0, "cdec_count": 0, "cdec_ms_max": 0.0,
                 "b0_count_sum": 0, "b1_count_sum": 0,
-                "skip_gpu_count": 0, "log_freq": 500,
+                "skip_gpu_count": 0, "log_freq": 50,  # [Phase 6.2] 50 로 줄임
             }
     if not skip_gpu_attn:
         # Vanilla GPU forward (main thread, parallel with CPU pacpu).

@@ -38,7 +38,9 @@ emit_status() {
     BUF_EXTEND=$(grep -c '\[NEO BUF EXTEND\]' "$LOG" 2>/dev/null)
     BUF_EXTEND_FAIL=$(grep -c '\[NEO BUF EXTEND FAIL\]' "$LOG" 2>/dev/null)
     OPT_I=$(grep -c '\[Option I\]' "$LOG" 2>/dev/null)
-    OPT_C=$(grep -c '\[Option C / D17C\] first fire' "$LOG" 2>/dev/null)
+    # Option C — v1 (decide_mode) 와 v2 (full_mirror) path 둘 다 catch.
+    # v1.4 = v1 ("first fire"). v1.5 = v2 ("v2 — full mirror").
+    OPT_C=$(grep -cE '\[Option C / D17C\] first fire|\[Option C / D17C v2' "$LOG" 2>/dev/null)
     D15D16=$(grep -c '\[Plan v4 D15+D16\]' "$LOG" 2>/dev/null)
     CDEC_CALL=$(grep '\[NEO CDEC CALL\]' "$LOG" 2>/dev/null | grep -oE 'count=[0-9]+' | sort -t= -k2 -n | tail -1)
     [ -z "$CDEC_CALL" ] && CDEC_CALL="count=0"
