@@ -32,7 +32,10 @@ export VLLM_NEO_OPTION_K=1
 export VLLM_NEO_OPTION_C=1
 export VLLM_NEO_OPTION_L=1
 export VLLM_NEO_OPTION_M2=1
-export VLLM_NEO_OPTION_C_FULL_MIRROR=1
+# IDE_006 Phase 2.1 — disable full_mirror brute-force so decide_mode
+# (mode_selector.decide_mode) is called and produces balanced sub_batches
+# (b1 > 0). This restores NEO §4.4 asymmetric pipeline intent.
+export VLLM_NEO_OPTION_C_FULL_MIRROR=0
 unset VLLM_NEO_OPTION_O2 VLLM_NEO_OPTION_A VLLM_NEO_DISABLE_CHAIN
 unset VLLM_NEO_DISABLE_FORCE_PIPELINED VLLM_NEO_DISABLE_FUSED_RMSNORM
 unset VLLM_NEO_DISABLE_SWAP_IN VLLM_NEO_LRU_FALLBACK_FIFO
@@ -42,9 +45,18 @@ unset VLLM_DEBUG_FAULTHANDLER
 # === VLLM_NEO_PROFILE 활성 (분석 단계 한정) ===
 export VLLM_NEO_PROFILE=1
 
-export OMP_NUM_THREADS=14
+export OMP_NUM_THREADS=10
 export OMP_PROC_BIND=false
 unset OMP_PLACES
+# IDE_006 winning config — per-worker CPU pinning (pin=12, OMP=10)
+export VLLM_NEO_CPU_PIN_PER_WORKER=1
+export VLLM_NEO_CPU_PIN_CORES=12
+# IDE_006 Phase 1 — NUMA explicit memory bind
+export VLLM_NEO_NUMA_BIND=1
+# IDE_006 Phase 3 — async cdec + deeper pipeline (default OFF — 본
+# 환경에서 OMP 경쟁으로 회귀 -62%. 코드는 보존, 필요 시 env 로 enable).
+# export VLLM_NEO_ASYNC_CDEC=1
+# export VLLM_NEO_CDEC_PIPELINE_DEPTH=2
 
 echo "[neo_profile] $(TZ=Asia/Seoul date -Iseconds) starting → ${OUT_DIR}"
 echo "[neo_profile] VLLM_NEO_PROFILE=${VLLM_NEO_PROFILE}"
@@ -60,8 +72,8 @@ taskset -c 0-111 "$PY" -u "${SCRIPT_DIR}/run_neo_baseline.py" \
 LAUNCHER_PID=$!
 echo "[neo_profile] launcher PID=${LAUNCHER_PID}"
 
-# 5분 measurement (4분 engine init + 1분 chain firing 영역)
-sleep 300
+# 15분 measurement (4분 engine init + 11분 steady decode) — NEO 발현 확보
+sleep 900
 
 # Cleanup
 pgrep -f "run_neo_baseline\|VLLM::EngineCore\|VLLM::Worker" 2>/dev/null \

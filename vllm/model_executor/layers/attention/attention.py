@@ -1133,6 +1133,13 @@ def unified_attention_with_output(
         except Exception:
             pass
 
+    # IDE_006 — drain pending cdec from the previous attention call.
+    # Placed AFTER this call's own cdec submit (above) so the new
+    # future is already running on the CDEC_WORKERS pool when we wait
+    # on the previous one. Two cdec futures concurrent. In sync mode
+    # _neo_pending_cdec_state is always None; this call is fast no-op.
+    _neo_drain_pending_cdec()
+
     # IDE_006 4.5.2.c v38 — cdec-only sub-batch GPU attention skip.
     # b1 sub-batch 의 모든 row 가 cdec 인 경우 GPU attention 결과는
     # CPU pacpu 결과로 100% overwrite → GPU compute 완전 낭비.
@@ -1191,6 +1198,29 @@ def unified_attention_with_output(
     # 형성. 그 후 layer-end 에서 host wait. KV cache sequential
     # dependency (layer i output → layer i+1 input) 로 layer-pipeline
     # X. 본 위치가 NEO 패턴.
+    # IDE_006 — async cdec branch. When async mode is enabled by the
+    # forward_pipeline orchestrator, save cdec_future as pending and
+    # skip the blocking wait. The next attention call (or an explicit
+    # drain by the orchestrator) will resolve it.
+    if cdec_future is not None and _neo_async_cdec_mode:
+        # IDE_006 Phase 3 — push to deque (depth controlled by
+        # VLLM_NEO_CDEC_PIPELINE_DEPTH). If queue is full, drain oldest
+        # synchronously before appending — keeps in-flight bound.
+        import os as _os_q
+        _max_depth = int(
+            _os_q.environ.get("VLLM_NEO_CDEC_PIPELINE_DEPTH", "1")
+        )
+        if len(_neo_pending_cdec_queue) >= _max_depth:
+            _neo_drain_pending_cdec()  # FIFO drain oldest
+        _neo_pending_cdec_queue.append(
+            (cdec_future, output, cdec_t0, cdec_t1)
+        )
+        if _pl_prof_on:
+            _st = _NEO_PL_GLOBAL_STATS
+            _st["cdec_count"] += 1
+            if skip_gpu_attn:
+                _st["skip_gpu_count"] += 1
+        cdec_future = None
     if cdec_future is not None:
         _t_cdec_wait_start = 0.0
         if _pl_prof_on:
@@ -1258,6 +1288,105 @@ def unified_attention_with_output(
 
 
 _neo_cdec_call_count = 0  # TSK_019 — cdec dispatch 호출 빈도 measurement
+
+
+# IDE_006 — async cdec mode. When enabled by an outer pipeline
+# orchestrator (forward_pipeline), unified_attention_with_output does
+# NOT block on cdec_future at layer-end. Instead the (future, output,
+# cdec slice) is saved as pending; the *next* attention call drains
+# it (waits + applies H2D). Two cdec futures can be in flight at once
+# on the CDEC_WORKERS pool. The drain inside attention() happens
+# *after* this call's own cdec submit, so concurrency is naturally
+# pipelined. forward_pipeline / forward_first_stage / forward_last_
+# stage call _neo_drain_pending_cdec() explicitly before any postproj
+# that consumes the attention output, to keep the buffer fresh.
+_neo_async_cdec_mode = False
+# IDE_006 Phase 3 — deeper pipeline: deque allows multiple cdec futures
+# in flight (depth controlled by VLLM_NEO_CDEC_PIPELINE_DEPTH, default 1).
+# Each entry: (future, output, t0, t1). FIFO drain order.
+import collections as _collections_neo  # noqa: E402
+_neo_pending_cdec_queue: _collections_neo.deque = _collections_neo.deque()
+
+
+def _neo_drain_pending_cdec() -> None:
+    """Drain ONE oldest pending cdec future (FIFO). No-op when queue
+    empty. Phase 3 — supports deque depth > 1.
+    """
+    if not _neo_pending_cdec_queue:
+        return
+    cdec_future, out_tensor, cdec_t0, cdec_t1 = (
+        _neo_pending_cdec_queue.popleft()
+    )
+    try:
+        out_buf = cdec_future.result()
+        import os as _os_drain
+        _use_xfer = (
+            _os_drain.environ.get("VLLM_NEO_CDEC_DRAIN_XFER_STREAM", "1")
+            == "1"
+        )
+        if _use_xfer and torch.cuda.is_available():
+            _xfer_stream = _get_neo_communication_stream()
+            # Order the comm stream behind the producer of out_tensor
+            # (default stream up to this point) so we never read torn
+            # data.
+            _cur_stream = torch.cuda.current_stream()
+            _xfer_stream.wait_stream(_cur_stream)
+            with torch.cuda.stream(_xfer_stream):
+                out_gpu = out_buf.to(
+                    out_tensor.device, non_blocking=True
+                ).to(out_tensor.dtype)
+                _n_rows = cdec_t1 - cdec_t0
+                out_tensor[cdec_t0:cdec_t1].reshape(_n_rows, -1).copy_(
+                    out_gpu.reshape(_n_rows, -1), non_blocking=True
+                )
+            # Make sure subsequent default-stream ops see the H2D copy.
+            _cur_stream.wait_stream(_xfer_stream)
+        else:
+            out_gpu = out_buf.to(out_tensor.device).to(out_tensor.dtype)
+            _n_rows = cdec_t1 - cdec_t0
+            out_tensor[cdec_t0:cdec_t1].reshape(_n_rows, -1).copy_(
+                out_gpu.reshape(_n_rows, -1)
+            )
+    except Exception as _drain_e:  # noqa: BLE001
+        try:
+            from vllm.logger import init_logger as _einit
+            _einit("vllm.attention.neo_cdec_error").error(
+                "[NEO PENDING CDEC DRAIN FAIL] %s: %s",
+                type(_drain_e).__name__, _drain_e,
+            )
+        except Exception:
+            pass
+
+
+def _neo_set_async_cdec_mode(enabled: bool) -> None:
+    """Toggle async cdec mode."""
+    global _neo_async_cdec_mode
+    _neo_async_cdec_mode = bool(enabled)
+
+
+import contextlib as _contextlib_neo  # noqa: E402
+
+
+def _neo_drain_all_pending_cdec() -> None:
+    """Drain the entire pending queue (FIFO). Phase 3."""
+    while _neo_pending_cdec_queue:
+        _neo_drain_pending_cdec()
+
+
+@_contextlib_neo.contextmanager
+def neo_async_cdec_scope():
+    """Context manager: enables async cdec mode for the enclosed block.
+
+    Entry drains any leftover pending queue (safety) and enables async
+    mode. Exit drains *all* remaining queued futures.
+    """
+    _neo_drain_all_pending_cdec()
+    _neo_set_async_cdec_mode(True)
+    try:
+        yield
+    finally:
+        _neo_drain_all_pending_cdec()
+        _neo_set_async_cdec_mode(False)
 
 
 def _neo_cdec_compute_cpu(

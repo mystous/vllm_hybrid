@@ -75,6 +75,49 @@ class _PerReqAllocation:
     # 변하면 ``last_block_offset`` 추가.
 
 
+def _neo_numa_bind_local() -> tuple[bool, str]:
+    """IDE_006 Phase 1 — set NUMA membind to the local node of the
+    calling thread. Uses libnuma.so.1 via ctypes (no Python build dep).
+    Returns (success, info_str). When ``VLLM_NEO_NUMA_BIND`` is not
+    enabled, returns (False, "disabled"). Idempotent — safe to call
+    multiple times; each call resets the policy for *future*
+    allocations on this thread / process.
+
+    Relies on CPU pinning (``VLLM_NEO_CPU_PIN_PER_WORKER``) being
+    already active. ``numa_set_localalloc()`` instructs the kernel to
+    allocate from the NUMA node where the *current* CPU is — so the
+    pinned worker's KV buffer pages land on the worker's NUMA node.
+    """
+    import os
+    if os.environ.get("VLLM_NEO_NUMA_BIND", "0") != "1":
+        return False, "disabled"
+    try:
+        import ctypes
+        lib = ctypes.CDLL("libnuma.so.1")
+        lib.numa_available.restype = ctypes.c_int
+        if lib.numa_available() < 0:
+            return False, "numa_available<0"
+        # Tell the kernel to allocate from the *current* CPU's NUMA node
+        # for subsequent allocations. The CPU pinning already restricted
+        # us to a specific NUMA, so this resolves to that node.
+        lib.numa_set_localalloc()
+        # Best-effort: also report which node we're on (debug)
+        try:
+            lib.numa_node_of_cpu.restype = ctypes.c_int
+            lib.numa_node_of_cpu.argtypes = [ctypes.c_int]
+            libc = ctypes.CDLL("libc.so.6")
+            libc.sched_getcpu.restype = ctypes.c_int
+            cpu = libc.sched_getcpu()
+            node = lib.numa_node_of_cpu(cpu)
+            return True, f"localalloc cpu={cpu} node={node}"
+        except Exception:
+            return True, "localalloc (node detect failed)"
+    except OSError as e:
+        return False, f"libnuma load failed: {e}"
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+
+
 def _neo_synchronized(method):
     """TSK_019 plan B2 fix — instance lock 보호 decorator. cdec worker
     thread (read) + main thread (alloc/free/scatter) 사이 host memory
@@ -110,6 +153,16 @@ class NeoCpuKvBuffer:
             spec.num_kv_heads,
             spec.block_size,
             spec.head_dim,
+        )
+        # IDE_006 Phase 1 — NUMA-local membind for the upcoming K_cpu /
+        # V_cpu allocations. Combined with per-worker CPU pinning
+        # (gpu_worker.py), this keeps the KV pages on the same NUMA node
+        # as the GPU's PCIe root complex, eliminating cross-socket
+        # spillover on first-touch.
+        _numa_ok, _numa_info = _neo_numa_bind_local()
+        logger.info(
+            "NeoCpuKvBuffer NUMA bind: ok=%s info=%s",
+            _numa_ok, _numa_info,
         )
         # Pinned-memory tensors so PCIe transfer (Phase 4.2) is fast.
         # ``pin_memory=True`` requires CUDA available; on CPU-only

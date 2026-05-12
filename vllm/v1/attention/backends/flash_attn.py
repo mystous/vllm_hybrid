@@ -251,6 +251,12 @@ class FlashAttentionMetadata:
 
     causal: bool = True
 
+    # [v1.6 Phase 3] NEO cdec dispatch path 영역 (attention.py:936) 영역
+    # seq_lens 영역 CPU 영역 값 영역 보유. CommonAttentionMetadata 영역
+    # ``_seq_lens_cpu`` field 영역 일관 영역 carry. Builder 영역 영역 영역
+    # set. attribute 보유 시 attention.py 의 ``.cpu()`` fallback 영역 영역.
+    _seq_lens_cpu: torch.Tensor | None = None
+
 
 def _get_sliding_window_configs(
     vllm_config: VllmConfig,
@@ -564,6 +570,12 @@ class FlashAttentionMetadataBuilder(AttentionMetadataBuilder[FlashAttentionMetad
             prefix_scheduler_metadata=prefix_scheduler_metadata,
             max_num_splits=max_num_splits,
             causal=causal,
+            # [v1.6 Phase 3] CommonAttentionMetadata 영역 영역 영역 영역
+            # _seq_lens_cpu 영역 carry. attention.py:936 의 cdec dispatch
+            # path 영역 영역 영역 attribute 영역 ``.cpu()`` fallback 영역
+            # 발화 0회 영역. Builder 영역 영역 영역 set — 모든 forward
+            # 영역 일관성 보장.
+            _seq_lens_cpu=common_attn_metadata._seq_lens_cpu,
         )
         return attn_metadata
 

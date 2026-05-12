@@ -172,6 +172,11 @@ class SubBatchPipelineExecutor:
         # batch[0] runs layer 0 immediately.
         q0, k0, v0 = self.cb.preproj(embeddings[0], batches[0], 0, 0)
         attn0 = self.cb.attention(q0, k0, v0, batches[0], 0)
+        # IDE_006 async cdec — drain attn0's pending cdec before postproj.
+        from vllm.model_executor.layers.attention.attention import (
+            _neo_drain_pending_cdec as _drain_pending,
+        )
+        _drain_pending()
         next_emb0 = self.cb.postproj(attn0, batches[0], 0)
         # We will hand next_emb0 into batch[0]'s layer-1 preproj inside
         # the main loop (cur_stage=1), so we keep it on a side channel.
@@ -236,13 +241,24 @@ class SubBatchPipelineExecutor:
         # wait_stream, then run on default stream.
         cur_stream.wait_stream(s0)
         cur_stream.wait_stream(s1)
+        # IDE_006 async cdec — attention(batches[0]) at start drains
+        # batches[1]'s cdec, so attn1 is populated when postproj reads
+        # it. batches[1]'s cdec compute thus overlapped with
+        # batches[0]'s preproj on s0 (NEO §4.4 asymmetric intent).
         attn0_next = self.cb.attention(q0_next, k0_next, v0_next,
                                        batches[0], layer_idx + 1)
-        next_emb0_new = self.cb.postproj(attn0_next, batches[0],
-                                         layer_idx + 1)
+        # Reorder consumer ops: postproj(attn1) + preproj(batches[1])
+        # run while batches[0]'s cdec computes, then drain just before
+        # postproj(attn0_next) reads its result.
         emb1 = self.cb.postproj(attn1, batches[1], layer_idx)
         q1_new, k1_new, v1_new = self.cb.preproj(emb1, batches[1],
                                                  layer_idx + 1, 0)
+        from vllm.model_executor.layers.attention.attention import (
+            _neo_drain_pending_cdec as _drain_pending,
+        )
+        _drain_pending()
+        next_emb0_new = self.cb.postproj(attn0_next, batches[0],
+                                         layer_idx + 1)
         return q1_new, k1_new, v1_new, next_emb0_new
 
     def forward_last_stage(
@@ -263,6 +279,11 @@ class SubBatchPipelineExecutor:
         """
         last = self.num_layers - 1
         attn1 = self.cb.attention(q1, k1, v1, batches[1], last)
+        # IDE_006 async cdec — drain before postproj reads attn1.
+        from vllm.model_executor.layers.attention.attention import (
+            _neo_drain_pending_cdec as _drain_pending,
+        )
+        _drain_pending()
         emb1 = self.cb.postproj(attn1, batches[1], last)
         return next_emb0, emb1
 
@@ -278,6 +299,26 @@ class SubBatchPipelineExecutor:
         if self.num_layers < 2:
             raise ValueError("forward_pipeline requires num_layers >= 2")
 
+        # IDE_006 — async cdec is the algorithm-correct NEO §4.4 path
+        # (defers cdec wait so batches[1] CPU attention overlaps with
+        # batches[0] preproj on s0). Empirically on the current hardware
+        # the 2-concurrent-cdec pattern saturates the OMP pool and
+        # regresses throughput; gate it behind VLLM_NEO_ASYNC_CDEC so
+        # the implementation stays available without being on by default.
+        import os as _os_async
+        if _os_async.environ.get("VLLM_NEO_ASYNC_CDEC", "0") == "1":
+            from vllm.model_executor.layers.attention.attention import (
+                neo_async_cdec_scope as _neo_async_cdec_scope,
+            )
+            with _neo_async_cdec_scope():
+                return self._forward_pipeline_inner(batches, embeddings)
+        return self._forward_pipeline_inner(batches, embeddings)
+
+    def _forward_pipeline_inner(
+        self,
+        batches: Sequence[SubBatch],
+        embeddings: Sequence[Any],
+    ) -> tuple[Any, Any]:
         (q1, k1, v1), next_emb0 = self.forward_first_stage(batches, embeddings)
         # forward_double iterates from layer 0 onwards; each call advances
         # batch[1] by one layer (its current layer becomes the "i" in the
