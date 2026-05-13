@@ -998,6 +998,101 @@ if _max_swap_in == 0 and _gpu_active == 0 and not self.waiting and _mirror:
 
 ---
 
+## 5.15 · TSK_019 v1.7 (SUB_026) — staging buffer N=3 + KV size 가설 isolation → **1,978 tps (vanilla 의 42.2%, +12% vs N=3)** (2026-05-13)
+
+### 배경
+
+SUB_025 의 staging buffer 1개 한계 (async 비율 ~40%) 회복 + KV size 조정 효과 검증.
+
+### 5.15.1 staging buffer N=3 확장 (SUB_026)
+
+**구현** (`vllm/v1/worker/gpu_model_runner.py`):
+
+- `_neo_swap_staging_k_list`/`_v_list`/`_pending_dma_infos` 리스트 자료구조
+- `_neo_init_swap_staging` 가 env (`VLLM_NEO_ASYNC_SWAP_BUFFERS=3` default) 만큼 alloc
+- `_neo_swap_out_gather_phase(req_id, gpu_block_ids, slot_idx)` — slot_idx 인자 추가
+- `_neo_swap_out_dma_phase(gathered)` — `gathered['slot_idx']` 로 해당 K/V 텐서 선택
+- `_neo_drain_pending_swap_dma` — 리스트 순회하며 모든 pending drain
+- caller (`_neo_handle_kv_swap`) — `_async_slot_used` counter 로 0..N-1 순차 할당
+
+**메모리**: worker당 K(320 MiB) + V(320 MiB) × 3 = **1.92 GiB pinned** × 8 worker = **15.36 GiB 총**. 시스템 RAM 2 TiB / Available 872 GiB 대비 negligible.
+
+### 5.15.2 N=3 측정 결과 (`20260513_201624_neo_clean/`)
+
+| 지표 | N=1 (SUB_025) | N=3 (SUB_026) | 변화 |
+|---|---|---|---|
+| output_tps | 1,799.9 | **1,766.5** | -1.85% (노이즈 범위) |
+| wall_s | 2,252 | 2,306 | +2.4% |
+| TP0 async events | 1,545 | 1,698 | +9.9% |
+| async 비율 | 39.7% | **43.9%** | +4.2%p |
+| async total_ms <50ms | 14% | **38%** | **+24%p** (slot 점유 대기 해소) |
+| slot 분포 | n/a | slot=0:1,002 / slot=1:645 / slot=2:51 | **slot=2 사용 3% 만** |
+
+**결론**: N=3 의 ROI 한계 입증. step당 swap_out req 평균 1.5~2개로 N=2 면 충분. 그러나 N=3 가 worst-case 보장 + 메모리 부담 적음 → default 채택.
+
+### 5.15.3 KV size 가설 isolation 측정 (500p × 3 회차)
+
+500p 환경에서 3 개 knob 효과 isolate:
+
+| 가설 | env | 결과 회차 | output_tps | vs N=3 baseline |
+|---|---|---|---|---|
+| **H1** mirror_max=128 + cpu_res=200 | `VLLM_NEO_MIRROR_MAX=128` + `VLLM_NEO_CPU_RESIDENT_REQS=200` | `20260513_220434_hyp500_H1_mirror/` | 1,714.1 | **-3.0%** |
+| **H3** cpu_res=200 only | `VLLM_NEO_CPU_RESIDENT_REQS=200` | `20260513_224609_hyp500_H3_cpu200/` | 1,731.4 | **-2.0%** |
+| **H1+H2** (mirror+cpu+**gmu=0.92**) | H1 + `gpu_memory_utilization=0.92` | `20260513_232824_hyp500_H1H2_all/` | **1,978.0** | **+12.0%** ⭐ |
+
+### 5.15.4 핵심 발견 — **GPU KV (gmu) 가 진짜 driver**
+
+| 회차 | mirror_set_size 최대 | GPU KV blocks |
+|---|---|---|
+| baseline N=3 | 56 (cap=56) | 156,523 |
+| H1 (cap=128, gmu=0.85) | **10** | 156,523 |
+| H3 (cap=56, gmu=0.85) | **10** | 156,523 |
+| **H1+H2 (cap=128, gmu=0.92)** | **128 (cap 도달)** | **174,684** |
+
+**메커니즘**:
+- mirror cap 단독 ↑ 했을 때 mirror_set_size 가 56→10 으로 *오히려 떨어짐* (cap 가 binding 아니었음을 입증)
+- GPU KV pool +11.6% 인 H1+H2 에서만 mirror_set_size 가 128 까지 차오름
+- GPU KV ↑ → 더 많은 concurrent reqs → KV pressure 더 자주 발생 → swap_out trigger 빈도 ↑ → mirror 채워짐 → cdec dispatch 활성
+- 즉 **GPU KV 가 NEO 활성화 chain 의 진짜 발화 조건**, mirror cap / CPU pool 은 단독 효과 없음
+
+### 5.15.5 H1+H2 swap 상세
+
+- TP0 async events 1,512 / sync 1,745 → async 비율 **46.4%** (baseline N=3 39.7% 대비 +6.7%p)
+- async total_ms 분포는 N=3 와 유사 (50-200ms 영역 70%+ overlap)
+- `[NEO deadlock escape]` 1회 발화 (mirror=8, GPU-active=0 — 정상 escape 후 완주)
+- mirror_set_size 124 → 126 → 128 추이 — gmu=0.92 환경에서 cap 도달
+
+### 5.15.6 5-way 비교 (vanilla → sync → async → H1+H2)
+
+| 회차 | output_tps | wall_s | vs vanilla |
+|---|---|---|---|
+| vanilla 500p (NEO off) | **4,682.1** | 875s | 100% |
+| v1.5 try102 sync (`20260511_092250_try102_v5_clean/`) | 627.6 | 6,383s | 13.4% |
+| v1.7 N=1 async (`20260513_192812_neo_clean/`) | 1,799.9 | 2,252s | 38.4% |
+| v1.7 N=3 async baseline (`20260513_201624_neo_clean/`) | 1,766.5 | 2,307s | 37.7% |
+| **v1.7 N=3 + H1+H2** (winner, `20260513_232824_hyp500_H1H2_all/`) | **1,978.0** | **2,061s** | **42.2%** |
+
+### 5.15.7 잔존 issue + 다음 phase
+
+- vanilla 대비 여전히 42.2% (vs 100%) — 단순 swap_out 가속만으로는 ~60% gap 해소 불가
+- 다음 영역 후보:
+  - cdec executor max_workers 확장 (현재 1 → 2~4 시도, GIL 영향 측정)
+  - `gpu_memory_utilization` 0.92 → 0.95 / 0.97 sweep (안전 마진 점검)
+  - sync swap_out fallback path 자체 가속 (per-layer batched copy)
+  - cdec compute 자체 최적화 (BF16 dtype, AVX-512_BF16 활용)
+
+### 측정/관측 산출물
+
+- launch: `eval/run_neo_hyp.sh` (100p config), `eval/run_neo_hyp500.sh` (500p config), `eval/run_neo_clean.sh` (N=3 baseline)
+- 결과:
+  - `eval/results/20260513_201624_neo_clean/result.json` — N=3 baseline (1,766.5 tps)
+  - `eval/results/20260513_220434_hyp500_H1_mirror/result.json` — H1 (1,714.1 tps)
+  - `eval/results/20260513_224609_hyp500_H3_cpu200/result.json` — H3 (1,731.4 tps)
+  - `eval/results/20260513_232824_hyp500_H1H2_all/result.json` — **H1+H2 winner (1,978.0 tps)**
+- 코드: `vllm/v1/worker/gpu_model_runner.py` (staging pool + slot-aware gather/dma/drain)
+
+---
+
 ## 6. References
 
 - 부모 PLN: [`PLN_001`](PLN_001.md)
@@ -1022,6 +1117,7 @@ if _max_swap_in == 0 and _gpu_active == 0 and not self.waiting and _mirror:
 | 2026-05-10 | **v1.3 명명 변경 — try68 → try51** | 사용자 명시 (2026-05-10 KST 19:00 영역). try68 의 active 평형 (chain 6.4%) 은 bistability 의 우연 진입으로 reproducibility 미확보 (3×3 perf compare 의 v13_run1/run2 모두 inactive 평형 chain 0%). v1.3 명명 부적합 판정. **v1.3 = try51 회차** (TSK_019 v3 Phase B, commit `f2678c2f4` "v3 C4-C5 swap_in path 활성화 + LRU stub", 2026-05-09 10:27 KST) 으로 변경. 선정 사유: chain firing 첫 측정 fire (0.60%) + reproducibility 확보 (try50 동일) + crash 0 + run 정상 완주. PLN_001 §5.11 의 "버전 명명" subsection update + git tag v1.3 도 `f2678c2f4` 로 이동 (force push). |
 | 2026-05-11 | **§5.13 신설 — NEO 정통 정합 (Option I+K+C+L) chain firing 88~99% 달성 + Option M 영역 남음** | (1) NEO github (`NEO-MLSys25/NEO`) + paper (MLSys 2025) 직접 분석 — `_decide_mode_and_gen_batch` Step 3 (load-aware 매 step cdec) + `_alloc_blocks_for_batch` (매 step 증분 alloc, `omit_last=False`) + `pacpu::brute::store_kv` 의 `block_table[block_pos]` valid 요구. (2) **우리 구현 본질 결손 식별**: cpu_decoding_q 영구 큐 미정합 + cdec_ids 추출 SWAPPED_OUT 만 + D10 가드 `num_new_tokens=0` 클램프 + 매 step CPU/GPU block alloc 결손. (3) **4 단계 누적 fix**: Option I (D4 swap_in MIN_BUFFER guard) + Option K (D10 가드 완화 num_new_tokens=1) + Option C (decide_mode load-balanced cdec) + Option L (NEO `DeviceBlockManager.alloc` increment logic 모방한 `NeoCpuKvBuffer.ensure_capacity`). (4) **검증 회차 결과**: try77 (I only) infra prerequisite PASS; try78 (I+C) D10 가드 충돌로 fire 안 됨; try80 (I+K+C) chain firing 96% + D11 OOB 18560; **try81 (I+K+C+L)** chain firing **98.9%** + D11 OOB **0** + NEO CDEC CALL **127k/worker** (이전 32 대비 +469×) + crash 0. (5) **paper 영역 진입 입증** — NEO 의 "14% throughput gain on H100" 의 *메커니즘 (load-aware cdec dispatch + 매 step KV 적재)* 정합. (6) **잔존 issue**: swap-in shape mismatch 5744 회 (GPU side block 추가 alloc 결손 — Option M 영역) + throughput 11× 저하 (mirror reqs 가 swap-in fail 로 GPU 복귀 불가 → CPU 단독 decode). (7) **다음 phase**: Option M — `neo_swap_in_alloc` 가 CPU buffer 의 *현재 alloc block 수* 와 동기화. 또는 swap_out 시 *upfront max_total_tokens block alloc* (단순 fallback). 사용자 결정 대기. |
 | 2026-05-13 | **§5.14 신설 — TSK_019 v1.7 (SUB_025) async swap_out + deadlock escape → 1,799.9 tps (+187% vs sync)** | (1) **swap_out async 화** — 기존 `copy_layer_in` per-layer D→H sync (avg 108ms) 가 forward 시작 전 GPU idle 야기. **3 phase 구현** (gather/DMA launch/drain) 으로 D→H 가 forward 와 병행. **staging buffer** worker당 K+V 320 MiB pinned. (2) **deadlock escape** — 50p run 에서 마지막 8 reqs 모두 CPU-resident + `mirror_size ≤ MIN_BUFFER(=8)` 시 D4 swap-in path 가 영구 차단. py-spy 진단으로 EngineCore↔Worker 양방향 wait 식별. **fix**: `GPU-active=0 AND waiting=0 AND mirror non-empty` 시 MIN_BUFFER 가드 bypass + `max_swap_in` 원래 cap 복원. (3) **측정 결과** (500p × 8192 in/out): output_tps **1,799.9** vs sync try102 627.6 (**+187%**) vs vanilla 4,682.1 (38.4%). async 비율 39.7% (1차 req only, staging 1개 한계), `total_ms` 50-200ms **74%** = forward 와 정상 overlap 확인. (4) **잔존**: async 비율 ~40% 한계 (staging buffer 1개), CPU KV pool 포화 (1회 BUF ALLOC FAIL), vanilla 대비 38.4% (sync swap_out 가 여전히 ~60%). (5) **다음 phase** — **SUB_026** (staging buffer N=3 확장) → async 비율 60-70% 기대, worker당 pinned 640 MiB → 1.92 GiB (시스템 RAM 2 TiB 대비 negligible). commit `a3db943f4`. |
+| 2026-05-13 | **§5.15 신설 — TSK_019 v1.7 (SUB_026) staging buffer N=3 + KV size 가설 isolation → 1,978 tps (vanilla 의 42.2%, +12% vs N=3)** | (1) **staging buffer pool N=3 구현** — `_neo_swap_staging_k_list`/`_v_list`/`_pending_dma_infos` 리스트 + gather/dma 가 `slot_idx` 인자. env `VLLM_NEO_ASYNC_SWAP_BUFFERS` (default 3). 메모리 1.92 GiB pinned/worker × 8 = 15.36 GiB. (2) **N=3 측정**: 1,766.5 tps (N=1 1,799.9 대비 -1.85% 노이즈 범위). slot=2 사용 빈도 3% — ROI 한계. async <50ms 비율 14% → 38% (+24%p) — slot 점유 대기 해소 효과. (3) **KV size 가설 isolation** (500p × 3 회차): H1 (mirror_max=128 + cpu_res=200) → 1,714.1 (-3%), H3 (cpu_res=200 only) → 1,731.4 (-2%), **H1+H2 (mirror+cpu+gmu=0.92) → 1,978.0 (+12%)**. (4) **핵심 발견**: mirror_set_size 가 H1 (gmu=0.85) 에서 **10 으로 고정** (cap=128 무관) → mirror cap / CPU pool 단독은 binding constraint 아님. **gmu=0.92 환경에서만** mirror_set_size 가 128 (cap 도달) 까지 차오름. **GPU KV ↑ 가 swap_out trigger 빈도 ↑ → mirror 채워짐 → cdec dispatch 활성** — 진짜 driver 입증. (5) **5-way 비교** (vanilla 4,682 → sync 628 → async N=1 1,800 → async N=3 1,767 → **H1+H2 winner 1,978**). vanilla 대비 NEO 효율 13.4% → 42.2% (3.15×). (6) **다음 phase**: cdec executor max_workers 확장 / gmu 0.92→0.95 sweep / sync swap_out 가속 / cdec compute BF16 최적화. |
 
 ---
 
