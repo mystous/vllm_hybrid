@@ -1128,10 +1128,12 @@ class NeoSchedulerAdapter(AsyncScheduler):
                 # [Plan v4 G/H v3] mirror set 에 bound 적용 — CPU pool
                 # capacity 보다 작게 유지. 초과 시 새 reqs 는 mirror 에 추가
                 # 안 함 → vanilla preempt path 로 흘러감 (hang 회피).
-                # Cap: max_cpu_resident_reqs (default 64) × 0.9 = ~57 reqs.
-                # env override: VLLM_NEO_MIRROR_MAX (default 56).
+                # SUB_027 KV size sweep (2026-05-14): default 56 → 80 으로
+                # 상향. H5 측정 (500p) 결과 mirror_max=80 + gpu_util=0.92 가
+                # H1+H2 / N=3 baseline 대비 +30.3% throughput (2,302 tps).
+                # env override: VLLM_NEO_MIRROR_MAX (default 80).
                 _MIRROR_MAX = int(_os_th.environ.get(
-                    "VLLM_NEO_MIRROR_MAX", "56"
+                    "VLLM_NEO_MIRROR_MAX", "80"
                 ))
                 if not hasattr(self, "_neo_cpu_resident_mirror"):
                     self._neo_cpu_resident_mirror: set[str] = set()
