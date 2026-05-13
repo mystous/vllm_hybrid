@@ -129,7 +129,7 @@ PLN/TST 통과 후 본 코드 베이스에 들어가는 단위 기능. CLAUDE.md
 
 단일 `TSK_###` 가 여러 가설/path/Diff 를 동시에 다루는 경우 sub-단위 로 분리해 추적. 부모 `TSK` 와 1:N 관계. parent ID 를 비고 컬럼에 명시한다. SUB 의 카운터는 prefix 전역 (parent 와 무관하게 1 부터 1 씩 증가).
 
-**다음 부여 번호**: `SUB_025`
+**다음 부여 번호**: `SUB_026`
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
@@ -157,6 +157,7 @@ PLN/TST 통과 후 본 코드 베이스에 들어가는 단위 기능. CLAUDE.md
 | `SUB_022` | 활성 (2026-05-06) — Layer (iv) cdec executor #1: pinned tensor 1 회 alloc + 재사용 | view-overwrite 패턴 | parent `TSK_019`. **변경 site**: `vllm/v1/attention/ops/neo_pacpu.py` (pinned q/k/v_cpu lazy init max_size 1 회 alloc, R4), `vllm/model_executor/layers/attention/attention.py:827-829` (재사용 패턴). **NEO 원본**: `swiftllm/worker/block_swapper.py:57-63`. 상세: `features/IDE_006/TSK_019.md` SUB_022 섹션 |
 | `SUB_023` | 활성 (2026-05-06) — Layer (iv) cdec executor #2: max_workers 단계적 증가 + GIL profile | 1 → 2 → 4 + py-spy 측정 | parent `TSK_019`. **변경 site**: `vllm/model_executor/layers/attention/attention.py:832-844` (`_get_neo_cdec_executor()` max_workers 인자, R7). **NEO 원본**: `swiftllm/worker/layers/transformer_layer.py:336` (OMP-free C extension + GIL release). 상세: `features/IDE_006/TSK_019.md` SUB_023 섹션 |
 | `SUB_024` | 활성 (2026-05-06) — Layer (iv) cdec executor #3: BF16 cast 위치 | GPU 측 cast 제거, CPU pinned dst 측 cast | parent `TSK_019`. **변경 site**: `vllm/model_executor/layers/attention/attention.py:826-829` (GPU `.to(torch.float16)` 제거, CPU 도착 후 cast, R6). **NEO 원본**: `swiftllm/worker/block_swapper.py:53-63`. **Dependency**: SUB_022. 상세: `features/IDE_006/TSK_019.md` SUB_024 섹션 |
+| `SUB_025` | 완료 (2026-05-13, commit `f25c37190`) — Layer (iii) swap path #3: **async swap_out (D→H DMA forward overlap) + deadlock escape** | worker당 pinned staging buffer + 3 phase (gather/DMA/drain) → forward 와 D→H 병행. CPU-resident only deadlock 도 escape | parent `TSK_019`. **변경 site**: `vllm/v1/worker/gpu_model_runner.py` (`_neo_init_swap_staging` / `_neo_swap_out_gather_phase` / `_neo_swap_out_dma_phase` / `_neo_drain_pending_swap_dma` 신설, `_neo_handle_kv_swap` 의 swap_stream 블록 재구성, `execute_model` 후 drain 호출), `vllm/v1/core/sched/neo_cpu_kv_buffer.py` (`copy_all_layers_in_from_staged` 신설), `vllm/v1/core/sched/neo_scheduler_adapter.py:1240+` (D4 swap-in path 의 MIN_BUFFER 가드 bypass — GPU-active=0 AND waiting=0 AND mirror non-empty 시). **env**: `VLLM_NEO_ASYNC_SWAP=1` (default ON). **측정** (Llama-3.3-70B TP=8 H100x8, 500p × 8192 in/out, eval/results/20260513_192812_neo_clean/): output_tps **1,799.9** (sync try102 627.6 → **+187%**, vanilla 4,682.1 의 38.4%). async 비율 ~40% (1차 req only, staging buffer 1개 한계), forward 와 50-200ms overlap **74%**. **다음**: SUB_026 — staging buffer N=3 확장 (worker당 1.92 GiB pinned). **연관**: SUB_017 (cdec QKV async H2D) 와 동일 패턴을 swap_out 영역으로 확장 |
 
 ---
 
