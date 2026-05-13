@@ -408,6 +408,30 @@ class NeoCpuKvBuffer:
         self.v_cpu[layer_idx, idx] = v_cpu_src
 
     @_neo_synchronized
+    def copy_all_layers_in_from_staged(
+        self,
+        req_id: str,
+        k_staged: torch.Tensor,
+        v_staged: torch.Tensor,
+        n_blocks: int,
+    ) -> None:
+        """CPU-only scatter: copy pre-staged pinned CPU data into NEO buffer.
+
+        Called by the worker after async D→H DMA completes (no GPU ops).
+        k_staged / v_staged shape: ``(num_layers, max_blocks_per_req, ...)``;
+        only the first ``n_blocks`` columns are valid.
+        """
+        block_ids = self.get_block_ids(req_id)
+        if block_ids is None:
+            raise ValueError(
+                f"copy_all_layers_in_from_staged: req {req_id!r} not allocated"
+            )
+        idx = torch.tensor(block_ids, dtype=torch.long)
+        for layer_idx in range(self.spec.num_layers):
+            self.k_cpu[layer_idx, idx] = k_staged[layer_idx, :n_blocks]
+            self.v_cpu[layer_idx, idx] = v_staged[layer_idx, :n_blocks]
+
+    @_neo_synchronized
     def copy_layer_out(
         self,
         req_id: str,

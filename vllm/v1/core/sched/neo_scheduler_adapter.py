@@ -767,6 +767,154 @@ class NeoSchedulerAdapter(AsyncScheduler):
         # actually consumes for vanilla operation.
         output = super().schedule()
 
+        # IDE_006 Phase 4.2 — NEO 정통 Step 2/3 (swap-out + swap-in)
+        # 호출. v31 deadlock root (perfpredictor hot-path) 회피용으로
+        # step_2_3_only() 만 호출 — Step 4-6 (decide_mode, prefill 분류)
+        # 는 vLLM default 가 이미 처리. env-gated:
+        # VLLM_NEO_NEOSCHED_STEP23=1 + VLLM_NEO_SWAP_OUT_RATIO 로 threshold
+        # scaling (default 1.0 = NEO paper spec). Adapter 의 기존 predictive
+        # / Plan v4 D15+D16 path 와 OR 결합 — Step 2/3 발화 victim 은
+        # _swap_out_predictive_ids 에 추가되어 기존 attach 경로 재사용.
+        if _os_th.environ.get("VLLM_NEO_NEOSCHED_STEP23", "0") == "1":
+            try:
+                # gpu_decoding_q sync — neo_scheduler 는 매 step super().schedule()
+                # 후 self.running 영역만 알고 있으므로 step_2_3_only() 호출 전
+                # mirror 필수. 미호출 시 gpu_q 비어있어 swap_out_threshold 영역
+                # 진입 자체가 안 됨 (noop).
+                self._sync_neo_gpu_decoding_q()
+                _step23_so, _step23_si = self.neo_scheduler.step_2_3_only()
+                for _v in _step23_so:
+                    _rid_so = getattr(_v, "request_id", None) or \
+                              getattr(_v, "_str_id", None)
+                    if _rid_so and _rid_so not in _swap_out_predictive_ids:
+                        _swap_out_predictive_ids.append(_rid_so)
+                if not getattr(self, "_neo_step23_logged", False):
+                    logger.info(
+                        "[NEO Step2/3] first fire: swap_out=%d "
+                        "swap_in=%d cpu_q_size=%d gpu_q_size=%d",
+                        len(_step23_so), len(_step23_si),
+                        len(self.neo_scheduler.cpu_decoding_q),
+                        len(self.neo_scheduler.gpu_decoding_q),
+                    )
+                    self._neo_step23_logged = True
+            except Exception as _step23_e:  # noqa: BLE001
+                logger.warning(
+                    "[NEO Step2/3] failed: %s: %s",
+                    type(_step23_e).__name__, _step23_e,
+                )
+
+        # IDE_006 — NEO Scheduler 6-step 전체 driving 통합. NeoScheduler.
+        # schedule() 직접 호출 후 swap_out_reqs / swap_in_reqs 영역 vllm
+        # path 와 통합. v31 deadlock root (perfpredictor._interp_1d) 영역은
+        # HeuristicPerfPredictor 사용 시 미발화 — 본 통합 안전 가능성 검증.
+        # env VLLM_NEO_DRIVE_6STEP=1 활성 (default OFF).
+        # safety: default = dry-run (VLLM_NEO_6STEP_DRY_RUN=1) — queue
+        # save/restore 후 observe + log 만. apply mode (DRY_RUN=0) 시
+        # swap_out_reqs victim 영역 block_ids 추출 + _preempt_request 호출,
+        # swap_in_reqs 영역 _neo_swap_in 호출. batches 영역은 Option C
+        # decide_mode path 와 중복 방지 위해 본 영역에서는 skip (별도 fix).
+        if _os_th.environ.get("VLLM_NEO_DRIVE_6STEP", "0") == "1":
+            try:
+                from collections import deque as _deque_6s
+                _dry_run = _os_th.environ.get(
+                    "VLLM_NEO_6STEP_DRY_RUN", "1"
+                ) == "1"
+                self._sync_neo_gpu_decoding_q()
+                # queue snapshot — dry-run 시 schedule() 의 mutation 복원용.
+                _orig_w = list(self.neo_scheduler.waiting_q)
+                _orig_g = list(self.neo_scheduler.gpu_decoding_q)
+                _orig_c = list(self.neo_scheduler.cpu_decoding_q)
+                _neo_out = self.neo_scheduler.schedule()
+                _so_count = len(_neo_out.swap_out_reqs)
+                _si_count = len(_neo_out.swap_in_reqs)
+                _b_count = len(_neo_out.batches)
+                # log + counter — 매 step counter, 50회 마다 INFO log.
+                _drv_cnt = getattr(self, "_neo_6step_call_count", 0) + 1
+                self._neo_6step_call_count = _drv_cnt
+                if (not getattr(self, "_neo_6step_logged", False)
+                        or _drv_cnt % 200 == 0):
+                    logger.info(
+                        "[NEO 6step] call=%d dry_run=%s swap_out=%d "
+                        "swap_in=%d batches=%d (waiting=%d gpu_q=%d "
+                        "cpu_q=%d)",
+                        _drv_cnt, _dry_run, _so_count, _si_count, _b_count,
+                        len(_orig_w), len(_orig_g), len(_orig_c),
+                    )
+                    self._neo_6step_logged = True
+                if _dry_run:
+                    # mutation 복원. waiting_q / gpu_decoding_q / cpu_decoding_q
+                    # 의 schedule() 영역 mutation 영역 무효화.
+                    self.neo_scheduler.waiting_q = _deque_6s(_orig_w)
+                    self.neo_scheduler.gpu_decoding_q = list(_orig_g)
+                    self.neo_scheduler.cpu_decoding_q = _deque_6s(_orig_c)
+                else:
+                    # apply mode — swap_out_reqs / swap_in_reqs 영역 vllm
+                    # path 와 통합.
+                    _now_6s = time.time()
+                    for _v in _neo_out.swap_out_reqs:
+                        _rid_6s = getattr(_v, "_str_id", None) or \
+                                  str(getattr(_v, "request_id", ""))
+                        if not _rid_6s:
+                            continue
+                        _req_6s = self.requests.get(_rid_6s)
+                        if (_req_6s is None
+                                or _req_6s.status != _RS_pre.RUNNING):
+                            continue
+                        try:
+                            _bg_6s = (
+                                self.kv_cache_manager.get_block_ids(_rid_6s)
+                            )
+                            if _bg_6s and len(_bg_6s) > 0:
+                                _swap_out_predictive_block_ids[_rid_6s] = (
+                                    list(_bg_6s[0])
+                                )
+                        except Exception:  # noqa: BLE001
+                            pass
+                        self._preempt_request(_req_6s, _now_6s)
+                        if _rid_6s not in _swap_out_predictive_ids:
+                            _swap_out_predictive_ids.append(_rid_6s)
+                    # swap_in_reqs 영역은 별도 변수 (_neo_6step_swap_in_ids)
+                    # 에 누적, 본 schedule() 종료 영역의 swap_in attach path
+                    # 영역에서 (line ~1199) output.neo_swap_in_req_ids 와 merge.
+                    _si_ids_6s: list[str] = []
+                    for _v in _neo_out.swap_in_reqs:
+                        _rid_6s = getattr(_v, "_str_id", None) or \
+                                  str(getattr(_v, "request_id", ""))
+                        if not _rid_6s:
+                            continue
+                        _req_6s = self.requests.get(_rid_6s)
+                        if (_req_6s is None
+                                or _req_6s.status != _RS_pre.SWAPPED_OUT):
+                            continue
+                        if self._neo_swap_in(_req_6s, _now_6s):
+                            _si_ids_6s.append(_rid_6s)
+                            if _req_6s not in self.running:
+                                self.running.append(_req_6s)
+                            # mirror set 도 cleanup
+                            _mset_6s = getattr(
+                                self, "_neo_cpu_resident_mirror", None,
+                            )
+                            if _mset_6s:
+                                _mset_6s.discard(_rid_6s)
+                    if _si_ids_6s:
+                        # 본 함수 종료 직전 output.neo_swap_in_req_ids 영역
+                        # 합치기 (기존 attach path 가 같은 attribute 사용).
+                        # attribute 가 없으면 set.
+                        _existing_si = getattr(
+                            output, "neo_swap_in_req_ids", None,
+                        )
+                        if _existing_si:
+                            output.neo_swap_in_req_ids = list(
+                                _existing_si
+                            ) + _si_ids_6s
+                        else:
+                            output.neo_swap_in_req_ids = list(_si_ids_6s)
+            except Exception as _drv_e:  # noqa: BLE001
+                logger.warning(
+                    "[NEO 6step] failed: %s: %s",
+                    type(_drv_e).__name__, _drv_e,
+                )
+
         # IDE_006 4.5.2.c v32 architectural simplification — NEO sibling
         # schedule() 호출 *완전 제거*.
         #
@@ -1092,6 +1240,35 @@ class NeoSchedulerAdapter(AsyncScheduler):
                     ))
                     _excess = max(0, len(_mirror_d4) - _min_buffer)
                     _max_swap_in = min(_max_swap_in, _excess)
+                    # Deadlock escape: GPU-active seq=0 + waiting=0 이고
+                    # mirror만 남은 경우, MIN_BUFFER 가드가 모든 swap-in을
+                    # 막아 영구 deadlock. 이 조건에서는 가드 무시하고
+                    # max_swap_in 복원 (최대 원래 cap 까지).
+                    _gpu_active_d4 = sum(
+                        1 for _r in self.running
+                        if _r.status == _RS_d4.RUNNING
+                    )
+                    if (_max_swap_in == 0
+                            and _gpu_active_d4 == 0
+                            and not self.waiting
+                            and _mirror_d4):
+                        _max_swap_in = min(
+                            int(_os_th.environ.get(
+                                "VLLM_NEO_MAX_SWAP_IN_PER_STEP",
+                                "2" if _force_swap_in else "8",
+                            )),
+                            len(_mirror_d4),
+                        )
+                        if not getattr(
+                            self, "_neo_escape_logged", False
+                        ):
+                            logger.info(
+                                "[NEO deadlock escape] GPU-active=0 "
+                                "waiting=0 mirror=%d — MIN_BUFFER 가드 "
+                                "bypass, max_swap_in=%d",
+                                len(_mirror_d4), _max_swap_in,
+                            )
+                            self._neo_escape_logged = True
                     # [Plan v5 Option O2 v2] NEO budget coupling 정합 — D4
                     # 가 self.running 안의 *RUNNING 상태* 슬롯만 카운트.
                     # try85 의 O2 v1 결함: self.running 이 SWAPPED_OUT reqs

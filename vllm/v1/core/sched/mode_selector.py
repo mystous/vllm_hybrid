@@ -231,16 +231,38 @@ def decide_mode(
             break
 
     # Step 3 — distribute CPU-decode requests between batches[0]/[1].
-    # IDE_006 — predictor 의 latency 비교 (min(remains) < 0) 영역 제거.
-    # 본 영역 fallback 시 cdec_reqs 가 *영영 forward 안 됨* → finish 영역
-    # 도달 못함 → deadlock 외형. NEO 정통 path = cdec_reqs 영역 시 *항상*
-    # pipelined 활성 — alternate distribute 영역.
+    # IDE_006 G3 — NEO 정통 (scheduler.py:184-203) 영역 복원. balance-driven
+    # next_batch_idx = remains[1] > remains[0] + overflow guard
+    # (min(remains) < 0 시 pop + min_out_cpu_len filter). HeuristicPerf
+    # Predictor 가 perfdata 영역 채우므로 _get_remains 영역 비제로 값 반환
+    # → §4.4 의 진짜 load-aware 영역 활성.
+    # env override: VLLM_NEO_DECIDE_MODE_BALANCE=0 시 strict alternation
+    # (이전 fallback 영역, 회귀 시 비상 회피용).
+    _balance_mode = os.environ.get("VLLM_NEO_DECIDE_MODE_BALANCE", "1") == "1"
+    min_out_cpu_len = math.inf
     next_batch_idx = 1
     for req in cpu_decoding_q:
         if not budget.check_and_substract(1):
             break
+        if _balance_mode and req.num_tokens >= min_out_cpu_len:
+            # NEO Step 3 FCFS — 이전 req 가 CPU overflow 발화한 seq_len
+            # 이상은 skip (큰 seq_len 일수록 cdec 비용 크므로).
+            budget.add(1)
+            continue
         batches[next_batch_idx].add_cdec(req)
-        next_batch_idx = 1 - next_batch_idx
+        if _balance_mode:
+            remains = _get_remains(batches)
+            if min(remains) < 0 and num_gpu_blocks > 0:
+                # CPU overflow — pop, 같은 seq_len 이상 skip.
+                min_out_cpu_len = req.num_tokens
+                budget.add(1)
+                batches[next_batch_idx].pop_cdec()
+                continue
+            # balance-driven: 더 slack 큰 batch 에 next 추가.
+            next_batch_idx = 1 if remains[1] > remains[0] else 0
+        else:
+            # legacy strict alternation fallback.
+            next_batch_idx = 1 - next_batch_idx
 
     # Edge case: no cdec was packed → fall back to GPU-only.
     # When ``VLLM_NEO_FORCE_PIPELINED=1`` *or* has_cdec is True we instead

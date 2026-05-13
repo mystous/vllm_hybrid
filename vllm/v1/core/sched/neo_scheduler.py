@@ -156,6 +156,78 @@ class NeoScheduler:
         return _cdiv(req.num_tokens, self.block_size)
 
     # ------------------------------------------------------------------
+    # IDE_006 Phase 4.2 — Step 2/3 only helper. Allows the
+    # NeoSchedulerAdapter to invoke the NEO 정통 swap-out + swap-in
+    # logic without paying the perfpredictor hot-path cost (v31 deadlock
+    # root). Step 4-6 (prefill classify, decide_mode, waiting_q
+    # promote) are *not* run — they require the perfpredictor and are
+    # handled by the vLLM default scheduler in the adapter integration.
+    # Returns (swap_out_reqs, swap_in_reqs) so the adapter can attach
+    # them to its SchedulerOutput. Side-effects: gpu_decoding_q /
+    # cpu_decoding_q updated in place per NEO semantics.
+    # ------------------------------------------------------------------
+    def step_2_3_only(self) -> tuple[list, list]:
+        """Run only NEO Step 2 (swap-out) + Step 3 (swap-in). Returns
+        (swap_out_reqs, swap_in_reqs) lists, both _ReqLike views.
+
+        Caller (NeoSchedulerAdapter) is responsible for:
+        - Pre-populating self.gpu_decoding_q via _sync_neo_gpu_decoding_q.
+        - Mapping the returned victim views to vLLM request ids and
+          calling _neo_swap_out / _neo_swap_in for each.
+        """
+        import os as _os
+        try:
+            _ratio = float(_os.environ.get("VLLM_NEO_SWAP_OUT_RATIO", "1.0"))
+        except ValueError:
+            _ratio = 1.0
+        if not (0.0 < _ratio <= 1.0):
+            _ratio = 1.0
+        swap_out_threshold = round(self.num_gpu_blocks * _ratio)
+        swap_in_threshold = round(
+            swap_out_threshold * self.swap_in_threshold_ratio
+        )
+
+        swap_out_reqs: list = []
+        swap_in_reqs: list = []
+
+        # Step 1 — reserve budget for existing GPU decoding.
+        # We do *not* need the ScheduleBudget object here because the
+        # adapter integration consumes vLLM's own budget. The
+        # gpu_block_needed accumulator is what matters for Step 2/3.
+        gpu_block_needed = sum(
+            self._get_block_needed(r) for r in self.gpu_decoding_q
+        )
+
+        # Step 2 — swap-out (NEO 95-100% threshold).
+        while gpu_block_needed > swap_out_threshold:
+            if not self.gpu_decoding_q:
+                break
+            victim = self.gpu_decoding_q.pop()
+            self.cpu_decoding_q.appendleft(victim)
+            swap_out_reqs.append(victim)
+            gpu_block_needed -= self._get_block_needed(victim)
+
+        # Step 3 — swap-in (hysteresis). Only after the GPU is below
+        # swap_in_threshold do we bring a CPU-resident back. NEO 95%
+        # hysteresis prevents thrashing.
+        while self.cpu_decoding_q:
+            candidate = self.cpu_decoding_q[0]
+            cur_block_needed = self._get_block_needed(candidate)
+            if gpu_block_needed + cur_block_needed > swap_in_threshold:
+                break
+            gpu_block_needed += cur_block_needed
+            swap_in_reqs.append(candidate)
+            self.cpu_decoding_q.popleft()
+            self.gpu_decoding_q.append(candidate)
+
+        # NEO invariant: swap_out and swap_in cannot both fire.
+        assert not swap_out_reqs or not swap_in_reqs, (
+            "NEO Step 2/3 invariant violated"
+        )
+
+        return swap_out_reqs, swap_in_reqs
+
+    # ------------------------------------------------------------------
     # TSK_015 Phase 5.1 — atomic swap helpers + XOR invariant.
     #
     # In NEO's exclusive-ownership model, every active req lives in
