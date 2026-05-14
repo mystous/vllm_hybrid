@@ -190,26 +190,26 @@ flowchart TB
     TSK_019 --> SUB_006["SUB_006<br/>D2.3 BF16↔FP16 cast<br/>🔴 v42 reject"]
 
     %% TSK_019 2차 frame — cdec kernel SIMD/AMX optimizations (Group A + B)
-    TSK_019 --> SUB_007["SUB_007<br/>A1 qk_product reduce<br/>⚪ 대기"]
-    TSK_019 --> SUB_008["SUB_008<br/>A2 outer-scalar SIMD<br/>⚪ 대기"]
-    TSK_019 --> SUB_009["SUB_009<br/>A3 av_product SIMD<br/>⚪ 대기"]
-    TSK_019 --> SUB_010["SUB_010<br/>A4 softmax scalar<br/>⚪ 대기"]
-    TSK_019 --> SUB_011["SUB_011<br/>A5 compiler scheduling<br/>⚪ 대기"]
-    TSK_019 --> SUB_012["SUB_012<br/>A6 OMP task 분배<br/>⚪ 대기"]
-    TSK_019 --> SUB_013["SUB_013<br/>A7 K_TILE_WIDTH unroll<br/>⚪ 대기"]
-    TSK_019 --> SUB_014["SUB_014<br/>B1 BF16 정밀도<br/>⚪ 대기"]
+    TSK_019 --> SUB_007["SUB_007<br/>A1 qk_product outer-SIMD<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_008["SUB_008<br/>A2 outer-scalar SIMD<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_009["SUB_009<br/>A3 av_product SIMD<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_010["SUB_010<br/>A4 softmax SIMD<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_011["SUB_011<br/>A5 compiler scheduling<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_012["SUB_012<br/>A6 OMP task 분배<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_013["SUB_013<br/>A7 K_TILE_WIDTH unroll<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_014["SUB_014<br/>B1 BF16 → FP16<br/>🟢 완료 (verify 2026-05-14)"]
     TSK_019 --> SUB_015["SUB_015<br/>B2 AMX 미사용<br/>⚪ 대기"]
 
     %% TSK_019 3차 frame — NEO 4-layer port (Layer i, ii, iii, iv)
-    TSK_019 --> SUB_016["SUB_016<br/>Layer i: mode selection<br/>⚪ 대기"]
-    TSK_019 --> SUB_017["SUB_017<br/>Layer ii #1: stream + async H2D<br/>⚪ 대기"]
-    SUB_017 --> SUB_018["SUB_018<br/>Layer ii #2: 4-stage interleave<br/>⚪ 대기"]
-    SUB_018 --> SUB_019["SUB_019<br/>Layer ii #3: layer-offset split<br/>⚪ 대기"]
-    TSK_019 --> SUB_020["SUB_020<br/>Layer iii #1: swap path + hysteresis<br/>⚪ 대기"]
+    TSK_019 --> SUB_016["SUB_016<br/>Layer i: mode selection<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_017["SUB_017<br/>Layer ii #1: stream + async H2D<br/>🟢 완료 (verify 2026-05-14)"]
+    SUB_017 --> SUB_018["SUB_018<br/>Layer ii #2: 4-stage interleave<br/>🟢 완료 (verify 2026-05-14)"]
+    SUB_018 --> SUB_019["SUB_019<br/>Layer ii #3: layer-offset split<br/>🟢 완료 (verify 2026-05-14)"]
+    TSK_019 --> SUB_020["SUB_020<br/>Layer iii #1: swap path + hysteresis<br/>🟢 완료 (verify 2026-05-14)"]
     SUB_020 --> SUB_021["SUB_021<br/>Layer iii #2: C ext batched copy<br/>🔴 기각 (-4% 회귀)"]
-    TSK_019 --> SUB_022["SUB_022<br/>Layer iv cdec #1: pinned 1회 alloc<br/>🟠 부분"]
-    SUB_022 --> SUB_023["SUB_023<br/>Layer iv cdec #2: max_workers + GIL<br/>🟠 partial (CW=4 reject)"]
-    SUB_022 --> SUB_024["SUB_024<br/>Layer iv cdec #3: BF16 cast 위치<br/>⚪ 대기"]
+    TSK_019 --> SUB_022["SUB_022<br/>Layer iv cdec #1: pinned 1회 alloc<br/>🟢 완료 (verify 2026-05-14)"]
+    SUB_022 --> SUB_023["SUB_023<br/>Layer iv cdec #2: max_workers + GIL<br/>🔴 기각 (CW=4 -52%, CW=2 sweet spot)"]
+    SUB_022 --> SUB_024["SUB_024<br/>Layer iv cdec #3: BF16 cast 위치<br/>🟢 완료 variant (verify 2026-05-14)"]
 
     %% async swap chain — 본 세션 (2026-05-13~14)
     SUB_017 --> SUB_025["SUB_025<br/>async swap_out + deadlock escape<br/>🟢 완료 (1,800 tps, +187%)"]
@@ -220,8 +220,7 @@ flowchart TB
     SUB_028 --> SUB_030["SUB_030<br/>async swap_in batched<br/>🔴 기각 (-8.4% 회귀)"]
 
     %% pending follow-ups
-    SUB_027 --> SUB_029["SUB_029<br/>gmu 0.93/0.94 sweep<br/>⚪ 대기"]
-    SUB_026 --> SUB_031["SUB_031<br/>staging pool N=5~8<br/>⚪ 대기"]
+    SUB_026 --> SUB_031["SUB_031<br/>staging pool N=5~8<br/>🔴 선제 기각 (slot=2 3%만)"]
     PLN_001 --> TST_001["TST_001<br/>TSK_001 정확도<br/>(A · B(i) · C)"]
     PLN_001 --> TST_004["TST_004<br/>TSK_003 prod SIMD cross-check<br/>(B(ii) AVX-512 + B(iii) AMX)"]
     PLN_001 --> TST_003["TST_003<br/>e2e 통합 정확도<br/>(D-i + D-ii)"]
