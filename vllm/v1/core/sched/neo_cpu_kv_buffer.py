@@ -421,6 +421,12 @@ class NeoCpuKvBuffer:
         k_staged / v_staged shape: ``(num_layers, max_blocks_per_req, ...)``;
         only the first ``n_blocks`` columns are valid.
         """
+        # SUB_021 (C extension OMP scatter) 기각 (2026-05-14): per-call
+        # 가속 (sync 46→39ms, async 143→119ms) 였으나 전체 throughput
+        # -4% 회귀. 원인: cdec executor 의 OMP=10 thread 와 동시 spawn
+        # 시 20 threads × 12 cores 경합 → cdec compute 가 critical path
+        # 에서 손해. ATen 의 vectorized index_put_ 가 naive memcpy OMP
+        # 보다 빠른 것으로 판명. Python 원본 복원.
         block_ids = self.get_block_ids(req_id)
         if block_ids is None:
             raise ValueError(

@@ -448,6 +448,12 @@ class GPUModelRunner(
         self._neo_swap_staging_v_list: list = []   # list[torch.Tensor]
         self._neo_pending_dma_infos: list = []     # list[dict] (각 info 가
         # 'slot_idx' 키로 자신 의 staging 위치 보유; drain 시 모두 처리)
+        # SUB_028: sync swap_out 가속 — batched gather + single H2D 용
+        # pinned CPU staging (per-worker 1개). 메모리 320 MiB × 2 (K+V) =
+        # 640 MiB pinned/worker. async pool 과 동일 shape.
+        # env: VLLM_NEO_SYNC_SWAP_BATCHED=1 (default ON, =0 시 구 per-layer).
+        self._neo_sync_swap_staging_k = None  # torch.Tensor | None
+        self._neo_sync_swap_staging_v = None  # torch.Tensor | None
 
         model_config = self.model_config
         cache_config = self.cache_config
@@ -6789,14 +6795,124 @@ class GPUModelRunner(
             # `current_stream.wait_stream(cpu_communication_stream)` 동등.
             torch.cuda.current_stream().wait_stream(swap_stream)
 
+    def _neo_init_sync_swap_staging(self) -> bool:
+        """Lazy-init pinned CPU staging buffer for SYNC swap_out batched H2D.
+
+        SUB_028: per-worker 1 pair (K + V), 320 MiB each → 640 MiB total.
+        async pool 과 별도 — sync path 가 동시에 쓰는 일 없음 (한 step 내
+        sync 는 직렬 처리, 다음 sync 시점에는 이미 H2D + scatter 끝남).
+        """
+        if self._neo_sync_swap_staging_k is not None:
+            return True
+        buf = self._neo_cpu_kv_buffer
+        if buf is None:
+            return False
+        spec = buf.spec
+        max_blocks = (
+            (self.model_config.max_model_len + spec.block_size - 1)
+            // spec.block_size
+        )
+        shape = (
+            spec.num_layers, max_blocks,
+            spec.num_kv_heads, spec.block_size, spec.head_dim,
+        )
+        try:
+            self._neo_sync_swap_staging_k = torch.empty(
+                shape, dtype=spec.dtype, pin_memory=True
+            )
+            self._neo_sync_swap_staging_v = torch.empty(
+                shape, dtype=spec.dtype, pin_memory=True
+            )
+            logger.info(
+                "[NEO] sync swap staging alloc (SUB_028): shape=%s "
+                "%.1f MiB each (K+V=%.1f MiB pinned)",
+                shape,
+                self._neo_sync_swap_staging_k.nbytes / 1024 ** 2,
+                self._neo_sync_swap_staging_k.nbytes * 2 / 1024 ** 2,
+            )
+            return True
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "[NEO] sync swap staging alloc failed (%s) — per-layer fallback",
+                e,
+            )
+            self._neo_sync_swap_staging_k = None
+            self._neo_sync_swap_staging_v = None
+            return False
+
     def _neo_swap_out_one_req(
         self,
         req_id: str,
         gpu_block_ids: list[int],
     ) -> None:
-        """Per-layer copy of one req's KV from vLLM GPU caches to NEO
-        CPU buffer. ``gpu_block_ids`` are indices into the per-layer
-        ``self.kv_caches[layer]`` 2-component tensor (K + V)."""
+        """SUB_028 v2: batched sync swap_out via direct H2D pipelining.
+
+        v1 (GPU 중간 staging) 가 4× 느려진 원인 — 640 MiB GPU temp alloc
+        매 호출 KV cache 와 경합. v2 fix: GPU intermediate 제거, 80 layer
+        모두 *직접* pinned CPU staging 에 ``non_blocking=True`` H2D, 한 번의
+        end-sync. PCIe pipeline 가 80 transfers 를 단일 link 위에 packing.
+
+        env: ``VLLM_NEO_SYNC_SWAP_BATCHED=1`` (default ON).
+        Fallback (per-layer 80× blocking .cpu()): staging alloc fail,
+        n > staging cap, env=0.
+        """
+        import os as _os_sync
+        if _os_sync.environ.get(
+            "VLLM_NEO_SYNC_SWAP_BATCHED", "1"
+        ) != "1":
+            return self._neo_swap_out_one_req_perlayer(req_id, gpu_block_ids)
+        if not self._neo_init_sync_swap_staging():
+            return self._neo_swap_out_one_req_perlayer(req_id, gpu_block_ids)
+        buf = self._neo_cpu_kv_buffer
+        spec = buf.spec
+        nlayers = len(self.kv_caches)
+        n = len(gpu_block_ids)
+        if n > self._neo_sync_swap_staging_k.shape[1]:
+            logger.warning(
+                "[NEO] sync_batched: n_blocks=%d > staging cap=%d — fallback",
+                n, self._neo_sync_swap_staging_k.shape[1],
+            )
+            return self._neo_swap_out_one_req_perlayer(req_id, gpu_block_ids)
+        gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
+                               device=self.device)
+        # Direct H2D pipeline — 80 transfers 를 swap_stream 에 queue 후
+        # 한 번에 sync. PyTorch 가 cudaMemcpyAsync 를 pinned dst 영역에
+        # 적재 → PCIe link 가 sequential 하게 처리 (소요 ~10-30ms 전체).
+        # GPU 중간 tensor 미사용 — kv_caches 의 block view 가 source 그대로.
+        k_stage = self._neo_sync_swap_staging_k
+        v_stage = self._neo_sync_swap_staging_v
+        for layer in range(nlayers):
+            kv = self.kv_caches[layer]
+            if kv is None:
+                continue
+            k_b = kv[0][gpu_idx]
+            v_b = kv[1][gpu_idx]
+            if k_b.dim() == 4 and k_b.shape[1] != spec.num_kv_heads:
+                k_b = k_b.permute(0, 2, 1, 3).contiguous()
+                v_b = v_b.permute(0, 2, 1, 3).contiguous()
+            if k_b.dtype != spec.dtype:
+                k_b = k_b.to(spec.dtype)
+                v_b = v_b.to(spec.dtype)
+            # Async H2D into pinned staging — non-blocking, all 80 queued
+            # on swap_stream sequentially. PyTorch lowering = pinned-dst
+            # cudaMemcpyAsync (fast path).
+            k_stage[layer, :n].copy_(k_b, non_blocking=True)
+            v_stage[layer, :n].copy_(v_b, non_blocking=True)
+        # Single sync at end — wait for all 80 layer transfers.
+        torch.cuda.current_stream().synchronize()
+        # Phase 3 — CPU scatter (RLock-protected, no GPU ops).
+        buf.copy_all_layers_in_from_staged(
+            req_id, k_stage, v_stage, n,
+        )
+
+    def _neo_swap_out_one_req_perlayer(
+        self,
+        req_id: str,
+        gpu_block_ids: list[int],
+    ) -> None:
+        """Per-layer copy (80× H2D). Fallback path used when batched
+        sync staging unavailable or via env override. Original sync
+        swap_out implementation, preserved for safety."""
         buf = self._neo_cpu_kv_buffer
         nlayers = len(self.kv_caches)
         gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
@@ -6890,6 +7006,14 @@ class GPUModelRunner(
             v_gpu = v_cpu.to(device=self.device, dtype=kv.dtype)
             kv[0][gpu_idx] = k_gpu
             kv[1][gpu_idx] = v_gpu
+
+    # SUB_030 (async swap_in batched H2D) 기각 (2026-05-14):
+    # eval/results/20260514_092412_hyp500_swap_in_batched/ 측정 결과
+    # -8.4% 회귀. ``copy_layer_out`` 의 advanced indexing 결과 가 pinned
+    # 속성 전파 안 함 → ``non_blocking=True`` 가 pageable fallback path
+    # 발화 + ``_pending_cpu`` reference list 메모리 부하. 원본 per-layer
+    # 패턴 복원. 추후 대안 (pinned staging 사전 copy + cudaMemcpyAsync)
+    # 는 SUB_028 sync 와 같이 critical path 외 영역이라 효과 한계 예상.
 
     # ------------------------------------------------------------------
     # NEO PerfPredictor — engine-side measure_fn (TSK_017 Step 1.5).
