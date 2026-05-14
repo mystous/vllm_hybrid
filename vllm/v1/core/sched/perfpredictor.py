@@ -73,6 +73,88 @@ class ZeroPerfPredictor(PerfPredictor):
         return 0.0
 
 
+class HeuristicPerfPredictor(PerfPredictor):
+    """[Plan v4 D14] Interp-free heuristic predictor.
+
+    NEO 의 진짜 design (paper MLSys 2025) 의 *load-aware scheduling*
+    활성화에는 ``_get_remains`` 가 *비제로* 값을 반환해야 함. 그러나
+    ``TablePerfPredictor`` 는 ``ModelProfiler`` 의 perf table 미작성
+    상태에서 사용 불가하고, ``ZeroPerfPredictor`` 는 항상 0 반환 →
+    ``decide_mode`` 가 *항상 sequential* 폴백.
+
+    본 class 는 *interp 없는 상수 시간* 산술 만 사용 — v31 deadlock root
+    (perfpredictor._interp_1d hot path) 회피. 매 step 호출 비용 < 1µs.
+
+    상수는 H100 typical / Llama-70B 기반 추정. env override 로 조정 가능.
+
+    NOTE: 본 predictor 가 *정확* 한 시간 예측은 아님. ``_get_remains``
+    가 GPU/CPU load 의 *상대적* 차이를 반영해서 sub-batch 할당을
+    유도하는 게 목적. 절대값보다 *비율* 이 중요.
+    """
+
+    def __init__(self) -> None:
+        import os
+        # 상수 (H100 typical, Llama-70B):
+        # - linr / pref / gdec 는 GPU 측 — per-token sub-ms
+        # - cdec 는 CPU pacpu kernel — paper 의 200x slow 영역 (per-token-pair µs 영역)
+        # - lnch 는 kernel dispatch overhead constant
+        self.linr_per_token_ms = float(os.environ.get(
+            "VLLM_NEO_HEURISTIC_LINR_PER_TOKEN_MS", "0.05"
+        ))
+        self.pref_per_token_ms = float(os.environ.get(
+            "VLLM_NEO_HEURISTIC_PREF_PER_TOKEN_MS", "0.10"
+        ))
+        self.gdec_per_token_ms = float(os.environ.get(
+            "VLLM_NEO_HEURISTIC_GDEC_PER_TOKEN_MS", "0.001"
+        ))
+        # cdec 의 비용 모델 — S 개 sequence × 평균 N tokens, CPU 200x slow
+        # 가정 + sequential. paper 의 cdec_T = α * S * N_avg.
+        self.cdec_per_token_pair_ms = float(os.environ.get(
+            "VLLM_NEO_HEURISTIC_CDEC_PER_TOKEN_PAIR_MS", "0.0005"
+        ))
+        self.lnch_ms = float(os.environ.get(
+            "VLLM_NEO_HEURISTIC_LNCH_MS", "0.5"
+        ))
+
+    def get_linr_T(self, S: int) -> float:
+        return float(S) * self.linr_per_token_ms
+
+    def get_pref_T(self, S: int) -> float:
+        return float(S) * self.pref_per_token_ms
+
+    def get_gdec_T(self, N: int) -> float:
+        return float(N) * self.gdec_per_token_ms
+
+    def get_cdec_T(self, S: int, N: int) -> float:
+        # CPU pacpu kernel: per-token-pair (S × N) 비용
+        # S = batch_size (sequences), N = total KV tokens
+        return float(S) * float(N) * self.cdec_per_token_pair_ms
+
+    def get_lnch_T(self) -> float:
+        return self.lnch_ms
+
+
+def make_predictor_from_env(vllm_config) -> PerfPredictor:
+    """[Plan v4 D14] env 기반 predictor factory.
+
+    env ``VLLM_NEO_PREDICTOR`` ∈ ``{heuristic, zero, table}``:
+    - ``heuristic`` (default): interp-free 상수 시간. load-aware 활성화.
+    - ``zero``: 모두 0. ``decide_mode`` sequential 폴백.
+    - ``table``: ``TablePerfPredictor``. ``ModelProfiler`` 적재 후 사용
+      (현재 미적재, 사용 시 _interp_1d hot path 위험).
+
+    NeoSchedulerAdapter 에서 호출.
+    """
+    import os
+    choice = os.environ.get("VLLM_NEO_PREDICTOR", "heuristic").lower()
+    if choice == "zero":
+        return ZeroPerfPredictor()
+    if choice == "table":
+        return TablePerfPredictor(vllm_config)
+    # default: heuristic
+    return HeuristicPerfPredictor()
+
+
 class TablePerfPredictor(PerfPredictor):
     """Table-based predictor with linear interpolation.
 

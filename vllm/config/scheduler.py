@@ -163,6 +163,16 @@ class SchedulerConfig:
 
     See ``shadow_assists/features/IDE_006/NEO_redesign.md``."""
 
+    enable_neo_force_pipelined: bool = False
+    """[TSK_019 v3 / Phase A-0] When True, NEO mode_selector 가 cdec_q
+    empty 시에도 pipelined path 를 시도 (fast-path 의 sequential 폴백
+    회피). 본 flag 는 ``enable_neo_asymmetric=True`` 와 결합 시에만
+    의미. Default False — opt-in (안전 우선). 활성화 시에도 GPU memory
+    가 부족하면 sequential 자동 폴백.
+
+    Kill switch: ``VLLM_NEO_DISABLE_FORCE_PIPELINED=1`` env var 가
+    set 되면 본 flag 의 효과 무시 (긴급 회피 path)."""
+
     kv_cache_policy: Literal["mirror", "exclusive"] = "mirror"
     """KV cache ownership policy (IDE_006 / TSK_015).
 

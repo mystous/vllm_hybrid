@@ -117,6 +117,7 @@ class NeoScheduler:
         predictor: PerfPredictor | None = None,
         linr_S_threshold: int = 128,
         swap_in_threshold_ratio: float = 0.95,
+        force_pipelined: bool = False,
     ) -> None:
         self.max_batch_size = max_batch_size
         self.max_tokens_in_batch = max_tokens_in_batch
@@ -127,6 +128,9 @@ class NeoScheduler:
         self.predictor: PerfPredictor = predictor or ZeroPerfPredictor()
         self.linr_S_threshold = linr_S_threshold
         self.swap_in_threshold_ratio = swap_in_threshold_ratio
+        # [TSK_019 v3 / Phase A-0] caller (adapter) 가
+        # ``scheduler_config.enable_neo_force_pipelined`` 기반 set.
+        self.force_pipelined = force_pipelined
 
         self.waiting_q: deque[_ReqLike] = deque()
         self.gpu_decoding_q: list[_ReqLike] = []
@@ -150,6 +154,78 @@ class NeoScheduler:
     # ------------------------------------------------------------------
     def _get_block_needed(self, req: _ReqLike) -> int:
         return _cdiv(req.num_tokens, self.block_size)
+
+    # ------------------------------------------------------------------
+    # IDE_006 Phase 4.2 — Step 2/3 only helper. Allows the
+    # NeoSchedulerAdapter to invoke the NEO 정통 swap-out + swap-in
+    # logic without paying the perfpredictor hot-path cost (v31 deadlock
+    # root). Step 4-6 (prefill classify, decide_mode, waiting_q
+    # promote) are *not* run — they require the perfpredictor and are
+    # handled by the vLLM default scheduler in the adapter integration.
+    # Returns (swap_out_reqs, swap_in_reqs) so the adapter can attach
+    # them to its SchedulerOutput. Side-effects: gpu_decoding_q /
+    # cpu_decoding_q updated in place per NEO semantics.
+    # ------------------------------------------------------------------
+    def step_2_3_only(self) -> tuple[list, list]:
+        """Run only NEO Step 2 (swap-out) + Step 3 (swap-in). Returns
+        (swap_out_reqs, swap_in_reqs) lists, both _ReqLike views.
+
+        Caller (NeoSchedulerAdapter) is responsible for:
+        - Pre-populating self.gpu_decoding_q via _sync_neo_gpu_decoding_q.
+        - Mapping the returned victim views to vLLM request ids and
+          calling _neo_swap_out / _neo_swap_in for each.
+        """
+        import os as _os
+        try:
+            _ratio = float(_os.environ.get("VLLM_NEO_SWAP_OUT_RATIO", "1.0"))
+        except ValueError:
+            _ratio = 1.0
+        if not (0.0 < _ratio <= 1.0):
+            _ratio = 1.0
+        swap_out_threshold = round(self.num_gpu_blocks * _ratio)
+        swap_in_threshold = round(
+            swap_out_threshold * self.swap_in_threshold_ratio
+        )
+
+        swap_out_reqs: list = []
+        swap_in_reqs: list = []
+
+        # Step 1 — reserve budget for existing GPU decoding.
+        # We do *not* need the ScheduleBudget object here because the
+        # adapter integration consumes vLLM's own budget. The
+        # gpu_block_needed accumulator is what matters for Step 2/3.
+        gpu_block_needed = sum(
+            self._get_block_needed(r) for r in self.gpu_decoding_q
+        )
+
+        # Step 2 — swap-out (NEO 95-100% threshold).
+        while gpu_block_needed > swap_out_threshold:
+            if not self.gpu_decoding_q:
+                break
+            victim = self.gpu_decoding_q.pop()
+            self.cpu_decoding_q.appendleft(victim)
+            swap_out_reqs.append(victim)
+            gpu_block_needed -= self._get_block_needed(victim)
+
+        # Step 3 — swap-in (hysteresis). Only after the GPU is below
+        # swap_in_threshold do we bring a CPU-resident back. NEO 95%
+        # hysteresis prevents thrashing.
+        while self.cpu_decoding_q:
+            candidate = self.cpu_decoding_q[0]
+            cur_block_needed = self._get_block_needed(candidate)
+            if gpu_block_needed + cur_block_needed > swap_in_threshold:
+                break
+            gpu_block_needed += cur_block_needed
+            swap_in_reqs.append(candidate)
+            self.cpu_decoding_q.popleft()
+            self.gpu_decoding_q.append(candidate)
+
+        # NEO invariant: swap_out and swap_in cannot both fire.
+        assert not swap_out_reqs or not swap_in_reqs, (
+            "NEO Step 2/3 invariant violated"
+        )
+
+        return swap_out_reqs, swap_in_reqs
 
     # ------------------------------------------------------------------
     # TSK_015 Phase 5.1 — atomic swap helpers + XOR invariant.
@@ -231,24 +307,35 @@ class NeoScheduler:
         budget.remaining_batch_size -= len(self.gpu_decoding_q)
         budget.remaining_tokens_in_batch -= len(self.gpu_decoding_q)
 
-        # Step 2 — IDE_006 / TSK_015 4.5.2.c architectural fix —
-        # NEO 의 자체 swap_out logic 제거. KV pressure 시 swap_out 결정은
-        # vLLM 의 standard preempt path 가 자동 발화. vLLM scheduler 의
-        # ``_preempt_request`` 가 NEO 활성 + decode 단계 시 ``_neo_swap_out``
-        # 으로 위임 (KV CPU copy + status SWAPPED_OUT + RUNNING 잔류).
-        # 즉 NEO 는 자체 KV pressure 추산 / victim 선택 / state 변경 모두
-        # 안 하고 vLLM 의 표준 path 활용. cdec_reqs 의 source 는 vLLM 의
-        # SWAPPED_OUT 상태 reqs (mode_selector 가 그것을 cdec 으로 처리).
-        #
-        # 13 단계 progressive 우회 fix 의 *진정한 대체*: NEO state machine
-        # 과 vLLM state machine 의 desync 자체 제거.
+        # Step 2 — TSK_019 SUB_020: NEO 자체 swap_out logic 활성.
+        # vLLM ``_preempt_request`` 의 NEO hook (KV ENOMEM 직전 1 회) 과
+        # *별도* — NEO 측 95% threshold 도달 시 자연 발화. 두 source 가
+        # OR 발화하나 같은 ``_neo_swap_out`` path 로 합류 → race 회피.
+        while budget.overspent or gpu_block_needed > swap_out_threshold:
+            if not self.gpu_decoding_q:
+                break
+            victim = self.gpu_decoding_q.pop()
+            self.cpu_decoding_q.appendleft(victim)
+            swap_out_reqs.append(victim)
+            gpu_block_needed -= self._get_block_needed(victim)
+            budget.add(1)
         self._assert_exclusive_invariant(where="step2")
 
-        # Step 3 — IDE_006 / TSK_015 4.5.2.c architectural fix —
-        # NEO 의 자체 swap_in logic 제거. SWAPPED_OUT reqs 의 GPU 복귀는
-        # vLLM scheduler.schedule() 의 line 386 영역 path (B-2.b 변경)
-        # 가 처리 — SWAPPED_OUT 도 schedule 시도 + KV alloc dummy success
-        # + cdec dispatch path 활성. swap_in 별도 발화 불필요.
+        # Step 3 — TSK_019 SUB_020: NEO 자체 swap_in logic 활성.
+        # hysteresis = swap_in_threshold (= swap_out_threshold * 0.95) —
+        # thrashing 회피. cpu_decoding_q 의 head 부터 KV pressure 회복
+        # 시점에 GPU 로 복귀.
+        while self.cpu_decoding_q:
+            candidate = self.cpu_decoding_q[0]
+            cur_block_needed = self._get_block_needed(candidate)
+            if (gpu_block_needed + cur_block_needed > swap_in_threshold
+                    or not budget.check_and_substract(1)):
+                break
+            gpu_block_needed += cur_block_needed
+            swap_in_reqs.append(candidate)
+            self.cpu_decoding_q.popleft()
+            self.gpu_decoding_q.append(candidate)
+        assert not swap_out_reqs or not swap_in_reqs
         self._assert_exclusive_invariant(where="step3")
 
         # Step 4 — classify newly arrived prefills (GPU first, then CPU)
@@ -289,6 +376,7 @@ class NeoScheduler:
             num_layers=self.num_layers,
             num_gpu_blocks=self.num_gpu_blocks,
             linr_S_threshold=self.linr_S_threshold,
+            force_pipelined=self.force_pipelined,
         )
 
         # Step 6 — actually promote the chosen prefills out of waiting_q

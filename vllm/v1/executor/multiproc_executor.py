@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+import faulthandler  # [D-phase1] silent SEGV stack trap
 import multiprocessing
 import os
 import pickle
 import queue
 import signal
+import sys  # [D-phase1] faulthandler file=sys.stderr
 import threading
 import time
 import traceback
@@ -475,6 +477,13 @@ class MultiprocExecutor(Executor):
     def max_concurrent_batches(self) -> int:
         # PP requires PP-size concurrent batches to fill the pipeline.
         pp_size = self.parallel_config.pipeline_parallel_size
+        # TSK_019 plan B fix — NEO 활성 시 async batch_queue 비활성.
+        # async_scheduling=True + max_concurrent_batches=2 환경에서
+        # step N 의 swap_out copy 와 step N+1 의 schedule() 가 동시
+        # 진행 → block_id 재할당 race → GPU MMU error (Xid 94) 의 root.
+        # NEO 활성 시 직렬 step 으로 race 회피.
+        if getattr(self.scheduler_config, "enable_neo_asymmetric", False):
+            return pp_size if pp_size > 1 else 1
         return 2 if pp_size <= 1 and self.scheduler_config.async_scheduling else pp_size
 
     def _get_output_rank(self) -> int:
@@ -810,6 +819,12 @@ class WorkerProc:
         # Either SIGTERM or SIGINT will terminate the worker
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
+
+        # [D-phase1 step1 검증] faulthandler.enable 임시 비활성 — 이전
+        # Phase 1+2 v2 의 crash 0 결과 가 *faulthandler 부수 효과* 인지
+        # *환경 차이* 인지 분리 측정. env VLLM_DEBUG_FAULTHANDLER=1 시만 활성.
+        if os.environ.get("VLLM_DEBUG_FAULTHANDLER", "0") == "1":
+            faulthandler.enable(file=sys.stderr, all_threads=True)
 
         worker = None
         ready_writer = kwargs.pop("ready_pipe")

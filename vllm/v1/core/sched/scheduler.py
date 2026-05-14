@@ -64,6 +64,34 @@ from vllm.v1.utils import record_function_or_nullcontext
 logger = init_logger(__name__)
 
 
+# [TSK_019 v3 / Phase A-2] try22 skip 제어. Module-level cached.
+# Kill switch env: ``VLLM_NEO_DISABLE_CHAIN=1`` → skip 강제 활성 (vanilla
+# preempt 등가 안전 path). Default off → chain firing 활성.
+import os as _os_neo_chain  # noqa: E402
+
+_NEO_CHAIN_SKIP_ENABLED_CACHED: bool | None = None
+
+
+def _neo_chain_skip_enabled() -> bool:
+    """Return True if try22 SWAPPED_OUT skip should be applied (= chain disabled).
+
+    Default False (chain enabled). Set ``VLLM_NEO_DISABLE_CHAIN=1`` to
+    force-enable skip (긴급 회피 — chain 비활성, vanilla 등가).
+    """
+    global _NEO_CHAIN_SKIP_ENABLED_CACHED  # noqa: PLW0603
+    if _NEO_CHAIN_SKIP_ENABLED_CACHED is None:
+        _NEO_CHAIN_SKIP_ENABLED_CACHED = (
+            _os_neo_chain.environ.get("VLLM_NEO_DISABLE_CHAIN") == "1"
+        )
+        if _NEO_CHAIN_SKIP_ENABLED_CACHED:
+            logger.warning(
+                "[NEO Phase A-2] VLLM_NEO_DISABLE_CHAIN=1 detected — "
+                "try22 SWAPPED_OUT skip 강제 활성. NEO chain 비활성 "
+                "(vanilla preempt 등가)."
+            )
+    return _NEO_CHAIN_SKIP_ENABLED_CACHED
+
+
 class Scheduler(SchedulerInterface):
     def __init__(
         self,
@@ -389,24 +417,36 @@ class Scheduler(SchedulerInterface):
         # vllm 의 standard schedule path 가 SWAPPED_OUT 영구 잔류 안 시킴.
         # _neo_swap_in 자체가 KV alloc 시도 후 fail 시 False 반환 → 더
         # 이상 swap_in 안 함 (KV 압력 균형).
-        if self.scheduler_config.enable_neo_asymmetric:
-            for req in list(self.running):
-                if req.status != RequestStatus.SWAPPED_OUT:
-                    continue
-                if not self._neo_swap_in(req, scheduled_timestamp):
-                    # KV alloc fail — 더 이상 swap_in 안 함 (KV 부족).
-                    break
+        # TSK_019 plan B-NEW 진짜 fix — auto-swap-in 제거.
+        # 기존: 본 영역에서 _neo_swap_in 호출 → KV alloc + status RUNNING
+        # 변경 → output.neo_swap_in_req_ids 에 attach 안 함 → worker
+        # 가 KV CPU→GPU copy 안 함 → input_batch.block_table.np[req_idx]
+        # stale → cross-req KV contamination → CUDA device-side assert
+        # → silent worker crash (try10~try15 의 root).
+        # Fix: 본 auto path 폐기. 모든 swap-in 결정을 adapter
+        # (`neo_scheduler_adapter.py:625-666`) 의 predictive 영역에 일원화.
+        # adapter 가 swap_in_req_ids attach + req_to_new_blocks populate.
 
         # First, schedule the RUNNING requests.
         req_index = 0
         while req_index < len(self.running) and token_budget > 0:
             request = self.running[req_index]
 
-            # IDE_006 / TSK_015.B-2.b — SWAPPED_OUT req 도 정상 schedule.
-            # KVCacheManager.allocate_slots 가 SWAPPED_OUT 시 dummy empty
-            # success 반환 (KV 가 CPU 에 있으므로 GPU 새 alloc 안 함).
-            # attention backend 의 unified_attention_with_output 가 cdec
-            # dispatch hook 으로 CPU pacpu 사용 (Step3.2.c).
+            # [TSK_019 v3 / Phase A-2] try22 SWAPPED_OUT outer-loop skip —
+            # default OFF (chain firing 활성화). 직전 v1.2 의 unconditional
+            # skip 이 cdec_ids 를 비워 chain 미발화 root 였음 (try44 P2=4,207).
+            # try45 측정에서 skip 제거 후 AssertionError 0 회 입증 (invariant
+            # 가 실제 block 아님).
+            #
+            # Kill switch: ``VLLM_NEO_DISABLE_CHAIN=1`` env 시 skip 강제 활성
+            # → vanilla preempt 등가 (try44 안전 path).
+            if (
+                self.scheduler_config.enable_neo_asymmetric
+                and request.status == RequestStatus.SWAPPED_OUT
+                and _neo_chain_skip_enabled()
+            ):
+                req_index += 1
+                continue
 
             if (
                 request.num_output_placeholders > 0
@@ -429,6 +469,86 @@ class Scheduler(SchedulerInterface):
                 + request.num_output_placeholders
                 - request.num_computed_tokens
             )
+            # [Plan v4 D10] try60-γ ~ try66 누적 분석 결과 — 진짜 SEGV root.
+            # D5 분기는 num_new_tokens=0 인 corner case 만 처리하지만, 대부분의
+            # SWAPPED_OUT reqs 는 num_tokens_with_spec / num_output_placeholders
+            # 의 영향으로 *원래부터* num_new_tokens > 0 으로 schedule 됨 →
+            # cdec_ids 추출 대상 → cdec dispatch → pacpu store_kv 의
+            # block_pos = (seq_len-1)/BLOCK_SIZE 가 swap-out 시점 block_count
+            # 초과 → block_table OOB → memcpy SIGSEGV.
+            # D10 fix: D5 분기 *외부* 에 *모든* SWAPPED_OUT reqs 의
+            # num_new_tokens 를 safe_max 너머로 가지 못하게 clamp.
+            # adapter._neo_swap_out hook 에서 stash 한
+            # _neo_swap_out_safe_max_computed 가 기준선.
+            if (request.status == RequestStatus.SWAPPED_OUT
+                    and self.scheduler_config.enable_neo_asymmetric):
+                _safe_max_d10 = getattr(
+                    request, "_neo_swap_out_safe_max_computed", None,
+                )
+                # [Plan v4 Option K] D10 가드 완화 분기 — mirror 의
+                # SWAPPED_OUT reqs 가 D10 가드로 num_new_tokens=0 클램프되어
+                # scheduler.py:573 의 ``continue`` 로 output 제외 → adapter
+                # 의 Option C/A cdec_ids 추출이 fire 영역 진입 불가.
+                # Option K 활성 시: _max_allowed_d10 <= 0 영역도 *1* 부여
+                # → output 포함 → cdec_ids 추출 영역 진입 가능. SEGV 회피는
+                # ``attention.py:798-880`` 의 D11 dynamic precheck 가 pacpu
+                # kernel 직전 block_pos OOB 검증 + skip 으로 보장.
+                # env: VLLM_NEO_OPTION_K (default 0).
+                _option_k_d10 = (_os_neo_chain.environ.get(
+                    "VLLM_NEO_OPTION_K", "0") == "1")
+                if _safe_max_d10 is not None:
+                    _max_allowed_d10 = (
+                        _safe_max_d10 - request.num_computed_tokens
+                    )
+                    if _max_allowed_d10 <= 0:
+                        # 안전 영역 도달 — decode 보류 (default) 또는
+                        # Option K 활성 시 1 부여 (D11 precheck 의존).
+                        num_new_tokens = 1 if _option_k_d10 else 0
+                    elif num_new_tokens > _max_allowed_d10:
+                        # 안전 영역 안에서만 부분 decode
+                        num_new_tokens = _max_allowed_d10
+                elif request.num_computed_tokens > 0:
+                    # stash 안 된 다른 swap-out path (predictive 등) —
+                    # safe_max 모르므로 default 보류, Option K 시 1.
+                    num_new_tokens = 1 if _option_k_d10 else 0
+            # [Plan v4 D5] SWAPPED_OUT decode req 가 num_new_tokens=0 인 경우
+            # cdec dispatch 를 통해 1 token decode 진행 가능. 명시적 1 부여.
+            # 본 fix 가 scheduler 의 num_scheduled_tokens 에 SWAPPED_OUT
+            # reqs 가 포함되도록 함 → adapter cdec_ids 추출 → fork chain 활성.
+            # NEO 의 *bidirectional migration loop* 의 결정적 enabler.
+            #
+            # [Plan v4 D8] block_count 가드 — try60-γ/62/63 SEGV root 회피.
+            # mirror 잔류 SWAPPED_OUT decode req 가 매 step 1 token 진행하면
+            # seq_len 누적 → pacpu store_kv 의 block_pos = (seq_len-1)/BLOCK_SIZE
+            # 가 swap-out 시점 block_count*BLOCK_SIZE 를 초과 → block_table OOB
+            # → garbage block_id → invalid cache_off → memcpy SIGSEGV.
+            # _neo_swap_out_safe_max_computed 는 adapter 의 _neo_swap_out
+            # hook 에서 stash 됨 (swap-out 시점 block_count*BLOCK_SIZE - 1).
+            # num_computed 가 본 값 이하일 때만 num_new_tokens=1 부여.
+            # 너머면 0 유지 → decode 보류 → seq_len 동결 → SEGV 회피.
+            if (num_new_tokens == 0
+                    and request.status == RequestStatus.SWAPPED_OUT
+                    and self.scheduler_config.enable_neo_asymmetric):
+                # [Plan v4 D9] D5 kill switch — try60-γ/61/62/63/64/65 의
+                # SEGV 누적 분석 결과, D5 의 SWAPPED_OUT decode 진행이
+                # SEGV 의 *trigger* (mirror 잔류 reqs 의 seq_len 누적 +
+                # swap_in 직후 KV transition race). D9 = D5 비활성 가능.
+                # VLLM_NEO_DISABLE_D5=1 → SWAPPED_OUT reqs 의 num_new_tokens=1
+                # 부여 보류 → cdec dispatch trigger 없음 → SEGV 0.
+                # 19 항목 중 cdec/fork chain 영역 (#2/#7/#9~#13) 은
+                # ❌ 가 되지만 #1/#5/#14/#18/#19 (KV 메커니즘 / deadlock-free)
+                # 는 ✅ 유지. v4 ground rule "vanilla 회귀 금지" 우선.
+                import os as _os_d9
+                if _os_d9.environ.get("VLLM_NEO_DISABLE_D5") != "1":
+                    _safe_max_d8 = getattr(
+                        request, "_neo_swap_out_safe_max_computed", None,
+                    )
+                    # [Plan v4 D8 v2] fallback 거부 — stash 없는 reqs 는
+                    # D5 fix 미발동 (안전 우선). swap-out path 의 모든
+                    # 진입점이 stash 한다는 보장 없음.
+                    if (_safe_max_d8 is not None
+                            and request.num_computed_tokens < _safe_max_d8):
+                        num_new_tokens = 1
             if 0 < self.scheduler_config.long_prefill_token_threshold < num_new_tokens:
                 num_new_tokens = self.scheduler_config.long_prefill_token_threshold
             num_new_tokens = min(num_new_tokens, token_budget)
@@ -1128,13 +1248,23 @@ class Scheduler(SchedulerInterface):
         assert request.status == RequestStatus.RUNNING, (
             f"Only running requests can be NEO-swapped-out; got {request.status}"
         )
-        # Reclaim GPU KV blocks. CPU copy is held by the worker-side
-        # NeoCpuKvBuffer keyed by request_id.
-        self.kv_cache_manager.free(request)
-        # Encoder cache is typically empty post-prefill; defensive free
-        # is a no-op when already cleared.
+        # TSK_019 Path A (Defer free pattern) — silent crash root fix.
+        # 기존: kv_cache_manager.free 호출이 *worker D2H copy 시작 전*에
+        # block_pool.free_blocks 로 GPU block 즉시 반환 → 같은 step 의
+        # super().schedule() 의 allocate_slots 가 *즉시 재할당* →
+        # worker _neo_swap_out_one_req 가 invalid GPU memory access
+        # (Xid 94 GPU MMU error).
+        # Fix: free 호출 제거. 대신 engine/core._handle_neo_swaps 가
+        # worker D2H 완료 *후* deferred free 진행. NEO 본가 의
+        # `_initiate_swap` (block_manager.py:188-192) atomic free+alloc
+        # invariant 의 vllm_hybrid timing 차원 재현.
+        # Encoder cache 만 즉시 free (KV race 와 무관, post-prefill empty).
         self.encoder_cache_manager.free(request)
         request.status = RequestStatus.SWAPPED_OUT
+        # Deferred free 추적 — step() 끝에서 실제 free 발화.
+        if not hasattr(self, "_neo_deferred_free_reqs"):
+            self._neo_deferred_free_reqs = []
+        self._neo_deferred_free_reqs.append(request)
         # num_computed_tokens / spec_token_ids / num_preemptions 보존.
         if self.log_stats and timestamp is not None:
             # Reuse PREEMPTED event type until a dedicated SWAPPED_OUT

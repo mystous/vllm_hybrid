@@ -262,6 +262,11 @@ class SchedulerOutput:
     neo_sub_batches: list[list[str]] | None = None
     neo_swap_in_req_ids: list[str] | None = None
     neo_swap_out_req_ids: list[str] | None = None
+    # TSK_019 plan A4 fix — predictive trigger 가 _preempt_request 호출
+    # *전* 에 victim 의 GPU block_ids 를 추출 + 본 dict 에 attach. worker
+    # 가 swap-out 시 본 dict 에서 block_ids 가져옴 (kv_cache_manager.free
+    # 호출 후에는 _get_req_gpu_block_ids 가 None 반환 — chain break root).
+    neo_swap_out_block_ids: dict[str, list[int]] | None = None
     # IDE_006 / TSK_015 4.5 / TSK_018 3.1 — per-sub-batch (start, end)
     # row range that the cdec rows occupy within each sub-batch's
     # contiguous token tensor. The GPU model runner copies this onto

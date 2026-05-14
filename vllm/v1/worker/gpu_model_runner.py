@@ -221,6 +221,9 @@ if TYPE_CHECKING:
 
 logger = init_logger(__name__)
 
+# TSK_019 plan C2 — swap_out 발화 counter (module-level, all worker procs).
+_neo_swap_out_call_count = 0
+
 AttnMetadataDict: TypeAlias = dict[str, AttentionMetadata]
 # list when ubatching is enabled
 PerLayerAttnMetadata: TypeAlias = list[AttnMetadataDict] | AttnMetadataDict
@@ -437,6 +440,20 @@ class GPUModelRunner(
         self._neo_kv_policy: str = getattr(
             self.scheduler_config, "kv_cache_policy", "mirror"
         )
+        # Async swap-out: pool of pinned CPU staging tensors (lazy-init on
+        # first use). SUB_026: N=3 pool 로 한 step 내 multi-req async 가능.
+        # 각 슬롯은 K + V 한 쌍. 동일 인덱스 의 K/V 가 같은 req 의 데이터.
+        # env: VLLM_NEO_ASYNC_SWAP_BUFFERS (default 3, range 1..8).
+        self._neo_swap_staging_k_list: list = []   # list[torch.Tensor]
+        self._neo_swap_staging_v_list: list = []   # list[torch.Tensor]
+        self._neo_pending_dma_infos: list = []     # list[dict] (각 info 가
+        # 'slot_idx' 키로 자신 의 staging 위치 보유; drain 시 모두 처리)
+        # SUB_028: sync swap_out 가속 — batched gather + single H2D 용
+        # pinned CPU staging (per-worker 1개). 메모리 320 MiB × 2 (K+V) =
+        # 640 MiB pinned/worker. async pool 과 동일 shape.
+        # env: VLLM_NEO_SYNC_SWAP_BATCHED=1 (default ON, =0 시 구 per-layer).
+        self._neo_sync_swap_staging_k = None  # torch.Tensor | None
+        self._neo_sync_swap_staging_v = None  # torch.Tensor | None
 
         model_config = self.model_config
         cache_config = self.cache_config
@@ -4266,19 +4283,24 @@ class GPUModelRunner(
                     self._neo_fork_reject_prefix_fail = 0
                     self._neo_fork_reject_split_oob = 0
                 self._neo_fork_stat_total += 1
+                # [Cleanup 2026-05-14] FORK STAT 로그 VLLM_NEO_PROFILE
+                # env-gate. 매 100 step × 8 worker = 400 line/sec I/O 부담
+                # production 영역 제거.
                 if (self._neo_fork_stat_total % 100 == 0):
-                    logger.info(
-                        "[NEO FORK STAT] total=%d eligible=%d active=%d | "
-                        "reject_no_subs=%d reject_b1_empty=%d "
-                        "reject_prefix_fail=%d reject_split_oob=%d",
-                        self._neo_fork_stat_total,
-                        self._neo_fork_stat_eligible,
-                        self._neo_fork_stat_active,
-                        self._neo_fork_reject_no_subs,
-                        self._neo_fork_reject_b1_empty,
-                        self._neo_fork_reject_prefix_fail,
-                        self._neo_fork_reject_split_oob,
-                    )
+                    import os as _os_fs
+                    if _os_fs.environ.get("VLLM_NEO_PROFILE", "0") == "1":
+                        logger.info(
+                            "[NEO FORK STAT] total=%d eligible=%d active=%d | "
+                            "reject_no_subs=%d reject_b1_empty=%d "
+                            "reject_prefix_fail=%d reject_split_oob=%d",
+                            self._neo_fork_stat_total,
+                            self._neo_fork_stat_eligible,
+                            self._neo_fork_stat_active,
+                            self._neo_fork_reject_no_subs,
+                            self._neo_fork_reject_b1_empty,
+                            self._neo_fork_reject_prefix_fail,
+                            self._neo_fork_reject_split_oob,
+                        )
                 # IDE_006 4.5.2.c depth 7 — effective b0/b1 사용 (worker 가
                 # _may_reorder_batch 단계에서 input_batch 와 교집합으로 이미
                 # reduce 했음).
@@ -4555,10 +4577,17 @@ class GPUModelRunner(
                 swap_in_ids = getattr(
                     scheduler_output, "neo_swap_in_req_ids", None
                 )
+                # TSK_019 plan A4 fix — block_ids dict 도 worker 에 전달.
+                # _preempt_request 가 KV manager.free 한 후라 worker 의
+                # _get_req_gpu_block_ids 가 None 반환 — chain break root.
+                swap_out_block_ids = getattr(
+                    scheduler_output, "neo_swap_out_block_ids", None
+                )
                 if swap_out_ids or swap_in_ids:
                     self._neo_handle_kv_swap(
                         swap_out_ids=swap_out_ids,
                         swap_in_ids=swap_in_ids,
+                        swap_out_block_ids=swap_out_block_ids,
                     )
             else:
                 self._neo_pending_subbatches = None
@@ -4570,6 +4599,10 @@ class GPUModelRunner(
                 inputs_embeds=inputs_embeds,
                 **model_kwargs,
             )
+            # Drain any pending async swap_out DMA (no-op when none).
+            # DMA (~5 ms PCIe) typically finishes during the ~50 ms forward,
+            # so this synchronize returns without blocking in the common case.
+            self._neo_drain_pending_swap_dma()
 
         with record_function_or_nullcontext("gpu_model_runner: postprocess"):
             if self.use_aux_hidden_state_outputs:
@@ -6298,7 +6331,12 @@ class GPUModelRunner(
         True if buffer is available (alloc succeeded or already exists)."""
         if self._neo_cpu_kv_buffer is not None:
             return True
-        if self._neo_kv_policy != "exclusive":
+        # TSK_019 plan A4 fix — enable_neo_asymmetric flag 만으로도 NEO
+        # CPU KV buffer alloc 활성. "exclusive" policy 필수 X.
+        _neo_active = getattr(
+            self.scheduler_config, "enable_neo_asymmetric", False
+        )
+        if self._neo_kv_policy != "exclusive" and not _neo_active:
             return False
         from vllm.v1.core.sched import neo_cpu_kv_buffer as _neo_cpu_kv_buffer
         spec = _neo_cpu_kv_buffer.make_spec_from_config(self.vllm_config)
@@ -6322,6 +6360,203 @@ class GPUModelRunner(
             )
             return False
 
+    def _neo_init_swap_staging(self) -> bool:
+        """Lazy-init pinned CPU staging buffer POOL for async swap_out D→H.
+
+        Pool size N = VLLM_NEO_ASYNC_SWAP_BUFFERS (default 3, range 1..8).
+        Per-slot: K + V pair (pinned). Returns True if at least 1 slot ready.
+        """
+        if self._neo_swap_staging_k_list:
+            return True
+        buf = self._neo_cpu_kv_buffer
+        if buf is None:
+            return False
+        spec = buf.spec
+        max_blocks = (
+            (self.model_config.max_model_len + spec.block_size - 1)
+            // spec.block_size
+        )
+        shape = (
+            spec.num_layers, max_blocks,
+            spec.num_kv_heads, spec.block_size, spec.head_dim,
+        )
+        import os as _os_stg
+        try:
+            _N = int(_os_stg.environ.get("VLLM_NEO_ASYNC_SWAP_BUFFERS", "3"))
+        except ValueError:
+            _N = 3
+        _N = max(1, min(_N, 8))
+        try:
+            for _ in range(_N):
+                k = torch.empty(shape, dtype=spec.dtype, pin_memory=True)
+                v = torch.empty(shape, dtype=spec.dtype, pin_memory=True)
+                self._neo_swap_staging_k_list.append(k)
+                self._neo_swap_staging_v_list.append(v)
+            _per_slot_mib = self._neo_swap_staging_k_list[0].nbytes / 1024 ** 2
+            logger.info(
+                "[NEO] async swap staging pool alloc: N=%d slots, shape=%s "
+                "%.1f MiB each (K+V=%.1f MiB per slot, total=%.1f MiB pinned)",
+                _N, shape, _per_slot_mib, _per_slot_mib * 2,
+                _per_slot_mib * 2 * _N,
+            )
+            return True
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "[NEO] async swap staging pool alloc failed (%s) — async "
+                "disabled", e,
+            )
+            self._neo_swap_staging_k_list = []
+            self._neo_swap_staging_v_list = []
+            return False
+
+    @property
+    def _neo_swap_staging_pool_size(self) -> int:
+        return len(self._neo_swap_staging_k_list)
+
+    def _neo_swap_out_gather_phase(
+        self,
+        req_id: str,
+        gpu_block_ids: list[int],
+        slot_idx: int,
+    ) -> "dict | None":
+        """Gather all layers from kv_caches into independent GPU tensors.
+
+        ``slot_idx`` selects which staging slot (0..pool_size-1) the
+        subsequent DMA will target. The gather itself only references
+        kv_caches; the staging tensor is used in ``_neo_swap_out_dma_phase``.
+
+        Must be called inside ``swap_stream`` context BEFORE any swap-in
+        ops or forward-pass GPU work. Returns gathered info dict, or None
+        (caller should fall back to sync ``_neo_swap_out_one_req``).
+
+        The D→H DMA is NOT launched here — call ``_neo_swap_out_dma_phase``
+        after swap-in completes so the DMA can overlap with ``_model_forward``.
+
+        Safety: the gather reads kv_caches blocks belonging to the preempted
+        sequence. The caller must record a CUDA event after the gather *and*
+        swap-in, then wait on that event from current_stream before forward
+        starts — this prevents a read-write race where forward overwrites the
+        freed blocks before the gather finishes.
+        """
+        if not self._neo_init_swap_staging():
+            return None
+        if slot_idx < 0 or slot_idx >= self._neo_swap_staging_pool_size:
+            return None
+        buf = self._neo_cpu_kv_buffer
+        spec = buf.spec
+        nlayers = len(self.kv_caches)
+        n = len(gpu_block_ids)
+        if n > self._neo_swap_staging_k_list[slot_idx].shape[1]:
+            logger.warning(
+                "[NEO] gather_phase: n_blocks=%d > staging cap=%d "
+                "(slot=%d) — fallback sync",
+                n, self._neo_swap_staging_k_list[slot_idx].shape[1], slot_idx,
+            )
+            return None
+        gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
+                               device=self.device)
+        k_gpu: list = []
+        v_gpu: list = []
+        for layer in range(nlayers):
+            kv = self.kv_caches[layer]
+            if kv is None:
+                k_gpu.append(None)
+                v_gpu.append(None)
+                continue
+            k_b = kv[0][gpu_idx]
+            v_b = kv[1][gpu_idx]
+            if k_b.dim() == 4 and k_b.shape[1] != spec.num_kv_heads:
+                k_b = k_b.permute(0, 2, 1, 3).contiguous()
+                v_b = v_b.permute(0, 2, 1, 3).contiguous()
+            if k_b.dtype != spec.dtype:
+                k_b = k_b.to(spec.dtype)
+                v_b = v_b.to(spec.dtype)
+            k_gpu.append(k_b)
+            v_gpu.append(v_b)
+        return {
+            'req_id': req_id,
+            'n_blocks': n,
+            'k_gpu': k_gpu,
+            'v_gpu': v_gpu,
+            'slot_idx': slot_idx,
+        }
+
+    def _neo_swap_out_dma_phase(self, gathered: dict) -> "torch.cuda.Event":
+        """Launch async D→H DMA from gathered GPU tensors into pinned staging.
+
+        Uses ``gathered['slot_idx']`` to choose which staging slot to fill.
+        Must be called inside ``swap_stream`` context, AFTER swap-in ops and
+        AFTER ``pre_fwd_event`` is recorded. Returns ``dma_event`` that fires
+        when all D→H transfers complete.
+
+        Caller must keep a reference to ``gathered`` until
+        ``_neo_drain_pending_swap_dma`` completes (the 'k_gpu' / 'v_gpu'
+        lists keep the source GPU tensors alive).
+        """
+        n = gathered['n_blocks']
+        slot_idx = gathered['slot_idx']
+        k_stage = self._neo_swap_staging_k_list[slot_idx]
+        v_stage = self._neo_swap_staging_v_list[slot_idx]
+        for layer, (kg, vg) in enumerate(zip(gathered['k_gpu'], gathered['v_gpu'])):
+            if kg is not None:
+                k_stage[layer, :n].copy_(kg, non_blocking=True)
+                v_stage[layer, :n].copy_(vg, non_blocking=True)
+        ev = torch.cuda.Event()
+        ev.record()
+        return ev
+
+    def _neo_drain_pending_swap_dma(self) -> None:
+        """Finalize all pending async swap_outs: wait for D→H DMA, CPU scatter.
+
+        Called immediately after ``_model_forward``. Drains every pending
+        slot (up to ``VLLM_NEO_ASYNC_SWAP_BUFFERS``). DMAs typically finish
+        during forward (~50ms), so ``dma_event.synchronize()`` returns
+        without blocking. Each slot's CPU scatter is independent.
+        """
+        infos = self._neo_pending_dma_infos
+        if not infos:
+            return
+        self._neo_pending_dma_infos = []
+        buf = self._neo_cpu_kv_buffer
+        for info in infos:
+            req_id = info['req_id']
+            n = info['n_blocks']
+            slot_idx = info['slot_idx']
+            dma_event = info['dma_event']
+            # CPU wait — DMA must complete before scatter reads staging.
+            dma_event.synchronize()
+            try:
+                buf.copy_all_layers_in_from_staged(
+                    req_id,
+                    self._neo_swap_staging_k_list[slot_idx],
+                    self._neo_swap_staging_v_list[slot_idx],
+                    n,
+                )
+                self._neo_cpu_resident_reqs.add(req_id)
+                if info.get('prof_on'):
+                    import time as _td
+                    _elapsed = (_td.perf_counter() - info['t0']) * 1000
+                    spec = buf.spec
+                    _bytes = (n * spec.num_kv_heads * spec.block_size
+                              * spec.head_dim * 2 * 2 * spec.num_layers)
+                    logger.info(
+                        "[PROFILE SWAP_OUT async] req=%s blocks=%d slot=%d "
+                        "total_ms=%.2f bytes_MiB=%.2f",
+                        req_id, n, slot_idx, _elapsed,
+                        _bytes / (1024 * 1024),
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "[NEO] swap_out drain: req %s slot=%d scatter failed "
+                    "(%s) — CPU alloc rolled back",
+                    req_id, slot_idx, e,
+                )
+                buf.free(req_id)
+            finally:
+                info.pop('k_gpu', None)
+                info.pop('v_gpu', None)
+            info.pop('v_gpu', None)
+
     def _get_req_gpu_block_ids(self, req_id: str) -> list[int] | None:
         """Look up the GPU block_ids for ``req_id`` from the runner's
         input_batch. Returns ``None`` if the req is not in the current
@@ -6340,83 +6575,341 @@ class GPUModelRunner(
             return None
         return bt.block_table.np[idx, :nblk].tolist()
 
+    def _get_neo_swap_communication_stream(self):
+        """TSK_019 plan A4 — module-level lazy CUDA stream for per-layer
+        GPU↔CPU KV swap copy. NEO `swiftllm/worker/model.py:153`
+        `cpu_communication_stream` 동등 패턴. main forward stream 과
+        분리해서 swap 이 forward 와 자연 overlap."""
+        if not hasattr(self, "_neo_swap_stream") or self._neo_swap_stream is None:
+            self._neo_swap_stream = torch.cuda.Stream()
+        return self._neo_swap_stream
+
     def _neo_handle_kv_swap(
         self,
         *,
         swap_out_ids: list[str] | None,
         swap_in_ids: list[str] | None,
+        swap_out_block_ids: dict[str, list[int]] | None = None,
     ) -> None:
         """Per-step KV swap orchestrator. Skips silently if the buffer
-        cannot be allocated (e.g., mirror policy, memory pressure)."""
+        cannot be allocated (e.g., mirror policy, memory pressure).
+
+        TSK_019 plan A4/A5 — 모든 swap 작업을 별 CUDA stream 위에서
+        진행. main forward stream 과 자연 overlap. 호출 끝에서
+        wait_stream 으로 join (A5 에서 forward 와 ordering 보장).
+        plan A4 fix — swap_out_block_ids dict (adapter 가 _preempt_request
+        호출 *전* 추출) 우선 사용. fallback to _get_req_gpu_block_ids."""
         # Fast skip when nothing to do.
         nothing = not swap_out_ids and not swap_in_ids
         if nothing:
             return
         if not self._ensure_neo_cpu_kv_buffer():
+            logger.warning(
+                "[NEO] swap-out: _ensure_neo_cpu_kv_buffer failed — skip"
+            )
             return
 
         buf = self._neo_cpu_kv_buffer
+        # TSK_019 plan A4 — `_neo_swap_communication_stream` (별 CUDA stream)
+        # 위에서 swap copy 진행. NEO 본가 `swiftllm/worker/model.py:153`
+        # `cpu_communication_stream` 동등. Path A defer-free 가 silent crash
+        # root 해결 (block_id reallocation race) → F13 가설 (caching allocator
+        # corruption) 무관. 본 stream wrap 으로 swap copy 가 main forward
+        # stream 과 자연 overlap (A5 가 step 끝 wait_stream 적용).
+        # TSK_019 plan C2 — swap_out 발화 counter (module-level).
+        global _neo_swap_out_call_count
+        swap_stream = self._get_neo_swap_communication_stream()
+        # main forward stream 의 pending op 가 swap copy 시작 전에 끝나야
+        # KV consistency. swap_stream.wait_stream(current) 으로 ordering.
+        swap_stream.wait_stream(torch.cuda.current_stream())
 
-        # ── swap-out: GPU → CPU per-layer copy ────────────────────────
-        for req_id in (swap_out_ids or []):
-            if req_id in self._neo_cpu_resident_reqs:
-                continue   # already on CPU
-            gpu_blocks = self._get_req_gpu_block_ids(req_id)
-            if gpu_blocks is None:
-                continue
-            # Allocate matching CPU blocks; pool exhaustion → skip.
-            cpu_blocks = buf.alloc(req_id, num_blocks=len(gpu_blocks))
-            if cpu_blocks is None:
-                logger.warning(
-                    "[NEO] swap-out: CPU pool full, skipping req %s "
-                    "(blocks needed=%d, free=%d)",
-                    req_id, len(gpu_blocks), buf.num_free_blocks,
-                )
-                continue
-            try:
-                self._neo_swap_out_one_req(req_id, gpu_blocks)
-                self._neo_cpu_resident_reqs.add(req_id)
-                logger.info(
-                    "[NEO] swap-out: req %s (%d blocks) GPU→CPU done",
-                    req_id, len(gpu_blocks),
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.warning(
-                    "[NEO] swap-out: req %s failed (%s) — rolling back "
-                    "CPU alloc", req_id, e,
-                )
-                buf.free(req_id)
+        # [PROFILE] 동적 분석 instrumentation — env VLLM_NEO_PROFILE=1 활성.
+        # 1) swap-out / swap-in 각각의 elapsed_ms 측정 (CUDA sync 포함)
+        # 2) swap-out 시점 timestamp stash → swap-in 시 cycle_age_ms 측정
+        # 3) per-req cumulative count (cycle 횟수)
+        import time as _t_prof, os as _os_prof
+        _prof_on = (_os_prof.environ.get("VLLM_NEO_PROFILE", "0") == "1")
+        if _prof_on and not hasattr(self, "_neo_prof_cycle_state"):
+            self._neo_prof_cycle_state: dict = {}  # rid -> {last_so_ts, so_count, si_count}
+        _cycle_state = getattr(self, "_neo_prof_cycle_state", None)
 
-        # ── swap-in: CPU → GPU per-layer copy ─────────────────────────
-        for req_id in (swap_in_ids or []):
-            if req_id not in self._neo_cpu_resident_reqs:
-                continue   # not on CPU
-            gpu_blocks = self._get_req_gpu_block_ids(req_id)
-            if gpu_blocks is None:
-                # Phase 4.4 will handle this — vLLM should re-alloc GPU
-                # blocks before swap-in. Skip gracefully for now.
-                continue
-            try:
-                self._neo_swap_in_one_req(req_id, gpu_blocks)
-                buf.free(req_id)
-                self._neo_cpu_resident_reqs.discard(req_id)
-                logger.info(
-                    "[NEO] swap-in: req %s (%d blocks) CPU→GPU done",
-                    req_id, len(gpu_blocks),
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.warning(
-                    "[NEO] swap-in: req %s failed (%s)", req_id, e,
-                )
+        import os as _os_aswap
+        _async_swap = _os_aswap.environ.get("VLLM_NEO_ASYNC_SWAP", "1") == "1"
+        _async_gathered_list: list = []   # SUB_026: multi-slot async gather
+        _pre_fwd_event: "torch.cuda.Event | None" = None
+        # 풀 크기 — staging buffer 가 lazy-init 인 경우 첫 async 시도 후 결정.
+        # 본 step 진입 시 0 일 수 있으므로 alloc 직후 동적 read.
+
+        with torch.cuda.stream(swap_stream):
+            # ── swap-out: GPU → CPU per-layer copy ────────────────
+            # Async path (SUB_026: up to N=3 slots): gather GPU KV into
+            # independent tensors per slot here; DMA launched after swap-in
+            # so it overlaps with _model_forward rather than blocking it.
+            _async_slot_used = 0
+            for req_id in (swap_out_ids or []):
+                if req_id in self._neo_cpu_resident_reqs:
+                    continue   # already on CPU
+                # TSK_019 plan A4 fix — adapter 가 _preempt_request 호출 전
+                # 추출해서 attach 한 block_ids 우선 사용.
+                gpu_blocks = None
+                if swap_out_block_ids and req_id in swap_out_block_ids:
+                    gpu_blocks = swap_out_block_ids[req_id]
+                if gpu_blocks is None:
+                    gpu_blocks = self._get_req_gpu_block_ids(req_id)
+                if gpu_blocks is None:
+                    logger.warning(
+                        "[NEO] swap-out: gpu_blocks None for req %s — skip",
+                        req_id,
+                    )
+                    continue
+                cpu_blocks = buf.alloc(req_id, num_blocks=len(gpu_blocks))
+                if cpu_blocks is None:
+                    logger.warning(
+                        "[NEO] swap-out: CPU pool full, skipping req %s "
+                        "(blocks needed=%d, free=%d)",
+                        req_id, len(gpu_blocks), buf.num_free_blocks,
+                    )
+                    continue
+                try:
+                    # SUB_026: async slot 가 남아있으면 async path
+                    _pool_size = self._neo_swap_staging_pool_size if (
+                        self._neo_swap_staging_k_list
+                    ) else 3  # init 전 — gather_phase 가 alloc 함
+                    if _async_swap and _async_slot_used < (_pool_size or 3):
+                        # Try async: gather into the next free slot.
+                        _g = self._neo_swap_out_gather_phase(
+                            req_id, gpu_blocks, _async_slot_used
+                        )
+                        if _g is not None:
+                            if _prof_on:
+                                _g['t0'] = _t_prof.perf_counter()
+                                _g['prof_on'] = True
+                            _async_gathered_list.append(_g)
+                            _async_slot_used += 1
+                            _neo_swap_out_call_count += 1
+                            # [Cleanup 2026-05-14] CALL count log 제거
+                            # (hot path, VLLM_NEO_PROFILE PROFILE 로그로
+                            # 대체 가능)
+                            continue  # DMA launched after swap-in below
+                        # gather_phase returned None — fall through to sync.
+                    # Sync path (fallback or subsequent reqs).
+                    _t0_so = _t_prof.perf_counter() if _prof_on else 0.0
+                    self._neo_swap_out_one_req(req_id, gpu_blocks)
+                    if _prof_on:
+                        # sync 제거 — cudagraph capture 충돌 회피.
+                        pass
+                        _elapsed_so_ms = (_t_prof.perf_counter() - _t0_so) * 1000
+                        _state = _cycle_state.setdefault(req_id,
+                            {"so_count": 0, "si_count": 0, "last_so_ts": 0.0})
+                        _state["so_count"] += 1
+                        _state["last_so_ts"] = _t_prof.perf_counter()
+                        # MiB transferred = blocks × kv_heads × block_size × head_dim × 2 (K+V) × bytes
+                        _bytes = (len(gpu_blocks) * buf.spec.num_kv_heads
+                                  * buf.spec.block_size * buf.spec.head_dim
+                                  * 2 * 2 * buf.spec.num_layers)
+                        logger.info(
+                            "[PROFILE SWAP_OUT] req=%s blocks=%d "
+                            "elapsed_ms=%.2f bytes_MiB=%.2f cycle_count=%d",
+                            req_id, len(gpu_blocks), _elapsed_so_ms,
+                            _bytes/(1024*1024), _state["so_count"],
+                        )
+                    self._neo_cpu_resident_reqs.add(req_id)
+                    _neo_swap_out_call_count += 1
+                    # [Cleanup 2026-05-14] CALL count log 제거 (hot path)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "[NEO] swap-out: req %s failed (%s) — rolling back "
+                        "CPU alloc", req_id, e,
+                    )
+                    buf.free(req_id)
+
+            # ── swap-in: CPU → GPU per-layer copy ─────────────────
+            for req_id in (swap_in_ids or []):
+                if req_id not in self._neo_cpu_resident_reqs:
+                    continue   # not on CPU
+                gpu_blocks = self._get_req_gpu_block_ids(req_id)
+                if gpu_blocks is None:
+                    continue
+                try:
+                    _t0_si = _t_prof.perf_counter() if _prof_on else 0.0
+                    self._neo_swap_in_one_req(req_id, gpu_blocks)
+                    if _prof_on:
+                        # sync 제거 — cudagraph capture 충돌 회피.
+                        pass
+                        _elapsed_si_ms = (_t_prof.perf_counter() - _t0_si) * 1000
+                        _state = _cycle_state.get(req_id, {})
+                        _state["si_count"] = _state.get("si_count", 0) + 1
+                        _cycle_age_ms = ((_t_prof.perf_counter()
+                                          - _state.get("last_so_ts", 0.0))
+                                         * 1000) if _state.get("last_so_ts") else -1.0
+                        _bytes = (len(gpu_blocks) * buf.spec.num_kv_heads
+                                  * buf.spec.block_size * buf.spec.head_dim
+                                  * 2 * 2 * buf.spec.num_layers)
+                        logger.info(
+                            "[PROFILE SWAP_IN] req=%s blocks=%d "
+                            "elapsed_ms=%.2f bytes_MiB=%.2f "
+                            "cycle_age_ms=%.1f si_count=%d so_count=%d",
+                            req_id, len(gpu_blocks), _elapsed_si_ms,
+                            _bytes/(1024*1024), _cycle_age_ms,
+                            _state.get("si_count", 0),
+                            _state.get("so_count", 0),
+                        )
+                    buf.free(req_id)
+                    self._neo_cpu_resident_reqs.discard(req_id)
+                    logger.info(
+                        "[NEO] swap-in: req %s (%d blocks) CPU→GPU done",
+                        req_id, len(gpu_blocks),
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "[NEO] swap-in: req %s failed (%s)", req_id, e,
+                    )
+
+            # ── async DMA: launched AFTER swap-in ─────────────────
+            # swap_stream ordering: gather × N → swap-in → pre_fwd_event →
+            # DMA × N → dma_event × N.
+            # current_stream.wait_event(pre_fwd_event) ensures forward
+            # cannot start until both all gathers (kv_caches reads) and
+            # swap-in (H2D into GPU blocks) are complete. All DMAs run in
+            # parallel with forward (safe: reads from gathered copies, not
+            # kv_caches). Each slot gets its own dma_event.
+            if _async_gathered_list:
+                _pre_fwd_event = torch.cuda.Event()
+                _pre_fwd_event.record()
+                for _g in _async_gathered_list:
+                    _dma_ev = self._neo_swap_out_dma_phase(_g)
+                    _g['dma_event'] = _dma_ev
+                self._neo_pending_dma_infos = _async_gathered_list
+
+        # ── ordering barrier before _model_forward ──────────────────
+        if _pre_fwd_event is not None:
+            # Async: current_stream waits for gather + swap-in only.
+            # DMA overlaps with _model_forward.
+            torch.cuda.current_stream().wait_event(_pre_fwd_event)
+        else:
+            # Sync (or no swap): wait for all swap_stream ops.
+            # TSK_019 plan A5 — NEO `swiftllm/worker/model.py:270`
+            # `current_stream.wait_stream(cpu_communication_stream)` 동등.
+            torch.cuda.current_stream().wait_stream(swap_stream)
+
+    def _neo_init_sync_swap_staging(self) -> bool:
+        """Lazy-init pinned CPU staging buffer for SYNC swap_out batched H2D.
+
+        SUB_028: per-worker 1 pair (K + V), 320 MiB each → 640 MiB total.
+        async pool 과 별도 — sync path 가 동시에 쓰는 일 없음 (한 step 내
+        sync 는 직렬 처리, 다음 sync 시점에는 이미 H2D + scatter 끝남).
+        """
+        if self._neo_sync_swap_staging_k is not None:
+            return True
+        buf = self._neo_cpu_kv_buffer
+        if buf is None:
+            return False
+        spec = buf.spec
+        max_blocks = (
+            (self.model_config.max_model_len + spec.block_size - 1)
+            // spec.block_size
+        )
+        shape = (
+            spec.num_layers, max_blocks,
+            spec.num_kv_heads, spec.block_size, spec.head_dim,
+        )
+        try:
+            self._neo_sync_swap_staging_k = torch.empty(
+                shape, dtype=spec.dtype, pin_memory=True
+            )
+            self._neo_sync_swap_staging_v = torch.empty(
+                shape, dtype=spec.dtype, pin_memory=True
+            )
+            logger.info(
+                "[NEO] sync swap staging alloc (SUB_028): shape=%s "
+                "%.1f MiB each (K+V=%.1f MiB pinned)",
+                shape,
+                self._neo_sync_swap_staging_k.nbytes / 1024 ** 2,
+                self._neo_sync_swap_staging_k.nbytes * 2 / 1024 ** 2,
+            )
+            return True
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "[NEO] sync swap staging alloc failed (%s) — per-layer fallback",
+                e,
+            )
+            self._neo_sync_swap_staging_k = None
+            self._neo_sync_swap_staging_v = None
+            return False
 
     def _neo_swap_out_one_req(
         self,
         req_id: str,
         gpu_block_ids: list[int],
     ) -> None:
-        """Per-layer copy of one req's KV from vLLM GPU caches to NEO
-        CPU buffer. ``gpu_block_ids`` are indices into the per-layer
-        ``self.kv_caches[layer]`` 2-component tensor (K + V)."""
+        """SUB_028 v2: batched sync swap_out via direct H2D pipelining.
+
+        v1 (GPU 중간 staging) 가 4× 느려진 원인 — 640 MiB GPU temp alloc
+        매 호출 KV cache 와 경합. v2 fix: GPU intermediate 제거, 80 layer
+        모두 *직접* pinned CPU staging 에 ``non_blocking=True`` H2D, 한 번의
+        end-sync. PCIe pipeline 가 80 transfers 를 단일 link 위에 packing.
+
+        env: ``VLLM_NEO_SYNC_SWAP_BATCHED=1`` (default ON).
+        Fallback (per-layer 80× blocking .cpu()): staging alloc fail,
+        n > staging cap, env=0.
+        """
+        import os as _os_sync
+        if _os_sync.environ.get(
+            "VLLM_NEO_SYNC_SWAP_BATCHED", "1"
+        ) != "1":
+            return self._neo_swap_out_one_req_perlayer(req_id, gpu_block_ids)
+        if not self._neo_init_sync_swap_staging():
+            return self._neo_swap_out_one_req_perlayer(req_id, gpu_block_ids)
+        buf = self._neo_cpu_kv_buffer
+        spec = buf.spec
+        nlayers = len(self.kv_caches)
+        n = len(gpu_block_ids)
+        if n > self._neo_sync_swap_staging_k.shape[1]:
+            logger.warning(
+                "[NEO] sync_batched: n_blocks=%d > staging cap=%d — fallback",
+                n, self._neo_sync_swap_staging_k.shape[1],
+            )
+            return self._neo_swap_out_one_req_perlayer(req_id, gpu_block_ids)
+        gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
+                               device=self.device)
+        # Direct H2D pipeline — 80 transfers 를 swap_stream 에 queue 후
+        # 한 번에 sync. PyTorch 가 cudaMemcpyAsync 를 pinned dst 영역에
+        # 적재 → PCIe link 가 sequential 하게 처리 (소요 ~10-30ms 전체).
+        # GPU 중간 tensor 미사용 — kv_caches 의 block view 가 source 그대로.
+        k_stage = self._neo_sync_swap_staging_k
+        v_stage = self._neo_sync_swap_staging_v
+        for layer in range(nlayers):
+            kv = self.kv_caches[layer]
+            if kv is None:
+                continue
+            k_b = kv[0][gpu_idx]
+            v_b = kv[1][gpu_idx]
+            if k_b.dim() == 4 and k_b.shape[1] != spec.num_kv_heads:
+                k_b = k_b.permute(0, 2, 1, 3).contiguous()
+                v_b = v_b.permute(0, 2, 1, 3).contiguous()
+            if k_b.dtype != spec.dtype:
+                k_b = k_b.to(spec.dtype)
+                v_b = v_b.to(spec.dtype)
+            # Async H2D into pinned staging — non-blocking, all 80 queued
+            # on swap_stream sequentially. PyTorch lowering = pinned-dst
+            # cudaMemcpyAsync (fast path).
+            k_stage[layer, :n].copy_(k_b, non_blocking=True)
+            v_stage[layer, :n].copy_(v_b, non_blocking=True)
+        # Single sync at end — wait for all 80 layer transfers.
+        torch.cuda.current_stream().synchronize()
+        # Phase 3 — CPU scatter (RLock-protected, no GPU ops).
+        buf.copy_all_layers_in_from_staged(
+            req_id, k_stage, v_stage, n,
+        )
+
+    def _neo_swap_out_one_req_perlayer(
+        self,
+        req_id: str,
+        gpu_block_ids: list[int],
+    ) -> None:
+        """Per-layer copy (80× H2D). Fallback path used when batched
+        sync staging unavailable or via env override. Original sync
+        swap_out implementation, preserved for safety."""
         buf = self._neo_cpu_kv_buffer
         nlayers = len(self.kv_caches)
         gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
@@ -6449,16 +6942,50 @@ class GPUModelRunner(
         """Reverse of ``_neo_swap_out_one_req`` — copy CPU buffer back
         to GPU blocks (Phase 4.4 will hand-off into a freshly allocated
         GPU range; for now we copy back into the *same* blocks the req
-        previously occupied, assuming they're still reserved)."""
+        previously occupied, assuming they're still reserved).
+
+        [Plan v4 Option M2] worker-side size sync — CPU buf 의 block 수
+        와 GPU alloc 의 block 수가 *async lookahead gap* 으로 mismatch
+        가능 (worker 의 ensure_capacity 가 engine 의 num_computed 보다
+        ahead). NEO 정통은 *single process* 라 자연 동기 — vllm multiproc
+        에서 등가 처리: 더 작은 쪽으로 truncate. worker ahead 분의 KV 는
+        engine 측 num_computed 가 그 영역 도달 안 했으므로 *output token
+        에도 미포함* — truncate 안전 (다음 step 자연 재생성).
+        env: VLLM_NEO_OPTION_M2 (default 1).
+        """
+        import os as _os_m2
+        _opt_m2 = (_os_m2.environ.get("VLLM_NEO_OPTION_M2", "1") == "1")
         buf = self._neo_cpu_kv_buffer
         nlayers = len(self.kv_caches)
+        n_gpu = len(gpu_block_ids)
         gpu_idx = torch.tensor(gpu_block_ids, dtype=torch.long,
                                device=self.device)
+        _truncate_logged = False
         for layer in range(nlayers):
             kv = self.kv_caches[layer]
             if kv is None:
                 continue
             k_cpu, v_cpu = buf.copy_layer_out(req_id, layer)
+            # [Option M2] CPU/GPU size sync.
+            if _opt_m2 and k_cpu.shape[0] != n_gpu:
+                _n_cpu = k_cpu.shape[0]
+                if _n_cpu > n_gpu:
+                    # CPU ahead — truncate to GPU size.
+                    k_cpu = k_cpu[:n_gpu]
+                    v_cpu = v_cpu[:n_gpu]
+                else:
+                    # GPU ahead (rare) — also handle by trimming gpu_idx.
+                    gpu_idx = gpu_idx[:_n_cpu]
+                if (not _truncate_logged
+                        and not getattr(self, "_neo_m2_logged", False)):
+                    logger.info(
+                        "[Option M2] swap-in size sync first fire: "
+                        "req=%s cpu_blocks=%d gpu_blocks=%d "
+                        "→ truncate to %d",
+                        req_id, _n_cpu, n_gpu, min(_n_cpu, n_gpu),
+                    )
+                    self._neo_m2_logged = True
+                    _truncate_logged = True
             # CPU tensors are HND ``(num_blocks, num_kv_heads, block_size,
             # head_dim)``. vLLM destination layout detected via
             # ``kv[0].shape[2]``:
@@ -6476,6 +7003,14 @@ class GPUModelRunner(
             v_gpu = v_cpu.to(device=self.device, dtype=kv.dtype)
             kv[0][gpu_idx] = k_gpu
             kv[1][gpu_idx] = v_gpu
+
+    # SUB_030 (async swap_in batched H2D) 기각 (2026-05-14):
+    # eval/results/20260514_092412_hyp500_swap_in_batched/ 측정 결과
+    # -8.4% 회귀. ``copy_layer_out`` 의 advanced indexing 결과 가 pinned
+    # 속성 전파 안 함 → ``non_blocking=True`` 가 pageable fallback path
+    # 발화 + ``_pending_cpu`` reference list 메모리 부하. 원본 per-layer
+    # 패턴 복원. 추후 대안 (pinned staging 사전 copy + cudaMemcpyAsync)
+    # 는 SUB_028 sync 와 같이 critical path 외 영역이라 효과 한계 예상.
 
     # ------------------------------------------------------------------
     # NEO PerfPredictor — engine-side measure_fn (TSK_017 Step 1.5).
@@ -6566,16 +7101,111 @@ class GPUModelRunner(
         ]
         # Launch overhead — measure with 1 token forward (smallest).
         lnch_T = _measure(1, uniform_decode=True)
+
+        # TSK_019 SUB_016 — cdec_T 2D 측정 (CPU pacpu kernel).
+        # 직접 ``forward_attention`` (synthetic) 호출 + nrepeat 평균.
+        # subsample 으로 cost bound (4 S × 3 N = 12 points × ~수 ms).
+        # Worker process 에서 pacpu kernel 자체 load (engine/core.py 의
+        # ensure_loaded 는 main-side 만 — worker 는 별도 process 라 직접
+        # load 필요).
+        cdec_T_pairs: list[tuple[int, int, float]] = []
+        try:
+            from vllm.v1.attention.ops import neo_pacpu as _neo_pacpu
+            _neo_pacpu.ensure_loaded(
+                self.model_config.model,
+                self.parallel_config.tensor_parallel_size,
+            )
+            if (hasattr(torch.ops, "pacpu")
+                    and hasattr(torch.ops.pacpu, "paged_attention_cpu")):
+                from vllm.v1.attention.ops.neo_pacpu import (
+                    forward_attention as _neo_forward_attn,
+                )
+                block_size = self.cache_config.block_size
+                nh = self.model_config.get_num_attention_heads(
+                    self.parallel_config
+                )
+                nkh = self.model_config.get_num_kv_heads(
+                    self.parallel_config
+                )
+                hd = self.model_config.get_head_size()
+                cdec_S_sub = _subsample(pred.cdec_S_list, target=4)
+
+                def _measure_cdec(S: int, N: int) -> float:
+                    seq_len = max(block_size, N // max(S, 1))
+                    max_blocks = (seq_len + block_size - 1) // block_size
+                    seq_lens = [seq_len] * S
+                    seq_ids = list(range(S))
+                    num_blocks = max_blocks * S + 1
+                    q = torch.zeros(
+                        (S, nh, hd), dtype=torch.float16, pin_memory=True,
+                    )
+                    k = torch.zeros(
+                        (S, nkh, hd), dtype=torch.float16, pin_memory=True,
+                    )
+                    v = torch.zeros(
+                        (S, nkh, hd), dtype=torch.float16, pin_memory=True,
+                    )
+                    k_cache = torch.zeros(
+                        (num_blocks, nkh, block_size, hd),
+                        dtype=torch.float16, pin_memory=True,
+                    )
+                    v_cache = torch.zeros_like(k_cache)
+                    block_table = torch.empty(
+                        (S, max_blocks), dtype=torch.int32,
+                    )
+                    for s_id in range(S):
+                        start = s_id * max_blocks
+                        for b in range(max_blocks):
+                            block_table[s_id, b] = start + b
+                    output = torch.zeros(
+                        (S, nh * hd), dtype=torch.float32, pin_memory=True,
+                    )
+                    scale = 1.0 / float(hd) ** 0.5
+                    # Warmup
+                    for _ in range(nwarmup):
+                        _neo_forward_attn(
+                            cur_layer=0, softmax_scale=scale,
+                            seq_ids=seq_ids, seq_lengths=seq_lens,
+                            q=q, k_new=k, v_new=v,
+                            k_cache_layer=k_cache, v_cache_layer=v_cache,
+                            block_table=block_table, output=output,
+                        )
+                    t0 = time.perf_counter()
+                    for _ in range(nrepeat):
+                        _neo_forward_attn(
+                            cur_layer=0, softmax_scale=scale,
+                            seq_ids=seq_ids, seq_lengths=seq_lens,
+                            q=q, k_new=k, v_new=v,
+                            k_cache_layer=k_cache, v_cache_layer=v_cache,
+                            block_table=block_table, output=output,
+                        )
+                    return (time.perf_counter() - t0) * 1000.0 / nrepeat
+
+                for S in cdec_S_sub:
+                    S_idx = pred.cdec_S_list.index(S)
+                    Ns = _subsample(pred.cdec_N_lists[S_idx], target=3)
+                    for N in Ns:
+                        t = _measure_cdec(S, N)
+                        cdec_T_pairs.append((S, N, t))
+        except Exception as _cdec_e:  # noqa: BLE001
+            logger.warning(
+                "[NEO] cdec profile skipped (%s: %s)",
+                type(_cdec_e).__name__, _cdec_e,
+            )
+            cdec_T_pairs = []
+
         elapsed = time.perf_counter() - t_total0
         logger.info(
             "[NEO] profile_neo_predictor: %d points × %d forwards in %.2fs"
-            " (linr=%d, pref=%d, gdec=%d, lnch_T=%.2fms)",
-            len(linr_T_pairs) + len(pref_T_pairs) + len(gdec_T_pairs) + 1,
+            " (linr=%d, pref=%d, gdec=%d, cdec=%d, lnch_T=%.2fms)",
+            len(linr_T_pairs) + len(pref_T_pairs) + len(gdec_T_pairs)
+            + len(cdec_T_pairs) + 1,
             nwarmup + nrepeat,
             elapsed,
             len(linr_T_pairs),
             len(pref_T_pairs),
             len(gdec_T_pairs),
+            len(cdec_T_pairs),
             lnch_T,
         )
 
@@ -6583,6 +7213,7 @@ class GPUModelRunner(
             "linr_T_pairs": linr_T_pairs,
             "pref_T_pairs": pref_T_pairs,
             "gdec_T_pairs": gdec_T_pairs,
+            "cdec_T_pairs": cdec_T_pairs,
             "lnch_T": lnch_T,
         }
 

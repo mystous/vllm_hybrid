@@ -129,6 +129,10 @@ void paged_attention_cpu(
   #endif
 }
 
+// SUB_021 (scatter_layers_into_buf) 제거됨 (2026-05-14):
+// 500p 측정 시 -4% 회귀 (OMP 경합 with cdec). ATen 의 vectorized index_put_
+// 이 naive memcpy OMP 보다 빠른 것 입증.
+
 TORCH_LIBRARY(pacpu, m) {
 #ifdef USE_ATEN_OPER
   m.def("paged_attention_cpu_torch", &paged_attention_cpu_torch);

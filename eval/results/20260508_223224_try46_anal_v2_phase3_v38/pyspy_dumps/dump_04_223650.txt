@@ -1,0 +1,236 @@
+--- dump 4 @ 2026-05-08T22:36:50+00:00 ---
+Process 1892357: VLLM::EngineCore
+Python v3.12.13 (/usr/bin/python3.12)
+
+Thread 1892357 (active): "MainThread"
+    sched_yield (vllm/distributed/utils.py:48)
+    wait (vllm/distributed/device_communicators/shm_broadcast.py:184)
+        Arguments:
+            self: <SpinCondition at 0x7f293273db80>
+            timeout_ms: 60000
+        Locals:
+            current_time: 36825.738451319
+    acquire_read (vllm/distributed/device_communicators/shm_broadcast.py:674)
+        Arguments:
+            self: <MessageQueue at 0x7f293273e270>
+            timeout: 299.898138671997
+            indefinite: False
+        Locals:
+            read_timeout: <ReadTimeoutWithWarnings at 0x7f262ee3bb60>
+            metadata_buffer: <memoryview at 0x7f2634944d00>
+            read_flag: 1
+            written_flag: 1
+    __enter__ (contextlib.py:137)
+        Arguments:
+            self: <_GeneratorContextManager at 0x7f262ee3a8a0>
+    dequeue (vllm/distributed/device_communicators/shm_broadcast.py:755)
+        Arguments:
+            self: <MessageQueue at 0x7f293273e270>
+            timeout: 299.898138671997
+            indefinite: False
+    get_response (vllm/v1/executor/multiproc_executor.py:386)
+        Locals:
+            responses: []
+            mq: <MessageQueue at 0x7f293273e270>
+            dequeue_timeout: 299.898138671997
+    _wait_for_response (vllm/v1/executor/multiproc_executor.py:94)
+        Arguments:
+            self: <FutureWrapper at 0x7f2634f148f0>
+    result (vllm/v1/executor/multiproc_executor.py:89)
+        Arguments:
+            self: <FutureWrapper at 0x7f2634ef6030>
+            timeout: None
+        Locals:
+            future: <FutureWrapper at 0x7f2634f148f0>
+    step_with_batch_queue (vllm/v1/engine/core.py:660)
+        Arguments:
+            self: <EngineCoreProc at 0x7f2932714a10>
+        Locals:
+            batch_queue: <collections.deque at 0x7f28744b7e20>
+            model_executed: True
+            deferred_scheduler_output: None
+            scheduler_output: <SchedulerOutput at 0x7f26349d5370>
+            exec_future: <FutureWrapper at 0x7f26349136e0>
+            future: <FutureWrapper at 0x7f2634ef6030>
+            grammar_output: None
+            exec_model_fut: <FutureWrapper at 0x7f2634f148f0>
+    _process_engine_step (vllm/v1/engine/core.py:1355)
+        Arguments:
+            self: <EngineCoreProc at 0x7f2932714a10>
+    run_busy_loop (vllm/v1/engine/core.py:1316)
+        Arguments:
+            self: <EngineCoreProc at 0x7f2932714a10>
+    run_engine_core (vllm/v1/engine/core.py:1275)
+        Locals:
+            dp_rank: 0
+            local_dp_rank: 0
+            args: ()
+            kwargs: {"vllm_config": <VllmConfig at 0x7f2ff38518b0>, "local_client": True, ...}
+            vllm_config: <VllmConfig at 0x7f2ff38518b0>
+            parallel_config: <ParallelConfig at 0x7f29328cad50>
+            data_parallel: False
+            process_title: "EngineCore"
+            wakeup_engine: <function at 0x7f2932745300>
+            signal_handler: <function at 0x7f2ff3ac7e20>
+    run (multiprocessing/process.py:108)
+        Arguments:
+            self: <SpawnProcess at 0x7f2ff3a13c50>
+    _bootstrap (multiprocessing/process.py:314)
+        Arguments:
+            self: <SpawnProcess at 0x7f2ff3a13c50>
+            parent_sentinel: 3
+        Locals:
+            util: <module at 0x7f2ff3b11530>
+            context: <module at 0x7f2ff3aa0db0>
+    _main (multiprocessing/spawn.py:135)
+        Arguments:
+            fd: 96
+            parent_sentinel: 3
+        Locals:
+            from_parent: <_io.BufferedReader at 0x7f2ff3a5eb90>
+            preparation_data: {"log_to_stderr": False, "authkey": <AuthenticationString at 0x7f2ff3b0bb60>, "name": "EngineCore", "sys_path": [...], ...}
+            self: <SpawnProcess at 0x7f2ff3a13c50>
+    spawn_main (multiprocessing/spawn.py:122)
+        Arguments:
+            pipe_handle: 96
+            parent_pid: None
+            tracker_fd: 94
+        Locals:
+            fd: 96
+            parent_sentinel: 3
+            resource_tracker: <module at 0x7f2ff395e570>
+    <module> (<string>:1)
+Thread 1894999 (idle): "MultiprocWorkerMonitor"
+    select (selectors.py:415)
+        Arguments:
+            self: <PollSelector at 0x7f293275c440>
+            timeout: None
+        Locals:
+            ready: []
+    wait (multiprocessing/connection.py:1136)
+        Arguments:
+            object_list: [62, 66, 70, 74, 78, 82, 86, 90]
+            timeout: None
+        Locals:
+            selector: <PollSelector at 0x7f293275c440>
+            obj: 90
+    monitor_workers (vllm/v1/executor/multiproc_executor.py:276)
+        Locals:
+            sentinels: [62, 66, 70, 74, 78, 82, 86, 90]
+    run (threading.py:1012)
+        Arguments:
+            self: <Thread at 0x7f293275c500>
+    _bootstrap_inner (threading.py:1075)
+        Arguments:
+            self: <Thread at 0x7f293275c500>
+    _bootstrap (threading.py:1032)
+        Arguments:
+            self: <Thread at 0x7f293275c500>
+Thread 1897068 (idle): "Thread-1 (process_input_sockets)"
+    poll (zmq/sugar/poll.py:106)
+        Arguments:
+            self: <Poller at 0x7f287c1491c0>
+            timeout: -1
+    process_input_sockets (vllm/v1/engine/core.py:1580)
+        Arguments:
+            self: <EngineCoreProc at 0x7f2932714a10>
+            input_addresses: ["ipc:///tmp/00f96a2d-47b1-44ab-af0d-229d5ccf0f12"]
+            coord_input_address: None
+            identity: <bytes at 0x7f293273cf60>
+        Locals:
+            add_request_decoder: <MsgpackDecoder at 0x7f28743a99a0>
+            generic_decoder: <MsgpackDecoder at 0x7f28743aa510>
+            stack: <ExitStack at 0x7f28743a9c40>
+            ctx: <Context at 0x7f28685d09b0>
+            input_sockets: [<Socket at 0x7f287435be00>]
+            coord_socket: None
+            poller: <Poller at 0x7f287c1491c0>
+            ready_response: <EngineCoreReadyResponse at 0x7f28743623c0>
+            ready_payload: <bytes at 0x7f28743720b0>
+            input_socket: <Socket at 0x7f287435be00>
+            _: 1
+            type_frame: <Frame at 0x7f2932842200>
+            data_frames: [<Frame at 0x7f2634930f70>]
+            request_type: <EngineCoreRequestType at 0x7f29351e9df0>
+            req: <EngineCoreRequest at 0x7f2634939ed0>
+            request: (<Request at 0x7f262f8d3a40>, 0)
+    run (threading.py:1012)
+        Arguments:
+            self: <Thread at 0x7f287c1d1bb0>
+    _bootstrap_inner (threading.py:1075)
+        Arguments:
+            self: <Thread at 0x7f287c1d1bb0>
+    _bootstrap (threading.py:1032)
+        Arguments:
+            self: <Thread at 0x7f287c1d1bb0>
+Thread 1897069 (idle): "Thread-2 (process_output_sockets)"
+    wait (threading.py:355)
+        Arguments:
+            self: <Condition at 0x7f293273d5e0>
+            timeout: None
+        Locals:
+            waiter: <_thread.lock at 0x7f26353be700>
+            saved_state: None
+            gotit: False
+    get (queue.py:171)
+        Arguments:
+            self: <Queue at 0x7f293273cfb0>
+            block: True
+            timeout: None
+    process_output_sockets (vllm/v1/engine/core.py:1647)
+        Arguments:
+            self: <EngineCoreProc at 0x7f2932714a10>
+            output_paths: ["ipc:///tmp/4a4643de-18ba-4826-9add-28a165ddeca5"]
+            coord_output_path: None
+            engine_index: 0
+        Locals:
+            encoder: <MsgpackEncoder at 0x7f28743a9c10>
+            reuse_buffers: [<bytearray at 0x7f2634ef2cf0>]
+            pending: <collections.deque at 0x7f28685c16c0>
+            stack: <ExitStack at 0x7f28743aa570>
+            ctx: <Context at 0x7f28685d0ad0>
+            sockets: [<Socket at 0x7f287435bcb0>]
+            coord_socket: None
+            max_reuse_bufs: 2
+            output: (0, <EngineCoreOutputs at 0x7f262ec775a0>)
+            client_index: 0
+            outputs: <EngineCoreOutputs at 0x7f262ec775a0>
+            buffer: <bytearray at 0x7f2634ef2cf0>
+            buffers: [<bytearray at 0x7f2634ef2cf0>]
+            tracker: <MessageTracker at 0x7f29460024b0>
+    run (threading.py:1012)
+        Arguments:
+            self: <Thread at 0x7f28743aa5a0>
+    _bootstrap_inner (threading.py:1075)
+        Arguments:
+            self: <Thread at 0x7f28743aa5a0>
+    _bootstrap (threading.py:1032)
+        Arguments:
+            self: <Thread at 0x7f28743aa5a0>
+Thread 1897141 (idle): "signal-callback"
+    wait (threading.py:355)
+        Arguments:
+            self: <Condition at 0x7f2932715cd0>
+            timeout: None
+        Locals:
+            waiter: <_thread.lock at 0x7f2932853bc0>
+            saved_state: None
+            gotit: False
+    wait (threading.py:655)
+        Arguments:
+            self: <Event at 0x7f29327149e0>
+            timeout: None
+        Locals:
+            signaled: False
+    _run (vllm/v1/engine/utils.py:233)
+        Arguments:
+            self: <SignalCallback at 0x7f29327150d0>
+    run (threading.py:1012)
+        Arguments:
+            self: <Thread at 0x7f29327153d0>
+    _bootstrap_inner (threading.py:1075)
+        Arguments:
+            self: <Thread at 0x7f29327153d0>
+    _bootstrap (threading.py:1032)
+        Arguments:
+            self: <Thread at 0x7f29327153d0>

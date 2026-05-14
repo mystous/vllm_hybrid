@@ -102,6 +102,67 @@ class AsyncIntermediateTensors(IntermediateTensors):
         return object.__getattribute__(self, name)
 
 
+def _neo_compute_pinned_cores(
+    local_rank: int, tp_size: int, cores_per_worker: int
+) -> tuple[set[int], str]:
+    """Compute NUMA-aware disjoint core slice for this TP rank.
+
+    Reads /sys/devices/system/node/* to detect NUMA topology. Splits TP
+    workers evenly across NUMA nodes. Each rank gets a contiguous slice
+    within its NUMA node's *physical* cores (SMT siblings excluded by
+    the "first half" heuristic on Linux's standard cpulist ordering,
+    e.g. NUMA0=0-55,112-167 → keep 0-55).
+
+    Returns (set_of_cores, numa_id_str). Falls back to linear layout if
+    /sys is unavailable.
+    """
+    import os
+    sys_node_dir = "/sys/devices/system/node"
+    numa_nodes: list[tuple[int, list[int]]] = []
+    if os.path.isdir(sys_node_dir):
+        for entry in sorted(os.listdir(sys_node_dir)):
+            if not (entry.startswith("node") and entry[4:].isdigit()):
+                continue
+            cpulist_path = f"{sys_node_dir}/{entry}/cpulist"
+            try:
+                with open(cpulist_path) as fh:
+                    cpulist_str = fh.read().strip()
+            except OSError:
+                continue
+            cores: list[int] = []
+            for part in cpulist_str.split(","):
+                if "-" in part:
+                    a, b = part.split("-")
+                    cores.extend(range(int(a), int(b) + 1))
+                elif part:
+                    cores.append(int(part))
+            cores.sort()
+            # Heuristic: keep first half (physical cores). SMT siblings
+            # are typically allocated at the high end of the cpulist on
+            # Linux dual-socket systems.
+            n_phys = len(cores) // 2
+            numa_nodes.append((int(entry[4:]), cores[:n_phys]))
+
+    if not numa_nodes:
+        # fallback — linear pin
+        start = local_rank * cores_per_worker
+        return set(range(start, start + cores_per_worker)), "?"
+
+    num_numa = len(numa_nodes)
+    workers_per_numa = max(1, tp_size // num_numa)
+    my_numa_idx = min(local_rank // workers_per_numa, num_numa - 1)
+    my_idx_in_numa = local_rank - (my_numa_idx * workers_per_numa)
+    numa_id, numa_cores = numa_nodes[my_numa_idx]
+    start = my_idx_in_numa * cores_per_worker
+    slice_cores = numa_cores[start : start + cores_per_worker]
+    if len(slice_cores) < cores_per_worker:
+        # NUMA node too narrow — fall back to linear within whatever it has
+        slice_cores = numa_cores[-cores_per_worker:] if len(
+            numa_cores
+        ) >= cores_per_worker else numa_cores
+    return set(slice_cores), str(numa_id)
+
+
 class Worker(WorkerBase):
     def __init__(
         self,
@@ -118,6 +179,39 @@ class Worker(WorkerBase):
             distributed_init_method=distributed_init_method,
             is_driver_worker=is_driver_worker,
         )
+
+        # IDE_006 — NEO per-worker CPU affinity pinning, NUMA-aware.
+        # Reads /sys/devices/system/node/* to detect NUMA topology, then
+        # distributes TP workers evenly across NUMA nodes. Each worker
+        # gets a disjoint contiguous slice within its NUMA node's
+        # physical cores so OMP/cdec threads inherit the affinity and
+        # stay on local memory. Aligns with GPU root complex (typical
+        # H100×8: GPU 0-3 on NUMA0, GPU 4-7 on NUMA1).
+        import os as _os_pin
+        if _os_pin.environ.get("VLLM_NEO_CPU_PIN_PER_WORKER", "0") == "1":
+            try:
+                _cores_per_worker = int(
+                    _os_pin.environ.get("VLLM_NEO_CPU_PIN_CORES", "12")
+                )
+                _tp_size = (
+                    vllm_config.parallel_config.tensor_parallel_size
+                )
+                _cores, _numa_id = _neo_compute_pinned_cores(
+                    self.local_rank, _tp_size, _cores_per_worker,
+                )
+                _os_pin.sched_setaffinity(0, _cores)
+                _sorted = sorted(_cores)
+                logger.info(
+                    "[NEO CPU PIN] worker rank=%d local_rank=%d "
+                    "pinned to NUMA%s cores %d-%d (%d cores)",
+                    self.rank, self.local_rank, _numa_id,
+                    _sorted[0], _sorted[-1], len(_sorted),
+                )
+            except Exception as _pin_e:  # noqa: BLE001
+                logger.warning(
+                    "[NEO CPU PIN] sched_setaffinity failed for rank=%d: "
+                    "%s: %s", self.local_rank, type(_pin_e).__name__, _pin_e,
+                )
 
         # configure float32 matmul precision according to vLLM env.
         precision = envs.VLLM_FLOAT32_MATMUL_PRECISION
@@ -755,6 +849,51 @@ class Worker(WorkerBase):
     def execute_model(
         self, scheduler_output: "SchedulerOutput"
     ) -> ModelRunnerOutput | AsyncModelRunnerOutput | None:
+        # [E18 torch.profiler] env-gated. VLLM_DEBUG_TORCH_PROFILER=1 활성 시
+        # 첫 호출에 profile context manager + schedule(wait, warmup, active)
+        # 시작. 매 execute_model 의 prof.step() 호출. trace 자동 export.
+        # default off — production 영역 영향 0.
+        import os as _os_tp
+        if _os_tp.environ.get("VLLM_DEBUG_TORCH_PROFILER", "0") == "1":
+            if not hasattr(self, "_e18_prof"):
+                from torch.profiler import (
+                    profile as _e18_profile,
+                    ProfilerActivity as _e18_PA,
+                    schedule as _e18_schedule,
+                )
+                _e18_out_dir = _os_tp.environ.get(
+                    "VLLM_E18_TRACE_DIR", "/tmp/e18_trace"
+                )
+                _os_tp.makedirs(_e18_out_dir, exist_ok=True)
+                _e18_rank = getattr(self, "rank", 0)
+                def _e18_handler(prof):
+                    import time as _e18_time
+                    _ts = int(_e18_time.time())
+                    _path = f"{_e18_out_dir}/trace_rank{_e18_rank}_{_ts}.json"
+                    prof.export_chrome_trace(_path)
+                # schedule: wait 200 step → warmup 5 → active 20 → stop
+                self._e18_prof = _e18_profile(
+                    activities=[_e18_PA.CPU, _e18_PA.CUDA],
+                    schedule=_e18_schedule(
+                        wait=200, warmup=5, active=20, repeat=1,
+                    ),
+                    on_trace_ready=_e18_handler,
+                    record_shapes=False,
+                    profile_memory=False,
+                    with_stack=False,
+                )
+                self._e18_prof.__enter__()
+                self._e18_step_count = 0
+            try:
+                self._e18_prof.step()
+                self._e18_step_count += 1
+                # active 영역 종료 후 cleanup (wait+warmup+active = 225)
+                if self._e18_step_count >= 226:
+                    self._e18_prof.__exit__(None, None, None)
+                    del self._e18_prof
+            except Exception:  # noqa: BLE001
+                pass
+
         # ensure any previous non-blocking PP sends are complete
         if self._pp_send_work:
             for handle in self._pp_send_work:

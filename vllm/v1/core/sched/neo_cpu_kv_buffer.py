@@ -75,6 +75,63 @@ class _PerReqAllocation:
     # 변하면 ``last_block_offset`` 추가.
 
 
+def _neo_numa_bind_local() -> tuple[bool, str]:
+    """IDE_006 Phase 1 — set NUMA membind to the local node of the
+    calling thread. Uses libnuma.so.1 via ctypes (no Python build dep).
+    Returns (success, info_str). When ``VLLM_NEO_NUMA_BIND`` is not
+    enabled, returns (False, "disabled"). Idempotent — safe to call
+    multiple times; each call resets the policy for *future*
+    allocations on this thread / process.
+
+    Relies on CPU pinning (``VLLM_NEO_CPU_PIN_PER_WORKER``) being
+    already active. ``numa_set_localalloc()`` instructs the kernel to
+    allocate from the NUMA node where the *current* CPU is — so the
+    pinned worker's KV buffer pages land on the worker's NUMA node.
+    """
+    import os
+    if os.environ.get("VLLM_NEO_NUMA_BIND", "0") != "1":
+        return False, "disabled"
+    try:
+        import ctypes
+        lib = ctypes.CDLL("libnuma.so.1")
+        lib.numa_available.restype = ctypes.c_int
+        if lib.numa_available() < 0:
+            return False, "numa_available<0"
+        # Tell the kernel to allocate from the *current* CPU's NUMA node
+        # for subsequent allocations. The CPU pinning already restricted
+        # us to a specific NUMA, so this resolves to that node.
+        lib.numa_set_localalloc()
+        # Best-effort: also report which node we're on (debug)
+        try:
+            lib.numa_node_of_cpu.restype = ctypes.c_int
+            lib.numa_node_of_cpu.argtypes = [ctypes.c_int]
+            libc = ctypes.CDLL("libc.so.6")
+            libc.sched_getcpu.restype = ctypes.c_int
+            cpu = libc.sched_getcpu()
+            node = lib.numa_node_of_cpu(cpu)
+            return True, f"localalloc cpu={cpu} node={node}"
+        except Exception:
+            return True, "localalloc (node detect failed)"
+    except OSError as e:
+        return False, f"libnuma load failed: {e}"
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+
+
+def _neo_synchronized(method):
+    """TSK_019 plan B2 fix — instance lock 보호 decorator. cdec worker
+    thread (read) + main thread (alloc/free/scatter) 사이 host memory
+    race 회피. GIL release (C ext) + advanced indexing 영역 보호."""
+    def _wrapped(self, *args, **kwargs):
+        if hasattr(self, "_lock"):
+            with self._lock:
+                return method(self, *args, **kwargs)
+        return method(self, *args, **kwargs)
+    _wrapped.__name__ = method.__name__
+    _wrapped.__doc__ = method.__doc__
+    return _wrapped
+
+
 class NeoCpuKvBuffer:
     """CPU-resident KV cache buffer + per-request block index.
 
@@ -96,6 +153,16 @@ class NeoCpuKvBuffer:
             spec.num_kv_heads,
             spec.block_size,
             spec.head_dim,
+        )
+        # IDE_006 Phase 1 — NUMA-local membind for the upcoming K_cpu /
+        # V_cpu allocations. Combined with per-worker CPU pinning
+        # (gpu_worker.py), this keeps the KV pages on the same NUMA node
+        # as the GPU's PCIe root complex, eliminating cross-socket
+        # spillover on first-touch.
+        _numa_ok, _numa_info = _neo_numa_bind_local()
+        logger.info(
+            "NeoCpuKvBuffer NUMA bind: ok=%s info=%s",
+            _numa_ok, _numa_info,
         )
         # Pinned-memory tensors so PCIe transfer (Phase 4.2) is fast.
         # ``pin_memory=True`` requires CUDA available; on CPU-only
@@ -119,6 +186,11 @@ class NeoCpuKvBuffer:
 
         self._free_block_ids: list[int] = list(range(spec.num_cpu_blocks))
         self._req_alloc: dict[str, _PerReqAllocation] = {}
+        # TSK_019 plan B2 fix — re-entrant lock. alloc/free/copy_layer_in/
+        # copy_layer_out 모두 보호. main thread (scatter) + cdec worker
+        # thread (read) 사이 host memory race 회피.
+        import threading as _th
+        self._lock = _th.RLock()
 
         logger.info(
             "NeoCpuKvBuffer allocated: shape=%s dtype=%s pinned=%s "
@@ -132,23 +204,119 @@ class NeoCpuKvBuffer:
     # ------------------------------------------------------------------
     # Per-request allocation API (Phase 4.1 — bookkeeping only)
     # ------------------------------------------------------------------
+    @_neo_synchronized
     def alloc(self, req_id: str, num_blocks: int) -> list[int] | None:
         """Reserve ``num_blocks`` CPU block_ids for ``req_id``. Returns
         the assigned block_ids, or ``None`` if the free pool is
         insufficient (caller should treat as a swap-out failure).
         Re-alloc for the same req_id raises (caller should ``free``
-        first)."""
+        first).
+
+        TSK_019 plan F3 — capacity log 강화. alloc 빈도 / free 비율
+        측정으로 CPU pool overflow 영역 추적.
+        """
         if req_id in self._req_alloc:
             raise ValueError(
                 f"NeoCpuKvBuffer.alloc: req_id {req_id!r} already allocated"
             )
         if num_blocks > len(self._free_block_ids):
+            # F3 — capacity 부족 detail log
+            try:
+                import logging as _lg
+                _lg.getLogger(__name__).info(
+                    "[NEO BUF ALLOC FAIL] req=%s needed=%d free=%d "
+                    "total=%d active_reqs=%d",
+                    req_id, num_blocks, len(self._free_block_ids),
+                    self.spec.num_cpu_blocks, len(self._req_alloc),
+                )
+            except Exception:  # noqa: BLE001
+                pass
             return None
         ids = self._free_block_ids[-num_blocks:]
         del self._free_block_ids[-num_blocks:]
         self._req_alloc[req_id] = _PerReqAllocation(block_ids=ids)
+        # F3 — alloc 첫 5 회 + 매 100 회 capacity log
+        try:
+            import logging as _lg
+            self._neo_alloc_count = (
+                getattr(self, "_neo_alloc_count", 0) + 1
+            )
+            if (self._neo_alloc_count <= 5
+                    or self._neo_alloc_count % 100 == 0):
+                _lg.getLogger(__name__).info(
+                    "[NEO BUF ALLOC] count=%d req=%s blocks=%d "
+                    "free_after=%d/%d active_reqs=%d",
+                    self._neo_alloc_count, req_id, num_blocks,
+                    len(self._free_block_ids),
+                    self.spec.num_cpu_blocks, len(self._req_alloc),
+                )
+        except Exception:  # noqa: BLE001
+            pass
         return ids
 
+    @_neo_synchronized
+    def ensure_capacity(
+        self, req_id: str, target_num_blocks: int,
+    ) -> list[int] | None:
+        """[Plan v4 Option L] NEO 정통 정합 — *증분 alloc*.
+
+        NEO ``DeviceBlockManager.alloc`` 의 logic 모방
+        (``swiftllm/server/block_manager.py:78-112``).
+
+        매 step cdec dispatch 직전 호출되어, req_id 의 현재 alloc 된
+        block 수가 target_num_blocks 미만이면 *차이만큼 추가 alloc*.
+        이미 충분히 alloc 됐으면 noop.
+
+        Args:
+            req_id: 대상 req.
+            target_num_blocks: ``ceil(seq_len / block_size)``.
+
+        Returns:
+            None: req_id 가 alloc 안 됐거나, free pool 부족.
+            list[int]: 현재 (확장 후) block_ids.
+        """
+        alloc = self._req_alloc.get(req_id)
+        if alloc is None:
+            return None
+        cur = len(alloc.block_ids)
+        if cur >= target_num_blocks:
+            return alloc.block_ids
+        need = target_num_blocks - cur
+        if need > len(self._free_block_ids):
+            try:
+                import logging as _lg
+                _lg.getLogger(__name__).info(
+                    "[NEO BUF EXTEND FAIL] req=%s need=%d free=%d "
+                    "cur=%d target=%d",
+                    req_id, need, len(self._free_block_ids),
+                    cur, target_num_blocks,
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            return None
+        # Pop from free pool.
+        added = self._free_block_ids[-need:]
+        del self._free_block_ids[-need:]
+        alloc.block_ids.extend(added)
+        try:
+            import logging as _lg
+            self._neo_extend_count = (
+                getattr(self, "_neo_extend_count", 0) + 1
+            )
+            if (self._neo_extend_count <= 5
+                    or self._neo_extend_count % 100 == 0):
+                _lg.getLogger(__name__).info(
+                    "[NEO BUF EXTEND] count=%d req=%s added=%d "
+                    "total=%d free_after=%d/%d",
+                    self._neo_extend_count, req_id, need,
+                    len(alloc.block_ids), len(self._free_block_ids),
+                    self.spec.num_cpu_blocks,
+                )
+        except Exception:  # noqa: BLE001
+            pass
+        return alloc.block_ids
+
+    @_neo_synchronized
     def free(self, req_id: str) -> list[int] | None:
         """Release the block_ids belonging to ``req_id``. Returns the
         freed block_ids (so callers can wipe them). Returns ``None`` if
@@ -159,6 +327,7 @@ class NeoCpuKvBuffer:
         self._free_block_ids.extend(alloc.block_ids)
         return alloc.block_ids
 
+    @_neo_synchronized
     def get_block_ids(self, req_id: str) -> list[int] | None:
         alloc = self._req_alloc.get(req_id)
         return alloc.block_ids if alloc is not None else None
@@ -180,6 +349,7 @@ class NeoCpuKvBuffer:
     # 처리. dtype mismatch 의 정밀도 손실은 attention 수준에서 vanilla
     # 와 *분포 동등* (CLAUDE.md Constraint 운영 해석).
 
+    @_neo_synchronized
     def copy_layer_in(
         self,
         req_id: str,
@@ -220,6 +390,14 @@ class NeoCpuKvBuffer:
         # *copy*, not a view — ``.copy_()`` on it would not write back.
         # Use ``index_put_`` or direct indexed assignment instead.
         # Move src to CPU first if needed (it may be on GPU).
+        # TSK_019 plan F8 fix — silent worker crash root.
+        # 기존: `to("cpu", non_blocking=True)` + non-pinned 임시 dst →
+        # PyTorch 의 unsafe async fallback (driver-dependent UB) → 직후
+        # advanced indexing scatter 가 *partial-filled host buffer* 읽음
+        # → CUDA caching allocator + memcpy state corruption →
+        # ~20 swap_out 후 silent worker crash.
+        # 변경: `to("cpu", non_blocking=False)` 로 동기 H2D — caching
+        # allocator state corruption 회피. NEO 본가 패턴 동등.
         idx = torch.tensor(block_ids, dtype=torch.long)
         k_cpu_src = k_src.detach().to("cpu", non_blocking=False)
         v_cpu_src = v_src.detach().to("cpu", non_blocking=False)
@@ -229,6 +407,37 @@ class NeoCpuKvBuffer:
         self.k_cpu[layer_idx, idx] = k_cpu_src
         self.v_cpu[layer_idx, idx] = v_cpu_src
 
+    @_neo_synchronized
+    def copy_all_layers_in_from_staged(
+        self,
+        req_id: str,
+        k_staged: torch.Tensor,
+        v_staged: torch.Tensor,
+        n_blocks: int,
+    ) -> None:
+        """CPU-only scatter: copy pre-staged pinned CPU data into NEO buffer.
+
+        Called by the worker after async D→H DMA completes (no GPU ops).
+        k_staged / v_staged shape: ``(num_layers, max_blocks_per_req, ...)``;
+        only the first ``n_blocks`` columns are valid.
+        """
+        # SUB_021 (C extension OMP scatter) 기각 (2026-05-14): per-call
+        # 가속 (sync 46→39ms, async 143→119ms) 였으나 전체 throughput
+        # -4% 회귀. 원인: cdec executor 의 OMP=10 thread 와 동시 spawn
+        # 시 20 threads × 12 cores 경합 → cdec compute 가 critical path
+        # 에서 손해. ATen 의 vectorized index_put_ 가 naive memcpy OMP
+        # 보다 빠른 것으로 판명. Python 원본 복원.
+        block_ids = self.get_block_ids(req_id)
+        if block_ids is None:
+            raise ValueError(
+                f"copy_all_layers_in_from_staged: req {req_id!r} not allocated"
+            )
+        idx = torch.tensor(block_ids, dtype=torch.long)
+        for layer_idx in range(self.spec.num_layers):
+            self.k_cpu[layer_idx, idx] = k_staged[layer_idx, :n_blocks]
+            self.v_cpu[layer_idx, idx] = v_staged[layer_idx, :n_blocks]
+
+    @_neo_synchronized
     def copy_layer_out(
         self,
         req_id: str,
@@ -338,10 +547,12 @@ def make_spec_from_config(vllm_config) -> NeoCpuKvBufferSpec | None:
                     hf_cfg.hidden_size // hf_cfg.num_attention_heads)
         )
         block_size = max(int(cache_cfg.block_size), 1)
-        # CPU pool sizing — vLLM 의 ``CacheConfig.swap_space`` (GB) 가 명시된
-        # 경우 그 값을 cap 으로 사용. 안 명시되면 max_seqs/8 × max_model_len
-        # 의 보수적 default (예: 256 max_seqs × 16384 max_len + 80 layer +
-        # FP16 = ~80 GB 까지 자라므로 1/8 cap 으로 ~10 GB 영역).
+        # CPU pool sizing — TSK_019 plan v3 Phase A-0 (2026-05-08):
+        # default 를 max_seqs/8 → max_seqs/4 로 2× 확대. 직전 default
+        # 32 reqs (256/8) 만으로는 swap_out 시 vanilla preempt path 로
+        # 흘러서 CDEC dispatch 미발화. 다만 host pinned memory 폭주 위험
+        # 회피 위해 absolute cap (128) + host available memory 50% guard
+        # + env override (VLLM_NEO_CPU_RESIDENT_REQS) 로 안전화.
         max_seqs = max(int(sched_cfg.max_num_seqs), 1)
         max_model_len = max(int(model_cfg.max_model_len), 1)
         blocks_per_req = (max_model_len + block_size - 1) // block_size
@@ -354,14 +565,64 @@ def make_spec_from_config(vllm_config) -> NeoCpuKvBufferSpec | None:
         per_layer_per_req_bytes = per_block_bytes * blocks_per_req
         all_layers_per_req_bytes = per_layer_per_req_bytes * num_layers
 
-        # vLLM's swap_space (GB) — if user set it, treat as our cap.
-        swap_space_gb = float(getattr(cache_cfg, "swap_space", 0) or 0)
-        if swap_space_gb > 0:
-            cap_bytes = int(swap_space_gb * (1024 ** 3))
-            max_cpu_resident_reqs = max(1, cap_bytes // all_layers_per_req_bytes)
+        # ABSOLUTE_CAP — host memory 폭주 방어선. 어떤 settings 조합서도
+        # 본 값 초과 reqs 는 cap. (예: 128 reqs × 1024 blocks_per_req
+        # × 80 layers × 8 KiB/block ≈ 80 GiB host RAM — Llama-70B 기준).
+        ABSOLUTE_CAP = 128
+
+        # 1) 사용자 명시 env override 우선 (cap 까지만 적용).
+        import os as _os_env
+        env_override = _os_env.environ.get("VLLM_NEO_CPU_RESIDENT_REQS")
+        if env_override:
+            try:
+                max_cpu_resident_reqs = max(1, min(int(env_override), ABSOLUTE_CAP))
+                logger.info(
+                    "NeoCpuKvBuffer: VLLM_NEO_CPU_RESIDENT_REQS=%s applied (capped to %d)",
+                    env_override, max_cpu_resident_reqs,
+                )
+            except ValueError:
+                env_override = None  # ignore malformed
+                max_cpu_resident_reqs = None
         else:
-            # No explicit cap — pick a reasonable default (1/8 of max_seqs).
-            max_cpu_resident_reqs = max(1, max_seqs // 8)
+            max_cpu_resident_reqs = None
+
+        if max_cpu_resident_reqs is None:
+            # 2) vLLM's swap_space (GB) — if user set it, treat as our cap.
+            swap_space_gb = float(getattr(cache_cfg, "swap_space", 0) or 0)
+            if swap_space_gb > 0:
+                cap_bytes = int(swap_space_gb * (1024 ** 3))
+                max_cpu_resident_reqs = max(
+                    1, min(cap_bytes // all_layers_per_req_bytes, ABSOLUTE_CAP)
+                )
+            else:
+                # 3) Default — 2× of prior (max_seqs // 4) with absolute cap.
+                max_cpu_resident_reqs = max(1, min(max_seqs // 4, ABSOLUTE_CAP))
+
+        # Host memory guard — 사전 추정한 alloc 크기가 available memory 의
+        # 50% 를 넘으면 절반으로 cap (graceful degradation).
+        try:
+            import psutil as _psutil_guard
+            available_bytes = _psutil_guard.virtual_memory().available
+            estimated_bytes = (
+                max_cpu_resident_reqs * blocks_per_req
+                * per_block_bytes * num_layers
+            )
+            if estimated_bytes > available_bytes // 2:
+                halved = max(1, max_cpu_resident_reqs // 2)
+                logger.warning(
+                    "NeoCpuKvBuffer: estimated alloc %.2f GiB > 50%% of "
+                    "available host memory %.2f GiB. halving to %d reqs.",
+                    estimated_bytes / (1024 ** 3),
+                    available_bytes / (1024 ** 3),
+                    halved,
+                )
+                max_cpu_resident_reqs = halved
+        except ImportError:
+            # psutil 미설치 시 host guard skip — env override 또는 ABSOLUTE_CAP 의존
+            logger.info(
+                "NeoCpuKvBuffer: psutil unavailable — host memory guard skipped"
+            )
+
         num_cpu_blocks = max_cpu_resident_reqs * blocks_per_req
 
         logger.info(

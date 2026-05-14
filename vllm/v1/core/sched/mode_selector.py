@@ -35,6 +35,17 @@ from vllm.v1.core.sched.sub_batch import SubBatch
 # module import. Setting the env var after Python startup will not take
 # effect — that is intentional (used only for dev-time bring-up).
 _FORCE_PIPELINED: bool = os.environ.get("VLLM_NEO_FORCE_PIPELINED") == "1"
+# [TSK_019 v3 / Phase A-0] Kill switch — set to "1" 면 force-pipelined
+# 효과 전체 무시 (env + scheduler_config.enable_neo_force_pipelined 모두).
+# 시스템 hang 시 비상 회피용.
+_DISABLE_FORCE_PIPELINED: bool = (
+    os.environ.get("VLLM_NEO_DISABLE_FORCE_PIPELINED") == "1"
+)
+# [Phase A-0] forward_double 진입 전 보장할 GPU free memory 마진 (bytes).
+# default 1 GiB / shard — 부족 시 sequential 자동 폴백.
+_NEO_GPU_FREE_MARGIN_BYTES: int = int(
+    os.environ.get("VLLM_NEO_GPU_FREE_MARGIN_BYTES", str(1024 ** 3))
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,10 +125,44 @@ def decide_mode(
     num_layers: int,
     num_gpu_blocks: int,
     linr_S_threshold: int = 128,
+    force_pipelined: bool = False,
 ) -> list[SubBatch]:
     """Run NEO's 5-step batch composition. Returns either one or two
     SubBatches depending on whether pipelined mode wins.
+
+    Args:
+        force_pipelined: [TSK_019 v3 / Phase A-0] caller (NeoScheduler /
+            adapter) 가 ``scheduler_config.enable_neo_force_pipelined``
+            기반으로 set. True 면 cdec_q empty 시에도 pipelined 시도.
+            ``VLLM_NEO_DISABLE_FORCE_PIPELINED=1`` env 시 무시.
     """
+    # [Phase A-0] Kill switch — 본 env 가 set 되면 모든 force-pipelined
+    # 효과 (env + caller-passed flag) 를 비활성. 시스템 hang 시 비상
+    # 회피.
+    effective_force_pipelined = (
+        (_FORCE_PIPELINED or force_pipelined) and not _DISABLE_FORCE_PIPELINED
+    )
+
+    # [Phase A-0] GPU memory guard — pipelined 진입 전 forward_double 의
+    # 추가 alloc (preproj/postproj workspace) 위한 free margin 확인.
+    # margin 부족 시 effective_force_pipelined 무력화 → sequential 폴백.
+    if effective_force_pipelined:
+        try:
+            import torch as _torch_guard
+            if _torch_guard.cuda.is_available():
+                free_bytes, _total = _torch_guard.cuda.mem_get_info()
+                if free_bytes < _NEO_GPU_FREE_MARGIN_BYTES:
+                    logger.warning(
+                        "decide_mode: GPU free %.0f MiB < margin %.0f MiB "
+                        "— forced pipelined disabled, fall back to sequential.",
+                        free_bytes / (1024 ** 2),
+                        _NEO_GPU_FREE_MARGIN_BYTES / (1024 ** 2),
+                    )
+                    effective_force_pipelined = False
+        except (ImportError, RuntimeError):
+            # cuda 미초기화 또는 torch 미설치 — guard skip
+            pass
+
     # Fast-path: 의미 있게 pipelined 가 발화하려면 (a) cpu_decoding_q 가
     # non-empty (Step 3 가 cdec 배포 가능) 또는 (b) FORCE_PIPELINED 활성.
     # 둘 다 아니면 batches[1] 가 끝까지 비어있어 line 177 의
@@ -133,7 +178,9 @@ def decide_mode(
     except StopIteration:
         first_cdec = None
 
-    if not has_cdec and not _FORCE_PIPELINED and num_gpu_blocks > 0:
+    if (not has_cdec
+            and not effective_force_pipelined
+            and num_gpu_blocks > 0):
         gpu_only_batch = SubBatch(predictor)
         for req in gpu_prefill_reqs:
             gpu_only_batch.add_pref(req, is_gpu=True)
@@ -184,16 +231,38 @@ def decide_mode(
             break
 
     # Step 3 — distribute CPU-decode requests between batches[0]/[1].
-    # IDE_006 — predictor 의 latency 비교 (min(remains) < 0) 영역 제거.
-    # 본 영역 fallback 시 cdec_reqs 가 *영영 forward 안 됨* → finish 영역
-    # 도달 못함 → deadlock 외형. NEO 정통 path = cdec_reqs 영역 시 *항상*
-    # pipelined 활성 — alternate distribute 영역.
+    # IDE_006 G3 — NEO 정통 (scheduler.py:184-203) 영역 복원. balance-driven
+    # next_batch_idx = remains[1] > remains[0] + overflow guard
+    # (min(remains) < 0 시 pop + min_out_cpu_len filter). HeuristicPerf
+    # Predictor 가 perfdata 영역 채우므로 _get_remains 영역 비제로 값 반환
+    # → §4.4 의 진짜 load-aware 영역 활성.
+    # env override: VLLM_NEO_DECIDE_MODE_BALANCE=0 시 strict alternation
+    # (이전 fallback 영역, 회귀 시 비상 회피용).
+    _balance_mode = os.environ.get("VLLM_NEO_DECIDE_MODE_BALANCE", "1") == "1"
+    min_out_cpu_len = math.inf
     next_batch_idx = 1
     for req in cpu_decoding_q:
         if not budget.check_and_substract(1):
             break
+        if _balance_mode and req.num_tokens >= min_out_cpu_len:
+            # NEO Step 3 FCFS — 이전 req 가 CPU overflow 발화한 seq_len
+            # 이상은 skip (큰 seq_len 일수록 cdec 비용 크므로).
+            budget.add(1)
+            continue
         batches[next_batch_idx].add_cdec(req)
-        next_batch_idx = 1 - next_batch_idx
+        if _balance_mode:
+            remains = _get_remains(batches)
+            if min(remains) < 0 and num_gpu_blocks > 0:
+                # CPU overflow — pop, 같은 seq_len 이상 skip.
+                min_out_cpu_len = req.num_tokens
+                budget.add(1)
+                batches[next_batch_idx].pop_cdec()
+                continue
+            # balance-driven: 더 slack 큰 batch 에 next 추가.
+            next_batch_idx = 1 if remains[1] > remains[0] else 0
+        else:
+            # legacy strict alternation fallback.
+            next_batch_idx = 1 - next_batch_idx
 
     # Edge case: no cdec was packed → fall back to GPU-only.
     # When ``VLLM_NEO_FORCE_PIPELINED=1`` *or* has_cdec is True we instead
@@ -201,7 +270,8 @@ def decide_mode(
     # shape lands downstream and the dual-forward path actually fires.
     if not batches[1] and num_gpu_blocks > 0:
         # IDE_006 — has_cdec 시도 split (predictor 영역 무시).
-        if _FORCE_PIPELINED or has_cdec:
+        # [Phase A-0] caller-passed force_pipelined 도 동등 효과.
+        if effective_force_pipelined or has_cdec:
             half_gprf = len(batches[0].gprf_reqs) // 2
             for _ in range(half_gprf):
                 req = batches[0].gprf_reqs.pop()
@@ -236,7 +306,7 @@ def decide_mode(
     # cost when off). Used during NEO bring-up to force pipelined return
     # so ``forward_neo_pipelined`` exercises real workloads even with
     # ZeroPerfPredictor (where Step 5's rate compare is meaningless).
-    if _FORCE_PIPELINED:
+    if effective_force_pipelined:
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
                 "[NEO] decide_mode FORCE entry: "

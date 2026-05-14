@@ -350,6 +350,30 @@ class WorkerWrapperBase:
             return {}
         return runner.profile_neo_predictor()
 
+    def ensure_neo_kernel_loaded(self) -> bool:
+        """TSK_019 plan F1 — NEO pacpu kernel ensure_loaded RPC.
+
+        cache HIT 시 ``profile_neo_predictor`` skip → 그 안의
+        ensure_loaded skip → worker process 의 ``torch.ops.pacpu`` 미등록
+        → cdec dispatch 발화 시 AttributeError.
+        Main process 의 cache HIT/MISS 와 무관하게 worker process 마다
+        ensure_loaded 호출 보장. idempotent (이미 loaded 면 즉시 return).
+        """
+        try:
+            from vllm.v1.attention.ops import neo_pacpu as _neo_pacpu
+            runner = getattr(self.worker, "model_runner", None)
+            if runner is None:
+                return False
+            mc = getattr(runner, "model_config", None)
+            pc = getattr(runner, "parallel_config", None)
+            if mc is None or pc is None:
+                return False
+            return bool(_neo_pacpu.ensure_loaded(
+                mc.model, pc.tensor_parallel_size,
+            ))
+        except Exception:  # noqa: BLE001
+            return False
+
     def reset_mm_cache(self) -> None:
         mm_receiver_cache = self.mm_receiver_cache
         if mm_receiver_cache is not None:

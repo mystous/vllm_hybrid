@@ -13,7 +13,10 @@ export void qk_product(
   
   uniform itmd_t a[] // [seq_len, NUM_KV_HEADS, HEAD_DIM]
 ) {
-  uniform int imax = seq_len / BLOCK_SIZE + 1;
+  // TSK_019 plan F11 진짜 fix — ceil-div. 기존 `seq_len / BLOCK_SIZE + 1`
+  // 는 seq_len % BLOCK_SIZE == 0 시 1 block over read (block_table OOB).
+  // silent worker crash 의 root 후보.
+  uniform int imax = (seq_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
   for (uniform int i = 0; i < imax; i++) {
     const uniform data_t * k = k_cache + 
       (1ll * cur_layer * num_blocks + block_table[i]) * BLOCK_NELEM;
@@ -76,7 +79,10 @@ export void av_product(
   
   uniform otpt_t o[] // [NUM_Q_HEADS, HEAD_DIM]
 ) {
-  uniform int imax = seq_len / BLOCK_SIZE + 1;
+  // TSK_019 plan F11 진짜 fix — ceil-div. 기존 `seq_len / BLOCK_SIZE + 1`
+  // 는 seq_len % BLOCK_SIZE == 0 시 1 block over read (block_table OOB).
+  // silent worker crash 의 root 후보.
+  uniform int imax = (seq_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
   memset(o, 0, NUM_Q_HEADS * HEAD_DIM * sizeof(uniform otpt_t));
   for (uniform int i = 0; i < imax; i++) {
