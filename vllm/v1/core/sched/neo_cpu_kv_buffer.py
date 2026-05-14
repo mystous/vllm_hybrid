@@ -186,6 +186,10 @@ class NeoCpuKvBuffer:
 
         self._free_block_ids: list[int] = list(range(spec.num_cpu_blocks))
         self._req_alloc: dict[str, _PerReqAllocation] = {}
+        # Reqs currently mid-async-swap_out — between gather and scatter.
+        # ensure_capacity skips for these to prevent block_ids extension
+        # mid-flight (would cause scatter shape mismatch).
+        self._in_flight_swap_out: set[str] = set()
         # TSK_019 plan B2 fix — re-entrant lock. alloc/free/copy_layer_in/
         # copy_layer_out 모두 보호. main thread (scatter) + cdec worker
         # thread (read) 사이 host memory race 회피.
@@ -278,6 +282,10 @@ class NeoCpuKvBuffer:
         alloc = self._req_alloc.get(req_id)
         if alloc is None:
             return None
+        # Skip extension during async swap_out — would cause scatter
+        # shape mismatch on drain (staged data size != block_ids count).
+        if req_id in self._in_flight_swap_out:
+            return alloc.block_ids
         cur = len(alloc.block_ids)
         if cur >= target_num_blocks:
             return alloc.block_ids
@@ -331,6 +339,18 @@ class NeoCpuKvBuffer:
     def get_block_ids(self, req_id: str) -> list[int] | None:
         alloc = self._req_alloc.get(req_id)
         return alloc.block_ids if alloc is not None else None
+
+    @_neo_synchronized
+    def mark_swap_out_in_flight(self, req_id: str) -> None:
+        """Mark req as mid-async-swap_out. ensure_capacity skips during
+        this window to prevent scatter shape mismatch on drain.
+        Worker calls this at gather; clears at drain (success or fail)."""
+        self._in_flight_swap_out.add(req_id)
+
+    @_neo_synchronized
+    def clear_swap_out_in_flight(self, req_id: str) -> None:
+        """Clear in-flight mark — called from worker drain."""
+        self._in_flight_swap_out.discard(req_id)
 
     # ------------------------------------------------------------------
     # Phase 4.2 — per-layer K/V move primitives

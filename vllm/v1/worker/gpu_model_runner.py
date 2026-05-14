@@ -6553,9 +6553,10 @@ class GPUModelRunner(
                 )
                 buf.free(req_id)
             finally:
+                # Clear in-flight mark — ensure_capacity can extend again.
+                buf.clear_swap_out_in_flight(req_id)
                 info.pop('k_gpu', None)
                 info.pop('v_gpu', None)
-            info.pop('v_gpu', None)
 
     def _get_req_gpu_block_ids(self, req_id: str) -> list[int] | None:
         """Look up the GPU block_ids for ``req_id`` from the runner's
@@ -6684,12 +6685,20 @@ class GPUModelRunner(
                             if _prof_on:
                                 _g['t0'] = _t_prof.perf_counter()
                                 _g['prof_on'] = True
+                            # Mark req in-flight so ensure_capacity skips
+                            # extension until drain — fixes scatter shape
+                            # mismatch (gather_n != block_ids count at drain).
+                            buf.mark_swap_out_in_flight(req_id)
                             _async_gathered_list.append(_g)
                             _async_slot_used += 1
                             _neo_swap_out_call_count += 1
-                            # [Cleanup 2026-05-14] CALL count log 제거
-                            # (hot path, VLLM_NEO_PROFILE PROFILE 로그로
-                            # 대체 가능)
+                            # 22-item monitor 추적 — env-gated CALL count log
+                            # (VLLM_NEO_PROFILE=1 시만 emit).
+                            if _prof_on:
+                                logger.info(
+                                    "[NEO SWAP_OUT CALL] count=%d (async)",
+                                    _neo_swap_out_call_count,
+                                )
                             continue  # DMA launched after swap-in below
                         # gather_phase returned None — fall through to sync.
                     # Sync path (fallback or subsequent reqs).
@@ -6715,7 +6724,11 @@ class GPUModelRunner(
                         )
                     self._neo_cpu_resident_reqs.add(req_id)
                     _neo_swap_out_call_count += 1
-                    # [Cleanup 2026-05-14] CALL count log 제거 (hot path)
+                    if _prof_on:
+                        logger.info(
+                            "[NEO SWAP_OUT CALL] count=%d (sync)",
+                            _neo_swap_out_call_count,
+                        )
                 except Exception as e:  # noqa: BLE001
                     logger.warning(
                         "[NEO] swap-out: req %s failed (%s) — rolling back "

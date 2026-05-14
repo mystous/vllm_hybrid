@@ -1024,9 +1024,23 @@ def unified_attention_with_output(
                                     cdec_count, nh, hd,
                                 )
                             )
-                            # [Cleanup 2026-05-14] cdec dispatch counter
-                            # log 제거 (env-gated VLLM_NEO_PROFILE 로
-                            # 필요 시 재활성 가능). hot path 영역.
+                            # 22-item monitor 추적 — env-gated cdec dispatch
+                            # counter (VLLM_NEO_PROFILE=1 시만 emit).
+                            global _neo_cdec_call_count
+                            try:
+                                _neo_cdec_call_count += 1
+                            except NameError:
+                                _neo_cdec_call_count = 1
+                            import os as _os_cdec_call
+                            if (_os_cdec_call.environ.get(
+                                    "VLLM_NEO_PROFILE", "0") == "1"
+                                and _neo_cdec_call_count % 100 == 0):
+                                logger.info(
+                                    "[NEO CDEC CALL] count=%d cdec_rows=%d "
+                                    "layer=%d",
+                                    _neo_cdec_call_count, cdec_count,
+                                    layer_idx,
+                                )
                             cdec_t0 = _t0
                             cdec_t1 = _t1
     except Exception as _cdec_setup_e:  # noqa: BLE001
@@ -1220,6 +1234,8 @@ _neo_async_cdec_mode = False
 # Each entry: (future, output, t0, t1). FIFO drain order.
 import collections as _collections_neo  # noqa: E402
 _neo_pending_cdec_queue: _collections_neo.deque = _collections_neo.deque()
+# 22-item monitor — cdec dispatch counter (env-gated emit by VLLM_NEO_PROFILE).
+_neo_cdec_call_count: int = 0
 
 
 def _neo_drain_pending_cdec() -> None:
