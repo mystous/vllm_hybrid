@@ -183,11 +183,7 @@ flowchart TB
     PLN_001 --> TSK_019["TSK_019<br/>swiftllm cdec dispatch<br/>divergence 식별 + surgery"]
     %% TSK_019 1차 frame — swiftllm cdec divergence (D1-D5 + D2.3)
     TSK_019 --> SUB_001["SUB_001<br/>D1 layer-offset<br/>✅ 검증 완료"]
-    TSK_019 --> SUB_002["SUB_002<br/>D2 cdec seq slicing<br/>🔴 v39 revert"]
     TSK_019 --> SUB_003["SUB_003<br/>D3 KV exclusive<br/>🟡 TSK_015 중복"]
-    TSK_019 --> SUB_004["SUB_004<br/>D4 block_table 조립<br/>🔴 v44 reject"]
-    TSK_019 --> SUB_005["SUB_005<br/>D5 Q/K/V 전송 timing<br/>🔴 v43 reject"]
-    TSK_019 --> SUB_006["SUB_006<br/>D2.3 BF16↔FP16 cast<br/>🔴 v42 reject"]
 
     %% TSK_019 2차 frame — cdec kernel SIMD/AMX optimizations (Group A + B)
     TSK_019 --> SUB_007["SUB_007<br/>A1 qk_product outer-SIMD<br/>🟢 완료 (verify 2026-05-14)"]
@@ -206,21 +202,16 @@ flowchart TB
     SUB_017 --> SUB_018["SUB_018<br/>Layer ii #2: 4-stage interleave<br/>🟢 완료 (verify 2026-05-14)"]
     SUB_018 --> SUB_019["SUB_019<br/>Layer ii #3: layer-offset split<br/>🟢 완료 (verify 2026-05-14)"]
     TSK_019 --> SUB_020["SUB_020<br/>Layer iii #1: swap path + hysteresis<br/>🟢 완료 (verify 2026-05-14)"]
-    SUB_020 --> SUB_021["SUB_021<br/>Layer iii #2: C ext batched copy<br/>🔴 기각 (-4% 회귀)"]
     TSK_019 --> SUB_022["SUB_022<br/>Layer iv cdec #1: pinned 1회 alloc<br/>🟢 완료 (verify 2026-05-14)"]
-    SUB_022 --> SUB_023["SUB_023<br/>Layer iv cdec #2: max_workers + GIL<br/>🔴 기각 (CW=4 -52%, CW=2 sweet spot)"]
     SUB_022 --> SUB_024["SUB_024<br/>Layer iv cdec #3: BF16 cast 위치<br/>🟢 완료 variant (verify 2026-05-14)"]
 
     %% async swap chain — 본 세션 (2026-05-13~14)
     SUB_017 --> SUB_025["SUB_025<br/>async swap_out + deadlock escape<br/>🟢 완료 (1,800 tps, +187%)"]
     SUB_025 --> SUB_026["SUB_026<br/>staging N=3 + KV size 가설<br/>🟢 완료 (1,766~1,978)"]
     SUB_026 --> SUB_027["SUB_027<br/>KV size sweep + 표준 (H5)<br/>🏆 winner (2,302 tps, 49.2%)"]
-    SUB_021 -.cross-link.-> SUB_028
     SUB_025 --> SUB_028["SUB_028<br/>sync swap_out batched H2D<br/>🟢 완료 (-57% sync latency)"]
-    SUB_028 --> SUB_030["SUB_030<br/>async swap_in batched<br/>🔴 기각 (-8.4% 회귀)"]
 
     %% pending follow-ups
-    SUB_026 --> SUB_031["SUB_031<br/>staging pool N=5~8<br/>🔴 선제 기각 (slot=2 3%만)"]
     PLN_001 --> TST_001["TST_001<br/>TSK_001 정확도<br/>(A · B(i) · C)"]
     PLN_001 --> TST_004["TST_004<br/>TSK_003 prod SIMD cross-check<br/>(B(ii) AVX-512 + B(iii) AMX)"]
     PLN_001 --> TST_003["TST_003<br/>e2e 통합 정확도<br/>(D-i + D-ii)"]

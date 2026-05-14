@@ -1,6 +1,5 @@
 #include <torch/library.h>
 #include <ATen/Tensor.h>
-#include <cstring>   // SUB_021 — std::memcpy
 
 #include "dtype.h"
 #include "core.h"
@@ -130,95 +129,13 @@ void paged_attention_cpu(
   #endif
 }
 
-// =====================================================================
-// SUB_021 — Layer (iii) #2: C extension batched copy.
-//
-// Replaces SUB_028's Python-side CPU scatter (``copy_all_layers_in_from_staged``)
-// with a C++ + OpenMP parallelized version. The H2D itself remains in
-// PyTorch (cudaMemcpyAsync via ``.copy_()``), but the *CPU scatter*
-// from pinned staging tensor → NEO buffer (per-layer index_put_) is
-// where Python loop + ATen scatter has per-layer overhead. With 80
-// layers × N blocks per req, parallel scatter across layers (OMP) can
-// saturate DDR4 bandwidth (~50 GB/s) where the serial loop typically
-// hits ~10 GB/s due to per-iteration ATen dispatch cost.
-//
-// NEO reference: ``swiftllm/worker/block_swapper.py:42-54`` —
-// pinned dst + non_blocking H2D batched. NEO 의 C ext 는 H2D 까지
-// 직접 호출 (cudaMemcpyAsync). PyTorch 기반 vllm_hybrid 는 H2D 가 이미
-// ATen 의 fast path 라 추가 이득 없음 → CPU scatter 만 C++ 화.
-// =====================================================================
-
-void scatter_layers_into_buf(
-    at::Tensor k_buf_full,    // (num_layers, total_blocks, num_kv_heads, block_size, head_dim) — pinned CPU
-    at::Tensor v_buf_full,
-    at::Tensor k_staged,       // (num_layers, max_blocks_per_req, ...) — pinned CPU, H2D 완료된 source
-    at::Tensor v_staged,
-    const std::vector<int64_t> &block_ids,  // NEO buffer 내 destination block ids
-    int64_t n_blocks            // 유효한 staged blocks (≤ k_staged.size(1))
-) {
-  TORCH_CHECK(k_buf_full.dim() == 5 && v_buf_full.dim() == 5,
-              "k_buf_full / v_buf_full must be 5D (num_layers, total_blocks, num_kv_heads, block_size, head_dim)");
-  TORCH_CHECK(k_staged.dim() == 5 && v_staged.dim() == 5,
-              "k_staged / v_staged must be 5D");
-  TORCH_CHECK(k_buf_full.device().is_cpu() && v_buf_full.device().is_cpu()
-              && k_staged.device().is_cpu() && v_staged.device().is_cpu(),
-              "all tensors must be on CPU (pinned)");
-  TORCH_CHECK(k_buf_full.scalar_type() == k_staged.scalar_type(),
-              "k_buf_full and k_staged dtype must match");
-  TORCH_CHECK(v_buf_full.scalar_type() == v_staged.scalar_type(),
-              "v_buf_full and v_staged dtype must match");
-  TORCH_CHECK(static_cast<int64_t>(block_ids.size()) >= n_blocks,
-              "block_ids size must be >= n_blocks");
-
-  int64_t num_layers = k_buf_full.size(0);
-  int64_t per_block_elems = k_buf_full.size(2) * k_buf_full.size(3) * k_buf_full.size(4);
-  int64_t total_blocks = k_buf_full.size(1);
-  int64_t elem_size = k_buf_full.element_size();
-  int64_t per_block_bytes = per_block_elems * elem_size;
-
-  // staged stride along layer axis (in elements then bytes).
-  int64_t staged_layer_stride_elems = k_staged.size(1) * per_block_elems;
-  int64_t staged_layer_stride_bytes = staged_layer_stride_elems * elem_size;
-  // staged stride along block axis (within one layer).
-  int64_t staged_block_stride_bytes = per_block_elems * elem_size;
-
-  // dst (k_buf_full) stride along layer axis.
-  int64_t dst_layer_stride_bytes = total_blocks * per_block_elems * elem_size;
-  int64_t dst_block_stride_bytes = per_block_elems * elem_size;
-
-  uint8_t *k_dst_base = reinterpret_cast<uint8_t*>(k_buf_full.data_ptr());
-  uint8_t *v_dst_base = reinterpret_cast<uint8_t*>(v_buf_full.data_ptr());
-  const uint8_t *k_src_base = reinterpret_cast<const uint8_t*>(k_staged.data_ptr());
-  const uint8_t *v_src_base = reinterpret_cast<const uint8_t*>(v_staged.data_ptr());
-
-  // OMP parallel across (layer, block_id) pairs. Memory bandwidth bound,
-  // 80 × n_blocks tasks. Each task copies per_block_bytes (typically 4-8 KB)
-  // from contiguous staged region into scattered NEO buffer rows.
-  // Threads are limited by OMP_NUM_THREADS (default 10 in NEO production).
-  #pragma omp parallel for collapse(2) schedule(static)
-  for (int64_t layer = 0; layer < num_layers; layer++) {
-    for (int64_t b = 0; b < n_blocks; b++) {
-      int64_t dst_blk = block_ids[b];
-      // K
-      const uint8_t *k_src = k_src_base + layer * staged_layer_stride_bytes
-                                        + b * staged_block_stride_bytes;
-      uint8_t *k_dst = k_dst_base + layer * dst_layer_stride_bytes
-                                  + dst_blk * dst_block_stride_bytes;
-      std::memcpy(k_dst, k_src, per_block_bytes);
-      // V
-      const uint8_t *v_src = v_src_base + layer * staged_layer_stride_bytes
-                                        + b * staged_block_stride_bytes;
-      uint8_t *v_dst = v_dst_base + layer * dst_layer_stride_bytes
-                                  + dst_blk * dst_block_stride_bytes;
-      std::memcpy(v_dst, v_src, per_block_bytes);
-    }
-  }
-}
+// SUB_021 (scatter_layers_into_buf) 제거됨 (2026-05-14):
+// 500p 측정 시 -4% 회귀 (OMP 경합 with cdec). ATen 의 vectorized index_put_
+// 이 naive memcpy OMP 보다 빠른 것 입증.
 
 TORCH_LIBRARY(pacpu, m) {
 #ifdef USE_ATEN_OPER
   m.def("paged_attention_cpu_torch", &paged_attention_cpu_torch);
 #endif
   m.def("paged_attention_cpu", &paged_attention_cpu);
-  m.def("scatter_layers_into_buf", &scatter_layers_into_buf);  // SUB_021
 }

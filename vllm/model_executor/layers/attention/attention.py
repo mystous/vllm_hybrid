@@ -769,55 +769,9 @@ def unified_attention_with_output(
         _tok = getattr(_fc, "neo_cdec_token_slice", None)
         _seq = getattr(_fc, "neo_cdec_seq_slice", None)
         _req_ids = getattr(_fc, "neo_cdec_req_ids", None)
-        # [D-cdec-trace] 분석 단계 한정 — env VLLM_DEBUG_CDEC_PATH=1 시 활성.
-        # cdec dispatch path 진입 조건 별 fire count 추적.
-        import os as _os_cdt
-        if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-            global _CDEC_PATH_STATS
-            if "_CDEC_PATH_STATS" not in globals():
-                _CDEC_PATH_STATS = {
-                    "total": 0, "tok_none": 0, "tok_empty": 0,
-                    "seq_none": 0, "seq_empty": 0, "req_ids_empty": 0,
-                    "pacpu_missing": 0, "buf_none": 0,
-                    "entered": 0, "log_freq": 200,
-                }
-            _CDEC_PATH_STATS["total"] += 1
-            if _tok is None:
-                _CDEC_PATH_STATS["tok_none"] += 1
-            elif _tok[1] <= _tok[0]:
-                _CDEC_PATH_STATS["tok_empty"] += 1
-            if _seq is None:
-                _CDEC_PATH_STATS["seq_none"] += 1
-            elif _seq[1] <= _seq[0]:
-                _CDEC_PATH_STATS["seq_empty"] += 1
-            if not _req_ids:
-                _CDEC_PATH_STATS["req_ids_empty"] += 1
-            if not hasattr(torch.ops, "pacpu"):
-                _CDEC_PATH_STATS["pacpu_missing"] += 1
-            if _CDEC_PATH_STATS["total"] % _CDEC_PATH_STATS["log_freq"] == 0:
-                from vllm.logger import init_logger as _einit_cdt
-                _einit_cdt("vllm.attention.cdec_trace").warning(
-                    "[D-cdec-trace] total=%d entered=%d "
-                    "tok_none=%d tok_empty=%d seq_none=%d seq_empty=%d "
-                    "req_ids_empty=%d pacpu_missing=%d buf_none=%d "
-                    "layer_name_no_match=%d invalid_block_table=%d "
-                    "seq_lens_attr_none=%d d11_oob_skip=%d "
-                    "pre_submit=%d post_submit=%d valid_branch=%d",
-                    _CDEC_PATH_STATS["total"], _CDEC_PATH_STATS["entered"],
-                    _CDEC_PATH_STATS["tok_none"],
-                    _CDEC_PATH_STATS["tok_empty"], _CDEC_PATH_STATS["seq_none"],
-                    _CDEC_PATH_STATS["seq_empty"],
-                    _CDEC_PATH_STATS["req_ids_empty"],
-                    _CDEC_PATH_STATS["pacpu_missing"],
-                    _CDEC_PATH_STATS["buf_none"],
-                    _CDEC_PATH_STATS.get("layer_name_no_match", 0),
-                    _CDEC_PATH_STATS.get("invalid_block_table", 0),
-                    _CDEC_PATH_STATS.get("seq_lens_attr_none", 0),
-                    _CDEC_PATH_STATS.get("d11_oob_skip", 0),
-                    _CDEC_PATH_STATS.get("pre_submit", 0),
-                    _CDEC_PATH_STATS.get("post_submit", 0),
-                    _CDEC_PATH_STATS.get("valid_branch", 0),
-                )
+        # [Cleanup 2026-05-14] D-cdec-trace dev-only diagnostic 제거.
+        # 진단 작업 완료 (SUB_023/025/026/027 chain) — 분석 path 추적
+        # 카운터/로그 hot-path 에서 환경 변수 lookup 매 cdec 호출 비용 제거.
         if (_tok is None or _tok[1] <= _tok[0]
                 or _seq is None or _seq[1] <= _seq[0]
                 or not _req_ids):
@@ -829,11 +783,7 @@ def unified_attention_with_output(
             buf = _ncb.get_active_buffer()
             if buf is None:
                 cdec_future = None
-                if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-                    _CDEC_PATH_STATS["buf_none"] += 1
             else:
-                if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-                    _CDEC_PATH_STATS["entered"] += 1
                 _t0, _t1 = _tok
                 _s0, _s1 = _seq
                 cdec_count = _t1 - _t0
@@ -846,11 +796,6 @@ def unified_attention_with_output(
                 v_cdec = value[_t0:_t1].view(cdec_count, nkh, hd)
                 import re
                 m = re.search(r"layers\.(\d+)", layer_name)
-                # [D-cdec-trace-2]
-                if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-                    if m is None:
-                        _CDEC_PATH_STATS["layer_name_no_match"] = \
-                            _CDEC_PATH_STATS.get("layer_name_no_match", 0) + 1
                 if m is not None:
                     layer_idx = int(m.group(1))
                     # [Plan v4 Option L] NEO 정통 정합 — cdec dispatch 직전
@@ -934,10 +879,6 @@ def unified_attention_with_output(
                         ids = buf.get_block_ids(rid)
                         if ids is None:
                             valid = False
-                            # [D-cdec-trace-2]
-                            if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-                                _CDEC_PATH_STATS["invalid_block_table"] = \
-                                    _CDEC_PATH_STATS.get("invalid_block_table", 0) + 1
                             break
                         row = list(ids) + [0] * (
                             max_blocks_per_seq - len(ids)
@@ -973,14 +914,6 @@ def unified_attention_with_output(
                                     _fc._neo_cdec_seq_lens_cpu_cache = seq_lens_attr
                                 except Exception:
                                     pass
-                        # [D-cdec-trace-4] seq_lens_attr 의 진짜 상태 trace
-                        if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-                            if seq_lens_attr is None:
-                                _CDEC_PATH_STATS["seq_lens_attr_none"] = \
-                                    _CDEC_PATH_STATS.get("seq_lens_attr_none", 0) + 1
-                            else:
-                                _CDEC_PATH_STATS["valid_branch"] = \
-                                    _CDEC_PATH_STATS.get("valid_branch", 0) + 1
                         if seq_lens_attr is not None:
                             seq_ids_list = list(range(cdec_count))
                             seq_lengths = (
@@ -1010,10 +943,6 @@ def unified_attention_with_output(
                                         len(_row_d11),
                                     ))
                             if _oob_reqs_d11:
-                                # [D-cdec-trace-2]
-                                if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-                                    _CDEC_PATH_STATS["d11_oob_skip"] = \
-                                        _CDEC_PATH_STATS.get("d11_oob_skip", 0) + 1
                                 from vllm.logger import init_logger as _einit_d11
                                 _d11_logger = _einit_d11(
                                     "vllm.attention.neo_cdec_d11",
@@ -1081,10 +1010,6 @@ def unified_attention_with_output(
                             # GPU forward launch + backlog 형성 가능.
                             # Submit CPU pacpu kernel to background
                             # thread — 진짜 병렬 시작.
-                            # [D-cdec-trace-3] cdec_future submit 직전 counter
-                            if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-                                _CDEC_PATH_STATS["pre_submit"] = \
-                                    _CDEC_PATH_STATS.get("pre_submit", 0) + 1
                             cdec_future = (
                                 _get_neo_cdec_executor().submit(
                                     _neo_cdec_compute_cpu,
@@ -1099,20 +1024,9 @@ def unified_attention_with_output(
                                     cdec_count, nh, hd,
                                 )
                             )
-                            # [D-cdec-trace-3] cdec_future submit 직후 counter
-                            if _os_cdt.environ.get("VLLM_DEBUG_CDEC_PATH", "0") == "1":
-                                _CDEC_PATH_STATS["post_submit"] = \
-                                    _CDEC_PATH_STATS.get("post_submit", 0) + 1
-                            # TSK_019 — cdec dispatch counter (measurement)
-                            global _neo_cdec_call_count
-                            _neo_cdec_call_count += 1
-                            if _neo_cdec_call_count % 100 == 0:
-                                # [D-cdec-trace-3] WARNING level (INFO 영역 의심)
-                                from vllm.logger import init_logger as _einit
-                                _einit("vllm.attention.cdec_trace").warning(
-                                    "[NEO CDEC CALL] count=%d",
-                                    _neo_cdec_call_count,
-                                )
+                            # [Cleanup 2026-05-14] cdec dispatch counter
+                            # log 제거 (env-gated VLLM_NEO_PROFILE 로
+                            # 필요 시 재활성 가능). hot path 영역.
                             cdec_t0 = _t0
                             cdec_t1 = _t1
     except Exception as _cdec_setup_e:  # noqa: BLE001
@@ -1287,7 +1201,7 @@ def unified_attention_with_output(
                 pass
 
 
-_neo_cdec_call_count = 0  # TSK_019 — cdec dispatch 호출 빈도 measurement
+# _neo_cdec_call_count removed (cleanup 2026-05-14)
 
 
 # IDE_006 — async cdec mode. When enabled by an outer pipeline

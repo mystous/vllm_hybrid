@@ -4283,19 +4283,24 @@ class GPUModelRunner(
                     self._neo_fork_reject_prefix_fail = 0
                     self._neo_fork_reject_split_oob = 0
                 self._neo_fork_stat_total += 1
+                # [Cleanup 2026-05-14] FORK STAT 로그 VLLM_NEO_PROFILE
+                # env-gate. 매 100 step × 8 worker = 400 line/sec I/O 부담
+                # production 영역 제거.
                 if (self._neo_fork_stat_total % 100 == 0):
-                    logger.info(
-                        "[NEO FORK STAT] total=%d eligible=%d active=%d | "
-                        "reject_no_subs=%d reject_b1_empty=%d "
-                        "reject_prefix_fail=%d reject_split_oob=%d",
-                        self._neo_fork_stat_total,
-                        self._neo_fork_stat_eligible,
-                        self._neo_fork_stat_active,
-                        self._neo_fork_reject_no_subs,
-                        self._neo_fork_reject_b1_empty,
-                        self._neo_fork_reject_prefix_fail,
-                        self._neo_fork_reject_split_oob,
-                    )
+                    import os as _os_fs
+                    if _os_fs.environ.get("VLLM_NEO_PROFILE", "0") == "1":
+                        logger.info(
+                            "[NEO FORK STAT] total=%d eligible=%d active=%d | "
+                            "reject_no_subs=%d reject_b1_empty=%d "
+                            "reject_prefix_fail=%d reject_split_oob=%d",
+                            self._neo_fork_stat_total,
+                            self._neo_fork_stat_eligible,
+                            self._neo_fork_stat_active,
+                            self._neo_fork_reject_no_subs,
+                            self._neo_fork_reject_b1_empty,
+                            self._neo_fork_reject_prefix_fail,
+                            self._neo_fork_reject_split_oob,
+                        )
                 # IDE_006 4.5.2.c depth 7 — effective b0/b1 사용 (worker 가
                 # _may_reorder_batch 단계에서 input_batch 와 교집합으로 이미
                 # reduce 했음).
@@ -6682,13 +6687,9 @@ class GPUModelRunner(
                             _async_gathered_list.append(_g)
                             _async_slot_used += 1
                             _neo_swap_out_call_count += 1
-                            if _neo_swap_out_call_count % 10 == 0:
-                                logger.info(
-                                    "[NEO SWAP_OUT CALL] count=%d "
-                                    "(latest req=%s blocks=%d async slot=%d)",
-                                    _neo_swap_out_call_count, req_id,
-                                    len(gpu_blocks), _async_slot_used - 1,
-                                )
+                            # [Cleanup 2026-05-14] CALL count log 제거
+                            # (hot path, VLLM_NEO_PROFILE PROFILE 로그로
+                            # 대체 가능)
                             continue  # DMA launched after swap-in below
                         # gather_phase returned None — fall through to sync.
                     # Sync path (fallback or subsequent reqs).
@@ -6714,11 +6715,7 @@ class GPUModelRunner(
                         )
                     self._neo_cpu_resident_reqs.add(req_id)
                     _neo_swap_out_call_count += 1
-                    if _neo_swap_out_call_count % 10 == 0:
-                        logger.info(
-                            "[NEO SWAP_OUT CALL] count=%d (latest req=%s blocks=%d)",
-                            _neo_swap_out_call_count, req_id, len(gpu_blocks),
-                        )
+                    # [Cleanup 2026-05-14] CALL count log 제거 (hot path)
                 except Exception as e:  # noqa: BLE001
                     logger.warning(
                         "[NEO] swap-out: req %s failed (%s) — rolling back "
