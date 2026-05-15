@@ -198,6 +198,55 @@ dir: `eval/results/20260512_131151_v1.6_phase1A_workers4/flamegraph/phase1A_raw.
 
 dir: `eval/results/20260512_142513_v1.6_phase3_sync_clean/flamegraph/phase3_raw.txt` (sample 영역 영역 영역 영역 분석 미진행)
 
+### 5.4 NEO v1.6 + vanilla SVG flamegraph (2026-05-14, 8 worker × 90s + Engine 60s)
+
+본 §5.1-5.3 영역의 raw text capture 외, **별도 측정 영역의 SVG flamegraph 18 개** (NEO v1.6 + vanilla 비교). py-spy `--native --rate 100 -d 90` 영역으로 worker 각 + EngineCore 영역 별도 capture.
+
+#### NEO v1.6 영역 (commit `64f9e0c48`, `eval/results/20260514_141511_v16_flamegraph/flamegraphs/`)
+
+py-spy sample 수 (Errors 0-4):
+| Worker | samples | %  rendered SVG link (relative) |
+|---|---:|---|
+| TP0 | 10,407 | [`flame_tp0.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg) |
+| TP1 | 7,057 | [`flame_tp1.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp1.svg) |
+| TP2 | 7,069 | [`flame_tp2.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp2.svg) |
+| TP3 | 7,276 | [`flame_tp3.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp3.svg) |
+| TP4 | 7,599 | [`flame_tp4.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp4.svg) |
+| TP5 | 7,593 | [`flame_tp5.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp5.svg) |
+| TP6 | 7,196 | [`flame_tp6.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp6.svg) |
+| TP7 | 7,421 | [`flame_tp7.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp7.svg) |
+| Engine | 5,944 | [`flame_engine.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_engine.svg) |
+
+[![NEO TP0 flamegraph](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg)](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg)
+
+#### Vanilla 영역 (동일 workload, `eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/`)
+
+| Worker | samples | SVG |
+|---|---:|---|
+| TP0 | 13,869 | [`flame_tp0.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg) |
+| TP1 | 8,993 | [`flame_tp1.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp1.svg) |
+| TP2 | 8,995 | [`flame_tp2.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp2.svg) |
+| TP3 | (자료) | [`flame_tp3.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp3.svg) |
+| TP4 | (자료) | [`flame_tp4.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp4.svg) |
+| TP5 | (자료) | [`flame_tp5.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp5.svg) |
+| TP6 | (자료) | [`flame_tp6.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp6.svg) |
+| TP7 | (자료) | [`flame_tp7.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp7.svg) |
+| Engine | 4,465 | [`flame_engine.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_engine.svg) |
+
+[![Vanilla TP0 flamegraph](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg)](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg)
+
+#### SVG 사용 영역
+
+- **로컬 브라우저 영역** (interactive): `file:///workspace/vllm_hybrid/eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg` — 마우스 hover 영역 frame 강조 + click zoom + Ctrl+F search 영역 동작
+- **GitHub 영역** (static render): 위 link 영역 → github 의 svg sanitize 영역 후 image 영역 표시. interactive 영역 일부 disabled 그러나 frame 영역 + percent 영역 보임
+- **markdown image 영역**: 본 doc 영역의 image embed (TP0 대표 영역만)
+
+#### 본 SVG 영역의 분석 결과 cross-ref
+
+- `shadow_assists/features/IDE_006/TSK_019/analysis/D_bottleneck_table.md` — SVG 영역 의 top frame 영역 분석
+- `shadow_assists/features/IDE_006/TSK_019/analysis/E_bottleneck_map.md` — BM01-BM22 영역 의 SVG 영역 cross-ref + thread 위치 + wall critical 분류
+- `shadow_assists/features/IDE_006/TSK_019/analysis/E_open_questions.md` — E.13.6 Phase 1 측정 fact (cdec_wait 2.55ms 정정 영역, TLB miss 0.01%, NUMA 99.6-99.9% 영역)
+
 ---
 
 ## 6. 측정 oscillation 영역 fact
