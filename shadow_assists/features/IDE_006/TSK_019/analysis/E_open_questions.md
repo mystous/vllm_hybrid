@@ -228,7 +228,7 @@
 
 → **완벽 정합**. VLLM_NEO_NUMA_BIND=1 정상 동작. 추가 NUMA 영역 가속 (I05) 의 marginal 영역.
 
-### OQ14 — Hugepage 활용 = 0
+### OQ14 — Hugepage 활용 = 0 (그러나 container 안에서도 활용 가능 확인)
 
 `/proc/<pid>/smaps` aggregate (TP0 process):
 - AnonHugePages: **0 kB**
@@ -240,7 +240,20 @@
 
 container `/proc/meminfo`: HugePages_Total=0, Hugepagesize=2048kB, AnonHugePages=13.4GB (다른 process)
 
-→ **vllm process 가 어떤 hugepage 영역도 활용 0**. 사용자 명시 "host 1GB hugepage 적용" 이 vllm 측에 전달 안 됨. 명시적 alloc (`mmap MAP_HUGETLB | MAP_HUGE_1GB`) 도입 필요.
+→ **현재 vllm process 가 어떤 hugepage 영역도 활용 0**.
+
+**Container 영역 활용 가능성 검증** (2026-05-15 KST 추가 측정):
+
+| 항목 | 상태 |
+|---|---|
+| Container capabilities | cap_sys_admin + cap_ipc_lock + cap_sys_resource 등 거의 모든 cap |
+| cgroup `hugetlb.1GB.max` | `max` (제한 없음) |
+| Runtime pool reserve (`nr_hugepages` write) | ✓ 가능 (NUMA 0/1 각 16개 = 32 GB pool 확보 성공) |
+| `hugetlbfs` mount (`pagesize=1G`) | ✓ 성공 |
+| hugetlbfs file mmap (3 GB) | ✓ 성공 |
+| Anonymous `mmap(MAP_HUGETLB \| MAP_HUGE_1GB)` | ✓ C 영역에서 1 GB alloc + read/write 정상 |
+
+→ **container 안에서도 1GB hugepage 활용 가능**. vllm 측에서 `mmap(MAP_HUGETLB | MAP_HUGE_1GB)` 호출 도입 시 활용 가능. 그러나 측정 fact (TLB miss 0.01%, BW 11%) 영역에서 효과 작음.
 
 ### OQ15 — TLB / cache miss (TP0 5s sample)
 

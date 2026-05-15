@@ -221,6 +221,89 @@ dev (i9-12900KF, AVX-512 native) + prod (Xeon SPR, AVX-512 + AMX native) 모두 
 
 ---
 
+## Phase 6.5 — GPU 측 가속 (NVLink P2P + PTX + NVSHMEM)
+
+본 plan 의 GPU 측 영역. CPU 가속 (Phase 5/6) 과 parallel 진행 가능.
+
+### 환경 fact (Phase 1 측정 + 라이브러리 설치 후)
+
+- **NVLink 4 full-mesh** (NV18 영역 — H100×8 의 900 GB/s/pair 영역)
+- **CUDA 12.8 + nvcc** 가용 (PTX 영역 작성 가능)
+- **gdrcopy v2.4.4** install 완료 (`/usr/local/lib/libgdrapi.so.2.4`) — GPU memory ↔ user-space direct mapping
+- **NVSHMEM** pip package `nvidia_nvshmem_cu12-3.4.5` 설치됨 — same-node symmetric memory
+- **GPU P2P 동작 확인**: GPU0 ↔ GPU1 cudaDeviceCanAccessPeer = OK
+- **CUTLASS** 영역 vllm csrc 영역에 이미 포함
+
+### Phase 6.5.1 — NVLink P2P direct copy (single-node 영역)
+
+**대상**: NEO 의 KV cache migration 영역 (CPU swap 외의 inter-GPU 영역). 현재 NCCL all_reduce 영역만 NVLink 활용 — KV migration 영역은 host 경유 (PCIe round-trip)
+
+**작업**:
+- `cudaMemcpyPeerAsync` 도입 — GPU 간 direct DMA (host 우회)
+- 대상 코드: 해당 영역의 inter-GPU KV copy (NEO 의 prefix sharing 또는 TP 영역 외 KV migration 영역)
+- 본 plan workload (TP=8) 에서는 영역 작음 — 다른 workload (PP, 또는 disaggregated prefill) 에서 큰 효과
+
+**효과 영역**: wall **0-2%** (본 workload 영역 작음), multi-node disaggregated prefill 영역 도입 시 **10-30%**
+
+### Phase 6.5.2 — PTX inline kernel (gdec attention hot path)
+
+**대상**: NEO 의 GPU sub-batch[0] (gdec) 의 attention forward 영역. flash-attention 의 inner loop 영역 의 추가 가속 가능.
+
+**작업**:
+1. flash-attention 의 kernel 영역 disassembly (`cuobjdump --dump-sass`) → 현재 PTX 영역의 inefficiency 영역 식별
+2. inline PTX 영역 도입:
+   - `asm volatile ("..." : ... :);` 영역 — CUDA C 안의 PTX directive
+   - 대상 영역: BF16 의 matmul (Tensor Core `mma.sync.aligned.m16n8k16` 영역)
+   - 또는 softmax 의 `exp.approx.f32` (PTX fast-math)
+3. 또는 CUTLASS template 활용 — vllm csrc 영역에 이미 포함
+
+**효과 영역**: wall **2-5%** (gdec attention 의 inner loop 영역의 효율 영역 향상)
+
+**위험**:
+- PTX intrinsic 영역의 정확도 영향 (예: `exp.approx.f32` 의 정밀도)
+- SM 아키텍처 의존 (sm_90 영역 H100 specific) → portable 영역 작음
+- flash-attention 영역의 upstream 영역 fork 영역 cost
+
+### Phase 6.5.3 — NVSHMEM symmetric memory (multi-GPU collective)
+
+**대상**: TP=8 all_reduce 영역의 low-latency 영역 (NCCL 의 small-message 영역 대안).
+
+**작업**:
+- `import nvshmem` → 8 GPU symmetric memory window 영역 alloc
+- TP collective (`tensor_model_parallel_all_reduce`) 영역의 small-message path 영역 NVSHMEM 으로 대체
+- 대상 코드: `vllm/distributed/parallel_state.py:519` `_all_reduce_out_place`
+
+**효과 영역**: wall **0.5-2%** (NCCL all_reduce 2.86% 영역의 latency 영역 일부 단축)
+
+**위험**:
+- NVSHMEM 의 vllm 통합 영역 cost
+- NCCL 와의 hybrid 영역 검증 필요
+
+### Phase 6.5.4 — gdrcopy 활용 (CPU ↔ GPU low-latency direct mapping)
+
+**대상**: NEO 의 swap-in path 의 sync H2D 영역 (BM09 영역, swap-in 4.3 GB/s).
+
+**작업**:
+- `gdr_map()` + `gdr_get_info()` → GPU memory ↔ user-space direct mapping
+- CPU side 의 memcpy 영역으로 GPU memory 직접 write (cudaMemcpy 우회)
+- 작은 영역 (KB-MB 영역) 의 sync transfer 영역에 효과 큼
+
+**효과 영역**: wall **1-3%** (swap-in path 영역의 latency 영역 절감)
+
+**위험**:
+- gdrcopy 의 kernel module (`nvidia_peermem` 또는 `gdrdrv`) 영역 — container 영역 에서 modprobe 불가
+- 본 환경 `nvidia_peermem` 미로드 영역 — host side modprobe 영역 필요
+- userspace 영역 lib 만 build 됨 (kernel module 미설치) — full functional 영역의 검증 필요
+
+### Phase 6.5 Gate
+
+- NVLink P2P bench (이미 동작 확인) → wall 측정
+- PTX inline 의 정확도 검증 (logprob diff)
+- NVSHMEM all_reduce 의 NCCL 대비 latency 측정
+- gdrcopy 의 kernel module 영역 의존 — 호스트 운영 영역 검토
+
+---
+
 ## Phase 7 — 통합 + paper claim 영역 도달 시도
 
 ### 작업
@@ -250,7 +333,8 @@ dev (i9-12900KF, AVX-512 native) + prod (Xeon SPR, AVX-512 + AMX native) 모두 
 | 4 | 1GB hugepage | 1-3% | +3-6% |
 | 5 | AVX-512 fast_exp + BF16 | 3-6% (Phase 2 도달 후) | +6-12% |
 | 6 | AMX qk_product (chain 99% 영역) | 4-12% (Phase 2 도달 후) | +10-24% |
-| 7 | 통합 + workload 영역 | 0-5% (workload 영향) | +10-29% |
+| 6.5 | GPU 측 가속 (P2P + PTX + NVSHMEM + gdrcopy) | 3-12% | +13-36% |
+| 7 | 통합 + workload 영역 | 0-5% (workload 영향) | +13-41% |
 
 ### 핵심 finding 재정리
 
@@ -283,3 +367,29 @@ dev (i9-12900KF, AVX-512 native) + prod (Xeon SPR, AVX-512 + AMX native) 모두 
 | OQ-D | cudaHostRegister 의 hugetlbfs memory 호환성 | Phase 4 |
 | OQ-E | BF16 변환의 분포 유사성 영역 (v1.1 SUB_006 v42 의 −3.16% 회귀 영역 재발 회피 영역) | Phase 5/6 |
 | OQ-F | 1GB hugepage pool reserve 의 운영 영역 자동화 (container restart 시 영역) | Phase 4 |
+| OQ-G | NVLink P2P 의 본 workload (TP=8) 의 효과 영역 (이미 NCCL via NVLink 활용 중) | Phase 6.5.1 |
+| OQ-H | PTX inline 의 정확도 영향 + SM 아키텍처 의존 영역 | Phase 6.5.2 |
+| OQ-I | NVSHMEM 의 vllm 통합 영역 cost | Phase 6.5.3 |
+| OQ-J | gdrcopy kernel module (nvidia_peermem/gdrdrv) 의 호스트 영역 활성화 가능 여부 | Phase 6.5.4 |
+
+---
+
+## 도구 + 라이브러리 setup 영역 (Phase 6.5 진입 전)
+
+본 plan 의 Phase 6.5 영역의 의존 영역. **이미 install 완료** 영역:
+
+| 라이브러리 / 도구 | 영역 | 위치 |
+|---|---|---|
+| `nvcc` (CUDA 12.8) | PTX 영역 build | `/usr/local/cuda/bin/nvcc` |
+| `gdrcopy` v2.4.4 (userspace) | GPU memory ↔ user-space direct mapping | `/usr/local/lib/libgdrapi.so.2.4` + `/usr/local/include/gdrapi.h` |
+| NVSHMEM (pip) | same-node symmetric memory | `nvidia_nvshmem_cu12-3.4.5` (vllm_dev_prj venv) |
+| CUTLASS | header-only template | `csrc/quantization/w8a8/cutlass`, `.deps/qutlass-src/third_party/cutlass` |
+| PCM | Intel performance counter | `/usr/local/bin/pcm*` (build 영역 from `opcm/pcm`) |
+| `perf` | Linux performance counter | `/usr/local/bin/perf` (5.15 from linux-tools-generic) |
+| `numastat`, `pmap`, `ipcs` | NUMA + memory | apt 기본 영역 |
+| `libhugetlbfs` | hugepage helper | apt 영역 설치 — Python mmap 영역 intercept 안 됨 (Phase 4 영역에서 코드 영역 도입 필요) |
+
+**미설치 / 활성 영역**:
+- `nvidia_peermem` kernel module (gdrcopy 의 GDR 영역 의존) — container modprobe 불가, **host 영역 설치 필요**
+- `gdrdrv` kernel module (gdrcopy 의 fallback path) — 동상
+- AMX BF16 토큰 정확도 검증 영역 (Phase 5/6 영역 의 사전 단계)
