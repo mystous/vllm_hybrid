@@ -68,6 +68,8 @@ export VLLM_NEO_PROFILE=1               # PROFILE 로그 활성
 export OMP_NUM_THREADS=10
 export OMP_PROC_BIND=false
 unset OMP_PLACES
+# Phase 3 측정 chain 결과 — KMP=50 sweet spot (KMP=0 crash, KMP=200 default variance 큼)
+export KMP_BLOCKTIME=50
 export VLLM_NEO_CPU_PIN_PER_WORKER=1
 export VLLM_NEO_CPU_PIN_CORES=12
 export VLLM_NEO_NUMA_BIND=1
