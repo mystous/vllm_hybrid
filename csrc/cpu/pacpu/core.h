@@ -236,6 +236,18 @@ void ispc_attention_tasks(
   data_t vcache_p[],
   int block_table_p[]
 ) {
+  // Phase 3.1 — Persistent OMP team settings.
+  // omp_set_dynamic(0): runtime 의 dynamic thread 수 조정 비활성화 (매 call thread
+  //   count 변동 회피 → thread pool 안정성 + launch overhead 절감).
+  // omp_set_max_active_levels(1): nested parallel 비활성화 (본 path single-level).
+  // 매 call 호출되나 thread_local flag 로 1회만 실제 setter 호출 (cheap).
+  static thread_local bool _omp_persistent_init = false;
+  if (!_omp_persistent_init) {
+    omp_set_dynamic(0);
+    omp_set_max_active_levels(1);
+    _omp_persistent_init = true;
+  }
+
   // F12 fix — thread_local heap-alloc. 각 caller thread (cdec executor
   // worker) 별 별 buffer 1 회 init 후 재사용. race 0.
   static thread_local std::vector<itmd_t> _tl_attn_score_buf_vec(
