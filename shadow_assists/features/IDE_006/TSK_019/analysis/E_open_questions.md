@@ -192,6 +192,98 @@
 
 ---
 
+## E.13.6 Phase 1 측정 완료 — OQ01/12/13/14/15/16 fact (2026-05-15 KST)
+
+기존 measurement (`eval/results/20260515_083247_async1_b6/` PROFILE log) + 신규 short run (`eval/results/20260515_094031_async1_b3/`) 의 process 측정. 도구: perf 5.15 (kernel uncore_imc), PCM 4.x (build 영역 partial), numastat, /proc/<pid>/smaps.
+
+### OQ01 — cdec_wait 정량 (정정)
+
+| 항목 | 이전 추정 | 실측 (8 worker 평균) |
+|---|---:|---:|
+| cdec_wait_avg | 8.75 ms / layer | **2.55 ms / layer** |
+| cdec_wait_max | (미상) | 32.05 ms (tail) |
+| gpu_avg | 0.09 ms / layer | **0.08 ms / layer** |
+| GPU/CPU ratio | 89-94× | **32×** |
+| b1_avg (cdec sub-batch query) | (mirror=10) | **0** (cdec sub-batch 비어 있음) |
+| skip_gpu / cdec_count | (미상) | 90.7% (6,210 / 6,850) |
+
+→ **이전 추정의 1/3.4 영역** — CPU 가 실측에서 더 빠름. 그러나 b1_avg=0 (cdec sub-batch 가 비어 있음) — 본 환경에서는 cdec 가 실제 work 적음.
+
+### OQ12 — DDR5 memory BW 실측
+
+| Socket | Read | Write | Total | 활용도 |
+|---|---:|---:|---:|---:|
+| NUMA 0 | 20.9 GB/s | 13.8 GB/s | 34.7 GB/s | 11.3% |
+| NUMA 1 | 20.4 GB/s | 13.6 GB/s | 34.1 GB/s | 11.1% |
+| 합 | 41.3 GB/s | 27.4 GB/s | 68.8 GB/s | (이론 614 GB/s) |
+
+→ **DDR5 BW 활용도 11.2%** — saturated 아님. BW 가속 영역 (1GB hugepage, NT-store, AVX-512 BF16) 의 효과 limited (BW bottleneck 아니라서 가속 효과 작음).
+
+### OQ13 — NUMA placement (8 worker)
+
+| Worker | Node 0 (GB) | Node 1 (GB) | 정합 |
+|---|---:|---:|---|
+| TP0-3 | 135.2 | 0.6 | 99.6% N0 ✓ (GPU0-3 → NUMA0) |
+| TP4-7 | 0.1 | 135.6 | 99.9% N1 ✓ (GPU4-7 → NUMA1) |
+
+→ **완벽 정합**. VLLM_NEO_NUMA_BIND=1 정상 동작. 추가 NUMA 영역 가속 (I05) 의 marginal 영역.
+
+### OQ14 — Hugepage 활용 = 0
+
+`/proc/<pid>/smaps` aggregate (TP0 process):
+- AnonHugePages: **0 kB**
+- Private_Hugetlb: **0 kB**
+- Shared_Hugetlb: **0 kB**
+- ShmemPmdMapped: 0 kB
+- FilePmdMapped: 0 kB
+- THPeligible: **0 kB**
+
+container `/proc/meminfo`: HugePages_Total=0, Hugepagesize=2048kB, AnonHugePages=13.4GB (다른 process)
+
+→ **vllm process 가 어떤 hugepage 영역도 활용 0**. 사용자 명시 "host 1GB hugepage 적용" 이 vllm 측에 전달 안 됨. 명시적 alloc (`mmap MAP_HUGETLB | MAP_HUGE_1GB`) 도입 필요.
+
+### OQ15 — TLB / cache miss (TP0 5s sample)
+
+- dTLB-load-misses: **0.01%** of 29.3B loads
+- L1-dcache miss: 0.62%
+- LLC miss: 12.97%
+- IPC: 2.47 instr/cycle
+- iTLB-load-misses: 2.2M (5초)
+
+→ **TLB miss 가 0.01% 로 매우 낮음** — 4KB page 임에도 hot working set 이 TLB 에 fit. **1GB hugepage 의 효과 사실상 0** (이전 plan 의 wall 2-5% 절감 추정 잘못된 영역).
+
+### OQ16 — GPUDirect RDMA
+
+`lsmod | grep nvidia_peermem` → 0 (미로드). single-node 환경 의미 작음.
+
+### Phase F 우선순위 영향 (정정)
+
+| 후보 | 이전 추정 | 실측 후 정정 |
+|---|---|---|
+| **C01 1GB Hugepages** | wall 2-5% | **~0%** (TLB miss 이미 0.01%) |
+| **C03/C07 NT-store memcpy** | wall 4-6% | (BW 활용 11.2% → BW bottleneck 아님, 효과 작음) |
+| **I05 NUMA local pinned staging** | wall 1-2% | **~0%** (이미 99.6-99.9% 정합) |
+| **C04 Persistent OMP team** | wall 1-2% | (cdec 영역 작음, b1_avg=0 영역) |
+| **G01 CUDA Stream Priority** | wall 1-2% | (변경 없음 — gdec 의 wall critical) |
+
+→ **Tier 1 hw 가속 후보 영역의 실효 효과가 추정의 1/3 영역**. 본 환경에서는 hw 영역 가속의 효과 limited. **진짜 wall 절감은 chain firing 영역 도달 + workload 영역 조정** 이 dominant.
+
+### OQ18 — RPC dispatch latency (미측정)
+
+engine PROFILE log 의 dispatch timestamp 측정 필요 (instrumentation 추가). 본 phase 외 영역.
+
+### PCM 의 thread alloc 영역 실패
+
+pcm-memory / pcm-pcie / pcm-numa 모두 "Resource temporarily unavailable while creating thread for core task queue" 영역. ulimit -u = 4M 충분하나 container cgroup 또는 PCM 의 per-core thread alloc 영역 한계. PCIe BW 직접 측정 보류.
+
+### 도구 영역 설치 정정 fact
+
+- `perf`: ubuntu `linux-tools-generic` 의 perf 5.15 binary (RHEL kernel 5.14 와 정합 영역 OK)
+- `pcm` (Intel Processor Counter Monitor): github `opcm/pcm` source build (cmake + make) — pcm-memory/numa/pcie 영역 thread limit fail
+- perf uncore_imc CAS_COUNT_READ / WRITE 영역 으로 DDR BW 직접 측정 가능 (PCM 없이도)
+
+---
+
 ## E.14 본 분석의 완결성 평가
 
 본 5-phase 분석이 답한 핵심 질문:

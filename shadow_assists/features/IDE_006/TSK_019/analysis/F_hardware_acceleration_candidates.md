@@ -199,12 +199,18 @@
 
 ### Tier 1 합산 예상 효과 (정량 추정)
 
-- C01 hugepages: wall 2-5%
-- C03/C07 direct memcpy: wall 4-6%
-- C04 persistent OMP: wall 1-2%
-- G01 stream priority: wall 1-2%
-- I05 NUMA local: wall 1-2%
-- 합 wall 절감 **10-17% 영역** (workload + 환경 의존)
+**※ 2026-05-15 KST Phase 1 측정 정정 — `E_open_questions.md` E.13.6 fact 반영**
+
+| 후보 | 이전 추정 | 실측 후 정정 | 근거 |
+|---|---|---|---|
+| C01 1GB Hugepages | wall 2-5% | **~0%** | TLB miss 실측 0.01% (이미 매우 낮음) |
+| C03/C07 NT-store memcpy | wall 4-6% | **0.5-2%** (영역 작음) | DDR5 BW 활용 11.2% (saturated 아님) |
+| C04 Persistent OMP team | wall 1-2% | **0.5-1%** | cdec b1_avg=0 영역 |
+| G01 CUDA Stream Priority | wall 1-2% | **0.5-1%** (변경 없음) | gdec wall critical 영역 변화 |
+| I05 NUMA local pinned staging | wall 1-2% | **~0%** | NUMA 정합 이미 99.6-99.9% |
+| **합 wall 절감 (정정)** | 10-17% | **~2-5%** | 본 환경의 hw 영역 가속 효과 limited |
+
+→ **본 환경의 진짜 wall 절감 영역 = chain firing 영역 도달 + workload 영역 조정** (Phase F 의 hw 가속 단독으로는 큰 영향 어려움). 본 fact 는 Phase 1 (`E_open_questions.md` E.13.6) 측정 결과의 정합.
 
 ### Phase E AMX/AVX 적용 가능성 표 (`E_amx_avx_applicability.md`) 와의 합산
 

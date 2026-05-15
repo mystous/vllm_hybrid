@@ -77,16 +77,21 @@ paper 의 workload 가 더 작은 seq_len, 더 작은 batch 면 GPU KV cache pre
 
 ---
 
-## B.13 cdec_wait 정량
+## B.13 cdec_wait 정량 (2026-05-15 KST Phase 1 측정 정정)
 
-paper 의 CPU kernel throughput 수치 (GFLOPs/s, ms/op) 직접 인용 못 함. 우리 측정:
-- `cdec_wait ≈ 8.75 ms / layer` (per-call, mirror size ≈ 10 영역)
-- GPU forward (paged_attention) ≈ 0.09 ms / layer
-- ratio: **89-94×** (CPU 가 GPU 보다 89-94× 느림)
+paper 의 CPU kernel throughput 수치 (GFLOPs/s, ms/op) 직접 인용 못 함. 우리 측정 정정:
 
-→ paper 의 NEO 가 "GPU와 동등 또는 빠른 CPU compute" 를 전제 하는데, 우리 측정은 90× 느림. **CPU compute 가 GPU 보다 너무 느려서 sub-batch pipeline 의 advantage 가 안 발화.**
+| 항목 | 이전 추정 | 실측 |
+|---|---:|---:|
+| cdec_wait_avg | 8.75 ms / layer | **2.55 ms / layer** |
+| gpu_avg | 0.09 ms / layer | **0.08 ms / layer** |
+| GPU/CPU ratio | 89-94× | **32×** |
 
-이게 본 환경 (H100×8 + SPR 2S) 에서 NEO 가 효과 미달인 진짜 root cause 일 가능성.
+(측정 dir: `eval/results/20260515_083247_async1_b6/` PROFILE log, b1_avg=0 영역)
+
+→ 이전 추정의 1/3.4 영역으로 CPU 가 실측에서 더 빠름. 그러나 **b1_avg=0** (cdec sub-batch query 비어 있음) — 본 환경의 cdec 가 actual work 영역이 아닐 가능성. chain firing 영역 도달 시 다른 측정 필요.
+
+이게 본 환경 (H100×8 + SPR 2S) 에서 NEO 가 효과 미달인 진짜 root cause 의 일부일 가능성. 32× 가속도 여전히 큰 격차 (AMX 5-10× 가속 시 3-6× 격차 잔존).
 
 ---
 

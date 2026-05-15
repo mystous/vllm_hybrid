@@ -103,6 +103,15 @@ worker_main
 
 → cdec_wait 8.75 ms / layer × 80 layer × cdec freq 의 단순 budget. 실측 PROFILE 로그 (없음) 확인 필요.
 
+**※ 2026-05-15 KST 측정 정정 — Phase 1 실측 (`eval/results/20260515_083247_async1_b6/` PROFILE log)**:
+- 실측 **cdec_wait_avg = 2.55 ms / layer** (이전 추정 8.75 ms 의 **1/3.4**)
+- 실측 **gpu_avg = 0.08 ms / layer**
+- 실측 **GPU/CPU ratio = 32×** (이전 89-94× 의 1/3)
+- **b1_avg = 0** (cdec sub-batch query 비어 있음 — chain firing 영역 안 도달)
+- skip_gpu / cdec_count = 90.7% (실제 cdec work 가 발생한 영역 9.3%)
+
+→ 이전 산술 budget (8.75 ms × 80 layer × cdec freq) 정정 필요. 그러나 b1_avg=0 영역에서 측정된 cdec_wait 는 cdec 가 actual work 영역이 아닐 수 있음 (dispatch + sync overhead 만). chain firing 영역 도달 시 다른 측정 필요.
+
 ---
 
 ## D.5 추가 CPU bottleneck (pacpu 외)
