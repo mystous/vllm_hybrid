@@ -207,33 +207,33 @@ dir: `eval/results/20260512_142513_v1.6_phase3_sync_clean/flamegraph/phase3_raw.
 py-spy sample 수 (Errors 0-4):
 | Worker | samples | %  rendered SVG link (relative) |
 |---|---:|---|
-| TP0 | 10,407 | [`flame_tp0.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg) |
-| TP1 | 7,057 | [`flame_tp1.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp1.svg) |
-| TP2 | 7,069 | [`flame_tp2.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp2.svg) |
-| TP3 | 7,276 | [`flame_tp3.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp3.svg) |
-| TP4 | 7,599 | [`flame_tp4.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp4.svg) |
-| TP5 | 7,593 | [`flame_tp5.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp5.svg) |
-| TP6 | 7,196 | [`flame_tp6.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp6.svg) |
-| TP7 | 7,421 | [`flame_tp7.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp7.svg) |
-| Engine | 5,944 | [`flame_engine.svg`](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_engine.svg) |
+| TP0 | 10,407 | [`flame_tp0.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg) |
+| TP1 | 7,057 | [`flame_tp1.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp1.svg) |
+| TP2 | 7,069 | [`flame_tp2.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp2.svg) |
+| TP3 | 7,276 | [`flame_tp3.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp3.svg) |
+| TP4 | 7,599 | [`flame_tp4.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp4.svg) |
+| TP5 | 7,593 | [`flame_tp5.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp5.svg) |
+| TP6 | 7,196 | [`flame_tp6.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp6.svg) |
+| TP7 | 7,421 | [`flame_tp7.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp7.svg) |
+| Engine | 5,944 | [`flame_engine.svg`](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_engine.svg) |
 
-[![NEO TP0 flamegraph](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg)](../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg)
+[![NEO TP0 flamegraph](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg)](../../../../eval/results/20260514_141511_v16_flamegraph/flamegraphs/flame_tp0.svg)
 
 #### Vanilla 영역 (동일 workload, `eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/`)
 
 | Worker | samples | SVG |
 |---|---:|---|
-| TP0 | 13,869 | [`flame_tp0.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg) |
-| TP1 | 8,993 | [`flame_tp1.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp1.svg) |
-| TP2 | 8,995 | [`flame_tp2.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp2.svg) |
-| TP3 | (자료) | [`flame_tp3.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp3.svg) |
-| TP4 | (자료) | [`flame_tp4.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp4.svg) |
-| TP5 | (자료) | [`flame_tp5.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp5.svg) |
-| TP6 | (자료) | [`flame_tp6.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp6.svg) |
-| TP7 | (자료) | [`flame_tp7.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp7.svg) |
-| Engine | 4,465 | [`flame_engine.svg`](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_engine.svg) |
+| TP0 | 13,869 | [`flame_tp0.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg) |
+| TP1 | 8,993 | [`flame_tp1.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp1.svg) |
+| TP2 | 8,995 | [`flame_tp2.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp2.svg) |
+| TP3 | (자료) | [`flame_tp3.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp3.svg) |
+| TP4 | (자료) | [`flame_tp4.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp4.svg) |
+| TP5 | (자료) | [`flame_tp5.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp5.svg) |
+| TP6 | (자료) | [`flame_tp6.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp6.svg) |
+| TP7 | (자료) | [`flame_tp7.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp7.svg) |
+| Engine | 4,465 | [`flame_engine.svg`](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_engine.svg) |
 
-[![Vanilla TP0 flamegraph](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg)](../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg)
+[![Vanilla TP0 flamegraph](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg)](../../../../eval/results/20260514_145832_vanilla_flamegraph/flamegraphs/flame_tp0.svg)
 
 #### SVG 사용 영역
 
