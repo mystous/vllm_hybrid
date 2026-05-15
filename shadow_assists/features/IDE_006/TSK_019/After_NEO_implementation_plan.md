@@ -393,3 +393,94 @@ dev (i9-12900KF, AVX-512 native) + prod (Xeon SPR, AVX-512 + AMX native) 모두 
 - `nvidia_peermem` kernel module (gdrcopy 의 GDR 영역 의존) — container modprobe 불가, **host 영역 설치 필요**
 - `gdrdrv` kernel module (gdrcopy 의 fallback path) — 동상
 - AMX BF16 토큰 정확도 검증 영역 (Phase 5/6 영역 의 사전 단계)
+
+---
+
+## 학습 리소스 영역 (각 기술별 공부 자료)
+
+본 plan 의 각 phase 의 기술 영역 의 공부 가능 영역. 키워드 + 개요 + 링크. 진입 전 참고 영역.
+
+### CPU 측 가속 영역 (AMX / AVX-512 / OMP / NUMA / Hugepage)
+
+| 기술 | 키워드 | 개요 | 링크 |
+|---|---|---|---|
+| **Intel AMX** | tile register, tdpbf16ps, AMX-TMUL | BF16 / INT8 8 tile-register 의 16×16 matrix multiply. SPR / GNR 영역의 hw native. tile config 영역의 palette/colsb/rows | https://www.intel.com/content/www/us/en/developer/articles/code-sample/advanced-matrix-extensions-intrinsics-functions.html |
+| **AMX intrinsics** | `_tile_loadd`, `_tile_dpbf16ps`, `_tile_stored` | gcc/clang 영역의 AMX intrinsic — `<immintrin.h>` 영역 | https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html (검색: AMX) |
+| **AVX-512 BF16** | vdpbf16ps, _mm512_dpbf16_ps | BF16 dot product 1 instruction 영역 (Tiger Lake+, SPR native) | https://en.wikipedia.org/wiki/AVX-512 + Intel Intrinsics Guide |
+| **AVX-512 fast_exp** | polynomial approx, _mm512_fast_exp_ps | softmax 영역의 scalar exp 영역 → 5-degree polynomial 영역 vectorize | vllm `csrc/cpu/cpu_arch_macros.h` 영역 내부 reference |
+| **AVX-512 NT-store** | _mm512_stream_si512, MOVNTDQ | cache-bypass store 영역. swap copy 영역의 cache pollution 회피 | Intel Software Developer Manual Vol. 2 (MOVNTI, MOVNTPS) |
+| **ISPC** | SPMD, varying, foreach | Intel SPMD Program Compiler — auto-vectorize 영역. NEO pacpu 의 backend | https://ispc.github.io/ + github https://github.com/ispc/ispc |
+| **OpenMP team / persistent** | omp_set_dynamic, KMP_BLOCKTIME | OMP team 의 thread launch overhead 영역 / blocktime 영역의 spin-vs-sleep tunable | https://www.openmp.org/spec-html/5.2/openmpsu131.html + Intel `KMP_*` env vars |
+| **NUMA local alloc** | numa_alloc_onnode, mbind, set_mempolicy | NUMA-aware alloc 영역. linux libnuma 영역 | https://man7.org/linux/man-pages/man3/numa.3.html |
+| **1GB Hugepage** | mmap MAP_HUGETLB, MAP_HUGE_1GB, hugetlbfs | 4KB → 2MB → 1GB 영역의 TLB miss 영역 절감. hugetlbfs mount + boot param | https://www.kernel.org/doc/Documentation/vm/hugetlbpage.txt |
+| **THP (Transparent Hugepage)** | madvise(MADV_HUGEPAGE), transparent_hugepage/enabled | anonymous mmap 영역의 자동 promote 영역 | https://www.kernel.org/doc/Documentation/vm/transhuge.txt |
+| **libhugetlbfs** | HUGETLB_MORECORE, hugectl, hugeadm | glibc morecore intercept 영역 (sbrk path 만 — Python mmap path intercept 안 됨) | https://github.com/libhugetlbfs/libhugetlbfs |
+| **Intel oneDNN** | onednn_mm, ONEDNN_MAX_CPU_ISA=AVX512_CORE_AMX | Intel oneDNN library — AMX 영역의 GEMM backend 자동 dispatch | https://github.com/oneapi-src/oneDNN |
+
+### GPU 측 가속 영역 (NVLink / PTX / CUDA / NVSHMEM / GDR)
+
+| 기술 | 키워드 | 개요 | 링크 |
+|---|---|---|---|
+| **NVLink Gen4** | NV18, 18-link, 900 GB/s | H100 ↔ H100 영역의 inter-GPU 영역 fabric. cudaMemcpyPeerAsync 통한 direct DMA | https://www.nvidia.com/en-us/data-center/h100/ + https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#peer-to-peer-memory-copy |
+| **PTX (assembly)** | mma.sync, ld.global.nc, exp.approx.f32 | NVIDIA GPU의 virtual ISA. CUDA C의 inline asm 영역 또는 .ptx 영역 작성 | https://docs.nvidia.com/cuda/parallel-thread-execution/index.html |
+| **CUTLASS** | TileGemm, Epilogue, Sm90 | NVIDIA CUDA Templates for Linear Algebra — Tensor Core 영역 의 GEMM building block | https://github.com/NVIDIA/cutlass |
+| **FlashAttention 3** | Hopper, TMA, async pipeline | FA3 영역 의 Hopper architecture native attention kernel | https://github.com/Dao-AILab/flash-attention + arXiv 2407.08608 |
+| **TMA (Tensor Memory Accelerator)** | cuda::memcpy_async, Hopper SM | H100 영역 의 hw async memcpy unit. shared memory load 영역 | https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#tma-asynchronous-data-copies |
+| **NVSHMEM** | nvshmem_put, nvshmem_get, symmetric_memory | same-node multi-GPU symmetric memory API. low-latency small-message all_reduce | https://docs.nvidia.com/nvshmem/api/index.html + https://developer.nvidia.com/nvshmem |
+| **gdrcopy (GDR)** | gdr_pin_buffer, gdr_map, BAR1 | CPU userspace ↔ GPU memory direct mapping 영역. KB-MB 영역 sync transfer 영역 의 latency 단축 | https://github.com/NVIDIA/gdrcopy + https://docs.nvidia.com/cuda/gpudirect-rdma/ |
+| **GPUDirect RDMA** | nvidia_peermem, ConnectX, RDMA verbs | NIC ↔ GPU 영역 direct DMA (host bypass). multi-node 영역 effect 큼 | https://docs.nvidia.com/cuda/gpudirect-rdma/ |
+| **GPUDirect Storage (GDS)** | cuFile, nvidia-fs | NVMe ↔ GPU 영역 direct copy (host bypass) | https://docs.nvidia.com/gpudirect-storage/index.html |
+| **CUDA Streams + priority** | cudaStreamCreateWithPriority | per-stream priority 영역. critical path 영역 우선 | https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-priorities |
+| **CUDA Graphs** | cudaGraphLaunch, capture | kernel launch overhead 영역 절감. enforce_eager=False 영역의 vllm 자동 활용 | https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#cuda-graphs |
+| **FP8 Transformer Engine** | nvidia-transformer-engine, FP8-E4M3 / E5M2 | Hopper 영역 의 FP8 matmul. KV cache + activation 영역의 메모리 영역 절반 | https://github.com/NVIDIA/TransformerEngine |
+| **NCCL** | all_reduce, NVLink path, RING/TREE | inter-GPU collective. single-node NVLink 자동 활용 | https://github.com/NVIDIA/nccl + https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/index.html |
+
+### 측정 + 분석 도구 영역
+
+| 기술 | 키워드 | 개요 | 링크 |
+|---|---|---|---|
+| **perf (Linux)** | uncore_imc, cas_count, dTLB-load-misses | Linux performance counter. CPU 영역 의 PMU + uncore IMC event | https://perfwiki.github.io/main/ + https://www.brendangregg.com/perf.html |
+| **Intel PCM** | pcm-memory, pcm-pcie, pcm-numa | Intel Processor Counter Monitor. DDR / PCIe / NUMA BW + cache event | https://github.com/intel/pcm |
+| **py-spy** | --native unwind, sampling | Python sampling profiler. C 영역 backtrace 까지 capture | https://github.com/benfred/py-spy |
+| **flamegraph** | brendan gregg, --collapsed | stack sample 영역의 visualization | https://github.com/brendangregg/FlameGraph + https://www.brendangregg.com/flamegraphs.html |
+| **Intel SDE** | sde64 -spr-sp, -gnr-sp | Intel Software Development Emulator. AMX 영역의 cross-platform 영역 시뮬레이션 | https://www.intel.com/content/www/us/en/developer/articles/tool/software-development-emulator.html |
+| **NVIDIA Nsight Systems** | nsys profile, CUDA timeline | GPU/CPU 영역 의 system-wide profiler | https://docs.nvidia.com/nsight-systems/UserGuide/index.html |
+| **NVIDIA Nsight Compute** | ncu, SM occupancy, roofline | CUDA kernel 영역의 detailed profiler | https://docs.nvidia.com/nsight-compute/NsightCompute/index.html |
+| **gdb / cuda-gdb** | bt, info threads | crash 영역 의 stack trace + CUDA kernel 영역 debug | https://docs.nvidia.com/cuda/cuda-gdb/index.html |
+
+### NEO 영역 (paper + repo)
+
+| 기술 | 키워드 | 개요 | 링크 |
+|---|---|---|---|
+| **NEO paper** | MLSys 2025, asymmetric pipelining | NEO: Saving GPU Memory Crisis with CPU Offloading | https://arxiv.org/abs/2411.01142 + https://yangzhou1997.github.io/paper/neo_mlsys25.pdf |
+| **NEO repo** | swiftllm, pacpu, ISPC kernel | NEO MLSys25 public 구현 영역 | https://github.com/NEO-MLSys25/NEO |
+| **NEO 동작 영역** | chain firing, cdec dispatch, mirror set | request 단위 exclusive KV ownership + sub-batch pipeline | (본 plan 의 `analysis/B_paper_section_notes.md` + `NEO_code_deepdive.md`) |
+
+### vllm 영역 (CPU backend + 통합)
+
+| 기술 | 키워드 | 개요 | 링크 |
+|---|---|---|---|
+| **vllm PagedAttention** | block_size, KV cache, virtual blocks | block-based KV cache 영역. fragmentation 회피 | https://arxiv.org/abs/2309.06180 + https://github.com/vllm-project/vllm |
+| **vllm CPU backend** | cpu_attn_amx, cpu_attn_vec, ISA dispatch | vllm 자체 CPU attention 영역 (AMX/AVX/NEON) | (본 repo `csrc/cpu/` 영역) |
+| **vllm CUDA Graph + async scheduling** | enforce_eager, async_scheduling | dispatch overhead 절감 영역. v1 영역 default | https://docs.vllm.ai/en/latest/serving/usage_stats.html |
+| **vllm v1 architecture** | scheduler, model runner, KV manager | vllm v1 영역의 core architecture | https://blog.vllm.ai/2024/09/05/perf-update.html + https://docs.vllm.ai/ |
+
+### 본 plan 영역의 사전 분석 자료 (TSK_019 영역 내부)
+
+| 자료 | 위치 |
+|---|---|
+| Phase A — NEO upstream 감사 | `analysis/A_neo_upstream_audit.md` |
+| Phase A — kernel signature map | `analysis/A_kernel_signature_map.md` |
+| Phase B — paper section notes | `analysis/B_paper_section_notes.md` |
+| Phase B — paper vs 측정 | `analysis/B_paper_vs_our_measure.md` |
+| Phase C — vllm AMX/AVX inventory | `analysis/C_existing_paths_inventory.md` |
+| Phase C — pacpu vs cpu_attn gap | `analysis/C_pacpu_vs_cpu_attn_amx_gap.md` |
+| Phase D — flamegraph 분석 | `analysis/D_bottleneck_table.md` + `D_roofline_notes.md` + `D_candidate_long_list.md` |
+| Phase E — bottleneck map 최종 | `analysis/E_bottleneck_map.md` |
+| Phase E — AMX/AVX 적용 가능성 | `analysis/E_amx_avx_applicability.md` |
+| Phase E — 측정 미달 영역 | `analysis/E_open_questions.md` (OQ01-OQ18, Phase 1 측정 완료 영역 포함) |
+| Phase F — HW 가속 후보 inventory | `analysis/F_hardware_acceleration_candidates.md` |
+| NEO 사전 분석 doc | `shadow_assists/features/IDE_006/NEO_code_deepdive.md`, `NEO_redesign.md`, `Objective-for-NEO-porting.md` |
+| 본 plan 의 Best Configuration | `shadow_assists/features/IDE_006/TSK_019/README.md` |
+
+→ 본 plan 의 각 phase 진입 전 위 자료 영역 참고. 외부 학습 영역 + 본 repo 내부 영역 둘 다 동반.
