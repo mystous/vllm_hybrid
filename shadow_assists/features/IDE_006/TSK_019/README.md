@@ -39,6 +39,22 @@ v1.6 best 2,157 tps (500p) vs Phase 3.1+KMP=50 2,038 tps (400p) 영역 의 workl
 - Phase 3.4 baseline (400p, env Phase 3.1 적용 X): 1,930.5 tps
 - Phase 3.1+KMP=50 (400p): 2,038.7 tps (+5.61%)
 
+## v1.6 1-step Timeline (Sequential bottleneck 식별)
+
+상세: [`measurements/timeline_v16_20260516/README.md`](measurements/timeline_v16_20260516/README.md)
+
+![v1.6 1-step Timeline](measurements/timeline_v16_20260516/timeline_schematic.svg)
+
+측정: nsys profile + py-spy chrometrace (KST 2026-05-16, v1.6 commit `64f9e0c48` 회귀, 100p × 8192).
+
+**Sequential bottleneck 4 영역** (붉은 ★):
+1. `scheduler.decide_mode + sub_batch attach` (~ 2 ms / step, 1.8%)
+2. **`cdec_executor max_workers=2` cap** — chain fire 56 layer / 2 worker = 28 serial slot
+3. **`Python attention.py hot path × 80 layer`** (~ 12 ms / step, ~11%)
+4. **`NCCL AllReduce` barrier × 320 / step** (~ 17.6 ms / step, ~16%)
+
+→ After-NEO plan 의 ★ Top Priority (swap KV manipulation Python+ATen 제거 ≈ wall 의 ~20%) 와 정합.
+
 ## variance fact (vanilla vs NEO 측정 3-run avg/min/max)
 
 | path | runs | min — max | avg | CV | vs vanilla |

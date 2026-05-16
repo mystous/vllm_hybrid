@@ -4,6 +4,95 @@
 > 측정 시각: 2026-05-16 16:20 (py-spy) + 16:33 (nsys)
 > 워크로드: 100p × 8192 (timeline 측정용 short workload — chain fire / NCCL pattern 동일)
 
+## 0. 1-step Timeline 도식
+
+![v1.6 1-step Timeline Schematic](./timeline_schematic.svg)
+
+1 step (≈ 110 ms) 의 7 swim lane:
+1. **Main thread** (Python `forward_neo_pipelined`) — scheduler → 80 layer Python hot path → emit
+2. **cdec_executor** — CPU pacpu, max_workers=2 cap, chain fire 발화 layer 별 dispatch
+3. **async_output thread** — GPU event sync 후 token id 전달
+4. **GPU stream 0** — b0 (gdec) GEMM + Attention + rms_norm + NCCL AllReduce × 320
+5. **GPU stream 1** — b1 chain fire 발화 시 skip, 안 발화 layer 만 GPU attn
+6. **Swap stream** — D2H/H2D async (overlap with forward, wall hide ✓)
+7. **RPC / shm** — Engine ↔ Worker (step boundary 만 활동)
+
+★ Sequential bottleneck 4 영역 (붉은 표시):
+1. scheduler.decide_mode + sub_batch attach (~ 2 ms)
+2. **cdec_executor max_workers=2 cap** — 56 layer cdec / 2 worker = 28 serial slot
+3. **Python attention.py hot path × 80 layer** — ~12 ms / step
+4. NCCL AllReduce barrier × 320 — ~17.6 ms / step
+
+## 0.1 Mermaid sequenceDiagram (1 layer 단위)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant M as Main thread (Python)
+    participant C as cdec_executor
+    participant G0 as GPU stream0 (b0)
+    participant G1 as GPU stream1 (b1)
+    participant S as Swap stream
+    participant N as NCCL
+
+    Note over M,N: 1 layer 영역 (≈ 1.2 ms, decode phase)
+    M->>M: skip_gpu_attn check + _neo_drain_pending_cdec (Python)
+    M->>+C: cdec_future.submit (b1 rows)
+    M->>+G0: launch Q/K/V proj (cuBLAS GEMM)
+    G0->>G0: GEMM 0.3 ms (concurrent with cdec)
+    M->>N: ncclAllReduce launch (Q proj)
+    N-->>G0: AllReduce sync 55 μs
+    M->>+G0: FlashAttn (b0 gdec rows only)
+    G0->>G0: Attention 0.05 ms
+    M->>+G0: O proj + AllReduce
+    G0->>G0: O proj GEMM 0.3 ms
+    N-->>G0: AllReduce 55 μs
+    M->>+G0: MLP gate_up + AllReduce
+    N-->>G0: AllReduce 55 μs
+    M->>+G0: MLP down + AllReduce
+    N-->>G0: AllReduce 55 μs
+    M->>M: rms_norm (residual)
+    C-->>-M: cdec result wait (avg 2.37 ms, BLOCKING if not ready)
+    Note over M,C: ★ Sequential: cdec_future.result() 가 wall path 위에 있으면 GPU stream0 idle
+    M->>G1: b1 attention SKIP (chain fire 발화 시)
+```
+
+## 0.2 Mermaid gantt (1 step macro view)
+
+```mermaid
+gantt
+    title v1.6 1-step macro timeline (≈ 110 ms, decode phase)
+    dateFormat X
+    axisFormat %L ms
+
+    section Main (Python)
+    scheduler.decide_mode           :crit, m1, 0, 2
+    80 layer Python hot path        :m2, 2, 80
+    emit (sample + output)          :m3, 95, 3
+
+    section cdec_executor
+    layer N cdec dispatch (×56)     :crit, c1, 4, 88
+
+    section GPU stream0 (b0)
+    Layer 0-79 GEMM/Attn/Norm       :g1, 2, 94
+
+    section GPU stream1 (b1)
+    b1 attn (chain X layer 만)      :g2, 2, 94
+
+    section NCCL barrier (×320)
+    AllReduce ×4 per layer          :crit, n1, 2, 94
+
+    section Swap stream
+    D2H swap_out (async, overlap)   :done, s1, 2, 60
+    H2D swap_in (next step prep)    :done, s2, 80, 30
+
+    section RPC
+    Engine→Worker dequeue           :r1, 0, 1
+    Worker→Engine emit              :r2, 108, 2
+```
+
+★ critical-path (`crit`) = sequential bottleneck (Phase D 분석에서 식별).
+
 ## 1. 측정 raw data 위치
 
 | 측정 | 파일 | size | 위치 |
