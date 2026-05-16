@@ -127,12 +127,19 @@ class SubBatchPipelineExecutor:
         self._batch_streams: tuple | None = None
 
     def _get_batch_streams(self):
-        """Module-level lazy stream pair — TSK_019 SUB_019 (R4)."""
+        """Module-level lazy stream pair — TSK_019 SUB_019 (R4).
+
+        Phase 3.3 — CUDA Stream Priority.
+        batch[0] (gdec sub-batch — wall critical path) 에 high priority (-1) 부여,
+        batch[1] (cdec sub-batch — CPU work overlap) 는 default (0).
+        OS scheduling jitter 영역 시 gdec stream 우선 처리 → gdec wall tail 단축.
+        """
         import torch
         if self._batch_streams is None:
+            # Priority range: lower number = higher priority (CUDA convention)
             self._batch_streams = (
-                torch.cuda.Stream(),
-                torch.cuda.Stream(),
+                torch.cuda.Stream(priority=-1),  # gdec (high priority)
+                torch.cuda.Stream(priority=0),   # cdec (default)
             )
         return self._batch_streams
 
