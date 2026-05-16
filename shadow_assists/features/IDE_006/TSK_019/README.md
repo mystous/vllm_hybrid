@@ -39,24 +39,42 @@ v1.6 best 2,157 tps (500p) vs Phase 3.1+KMP=50 2,038 tps (400p) 영역 의 workl
 - Phase 3.4 baseline (400p, env Phase 3.1 적용 X): 1,930.5 tps
 - Phase 3.1+KMP=50 (400p): 2,038.7 tps (+5.61%)
 
-## vanilla vs NEO 1-step Timeline (NEO 추가 61 ms 의 출처)
+## vanilla vs NEO 1-step Timeline — Option A (sync result wait)
 
-상세: [`measurements/timeline_v16_20260516/README.md`](measurements/timeline_v16_20260516/README.md)
+상세: [`measurements/timeline_v16_optionA_20260516/README.md`](measurements/timeline_v16_optionA_20260516/README.md) (재측정, 2026-05-16 18:30)
 
-![vanilla vs NEO 1-step Timeline](measurements/timeline_v16_20260516/timeline_schematic.svg)
+![vanilla vs NEO 1-step Timeline (Option A)](measurements/timeline_v16_optionA_20260516/timeline_schematic.svg)
 
-**핵심**: 동일 GPU/모델 인데 vanilla step 54 ms vs NEO step 115 ms — **NEO 가 매 step 61 ms 더 씀**. 그 출처:
+### cdec dispatch 의 2 단계 "async" 정의
+
+| 단계 | 의미 | 우리 measurement |
+|---|---|---|
+| **cdec submit** | `cdec_executor.submit(...)` — CPU pacpu 별도 worker process 비동기 실행 | **항상 async ✓** |
+| **cdec result wait** | `cdec_future.result()` main thread 가 결과 받는 시점 | **두 옵션** |
+
+- **Option A** (`attention.py:1148`): same layer 의 attention 안 main thread blocking → wall path 위
+- Option B (`attention.py:1133`, env `VLLM_NEO_ASYNC_CDEC=1`): pending queue + next layer drain (NEO §4.4 algorithm-correct path). 우리 implement 활성 시 starvation 으로 step 멈춤 (drain timing 미완성)
+
+→ **2주 측정 전체 = Option A**. NEO 의 "async" 라 부른 게 *submit 단계 async* — 단 result wait 는 sync.
+
+### NEO 추가 61 ms / step 의 출처 (Option A 영역)
 
 | # | 영역 (timeline 위치) | 추가 시간 | 원인 |
 |---|---|---:|---|
-| ① | `Python attention.py hot path × 80 layer` (54-66 ms) | **+12 ms** | skip_gpu_attn check, _neo_drain_pending_cdec, cdec submit, cudaStream sync |
-| ② | `cdec_future.result()` BLOCKING wait (66-90 ms) | **+24 ms** | max_workers=2 cap 으로 56 cdec / 2 worker = 66 ms CPU work, 24 ms 가 wall path 로 밀려나옴 |
+| ① | `Python attention.py hot path × 80 layer` (54-66 ms) | **+12 ms** | skip_gpu_attn check, _neo_drain_pending_cdec (Option A 에서 queue empty 라 no-op), cdec submit, cudaStream sync |
+| **②** | **`cdec_future.result()` Option A BLOCKING wait** (66-90 ms) | **+24 ms** | max_workers=2 cap 으로 56 cdec / 2 worker = 64 ms CPU work, 24 ms 가 wall 위로 |
 | ③ | `swap_in launch + Python overhead + emit` (90-115 ms) | **+25 ms** | `_neo_handle_kv_swap` Python loop, ATen `index_kernel` GOMP, `copy_layer_out` advanced indexing |
-| | **합** | **+61 ms** | vanilla 54 + 61 = NEO 115 ms |
+| | **합** | **+61 ms** | vanilla 54 + 61 = NEO 115 ms ✓ |
 
-vanilla 54 ms 이후 영역에서 **GPU 는 거의 idle (utilization 21%)** — main thread 의 cdec wait + Python overhead 가 next layer launch 막음. CPU thread 도 90% idle wait (pthread_cond_timedwait + poll + epoll_wait 합).
+vanilla 54 ms 이후 영역에서 **GPU 는 거의 idle (utilization 21%)**. CPU thread 도 90% idle wait.
 
-→ After-NEO plan 의 ★ Top Priority (swap KV manipulation Python+ATen 제거) 는 ★3 영역 (+25 ms) 의 절반 이상 제거 가능. ★1 + ★3 의 절반 제거 가정 시: NEO step 115 → 96 ms, throughput 2,197 → 2,633 tps **(+19.8%)**.
+### 가속 lever
+
+| lever | 영역 | 예상 효과 |
+|---|---|---:|
+| swap path Python+ATen 제거 (After-NEO plan ★ Top Priority) | ③ +25 ms 의 절반 + ① 절반 | tps +11~25% |
+| Option B (NEO §4.4) 완성 — drain timing fix | ② +24 ms 제거 | tps +26% (구현 필요) |
+| 두 lever 합산 | ①②③ 의 대부분 | vanilla 의 ~60-70% 도달 |
 
 ## variance fact (vanilla vs NEO 측정 3-run avg/min/max)
 
