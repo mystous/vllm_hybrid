@@ -4,24 +4,56 @@
 > 측정 시각: 2026-05-16 16:20 (py-spy) + 16:33 (nsys)
 > 워크로드: 100p × 8192 (timeline 측정용 short workload — chain fire / NCCL pattern 동일)
 
-## 0. 1-step Timeline 도식
+## 0. vanilla vs NEO 1-step 비교 (NEO 추가 61 ms 의 출처 분해)
 
-![v1.6 1-step Timeline Schematic](./timeline_schematic.svg)
+![vanilla vs NEO 1-step Timeline](./timeline_schematic.svg)
 
-1 step (≈ 110 ms) 의 7 swim lane:
-1. **Main thread** (Python `forward_neo_pipelined`) — scheduler → 80 layer Python hot path → emit
-2. **cdec_executor** — CPU pacpu, max_workers=2 cap, chain fire 발화 layer 별 dispatch
-3. **async_output thread** — GPU event sync 후 token id 전달
-4. **GPU stream 0** — b0 (gdec) GEMM + Attention + rms_norm + NCCL AllReduce × 320
-5. **GPU stream 1** — b1 chain fire 발화 시 skip, 안 발화 layer 만 GPU attn
-6. **Swap stream** — D2H/H2D async (overlap with forward, wall hide ✓)
-7. **RPC / shm** — Engine ↔ Worker (step boundary 만 활동)
+**핵심**: 동일 GPU/모델 인데 vanilla 는 step 54 ms, NEO 는 step 115 ms. **NEO 가 매 step 61 ms 더 씀** — 그 출처를 component 별로 분해한 도식.
 
-★ Sequential bottleneck 4 영역 (붉은 표시):
-1. scheduler.decide_mode + sub_batch attach (~ 2 ms)
-2. **cdec_executor max_workers=2 cap** — 56 layer cdec / 2 worker = 28 serial slot
-3. **Python attention.py hot path × 80 layer** — ~12 ms / step
-4. NCCL AllReduce barrier × 320 — ~17.6 ms / step
+### step time 산수
+
+| 측정 | wall | 4M output token | step time (= 213μs/token × 256 batch) |
+|---|---:|---:|---:|
+| vanilla 3-run avg | 873 s | 4,690.7 tps | **54 ms** |
+| NEO v1.6 3-run avg | 1,844 s | 2,197.4 tps | **115 ms** |
+| **diff** | — | — | **+61 ms / step** |
+
+### NEO 추가 61 ms 의 분해 (도식의 붉은 ★ 영역)
+
+| # | 영역 (lane / 시각) | 시간 | 원인 코드 |
+|---|---|---:|---|
+| ① | Main thread `Py hot path` (54-66 ms) | **+12 ms** | `attention.py:unified_attention_with_output` × 80 layer (skip_gpu_attn check, _neo_drain_pending_cdec, cdec_future submit, cudaStream sync). 매 layer 0.15 ms × 80 = 12 ms |
+| ② | Main thread `cdec_future.result() BLOCKING wait` (66-90 ms) | **+24 ms** | `cdec_executor max_workers=2` cap → chain fire 56 layer × 2.37 ms / 2 worker = 66 ms 의 CPU pacpu 가 vanilla 54 ms 안에 안 끝남 → 24 ms 가 wall path 위로 밀려나옴 |
+| ③ | Main thread `swap_in launch + sample + emit` (90-115 ms) | **+25 ms** | `_neo_handle_kv_swap` Python loop + ATen `index_kernel` (GOMP) + `copy_layer_out` advanced indexing |
+| | **합** | **+61 ms** | vanilla 54 ms + 61 ms = NEO 115 ms ✓ |
+
+### GPU IDLE 영역 (54-115 ms 영역, **GPU 가 일 없이 대기**)
+
+vanilla 54 ms 이후의 61 ms 동안 GPU stream0 는 **거의 idle**:
+- GPU 의 next layer launch 가 main thread 의 cdec wait + Python overhead 에 막힘
+- **GPU utilization 21%** (12.5s active / 60s capture) — 79% 가 idle
+- vanilla 라면 GPU 가 100% 가까이 active (다음 step 즉시 시작)
+
+### CPU thread idle wait (도식 lane 7, 노란 dashed)
+
+OS Runtime 측정:
+- `pthread_cond_timedwait` 30.2% — cdec result wait, condition variable
+- `poll` 27.5% — RPC poll
+- `epoll_wait` 25.7% — async IO wait
+- **합 ~83%** — CPU thread 가 일 없이 next event 기다림
+
+이는 NEO 의 component (main / cdec_executor / async_output / swap stream) 가 **서로 sequential 하게 결과 기다림** 의 직접 증거.
+
+### Sequential bottleneck 의 정확한 위치 (코드 + lane / 시각)
+
+| # | 코드 | timeline 위치 | lever |
+|---|---|---|---|
+| ★1 | `attention.py:unified_attention_with_output` 의 매 layer Python | Main lane 54-66 ms | C++ extension 으로 묶기 |
+| ★2 | `sub_batch_executor.py:CDEC_WORKERS = ProcessPoolExecutor(max_workers=2)` | Main lane 66-90 ms (cdec wait), cdec_executor lane 54-90 ms (overflow) | max_workers 늘림 + pacpu AMX/AVX 가속 |
+| ★3 | `gpu_model_runner.py:_neo_handle_kv_swap` + `neo_cpu_kv_buffer.py:copy_layer_out` + ATen `index_kernel` | Main lane 90-115 ms | Python loop → C++ extension, advanced indexing → `index_select` 직접 |
+| ★4 | NCCL AllReduce × 320 / step | GPU stream0 lane 전체 (붉은 dot) | TP layer 통합, sequence parallelism 도입 |
+
+→ After-NEO plan 의 ★ Top Priority (swap KV manipulation Python+ATen overhead 제거) 가 ★3 + ★1 의 합 = +37 ms 영역에 직접 적용. 절반 제거 시 NEO step 115 → 96 ms, wall 1,844 → 1,539 s, throughput 2,197 → 2,633 tps (+19.8%).
 
 ## 0.1 Mermaid sequenceDiagram (1 layer 단위)
 

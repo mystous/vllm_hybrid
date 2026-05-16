@@ -39,21 +39,24 @@ v1.6 best 2,157 tps (500p) vs Phase 3.1+KMP=50 2,038 tps (400p) 영역 의 workl
 - Phase 3.4 baseline (400p, env Phase 3.1 적용 X): 1,930.5 tps
 - Phase 3.1+KMP=50 (400p): 2,038.7 tps (+5.61%)
 
-## v1.6 1-step Timeline (Sequential bottleneck 식별)
+## vanilla vs NEO 1-step Timeline (NEO 추가 61 ms 의 출처)
 
 상세: [`measurements/timeline_v16_20260516/README.md`](measurements/timeline_v16_20260516/README.md)
 
-![v1.6 1-step Timeline](measurements/timeline_v16_20260516/timeline_schematic.svg)
+![vanilla vs NEO 1-step Timeline](measurements/timeline_v16_20260516/timeline_schematic.svg)
 
-측정: nsys profile + py-spy chrometrace (KST 2026-05-16, v1.6 commit `64f9e0c48` 회귀, 100p × 8192).
+**핵심**: 동일 GPU/모델 인데 vanilla step 54 ms vs NEO step 115 ms — **NEO 가 매 step 61 ms 더 씀**. 그 출처:
 
-**Sequential bottleneck 4 영역** (붉은 ★):
-1. `scheduler.decide_mode + sub_batch attach` (~ 2 ms / step, 1.8%)
-2. **`cdec_executor max_workers=2` cap** — chain fire 56 layer / 2 worker = 28 serial slot
-3. **`Python attention.py hot path × 80 layer`** (~ 12 ms / step, ~11%)
-4. **`NCCL AllReduce` barrier × 320 / step** (~ 17.6 ms / step, ~16%)
+| # | 영역 (timeline 위치) | 추가 시간 | 원인 |
+|---|---|---:|---|
+| ① | `Python attention.py hot path × 80 layer` (54-66 ms) | **+12 ms** | skip_gpu_attn check, _neo_drain_pending_cdec, cdec submit, cudaStream sync |
+| ② | `cdec_future.result()` BLOCKING wait (66-90 ms) | **+24 ms** | max_workers=2 cap 으로 56 cdec / 2 worker = 66 ms CPU work, 24 ms 가 wall path 로 밀려나옴 |
+| ③ | `swap_in launch + Python overhead + emit` (90-115 ms) | **+25 ms** | `_neo_handle_kv_swap` Python loop, ATen `index_kernel` GOMP, `copy_layer_out` advanced indexing |
+| | **합** | **+61 ms** | vanilla 54 + 61 = NEO 115 ms |
 
-→ After-NEO plan 의 ★ Top Priority (swap KV manipulation Python+ATen 제거 ≈ wall 의 ~20%) 와 정합.
+vanilla 54 ms 이후 영역에서 **GPU 는 거의 idle (utilization 21%)** — main thread 의 cdec wait + Python overhead 가 next layer launch 막음. CPU thread 도 90% idle wait (pthread_cond_timedwait + poll + epoll_wait 합).
+
+→ After-NEO plan 의 ★ Top Priority (swap KV manipulation Python+ATen 제거) 는 ★3 영역 (+25 ms) 의 절반 이상 제거 가능. ★1 + ★3 의 절반 제거 가정 시: NEO step 115 → 96 ms, throughput 2,197 → 2,633 tps **(+19.8%)**.
 
 ## variance fact (vanilla vs NEO 측정 3-run avg/min/max)
 
