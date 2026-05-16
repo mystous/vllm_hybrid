@@ -82,6 +82,97 @@ Phase 8.8 Predictive cdec scheduling ──────┘
 
 ---
 
+## ★ Top Priority — Swap KV manipulation Python+ATen overhead 제거 (NEO wall 의 ~20%)
+
+**2026-05-16 KST 추가** — Phase 3.1+3.3 측정 (500p × 8192) 분석 결과 도출.
+Phase 2-7 의 어느 항목보다 **큰 lever** — 본 항목이 가장 우선.
+
+### 근거 (timeframe + flamegraph 분석)
+
+**timeframe (vanilla vs NEO 의 step time 차이)**:
+
+| 항목 | wall | step 추정 | per-step Δ |
+|---|---:|---:|---:|
+| vanilla (NEO OFF, 3-run avg) | 873s | ~54 ms | — |
+| NEO Phase 3.1+3.3 Run 1 (single) | 1,947s | ~121 ms | **+67 ms / step** |
+
+NEO 가 매 step 67 ms 더 씀. 그중:
+- cdec_wait per step ≈ 5 ms (cdec_count 40,400 / step ~16,000 × 2.05 ms)
+- **나머지 62 ms** = swap 관련 Python + ATen indexing + scheduler dispatcher overhead
+
+**flamegraph 영역별 sample 비중** (Phase D `D_bottleneck_table.md` D.3):
+
+| 카테고리 | NEO % | vanilla 대조 | NEO 추가량 |
+|---|---:|---|---:|
+| GPU forward + libcuda sync | ~40% | 동일 | 0 |
+| Engine ↔ Worker RPC idle wait | ~27% | 동일 | 0 |
+| async output thread | ~18% | 동일 | 0 |
+| **NEO swap path** (`_neo_handle_kv_swap`) | **~12%** | **0%** | **+12%** |
+| **OMP pool (libgomp via ATen `index_kernel`)** | **8.26%** | **0%** | **+8.26%** |
+| libtorch / aten 일반 | ~18% | 동일 | 0 |
+| TP all_reduce | 2.86% | 동일 | 0 |
+| pacpu kernel 자체 | < 1% (sample 0건) | — | < 1% |
+
+→ **NEO specific 영역 = ~20%** (swap path + ATen indexing via OMP). 이게 NEO 의 wall 의 추가 비용의 가장 큰 출처. **pacpu kernel 자체는 flamegraph 의 hot frame 아님** (`libpacpu-llama3_3_70b-tp8.so` symbol 0건).
+
+### 대상 코드 (file:line, sample count 동반)
+
+| sample | file:line | 의미 |
+|---:|---|---|
+| 1,187 | `vllm/v1/worker/gpu_model_runner.py:6735` `_neo_handle_kv_swap` | swap-out + swap-in dispatcher |
+| 462 | `vllm/v1/worker/gpu_model_runner.py:696x` `_neo_swap_in_one_req` | swap-in 본문 |
+| 461 | `vllm/v1/core/sched/neo_cpu_kv_buffer.py:128` `_wrapped` | swap-in wrapper |
+| 232 | `vllm/v1/core/sched/neo_cpu_kv_buffer.py:464` `copy_layer_out` | CPU → tensor copy |
+| 227 | `at::native::index_kernel` (PyTorch advanced indexing) | block_ids 기반 KV slice |
+| 220 | `at::TensorIteratorBase::for_each` | OMP parallel 호출 진입점 |
+| 85 | `GOMP_parallel` (libgomp.so) | OMP entry |
+
+### 가속 방향 (실효 lever 순)
+
+1. **`copy_layer_out` 의 advanced indexing 제거** (~232 + 227 samples 의 직접 hit) — `block_ids` 를 미리 contiguous tensor 로 준비, `index_select` 또는 `cudaMemcpyAsync` (D2H pinned + offset list) 직접 호출. `at::native::index_kernel` 의 GOMP_parallel 진입 자체 회피.
+2. **`_neo_handle_kv_swap` Python loop → C++/CUDA extension** (~1,187 + 462 samples) — 매 step 의 layer 80 × req N 단위 Python 호출. C++ extension 으로 묶어 Python overhead 한 번에 제거.
+3. **OMP pool wake/sleep overhead** (~8.26% 의 일부) — swap-in path 의 ATen index_kernel 이 그때마다 OMP team 깨움. KMP_BLOCKTIME=50 으로 spin 시간 줄임 (이미 시도, 효과 마지널). 본질은 OMP 호출 자체 회피 (single-thread memcpy 또는 cudaMemcpy 만 사용).
+
+### 기대 효과 (Amdahl 정량)
+
+NEO specific 20% 영역 중 위 (1)+(2) 가 ~12-15% 제거 가정:
+
+| 시나리오 | wall (s) | tps | Δ vs Phase 3.1+3.3 Run 1 |
+|---|---:|---:|---:|
+| Phase 3.1+3.3 Run 1 baseline | 1,947 | 2,089 | — |
+| swap path overhead 절반 제거 | 1,750 | ~2,323 | +11% |
+| swap path overhead 전부 제거 (상한) | 1,558 | ~2,612 | +25% |
+| vanilla 분모 (참고) | 873 | 4,691 | — |
+
+→ Track A 의 다른 phase (chain firing dial-up +5-10%, hugepage +1-3%, AMX 5-7%) 보다 **lever 큼**. vanilla 의 ~50-55% 도달 가능 영역.
+
+### 위험
+
+- KV migration 의 shape mismatch race (v1.6 의 `NeoCpuKvBuffer._in_flight_swap_out` fix 동일 영역). 22 strict 의 **#8 (swap_out/in invariant)**, **#12 (b0/b1 정렬)**, **#14 (KV migration LRU + capacity)** 의 mismatch=0 보존 필수.
+- C++ extension 빌드 추가 — pacpu build chain 에 swap helper 추가.
+
+### 검증
+
+- 3-run avg 측정 (CV < 6% 보존)
+- 22 strict 19/19 보존 (특히 #8/#12/#14)
+- shape_mismatch = 0 보존
+- flamegraph 재측정 — `_neo_handle_kv_swap` + OMP pool 의 sample 비중이 NEO specific ~20% → < 10% 로 감소 확인
+
+### Phase 2-7 와의 관계
+
+| phase | 기대 효과 | 본 Top Priority 대비 |
+|---|---:|---|
+| Phase 2 chain firing dial-up | +5-10% | 작음. dial-up 결과 chain fire 가 늘면 swap 도 늘어 본 항목 효과 누적 |
+| Phase 3 hw quick wins (NUMA/OMP/stream) | +5-6% (이미 적용) | 작음. 본 항목 진행 후 재측정 |
+| Phase 4 1GB hugepage | +1-3% | 작음 |
+| Phase 5 AVX-512 fast_exp | +2-4% | 작음 |
+| Phase 6 AMX qk_product | +5-7% (Amdahl cap) | pacpu < 1% 영역, cap 큼 |
+| **Top Priority (본 항목)** | **+11-25%** | **★ 가장 큰 lever** |
+
+→ **본 Top Priority 를 먼저 끝낸 후** Phase 2-7 진행. AMX (Phase 6) 의 Amdahl cap 도 본 항목 진행 후 다시 분석 (pacpu 비중이 상대적으로 늘면 AMX lever 도 커짐).
+
+---
+
 ## Phase 2 — chain firing dial-up (72% → 99%, Option C/L/M2 ON 환경 영역 진입)
 
 **2026-05-15 KST 정정 v7 (Phase 2 부활 + metric 정정)** — CLAUDE.md Objective ("CPU 활용률 극대화 + idle 금지") 영역 정합 영역.

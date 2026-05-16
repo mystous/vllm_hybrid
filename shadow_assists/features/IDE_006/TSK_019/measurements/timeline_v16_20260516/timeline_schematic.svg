@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 720" font-family="Menlo, monospace" font-size="11">
+  <!-- background -->
+  <rect width="1400" height="720" fill="#fafafa"/>
+
+  <!-- title -->
+  <text x="700" y="22" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">v1.6 1-step Timeline Schematic (nsys + chrometrace, KST 2026-05-16)</text>
+  <text x="700" y="40" text-anchor="middle" font-size="11" fill="#555">1 step ≈ 110 ms (500p workload, decode phase) — TP0 worker 의 component 별 sequential / concurrent 구조</text>
+
+  <!-- x-axis (time scale) -->
+  <line x1="160" y1="660" x2="1340" y2="660" stroke="#444" stroke-width="1"/>
+  <text x="160" y="680" font-size="10" fill="#444">0 ms</text>
+  <text x="450" y="680" font-size="10" fill="#444">25 ms</text>
+  <text x="750" y="680" font-size="10" fill="#444">55 ms</text>
+  <text x="1050" y="680" font-size="10" fill="#444">85 ms</text>
+  <text x="1330" y="680" font-size="10" fill="#444" text-anchor="end">110 ms</text>
+  <!-- tick marks every 5ms (5/110 of 1180px = 53.6px) -->
+  <g stroke="#aaa" stroke-width="0.5">
+    <line x1="160" y1="660" x2="160" y2="666"/>
+    <line x1="214" y1="660" x2="214" y2="664"/>
+    <line x1="267" y1="660" x2="267" y2="664"/>
+    <line x1="321" y1="660" x2="321" y2="664"/>
+    <line x1="374" y1="660" x2="374" y2="664"/>
+    <line x1="428" y1="660" x2="428" y2="666"/>
+    <line x1="481" y1="660" x2="481" y2="664"/>
+    <line x1="535" y1="660" x2="535" y2="664"/>
+    <line x1="589" y1="660" x2="589" y2="664"/>
+    <line x1="642" y1="660" x2="642" y2="664"/>
+    <line x1="696" y1="660" x2="696" y2="666"/>
+    <line x1="749" y1="660" x2="749" y2="664"/>
+    <line x1="803" y1="660" x2="803" y2="664"/>
+    <line x1="857" y1="660" x2="857" y2="664"/>
+    <line x1="910" y1="660" x2="910" y2="664"/>
+    <line x1="964" y1="660" x2="964" y2="666"/>
+    <line x1="1017" y1="660" x2="1017" y2="664"/>
+    <line x1="1071" y1="660" x2="1071" y2="664"/>
+    <line x1="1125" y1="660" x2="1125" y2="664"/>
+    <line x1="1178" y1="660" x2="1178" y2="664"/>
+    <line x1="1232" y1="660" x2="1232" y2="666"/>
+    <line x1="1286" y1="660" x2="1286" y2="664"/>
+    <line x1="1339" y1="660" x2="1339" y2="664"/>
+  </g>
+
+  <!-- swim lanes -->
+  <!-- (1) main thread (Python forward) -->
+  <text x="155" y="78" text-anchor="end" font-weight="bold" fill="#222">Main thread (Python)</text>
+  <text x="155" y="92" text-anchor="end" font-size="9" fill="#777">forward_neo_pipelined</text>
+  <line x1="160" y1="100" x2="1340" y2="100" stroke="#ddd" stroke-width="1"/>
+
+  <!-- (2) cdec_executor (max_workers=2) -->
+  <text x="155" y="158" text-anchor="end" font-weight="bold" fill="#222">cdec_executor</text>
+  <text x="155" y="172" text-anchor="end" font-size="9" fill="#777">CPU pacpu (max_workers=2)</text>
+  <line x1="160" y1="180" x2="1340" y2="180" stroke="#ddd" stroke-width="1"/>
+
+  <!-- (3) async_output thread -->
+  <text x="155" y="238" text-anchor="end" font-weight="bold" fill="#222">async_output</text>
+  <text x="155" y="252" text-anchor="end" font-size="9" fill="#777">thread</text>
+  <line x1="160" y1="260" x2="1340" y2="260" stroke="#ddd" stroke-width="1"/>
+
+  <!-- (4) GPU stream 0 (gdec / b0) -->
+  <text x="155" y="318" text-anchor="end" font-weight="bold" fill="#222">GPU stream 0 (b0/gdec)</text>
+  <text x="155" y="332" text-anchor="end" font-size="9" fill="#777">cudaStream priority=0</text>
+  <line x1="160" y1="340" x2="1340" y2="340" stroke="#ddd" stroke-width="1"/>
+
+  <!-- (5) GPU stream 1 (cdec / b1, chain fire 영역만) -->
+  <text x="155" y="398" text-anchor="end" font-weight="bold" fill="#222">GPU stream 1 (b1/cdec)</text>
+  <text x="155" y="412" text-anchor="end" font-size="9" fill="#777">chain fire 발화 영역만</text>
+  <line x1="160" y1="420" x2="1340" y2="420" stroke="#ddd" stroke-width="1"/>
+
+  <!-- (6) swap_in / swap_out CUDA stream -->
+  <text x="155" y="478" text-anchor="end" font-weight="bold" fill="#222">Swap stream</text>
+  <text x="155" y="492" text-anchor="end" font-size="9" fill="#777">cudaMemcpyAsync D2H/H2D</text>
+  <line x1="160" y1="500" x2="1340" y2="500" stroke="#ddd" stroke-width="1"/>
+
+  <!-- (7) RPC / shm (Engine ↔ Worker) -->
+  <text x="155" y="558" text-anchor="end" font-weight="bold" fill="#222">RPC / shm_broadcast</text>
+  <text x="155" y="572" text-anchor="end" font-size="9" fill="#777">Engine ↔ Worker</text>
+  <line x1="160" y1="580" x2="1340" y2="580" stroke="#ddd" stroke-width="1"/>
+
+  <!-- ====================================================================== -->
+  <!-- Step events (1 step ≈ 110ms = 1180px) -->
+  <!-- 1ms = 10.73px -->
+  <!-- ====================================================================== -->
+
+  <!-- Phase 0: scheduler decide_mode + sub-batch attach (0-2ms) -->
+  <rect x="160" y="55" width="22" height="40" fill="#ffd966" stroke="#caa040" stroke-width="0.5"/>
+  <text x="171" y="72" text-anchor="middle" font-size="9" fill="#000">scheduler</text>
+  <text x="171" y="84" text-anchor="middle" font-size="9" fill="#000">decide</text>
+
+  <!-- RPC dequeue (-1ms ~ 0ms, RPC poll) -->
+  <rect x="120" y="535" width="40" height="40" fill="#cccccc" stroke="#888" stroke-width="0.5"/>
+  <text x="140" y="556" text-anchor="middle" font-size="9" fill="#000">poll/recv</text>
+  <line x1="160" y1="555" x2="182" y2="75" stroke="#888" stroke-dasharray="2,2" stroke-width="0.5"/>
+  <text x="172" y="600" text-anchor="middle" font-size="8" fill="#888">RPC → scheduler</text>
+
+  <!-- swap_out launch at start (async, non-blocking) — 2ms ~ 4ms -->
+  <rect x="182" y="55" width="20" height="40" fill="#fff2cc" stroke="#caa040" stroke-width="0.5"/>
+  <text x="192" y="72" text-anchor="middle" font-size="9" fill="#000">swap</text>
+  <text x="192" y="84" text-anchor="middle" font-size="9" fill="#000">launch</text>
+
+  <!-- swap_out actual D2H on swap stream (overlaps with layer 0+) -->
+  <rect x="200" y="455" width="180" height="40" fill="#a4c2f4" stroke="#3061ab" stroke-width="0.5"/>
+  <text x="290" y="478" text-anchor="middle" font-size="10" fill="#000">D2H swap_out (async, overlap with forward)</text>
+
+  <!-- ====================================================================== -->
+  <!-- 80 layers (each ~1.2ms = 12.9px), Layer block start at x=202 -->
+  <!-- Layer N start: 202 + N*12.9 -->
+  <!-- Layer breakdown: -->
+  <!--   preproj GEMM 0.3ms, attention 0.2ms, MLP gate 0.3ms, MLP down 0.3ms, all_reduce ×4 = 0.22ms (4 × 55μs) -->
+  <!-- For schematic, draw blocks at approximate spread, focus on patterns -->
+  <!-- ====================================================================== -->
+
+  <!-- Layer 0-79 GPU stream0 (continuous compute, with NCCL gaps) -->
+  <rect x="202" y="295" width="1010" height="45" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
+  <text x="707" y="313" text-anchor="middle" font-size="10" fill="#222">Layer 0 ─ 79 : GEMM (Q/K/V/O/MLP) + Attention + rms_norm</text>
+  <text x="707" y="328" text-anchor="middle" font-size="9" fill="#222">≈ 80 layer × 1.2 ms = 96 ms (GPU compute 의 wall path)</text>
+
+  <!-- NCCL all_reduce dots — 4 per layer = 320 events, 너무 많아 sample 만 표시 -->
+  <g fill="#d62828">
+    <!-- Sample 10 NCCL spikes at uniform spread (실제는 320, 320/80=4 per layer) -->
+    <rect x="220" y="295" width="2" height="45"/>
+    <rect x="343" y="295" width="2" height="45"/>
+    <rect x="466" y="295" width="2" height="45"/>
+    <rect x="589" y="295" width="2" height="45"/>
+    <rect x="712" y="295" width="2" height="45"/>
+    <rect x="835" y="295" width="2" height="45"/>
+    <rect x="958" y="295" width="2" height="45"/>
+    <rect x="1081" y="295" width="2" height="45"/>
+    <rect x="1204" y="295" width="2" height="45"/>
+  </g>
+  <text x="707" y="280" text-anchor="middle" font-size="9" fill="#d62828">NCCL AllReduce ×4 per layer = 320 / step, 평균 55μs/call, sum ~17.6 ms/step (15% of wall)</text>
+
+  <!-- chain fire b1 (cdec) — Layer 0-79 의 일부 layer 만 chain fire (61-79%) -->
+  <!-- GPU stream 1 의 b1 compute (chain fire X 인 layer 만) — 짧음 -->
+  <rect x="202" y="375" width="1010" height="45" fill="#e1cfff" stroke="#674ea7" stroke-width="0.5"/>
+  <text x="707" y="395" text-anchor="middle" font-size="10" fill="#222">Layer 0-79 (b1) : chain fire 발화 시 GPU attention SKIP — 발화 안 한 layer 만 GPU attn 실행</text>
+  <text x="707" y="410" text-anchor="middle" font-size="9" fill="#222">chain fire 70% → GPU stream1 의 56 layer 는 idle, 24 layer 만 GPU attn 실행 (~2.4 ms / step)</text>
+
+  <!-- cdec_executor — Python submit → CPU pacpu 실행 → result wait -->
+  <!-- chain fire 70% 영역에서 1 step 당 ~56 cdec dispatch (layer 별), max_workers=2 cap -->
+  <rect x="202" y="135" width="1010" height="45" fill="#f4cccc" stroke="#c44545" stroke-width="0.5"/>
+  <text x="707" y="156" text-anchor="middle" font-size="10" fill="#222">cdec_executor pacpu × (chain fire 발화 layer 들, max_workers=2 cap)</text>
+  <text x="707" y="170" text-anchor="middle" font-size="9" fill="#222">layer 별 cdec_future.submit → CPU pacpu (cdec_wait_avg 2.37ms/layer × ~56 layer / 2 worker ≈ 66 ms 가 wall path 에 hide)</text>
+
+  <!-- async_output thread (background, GPU event sync 후 token 전달) -->
+  <rect x="202" y="215" width="1010" height="45" fill="#cfe2f3" stroke="#3061ab" stroke-width="0.5"/>
+  <text x="707" y="236" text-anchor="middle" font-size="10" fill="#222">async_output thread : GPU event sync → token id 전달</text>
+  <text x="707" y="250" text-anchor="middle" font-size="9" fill="#222">layer 80 후 sample → output token 추출 (~3 ms 끝부분)</text>
+
+  <!-- main thread: layer N python overhead (cdec_t0/t1 계산, skip_gpu_attn check, _neo_drain_pending_cdec) -->
+  <rect x="202" y="55" width="1010" height="45" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
+  <text x="707" y="78" text-anchor="middle" font-size="10" fill="#222">main thread : Python attention.py hot path × 80 layer</text>
+  <text x="707" y="92" text-anchor="middle" font-size="9" fill="#222">매 layer: skip_gpu_attn check + _neo_drain_pending_cdec + cdec_future submit + cudaStream sync (≈ 0.15 ms/layer × 80 = 12 ms)</text>
+
+  <!-- swap_in for next step -->
+  <rect x="1080" y="455" width="130" height="40" fill="#a4c2f4" stroke="#3061ab" stroke-width="0.5"/>
+  <text x="1145" y="478" text-anchor="middle" font-size="10" fill="#000">H2D swap_in (다음 step preparation)</text>
+
+  <!-- end-of-step: argmax + output emit -->
+  <rect x="1212" y="295" width="20" height="45" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
+  <text x="1222" y="313" text-anchor="middle" font-size="9" fill="#000">argmax</text>
+
+  <rect x="1212" y="215" width="20" height="45" fill="#cfe2f3" stroke="#3061ab" stroke-width="0.5"/>
+  <text x="1222" y="237" text-anchor="middle" font-size="9" fill="#000">emit</text>
+
+  <!-- ====================================================================== -->
+  <!-- SEQUENTIAL bottleneck annotations (★ 표시) -->
+  <!-- ====================================================================== -->
+
+  <!-- ★ Sequential 1: scheduler.decide_mode + sub_batch attach (Python only, before GPU launch) -->
+  <text x="170" y="610" font-size="11" fill="#c00">★ Sequential 1</text>
+  <text x="170" y="624" font-size="10" fill="#c00">scheduler.decide_mode</text>
+  <text x="170" y="638" font-size="10" fill="#c00">(2 ms, GPU launch 전)</text>
+
+  <!-- ★ Sequential 2: cdec_executor max_workers=2 cap (cdec_wait가 66 ms 영역으로 누적) -->
+  <text x="430" y="610" font-size="11" fill="#c00">★ Sequential 2 (HOT)</text>
+  <text x="430" y="624" font-size="10" fill="#c00">cdec_executor max_workers=2 cap</text>
+  <text x="430" y="638" font-size="10" fill="#c00">→ 56 layer cdec / 2 worker = 28 serial slot</text>
+
+  <!-- ★ Sequential 3: Python attention.py hot path × 80 layer -->
+  <text x="730" y="610" font-size="11" fill="#c00">★ Sequential 3</text>
+  <text x="730" y="624" font-size="10" fill="#c00">Python hot path × 80 layer</text>
+  <text x="730" y="638" font-size="10" fill="#c00">(skip_gpu_attn check, _neo_drain, cudaStream sync)</text>
+
+  <!-- ★ Sequential 4: NCCL all_reduce barrier × 320 -->
+  <text x="980" y="610" font-size="11" fill="#c00">★ Sequential 4</text>
+  <text x="980" y="624" font-size="10" fill="#c00">NCCL AllReduce barrier × 320</text>
+  <text x="980" y="638" font-size="10" fill="#c00">(layer 마다 4, sum ~17.6 ms / step)</text>
+
+  <!-- ====================================================================== -->
+  <!-- legend -->
+  <!-- ====================================================================== -->
+  <g transform="translate(160, 50)" font-size="9">
+    <rect x="1190" y="-10" width="14" height="14" fill="#fce5cd" stroke="#caa040"/>
+    <text x="1208" y="0" fill="#000">main thread Python</text>
+    <rect x="1190" y="6" width="14" height="14" fill="#f4cccc" stroke="#c44545"/>
+    <text x="1208" y="16" fill="#000">cdec_executor (CPU)</text>
+    <rect x="1190" y="22" width="14" height="14" fill="#cfe2f3" stroke="#3061ab"/>
+    <text x="1208" y="32" fill="#000">async_output</text>
+    <rect x="1190" y="38" width="14" height="14" fill="#b6d7a8" stroke="#6aa84f"/>
+    <text x="1208" y="48" fill="#000">GPU compute (stream0)</text>
+    <rect x="1190" y="54" width="14" height="14" fill="#e1cfff" stroke="#674ea7"/>
+    <text x="1208" y="64" fill="#000">GPU stream1 (b1)</text>
+    <rect x="1190" y="70" width="14" height="14" fill="#a4c2f4" stroke="#3061ab"/>
+    <text x="1208" y="80" fill="#000">Swap D2H/H2D</text>
+    <rect x="1190" y="86" width="14" height="14" fill="#d62828"/>
+    <text x="1208" y="96" fill="#000">NCCL AllReduce</text>
+  </g>
+</svg>

@@ -1,8 +1,25 @@
-# Best — v1.6 (2,157 tps, 2026-05-15)
+# Best — v1.6 (3-run avg 2,197.4 tps, CV 1.62%, 2026-05-14 ~ 2026-05-16)
 
-> v1.6 의 best configuration (이전 plan, Phase 3 측정 baseline).
-> 신규 best (Phase 3.1+KMP=50, 2,038.7 tps) → `Best_Phase3_1_kmp50.md`.
-> 본 file = 이력 보존.
+> v1.6 의 best configuration. 본 plan 의 모든 NEO 측정 중 가장 높은 avg + 가장 낮은 CV.
+> 2026-05-16 회귀 측정 2-run 추가 → 3-run avg/min/max 산출.
+> 측정 archive = [`measurements/neo_v1_6_500p_3run_20260516/`](measurements/neo_v1_6_500p_3run_20260516/).
+
+## 3-run 결과 (2026-05-14 + 2026-05-16)
+
+| Run | tps | wall (s) | shape_mismatch | 측정 dir |
+|---|---:|---:|:-:|---|
+| run 1 (2026-05-14 23:35) | 2,156.9 | 1,882 | 0 ✓ | `eval/results/20260514_233540_neo_standard` |
+| **run 2** (2026-05-16 11:54) | **2,223.8** | **1,817** | 0 ✓ | `20260516_115407_neo_standard` |
+| run 3 (2026-05-16 12:26) | 2,211.6 | 1,833 | 0 ✓ | `20260516_122618_neo_standard` |
+| **avg** | **2,197.4** | **1,844** | 0 | — |
+| min / max | 2,156.9 / 2,223.8 | 1,817 / 1,882 | — | — |
+| std / **CV** | 35.6 / **1.62%** | 33.1 | — | — |
+
+vs vanilla 3-run avg (4,690.7): **46.8%**.
+
+---
+
+## fact (KST 2026-05-15 00:14 — run 1 시점 기준, 아래 fact 는 run 1 측정 인용)
 
 ---
 
