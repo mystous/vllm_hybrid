@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 920" font-family="Menlo, monospace" font-size="11">
-  <rect width="1500" height="920" fill="#fafafa"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 940" font-family="Menlo, monospace" font-size="11">
+  <rect width="1500" height="940" fill="#fafafa"/>
 
   <!-- TITLE -->
-  <text x="750" y="22" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">vanilla vs NEO S1-S9 — 1-step Timeline (NEO 원본 asymmetric pipeline 정합, overlap 작동 도식)</text>
+  <text x="750" y="22" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">vanilla vs NEO S1-S9 — 1-step Timeline (vanilla 차이 + b0/b1 = GPU↔CPU 동시 명시)</text>
   <text x="750" y="40" text-anchor="middle" font-size="11" fill="#555">
-    default + cpu_communication_stream multi-stream. forward_double 안 layer N+1 preproj launch 가 layer N attn launch 앞 → GPU N/N+1 overlap. main 의 cdec 직접 실행 동안 GPU 가 queue 진행 = CPU/GPU overlap. 측정 KST 2026-05-17 Run 1 = 2,303 tps.
+    "b0/b1 함께 동작" = GPU(b0 work) ↔ CPU(b1 cdec) 시간상 동시 (paper §4.4 asymmetric pipelining). GPU 안 두 stream 동시 X (default stream sequential).
   </text>
 
-  <!-- TIME AXIS — 1 ms = 11 px, x=160 ~ 1480 (0~120 ms) -->
-  <line x1="160" y1="845" x2="1480" y2="845" stroke="#444" stroke-width="1"/>
+  <!-- TIME AXIS -->
+  <line x1="160" y1="860" x2="1480" y2="860" stroke="#444" stroke-width="1"/>
   <g font-size="10" fill="#444">
-    <text x="160" y="865" text-anchor="middle">0</text>
-    <text x="270" y="865" text-anchor="middle">10</text>
-    <text x="380" y="865" text-anchor="middle">20</text>
-    <text x="490" y="865" text-anchor="middle">30</text>
-    <text x="600" y="865" text-anchor="middle">40</text>
-    <text x="694" y="880" text-anchor="middle" font-weight="bold" fill="#0a7c3a">54 ms ← vanilla 끝</text>
-    <text x="710" y="865" text-anchor="middle">50</text>
-    <text x="820" y="865" text-anchor="middle">60</text>
-    <text x="930" y="865" text-anchor="middle">70</text>
-    <text x="1040" y="865" text-anchor="middle">80</text>
-    <text x="1150" y="865" text-anchor="middle">90</text>
-    <text x="1260" y="865" text-anchor="middle">100</text>
-    <text x="1370" y="865" text-anchor="middle">110</text>
-    <text x="1359" y="880" text-anchor="middle" font-weight="bold" fill="#c00">109 ms ← NEO 끝</text>
+    <text x="160" y="880" text-anchor="middle">0</text>
+    <text x="270" y="880" text-anchor="middle">10</text>
+    <text x="380" y="880" text-anchor="middle">20</text>
+    <text x="490" y="880" text-anchor="middle">30</text>
+    <text x="600" y="880" text-anchor="middle">40</text>
+    <text x="694" y="895" text-anchor="middle" font-weight="bold" fill="#0a7c3a">54 ms ← vanilla 끝</text>
+    <text x="710" y="880" text-anchor="middle">50</text>
+    <text x="820" y="880" text-anchor="middle">60</text>
+    <text x="930" y="880" text-anchor="middle">70</text>
+    <text x="1040" y="880" text-anchor="middle">80</text>
+    <text x="1150" y="880" text-anchor="middle">90</text>
+    <text x="1260" y="880" text-anchor="middle">100</text>
+    <text x="1370" y="880" text-anchor="middle">110</text>
+    <text x="1359" y="895" text-anchor="middle" font-weight="bold" fill="#c00">109 ms ← NEO 끝</text>
   </g>
   <g stroke="#aaa" stroke-width="0.5">
-    <line x1="160" y1="841" x2="160" y2="849"/>
-    <line x1="270" y1="841" x2="270" y2="849"/>
-    <line x1="380" y1="841" x2="380" y2="849"/>
-    <line x1="490" y1="841" x2="490" y2="849"/>
-    <line x1="600" y1="841" x2="600" y2="849"/>
-    <line x1="710" y1="841" x2="710" y2="849"/>
-    <line x1="820" y1="841" x2="820" y2="849"/>
-    <line x1="930" y1="841" x2="930" y2="849"/>
-    <line x1="1040" y1="841" x2="1040" y2="849"/>
-    <line x1="1150" y1="841" x2="1150" y2="849"/>
-    <line x1="1260" y1="841" x2="1260" y2="849"/>
-    <line x1="1370" y1="841" x2="1370" y2="849"/>
+    <line x1="160" y1="856" x2="160" y2="864"/>
+    <line x1="270" y1="856" x2="270" y2="864"/>
+    <line x1="380" y1="856" x2="380" y2="864"/>
+    <line x1="490" y1="856" x2="490" y2="864"/>
+    <line x1="600" y1="856" x2="600" y2="864"/>
+    <line x1="710" y1="856" x2="710" y2="864"/>
+    <line x1="820" y1="856" x2="820" y2="864"/>
+    <line x1="930" y1="856" x2="930" y2="864"/>
+    <line x1="1040" y1="856" x2="1040" y2="864"/>
+    <line x1="1150" y1="856" x2="1150" y2="864"/>
+    <line x1="1260" y1="856" x2="1260" y2="864"/>
+    <line x1="1370" y1="856" x2="1370" y2="864"/>
   </g>
-  <line x1="754" y1="60" x2="754" y2="845" stroke="#0a7c3a" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <line x1="754" y1="60" x2="754" y2="860" stroke="#0a7c3a" stroke-width="1.5" stroke-dasharray="6,3"/>
   <text x="760" y="55" font-size="10" font-weight="bold" fill="#0a7c3a">vanilla 54 ms</text>
-  <line x1="1359" y1="60" x2="1359" y2="845" stroke="#c00" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <line x1="1359" y1="60" x2="1359" y2="860" stroke="#c00" stroke-width="1.5" stroke-dasharray="6,3"/>
   <text x="1365" y="55" font-size="10" font-weight="bold" fill="#c00">NEO 109 ms</text>
 
-  <!-- vanilla half -->
+  <!-- TOP: vanilla 1 step -->
   <text x="155" y="82" text-anchor="end" font-weight="bold" fill="#222">vanilla (NEO OFF)</text>
   <text x="155" y="98" text-anchor="end" font-size="9" fill="#777">3-run avg 4,690.7 tps</text>
 
@@ -54,95 +54,120 @@
   <rect x="160" y="120" width="22" height="34" fill="#ffd966" stroke="#caa040" stroke-width="0.5"/>
   <text x="171" y="142" text-anchor="middle" font-size="8">sched</text>
   <rect x="182" y="120" width="572" height="34" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-  <text x="468" y="142" text-anchor="middle" font-size="10">Python forward (vanilla GPU dispatch, 80 layer × cuBLAS+Attn+Norm+AllReduce)</text>
+  <text x="468" y="138" text-anchor="middle" font-size="10">Python forward (80 layer, single-batch GPU dispatch)</text>
+  <text x="468" y="151" text-anchor="middle" font-size="8" fill="#777">layer 별: preproj → attention → postproj (sequential, 단일 stream)</text>
 
-  <text x="155" y="190" text-anchor="end" fill="#222">GPU stream</text>
+  <text x="155" y="190" text-anchor="end" fill="#222">GPU default stream</text>
   <line x1="160" y1="207" x2="1480" y2="207" stroke="#ddd"/>
   <rect x="182" y="170" width="572" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
-  <text x="468" y="192" text-anchor="middle" font-size="10">GPU compute (GEMM + FlashAttn + rms_norm + NCCL ×320) ≈ 54 ms</text>
+  <text x="468" y="188" text-anchor="middle" font-size="10">GPU compute — 80 layer × (GEMM + FlashAttn + RMSNorm + AllReduce)</text>
+  <text x="468" y="200" text-anchor="middle" font-size="8" fill="#777">all KV GPU resident. CPU 측 work 없음.</text>
 
-  <text x="155" y="240" text-anchor="end" fill="#222">NCCL barrier</text>
+  <text x="155" y="240" text-anchor="end" fill="#222">CPU pacpu</text>
   <line x1="160" y1="257" x2="1480" y2="257" stroke="#ddd"/>
-  <g fill="#d62828">
-    <rect x="232" y="218" width="3" height="34"/>
-    <rect x="294" y="218" width="3" height="34"/>
-    <rect x="356" y="218" width="3" height="34"/>
-    <rect x="418" y="218" width="3" height="34"/>
-    <rect x="480" y="218" width="3" height="34"/>
-    <rect x="542" y="218" width="3" height="34"/>
-    <rect x="604" y="218" width="3" height="34"/>
-    <rect x="666" y="218" width="3" height="34"/>
-    <rect x="728" y="218" width="3" height="34"/>
-  </g>
-  <text x="468" y="240" text-anchor="middle" font-size="9" fill="#222">AllReduce ×320 (layer 당 4), 평균 55 μs/call, sum ~17.6 ms</text>
+  <rect x="182" y="222" width="572" height="34" fill="none" stroke="#ddd" stroke-width="0.5" stroke-dasharray="3,2"/>
+  <text x="468" y="242" text-anchor="middle" font-size="10" fill="#999" font-style="italic">— (vanilla 는 CPU pacpu 사용 X) —</text>
 
-  <text x="155" y="290" text-anchor="end" fill="#222">CPU side</text>
+  <text x="155" y="290" text-anchor="end" fill="#222">cpu_comm_stream</text>
   <line x1="160" y1="307" x2="1480" y2="307" stroke="#ddd"/>
-  <text x="468" y="290" text-anchor="middle" font-size="10" fill="#888" font-style="italic">— (vanilla 는 CPU work 없음) —</text>
+  <rect x="182" y="272" width="572" height="34" fill="none" stroke="#ddd" stroke-width="0.5" stroke-dasharray="3,2"/>
+  <text x="468" y="292" text-anchor="middle" font-size="10" fill="#999" font-style="italic">— (vanilla 는 KV transfer / swap 없음) —</text>
 
   <line x1="0" y1="335" x2="1500" y2="335" stroke="#444" stroke-width="1"/>
 
-  <!-- S1-S9 NEO half -->
+  <!-- BOTTOM: NEO S1-S9 1 step -->
   <text x="155" y="357" text-anchor="end" font-weight="bold" fill="#222">NEO S1-S9 (3-run avg 2,238.6 tps)</text>
   <rect x="160" y="345" width="595" height="14" fill="#e8f3e0" stroke="none"/>
-  <text x="457" y="356" text-anchor="middle" font-size="9" fill="#0a7c3a">↓ vanilla 동일 영역 (0-54 ms, single-batch GPU 시간)</text>
+  <text x="457" y="356" text-anchor="middle" font-size="9" fill="#0a7c3a">↓ vanilla 동등 영역 (0-54 ms) — 3 lane *동시* 진행 = paper §4.4 win</text>
   <rect x="755" y="345" width="604" height="14" fill="#ffe6e6" stroke="none"/>
-  <text x="1057" y="356" text-anchor="middle" font-size="9" fill="#c00">↓ NEO 추가 영역 (54-109 ms, +55 ms = CPU bottleneck 잔여)</text>
+  <text x="1057" y="356" text-anchor="middle" font-size="9" fill="#c00">↓ NEO 추가 영역 (54-109 ms, +55 ms = vanilla 에 없는 영역)</text>
 
-  <!-- Lane 1: Main thread — forward + cdec direct + post-forward -->
+  <!-- Lane 1: Main thread -->
   <text x="155" y="385" text-anchor="end" fill="#222">Main thread (Py)</text>
-  <text x="155" y="397" text-anchor="end" font-size="8" fill="#777">forward + cdec direct call</text>
+  <text x="155" y="397" text-anchor="end" font-size="8" fill="#777">forward + cdec direct + emit</text>
   <line x1="160" y1="410" x2="1480" y2="410" stroke="#ddd"/>
   <rect x="160" y="375" width="22" height="34" fill="#ffd966" stroke="#caa040" stroke-width="0.5"/>
   <text x="171" y="397" text-anchor="middle" font-size="8">sched</text>
-  <!-- forward — main 이 layer 별 launch + cdec direct call 반복 -->
   <rect x="182" y="375" width="572" height="34" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-  <text x="468" y="392" text-anchor="middle" font-size="10">Python forward (80 layer × forward_double)</text>
-  <text x="468" y="404" text-anchor="middle" font-size="8" fill="#a06000">매 layer: GPU launches (default + cpu_comm) + cdec direct call (blocking, but GPU queue 진행)</text>
+  <text x="468" y="392" text-anchor="middle" font-size="10">Python forward (80 layer × forward_double, b0/b1 layer offset)</text>
+  <text x="468" y="404" text-anchor="middle" font-size="8" fill="#a06000">매 layer: GPU launch (default) + transfer launch (cpu_comm) + cdec direct call</text>
   <rect x="754" y="375" width="132" height="34" fill="#f4cccc" stroke="#c44545" stroke-width="1"/>
-  <text x="820" y="392" text-anchor="middle" font-size="9" fill="#c00">★ Py hot path</text>
+  <text x="820" y="392" text-anchor="middle" font-size="9" fill="#c00">★ ① Py overhead</text>
   <text x="820" y="404" text-anchor="middle" font-size="8" fill="#000">+12 ms</text>
   <rect x="886" y="375" width="198" height="34" fill="#cfe2f3" stroke="#3061ab" stroke-width="1.5"/>
-  <text x="985" y="392" text-anchor="middle" font-size="9" font-weight="bold" fill="#0a3a6b">★ cdec wall &gt; GPU concurrent wall → 차이 누적</text>
-  <text x="985" y="404" text-anchor="middle" font-size="8" fill="#000">+18 ms (CPU bottleneck 의 wall 노출)</text>
+  <text x="985" y="390" text-anchor="middle" font-size="9" font-weight="bold" fill="#0a3a6b">★ ② cdec leftover</text>
+  <text x="985" y="404" text-anchor="middle" font-size="8" fill="#000">+18 ms (밀려난 CPU work)</text>
   <rect x="1084" y="375" width="275" height="34" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-  <text x="1221" y="392" text-anchor="middle" font-size="9">swap_in launch + sample + emit</text>
+  <text x="1221" y="392" text-anchor="middle" font-size="9">★ ③ swap_in launch + sample + emit</text>
   <text x="1221" y="404" text-anchor="middle" font-size="8">+25 ms</text>
 
-  <!-- Lane 2: GPU default stream — 두 sub-batch 의 layer 별 work 가 launch queue 에 섞임 -->
+  <!-- Lane 2: GPU default stream — macro 박스 -->
   <text x="155" y="438" text-anchor="end" fill="#222">GPU default stream</text>
-  <text x="155" y="450" text-anchor="end" font-size="8" fill="#777">b0+b1 launch queue</text>
+  <text x="155" y="450" text-anchor="end" font-size="8" fill="#777">b0+b1 sequential launch</text>
   <line x1="160" y1="462" x2="1480" y2="462" stroke="#ddd"/>
-  <!-- micro-blocks showing layer interleave: alternating b0 i+1 preproj | b1 i attn | b0 i postproj patterns -->
-  <g>
-    <rect x="182" y="427" width="71" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
-    <text x="217" y="447" text-anchor="middle" font-size="7" fill="#0a3a6b">b0:i+1 preproj</text>
-    <rect x="253" y="427" width="71" height="34" fill="#e1cfff" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="288" y="447" text-anchor="middle" font-size="7" fill="#4a316b">b1:i attn</text>
-    <rect x="324" y="427" width="72" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
-    <text x="360" y="447" text-anchor="middle" font-size="7" fill="#0a3a6b">b1:i postproj</text>
-    <rect x="396" y="427" width="71" height="34" fill="#e1cfff" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="431" y="447" text-anchor="middle" font-size="7" fill="#4a316b">b0:i+1 attn</text>
-    <rect x="467" y="427" width="71" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
-    <text x="502" y="447" text-anchor="middle" font-size="7" fill="#0a3a6b">b0:i+1 post</text>
-    <rect x="538" y="427" width="71" height="34" fill="#e1cfff" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="573" y="447" text-anchor="middle" font-size="7" fill="#4a316b">b1:i+2 attn</text>
-    <rect x="609" y="427" width="72" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
-    <text x="645" y="447" text-anchor="middle" font-size="7" fill="#0a3a6b">b1:i+2 post</text>
-    <rect x="681" y="427" width="73" height="34" fill="#e1cfff" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="717" y="447" text-anchor="middle" font-size="7" fill="#4a316b">b0:i+3 attn</text>
-  </g>
-  <text x="468" y="423" text-anchor="middle" font-size="9" fill="#0a7c3a">★ Layer N/N+1 interleave: _forward_pipeline_stage ordering (S8) — GPU launch queue 에 layer 다른 work 섞여 → 진짜 overlap</text>
-  <!-- GPU active 영역 (forward 동안 default stream 처리), 단 cdec bottleneck 때문에 끝 영역에서 일부 IDLE -->
-  <rect x="754" y="427" width="132" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
-  <text x="820" y="447" text-anchor="middle" font-size="9">queue 잔여 처리</text>
-  <!-- ★ 좁은 GPU IDLE 영역 (CPU bottleneck 잔여) -->
-  <rect x="886" y="427" width="198" height="34" fill="#eeeeee" stroke="#999" stroke-width="0.5" stroke-dasharray="3,2"/>
-  <text x="985" y="445" text-anchor="middle" font-size="9" fill="#666">★ GPU IDLE — main 의 cdec wall 이 GPU concurrent wall 보다 길어 남는 영역</text>
-  <text x="985" y="457" text-anchor="middle" font-size="8" fill="#666">단 좁은 영역 (overlap 의 win 다 챙긴 후 cumulative CPU bottleneck 잔여)</text>
+  <rect x="182" y="427" width="572" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
+  <text x="468" y="443" text-anchor="middle" font-size="10">GPU compute — vanilla 와 동등 wall (54 ms)</text>
+  <text x="468" y="455" text-anchor="middle" font-size="8" fill="#0a7c3a">b0 의 preproj+postproj + (gdec/prefill 시 attn) + b1 의 prefill/gdec/preproj/postproj. NEO §4.4 layer offset ordering. *single default stream → sequential*</text>
+  <rect x="754" y="427" width="330" height="34" fill="#eeeeee" stroke="#999" stroke-width="0.5" stroke-dasharray="3,2"/>
+  <text x="919" y="445" text-anchor="middle" font-size="9" fill="#666">★ GPU IDLE — main 이 cdec leftover 처리 중 (CPU bottleneck 의 wall 노출)</text>
+  <text x="919" y="457" text-anchor="middle" font-size="8" fill="#666">cdec wall &gt; GPU concurrent work wall 의 차이가 여기로 밀려남</text>
   <rect x="1084" y="427" width="275" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
-  <text x="1221" y="447" text-anchor="middle" font-size="9">next step prep (swap_in queue)</text>
+  <text x="1221" y="447" text-anchor="middle" font-size="9">next step prep (swap_in queue 처리)</text>
 
+  <!-- Lane 3: CPU pacpu (b1 cdec) — GPU 와 시간상 동시 -->
+  <text x="155" y="492" text-anchor="end" fill="#222">CPU pacpu (b1 cdec)</text>
+  <text x="155" y="504" text-anchor="end" font-size="8" fill="#777">main thread direct (S5)</text>
+  <line x1="160" y1="515" x2="1480" y2="515" stroke="#ddd"/>
+  <rect x="200" y="480" width="554" height="34" fill="#cfe2f3" stroke="#3061ab" stroke-width="0.8"/>
+  <text x="477" y="495" text-anchor="middle" font-size="10" font-weight="bold" fill="#0a3a6b">CPU pacpu (cdec, layer 별 분산 실행)</text>
+  <text x="477" y="508" text-anchor="middle" font-size="8" fill="#0a3a6b">★ vanilla 에 없는 lane — GPU lane 과 *시간상 동시* (paged_attention_cpu 실행 중 GPU 는 queue 처리)</text>
+  <rect x="754" y="480" width="330" height="34" fill="#9fc5e8" stroke="#3061ab" stroke-width="1.2"/>
+  <text x="919" y="495" text-anchor="middle" font-size="9" fill="#0a3a6b" font-weight="bold">★ cdec leftover — vanilla 시간대 못 끝낸 잔여</text>
+  <text x="919" y="508" text-anchor="middle" font-size="8" fill="#0a3a6b">layer 당 cdec ~2.3 ms × fires &gt; layer 당 GPU concurrent ~0.4 ms × layer → 차이 누적 = +18 ms</text>
+
+  <!-- ★ b0/b1 = GPU↔CPU 동시 화살표 -->
+  <defs>
+    <marker id="biarrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#0a7c3a"/>
+    </marker>
+    <marker id="biarrow2" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto">
+      <polygon points="8 0, 0 3, 8 6" fill="#0a7c3a"/>
+    </marker>
+  </defs>
+  <path d="M 280 462 L 280 480" stroke="#0a7c3a" stroke-width="2" fill="none" marker-end="url(#biarrow)" marker-start="url(#biarrow2)"/>
+  <text x="300" y="475" font-size="9" font-weight="bold" fill="#0a7c3a">★ GPU(b0) ↔ CPU(b1) 동시 = "b0/b1 함께 동작"</text>
+  <path d="M 470 462 L 470 480" stroke="#0a7c3a" stroke-width="2" fill="none" marker-end="url(#biarrow)" marker-start="url(#biarrow2)"/>
+  <path d="M 650 462 L 650 480" stroke="#0a7c3a" stroke-width="2" fill="none" marker-end="url(#biarrow)" marker-start="url(#biarrow2)"/>
+
+  <!-- Lane 4: cpu_communication_stream -->
+  <text x="155" y="546" text-anchor="end" fill="#222">cpu_communication_stream</text>
+  <text x="155" y="558" text-anchor="end" font-size="8" fill="#777">(별도 stream, S2/S9)</text>
+  <line x1="160" y1="568" x2="1480" y2="568" stroke="#ddd"/>
+  <rect x="200" y="533" width="554" height="32" fill="#d9d2e9" stroke="#674ea7" stroke-width="0.8"/>
+  <text x="477" y="548" text-anchor="middle" font-size="10" font-weight="bold" fill="#4a316b">Q/K/V transfer (H2D) + swap_out (D2H) + cdec result_copy (D2D)</text>
+  <text x="477" y="561" text-anchor="middle" font-size="8" fill="#4a316b">★ default stream 과 *분리된 stream* → GPU compute 와 동시 진행 → wall 비용 0 (overlap hide)</text>
+  <rect x="1140" y="533" width="219" height="32" fill="#a4c2f4" stroke="#3061ab" stroke-width="0.5"/>
+  <text x="1249" y="553" text-anchor="middle" font-size="9" fill="#1a3a6b">H2D swap_in (next step prep)</text>
+
+  <!-- "vanilla 동등 영역 = 3 lane 동시" 강조 박스 -->
+  <rect x="180" y="425" width="574" height="142" fill="none" stroke="#0a7c3a" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="200" y="425" font-size="9" fill="#0a7c3a" font-weight="bold">★ vanilla 동등 영역 — 3 lane (GPU + CPU pacpu + cpu_comm) 동시 = paper §4.4 asymmetric pipelining win</text>
+
+  <!-- "NEO 추가 영역" 강조 박스 -->
+  <rect x="754" y="425" width="605" height="142" fill="none" stroke="#c00" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="770" y="425" font-size="9" fill="#c00" font-weight="bold">★ NEO 추가 영역 — vanilla 가 가지지 않는 wall (CPU bottleneck leftover + step 마감)</text>
+
+  <!-- Lane 5: async_output thread -->
+  <text x="155" y="600" text-anchor="end" fill="#222">async_output thread</text>
+  <text x="155" y="611" text-anchor="end" font-size="8" fill="#777">(background)</text>
+  <line x1="160" y1="620" x2="1480" y2="620" stroke="#eee"/>
+  <rect x="160" y="585" width="1100" height="32" fill="#cfe2f3" stroke="#3061ab" stroke-width="0.5"/>
+  <text x="710" y="605" text-anchor="middle" font-size="9">background poll on previous step GPU events</text>
+  <rect x="1260" y="585" width="99" height="32" fill="#9fc5e8" stroke="#3061ab" stroke-width="0.7"/>
+  <text x="1310" y="601" text-anchor="middle" font-size="8">cudaEventSync</text>
+  <text x="1310" y="611" text-anchor="middle" font-size="8">+ emit</text>
+
+  <!-- NCCL barriers overlay -->
   <g fill="#d62828">
     <rect x="232" y="427" width="3" height="34"/>
     <rect x="294" y="427" width="3" height="34"/>
@@ -154,109 +179,30 @@
     <rect x="666" y="427" width="3" height="34"/>
     <rect x="728" y="427" width="3" height="34"/>
   </g>
+  <text x="155" y="652" text-anchor="end" font-size="8" fill="#d62828">↑ NCCL AllReduce ×320</text>
 
-  <!-- Lane 3: cpu_communication_stream (S2/S9) — transfer + result_copy async -->
-  <text x="155" y="492" text-anchor="end" fill="#222">cpu_communication_stream</text>
-  <text x="155" y="504" text-anchor="end" font-size="8" fill="#777">(NEO 원본 정합)</text>
-  <line x1="160" y1="515" x2="1480" y2="515" stroke="#ddd"/>
-  <!-- micro-blocks 로 transfer/swap/result_copy 가 layer 마다 발생 -->
-  <g>
-    <rect x="200" y="480" width="50" height="34" fill="#d9d2e9" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="225" y="500" text-anchor="middle" font-size="7" fill="#4a316b">tr(b1)</text>
-    <rect x="262" y="480" width="50" height="34" fill="#a4c2f4" stroke="#3061ab" stroke-width="0.5"/>
-    <text x="287" y="500" text-anchor="middle" font-size="7" fill="#1a3a6b">swap_out</text>
-    <rect x="324" y="480" width="50" height="34" fill="#d9d2e9" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="349" y="500" text-anchor="middle" font-size="7" fill="#4a316b">tr(b0)</text>
-    <rect x="386" y="480" width="50" height="34" fill="#cfe2f3" stroke="#3061ab" stroke-width="0.5"/>
-    <text x="411" y="500" text-anchor="middle" font-size="7" fill="#0a3a6b">result_copy</text>
-    <rect x="448" y="480" width="50" height="34" fill="#d9d2e9" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="473" y="500" text-anchor="middle" font-size="7" fill="#4a316b">tr(b1)</text>
-    <rect x="510" y="480" width="50" height="34" fill="#a4c2f4" stroke="#3061ab" stroke-width="0.5"/>
-    <text x="535" y="500" text-anchor="middle" font-size="7" fill="#1a3a6b">swap_out</text>
-    <rect x="572" y="480" width="50" height="34" fill="#d9d2e9" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="597" y="500" text-anchor="middle" font-size="7" fill="#4a316b">tr(b0)</text>
-    <rect x="634" y="480" width="50" height="34" fill="#cfe2f3" stroke="#3061ab" stroke-width="0.5"/>
-    <text x="659" y="500" text-anchor="middle" font-size="7" fill="#0a3a6b">result_copy</text>
-    <rect x="696" y="480" width="50" height="34" fill="#d9d2e9" stroke="#674ea7" stroke-width="0.5"/>
-    <text x="721" y="500" text-anchor="middle" font-size="7" fill="#4a316b">tr(b1)</text>
-  </g>
-  <text x="468" y="476" text-anchor="middle" font-size="9" fill="#674ea7">★ separate stream — default stream 의 GPU compute 와 진정한 동시 진행 (S2 / S9 정합)</text>
-  <rect x="1140" y="480" width="219" height="34" fill="#a4c2f4" stroke="#3061ab" stroke-width="0.5"/>
-  <text x="1249" y="500" text-anchor="middle" font-size="9" fill="#1a3a6b">H2D swap_in (async)</text>
-
-  <!-- Lane 4: CPU pacpu (main thread 안에서 실행, 표시는 별도 lane 으로 visual clarity) -->
-  <text x="155" y="546" text-anchor="end" fill="#222">CPU pacpu</text>
-  <text x="155" y="557" text-anchor="end" font-size="8" fill="#777">(main thread direct, S5)</text>
-  <line x1="160" y1="568" x2="1480" y2="568" stroke="#eee"/>
-  <!-- micro-blocks: 각 layer 의 cdec, GPU lane 의 attn block 과 timing 일치 -->
-  <g>
-    <rect x="253" y="533" width="71" height="32" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-    <text x="288" y="551" text-anchor="middle" font-size="7">cdec(b1,i)</text>
-    <rect x="396" y="533" width="71" height="32" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-    <text x="431" y="551" text-anchor="middle" font-size="7">cdec(b0,i+1)</text>
-    <rect x="538" y="533" width="71" height="32" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-    <text x="573" y="551" text-anchor="middle" font-size="7">cdec(b1,i+2)</text>
-    <rect x="681" y="533" width="73" height="32" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-    <text x="717" y="551" text-anchor="middle" font-size="7">cdec(b0,i+3)</text>
-    <rect x="886" y="533" width="198" height="32" fill="#fce5cd" stroke="#caa040" stroke-width="1"/>
-    <text x="985" y="551" text-anchor="middle" font-size="9" fill="#a06000">★ cdec layer 가 GPU concurrent work 보다 더 오래 걸리는 잔여 누적</text>
-  </g>
-  <text x="468" y="528" text-anchor="middle" font-size="9" fill="#a06000">★ paged_attention_cpu = main thread direct call (GIL released, GPU stream queue 그 동안 진행)</text>
-
-  <!-- 화살표 — overlap 의 의미 명시 -->
-  <defs>
-    <marker id="ovarrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#0a7c3a"/>
-    </marker>
-  </defs>
-  <path d="M 288 533 L 288 462" stroke="#0a7c3a" stroke-width="1.2" fill="none" marker-end="url(#ovarrow)" stroke-dasharray="3,2"/>
-  <text x="293" y="525" font-size="8" fill="#0a7c3a">overlap</text>
-  <path d="M 431 533 L 431 462" stroke="#0a7c3a" stroke-width="1.2" fill="none" marker-end="url(#ovarrow)" stroke-dasharray="3,2"/>
-  <path d="M 573 533 L 573 462" stroke="#0a7c3a" stroke-width="1.2" fill="none" marker-end="url(#ovarrow)" stroke-dasharray="3,2"/>
-
-  <!-- Lane 5: async_output thread -->
-  <text x="155" y="600" text-anchor="end" fill="#222">async_output thread</text>
-  <text x="155" y="611" text-anchor="end" font-size="8" fill="#777">(background concurrent)</text>
-  <line x1="160" y1="620" x2="1480" y2="620" stroke="#eee"/>
-  <rect x="160" y="585" width="1100" height="32" fill="#cfe2f3" stroke="#3061ab" stroke-width="0.5"/>
-  <text x="710" y="605" text-anchor="middle" font-size="9">background poll on previous step GPU events</text>
-  <rect x="1260" y="585" width="99" height="32" fill="#9fc5e8" stroke="#3061ab" stroke-width="0.7"/>
-  <text x="1310" y="601" text-anchor="middle" font-size="8">cudaEventSync</text>
-  <text x="1310" y="611" text-anchor="middle" font-size="8">+ emit</text>
-
-  <!-- Lane 6: CPU thread state -->
-  <text x="155" y="652" text-anchor="end" fill="#222">CPU thread state</text>
-  <text x="155" y="664" text-anchor="end" font-size="9" fill="#777">(OS Runtime)</text>
-  <line x1="160" y1="672" x2="1480" y2="672" stroke="#ddd"/>
-  <rect x="182" y="637" width="902" height="34" fill="#e8f3e0" stroke="#6aa84f" stroke-width="0.5"/>
-  <text x="633" y="660" text-anchor="middle" font-size="9">main thread BUSY: forward dispatch + cdec direct exec (alternating)</text>
-  <rect x="1084" y="637" width="275" height="34" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-  <text x="1221" y="660" text-anchor="middle" font-size="9">main thread swap launch + emit</text>
-
-  <!-- 분해 -->
-  <text x="160" y="710" font-size="13" font-weight="bold" fill="#c00">★ NEO S1-S9 추가 wall 분해 (vanilla 54 ms → NEO 109 ms, overlap 작동 상태의 잔여 비용)</text>
+  <!-- vanilla 차이 분해 -->
+  <text x="160" y="690" font-size="13" font-weight="bold" fill="#c00">★ vanilla 와 NEO S1-S9 의 정확한 차이 (vanilla 54 ms → NEO 109 ms, +55 ms)</text>
 
   <g font-size="10">
-    <text x="170" y="730" fill="#222">①</text>
-    <rect x="190" y="720" width="14" height="14" fill="#f4cccc" stroke="#c44545"/>
-    <text x="210" y="730" fill="#222">Python attention.py hot path × 80 layer : <tspan font-weight="bold">+12 ms</tspan> (overlap 과 무관, pure Python overhead)</text>
+    <text x="170" y="710" fill="#0a7c3a" font-weight="bold">vanilla 와 동등 영역 (0-54 ms):</text>
+    <text x="180" y="724" fill="#222">• GPU default stream — vanilla 와 동일한 GPU work (b0/b1 분리지만 합산 wall 동등). b0/b1 ordering 으로 layer N+1 의 GPU work 도 같은 stream queue 에 들어감.</text>
+    <text x="180" y="738" fill="#222">• <tspan fill="#0a3a6b" font-weight="bold">CPU pacpu (vanilla 에 없음)</tspan> — b1 의 cdec 가 GPU work 와 *시간상 동시* 진행 = paper §4.4 win. ★ "b0/b1 함께 동작" = 이 동시 영역.</text>
+    <text x="180" y="752" fill="#222">• <tspan fill="#4a316b" font-weight="bold">cpu_comm_stream (vanilla 에 없음)</tspan> — Q/K/V transfer + swap + result_copy, GPU 와 분리 stream → wall 0.</text>
+  </g>
 
-    <text x="170" y="750" fill="#222">②</text>
-    <rect x="190" y="740" width="14" height="14" fill="#cfe2f3" stroke="#3061ab"/>
-    <text x="210" y="750" fill="#222">CPU pacpu wall &gt; GPU concurrent wall → 차이 누적 (★ overlap 의 win 다 챙긴 후 남는 영역) : <tspan font-weight="bold">+18 ms</tspan></text>
-
-    <text x="170" y="770" fill="#222">③</text>
-    <rect x="190" y="760" width="14" height="14" fill="#fce5cd" stroke="#caa040"/>
-    <text x="210" y="770" fill="#222">swap launch + Python overhead + emit : <tspan font-weight="bold">+25 ms</tspan> (overlap 끝난 step 마감, ★ Top Priority lever)</text>
-
-    <text x="170" y="790" fill="#222">합</text>
-    <text x="210" y="790" fill="#000">12 + 18 + 25 = <tspan font-weight="bold" fill="#c00">+55 ms / step</tspan> → 109 ms (v1.6 의 115 보다 −5%, ThreadPool overhead 제거 효과 6 ms)</text>
+  <g font-size="10">
+    <text x="170" y="775" fill="#c00" font-weight="bold">NEO 추가 영역 (54-109 ms, +55 ms):</text>
+    <text x="180" y="789" fill="#222">① Python overhead × 80 layer : <tspan font-weight="bold">+12 ms</tspan> (skip_gpu check, 직접 호출 launch — overlap 과 무관)</text>
+    <text x="180" y="803" fill="#222">② <tspan fill="#0a3a6b" font-weight="bold">cdec leftover</tspan> : <tspan font-weight="bold">+18 ms</tspan> (CPU pacpu wall ~2.3 ms/layer &gt; GPU concurrent ~0.4 ms → 차이 누적. GPU 가 기다림)</text>
+    <text x="180" y="817" fill="#222">③ swap_in launch + sample + emit : <tspan font-weight="bold">+25 ms</tspan> (overlap 끝난 step 마감 영역)</text>
+    <text x="180" y="831" fill="#000">합 = <tspan font-weight="bold" fill="#c00">+55 ms</tspan> → vanilla 54 + 55 = 109 ms</text>
   </g>
 
   <!-- 3-run fact -->
-  <g font-size="10" transform="translate(160, 815)">
+  <g font-size="10" transform="translate(160, 860)">
     <text x="0" y="0" font-weight="bold" fill="#0a7c3a">★ S1-S9 3-run fact:</text>
-    <text x="0" y="14" fill="#000">Run 1: 2,303.4 tps / 1,763s  |  Run 2: 2,153.6 / 1,889s  |  Run 3: 2,258.9 / 1,806s  |  avg: <tspan font-weight="bold">2,238.6 tps</tspan> (vs v1.6 best 2,197.4 = +1.9%) | CV 3.44%</text>
+    <text x="0" y="14" fill="#000">Run 1: 2,303.4 tps / 1,763s | Run 2: 2,153.6 / 1,889s | Run 3: 2,258.9 / 1,806s | avg: <tspan font-weight="bold">2,238.6 tps</tspan> (vs v1.6 best 2,197.4 = +1.9%) | CV 3.44%</text>
   </g>
 
   <!-- LEGEND -->
@@ -265,20 +211,18 @@
     <rect x="0" y="5" width="14" height="14" fill="#fce5cd" stroke="#caa040"/>
     <text x="18" y="15" fill="#000">main thread Python</text>
     <rect x="0" y="22" width="14" height="14" fill="#b6d7a8" stroke="#6aa84f"/>
-    <text x="18" y="32" fill="#000">GPU compute (b0 layer N+1 preproj/postproj)</text>
-    <rect x="0" y="39" width="14" height="14" fill="#e1cfff" stroke="#674ea7"/>
-    <text x="18" y="49" fill="#000">GPU compute (b1 layer N attn) — interleave</text>
+    <text x="18" y="32" fill="#000">GPU compute (default stream)</text>
+    <rect x="0" y="39" width="14" height="14" fill="#cfe2f3" stroke="#3061ab"/>
+    <text x="18" y="49" fill="#000">CPU pacpu (★ vanilla 에 없음)</text>
     <rect x="0" y="56" width="14" height="14" fill="#d9d2e9" stroke="#674ea7"/>
-    <text x="18" y="66" fill="#000">cpu_comm_stream transfer (Q/K/V)</text>
-    <rect x="0" y="73" width="14" height="14" fill="#a4c2f4" stroke="#3061ab"/>
-    <text x="18" y="83" fill="#000">cpu_comm_stream swap_out</text>
-    <rect x="0" y="90" width="14" height="14" fill="#cfe2f3" stroke="#3061ab"/>
-    <text x="18" y="100" fill="#000">cpu_comm_stream result_copy (S9)</text>
-    <rect x="0" y="107" width="14" height="14" fill="#fce5cd" stroke="#caa040"/>
-    <text x="18" y="117" fill="#000">CPU pacpu exec (★ main 안)</text>
-    <rect x="0" y="124" width="14" height="14" fill="#eeeeee" stroke="#999" stroke-dasharray="3,2"/>
-    <text x="18" y="134" fill="#000">GPU IDLE (CPU bottleneck 잔여)</text>
-    <rect x="0" y="141" width="3" height="14" fill="#d62828"/>
-    <text x="18" y="151" fill="#000">NCCL AllReduce</text>
+    <text x="18" y="66" fill="#000">cpu_comm_stream (★ vanilla 에 없음)</text>
+    <rect x="0" y="73" width="14" height="14" fill="#9fc5e8" stroke="#3061ab"/>
+    <text x="18" y="83" fill="#000">cdec leftover (밀려난 잔여)</text>
+    <rect x="0" y="90" width="14" height="14" fill="#eeeeee" stroke="#999" stroke-dasharray="3,2"/>
+    <text x="18" y="100" fill="#000">GPU IDLE (CPU 기다림)</text>
+    <rect x="0" y="107" width="14" height="14" fill="#f4cccc" stroke="#c44545"/>
+    <text x="18" y="117" fill="#000">★ NEO Python overhead</text>
+    <rect x="0" y="124" width="3" height="14" fill="#d62828"/>
+    <text x="18" y="134" fill="#000">NCCL AllReduce ×320</text>
   </g>
 </svg>
