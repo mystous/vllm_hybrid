@@ -19,6 +19,7 @@
 | 2026-05-14 ~ 16 | [`measurements/neo_v1_6_500p_3run_20260516/`](measurements/neo_v1_6_500p_3run_20260516/) | **2,197.4** / 2,156.9 / 2,223.8 | **1.62%** | 1,844s | 500p × 8192 | 3 | v1.6 best (commit `64f9e0c48`) |
 | 2026-05-16 07:21 | [`measurements/neo_phase3_1_kmp200_500p_3run_20260516/`](measurements/neo_phase3_1_kmp200_500p_3run_20260516/) | 2,134.9 / 2,013.2 / 2,255.7 | 5.68% | 1,914s | 500p × 8192 | 3 | Phase 3.1 (Persistent OMP) KMP=200 |
 | 2026-05-16 09:56 | [`measurements/neo_phase3_1_3_kmp200_500p_3run_20260516/`](measurements/neo_phase3_1_3_kmp200_500p_3run_20260516/) | 2,083.3 / 2,015.4 / 2,145.4 | 3.13% | 1,957s | 500p × 8192 | 3 | Phase 3.1+3.3 (cherry-pick `0717f4b8c`) |
+| 2026-05-17 20:02 | `eval/results/20260517_200212_cpu112_analysis_500p/` | 2,037.8 (1-run) | — | 2,001s | 500p × 8192 | 1 | **CPU 112-core util 분석 환경** (S1-S9 base + `KMP_AFFINITY=verbose,scatter` env) — CPU 활용도 / NUMA / wait state 정량 측정 용도. 1-run 측정. |
 
 ## 개략 정보
 
