@@ -120,28 +120,10 @@ class SubBatchPipelineExecutor:
             raise ValueError(f"num_layers must be >= 1, got {num_layers}")
         self.num_layers = num_layers
         self.cb = callbacks
-        # TSK_019 SUB_019 — 별 CUDA stream 두 개 (R4: lazy init reuse).
-        # batch[0] / batch[1] 가 *동시 GPU 진입* 위해 분리. NEO 원본
-        # `transformer_layer.py:430-501` `forward_double` 의 stage 0/1
-        # 동시 launch 패턴.
-        self._batch_streams: tuple | None = None
-
-    def _get_batch_streams(self):
-        """Module-level lazy stream pair — TSK_019 SUB_019 (R4).
-
-        Phase 3.3 — CUDA Stream Priority.
-        batch[0] (gdec sub-batch — wall critical path) 에 high priority (-1) 부여,
-        batch[1] (cdec sub-batch — CPU work overlap) 는 default (0).
-        OS scheduling jitter 영역 시 gdec stream 우선 처리 → gdec wall tail 단축.
-        """
-        import torch
-        if self._batch_streams is None:
-            # Priority range: lower number = higher priority (CUDA convention)
-            self._batch_streams = (
-                torch.cuda.Stream(priority=-1),  # gdec (high priority)
-                torch.cuda.Stream(priority=0),   # cdec (default)
-            )
-        return self._batch_streams
+        # S7 (NEO 원본 rewrite plan G) — 별 stream 영역 (s0/s1) 제거.
+        # NEO 원본 forward_pipeline 은 default stream + cpu_communication_stream
+        # (1 개 추가) 만 사용. s0/s1 priority 효과 (Phase 3.3) 영역 제거.
+        # `_get_batch_streams` dead code 정리.
 
     # ------------------------------------------------------------------
     # Sequential path — single sub-batch
@@ -217,55 +199,31 @@ class SubBatchPipelineExecutor:
 
         Returns ``(q1', k1', v1', next_emb0')`` for the next call.
         """
-        # TSK_019 SUB_019 — 별 stream 위 stage 0 의 batch[1].attention
-        # + batch[0].preproj 동시 GPU 진입. NEO 원본 forward_double 의
-        # 핵심 — KV-bound 영역 (batch[1] attn) 과 GEMM-bound 영역
-        # (batch[0] preproj) 동시 실행. CUDA dependency 만 명시, main
-        # thread block 없음.
-        import torch
-        s0, s1 = self._get_batch_streams()
-        cur_stream = torch.cuda.current_stream()
-        s0.wait_stream(cur_stream)
-        s1.wait_stream(cur_stream)
+        # S8 (NEO 원본 rewrite plan G) — _forward_pipeline_stage(cur_stage) 패턴 정합.
+        # NEO 원본 `swiftllm/worker/layers/transformer_layer.py:_forward_pipeline_stage`
+        # ordering: batches[cur_stage] 의 postproj+preproj 가 batches[other] 의
+        # attention 보다 *먼저* 실행 → batches[other] attention 시점에 batches[cur_stage]
+        # 의 모든 work 이미 끝남 → batch interleave 의 wall hide 정합.
 
-        # Stage 0 — batch[1] attn on s1, batch[0] preproj on s0 동시.
-        # TSK_019 plan B2 — transfer callback 호출 site 명시. NEO 원본
-        # `transformer_layer.py:373-394` 의 4-stage interleave (preproj /
-        # transfer / attention / postproj). default no-op transfer 이지만
-        # signature 명시로 후속 phase 의 callback wiring 가능.
-        with torch.cuda.stream(s1):
-            self.cb.transfer(q1, k1, v1, batches[1], layer_idx)
-            attn1 = self.cb.attention(q1, k1, v1, batches[1], layer_idx)
-        # Use layer_off=0 because next_emb0 represents the *output* of
-        # batch[0]'s previous layer; the upcoming preproj is for that
-        # layer's successor (which is layer_idx + 1).
-        with torch.cuda.stream(s0):
-            q0_next, k0_next, v0_next = self.cb.preproj(
-                next_emb0, batches[0], layer_idx + 1, 0
-            )
-
-        # Stage 1 — sequential dependency. main stream rejoin via
-        # wait_stream, then run on default stream.
-        cur_stream.wait_stream(s0)
-        cur_stream.wait_stream(s1)
-        # IDE_006 async cdec — attention(batches[0]) at start drains
-        # batches[1]'s cdec, so attn1 is populated when postproj reads
-        # it. batches[1]'s cdec compute thus overlapped with
-        # batches[0]'s preproj on s0 (NEO §4.4 asymmetric intent).
-        attn0_next = self.cb.attention(q0_next, k0_next, v0_next,
-                                       batches[0], layer_idx + 1)
-        # Reorder consumer ops: postproj(attn1) + preproj(batches[1])
-        # run while batches[0]'s cdec computes, then drain just before
-        # postproj(attn0_next) reads its result.
-        emb1 = self.cb.postproj(attn1, batches[1], layer_idx)
-        q1_new, k1_new, v1_new = self.cb.preproj(emb1, batches[1],
-                                                 layer_idx + 1, 0)
-        from vllm.model_executor.layers.attention.attention import (
-            _neo_drain_pending_cdec as _drain_pending,
+        # ── Stage 0 (cur_stage=0, other=1) ──
+        #   transfer(b1) → preproj(b0, next layer) → attention(b1, this layer)
+        self.cb.transfer(q1, k1, v1, batches[1], layer_idx)
+        q0_next, k0_next, v0_next = self.cb.preproj(
+            next_emb0, batches[0], layer_idx + 1, 0
         )
-        _drain_pending()
-        next_emb0_new = self.cb.postproj(attn0_next, batches[0],
-                                         layer_idx + 1)
+        attn1 = self.cb.attention(q1, k1, v1, batches[1], layer_idx)
+
+        # ── Stage 1 (cur_stage=1, other=0) ──
+        #   transfer(b0) → postproj(b1, this) + preproj(b1, next) → attention(b0, next)
+        self.cb.transfer(q0_next, k0_next, v0_next, batches[0], layer_idx + 1)
+        emb1 = self.cb.postproj(attn1, batches[1], layer_idx)
+        q1_new, k1_new, v1_new = self.cb.preproj(
+            emb1, batches[1], layer_idx + 1, 0
+        )
+        attn0_next = self.cb.attention(
+            q0_next, k0_next, v0_next, batches[0], layer_idx + 1
+        )
+        next_emb0_new = self.cb.postproj(attn0_next, batches[0], layer_idx + 1)
         return q1_new, k1_new, v1_new, next_emb0_new
 
     def forward_last_stage(
