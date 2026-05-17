@@ -1,0 +1,18 @@
+
+NOTICE: Existing SQLite export found: /workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.sqlite
+        It is assumed file was previously exported from: /workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [/workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.sqlite] with [/opt/nvidia/nsight-compute/2025.1.1/host/target-linux-x64/reports/cuda_gpu_mem_time_sum.py]... 
+
+ ** CUDA GPU MemOps Summary (by Time) (cuda_gpu_mem_time_sum):
+
++----------+-----------------+-------+----------+----------+----------+----------+-------------+--------------------------------+
+| Time (%) | Total Time (ns) | Count | Avg (ns) | Med (ns) | Min (ns) | Max (ns) | StdDev (ns) |           Operation            |
++----------+-----------------+-------+----------+----------+----------+----------+-------------+--------------------------------+
+|     86.8 |      1015993126 | 79424 |  12792.0 |   2336.0 |     1984 |    73279 |     19702.8 | [CUDA memcpy Device-to-Host]   |
+|      6.1 |        71872263 | 62272 |   1154.2 |   1152.0 |      991 |     4352 |       104.2 | [CUDA memcpy Device-to-Device] |
+|      4.4 |        51720278 | 63184 |    818.6 |    800.0 |      767 |    13504 |       226.4 | [CUDA memset]                  |
+|      2.6 |        30261856 | 23072 |   1311.6 |   1120.0 |      704 |    12160 |      1111.6 | [CUDA memcpy Host-to-Device]   |
++----------+-----------------+-------+----------+----------+----------+----------+-------------+--------------------------------+
+

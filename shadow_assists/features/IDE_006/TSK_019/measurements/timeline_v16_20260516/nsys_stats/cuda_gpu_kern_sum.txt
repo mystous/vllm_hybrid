@@ -1,0 +1,82 @@
+
+NOTICE: Existing SQLite export found: /workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.sqlite
+        It is assumed file was previously exported from: /workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [/workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.sqlite] with [/opt/nvidia/nsight-compute/2025.1.1/host/target-linux-x64/reports/cuda_gpu_kern_sum.py]... 
+
+ ** CUDA GPU Kernel Summary (cuda_gpu_kern_sum):
+
++----------+-----------------+-----------+-----------+-----------+----------+----------+-------------+------------------------------------------------------------------------------------------------------+
+| Time (%) | Total Time (ns) | Instances | Avg (ns)  | Med (ns)  | Min (ns) | Max (ns) | StdDev (ns) |                                                 Name                                                 |
++----------+-----------------+-----------+-----------+-----------+----------+----------+-------------+------------------------------------------------------------------------------------------------------+
+|     28.9 |     29131334735 |     42384 |  687319.1 |  603226.0 |   558138 | 45519592 |    504553.1 | ncclDevKernel_AllReduce_Sum_bf16_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)              |
+|     24.3 |     24519909118 |     20424 | 1200543.9 | 1198066.0 |  1183096 |  1236914 |      8900.7 | nvjet_tst_256x152_64x4_1x2_h_bz_coopA_TNT                                                            |
+|     16.2 |     16343303036 |     40840 |  400178.8 |  193325.5 |   180127 |   630777 |    214144.2 | nvjet_tst_256x144_64x4_2x1_v_bz_coopA_TNT                                                            |
+|      7.5 |      7565044125 |     81176 |   93193.1 |  179965.5 |     3136 |   189469 |     89835.1 | std::enable_if<T2>(int)0&&vllm::_typeConvert<T1>::exists, void>::type vllm::fused_add_rms_norm_kern… |
+|      4.3 |      4377485954 |     21064 |  207818.4 |  205533.0 |   187198 |   250205 |     11686.0 | void cutlass::device_kernel<flash::enable_sm90_or_later<flash::FlashAttnFwdSm90<flash::CollectiveMa… |
+|      4.2 |      4268115687 |     20424 |  208975.5 |  208574.0 |   203838 |   220512 |      1757.2 | nvjet_tst_256x160_64x4_1x2_h_bz_coopA_TNT                                                            |
+|      3.5 |      3515793026 |     40832 |   86103.9 |   14463.5 |     4608 | 18330340 |    454147.8 | void vllm::cross_device_reduce_1stage<__nv_bfloat16, (int)8>(vllm::RankData *, vllm::RankSignals, v… |
+|      2.3 |      2292632316 |     40832 |   56147.9 |   55439.0 |     1184 |   117857 |     54665.1 | triton_poi_fused_mul_silu_slice_0                                                                    |
+|      1.8 |      1785068617 |    320000 |    5578.3 |    2688.0 |     1183 |   183935 |      8472.7 | void at::native::elementwise_kernel<(int)128, (int)4, void at::native::gpu_kernel_impl_nocast<at::n… |
+|      1.0 |      1048374966 |     20416 |   51350.7 |   51392.0 |    45663 |    55136 |       739.4 | nvjet_tst_64x8_64x16_2x1_v_bz_splitK_TNT                                                             |
+|      0.8 |       771990115 |       640 | 1206234.6 | 1203498.0 |  1187921 |  1235505 |     10729.4 | nvjet_tst_256x128_64x4_1x2_h_bz_coopA_TNT                                                            |
+|      0.7 |       677951303 |     40832 |   16603.4 |   16768.0 |     9951 |    25888 |      5901.8 | nvjet_tst_64x8_64x16_2x1_v_bz_TNT                                                                    |
+|      0.7 |       672869061 |      1920 |  350452.6 |  215101.5 |   190494 |   657497 |    203165.7 | nvjet_tst_320x128_64x3_1x2_h_bz_coopB_TNT                                                            |
+|      0.6 |       589712509 |    163360 |    3609.9 |    2048.0 |     1247 |    11392 |      3408.7 | void at::native::<unnamed>::CatArrayBatchedCopy_vectorized<at::native::<unnamed>::OpaqueType<(unsig… |
+|      0.4 |       426283799 |       256 | 1665171.1 |  193565.0 |    45728 | 18090275 |   3138721.2 | ncclDevKernel_AllGather_RING_LL(ncclDevKernelArgsStorage<(unsigned long)4096>)                       |
+|      0.4 |       408260655 |    163360 |    2499.1 |    1600.0 |     1055 |     6752 |      1945.4 | void at::native::vectorized_elementwise_kernel<(int)8, at::native::CUDAFunctor_add<c10::BFloat16>, … |
+|      0.4 |       394602847 |     41480 |    9513.1 |   16608.0 |     1151 |    18880 |      8039.7 | void vllm::reshape_and_cache_flash_kernel<__nv_bfloat16, unsigned char, (vllm::Fp8KVCacheDataType)1… |
+|      0.3 |       274152244 |     40840 |    6712.8 |   11232.0 |     1152 |    13568 |      5220.6 | triton_poi_fused__to_copy_clamp_mul_reciprocal_0                                                     |
+|      0.3 |       256158077 |     20416 |   12546.9 |   12480.0 |    11872 |    14016 |       259.2 | nvjet_tst_64x8_64x16_4x1_v_bz_splitK_TNT                                                             |
+|      0.2 |       188242666 |     38856 |    4844.6 |    6560.0 |     1920 |    56704 |      4117.7 | void at::native::vectorized_gather_kernel<(int)16, long>(char *, char *, T2 *, int, long, long, lon… |
+|      0.1 |       150987589 |     60672 |    2488.6 |    2848.0 |     1248 |    15904 |       695.5 | void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIterator… |
+|      0.1 |       142328019 |       640 |  222387.5 |  222894.5 |   177950 |   225085 |      4978.5 | triton_red_fused__to_copy_add_mean_mul_pow_rsqrt_2                                                   |
+|      0.1 |       124725193 |     21920 |    5690.0 |    1216.0 |     1087 |   135358 |     23736.6 | void at::native::vectorized_elementwise_kernel<(int)8, at::native::bfloat16_copy_kernel_cuda(at::Te… |
+|      0.1 |       114280023 |      1008 |  113373.0 |  114288.0 |     1696 |   230559 |    111522.0 | void at::native::elementwise_kernel<(int)128, (int)2, void at::native::gpu_kernel_impl_nocast<at::n… |
+|      0.1 |       111866803 |      1264 |   88502.2 |   17919.5 |     3552 |   217055 |     97726.5 | void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIterator… |
+|      0.1 |        90804971 |      1008 |   90084.3 |   89167.0 |     1119 |   182046 |     88903.6 | void at::native::vectorized_elementwise_kernel<(int)4, void at::native::<unnamed>::pow_tensor_scala… |
+|      0.1 |        85746227 |       640 |  133978.5 |  133951.0 |   132031 |   135967 |       685.7 | triton_red_fused__to_copy_add_mean_mul_pow_rsqrt_0                                                   |
+|      0.1 |        83298925 |     40832 |    2040.0 |    2144.0 |     1600 |     5824 |       365.7 | void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, float, __nv_bfloat16, float, __nv_bfloat1… |
+|      0.1 |        69924498 |       496 |  140976.8 |  141040.0 |     4032 |   281948 |    136787.4 | void at::native::unrolled_elementwise_kernel<at::native::CUDAFunctor_add<float>, std::array<char *,… |
+|      0.1 |        53021876 |     20416 |    2597.1 |    2560.0 |     1920 |     3776 |       251.6 | void at::native::<unnamed>::indexSelectSmallIndex<c10::BFloat16, long, unsigned int, (int)2, (int)2… |
+|      0.1 |        51957460 |      1008 |   51545.1 |   50688.0 |     2816 |   102207 |     48339.1 | void at::native::reduce_kernel<(int)512, (int)1, at::native::ReduceOp<float, at::native::MeanOps<fl… |
+|      0.0 |        44885294 |       256 |  175333.2 |  172382.0 |   170942 |   200673 |      7638.0 | void at::native::elementwise_kernel<(int)128, (int)4, void at::native::gpu_kernel_impl_nocast<at::n… |
+|      0.0 |        40178996 |     18496 |    2172.3 |    2176.0 |     1951 |     2656 |        81.9 | void at::native::elementwise_kernel<(int)128, (int)4, void at::native::gpu_kernel_impl<at::native::… |
+|      0.0 |        34448006 |       640 |   53825.0 |   53871.0 |    52959 |    55073 |       495.5 | triton_poi_fused_mul_silu_slice_1                                                                    |
+|      0.0 |        22792849 |       248 |   91906.6 |   91919.0 |    90463 |    93856 |       471.3 | void at::native::<unnamed>::CatArrayBatchedCopy_vectorized<at::native::<unnamed>::OpaqueType<(unsig… |
+|      0.0 |        21564376 |     21400 |    1007.7 |     992.0 |      960 |     3680 |        30.9 | void at::native::vectorized_elementwise_kernel<(int)4, at::native::FillFunctor<int>, std::array<cha… |
+|      0.0 |        11350625 |       632 |   17959.8 |   17919.0 |    17408 |    18816 |       258.2 | triton_poi_fused_3                                                                                   |
+|      0.0 |         9304342 |      7728 |    1204.0 |    1184.0 |     1119 |     1856 |        58.6 | void at::native::vectorized_elementwise_kernel<(int)8, at::native::BinaryFunctor<c10::BFloat16, c10… |
+|      0.0 |         9185803 |       256 |   35882.0 |   37839.0 |    26880 |    42944 |      5501.5 | void at::native::reduce_kernel<(int)512, (int)1, at::native::ReduceOp<float, at::native::ArgMaxOps<… |
+|      0.0 |         5864397 |        56 |  104721.4 |  104191.0 |   102431 |   112799 |      2205.3 | nvjet_tst_128x64_64x8_2x1_v_bz_TNT                                                                   |
+|      0.0 |         5820270 |        56 |  103933.4 |  103966.5 |    99582 |   108991 |      1915.1 | nvjet_tst_128x56_64x9_2x1_v_bz_TNT                                                                   |
+|      0.0 |         5062800 |        48 |  105475.0 |  105295.0 |   101823 |   110432 |      1699.1 | nvjet_tst_128x40_64x10_2x1_v_bz_TNT                                                                  |
+|      0.0 |         4974480 |        48 |  103635.0 |  103439.0 |   101055 |   108832 |      1572.8 | nvjet_tst_128x48_64x9_2x1_v_bz_TNT                                                                   |
+|      0.0 |         4528956 |       256 |   17691.2 |   17440.0 |    11776 |    25248 |      3790.9 | void at::native::elementwise_kernel<(int)128, (int)4, void at::native::gpu_kernel_impl_nocast<at::n… |
+|      0.0 |         4210591 |        40 |  105264.8 |  105391.0 |   102303 |   109601 |      1732.6 | nvjet_tst_128x72_64x8_2x1_v_bz_TNT                                                                   |
+|      0.0 |         2798760 |       256 |   10932.7 |   10848.0 |     7711 |    15008 |      1532.4 | _compute_slot_mapping_kernel                                                                         |
+|      0.0 |         1620275 |      1008 |    1607.4 |    1632.0 |     1376 |     2848 |       172.6 | void at::native::vectorized_elementwise_kernel<(int)4, at::native::rsqrt_kernel_cuda(at::TensorIter… |
+|      0.0 |         1552148 |      1008 |    1539.8 |    1536.0 |     1279 |     4320 |       232.0 | void at::native::vectorized_elementwise_kernel<(int)4, at::native::CUDAFunctorOnSelf_add<float>, st… |
+|      0.0 |         1500206 |       504 |    2976.6 |    3584.0 |     1632 |     4672 |      1046.5 | void at::native::index_elementwise_kernel<(int)128, (int)4, void at::native::gpu_index_kernel<void … |
+|      0.0 |         1109916 |       512 |    2167.8 |    2368.0 |     1600 |     3104 |       365.9 | void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIterator… |
+|      0.0 |          840379 |         8 |  105047.4 |  104319.0 |   102719 |   108447 |      1984.1 | nvjet_tst_128x80_64x8_2x1_v_bz_TNT                                                                   |
+|      0.0 |          721752 |         8 |   90219.0 |   90175.0 |    89087 |    91422 |       839.2 | triton_red_fused_rms_norm_1                                                                          |
+|      0.0 |          614008 |       496 |    1237.9 |    1247.0 |     1183 |     1472 |        33.0 | void at::native::elementwise_kernel<(int)128, (int)2, void at::native::gpu_kernel_impl_nocast<at::n… |
+|      0.0 |          605244 |       624 |     969.9 |     960.0 |      927 |     1152 |        28.7 | void at::native::unrolled_elementwise_kernel<at::native::FillFunctor<int>, std::array<char *, (unsi… |
+|      0.0 |          504212 |       248 |    2033.1 |    2016.0 |     1951 |     2528 |        88.9 | void flash::prepare_varlen_num_blocks_kernel<(int)1, (bool)0>(int, int, int, const int *, const int… |
+|      0.0 |          470622 |       248 |    1897.7 |    1888.0 |     1632 |     2336 |       109.5 | void at::native::_scatter_gather_elementwise_kernel<(int)128, (int)8, void at::native::_cuda_scatte… |
+|      0.0 |          410140 |       256 |    1602.1 |    1568.0 |     1440 |     1888 |        86.7 | void at::native::vectorized_elementwise_kernel<(int)2, at::native::CUDAFunctor_add<long>, std::arra… |
+|      0.0 |          391516 |       256 |    1529.4 |    1504.0 |     1280 |     2144 |       159.9 | triton_poi_fused_add_bitwise_and_bitwise_not_bitwise_or_ge_lt_mul_sub_0                              |
+|      0.0 |          388734 |         8 |   48591.8 |   46912.0 |    44992 |    60192 |      4924.9 | triton_poi_fused_add_all_reduce_bitwise_and_bitwise_not_bitwise_or_embedding_ge_lt_masked_fill_mul_… |
+|      0.0 |          355543 |       256 |    1388.8 |    1376.0 |     1152 |     1632 |        83.4 | void at::native::vectorized_elementwise_kernel<(int)4, at::native::CUDAFunctor_add<int>, std::array… |
+|      0.0 |          352220 |       256 |    1375.9 |    1376.0 |     1184 |     1984 |       122.0 | void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIterator… |
+|      0.0 |          329181 |       192 |    1714.5 |    1696.0 |     1663 |     1888 |        38.3 | void flash::prepare_varlen_num_blocks_kernel<(int)2, (bool)0>(int, int, int, const int *, const int… |
+|      0.0 |          282846 |       256 |    1104.9 |    1088.0 |     1024 |     1280 |        46.0 | void at::native::unrolled_elementwise_kernel<at::native::CUDAFunctorOnSelf_add<int>, std::array<cha… |
+|      0.0 |          229279 |       224 |    1023.6 |    1024.0 |      992 |     1216 |        44.3 | void at::native::vectorized_elementwise_kernel<(int)2, at::native::FillFunctor<long>, std::array<ch… |
+|      0.0 |          141632 |         8 |   17704.0 |   17712.0 |    17376 |    18112 |       234.4 | triton_poi_fused_2                                                                                   |
+|      0.0 |          117597 |        64 |    1837.5 |    1888.0 |     1632 |     2112 |       118.3 | void flash::prepare_varlen_num_blocks_kernel<(int)4, (bool)0>(int, int, int, const int *, const int… |
+|      0.0 |           61823 |        56 |    1104.0 |    1088.0 |     1056 |     1280 |        40.5 | void at::native::vectorized_elementwise_kernel<(int)2, at::native::FillFunctor<int>, std::array<cha… |
+|      0.0 |           22080 |        24 |     920.0 |     928.0 |      896 |     1056 |        33.0 | void at::native::unrolled_elementwise_kernel<at::native::FillFunctor<long>, std::array<char *, (uns… |
++----------+-----------------+-----------+-----------+-----------+----------+----------+-------------+------------------------------------------------------------------------------------------------------+
+

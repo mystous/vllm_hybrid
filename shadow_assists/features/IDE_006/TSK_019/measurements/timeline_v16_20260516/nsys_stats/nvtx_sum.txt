@@ -1,0 +1,16 @@
+
+NOTICE: Existing SQLite export found: /workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.sqlite
+        It is assumed file was previously exported from: /workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [/workspace/vllm_hybrid/eval/results/20260516_163313_v16_timeline_nsys/v16_timeline.sqlite] with [/opt/nvidia/nsight-compute/2025.1.1/host/target-linux-x64/reports/nvtx_sum.py]... 
+
+ ** NVTX Range Summary (nvtx_sum):
+
++----------+-----------------+-----------+----------+----------+----------+----------+-------------+---------+--------------------+
+| Time (%) | Total Time (ns) | Instances | Avg (ns) | Med (ns) | Min (ns) | Max (ns) | StdDev (ns) |  Style  |       Range        |
++----------+-----------------+-----------+----------+----------+----------+----------+-------------+---------+--------------------+
+|     99.0 |      2264171713 |     42392 |  53410.4 |  50418.0 |    24309 |  1224726 |     50612.0 | PushPop | NCCL:ncclAllReduce |
+|      1.0 |        22398349 |       256 |  87493.6 |  67865.0 |    58495 |   449636 |     62290.0 | PushPop | NCCL:ncclAllGather |
++----------+-----------------+-----------+----------+----------+----------+----------+-------------+---------+--------------------+
+
