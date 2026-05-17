@@ -159,7 +159,7 @@ def forward_double(...):
 추정 fact (Option A 영역 baseline v1.6 best 2,197 tps):
 - S1-S8 완성 시 throughput **2,500-2,750 tps** (vanilla 의 53-59%)
 - paper claim H100 +14% 영역 도달 — 사실상 불가 (vanilla 가 paper baseline 보다 빠름)
-- 단 NEO §4.4 algorithm 정통 implement 도달
+- 단 NEO 원본 source code (transformer_layer.py + model.py 10/10 함수) 정합 implement 도달 (paper §4.4 batch interleave 영역도 S8 forward_double ordering 으로 정합)
 
 ## 6. 진행 상태 (2026-05-17 KST)
 

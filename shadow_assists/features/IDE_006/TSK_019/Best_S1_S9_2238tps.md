@@ -1,6 +1,7 @@
-# Best — S1-S9 (NEO 원본 100% 정합, 3-run avg 2,238.6 tps, 2026-05-17 KST)
+# Best — S1-S9 (NEO 원본 source 10/10 함수 정합, 3-run avg 2,238.6 tps, 2026-05-17 KST)
 
-> NEO §4.4 algorithm-correct path 정통 implement 도달. S1-S9 9 단계 rewrite 적용 (NEO `swiftllm/worker/layers/transformer_layer.py` 10/10 함수 정합).
+> NEO 원본 source code (`swiftllm/worker/layers/transformer_layer.py` + `model.py`) 의 10/10 함수 정합 implement 도달. S1-S9 9 단계 rewrite 적용.
+> 주의: "NEO §4.4 algorithm-correct" label 은 paper §4.4 의 batch interleave / asymmetric pipeline 영역에 한정 적용 (S8 forward_double ordering 으로 정합). cdec result wait 영역의 cross-layer drain (우리 Option B) 은 NEO 원본 source 에 없는 우리 자체 abstraction — paper §4.4 와 별개.
 > 측정 archive = [`measurements/neo_s1_s9_500p_3run_20260517/`](measurements/neo_s1_s9_500p_3run_20260517/).
 > Timeline 분석 = [`measurements/timeline_v16_s1_s9_20260517/`](measurements/timeline_v16_s1_s9_20260517/).
 
@@ -85,7 +86,7 @@ NEO 원본 함수 10/10 정합 (위 표). 자세한 trace = [`analysis/G_neo_rew
 | workload 차이 | paper sweet spot = 짧은 context / 작은 batch. 우리 500p × 8192 long context |
 | HBM 영역 | H100 80GB × 8 = 640 GB. vllm max_num_seqs=256 batch 가 이미 HBM 안. NEO KV offload + batch 확장 효과 작음 |
 
-→ NEO §4.4 algorithm-correct 정통 implement 완성 ✓. 단 paper claim 영역 fundamental 도달 어려움.
+→ NEO 원본 source code (10/10 함수) 정통 implement 완성 ✓. paper §4.4 batch interleave 영역도 S8 forward_double ordering 으로 정합. 단 paper claim H100 +14% 도달 fundamental 어려움.
 
 ## 재현 절차
 

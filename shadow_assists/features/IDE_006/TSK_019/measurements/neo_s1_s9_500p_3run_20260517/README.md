@@ -1,8 +1,8 @@
-# NEO S1-S9 정통 (NEO 원본 100% 정합) 500p × 8192 3-run sequential (2026-05-17)
+# NEO S1-S9 정통 (NEO 원본 source 10/10 함수 정합) 500p × 8192 3-run sequential (2026-05-17)
 
 > S1-S9 = NEO 원본 정통 rewrite 9 단계 적용 후 측정.
 > v1.6 commit `64f9e0c48` base + feat/neo-option-b branch.
-> NEO §4.4 algorithm-correct path 정통 implement.
+> NEO 원본 source code (`swiftllm/worker/layers/transformer_layer.py` + `model.py`) 의 10/10 함수 정합 implement. paper §4.4 batch interleave 영역도 S8 forward_double ordering 으로 정합.
 
 ## 결과 (3-run 완료)
 
@@ -73,7 +73,7 @@ vs vanilla 3-run avg (4,690.7): **47.7%**.
 
 ## 의미
 
-1. **NEO §4.4 algorithm-correct path 정통 implement 완성** ✓
+1. **NEO 원본 source code 10/10 함수 정합 implement 완성** ✓ (paper §4.4 batch interleave 영역도 S8 으로 정합)
 2. v1.6 best (Option A 영역) 대비 throughput **+1.9% avg, +3.6% best individual**
 3. **paper claim H100 +14% 도달 X** — 원인:
    - 우리 vanilla 가 paper baseline 보다 빠름 (vllm 최적화 누적)

@@ -8,26 +8,40 @@
 
 ![S1-S9 vanilla vs NEO Timeline](./timeline_schematic.svg)
 
-### Option A vs S1-S9 차이
+### NEO 원본 asymmetric pipeline 정합 fact
+
+NEO upstream `transformer_layer.py` 의 5 가지 정합 요소가 S1-S9 에 다 작동 중:
+
+| 요소 | NEO 원본 line | 우리 S1-S9 | 의미 |
+|---|---|---|---|
+| `cpu_communication_stream` 별도 운영 | 116 / 143 / 150 | `_get_neo_communication_stream` (S2) | default stream 과 분리. transfer/swap/result_copy 가 GPU compute 와 진정한 동시 진행 |
+| `_transfer_qkv` 가 cpu_comm async | 171 | `with cuda.stream(_xfer_stream): q_cpu.copy_(non_blocking=True)` (attention.py:993) | Q/K/V D2H 가 GPU 다음 launch 와 overlap |
+| `paged_attention_cpu` main thread direct | 336 | `_neo_cdec_compute_cpu(...)` direct (S5, attention.py:1013) | main blocking 이지만 GIL released (C++ ext) + default stream queue 가 그 동안 GPU 에서 실행 진행 → 진짜 CPU/GPU overlap |
+| result copy on cpu_comm_stream + `_compute_wait_comm` | 351-355 | S9 + `_neo_compute_wait_comm` (S1) | result D2D 가 GPU 다음 launch 와 overlap |
+| `_forward_pipeline_stage(cur_stage)` ordering | 397-427 | S8 `forward_double` | **layer N+1 의 preproj launch 가 layer N 의 attn launch *앞*** → GPU 가 N+1 work 부터 시작 → layer N/N+1 GPU 동시 진행 |
+
+→ **paper §4.4 의 "Layer N/N+1 동시 + CPU async pipeline" mechanism 이 S1-S9 에 실제로 작동 중** ✓.
+
+### Option A vs S1-S9 차이 (정확)
 
 | 영역 | Option A (v1.6 best) | S1-S9 (NEO 원본 정통) |
 |---|---|---|
-| GPU stream | default + s0 + s1 (3 개) | default + cpu_communication_stream (2 개, NEO 원본 정합) |
-| cdec dispatch | `ThreadPoolExecutor.submit` | `_neo_cdec_compute_cpu` 직접 호출 (NEO `paged_attention_cpu` 정합) |
-| cdec result wait | `cdec_future.result()` blocking 24 ms 영역 wall path 위 | `_NeoDirectFuture.result()` 즉시 return (cdec 시간은 직접 호출에 포함, main thread blocking) |
-| result D2D copy | main stream 위 sequential | `cpu_communication_stream` 위 async + `_compute_wait_comm()` 정합 |
-| forward_double ordering | `with cuda.stream(s0/s1)` 동시 launch | NEO `_forward_pipeline_stage(cur_stage)` ordering — batches[cur_stage] postproj+preproj 가 batches[other] attention *앞* |
+| GPU stream 구성 | default + s0 + s1 + cpu_comm_stream (4 개) — s0/s1 priority diff 영역 | default + cpu_communication_stream (2 개, NEO 원본 정합) |
+| cdec dispatch | `ThreadPoolExecutor.submit` (2 worker process, NEO 원본에 없음) | `paged_attention_cpu` direct (NEO 원본 정합) |
+| cdec 동안 GPU stream | ThreadPool 의 queue drain + GIL race 로 default stream queue 진행이 일부 막힘 | GIL released, default stream queue 가 자유롭게 GPU 에서 진행 → 더 깔끔한 overlap |
+| result D2D copy | main stream 위 sequential | `cpu_communication_stream` 위 async (NEO 원본 정합) |
+| forward_double ordering | `with cuda.stream(s0/s1)` 동시 launch (NEO 원본에 없음) | `_forward_pipeline_stage(cur_stage)` 정합 ordering — layer N+1 preproj 가 layer N attn 앞 |
 
-### NEO 추가 wall 분해 (S1-S9)
+### NEO 추가 wall 분해 (S1-S9) — overlap mechanism 작동 상태의 잔여 비용
 
-| # | 영역 (timeline 위치) | 추가 시간 | 원인 |
+| # | 영역 | 추가 시간 | 의미 |
 |---|---|---:|---|
-| ① | Python attention.py hot path × 80 layer | **+12 ms** | skip_gpu check, _neo_drain (no-op in S1-S9), 직접 호출 launch |
-| **②** | cdec compute (S5 직접 호출 main thread blocking) | **+18 ms** | S1-S8 의 ThreadPool/queue overhead 제거 후 단축. S9 의 cpu_comm_stream hide 일부 영향 |
-| ③ | swap launch + Python overhead + emit | +25 ms | `_neo_handle_kv_swap` Python loop, ATen `index_kernel` GOMP, `copy_layer_out` (★ Top Priority 영역) |
-| | **합** | **+55 ms** | vanilla 54 ms + 55 = NEO ~109 ms (avg wall 1,819 s → step 109 ms) |
+| ① | Python attention.py hot path × 80 layer | **+12 ms** | skip_gpu check, 직접 호출 launch overhead, cudaStream sync — pure Python overhead, overlap 과 무관 |
+| **②** | CPU pacpu time **>** GPU concurrent work time → cumulative GPU IDLE 누적 | **+18 ms** | overlap 작동 중. 단 layer 당 CPU pacpu (~2.3ms) > 동시 GPU work (preproj+postproj+gdec ~0.4ms) → 차이 누적 → GPU stream queue 빈 시점 발생. **cdec 자체가 GPU IDLE 의 원인이 아니라 CPU bottleneck 의 결과**. v1.6 의 +24 ms → S1-S9 의 +18 ms 단축 (−6 ms) = ThreadPool overhead + GIL race 제거 |
+| ③ | swap launch + Python overhead + emit | +25 ms | `_neo_handle_kv_swap` Python loop, ATen `index_kernel` GOMP (★ Top Priority 영역, overlap 끝난 step 마감) |
+| | **합** | **+55 ms** | vanilla 54 ms + 55 = NEO ~109 ms |
 
-→ **S1-S9 의 ② 영역이 Option A 의 +24 ms 보다 −6 ms 단축** (NEO §4.4 batch interleave + S9 cpu_comm_stream 정합).
+→ **paper +14% sweet spot 와의 차이**: paper 의 작은 batch / 짧은 context 에서는 CPU pacpu time ≈ GPU layer work time → ② ≈ 0 → 진짜 +14% 도달. 우리 long context (500p × 8192) 에서는 layer 당 CPU work ≫ GPU work → ② = +18 ms 누적 → mechanism 은 작동하지만 효과 작음. **overlap 실패가 아니라 CPU bottleneck 의 wall path 노출**.
 
 ## 2. 3-run 측정 fact
 

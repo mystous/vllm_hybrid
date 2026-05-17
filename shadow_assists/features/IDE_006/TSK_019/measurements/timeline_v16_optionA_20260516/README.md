@@ -18,10 +18,11 @@ NEO 의 cdec dispatch 는 **항상 2 단계 async**:
 
 | 옵션 | 위치 | 코드 | 행동 |
 |---|---|---|---|
-| **Option A (sync wait)** | same layer 의 `unified_attention_with_output` 안 | `attention.py:1148` | `cdec_future.result()` main thread blocking → wall path 위 |
-| Option B (queued async) | pending queue 에 push, next layer 가 drain | `attention.py:1133-1145`, env gate `VLLM_NEO_ASYNC_CDEC=1` | `_neo_pending_cdec_queue` 에 push, next attention 호출 시 drain |
+| **Option A (sync wait)** | same layer 의 `unified_attention_with_output` 안 | `attention.py:1148` | `cdec_future.result()` main thread blocking → wall path 위. **= NEO 원본 source 의 layer 안 sync 정합** |
+| Option B (우리 자체 cross-layer drain 시도, 미완성) | pending queue 에 push, next layer 가 drain | `attention.py:1133-1145`, env gate `VLLM_NEO_ASYNC_CDEC=1` | `_neo_pending_cdec_queue` 에 push, next attention 호출 시 drain |
 
 → **2주 측정 전체 = Option A** (env unset). Option B 시도 (env=1) 시 starvation 으로 step 멈춤 (`drain timing` 미완성).
+**중요**: 시도 단계 narrative 에서 Option B 를 "NEO §4.4 algorithm-correct path" 로 잘못 label 한 곳이 있음. 실제로는 **NEO 원본 source 에 cross-layer drain mechanism 없음** (`pending_cdec_queue` 는 우리 자체 추가 abstraction). NEO 원본 정합 = Option A. Option B 는 우리 자체 가속 시도일 뿐.
 
 ## 1. 측정 fact 비교 (Option A 재측정 vs 이전 sync vs async 시도)
 
@@ -81,27 +82,36 @@ NEO 의 cdec dispatch 는 **항상 2 단계 async**:
 
 | # | 영역 | 추가 시간 | 원인 |
 |---|---|---:|---|
-| ① | `Python attention.py hot path × 80 layer` (54-66 ms) | **+12 ms** | skip_gpu_attn check, _neo_drain_pending_cdec (no-op in Option A queue empty), cdec submit, cudaStream sync |
-| **②** | **`cdec_future.result()` Option A BLOCKING wait** (66-90 ms) | **+24 ms** | `attention.py:1148` — main thread blocking. max_workers=2 cap 으로 56 cdec / 2 worker = 64 ms work, 24 ms 가 wall path 로 |
-| ③ | `swap_in launch + Python overhead + emit` (90-115 ms) | +25 ms | `_neo_handle_kv_swap` Python loop, ATen `index_kernel` GOMP, `copy_layer_out` advanced indexing |
-| | **합** | **+61 ms** | vanilla 54 + 61 = NEO 115 ms ✓ |
+| ① | `Python attention.py hot path × 80 layer` | **+12 ms** | Python overhead, overlap mechanism 과 무관 |
+| **②** | CPU pacpu time **>** GPU concurrent work time → cumulative GPU IDLE 누적 | **+24 ms** | overlap mechanism 작동 중. layer 당 CPU pacpu (~2.3ms) > GPU concurrent work (preproj+postproj+gdec, ~0.4ms) → 차이 누적 → GPU stream queue 빈 시점 발생. v1.6 의 ThreadPool 의 추가 overhead (max_workers=2 cap, GIL race) 가 S1-S9 대비 +6 ms 가중 |
+| ③ | `swap_in launch + Python overhead + emit` | +25 ms | `_neo_handle_kv_swap` Python loop, ATen `index_kernel` GOMP, overlap 끝난 step 마감 |
+| | **합** | **+61 ms** | vanilla 54 + 61 = NEO 115 ms |
 
-## 3. Option A vs Option B 의 lever
+## 3. Overlap mechanism 의 실제 동작 (정확)
 
-### Option A (현재) 의 한계
+v1.6 Option A 도 `cpu_communication_stream` (S2 이전부터 존재) 사용. transfer + swap + result_copy 가 GPU compute 와 진짜 동시 진행. cdec dispatch 가 ThreadPool 위 진행 동안 default stream queue 도 자유롭게 GPU 에서 실행 → **mechanism 자체는 NEO 원본 정합**. 단:
 
-`cdec_future.result()` 가 main thread 의 wall path 위 → GPU 의 next layer launch 차단 (timeline 의 GPU IDLE 54-115 ms 영역). cdec submit 자체는 async 라 CPU pacpu 가 GPU 와 concurrent 계산하지만, result wait 가 wall path 차단해서 NEO §4.4 의 *layer offset pipelining* 의 win 영역 실현 못 함.
+- ThreadPool 의 max_workers=2 cap → 56 cdec arrival vs 2 worker × 2.3ms/cdec → CPU pacpu wall ~64 ms
+- 같은 시간에 GPU concurrent work (다른 sub-batch 의 preproj/postproj/gdec) wall ~40 ms
+- 차이 ~24 ms 가 GPU IDLE 로 누적 (overlap 의 win 다 챙겨도 cdec wall 보다 GPU work 가 짧아서 남는 영역)
 
-### Option B (NEO §4.4 algorithm-correct, 우리 implement 미완성)
+**즉 ② 의 +24 ms 의 원인 = "cdec wait blocking" 이 아니라 "CPU pacpu wall 이 GPU concurrent work wall 보다 길어서 남는 GPU IDLE 누적"**. v1.6 → S1-S9 의 −6 ms 단축 = ThreadPool overhead (queue contention + GIL race) 제거 → 같은 CPU pacpu 시간이지만 GPU stream queue 처리가 더 원활.
 
-cdec_future 를 `_neo_pending_cdec_queue` 에 push, next layer 의 attention 시작 시 `_neo_drain_pending_cdec()` 가 oldest drain. layer 영역 wall path 가 cdec result wait 와 overlap.
+### Option B (우리 자체 cross-layer drain 시도, 미완성)
+
+### Option B (우리 자체 cross-layer drain 시도, 미완성)
+
+cdec_future 를 `_neo_pending_cdec_queue` 에 push, next layer 의 attention 시작 시 `_neo_drain_pending_cdec()` 가 oldest drain. layer 영역 wall path 가 cdec result wait 와 overlap 시도 (자체 가속).
+
+**NEO 원본과의 관계**: `_neo_pending_cdec_queue` / cross-layer drain 의 **소스 코드가 NEO 원본 (`swiftllm/worker/layers/transformer_layer.py`) 에 없음**. 즉 Option B 는 우리가 추가한 자체 abstraction, NEO 원본 정합 작업이 아닌 자체 가속 시도. 시도 단계 narrative 에서 잘못 "NEO §4.4 algorithm-correct" label 붙임 — 실제 NEO §4.4 는 batch interleave / asymmetric pipeline 영역만 다루고 cross-layer cdec drain 은 다루지 않음.
 
 **우리 implement 의 한계** (실측):
 - Option B 활성 시 (env `VLLM_NEO_ASYNC_CDEC=1` 또는 module default True) → step 진행 거의 멈춤 (FORK STAT total 47,500 → 500, −99%)
-- 가설: drain timing 동기화 미완성, NEO 원본의 `forward_first_stage` / `forward_double` / `forward_last_stage` 의 정확한 drain ordering 차이
+- 가설: drain timing 동기화 미완성, NEO 원본의 `forward_first_stage` / `forward_double` / `forward_last_stage` 의 정확한 ordering 과 다른 drain 점 선택
 - 코드 comment 도 정직히 적시: "Empirically OMP pool saturates ... regresses throughput"
+- S3 (S1-S9 rewrite) 에서 Option B path 제거 → NEO 원본 source 100% 정합 회복
 
-### Option B 완성 시 추정 효과
+### Option B 완성 시 추정 효과 (NEO 원본 정합과 무관, 자체 가속 가능성)
 
 NEO 원본대로 drain timing 정확히 동기화 후 Option B 활성 시:
 - ② 영역 (+24 ms) 제거 가능 → NEO step 115 → 91 ms
@@ -174,8 +184,8 @@ main thread Python forward (layer i)
 ## 5. 결론
 
 1. **2주 측정 전체 = Option A 영역** (cdec submit async + result wait sync). 정확한 fact.
-2. **NEO §4.4 algorithm-correct = Option B**. 우리 implement 미완성 — 활성 시 starvation.
+2. **NEO 원본 source 정합 = Option A**. NEO 원본의 `_attention` 함수가 same-layer sync wait — 우리 Option A 가 그 정합. Option B = 우리 자체 cross-layer drain 시도, NEO 원본에 없는 추가 abstraction, 시도 단계 narrative 에서 잘못 "NEO §4.4" label 붙음.
 3. **현재 v1.6 best 2,197 tps avg = Option A 영역의 best**. 추가 lever:
    - swap path Python+ATen overhead 제거 (③ 영역, After-NEO plan ★ Top Priority): +11-25%
-   - Option B 완성 (② 영역 제거): +26% (단 implement 작업 필요)
+   - cross-layer drain 자체 abstraction 완성 (NEO 원본 정합과 무관, 우리 자체 가속): +26% 가능성 (단 drain timing 동기화 fix 필요)
    - 두 lever 합산 시 vanilla 의 ~60-70% 도달 가능 (paper claim H100 +14% 는 vanilla 보다 *증가*, 실현 어려움)
