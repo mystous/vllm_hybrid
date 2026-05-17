@@ -11,7 +11,10 @@ set(ISPC_SRC_NAME pacpu)
 set(ISPC_TARGETS "avx512spr-x16")
 # IDE_006 v41 — fast-math 제거. cdec output 의 누적 numerical drift 가
 # token loss (size↑ 시 4.7% → 12.9%) 의 가능 source — strict FP 로 검증.
-set(ISPC_FLAGS "-O3")
+# SUB_015-Phase 1 (D-1) — debug symbol 추가. perf report 의 unresolved
+# 0x1de60 등 .so internal frames 의 source line 확정 목적. runtime 영향
+# 0 (.so 크기 ↑ 만). 분석 후 production 빌드 시 -g 제거 검토.
+set(ISPC_FLAGS "-O3" "-g")
 set(TARGET_SOURCES "pacpu.cpp" "pacpu.ispc")
 
 set(ISPC_ARCH "x86-64")
