@@ -59,9 +59,8 @@ bool ensure_amx_init() {
     }
     TileConfig cfg = {};
     cfg.palette = 1;
-    // Step 2 best: 3 tile config — A=0 (Q), B=1 (K^T), C=2 (FP32 result).
-    // Step 4 (C' 2-block fused, 5 tile) tried — -4% regression (작은 matmul 에서
-    // 추가 tile load + C0/C1 setup overhead > Q register reuse win). Reverted.
+    // Step 5 (best): 3 tile config — A=0 (Q), B=1 (K^T), C=2 (FP32 result).
+    // Step 6 (5-tile + G + C' 통합) tried — -3.7% regression. Reverted.
     for (int i = 0; i < 3; ++i) {
         cfg.rows[i] = 16;
         cfg.colsb[i] = 64;
@@ -149,8 +148,8 @@ extern "C" void qk_amx(
     }
 
     // Outer pre-pack: convert all K^T blocks BF16 + pad to tile layout.
-    // Step 5 (cheap variant): AVX-512 vectorized FP16→BF16 (4-8× faster than scalar).
-    //   매 block 마다 (1) row-major K BF16 변환 vectorized, (2) AMX tile interleave scalar.
+    // Step 5 (best): AVX-512 vectorized FP16→BF16 (4-8× faster than scalar).
+    // Step 6 (+ G SW prefetch + C' 2-block fused) tried — -3.7% regression. Reverted.
     alignas(64) uint16_t K_bf16_rowmajor[BLOCK_SIZE * HEAD_DIM];  // 16 × 128 × 2 = 4 KB stack
     for (int i = 0; i < imax; ++i) {
         const data_t* k_block = k_cache +
