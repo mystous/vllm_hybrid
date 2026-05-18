@@ -1,11 +1,21 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <omp.h>
 #include <vector>
 #include <algorithm>
 #include "dtype.h"
 #include "pacpu_ispc.h"
+
+// SUB_015-Phase 3 A: AMX kernel forward decl (defined in amx_kernel.cpp).
+namespace amx_kernel {
+extern "C" void attn_one_seq_amx(
+    int cur_layer, int num_blocks, int seq_len, float softmax_scale,
+    const data_t* q, const data_t* k_cache, const data_t* v_cache,
+    const int* block_table, itmd_t* a, otpt_t* o, itmd_t* asb);
+bool ensure_amx_init();
+}
 
 namespace brute {
 
@@ -328,19 +338,38 @@ void ispc_attention_tasks(
     // Step 1:
     //   compute intermediate output for each sequence block
     //   output is stored in o_buf and attn_sum_buf
+    // SUB_015-Phase 3 A: env-toggle AMX path (qk = AMX BF16, softmax/av = ISPC).
+    //   _amx_init flag thread_local — AMX permission + tile config 1 회.
+    static thread_local int _amx_decided = 0;  // 0=undecided, 1=use_amx, -1=use_ispc
+    if (_amx_decided == 0) {
+      const char* env = std::getenv("VLLM_NEO_USE_AMX");
+      bool want_amx = (env && env[0] && env[0] != '0');
+      if (want_amx && amx_kernel::ensure_amx_init()) {
+        _amx_decided = 1;
+      } else {
+        _amx_decided = -1;
+      }
+    }
     for (auto t = thrd_start_task[tid]; t < thrd_start_task[tid + 1]; t++) {
       int i, seq_offs, seg_len, cum_seg_len;
       std::tie(i, seq_offs, seg_len, cum_seg_len) = tasks[t];
       auto qip = qbatch_p + i * NUM_Q_HEADS * HEAD_DIM;
       auto oip = obatch_p + i * NUM_Q_HEADS * HEAD_DIM;
       auto btp = block_table_p + seq_ids[i] * block_table_width;
-      ispc::attn_one_seq(
-        cur_layer, num_blocks, seg_len, softmax_scale,
-        qip, kcache_p, vcache_p, btp + seq_offs / BLOCK_SIZE,
-        attn_score_buf + cum_seg_len * NUM_Q_HEADS,
-        seg_len == seq_lengths[i] ? oip : o_buf + t * NUM_Q_HEADS * HEAD_DIM,
-        attn_sum_buf + t * NUM_Q_HEADS
-      );
+      itmd_t* a_ptr = attn_score_buf + cum_seg_len * NUM_Q_HEADS;
+      otpt_t* o_ptr = (seg_len == seq_lengths[i] ? oip : o_buf + t * NUM_Q_HEADS * HEAD_DIM);
+      itmd_t* asb_ptr = attn_sum_buf + t * NUM_Q_HEADS;
+      if (_amx_decided == 1) {
+        amx_kernel::attn_one_seq_amx(
+          cur_layer, num_blocks, seg_len, (float)softmax_scale,
+          qip, kcache_p, vcache_p, btp + seq_offs / BLOCK_SIZE,
+          a_ptr, o_ptr, asb_ptr);
+      } else {
+        ispc::attn_one_seq(
+          cur_layer, num_blocks, seg_len, softmax_scale,
+          qip, kcache_p, vcache_p, btp + seq_offs / BLOCK_SIZE,
+          a_ptr, o_ptr, asb_ptr);
+      }
     }
     # pragma omp barrier
 

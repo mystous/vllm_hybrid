@@ -15,7 +15,10 @@ set(ISPC_TARGETS "avx512spr-x16")
 # 0x1de60 등 .so internal frames 의 source line 확정 목적. runtime 영향
 # 0 (.so 크기 ↑ 만). 분석 후 production 빌드 시 -g 제거 검토.
 set(ISPC_FLAGS "-O3" "-g")
-set(TARGET_SOURCES "pacpu.cpp" "pacpu.ispc")
+# SUB_015-Phase 3 A: AMX BF16 path 추가 (prod SPR 의 _tile_dpbf16ps 활용).
+# qk_amx (8.75% cycle 영역) 대체. softmax / av 는 ISPC 유지.
+# -mamx-tile / -mamx-bf16 은 -march=native (SPR) 에 포함되지만 명시.
+set(TARGET_SOURCES "pacpu.cpp" "pacpu.ispc" "amx_kernel.cpp")
 
 set(ISPC_ARCH "x86-64")
 set(ISPC_ARCH_BIT "64")
@@ -35,7 +38,8 @@ function(target_add_common_options target model_name tp_degree)
 
   set(arch_flag "-m${ISPC_ARCH_BIT}")
   # IDE_006 v41 — -Ofast 가 -ffast-math 를 enable. -O3 -march=native 로 변경.
-  target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-O3 -march=native>)
+  # SUB_015-Phase 3 A — AMX intrinsic 명시 enable (-march=native SPR 시 자동이나 명시).
+  target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-O3 -march=native -mamx-tile -mamx-bf16>)
   target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fopenmp>)
   target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:${arch_flag}>)
   string(TOUPPER ${model_name} MODEL_NAME)

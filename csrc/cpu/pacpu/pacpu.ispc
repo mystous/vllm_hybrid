@@ -106,7 +106,9 @@ export void av_product(
   }
 }
 
-void softmax(
+// SUB_015-Phase 3 A: export softmax so AMX qk path can call it directly
+// (instead of ispc::attn_one_seq which internally calls ispc qk).
+export void softmax(
   const uniform int seq_len,
   const uniform itmd_t softmax_scale,
 
