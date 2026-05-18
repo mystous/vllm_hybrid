@@ -59,7 +59,9 @@ bool ensure_amx_init() {
     }
     TileConfig cfg = {};
     cfg.palette = 1;
-    // sanity-test verified cfg: all 3 tiles rows=16 colsb=64
+    // Step 2 best: 3 tile config — A=0 (Q), B=1 (K^T), C=2 (FP32 result).
+    // Step 4 (C' 2-block fused, 5 tile) tried — -4% regression (작은 matmul 에서
+    // 추가 tile load + C0/C1 setup overhead > Q register reuse win). Reverted.
     for (int i = 0; i < 3; ++i) {
         cfg.rows[i] = 16;
         cfg.colsb[i] = 64;
@@ -80,6 +82,22 @@ static inline uint16_t f32_to_bf16(float f) {
 static inline uint16_t fp16_to_bf16(_Float16 h) {
     float f = static_cast<float>(h);
     return f32_to_bf16(f);
+}
+
+// Step 5 (vectorized): AVX-512 FP16 → BF16 batch conversion.
+//   16 elem at a time via _mm512_cvtph_ps + _mm512_cvtneps_pbh.
+//   src/dst should be 32-byte aligned for max speed; loadu/storeu used for safety.
+static inline void fp16_to_bf16_batch(const _Float16* src, uint16_t* dst, int count) {
+    int i = 0;
+    for (; i + 15 < count; i += 16) {
+        __m256i fp16_v = _mm256_loadu_si256((const __m256i*)(src + i));
+        __m512  fp32_v = _mm512_cvtph_ps(fp16_v);
+        __m256bh bf16_v = _mm512_cvtneps_pbh(fp32_v);
+        _mm256_storeu_si256((__m256i*)(dst + i), (__m256i)bf16_v);
+    }
+    for (; i < count; ++i) {
+        dst[i] = fp16_to_bf16(src[i]);
+    }
 }
 
 // qk_amx — replaces ispc::qk_product for ONE sequence segment.
@@ -131,23 +149,35 @@ extern "C" void qk_amx(
     }
 
     // Outer pre-pack: convert all K^T blocks BF16 + pad to tile layout.
-    // Strategy G (SW prefetch) tried in Step 3 — -4% regression (block_table indirection
-    // makes next-block addr unpredictable, prefetch overhead > win). Reverted.
+    // Step 5 (cheap variant): AVX-512 vectorized FP16→BF16 (4-8× faster than scalar).
+    //   매 block 마다 (1) row-major K BF16 변환 vectorized, (2) AMX tile interleave scalar.
+    alignas(64) uint16_t K_bf16_rowmajor[BLOCK_SIZE * HEAD_DIM];  // 16 × 128 × 2 = 4 KB stack
     for (int i = 0; i < imax; ++i) {
         const data_t* k_block = k_cache +
             (1ll * cur_layer * num_blocks + block_table[i]) * BLOCK_NELEM;
         int tmax = std::min(BLOCK_SIZE, seq_len - i * BLOCK_SIZE);
+
+        // Step 1: vectorized K[n, 0..127] FP16→BF16 for valid n.
+        for (int n = 0; n < tmax; ++n) {
+            fp16_to_bf16_batch(k_block + n * HEAD_DIM,
+                               K_bf16_rowmajor + n * HEAD_DIM, HEAD_DIM);
+        }
+        // Zero-pad n = tmax..BLOCK_SIZE-1 for partial last block.
+        for (int n = tmax; n < BLOCK_SIZE; ++n) {
+            std::memset(K_bf16_rowmajor + n * HEAD_DIM, 0, HEAD_DIM * 2);
+        }
+
+        // Step 2: interleave to AMX tile layout (4 round × 16 K_pair × 16 N pair × 2 byte).
         for (int round = 0; round < 4; ++round) {
             int k_off = round * 32;
             uint16_t* B_tile = _kt_cache.data() +
                 ((size_t)i * 4 + round) * (B_TILE_BYTES / 2);
             std::memset(B_tile, 0, B_TILE_BYTES);
             for (int k_pair = 0; k_pair < 16; ++k_pair) {
-                for (int n = 0; n < tmax; ++n) {
-                    int k_lo = k_off + 2 * k_pair;
-                    int k_hi = k_lo + 1;
-                    B_tile[k_pair * 32 + n * 2 + 0] = fp16_to_bf16(k_block[n * HEAD_DIM + k_lo]);
-                    B_tile[k_pair * 32 + n * 2 + 1] = fp16_to_bf16(k_block[n * HEAD_DIM + k_hi]);
+                int k_lo = k_off + 2 * k_pair;
+                for (int n = 0; n < BLOCK_SIZE; ++n) {
+                    B_tile[k_pair * 32 + n * 2 + 0] = K_bf16_rowmajor[n * HEAD_DIM + k_lo];
+                    B_tile[k_pair * 32 + n * 2 + 1] = K_bf16_rowmajor[n * HEAD_DIM + k_lo + 1];
                 }
             }
         }

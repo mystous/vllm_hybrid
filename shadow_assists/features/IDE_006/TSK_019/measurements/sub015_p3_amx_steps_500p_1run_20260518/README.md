@@ -13,10 +13,12 @@
 | S1-S9 baseline (3-run avg) | (no AMX) | 2,238.6 | 1,819 | (baseline) | — |
 | **Phase 3 A** (dropin AMX, 3-run avg) | AMX qk + 매 block 변환 | 2,142.5 | 1,898 | **-4.3%** | — |
 | **Step 1: B** (thread-Q-cache) | + same-seq Q cache | **2,237.4** | 1,814 | **-0.05%** | **+4.4%** |
-| **Step 2: B+A** (K^T outer pre-pack) ★ | + outer pre-pack | **2,275.6** | **1,784.8** | **+1.7%** ★ | **+1.7%** |
-| Step 3: B+A+G (SW prefetch) | + `_mm_prefetch` next-block K | 2,184.7 | 1,864.8 | -2.4% | **-4.0% (회귀)** |
+| **Step 2: B+A** (K^T outer pre-pack) | + outer pre-pack | **2,275.6** | 1,784.8 | **+1.7%** | **+1.7%** |
+| Step 3: B+A+G (SW prefetch) | + `_mm_prefetch` next-block K | 2,184.7 | 1,864.8 | -2.4% | **-4.0% (revert)** |
+| Step 4: B+A+C' (2-block fused) | 5-tile cfg, B0+B1+C0+C1 dispatch | 2,184.0 | 1,862.2 | -2.4% | **-4.0% (revert)** |
+| **Step 5: B+A+vec K conv** ★ | + AVX-512 `_mm512_cvtneps_pbh` (vectorized K FP16→BF16) | **2,284.0** | **1,774.6** | **+2.0%** ★ | **+0.4% (best)** |
 
-★ **Step 2 = best**: Phase 3 A 의 -4.3% 회귀에서 **+1.7% net gain** 으로 전환.
+★ **Step 5 = best**: Phase 3 A 의 -4.3% 회귀 → Step 1 (-0.05%) → Step 2 (+1.7%) → **Step 5 (+2.0%)**.
 
 ---
 
@@ -58,18 +60,60 @@
 - L2 capacity (2 MB/core) 가 이미 K^T cache 충분 — additional prefetch 의 marginal value 0
 - net: Step 2 대비 **-4.0% (회귀)** → Step 3 revert
 
+### Step 4: Strategy C' — 2-block fused (실측 회귀)
+
+**변경 위치**: tile cfg 3→5 tile (A, B0, B1, C0, C1), 2 consecutive block 의 K^T 를 stack 으로 처리. Q register reuse (1 load, 2 dpbf16ps).
+
+**회귀 root**:
+- 추가 tile_loadd × 1 (B1) + tile_zero × 2 + tile_stored × 2 의 setup overhead
+- 작은 matmul (M=8, 1 block 의 work = 16,384 FMA = 16 cycle) 에서는 추가 tile setup (각 ~30 cycle) overhead 가 Q register reuse win 보다 큼
+- net: Step 2 대비 **-4.0% (회귀)** → Step 4 revert. vllm 의 8-tile pattern 은 M ≥ 32 large matmul 용으로 적합, NEO 의 작은 matmul 에서는 비효율.
+
+### Step 5: Strategy vectorized K conv — AVX-512 `_mm512_cvtneps_pbh` (실측 win)
+
+**변경 위치**: `fp16_to_bf16_batch()` 추가, K^T pre-pack loop 의 scalar `fp16_to_bf16` 호출을 batch vectorized 으로 대체.
+
+**구현**:
+```cpp
+static inline void fp16_to_bf16_batch(const _Float16* src, uint16_t* dst, int count) {
+    int i = 0;
+    for (; i + 15 < count; i += 16) {
+        __m256i fp16_v = _mm256_loadu_si256((const __m256i*)(src + i));
+        __m512  fp32_v = _mm512_cvtph_ps(fp16_v);
+        __m256bh bf16_v = _mm512_cvtneps_pbh(fp32_v);
+        _mm256_storeu_si256((__m256i*)(dst + i), (__m256i)bf16_v);
+    }
+    for (; i < count; ++i) {
+        dst[i] = fp16_to_bf16(src[i]);
+    }
+}
+```
+
+K^T pre-pack 의 2-pass:
+1. Per block: vectorized FP16→BF16 → row-major K_bf16_rowmajor[16][128]
+2. Per round (4): scalar interleave to AMX tile layout
+
+**Win**:
+- 16 elem 변환 = 3 instruction (load+cvtph_ps+cvtneps_pbh+store) = ~10 cycle vs 16 scalar = ~80-160 cycle = **4-8× 빠름**
+- K 변환 cost 가 imax × 2048 element × scalar → imax × ~128 vector × vectorized
+- net: Step 2 대비 **+0.4% (best)**, S1-S9 대비 **+2.0%**
+
+**Risk**: 0 (정확도 동일 — fp16→fp32→bf16 round-trip 은 scalar version 과 numerically equivalent)
+
 ---
 
-## 최종 코드 상태 (Step 2 = best)
+## 최종 코드 상태 (Step 5 = best)
 
 | 파일 | 상태 |
 |---|---:|
-| `csrc/cpu/pacpu/amx_kernel.cpp` | **Step 2 (B+A)** 적용 — thread Q cache + K^T outer pre-pack. SW prefetch reverted. |
+| `csrc/cpu/pacpu/amx_kernel.cpp` | **Step 5 (B+A+vec K conv)** 적용 — thread Q cache + K^T outer pre-pack + vectorized FP16→BF16 |
 | `csrc/cpu/pacpu/core.h` | env-toggle dispatch (`VLLM_NEO_USE_AMX`) |
 | `csrc/cpu/pacpu/pacpu.ispc` | softmax export |
 | `csrc/cpu/pacpu/CMakeLists.txt` | amx_kernel.cpp + `-mamx-tile -mamx-bf16` |
 
-**default off** (env-gated). `VLLM_NEO_USE_AMX=1` 활성 시 Step 2 path.
+**default off** (env-gated). `VLLM_NEO_USE_AMX=1` 활성 시 Step 5 path.
+
+Step 3 (SW prefetch), Step 4 (C' 2-block fused) 모두 시도 후 revert. tile cfg 는 3 tile 로 유지.
 
 ---
 
