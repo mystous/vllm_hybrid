@@ -100,13 +100,36 @@ void paged_attention_cpu(
 
   assert_hyper_params_expected(num_q_heads, num_kv_heads, num_layers, head_dim, block_size);
 
+  // P3 (F3) — K dtype 분기. BF16 시 host store 그대로 (bit-pattern preserve,
+  //   sizeof 동일). Q, V 는 FP16 hard-coded (Q AMX 안 BF16 conv, V ISPC).
+  bool k_is_bf16 = (k.scalar_type() == at::kBFloat16);
+  if (k_is_bf16) {
+    TORCH_CHECK(k_cache.scalar_type() == at::kBFloat16,
+                "P3: k staging BF16 then k_cache must also be BF16");
+    TORCH_CHECK(q.scalar_type() == at::kHalf,
+                "P3: q must be FP16 (AMX path converts internally)");
+    TORCH_CHECK(v.scalar_type() == at::kHalf,
+                "P3: v must be FP16 (ISPC av_product hard-coded)");
+    TORCH_CHECK(v_cache.scalar_type() == at::kHalf,
+                "P3: v_cache must be FP16 (av_product reads FP16)");
+  }
+
   auto qbatch_p = (data_t*) q.data_ptr<at_data_t>();
-  auto kbatch_p = (data_t*) k.data_ptr<at_data_t>();
   auto vbatch_p = (data_t*) v.data_ptr<at_data_t>();
   auto obatch_p = o.data_ptr<otpt_t>();
-  auto kcache_p = (data_t*) k_cache.data_ptr<at_data_t>();
   auto vcache_p = (data_t*) v_cache.data_ptr<at_data_t>();
   auto block_table_p = block_table.data_ptr<int32_t>(); // [batch_size, max_seq_len]
+  // K pointer: BF16 시 raw bit pointer (사용은 ispc_attention_tasks 안의
+  //   store_kv memcpy + AMX BF16 path 만, ISPC qk path 진입 X).
+  data_t* kbatch_p;
+  data_t* kcache_p;
+  if (k_is_bf16) {
+    kbatch_p = reinterpret_cast<data_t*>(k.data_ptr<at::BFloat16>());
+    kcache_p = reinterpret_cast<data_t*>(k_cache.data_ptr<at::BFloat16>());
+  } else {
+    kbatch_p = (data_t*) k.data_ptr<at_data_t>();
+    kcache_p = (data_t*) k_cache.data_ptr<at_data_t>();
+  }
 
   #ifdef USE_BRUTE_OPER
     brute_attention(
@@ -124,7 +147,8 @@ void paged_attention_cpu(
     ispc_attention_tasks(
       cur_layer, num_blocks, batch_size, block_table_width, softmax_scale,
       seq_ids, seq_lengths,
-      qbatch_p, kbatch_p, vbatch_p, obatch_p, kcache_p, vcache_p, block_table_p
+      qbatch_p, kbatch_p, vbatch_p, obatch_p, kcache_p, vcache_p, block_table_p,
+      k_is_bf16   // P3 flag
     );
   #endif
 }

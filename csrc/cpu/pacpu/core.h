@@ -14,6 +14,11 @@ extern "C" void attn_one_seq_amx(
     int cur_layer, int num_blocks, int seq_len, float softmax_scale,
     const data_t* q, const data_t* k_cache, const data_t* v_cache,
     const int* block_table, itmd_t* a, otpt_t* o, itmd_t* asb);
+// P3 (F3) — BF16-K variant. K BF16 raw bit pointer, V FP16 그대로.
+extern "C" void attn_one_seq_amx_bf16(
+    int cur_layer, int num_blocks, int seq_len, float softmax_scale,
+    const data_t* q, const uint16_t* k_cache_bf16, const data_t* v_cache,
+    const int* block_table, itmd_t* a, otpt_t* o, itmd_t* asb);
 bool ensure_amx_init();
 }
 
@@ -244,7 +249,12 @@ void ispc_attention_tasks(
   otpt_t obatch_p[],
   data_t kcache_p[],
   data_t vcache_p[],
-  int block_table_p[]
+  int block_table_p[],
+  bool k_is_bf16 = false   // P3 (F3) — host K BF16 store flag.
+                            // K input + K cache 모두 BF16 bit pattern.
+                            // store_kv 는 pure memcpy 라 dtype-agnostic.
+                            // AMX path 의 attn_one_seq_amx_bf16 호출 분기.
+                            // ISPC path 는 BF16 지원 X → AMX 강제 시 진입.
 ) {
   // Phase 3.1 — Persistent OMP team settings.
   // omp_set_dynamic(0): runtime 의 dynamic thread 수 조정 비활성화 (매 call thread
@@ -362,11 +372,25 @@ void ispc_attention_tasks(
       otpt_t* o_ptr = (seg_len == seq_lengths[i] ? oip : o_buf + t * NUM_Q_HEADS * HEAD_DIM);
       itmd_t* asb_ptr = attn_sum_buf + t * NUM_Q_HEADS;
       if (_amx_decided == 1) {
-        amx_kernel::attn_one_seq_amx(
-          cur_layer, num_blocks, seg_len, (float)softmax_scale,
-          qip, kcache_p, vcache_p, btp + seq_offs / BLOCK_SIZE,
-          a_ptr, o_ptr, asb_ptr);
+        // P3 (F3) — K BF16 시 BF16-native variant 호출 (Step 1 vec K conv
+        //   skip). Q FP16 그대로, V FP16 그대로 (ISPC av_product).
+        if (k_is_bf16) {
+          amx_kernel::attn_one_seq_amx_bf16(
+            cur_layer, num_blocks, seg_len, (float)softmax_scale,
+            qip, reinterpret_cast<const uint16_t*>(kcache_p),
+            vcache_p, btp + seq_offs / BLOCK_SIZE,
+            a_ptr, o_ptr, asb_ptr);
+        } else {
+          amx_kernel::attn_one_seq_amx(
+            cur_layer, num_blocks, seg_len, (float)softmax_scale,
+            qip, kcache_p, vcache_p, btp + seq_offs / BLOCK_SIZE,
+            a_ptr, o_ptr, asb_ptr);
+        }
       } else {
+        // ISPC path = K FP16 hard-coded. K BF16 시 진입 안 함 (caller 가
+        //   USE_AMX=1 + HOST_K_BF16=1 동시 활성 만 허용). 만약 dispatch
+        //   fail (AMX init fail) + K BF16 시 결과 garbage 위험 — fallback
+        //   throw 또는 forward 진입 막기 위한 caller-side check 필요.
         ispc::attn_one_seq(
           cur_layer, num_blocks, seg_len, softmax_scale,
           qip, kcache_p, vcache_p, btp + seq_offs / BLOCK_SIZE,
