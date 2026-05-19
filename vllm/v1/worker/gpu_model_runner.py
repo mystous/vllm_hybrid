@@ -6387,9 +6387,11 @@ class GPUModelRunner(
             _N = 3
         _N = max(1, min(_N, 8))
         try:
+            # P3 (F3) — K, V 별도 dtype. K = spec.dtype (env-aware BF16/FP16),
+            # V = spec.v_dtype (항상 FP16, ISPC av_product 요구).
             for _ in range(_N):
                 k = torch.empty(shape, dtype=spec.dtype, pin_memory=True)
-                v = torch.empty(shape, dtype=spec.dtype, pin_memory=True)
+                v = torch.empty(shape, dtype=spec.v_dtype, pin_memory=True)
                 self._neo_swap_staging_k_list.append(k)
                 self._neo_swap_staging_v_list.append(v)
             _per_slot_mib = self._neo_swap_staging_k_list[0].nbytes / 1024 ** 2
@@ -6468,9 +6470,11 @@ class GPUModelRunner(
             if k_b.dim() == 4 and k_b.shape[1] != spec.num_kv_heads:
                 k_b = k_b.permute(0, 2, 1, 3).contiguous()
                 v_b = v_b.permute(0, 2, 1, 3).contiguous()
+            # P3 (F3) — K, V 별도 dtype.
             if k_b.dtype != spec.dtype:
                 k_b = k_b.to(spec.dtype)
-                v_b = v_b.to(spec.dtype)
+            if v_b.dtype != spec.v_dtype:
+                v_b = v_b.to(spec.v_dtype)
             k_gpu.append(k_b)
             v_gpu.append(v_b)
         return {
@@ -6827,11 +6831,12 @@ class GPUModelRunner(
             spec.num_kv_heads, spec.block_size, spec.head_dim,
         )
         try:
+            # P3 (F3) — K, V 별도 dtype. K = spec.dtype (env-aware), V = spec.v_dtype (FP16).
             self._neo_sync_swap_staging_k = torch.empty(
                 shape, dtype=spec.dtype, pin_memory=True
             )
             self._neo_sync_swap_staging_v = torch.empty(
-                shape, dtype=spec.dtype, pin_memory=True
+                shape, dtype=spec.v_dtype, pin_memory=True
             )
             logger.info(
                 "[NEO] sync swap staging alloc (SUB_028): shape=%s "
@@ -6900,9 +6905,11 @@ class GPUModelRunner(
             if k_b.dim() == 4 and k_b.shape[1] != spec.num_kv_heads:
                 k_b = k_b.permute(0, 2, 1, 3).contiguous()
                 v_b = v_b.permute(0, 2, 1, 3).contiguous()
+            # P3 (F3) — K, V 별도 dtype.
             if k_b.dtype != spec.dtype:
                 k_b = k_b.to(spec.dtype)
-                v_b = v_b.to(spec.dtype)
+            if v_b.dtype != spec.v_dtype:
+                v_b = v_b.to(spec.v_dtype)
             # Async H2D into pinned staging — non-blocking, all 80 queued
             # on swap_stream sequentially. PyTorch lowering = pinned-dst
             # cudaMemcpyAsync (fast path).
