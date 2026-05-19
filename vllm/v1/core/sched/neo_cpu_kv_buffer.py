@@ -657,13 +657,30 @@ def make_spec_from_config(vllm_config) -> NeoCpuKvBufferSpec | None:
         # NEO's pacpu uses FP16. vLLM models are typically BF16 — Phase
         # 4.2 will need a cast. For now allocate FP16 buffer; cast at
         # move time.
+        # P3 (F3) — host K, V dtype env-aware. VLLM_NEO_HOST_K_BF16=1 +
+        # VLLM_NEO_USE_AMX=1 동시 활성 시 BF16 store. AMX path 의 vec K
+        # FP16→BF16 conversion 이 redundant 되어 cost 제거. env=0 또는
+        # AMX=0 시 FP16 유지 (ISPC path fallback). 본 결정은 env 동시
+        # 활성 의 안전 영역 — ISPC path 가 host K BF16 처리 못 함.
+        import os as _os_p3
+        _host_bf16 = (
+            _os_p3.environ.get("VLLM_NEO_HOST_K_BF16", "0") == "1"
+            and _os_p3.environ.get("VLLM_NEO_USE_AMX", "0") == "1"
+        )
+        _host_dtype = torch.bfloat16 if _host_bf16 else torch.float16
+        logger.info(
+            "NeoCpuKvBuffer host dtype = %s (HOST_K_BF16=%s, USE_AMX=%s)",
+            _host_dtype,
+            _os_p3.environ.get("VLLM_NEO_HOST_K_BF16", "0"),
+            _os_p3.environ.get("VLLM_NEO_USE_AMX", "0"),
+        )
         return NeoCpuKvBufferSpec(
             num_layers=num_layers,
             num_kv_heads=num_kv_heads,
             block_size=block_size,
             head_dim=head_dim,
             num_cpu_blocks=num_cpu_blocks,
-            dtype=torch.float16,
+            dtype=_host_dtype,
         )
     except (AttributeError, ValueError, ZeroDivisionError) as e:
         logger.warning(

@@ -977,8 +977,25 @@ def unified_attention_with_output(
                             # overlap. main thread 가 submit 직전
                             # event.synchronize() 호출 (GIL 안전 — worker
                             # thread sync 는 SUB_005 회귀 root).
+                            # P3 (F3) — VLLM_NEO_HOST_K_BF16=1 + AMX=1
+                            # 동시 활성 시 staging 도 BF16. cdec K, V
+                            # 의 cast (BF16 → FP16) 단계 제거 + AMX
+                            # native dtype 일관. host kv buffer
+                            # (buf.spec.dtype) 와 동일 dtype 유지.
+                            import os as _os_p3_st
+                            _host_bf16_st = (
+                                _os_p3_st.environ.get(
+                                    "VLLM_NEO_HOST_K_BF16", "0") == "1"
+                                and _os_p3_st.environ.get(
+                                    "VLLM_NEO_USE_AMX", "0") == "1"
+                            )
+                            _stage_dtype = (
+                                torch.bfloat16 if _host_bf16_st
+                                else torch.float16
+                            )
                             q_cpu, k_cpu, v_cpu = _get_neo_pinned_qkv(
                                 cdec_count, nh, nkh, hd,
+                                dtype=_stage_dtype,
                             )
                             _xfer_stream = _get_neo_communication_stream()
                             _xfer_stream.wait_stream(
@@ -990,17 +1007,19 @@ def unified_attention_with_output(
                             # 없음. vllm_hybrid 는 GPU BF16 / CPU FP16
                             # 불가피 — implicit (SUB_022) vs explicit
                             # (본 회차) 위치 측정.
+                            # P3 — env=1 시 GPU BF16 → CPU BF16 same-
+                            # dtype (cast 없음, NEO 원본 정합).
                             with torch.cuda.stream(_xfer_stream):
                                 q_cpu.copy_(
-                                    q_cdec.to(torch.float16),
+                                    q_cdec.to(_stage_dtype),
                                     non_blocking=True,
                                 )
                                 k_cpu.copy_(
-                                    k_cdec.to(torch.float16),
+                                    k_cdec.to(_stage_dtype),
                                     non_blocking=True,
                                 )
                                 v_cpu.copy_(
-                                    v_cdec.to(torch.float16),
+                                    v_cdec.to(_stage_dtype),
                                     non_blocking=True,
                                 )
                             _xfer_event = _xfer_stream.record_event()
