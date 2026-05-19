@@ -978,25 +978,32 @@ def unified_attention_with_output(
                             # event.synchronize() 호출 (GIL 안전 — worker
                             # thread sync 는 SUB_005 회귀 root).
                             # P3 (F3) — VLLM_NEO_HOST_K_BF16=1 + AMX=1
-                            # 동시 활성 시 staging 도 BF16. cdec K, V
-                            # 의 cast (BF16 → FP16) 단계 제거 + AMX
-                            # native dtype 일관. host kv buffer
-                            # (buf.spec.dtype) 와 동일 dtype 유지.
+                            # 동시 활성 시 K staging 만 BF16. Q, V 는
+                            # FP16 유지 (Q AMX path 내부 BF16 conv,
+                            # V ISPC av_product FP16 hard-coded).
                             import os as _os_p3_st
-                            _host_bf16_st = (
+                            _host_k_bf16_st = (
                                 _os_p3_st.environ.get(
                                     "VLLM_NEO_HOST_K_BF16", "0") == "1"
                                 and _os_p3_st.environ.get(
                                     "VLLM_NEO_USE_AMX", "0") == "1"
                             )
-                            _stage_dtype = (
-                                torch.bfloat16 if _host_bf16_st
+                            _k_stage_dtype = (
+                                torch.bfloat16 if _host_k_bf16_st
                                 else torch.float16
                             )
-                            q_cpu, k_cpu, v_cpu = _get_neo_pinned_qkv(
+                            q_cpu, _k_cpu_fp16, v_cpu = _get_neo_pinned_qkv(
                                 cdec_count, nh, nkh, hd,
-                                dtype=_stage_dtype,
                             )
+                            if _host_k_bf16_st:
+                                # K staging BF16 별도 alloc — pinned, 매
+                                # cdec dispatch 마다 alloc 회피 위해
+                                # module-level cache (SUB_022 패턴).
+                                k_cpu = _get_neo_pinned_k_bf16(
+                                    cdec_count, nkh, hd,
+                                )
+                            else:
+                                k_cpu = _k_cpu_fp16
                             _xfer_stream = _get_neo_communication_stream()
                             _xfer_stream.wait_stream(
                                 torch.cuda.current_stream()
@@ -1007,19 +1014,19 @@ def unified_attention_with_output(
                             # 없음. vllm_hybrid 는 GPU BF16 / CPU FP16
                             # 불가피 — implicit (SUB_022) vs explicit
                             # (본 회차) 위치 측정.
-                            # P3 — env=1 시 GPU BF16 → CPU BF16 same-
-                            # dtype (cast 없음, NEO 원본 정합).
+                            # P3 — env=1 시 K 만 BF16 same-dtype copy
+                            # (GPU BF16 → CPU BF16, cast 제거).
                             with torch.cuda.stream(_xfer_stream):
                                 q_cpu.copy_(
-                                    q_cdec.to(_stage_dtype),
+                                    q_cdec.to(torch.float16),
                                     non_blocking=True,
                                 )
                                 k_cpu.copy_(
-                                    k_cdec.to(_stage_dtype),
+                                    k_cdec.to(_k_stage_dtype),
                                     non_blocking=True,
                                 )
                                 v_cpu.copy_(
-                                    v_cdec.to(_stage_dtype),
+                                    v_cdec.to(torch.float16),
                                     non_blocking=True,
                                 )
                             _xfer_event = _xfer_stream.record_event()
@@ -1433,6 +1440,27 @@ def _neo_compute_wait_comm() -> None:
     """
     _comm_stream = _get_neo_communication_stream()
     torch.cuda.current_stream().wait_stream(_comm_stream)
+
+
+# P3 (F3) — module-level K BF16 staging cache, env=1 + AMX=1 시만 사용.
+_neo_pinned_k_bf16 = None
+_neo_pinned_k_bf16_capacity = 0
+
+
+def _get_neo_pinned_k_bf16(num_tokens, num_kv_heads, head_dim):
+    """P3 — K BF16 staging buffer cache. q/v 와 별도 alloc (q FP16, v FP16,
+    k BF16). env=0 시 진입 안 함.
+    """
+    global _neo_pinned_k_bf16, _neo_pinned_k_bf16_capacity
+    if (_neo_pinned_k_bf16 is None
+            or num_tokens > _neo_pinned_k_bf16_capacity):
+        capacity = max(num_tokens, 256)
+        _neo_pinned_k_bf16 = torch.empty(
+            (capacity, num_kv_heads, head_dim),
+            dtype=torch.bfloat16, pin_memory=True,
+        )
+        _neo_pinned_k_bf16_capacity = capacity
+    return _neo_pinned_k_bf16[:num_tokens]
 
 
 def _get_neo_pinned_qkv(num_tokens, num_q_heads, num_kv_heads, head_dim,

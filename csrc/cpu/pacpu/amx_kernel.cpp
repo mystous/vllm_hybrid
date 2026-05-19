@@ -235,4 +235,121 @@ extern "C" void attn_one_seq_amx(
     ispc::av_product(cur_layer, num_blocks, seq_len, a, v_cache, block_table, o);
 }
 
+// P3 (F3) — BF16-native qk_amx variant. host K 가 이미 BF16 store 인 경우
+//   Step 1 (FP16→BF16 vec conv) skip → memory bandwidth saved.
+//   K^T pre-pack (Step 2) 의 interleave 영역은 동일 유지.
+//   Q 변환 영역 (Strategy B thread_local cache) 도 동일.
+extern "C" void qk_amx_bf16(
+    int cur_layer,
+    int num_blocks,
+    int seq_len,
+    const data_t* q,                   // FP16, AMX path 내부 BF16 conv
+    const uint16_t* k_cache_bf16,      // BF16 bits, host store 그대로
+    const int* block_table,
+    itmd_t* a
+) {
+    if (!ensure_amx_init()) return;
+
+    // Strategy B: Q FP16 → BF16 thread_local cache (동일).
+    if (q != _last_q_ptr) {
+        std::memset(_cached_Q_bf16, 0, sizeof(_cached_Q_bf16));
+        for (int m = 0; m < NUM_Q_HEADS; ++m) {
+            for (int k = 0; k < HEAD_DIM; ++k) {
+                _cached_Q_bf16[m * 128 + k] = fp16_to_bf16(q[m * HEAD_DIM + k]);
+            }
+        }
+        _last_q_ptr = q;
+    }
+    uint16_t* Q_bf16 = _cached_Q_bf16;
+
+    int imax = (seq_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
+    // Strategy A: K^T pre-pack outer hoist (동일).
+    static thread_local std::vector<uint16_t> _kt_cache;
+    constexpr int B_TILE_BYTES = 16 * 64;
+    size_t needed_u16 = (size_t)imax * 4 * (B_TILE_BYTES / 2);
+    if (_kt_cache.size() < needed_u16) {
+        _kt_cache.resize(needed_u16);
+    }
+
+    // P3 영역: K 가 이미 BF16. partial last block 만 local buffer 로 zero-pad.
+    alignas(64) uint16_t K_bf16_local[BLOCK_SIZE * HEAD_DIM];
+    for (int i = 0; i < imax; ++i) {
+        const uint16_t* k_block = k_cache_bf16 +
+            (1ll * cur_layer * num_blocks + block_table[i]) * BLOCK_NELEM;
+        int tmax = std::min(BLOCK_SIZE, seq_len - i * BLOCK_SIZE);
+
+        // P3 (F3): Step 1 vec K FP16→BF16 conv 제거. k_block 이 이미 BF16.
+        const uint16_t* K_bf16_rowmajor;
+        if (tmax == BLOCK_SIZE) {
+            K_bf16_rowmajor = k_block;   // alias, no copy
+        } else {
+            // Partial block — local buffer 에 copy + zero-pad.
+            std::memcpy(K_bf16_local, k_block, tmax * HEAD_DIM * 2);
+            for (int n = tmax; n < BLOCK_SIZE; ++n) {
+                std::memset(K_bf16_local + n * HEAD_DIM, 0, HEAD_DIM * 2);
+            }
+            K_bf16_rowmajor = K_bf16_local;
+        }
+
+        // Step 2: interleave to AMX tile layout (동일).
+        for (int round = 0; round < 4; ++round) {
+            int k_off = round * 32;
+            uint16_t* B_tile = _kt_cache.data() +
+                ((size_t)i * 4 + round) * (B_TILE_BYTES / 2);
+            std::memset(B_tile, 0, B_TILE_BYTES);
+            for (int k_pair = 0; k_pair < 16; ++k_pair) {
+                int k_lo = k_off + 2 * k_pair;
+                for (int n = 0; n < BLOCK_SIZE; ++n) {
+                    B_tile[k_pair * 32 + n * 2 + 0] = K_bf16_rowmajor[n * HEAD_DIM + k_lo];
+                    B_tile[k_pair * 32 + n * 2 + 1] = K_bf16_rowmajor[n * HEAD_DIM + k_lo + 1];
+                }
+            }
+        }
+    }
+
+    // Inner AMX hot loop (동일).
+    alignas(64) float C[16 * 16];
+    for (int i = 0; i < imax; ++i) {
+        int tmax = std::min(BLOCK_SIZE, seq_len - i * BLOCK_SIZE);
+        _tile_zero(2);
+        for (int round = 0; round < 4; ++round) {
+            int k_off = round * 32;
+            const uint16_t* B_tile = _kt_cache.data() +
+                ((size_t)i * 4 + round) * (B_TILE_BYTES / 2);
+            _tile_loadd(0, Q_bf16 + k_off, 128 * 2);
+            _tile_loadd(1, B_tile, 64);
+            _tile_dpbf16ps(2, 0, 1);
+        }
+        _tile_stored(2, C, 16 * 4);
+
+        int a_base = i * BLOCK_SIZE * NUM_Q_HEADS;
+        for (int t = 0; t < tmax; ++t) {
+            for (int h = 0; h < NUM_Q_HEADS; ++h) {
+                a[a_base + t * NUM_Q_HEADS + h] = C[h * 16 + t];
+            }
+        }
+    }
+}
+
+// P3 (F3) — BF16-K variant of attn_one_seq_amx. K BF16, V FP16 (ISPC kernel
+//   요구). Q FP16 그대로.
+extern "C" void attn_one_seq_amx_bf16(
+    int cur_layer,
+    int num_blocks,
+    int seq_len,
+    float softmax_scale,
+    const data_t* q,                   // FP16
+    const uint16_t* k_cache_bf16,      // BF16
+    const data_t* v_cache,             // FP16 그대로 (ISPC av_product)
+    const int* block_table,
+    itmd_t* a,
+    otpt_t* o,
+    itmd_t* asb
+) {
+    qk_amx_bf16(cur_layer, num_blocks, seq_len, q, k_cache_bf16, block_table, a);
+    ispc::softmax(seq_len, softmax_scale, a, asb);
+    ispc::av_product(cur_layer, num_blocks, seq_len, a, v_cache, block_table, o);
+}
+
 }  // namespace amx_kernel

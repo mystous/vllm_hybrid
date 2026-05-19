@@ -45,7 +45,11 @@ class NeoCpuKvBufferSpec:
     # ``ceil(max_model_len / block_size)``. Caller should round up so
     # the worst-case fully-filled CPU residence is supported.
     num_cpu_blocks: int
-    dtype: torch.dtype = torch.float16   # NEO pacpu expects FP16
+    # P3 (F3) — K dtype env-aware (VLLM_NEO_HOST_K_BF16=1 + USE_AMX=1 시 BF16).
+    # V dtype 은 항상 FP16 — av_product 의 ISPC kernel 이 V FP16 hard-coded.
+    # ``dtype`` 영역은 K dtype 으로 사용 (backward compat alias).
+    dtype: torch.dtype = torch.float16   # K dtype, NEO pacpu default FP16
+    v_dtype: torch.dtype = torch.float16   # V dtype, 항상 FP16
 
     @property
     def per_block_elems(self) -> int:
@@ -53,14 +57,10 @@ class NeoCpuKvBufferSpec:
 
     def cpu_buffer_bytes(self) -> int:
         # K + V each: layers * blocks * per_block_elems * dtype_bytes
-        elt = torch.tensor([], dtype=self.dtype).element_size()
-        per = (
-            self.num_layers
-            * self.num_cpu_blocks
-            * self.per_block_elems
-            * elt
-        )
-        return per * 2     # K + V
+        k_elt = torch.tensor([], dtype=self.dtype).element_size()
+        v_elt = torch.tensor([], dtype=self.v_dtype).element_size()
+        base = self.num_layers * self.num_cpu_blocks * self.per_block_elems
+        return base * (k_elt + v_elt)
 
 
 @dataclass
@@ -168,12 +168,13 @@ class NeoCpuKvBuffer:
         # ``pin_memory=True`` requires CUDA available; on CPU-only
         # systems fall back to regular (cpu_only paths exist for
         # tests).
+        # P3 — K, V 별도 dtype. K = spec.dtype (env-aware), V = spec.v_dtype (FP16).
         try:
             self.k_cpu = torch.empty(
                 shape, dtype=spec.dtype, pin_memory=True
             )
             self.v_cpu = torch.empty(
-                shape, dtype=spec.dtype, pin_memory=True
+                shape, dtype=spec.v_dtype, pin_memory=True
             )
         except RuntimeError as e:
             logger.warning(
@@ -182,7 +183,7 @@ class NeoCpuKvBuffer:
                 "synchronous.", e,
             )
             self.k_cpu = torch.empty(shape, dtype=spec.dtype)
-            self.v_cpu = torch.empty(shape, dtype=spec.dtype)
+            self.v_cpu = torch.empty(shape, dtype=spec.v_dtype)
 
         self._free_block_ids: list[int] = list(range(spec.num_cpu_blocks))
         self._req_alloc: dict[str, _PerReqAllocation] = {}
@@ -399,13 +400,13 @@ class NeoCpuKvBuffer:
                 f"[0, {self.spec.num_layers})"
             )
 
-        # Cast to NEO's FP16 if needed; move to CPU. Pinned dst makes
+        # Cast to NEO's K/V dtype if needed; move to CPU. Pinned dst makes
         # cudaMemcpyAsync the natural fast path when source is GPU.
-        cast = self.spec.dtype
-        if k_src.dtype != cast:
-            k_src = k_src.to(cast)
-        if v_src.dtype != cast:
-            v_src = v_src.to(cast)
+        # P3 — K, V 별도 dtype (K env-aware, V 항상 FP16).
+        if k_src.dtype != self.spec.dtype:
+            k_src = k_src.to(self.spec.dtype)
+        if v_src.dtype != self.spec.v_dtype:
+            v_src = v_src.to(self.spec.v_dtype)
         # ``self.k_cpu[layer_idx, idx]`` (advanced indexing) returns a
         # *copy*, not a view — ``.copy_()`` on it would not write back.
         # Use ``index_put_`` or direct indexed assignment instead.
@@ -657,20 +658,20 @@ def make_spec_from_config(vllm_config) -> NeoCpuKvBufferSpec | None:
         # NEO's pacpu uses FP16. vLLM models are typically BF16 — Phase
         # 4.2 will need a cast. For now allocate FP16 buffer; cast at
         # move time.
-        # P3 (F3) — host K, V dtype env-aware. VLLM_NEO_HOST_K_BF16=1 +
-        # VLLM_NEO_USE_AMX=1 동시 활성 시 BF16 store. AMX path 의 vec K
-        # FP16→BF16 conversion 이 redundant 되어 cost 제거. env=0 또는
-        # AMX=0 시 FP16 유지 (ISPC path fallback). 본 결정은 env 동시
-        # 활성 의 안전 영역 — ISPC path 가 host K BF16 처리 못 함.
+        # P3 (F3) — host K dtype env-aware. V 는 항상 FP16 (av_product 의 ISPC
+        # kernel 이 V FP16 hard-coded). VLLM_NEO_HOST_K_BF16=1 + USE_AMX=1
+        # 동시 활성 시 K 만 BF16 store. AMX path 의 vec K FP16→BF16 conv
+        # redundant 됨. env=0 또는 AMX=0 시 K 도 FP16 유지 (ISPC fallback).
         import os as _os_p3
-        _host_bf16 = (
+        _host_k_bf16 = (
             _os_p3.environ.get("VLLM_NEO_HOST_K_BF16", "0") == "1"
             and _os_p3.environ.get("VLLM_NEO_USE_AMX", "0") == "1"
         )
-        _host_dtype = torch.bfloat16 if _host_bf16 else torch.float16
+        _k_dtype = torch.bfloat16 if _host_k_bf16 else torch.float16
         logger.info(
-            "NeoCpuKvBuffer host dtype = %s (HOST_K_BF16=%s, USE_AMX=%s)",
-            _host_dtype,
+            "NeoCpuKvBuffer dtype: K=%s V=float16 "
+            "(HOST_K_BF16=%s, USE_AMX=%s)",
+            _k_dtype,
             _os_p3.environ.get("VLLM_NEO_HOST_K_BF16", "0"),
             _os_p3.environ.get("VLLM_NEO_USE_AMX", "0"),
         )
@@ -680,7 +681,8 @@ def make_spec_from_config(vllm_config) -> NeoCpuKvBufferSpec | None:
             block_size=block_size,
             head_dim=head_dim,
             num_cpu_blocks=num_cpu_blocks,
-            dtype=_host_dtype,
+            dtype=_k_dtype,
+            v_dtype=torch.float16,
         )
     except (AttributeError, ValueError, ZeroDivisionError) as e:
         logger.warning(
