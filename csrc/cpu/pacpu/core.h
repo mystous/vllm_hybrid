@@ -350,6 +350,8 @@ void ispc_attention_tasks(
         _amx_decided = -1;
       }
     }
+    // P2 F6 (dynamic schedule) 단독 측정 = -1.4% 회귀 (564.9 vs 573.0 baseline).
+    //   atomic counter overhead 가 imbalance ↓ win 보다 큼. static partition 복원.
     for (auto t = thrd_start_task[tid]; t < thrd_start_task[tid + 1]; t++) {
       int i, seq_offs, seg_len, cum_seg_len;
       std::tie(i, seq_offs, seg_len, cum_seg_len) = tasks[t];
