@@ -1158,7 +1158,21 @@ def unified_attention_with_output(
     # 우리 implement 의 _neo_pending_cdec_queue 가 NEO 원본에 없는 abstraction
     # (starvation root). Option A (sync wait) 영역만 유지 — NEO 원본의 layer
     # 안 sync 정합. wall path overhead 는 별도 batch interleave (S8) 로 해소.
-    if cdec_future is not None:
+    # P4 (F1) — VLLM_NEO_ASYNC_CDEC=1 + forward_pipeline 활성 시 async branch.
+    # `_neo_async_cdec_mode` 가 True 면 sync wait 대신 deque enqueue + depth cap.
+    # consumer (postproj) 직전 의 drain 은 sub_batch_executor.forward_double /
+    # forward_first_stage / forward_last_stage 가 책임.
+    if cdec_future is not None and _neo_async_cdec_mode:
+        _neo_pending_cdec_queue.append(
+            (cdec_future, output, cdec_t0, cdec_t1)
+        )
+        import os as _os_async_p4
+        _depth_p4 = int(
+            _os_async_p4.environ.get("VLLM_NEO_CDEC_PIPELINE_DEPTH", "1")
+        )
+        while len(_neo_pending_cdec_queue) > _depth_p4:
+            _neo_drain_pending_cdec()
+    elif cdec_future is not None:
         _t_cdec_wait_start = 0.0
         if _pl_prof_on:
             _t_cdec_wait_start = _t_pl_prof.perf_counter()

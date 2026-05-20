@@ -216,6 +216,14 @@ class SubBatchPipelineExecutor:
         # ── Stage 1 (cur_stage=1, other=0) ──
         #   transfer(b0) → postproj(b1, this) + preproj(b1, next) → attention(b0, next)
         self.cb.transfer(q0_next, k0_next, v0_next, batches[0], layer_idx + 1)
+        # P4 (F1) — async cdec: attn1 의 cdec future 가 deque 에 enqueue 된
+        # 상태. postproj(attn1) 이 attn1 의 data 를 읽기 전에 drain.
+        # 본 drain 의 wait 직전까지 transfer(b0) 가 overlap → NEO §4.4 의
+        # 진정한 win 위치.
+        from vllm.model_executor.layers.attention.attention import (
+            _neo_drain_pending_cdec as _drain_pending_p4,
+        )
+        _drain_pending_p4()
         emb1 = self.cb.postproj(attn1, batches[1], layer_idx)
         q1_new, k1_new, v1_new = self.cb.preproj(
             emb1, batches[1], layer_idx + 1, 0
@@ -223,6 +231,9 @@ class SubBatchPipelineExecutor:
         attn0_next = self.cb.attention(
             q0_next, k0_next, v0_next, batches[0], layer_idx + 1
         )
+        # P4 (F1) — async cdec: attn0_next 의 cdec future drain.
+        # 본 위치 의 overlap 영역 0 (attention 직후 consumer) — correctness 만.
+        _drain_pending_p4()
         next_emb0_new = self.cb.postproj(attn0_next, batches[0], layer_idx + 1)
         return q1_new, k1_new, v1_new, next_emb0_new
 
