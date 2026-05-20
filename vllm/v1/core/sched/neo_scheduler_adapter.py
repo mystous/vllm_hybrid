@@ -1163,18 +1163,38 @@ class NeoSchedulerAdapter(AsyncScheduler):
                     output.neo_swap_out_req_ids = list(_attached_ids)
                     output.neo_swap_out_block_ids = dict(_attached_block_ids)
 
-                logger.info(
-                    "[Plan v4 G/H] swap_out attach: predictive=%d natural=%d "
-                    "candidates=%d attached=%d mirror+=%d "
-                    "(mirror_set_size=%d / cap=%d)",
-                    len(_swap_out_predictive_ids),
-                    len(_natural_blocks or {}),
-                    len(_all_swap_out_ids),
-                    len(_attached_ids),
-                    _mirror_added,
-                    len(self._neo_cpu_resident_mirror),
-                    _MIRROR_MAX,
+                # OOB root fix — 본 INFO log 가 매 step fire 시 1M+ lines
+                # 누적 (combo 4 retry fact). stdout pipe saturation →
+                # shm_broadcast 영역 deadlock root. rate-limit:
+                #  - 첫 5 회 + 매 1000 회 + cap saturation 상태 변경 시만.
+                _g_h_cnt = getattr(self, "_neo_gh_log_cnt", 0) + 1
+                self._neo_gh_log_cnt = _g_h_cnt
+                _cur_cap_full = (
+                    len(self._neo_cpu_resident_mirror) >= _MIRROR_MAX
                 )
+                _prev_cap_full = getattr(
+                    self, "_neo_gh_log_cap_full", False,
+                )
+                self._neo_gh_log_cap_full = _cur_cap_full
+                _log_now = (
+                    _g_h_cnt <= 5
+                    or _g_h_cnt % 1000 == 0
+                    or _cur_cap_full != _prev_cap_full
+                )
+                if _log_now:
+                    logger.info(
+                        "[Plan v4 G/H] swap_out attach: predictive=%d "
+                        "natural=%d candidates=%d attached=%d mirror+=%d "
+                        "(mirror_set_size=%d / cap=%d, call=%d)",
+                        len(_swap_out_predictive_ids),
+                        len(_natural_blocks or {}),
+                        len(_all_swap_out_ids),
+                        len(_attached_ids),
+                        _mirror_added,
+                        len(self._neo_cpu_resident_mirror),
+                        _MIRROR_MAX,
+                        _g_h_cnt,
+                    )
             except (AttributeError, TypeError) as _ae:
                 logger.debug(
                     "NEO swap_out attach failed: %s", _ae,
