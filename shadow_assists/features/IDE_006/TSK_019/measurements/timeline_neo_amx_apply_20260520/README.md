@@ -24,7 +24,7 @@
 
 ## 1. Default 환경 1-step Timeline (= S1-S9, 동적 분석 기반)
 
-![NEO S1-S9 — 동적 분석 기반 timeline](timeline_schematic.svg)
+![현재 코드 베이스 HEAD ca4c757b9 — 1-step timeline (S1-S9 mechanism, 동적 분석 정합)](timeline_schematic.svg)
 
 > **본 도식 = 동적 분석 (perf record 60s) 기반 재작성** (2026-05-20 turn 3).
 > 이전 timeline ([`../timeline_v16_s1_s9_20260517/timeline_schematic.svg`](../timeline_v16_s1_s9_20260517/timeline_schematic.svg)) 의 정정 영역:

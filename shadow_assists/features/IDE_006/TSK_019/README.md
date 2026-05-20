@@ -75,7 +75,7 @@ v1.6 best 2,157 tps (500p) vs Phase 3.1+KMP=50 2,038 tps (400p) 영역 의 workl
 
 상세: [`measurements/timeline_neo_amx_apply_20260520/README.md`](measurements/timeline_neo_amx_apply_20260520/README.md)
 
-![NEO S1-S9 — 동적 분석 기반 timeline (HEAD ca4c757b9)](measurements/timeline_neo_amx_apply_20260520/timeline_schematic.svg)
+![현재 코드 베이스 HEAD ca4c757b9 — 1-step timeline (S1-S9 mechanism, 동적 분석 정합)](measurements/timeline_neo_amx_apply_20260520/timeline_schematic.svg)
 
 **Default 환경 mechanism = S1-S9 와 identical** (env-gated 옵션 P3 / P4 / D / OOB 모두 default OFF).
 
