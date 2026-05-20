@@ -30,6 +30,7 @@
 | **2026-05-20** | [`measurements/p4_p5_lever_20260520/`](measurements/p4_p5_lever_20260520/) | **P4 sanity 920.4 (100p) / P4 long 1,803.0 (1-run lucky) / P5 MIRROR=60 = 1,766.8 / MIRROR=40·100 = NO_RESULT** | — | — | 0.85 | 100p/500p × 8192 | 1 each | **P4 (F1 async cdec, env `VLLM_NEO_ASYNC_CDEC=1`)** = 재현 시 EngineDeadError (30k+ OOB precheck, lucky variance). **P5 (F2 MIRROR_MAX sweep)** = baseline 80 이 진정한 best, 축소·확대 모두 회귀/crash. (commit `4857014e2`) |
 | **2026-05-20 13:06 ~** | [`measurements/combo_sweep_20260520/`](measurements/combo_sweep_20260520/) | **combo1 baseline 934.5 / combo2 D-only 935.6 (+0.1%) / combo3-4 TP=4 = NO_RESULT** | — | 876s | 0.85 | 100p × 8192 | 1 each | **A (TP=4) × D (OOB silent fix env `VLLM_NEO_OOB_SILENT=1`) 4-combo sweep** — D fix = log spam 차단 only (engine death root X), TP=4 = OOB precheck event 빈도 매우 높음 → engine deadlock. short 100p 영역의 D fix 영향 = +0.1% variance. (commit `3129d3900`) |
 | **2026-05-20 15:28** | [`measurements/oob_root_fix_20260520/`](measurements/oob_root_fix_20260520/) | **NO_RESULT (timeout, 9/100 frozen)** | — | — | 0.85 | 100p × 8192 (TP=4) | 1 | **OOB root fix v1 — G/H swap_out attach log rate-limit** — root: combo 4 retry 의 `neo_scheduler_adapter.py:1166` INFO log 가 매 step fire → **1.09M lines (99.5%) / 214 MB stdout** → shm_broadcast saturation. fix 후 log count **22,755× ↓** (1,092,271 → 328), stdout size **74× ↓** (214 MB → 2.89 MB). 단 **결과는 NO_RESULT 동일** — secondary cause (log spam) 차단 ✓, primary cause (scheduler hot spin 190 calls/sec @ mirror cap saturated) 잔존. (commit `dd80747a6`) |
+| **★ 2026-05-20** | [`measurements/timeline_neo_amx_apply_20260520/`](measurements/timeline_neo_amx_apply_20260520/) | (timeline 분석 문서) | — | — | 0.85 + 0.92 | 500p / 100p × 8192 | (통합) | **★ HEAD `e64c56561` timeline 분석** — default 환경 mechanism = S1-S9 identical. env-gated P3 (HOST_K_BF16 + USE_AMX) / P4 (ASYNC_CDEC) / D (OOB_SILENT) / OOB G/H rate-limit 각 path 의 timeline 영향 + 신규 4 측정 통합. gmu cross-env winner 차이 (gmu=0.92 S1-S9 / gmu=0.85 v1.6 best) 정합. 다음 lever (Phase α/β/γ) 정합. |
 
 ## 개략 정보
 
@@ -70,7 +71,16 @@ v1.6 best 2,157 tps (500p) vs Phase 3.1+KMP=50 2,038 tps (400p) 영역 의 workl
 
 ## vanilla vs NEO 1-step Timeline
 
-### S1-S9 (NEO 원본 100% 정합, 2026-05-17 측정) ★ 현재 best
+### ★ 현재 코드 베이스 (HEAD `e64c56561`, branch `feat/neo-amx-apply`, 2026-05-20)
+상세: [`measurements/timeline_neo_amx_apply_20260520/README.md`](measurements/timeline_neo_amx_apply_20260520/README.md)
+
+**Default 환경 mechanism = S1-S9 와 identical** (env-gated 옵션 P3 / P4 / D / OOB 모두 default OFF). 본 문서가 추가하는 영역:
+- HEAD `e64c56561` 의 env-gated alternative path 별 timeline 영향 (P3 -2.5%, P4 unstable, D +0.1% noise)
+- gmu=0.85 환경 신규 측정 (v1.6 best 1,833.0 tps = winner / S1-S9 1,800.1 tps) — gmu cross-env ranking 차이
+- OOB root fix v1 (log 22,755× ↓, primary cause 잔존)
+- 다음 lever 영역 정합 ([`analysis/M_sub015_phase3_hpc_optimization.md`](analysis/M_sub015_phase3_hpc_optimization.md) Phase α/β/γ)
+
+### S1-S9 (NEO 원본 100% 정합, 2026-05-17 측정) — gmu=0.92 best
 상세: [`measurements/timeline_v16_s1_s9_20260517/README.md`](measurements/timeline_v16_s1_s9_20260517/README.md)
 
 ![vanilla vs NEO 1-step Timeline (S1-S9)](measurements/timeline_v16_s1_s9_20260517/timeline_schematic.svg)
