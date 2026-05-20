@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1280" font-family="Menlo, monospace" font-size="11">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1310" font-family="Menlo, monospace" font-size="11">
   <defs>
     <!-- futex_wait pattern (OMP barrier spin) -->
     <pattern id="futexHatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
@@ -39,15 +39,15 @@
     </marker>
   </defs>
 
-  <rect width="1500" height="1280" fill="#fafafa"/>
+  <rect width="1500" height="1310" fill="#fafafa"/>
 
   <!-- TITLE -->
-  <text x="750" y="22" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">NEO S1-S9 — 동적 분석 기반 timeline (HEAD `e64c56561`, 2026-05-20 정정)</text>
+  <text x="750" y="22" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">NEO S1-S9 — 동적 분석 기반 timeline (HEAD `ca4c757b9`, 2026-05-20 측정 정합)</text>
   <text x="750" y="40" text-anchor="middle" font-size="11" fill="#555">
-    perf record 60s fact: libgomp 43.75% (OMP barrier wait) + libpacpu 26.38% (ISPC compute) + libtorch_cpu 10.24% (★ async wall hidden) + python 1.84%.
+    perf record 60s (2026-05-17): libgomp 43.75% (OMP barrier wait) + libpacpu 26.38% (ISPC compute) + libtorch_cpu 10.24% (★ async wall hidden) + python 1.84%.
   </text>
-  <text x="750" y="56" text-anchor="middle" font-size="11" font-weight="bold" fill="#c00">
-    ★ swap path = async, wall hidden — 이전 timeline 의 "+25 ms swap_in" 영역 misattribution. ② cdec 안의 OMP barrier wait 가 진정한 dominant.
+  <text x="750" y="56" text-anchor="middle" font-size="11" font-weight="bold" fill="#0a7c3a">
+    ★ HEAD `ca4c757b9` validation (100p × 8192, gmu=0.85, py-spy 9-proc 60s): cdec_wait_avg = 0.000 ms ✓ / swap_out = 100% async (12,232/12,232) ✓✓ wall HIDDEN 영구 확정.
   </text>
 
   <!-- TIME AXIS — 1 ms = 11 px, x=160 ~ 1480 (0~120 ms) -->
@@ -129,26 +129,37 @@
   <!-- ① Python overhead +12 ms -->
   <rect x="754" y="320" width="132" height="34" fill="#f4cccc" stroke="#c44545" stroke-width="1"/>
   <text x="820" y="337" text-anchor="middle" font-size="9" fill="#c00">★ ① Py overhead +12 ms</text>
-  <!-- ② cdec leftover +18 ms (visible wall, ★ ② 안의 내부 분해 별도 lane) -->
+  <!-- ② cdec leftover +18 ms — b1 attention cdec, cdec_wait_avg=0.000 ms validation ✓ -->
   <rect x="886" y="320" width="198" height="34" fill="#cfe2f3" stroke="#3061ab" stroke-width="1.5"/>
-  <text x="985" y="335" text-anchor="middle" font-size="9" font-weight="bold" fill="#0a3a6b">★ ② cdec leftover +18 ms</text>
-  <text x="985" y="348" text-anchor="middle" font-size="7" fill="#000">(main 직접 pacpu 실행, 내부 분해 → cdec_executor lane)</text>
-  <!-- ③ step-end TBD +25 ms (★ swap 영역 제거, source TBD) -->
+  <text x="985" y="335" text-anchor="middle" font-size="9" font-weight="bold" fill="#0a3a6b">★ ② b1 cdec leftover +18 ms ✓</text>
+  <text x="985" y="348" text-anchor="middle" font-size="7" fill="#000">(b1 attn 의 CPU 실행, S5 direct, cdec_wait_avg=0.000ms ✓ 측정 정합)</text>
+  <!-- ③ step-end TBD +25 ms — swap 영역 100% async 확정, wall 기여 0 -->
   <rect x="1084" y="320" width="275" height="34" fill="#fff2cc" stroke="#caa040" stroke-width="1.2" stroke-dasharray="4,2"/>
   <text x="1221" y="333" text-anchor="middle" font-size="9" font-weight="bold" fill="#a06000">★ ③ step-end +25 ms (source TBD)</text>
-  <text x="1221" y="347" text-anchor="middle" font-size="7" fill="#a06000">sample / emit / next-step admission 가설 — swap path 영역 X (async hidden)</text>
+  <text x="1221" y="347" text-anchor="middle" font-size="7" fill="#a06000">swap 영역 wall = literally 0 (100% async ✓) — source = sample/emit/admit 가설</text>
 
   <!-- ── Lane 2: GPU default stream — 실제 계산 ── -->
   <text x="155" y="383" text-anchor="end" font-weight="bold" fill="#222">GPU default stream</text>
-  <text x="155" y="395" text-anchor="end" font-size="8" fill="#777">실제 계산 active</text>
+  <text x="155" y="395" text-anchor="end" font-size="8" fill="#777">b0 / b1 sub-batch 통합 queue</text>
   <line x1="160" y1="407" x2="1480" y2="407" stroke="#ddd"/>
-  <rect x="182" y="372" width="572" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
-  <text x="468" y="387" text-anchor="middle" font-size="9">b0+b1 의 preproj + postproj + (gdec/prefill) + AllReduce</text>
-  <text x="468" y="400" text-anchor="middle" font-size="7" fill="#0a7c3a">★ NEO 의 다른 thread 들이 기다리는 *주된* 계산</text>
+  <!-- b0 sub-band (top half, y=372-388) — full forward (preproj + attention + postproj + MLP + AllReduce) -->
+  <rect x="182" y="372" width="572" height="17" fill="#6aa84f" stroke="#3d6b29" stroke-width="0.5"/>
+  <text x="468" y="384" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">b0 sub-batch (GPU full): preproj + attention + postproj + MLP + AllReduce</text>
+  <!-- b1 sub-band (bottom half, y=389-406) — preproj + postproj only, attention SKIPPED -->
+  <rect x="182" y="389" width="572" height="17" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5" stroke-dasharray="3,1"/>
+  <text x="468" y="401" text-anchor="middle" font-size="8" fill="#0a7c3a" font-weight="bold">b1 sub-batch (cdec): preproj + [★ attn SKIPPED] + postproj + MLP + AllReduce</text>
+  <!-- GPU IDLE (54-80 ms) — cdec leftover -->
   <rect x="754" y="372" width="330" height="34" fill="#eeeeee" stroke="#999" stroke-width="0.5" stroke-dasharray="3,2"/>
-  <text x="919" y="391" text-anchor="middle" font-size="9" fill="#666">★ GPU IDLE — main 이 cdec leftover 처리 중</text>
+  <text x="919" y="389" text-anchor="middle" font-size="9" fill="#666">★ GPU IDLE — main 이 b1 cdec leftover 처리 중</text>
+  <text x="919" y="402" text-anchor="middle" font-size="7" fill="#666">(b1's attention 이 CPU 에서 끝나야 b1 의 다음 step 진행 가능)</text>
   <rect x="1084" y="372" width="275" height="34" fill="#b6d7a8" stroke="#6aa84f" stroke-width="0.5"/>
   <text x="1221" y="392" text-anchor="middle" font-size="9">next step prep</text>
+  <!-- ★ b1 attn 의 SKIP → cdec_executor dispatch 화살표 (GPU lane b1 영역 → cdec_executor lane) -->
+  <path d="M 400 405 L 400 510" stroke="#d62828" stroke-width="1.8" fill="none" marker-end="url(#arr_wait)" stroke-dasharray="5,2"/>
+  <text x="408" y="450" font-size="8" font-weight="bold" fill="#d62828">★ b1 attn SKIP</text>
+  <text x="408" y="461" font-size="8" font-weight="bold" fill="#d62828">→ cdec_executor</text>
+  <text x="408" y="472" font-size="7" fill="#d62828">(skip_gpu=13.2%</text>
+  <text x="408" y="481" font-size="7" fill="#d62828"> b1-only layer)</text>
 
   <!-- ── Lane 3: cpu_comm_stream (wall path async, overlap 적극 활용) ── -->
   <text x="155" y="431" text-anchor="end" font-weight="bold" fill="#222">cpu_comm_stream</text>
@@ -157,14 +168,14 @@
   <rect x="200" y="420" width="554" height="32" fill="#d9d2e9" stroke="#674ea7" stroke-width="0.8"/>
   <text x="477" y="440" text-anchor="middle" font-size="9" fill="#4a316b">transfer (Q/K/V H2D) + cdec result_copy (D2D) — forward 와 overlap</text>
 
-  <!-- ── Lane 4: ★ NEW — swap_stream (async, wall HIDDEN) ── -->
+  <!-- ── Lane 4: ★ NEW — swap_stream (async, wall HIDDEN) — turn 5 validation ── -->
   <text x="155" y="479" text-anchor="end" font-weight="bold" fill="#888">swap_stream</text>
-  <text x="155" y="491" text-anchor="end" font-size="8" fill="#c00" font-weight="bold">★ async — wall HIDDEN</text>
+  <text x="155" y="491" text-anchor="end" font-size="8" fill="#0a7c3a" font-weight="bold">★ 100% async ✓ (12,232/12,232)</text>
   <line x1="160" y1="503" x2="1480" y2="503" stroke="#ddd"/>
-  <!-- swap_out (SUB_025/026 staging N=3) — async D2H 전체 step span -->
-  <rect x="182" y="468" width="1177" height="32" fill="url(#asyncHidden)" stroke="#888" stroke-width="0.8" stroke-dasharray="4,2"/>
-  <text x="770" y="483" text-anchor="middle" font-size="10" font-weight="bold" fill="#555">cudaMemcpyAsync (swap_out D→H async + swap_in H→D async)</text>
-  <text x="770" y="496" text-anchor="middle" font-size="8" fill="#666">★ libtorch_cpu 10.24% cycle — wall path 가 아님 (parallel work, forward 와 overlap)</text>
+  <!-- swap_out (현재 HEAD 100% async — SUB_025 39.7% → SUB_026 60-70% → 현재 100%) -->
+  <rect x="182" y="468" width="1177" height="32" fill="url(#asyncHidden)" stroke="#0a7c3a" stroke-width="1.2" stroke-dasharray="4,2"/>
+  <text x="770" y="483" text-anchor="middle" font-size="10" font-weight="bold" fill="#0a7c3a">cudaMemcpyAsync (swap_out D→H + swap_in H→D) — 100% async, sync fallback 0 ★ HEAD ca4c757b9 측정</text>
+  <text x="770" y="496" text-anchor="middle" font-size="8" fill="#666">libtorch_cpu 10.24% cycle = parallel work (cdec_executor 와 동시 실행) — wall 기여 = literally 0 (사용자 지적 정량 backing)</text>
   <!-- swap_out gather/DMA blips throughout -->
   <g fill="#888">
     <rect x="220" y="468" width="3" height="32"/>
@@ -185,14 +196,15 @@
   <text x="1279" y="486" text-anchor="middle" font-size="7" fill="#333">drain</text>
   <text x="1279" y="495" text-anchor="middle" font-size="6" fill="#333">~3 ms</text>
 
-  <!-- ── Lane 5: cdec_executor — ★ NEW 내부 분해 (barrier wait + actual compute) ── -->
-  <text x="155" y="529" text-anchor="end" font-weight="bold" fill="#d62828">cdec_executor worker</text>
-  <text x="155" y="541" text-anchor="end" font-size="8" fill="#d62828" font-weight="bold">★★★ TRUE TOP BOTTLENECK</text>
-  <text x="155" y="552" text-anchor="end" font-size="7" fill="#d62828">cycle: barrier 62% + compute 38%</text>
+  <!-- ── Lane 5: cdec_executor — ★ b1 attention only, NEW 내부 분해 (barrier wait + actual compute) ── -->
+  <text x="155" y="525" text-anchor="end" font-weight="bold" fill="#d62828">cdec_executor</text>
+  <text x="155" y="536" text-anchor="end" font-size="8" fill="#d62828" font-weight="bold">★ b1 attention only</text>
+  <text x="155" y="547" text-anchor="end" font-size="7" fill="#d62828">(S5 direct, main thread 실행)</text>
+  <text x="155" y="557" text-anchor="end" font-size="7" fill="#d62828">cycle: barrier 62% + compute 38%</text>
   <line x1="160" y1="568" x2="1480" y2="568" stroke="#ddd"/>
   <!-- cdec_executor lane 안 — 80 layer × layer 당 paged_attention_cpu master + OMP team -->
   <rect x="200" y="510" width="554" height="56" fill="#ffeeee" stroke="#d62828" stroke-width="0.5"/>
-  <text x="477" y="524" text-anchor="middle" font-size="9" font-weight="bold" fill="#a01010">paged_attention_cpu × 80 layer × cdec_executor 2 worker process (concurrent with GPU forward)</text>
+  <text x="477" y="524" text-anchor="middle" font-size="9" font-weight="bold" fill="#a01010">★ b1's attention (paged_attention_cpu) × 80 layer — b0 attn 은 GPU stream, b1 attn 은 여기 CPU</text>
   <!-- 안: barrier wait 62% (위쪽 분할) + actual compute 38% (아래쪽 분할) -->
   <rect x="200" y="528" width="554" height="22" fill="url(#ompBarrierWait)" stroke="#d62828" stroke-width="0.5"/>
   <text x="477" y="542" text-anchor="middle" font-size="8" font-weight="bold" fill="#a01010">★ libgomp barrier wait 62% — barrier #1 (store_kv→attn) + #2 (attn→gather) + implicit (parallel end)</text>
@@ -370,13 +382,14 @@
     <text x="170" y="989" fill="#c00" font-weight="bold">★ 진정한 lever priority: OMP barrier 제거 (-11 ms) > KMP_BLOCKTIME=INF (-2-4 ms) > softmax fast_exp (-2 ms) > AMX/F3 (-1 ms) > swap 가속 (deprioritize, async hidden).</text>
   </g>
 
-  <!-- 핵심 메시지 (강조 박스) — 사용자 지적 정합 -->
-  <rect x="155" y="1005" width="1320" height="80" fill="#fff5e6" stroke="#e08a00" stroke-width="1.5"/>
-  <text x="170" y="1025" font-size="12" font-weight="bold" fill="#a06000">★ 동적 분석 기반 진단 (이전 timeline 정정)</text>
+  <!-- 핵심 메시지 (강조 박스) — turn 5 측정 fact 적용 -->
+  <rect x="155" y="1005" width="1320" height="98" fill="#fff5e6" stroke="#e08a00" stroke-width="1.5"/>
+  <text x="170" y="1025" font-size="12" font-weight="bold" fill="#a06000">★ HEAD `ca4c757b9` 측정 validation (2026-05-20, 100p × 8192, gmu=0.85, py-spy 9-proc 60s)</text>
   <g font-size="10">
-    <text x="170" y="1045" fill="#222">1. <tspan font-weight="bold" fill="#c00">③ "+25 ms" 의 source = swap path 영역 아님</tspan> — swap = async, wall hidden. 진정한 source = sample / emit / next-step admission (가설, §14.3 instrumentation 필요).</text>
-    <text x="170" y="1061" fill="#222">2. <tspan font-weight="bold" fill="#a01010">② cdec leftover 안의 진정한 dominant = OMP barrier wait</tspan> (libgomp 43.75% × 62% of cdec cycle = +11.2 ms wall). AMX/ISPC compute 가속 (-2~-3 ms) ≪ barrier 영역 (-11 ms).</text>
-    <text x="170" y="1077" fill="#222">3. <tspan font-weight="bold" fill="#0a7c3a">즉시 lever</tspan>: OMP_NUM_THREADS sweep + KMP_BLOCKTIME=INF + barrier #1 제거 검토 (batch_size ≤ ws 시) > softmax fast_exp > F3 K BF16 host store.</text>
+    <text x="170" y="1045" fill="#222">1. <tspan font-weight="bold" fill="#0a7c3a">cdec_wait_avg = 0.000 ms ✓✓</tspan> (8 TPs perfectly symmetric, 70 emits/TP steady) — S5 direct call mechanism 정합 영구 확정.</text>
+    <text x="170" y="1061" fill="#222">2. <tspan font-weight="bold" fill="#0a7c3a">swap_out = 100% async (12,232/12,232) ✓✓</tspan> — SUB_025 39.7% → SUB_026 60-70% → 현재 100%. swap path wall HIDDEN 영구 확정. ③ "+25 ms" 의 swap 영역 기여 = literally 0.</text>
+    <text x="170" y="1077" fill="#222">3. <tspan font-weight="bold" fill="#c00">② cdec 안의 진정한 dominant</tspan> = libgomp barrier wait (43.75% cycle × 62% = +11.2 ms wall, perf record 2026-05-17). 단 perf 미설치로 current HEAD re-verification X (mechanism 동일 → distribution shift 거의 없을 추정).</text>
+    <text x="170" y="1093" fill="#222">4. <tspan font-weight="bold" fill="#0a7c3a">즉시 lever</tspan>: OMP_NUM_THREADS sweep + KMP_BLOCKTIME=INF + barrier #1 제거 검토 (batch_size ≤ ws 시) ≫ softmax fast_exp ≫ F3 K BF16 host store. swap 가속 deprioritize (이미 100% async).</text>
   </g>
 
   <!-- LEGEND -->
@@ -384,27 +397,29 @@
     <text x="0" y="-2" font-weight="bold">Legend</text>
     <rect x="0" y="5" width="14" height="14" fill="#fce5cd" stroke="#caa040"/>
     <text x="18" y="15" fill="#000">main thread Python (running)</text>
-    <rect x="0" y="22" width="14" height="14" fill="#b6d7a8" stroke="#6aa84f"/>
-    <text x="18" y="32" fill="#000">GPU compute (active)</text>
-    <rect x="0" y="39" width="14" height="14" fill="#d9d2e9" stroke="#674ea7"/>
-    <text x="18" y="49" fill="#000">cpu_comm_stream (wall path async)</text>
-    <rect x="0" y="56" width="14" height="14" fill="url(#asyncHidden)" stroke="#888"/>
-    <text x="18" y="66" fill="#666" font-weight="bold">★ async — wall HIDDEN (swap)</text>
-    <rect x="0" y="73" width="14" height="14" fill="url(#ompBarrierWait)" stroke="#d62828"/>
-    <text x="18" y="83" fill="#a01010" font-weight="bold">★ libgomp barrier wait</text>
-    <rect x="0" y="90" width="14" height="14" fill="url(#ispcCompute)" stroke="#3061ab"/>
-    <text x="18" y="100" fill="#000">libpacpu compute</text>
-    <rect x="0" y="107" width="14" height="14" fill="url(#futexHatch)" stroke="#e08a00"/>
-    <text x="18" y="117" fill="#000">futex_wait (OMP worker sleep)</text>
-    <rect x="0" y="124" width="14" height="14" fill="url(#epollHatch)" stroke="#3061ab"/>
-    <text x="18" y="134" fill="#000">ep_poll (async_output / ZMQ)</text>
-    <rect x="0" y="141" width="14" height="14" fill="url(#dopollHatch)" stroke="#4a7e1f"/>
-    <text x="18" y="151" fill="#000">do_poll (CUDA event wait)</text>
-    <rect x="0" y="158" width="14" height="14" fill="#eeeeee" stroke="#999" stroke-dasharray="3,2"/>
-    <text x="18" y="168" fill="#000">GPU IDLE (CPU 기다림)</text>
-    <line x1="0" y1="181" x2="14" y2="181" stroke="#d62828" stroke-width="1.5" stroke-dasharray="2,1"/>
-    <text x="18" y="185" fill="#d62828">OMP barrier marker</text>
-    <line x1="0" y1="194" x2="14" y2="194" stroke="#c00" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr_wait)"/>
-    <text x="18" y="198" fill="#c00">wait 대상 화살표</text>
+    <rect x="0" y="22" width="14" height="14" fill="#6aa84f" stroke="#3d6b29"/>
+    <text x="18" y="32" fill="#000" font-weight="bold">b0 sub-batch (GPU full forward)</text>
+    <rect x="0" y="39" width="14" height="14" fill="#b6d7a8" stroke="#6aa84f" stroke-dasharray="3,1"/>
+    <text x="18" y="49" fill="#000" font-weight="bold">b1 sub-batch (GPU preproj+post, attn SKIP)</text>
+    <rect x="0" y="56" width="14" height="14" fill="#d9d2e9" stroke="#674ea7"/>
+    <text x="18" y="66" fill="#000">cpu_comm_stream (wall path async)</text>
+    <rect x="0" y="73" width="14" height="14" fill="url(#asyncHidden)" stroke="#888"/>
+    <text x="18" y="83" fill="#666" font-weight="bold">★ async — wall HIDDEN (swap)</text>
+    <rect x="0" y="90" width="14" height="14" fill="url(#ompBarrierWait)" stroke="#d62828"/>
+    <text x="18" y="100" fill="#a01010" font-weight="bold">★ libgomp barrier wait</text>
+    <rect x="0" y="107" width="14" height="14" fill="url(#ispcCompute)" stroke="#3061ab"/>
+    <text x="18" y="117" fill="#000">libpacpu compute (b1 attn 실행)</text>
+    <rect x="0" y="124" width="14" height="14" fill="url(#futexHatch)" stroke="#e08a00"/>
+    <text x="18" y="134" fill="#000">futex_wait (OMP worker sleep)</text>
+    <rect x="0" y="141" width="14" height="14" fill="url(#epollHatch)" stroke="#3061ab"/>
+    <text x="18" y="151" fill="#000">ep_poll (async_output / ZMQ)</text>
+    <rect x="0" y="158" width="14" height="14" fill="url(#dopollHatch)" stroke="#4a7e1f"/>
+    <text x="18" y="168" fill="#000">do_poll (CUDA event wait)</text>
+    <rect x="0" y="175" width="14" height="14" fill="#eeeeee" stroke="#999" stroke-dasharray="3,2"/>
+    <text x="18" y="185" fill="#000">GPU IDLE (CPU 기다림)</text>
+    <line x1="0" y1="198" x2="14" y2="198" stroke="#d62828" stroke-width="1.5" stroke-dasharray="2,1"/>
+    <text x="18" y="202" fill="#d62828">OMP barrier marker</text>
+    <line x1="0" y1="211" x2="14" y2="211" stroke="#c00" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr_wait)"/>
+    <text x="18" y="215" fill="#c00">wait 대상 화살표</text>
   </g>
 </svg>

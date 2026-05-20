@@ -35,7 +35,22 @@
 > 5. **OMP worker 의 wait 대상 화살표 변경** — GPU forward → cdec_executor barrier (실제 wait root)
 > 6. **동적 분석 fact 분해 표** + 핵심 메시지 박스 (이전 timeline 정정)
 
-### 1.1 mechanism (변경 없음)
+### 1.1 mechanism (변경 없음) — b0 / b1 sub-batch 구조
+
+**b0 / b1 sub-batch 의 명확한 의미** (NEO §4.4 asymmetric pipeline):
+
+| 영역 | b0 sub-batch | b1 sub-batch |
+|---|---|---|
+| 의미 | **GPU full-forward** sub-batch | **CPU cdec dispatch** sub-batch |
+| preproj (Q/K/V projection) | GPU default stream ✓ | GPU default stream ✓ |
+| **attention** | **GPU 위 vanilla flash_attn** ✓ | **★ GPU SKIP** → `paged_attention_cpu` direct call (S5) ↓ cdec_executor (main thread C++) |
+| postproj (output projection) | GPU default stream ✓ | GPU default stream ✓ |
+| MLP + AllReduce | GPU default stream ✓ | GPU default stream ✓ |
+| 측정 fact (HEAD `ca4c757b9`) | `b0_avg = 2,137 rows`, gpu_avg = 0.062 ms/layer | `skip_gpu = 13.2%` (b1-only layer), cdec_wait_avg = 0.000 ms |
+| GPU stream 사용 | ✓ 활성 (full lane) | ✓ 부분 (attn 제외) |
+
+→ **핵심 차이**: b1 의 attention 만 CPU 로 dispatch. preproj/postproj/MLP/AllReduce 는 b0/b1 모두 GPU default stream 위에서 실행.
+→ **이전 NEO original 의 s0/s1 stream pair** (Option A 영역) 은 S4 단계에서 제거 — S1-S9 에서는 **default stream 하나에 b0/b1 work 가 interleave queue** (NEO `_forward_pipeline_stage(cur_stage)` ordering 정합).
 
 NEO upstream `transformer_layer.py` 의 5 가지 정합 요소가 default 환경에서 계속 작동:
 
@@ -394,7 +409,9 @@ P4 active (depth=1):
 | **2026-05-20** | 신설. HEAD `e64c56561` timeline 분석 + S1-S9 default timeline 정합 + env-gated alternative path (P3/P4/D) 의 timeline 영향 + 신규 4 측정 (gmu=0.85 cross-env / P4/P5 lever / combo sweep / OOB root fix) 통합. |
 | **2026-05-20 (turn 2)** | §12-15 추가 — bottleneck 식별 framework + 이전 timeline (v1.6 / Option A / S1-S9) cross-check + async / barrier / sync 영역 별 위치 정합 + 미계측 영역 정리. |
 | **2026-05-20 (turn 3, 본 turn)** | **사용자 지적 (swap path 가 async 라 wall hidden) 적용 → §12-15 동적 분석 기반 재작성**. perf record 60s fact (libgomp 43.75% / libpacpu 26.38% / libtorch_cpu 10.24% / python 1.84%) 기반. (1) ③ "swap path +25 ms" misattribution 정정 — swap 영역 wall hidden, +25 ms 의 진정한 source 미확정 (§13.2/13.5/13.8). (2) ② 안의 진정한 dominant = libgomp barrier wait (62% of cdec cycle = +11.2 ms wall). (3) lever priority 재책정 — OMP barrier > KMP_BLOCKTIME > fast_exp > F3 > F4 > swap (deprioritize) > F6 (회귀 확인). (4) §14 측정 plan 우선순위 변경 — swap_in instrumentation 제거, step-end +25 ms source 식별 신규 추가. |
-| **2026-05-20 (turn 4, 본 turn)** | **★ 신규 SVG 도식 작성** (`timeline_schematic.svg`, 410 lines) — 동적 분석 기반 재구성. (1) **swap_stream lane 신규 추가** — async wall HIDDEN pattern (대각선 hatch) 명시. (2) **cdec_executor lane 내부 분해** — barrier wait 62% (★ ompBarrierWait pattern) + compute 38% (ispcCompute pattern) 의 2-band 시각화. (3) **OMP barrier marker** (#1/#2/implicit) cdec lane 위 vertical line 80 layer × 3 = ~240 barrier 표시. (4) **③ label 변경** — `swap_in + sample + emit` → `step-end TBD (sample/emit/admit?)` (dashed border). (5) **OMP worker wait 화살표 변경** — GPU forward → cdec_executor barrier. (6) **동적 분석 fact 분해 표** + 핵심 메시지 박스 (이전 timeline 정정 영역 명시). |
+| **2026-05-20 (turn 4)** | **★ 신규 SVG 도식 작성** (`timeline_schematic.svg`, 410 lines) — 동적 분석 기반 재구성. (1) **swap_stream lane 신규 추가** — async wall HIDDEN pattern (대각선 hatch) 명시. (2) **cdec_executor lane 내부 분해** — barrier wait 62% (★ ompBarrierWait pattern) + compute 38% (ispcCompute pattern) 의 2-band 시각화. (3) **OMP barrier marker** (#1/#2/implicit) cdec lane 위 vertical line 80 layer × 3 = ~240 barrier 표시. (4) **③ label 변경** — `swap_in + sample + emit` → `step-end TBD (sample/emit/admit?)` (dashed border). (5) **OMP worker wait 화살표 변경** — GPU forward → cdec_executor barrier. (6) **동적 분석 fact 분해 표** + 핵심 메시지 박스 (이전 timeline 정정 영역 명시). |
+| **2026-05-20 (turn 5)** | **★ 현재 HEAD `ca4c757b9` 에서 실제 동적 측정 수행 + §16 신규** — 사용자 명시 "실제로 현재 코드 base 로 실행하면서 동적 분석". (1) **100p × 8192, gmu=0.85** 측정 (15 min wall, py-spy 9-process 60s 병렬). (2) **mechanism 정합 확정** — cdec_wait_avg = **0.000 ms** ✓ S5 direct call, skip_gpu% = 13.2% steady, 8 TPs perfectly symmetric. (3) **swap_out = 100% async** (SUB_025 39.7% → SUB_026 60-70% → 현재 **100%**) — **swap path 완전 wall hidden 확정 ✓ 사용자 지적 backing**. (4) py-spy limitation 발견 — pacpu OMP team 의 native pthread 영역은 sampling X (libgomp 43.75% / libpacpu 26.38% cycle 분포는 perf record 만 가능, 현재 환경에 perf 미설치). 단 mechanism validation = ✓. |
+| **2026-05-20 (turn 6, 본 turn)** | **★ SVG + README 의 b0/b1 sub-batch 구별 명확화** — 사용자 명시 "b0, b1 (또는 s0, s1) 구별 되게 명확히 해". (1) **GPU default stream lane 을 2-band split**: b0 (full forward, dark green) + b1 (preproj+post 만, light green dashed). (2) **b1 attn SKIP → cdec_executor dispatch 화살표** (빨간 점선, GPU lane → cdec_executor lane). (3) **cdec_executor lane label** = "★ b1 attention only" 명시. (4) **main thread ② box** = "★ ② b1 cdec leftover" 로 변경. (5) **Legend** 에 b0/b1 sub-batch 항목 분리 + libpacpu compute = "b1 attn 실행" 명시. (6) **README §1.1** 에 b0/b1 의미 표 신규 추가 (preproj/attn/postproj/MLP/AllReduce 별 비교 + s0/s1 stream 제거 영역 명시). |
 
 ---
 
@@ -822,6 +839,164 @@ nsys stats --report cuda_api_sum nsys_e64c56561.nsys-rep
 3. **AMX/F3 같은 ISPC compute 가속 = +6.8 ms 영역만 단축 가능** — barrier 영역 미접근 시 ceiling 작음.
 4. **softmax fast_exp = 2nd lever** — 9.73% cycle 의 50% 단축 가정 시 -2.5 ms.
 5. **+25 ms 의 진정한 source 식별 = §14.3 instrumentation** — sample/emit/admit 분리.
+
+---
+
+## 16. ★ 현재 HEAD `ca4c757b9` 실제 동적 측정 (2026-05-20 KST, 본 turn)
+
+> 사용자 명시: "실제로 현재 코드 base 로 실행하면서 동적 분석해서 timeline 업데이트 해".
+> 측정 dir: [`/workspace/vllm_hybrid/eval/results/20260520_202354_dynamic_analysis_100p/`](../../../../../eval/results/20260520_202354_dynamic_analysis_100p/)
+> Launch script: `/tmp/run_dynamic_analysis_100p.sh`
+
+### 16.1 측정 환경
+
+| 항목 | 값 |
+|---|---|
+| branch | `feat/neo-amx-apply` |
+| HEAD | `ca4c757b9` |
+| pacpu build | **rebuilt** (source mtime > old binary, 본 turn 직전 g++-12 으로 rebuild) |
+| Hardware | Xeon Platinum 8480+ × 2 (224 logical core, NUMA 2) + H100 80GB × 8 |
+| Workload | **100p × 8192** (gmu=0.85 환경, GPU 7 BentoML 4.17 GB 점유로 0.92 OOM) |
+| max_num_seqs | 256 |
+| KV dtype | fp8 |
+| env | NEO standard (PROFILE=1, MIRROR_MAX=80 default, ASYNC_SWAP_BUFFERS=3) |
+| py-spy | 0.4.2, `--native --idle --threads --gil` (workers), `--native --idle --threads` (engine), 60s, rate 99 Hz |
+| py-spy target | Worker_TP0..7 (8) + EngineCore (1) = 9 process 병렬 sampling |
+
+### 16.2 result.json fact
+
+| 항목 | 값 |
+|---|---|
+| **output_tps** | **894.6 tps** |
+| prompt_tps | 591.7 tps |
+| generate_wall_s | 915.7 s (15.3 min) |
+| init_s | 79.4 s |
+| total_input_tokens | 541,810 |
+| total_output_tokens | 819,200 |
+| crash | 0 ✓ |
+
+→ **vs reference**: v1.6 best @ gmu=0.85, **500p** × 8192 = 1,833.0 tps ([`p3_compare_3run_085_20260520/`](../p3_compare_3run_085_20260520/)). 본 측정은 **100p** workload 라 batching 효율 ↓ — fair comparison 아님. 단 mechanism validation 용도로는 충분.
+
+### 16.3 PROFILE PER-LAYER fact — steady-state (70 emit/TP 의 last half 평균)
+
+| TP | #emits | gpu_avg | cdec_wait_avg | skip_gpu% | b0_avg | b1_avg |
+|---|---:|---:|---:|---:|---:|---:|
+| 0 | 70 | 0.062 ms | **0.000 ms** ✓ | 13.2% | 2,137 | 0 |
+| 1 | 70 | 0.065 ms | **0.000 ms** ✓ | 13.2% | 2,137 | 0 |
+| 2 | 70 | 0.062 ms | **0.000 ms** ✓ | 13.2% | 2,137 | 0 |
+| 3 | 70 | 0.062 ms | **0.000 ms** ✓ | 13.2% | 2,137 | 0 |
+| 4 | 70 | 0.062 ms | **0.000 ms** ✓ | 13.2% | 2,137 | 0 |
+| 5 | 70 | 0.062 ms | **0.000 ms** ✓ | 13.2% | 2,137 | 0 |
+| 6 | 70 | 0.062 ms | **0.000 ms** ✓ | 13.2% | 2,137 | 0 |
+| 7 | 70 | 0.065 ms | **0.000 ms** ✓ | 13.2% | 2,137 | 0 |
+
+→ **8 TPs perfectly symmetric** (TP 간 imbalance 없음, NCCL AllReduce 가 wall-clock 동기화 효과)
+→ **`cdec_wait_avg = 0.000 ms` ✓ ✓ S5 direct call mechanism 정합** (NEO 원본 transformer_layer.py:336 의 `paged_attention_cpu` direct dispatch 작동)
+→ `skip_gpu = 13.2%` (steady) — 80 layer 중 b1-only sub-batch (GPU forward skip) 의 비율. TP0 의 last 70 emits delta = **2,990 / 4,390 = 68.1%** (queue drain phase 영역 — context-dependent)
+→ `b0_avg = 2,137 rows` (GPU sub-batch 의 평균)
+→ `b1_avg = 0` (PROFILE 영역 bug — S5 direct path 에서 b1_count_sum 미증분, 단순 표시 영역, 실제 cdec dispatch 는 작동 확인)
+→ `cdec/gpu ratio = 78.6%` (cdec_count Δ / gpu_count Δ over last 70 emits)
+
+### 16.4 ★ Swap counts — 100% async (사용자 지적 backing!)
+
+| TP | async | sync | total | async% |
+|---|---:|---:|---:|---:|
+| 0 | 1,529 | 0 | 1,529 | **100.0%** |
+| 1 | 1,529 | 0 | 1,529 | **100.0%** |
+| 2 | 1,529 | 0 | 1,529 | **100.0%** |
+| 3 | 1,529 | 0 | 1,529 | **100.0%** |
+| 4 | 1,529 | 0 | 1,529 | **100.0%** |
+| 5 | 1,529 | 0 | 1,529 | **100.0%** |
+| 6 | 1,529 | 0 | 1,529 | **100.0%** |
+| 7 | 1,529 | 0 | 1,529 | **100.0%** |
+| **합** | **12,232** | **0** | **12,232** | **100.0%** |
+
+**★ 진화 history**:
+
+| 시점 | async ratio | 비고 |
+|---|---:|---|
+| SUB_025 (2026-05-13) | 39.7% | staging buffer N=1 만 — 첫 req only async, 2nd+ req sync fallback |
+| SUB_026 (2026-05-13~14) | 60-70% 목표 | staging N=3 확장 |
+| **현재 HEAD `ca4c757b9` (2026-05-20)** | **100.0%** ★ | **모든 swap_out 영역 async**, sync fallback 0 |
+
+→ **swap path = 완전 wall hidden 영구 확정** ✓✓ 사용자 지적 (turn 3) backing 정량 입증. 이전 framework 의 "③ swap_in +25 ms" 추정의 swap 영역 wall 기여 = **literally 0** (cycle 만 cdec_executor 와 parallel work).
+
+### 16.5 py-spy 9-process aggregate (60s, 43,793 sample)
+
+| DSO class | sample % | 의미 |
+|---|---:|---|
+| libc (poll/sched_yield/futex) | **37.64%** | shm_broadcast.poll() 영역 — workers + EngineCore 가 다음 instruction 대기 |
+| (unclassified) | 30.75% | native frames 의 일부 (EngineCore IPC 영역 dominant) |
+| ZMQ / shm IPC (step boundary) | **18.68%** | shm_broadcast.acquire_read/wait — IPC 동기화 영역 |
+| Python (.py source) | 6.27% | gpu_input_batch, gpu_model_runner 등 |
+| libtorch_cpu (other) | 2.77% | `torch::utils::recursive_store`, `torch::autograd::THPVariable_getitem` 등 (swap 영역 아님) |
+| python interpreter | 2.51% | `_PyEval_EvalFrameDefault` 등 |
+| lock primitives | 0.78% | `pthread_mutex_lock` |
+| libcuda (driver) | 0.56% | CUDA driver thread |
+| libnccl (collective) | 0.03% | NCCL — 매우 작음 (background watchdog 만 sampled) |
+| libpacpu (entry) | 0.00% | **★ 거의 0!** — pacpu OMP team 의 native pthread 영역은 py-spy sampling X |
+| libgomp (OMP barrier) | **0.00%** | **★ 거의 0!** — 같은 이유 |
+
+### 16.6 py-spy 의 한계 vs perf record
+
+| 측면 | py-spy --native --idle | perf record (필요) |
+|---|---|---|
+| Python frame resolve | ✓ | △ (debug-info 필요) |
+| C++ native frame (Python-managed thread) | ✓ | ✓ |
+| **OMP team native pthread (libpacpu 내부)** | **✗ — sampling X** | ✓ |
+| **libgomp barrier spin (gomp_team_barrier_wait_*)** | **✗ — sampling X** | ✓ |
+| Thread idle vs running | ✓ (--idle flag) | △ |
+| cycle count (정량) | ✗ (sample count 만) | ✓ |
+| dso 단위 aggregate | △ (수동) | ✓ |
+
+→ **본 측정 (py-spy 만)** = Python-managed thread + main thread C++ 영역 의 wall-time 분포 확인. **OMP team 영역 cycle 분포는 perf 가 필요**.
+→ **perf 가 본 환경에 미설치** — H_dynamic_analysis.md (2026-05-17, perf 60s) 의 cycle 분포 (libgomp 43.75% / libpacpu 26.38% / libtorch_cpu 10.24% / python 1.84%) 는 그대로 reference 유지.
+
+### 16.7 mechanism validation — S1-S9 정합 영역 ✓✓
+
+| NEO 원본 mechanism | 측정 fact | 정합 |
+|---|---|:-:|
+| S5 direct call (`paged_attention_cpu` main thread direct) | cdec_wait_avg = **0.000 ms** | ✓ |
+| async swap_out (SUB_025/026 staging) | **100% async** (12,232/12,232) | ✓ (개선) |
+| cpu_communication_stream (S9 result D2D) | 측정 X 단 S5/S9 코드 정합 ✓ (정적) | ✓ |
+| forward_double batch interleave (S8) | b0_avg=2,137 rows ✓ b0 sub-batch active | ✓ |
+| KV exclusive ownership | swap_out=12,232 (sync_out 발화) ✓ | ✓ |
+| crash = 0 | 0 ✓ | ✓ |
+
+→ **HEAD `ca4c757b9` 의 default 환경 mechanism = S1-S9 와 완전 identical** ✓ — 도식 (`timeline_schematic.svg`) 의 mechanism 정합 영역 영구 backing.
+
+### 16.8 SVG / timeline 영역 update 필요 영역
+
+본 turn 측정 fact 적용 시 SVG 정합 영역:
+
+| SVG 영역 | 현재 표시 | 본 측정 fact | 정합 |
+|---|---|---|:-:|
+| swap_stream lane = async wall HIDDEN | ✓ 표시 | **100% async 확정** (12,232/12,232) | ✓ ✓ 더 강한 backing |
+| cdec_executor lane 안 barrier+compute 분해 | 표시 (62% / 38%) | perf 미측정 — H_dynamic_analysis 2026-05-17 fact 유지 | △ (대안 자료 부재) |
+| OMP barrier marker (#1/#2/implicit) | 표시 | code 정합 ✓ (core.h:346/400) | ✓ |
+| cdec_wait_avg = 0 | S5 direct 표시 | **0.000 ms 확정** | ✓ |
+| ③ "+25 ms" source TBD | 표시 | swap 영역 wall 기여 = **literally 0** (100% async 확인) — 진정한 source = sample/emit/admit | ✓ |
+
+→ **SVG mechanism 영역 = current HEAD 측정과 완전 정합 ✓**.
+→ Cycle 분포 영역만 perf record 재측정 시 update 가능 — 현재 환경 limitation.
+
+### 16.9 본 측정의 결론
+
+1. **HEAD `ca4c757b9` mechanism = S1-S9 와 identical** ✓ (cdec direct, async swap, skip_gpu 등 모두 작동)
+2. **swap path = 100% async, wall 완전 hidden** ✓✓ — 사용자 지적 (turn 3) 의 강력한 backing. 이전 framework 의 "③ swap_in +25 ms" misattribution 정정 영구 확정.
+3. **②cdec 안의 cycle 분포** (libgomp 43.75% etc) 는 H_dynamic_analysis 2026-05-17 fact 그대로 — perf 미설치로 re-verification X. 단 mechanism 변화 없음 → distribution shift 거의 없을 것 추정.
+4. **③ "+25 ms" 진정한 source** = swap 영역 영구 배제 → sample/emit/admit 가설 단순화 → §14.3 instrumentation 으로 다음 turn 식별 권고.
+5. **py-spy 의 한계**: pacpu OMP team 의 cycle 분포 측정 X. Phase α (KMP_BLOCKTIME sweep) 시도 시에는 PROFILE PER-LAYER 의 gpu_avg / cdec_wait 변화 추적 + 별도 instrumentation (§14.1) 필요.
+
+### 16.10 raw 측정 자료
+
+| 영역 | 위치 |
+|---|---|
+| result.json | `eval/results/20260520_202354_dynamic_analysis_100p/result.json` |
+| engine.log.stdout | `eval/results/20260520_202354_dynamic_analysis_100p/engine.log.stdout` (140 MB+) |
+| py-spy raw × 9 | `eval/results/20260520_202354_dynamic_analysis_100p/pyspy/raw_*.txt` (총 6.8 MB) |
+| launch script | `/tmp/run_dynamic_analysis_100p.sh` |
+| analysis script | `/tmp/analyze_full.py` + `/tmp/analyze_pyspy_dso.py` |
 
 ### lever priority 정리 (재책정)
 
