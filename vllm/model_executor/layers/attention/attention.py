@@ -1069,21 +1069,36 @@ def unified_attention_with_output(
                             cdec_t1 = _t1
     except Exception as _cdec_setup_e:  # noqa: BLE001
         cdec_future = None
-        try:
-            from vllm.logger import init_logger as _einit
-            _ne_logger = _einit("vllm.attention.neo_cdec_error")
-            _stat_attr = "_neo_cdec_fail_count"
-            _cnt = getattr(self, _stat_attr, 0) + 1
-            setattr(self, _stat_attr, _cnt)
-            if _cnt <= 5 or _cnt % 1000 == 0:
-                import traceback as _tb
-                _ne_logger.error(
-                    "[NEO CDEC SETUP FAIL] count=%d type=%s msg=%s\n%s",
-                    _cnt, type(_cdec_setup_e).__name__, _cdec_setup_e,
-                    _tb.format_exc(),
-                )
-        except Exception:
-            pass
+        # P4 D fix — D11 OOB precheck 영역 의 silent skip. raise 영역 의
+        # traceback log spam (30k+ 누적) 이 shm_broadcast 영역 의 engine
+        # death root. OOB 의 진정한 영역 = swap-in race 영역 의 transient,
+        # cdec_future=None 으로 fallback 만 수행 + log 영역 skip.
+        # env-gated (VLLM_NEO_OOB_SILENT=1 default) — 사용자 sweep 영역에서
+        # D fix on/off 측정 위해 env=0 시 기존 raise+traceback path 유지.
+        import os as _os_d_g
+        _d_oob_silent = (
+            _os_d_g.environ.get("VLLM_NEO_OOB_SILENT", "1") == "1"
+        )
+        _is_d11_oob_skip = (
+            _d_oob_silent
+            and str(_cdec_setup_e).startswith("D11 OOB precheck")
+        )
+        if not _is_d11_oob_skip:
+            try:
+                from vllm.logger import init_logger as _einit
+                _ne_logger = _einit("vllm.attention.neo_cdec_error")
+                _stat_attr = "_neo_cdec_fail_count"
+                _cnt = getattr(self, _stat_attr, 0) + 1
+                setattr(self, _stat_attr, _cnt)
+                if _cnt <= 5 or _cnt % 1000 == 0:
+                    import traceback as _tb
+                    _ne_logger.error(
+                        "[NEO CDEC SETUP FAIL] count=%d type=%s msg=%s\n%s",
+                        _cnt, type(_cdec_setup_e).__name__, _cdec_setup_e,
+                        _tb.format_exc(),
+                    )
+            except Exception:
+                pass
 
     # IDE_006 — drain pending cdec from the previous attention call.
     # Placed AFTER this call's own cdec submit (above) so the new
