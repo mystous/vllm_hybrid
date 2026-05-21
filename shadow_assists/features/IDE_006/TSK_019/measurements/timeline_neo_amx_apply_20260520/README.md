@@ -210,6 +210,7 @@
 | 영역 | 위치 | 핵심 |
 |---|---|---|
 | AMX 최적화 분석 | [`../../analysis/M_sub015_phase3_hpc_optimization.md`](../../analysis/M_sub015_phase3_hpc_optimization.md) | HPC 측면 분석 + 외부 1차 출처 backing |
+| **★ cdec leftover 제거 외부 idea 22 개 (turn 10 신규)** | [`../../analysis/N_cdec_leftover_elimination_ideas.md`](../../analysis/N_cdec_leftover_elimination_ideas.md) | 7 영역 (asymmetric pipelining / CPU kernel / OMP barrier / async pattern / cross-layer / GPU-only / NEO-like). quick win (env-only) A1-A5, medium-impact B1-B6, paradigm-shift C1-C5. NEO 기존 시도 (P3/F6/P4/Step 5) backing idea 매핑. |
 | AMX Strategy ranking | [`../../analysis/I_amx_proper_design.md`](../../analysis/I_amx_proper_design.md) | Step 1~6 영역 sweep + Strategy A~H |
 | SUB_015 root cause 분석 | [`../../analysis/J_sub015_root_cause_analysis.md`](../../analysis/J_sub015_root_cause_analysis.md) | Tier A/B/C 영역 + Amdahl 한계 |
 | Phase 3 follow-up roadmap | [`../../analysis/K_sub015_improvement_roadmap.md`](../../analysis/K_sub015_improvement_roadmap.md) | F1~F6 lever roadmap |
