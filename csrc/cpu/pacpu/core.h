@@ -345,6 +345,17 @@ void ispc_attention_tasks(
   static thread_local double _omp_b1_max_ms = 0.0;
   static thread_local double _omp_b2_max_ms = 0.0;
 
+  // [A3] KV prefetch L2 — turn 13 (Stage 1 A3 영역).
+  // env VLLM_NEO_KV_PREFETCH=1 활성 시 store_kv 직전 + attn 영역 진입 시
+  // 다음 block 의 K cache 영역 영역 L2 prefetch (_mm_prefetch).
+  // 비활성 시 prefetch hint 영역 호출 영역 skip (overhead 0).
+  static int _kv_prefetch_decided = 0;  // 0=undecided, 1=on, -1=off
+  if (_kv_prefetch_decided == 0) {
+    const char* _kv_pe = std::getenv("VLLM_NEO_KV_PREFETCH");
+    _kv_prefetch_decided = (_kv_pe && _kv_pe[0] && _kv_pe[0] != '0') ? 1 : -1;
+  }
+  const bool _kv_prefetch_on = (_kv_prefetch_decided == 1);
+
   # pragma omp parallel
   {
     // Step 0:
@@ -359,6 +370,17 @@ void ispc_attention_tasks(
       auto kip = kbatch_p + i * NUM_KV_HEADS * HEAD_DIM;
       auto vip = vbatch_p + i * NUM_KV_HEADS * HEAD_DIM;
       auto btp = block_table_p + seq_id * block_table_width;
+
+      // [A3] L2 prefetch — next sequence's K head + block_table 영역 미리 영역
+      // L2 영역 hint. (i+1) 영역 hint, 마지막 seq 영역 skip.
+      if (_kv_prefetch_on && i + 1 < r) {
+        __builtin_prefetch(
+          kbatch_p + (i + 1) * NUM_KV_HEADS * HEAD_DIM, 0, 2);  // K head, L2 hint
+        __builtin_prefetch(
+          vbatch_p + (i + 1) * NUM_KV_HEADS * HEAD_DIM, 0, 2);  // V head, L2 hint
+        __builtin_prefetch(
+          block_table_p + seq_ids[i + 1] * block_table_width, 0, 2);
+      }
 
       brute::store_kv(
         cur_layer, num_blocks, seq_len, kip, vip, kcache_p, vcache_p, btp
