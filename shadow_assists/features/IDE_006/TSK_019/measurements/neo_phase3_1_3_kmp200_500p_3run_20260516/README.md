@@ -67,7 +67,7 @@ vs vanilla 3-run avg (4,690.7): avg **44.4%**.
 
 cdec_wait 가 빨라지고 chain fire 가 늘었음에도 throughput 이 lower → **NEO 의 wall critical path 는 cdec 가 아님**.
 
-→ `analysis/D_bottleneck_table.md` 의 NEO swap path Python+ATen overhead 가 wall 의 진짜 driver. Phase 3.3 의 stream priority 가 cdec backpressure 만 균등화 → swap path overhead 자체는 줄지 않음.
+→ `analysis/archive/D_bottleneck_table.md` 의 NEO swap path Python+ATen overhead 가 wall 의 진짜 driver. Phase 3.3 의 stream priority 가 cdec backpressure 만 균등화 → swap path overhead 자체는 줄지 않음.
 
 가속 우선순위는 `After_NEO_implementation_plan.md` 의 **★ Top Priority — Swap KV manipulation Python+ATen overhead 제거**.
 

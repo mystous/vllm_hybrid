@@ -2,7 +2,7 @@
 
 > 2026-05-18 KST. branch `feat/neo-amx-apply`. 각 step 1-run 500p × 8192 검증 (사용자 명시).
 >
-> Phase 1 의 정적/동적 분석 (analysis/I_amx_proper_design.md) 의 Strategy ranking 충실 진행.
+> Phase 1 의 정적/동적 분석 (analysis/reference/I_amx_proper_design.md) 의 Strategy ranking 충실 진행.
 
 ---
 

@@ -4,7 +4,7 @@
 > 대상: NEO (MLSys 2025) pacpu CPU paged attention kernel.
 > 측정 환경: Intel Sapphire Rapids (Xeon Platinum 8480+ × 2) + H100 80GB × 8.
 > 현재 상태: Phase 3 의 모든 AMX variant 가 S1-S9 baseline (2,238.6 tps) 초과 불가. 본 문서 = HPC 관점 root cause 재정리 + 외부 1차 출처 backing + 다음 lever roadmap.
-> 자매 분석: [`I_amx_proper_design.md`](I_amx_proper_design.md), [`J_sub015_root_cause_analysis.md`](J_sub015_root_cause_analysis.md), [`K_sub015_improvement_roadmap.md`](K_sub015_improvement_roadmap.md), [`L_sub015_evidence_based_priority.md`](L_sub015_evidence_based_priority.md).
+> 자매 분석: [`reference/I_amx_proper_design.md`](reference/I_amx_proper_design.md), [`reference/J_sub015_root_cause_analysis.md`](reference/J_sub015_root_cause_analysis.md), [`reference/K_sub015_improvement_roadmap.md`](reference/K_sub015_improvement_roadmap.md), [`reference/L_sub015_evidence_based_priority.md`](reference/L_sub015_evidence_based_priority.md).
 
 ---
 
@@ -33,7 +33,7 @@
 
 ### 1.1 1차 frame — "AMX 로 4-7× speedup"
 
-**source**: [`H_dynamic_analysis.md:31-43`](H_dynamic_analysis.md) — perf record 60s, 413K cycles sample:
+**source**: [`reference/H_dynamic_analysis.md:31-43`](reference/H_dynamic_analysis.md) — perf record 60s, 413K cycles sample:
 
 | 영역 | 점유율 |
 |---|---:|
@@ -45,7 +45,7 @@
 
 ### 1.2 2차 frame — "Step 1~6 variant sweep"
 
-**source**: [`I_amx_proper_design.md`](I_amx_proper_design.md) — Strategy A~H ranking + Step 1~6 build/measure plan. cheap variant 부터 cumulative apply.
+**source**: [`reference/I_amx_proper_design.md`](reference/I_amx_proper_design.md) — Strategy A~H ranking + Step 1~6 build/measure plan. cheap variant 부터 cumulative apply.
 
 | Step | 변경 (누적) | 1-run tps | vs S1-S9 |
 |---|---|---:|---:|
@@ -61,7 +61,7 @@
 
 ### 1.3 3차 frame (현재) — "분산 차원의 Amdahl 한계"
 
-**source**: [`J_sub015_root_cause_analysis.md:15-30`](J_sub015_root_cause_analysis.md):
+**source**: [`reference/J_sub015_root_cause_analysis.md:15-30`](reference/J_sub015_root_cause_analysis.md):
 
 - cdec_executor max_workers cap: **2** (cap=4 시 -8% 회귀, SUB_030)
 - cdec_wait: **8.75 ms/layer** (Phase 1 측정)
@@ -88,9 +88,9 @@ foreach (l = 0 ... HEAD_DIM) {              // 128-lane gang (avx512spr-x16, 16 
 }
 ```
 
-**측정**: qk_product 점유 **8.75% of 6.86 T cycle = 600.3 G cycle ≈ 2.0 ms/layer** ([`H_dynamic_analysis.md:107-112`](H_dynamic_analysis.md))
-**Arithmetic Intensity**: AI = 4.19 M FLOP / (4,608+2,048) byte = **7.11** ([`H_dynamic_analysis.md:121`](H_dynamic_analysis.md))
-**Roofline ceiling**: L2 BW 50 GB/s/core × 7.11 = **355 GFLOP/s** ([`D_roofline_notes.md:56`](D_roofline_notes.md))
+**측정**: qk_product 점유 **8.75% of 6.86 T cycle = 600.3 G cycle ≈ 2.0 ms/layer** ([`reference/H_dynamic_analysis.md:107-112`](reference/H_dynamic_analysis.md))
+**Arithmetic Intensity**: AI = 4.19 M FLOP / (4,608+2,048) byte = **7.11** ([`reference/H_dynamic_analysis.md:121`](reference/H_dynamic_analysis.md))
+**Roofline ceiling**: L2 BW 50 GB/s/core × 7.11 = **355 GFLOP/s** ([`archive/D_roofline_notes.md:56`](archive/D_roofline_notes.md))
 **실효**: 8-10 GFLOP/s/core (56 core × ≈ 500 GFLOP/s aggregate) → **L2 ceiling 대비 ~1.5%** 도달 — peak 미달
 
 ### 2.2 AMX qk kernel — tile occupancy
@@ -107,7 +107,7 @@ for (int i = 0; i < 3; ++i) {
 _tile_loadconfig(&cfg);
 ```
 
-**occupancy 분해** ([`I_amx_proper_design.md:13-20`](I_amx_proper_design.md)):
+**occupancy 분해** ([`reference/I_amx_proper_design.md:13-20`](reference/I_amx_proper_design.md)):
 
 | dimension | hardware peak | NEO 사용 | 사용률 |
 |---|---:|---:|---:|
@@ -121,7 +121,7 @@ _tile_loadconfig(&cfg);
 
 ### 2.3 AMX cycle 분해 (per-block)
 
-**source**: [`I_amx_proper_design.md:34-46`](I_amx_proper_design.md)
+**source**: [`reference/I_amx_proper_design.md:34-46`](reference/I_amx_proper_design.md)
 
 | Operation | Cycle | 빈도 | 총 (per block) |
 |---|---:|---:|---:|
@@ -257,12 +257,12 @@ foreach (h = 0 ... NUM_Q_HEADS) {
 
 | 분석 문서 진단 | 외부 1차 fact | 정합 |
 |---|---|:-:|
-| AMX M=8 vs tile 16 의 50% occupancy ([`I_amx_proper_design.md:13-20`](I_amx_proper_design.md)) | `TDPBF16PS` 16-cycle throughput tile shape 무관 (Intel Opt Ref Manual #355308) | ✓ |
-| setup overhead 650-900 cyc > work 64 cyc × 10배 ([`I_amx_proper_design.md:34-46`](I_amx_proper_design.md)) | `LDTILECFG` high-latency, "함수 진입당 1회 amortize" (felixcloutier) | ✓ |
+| AMX M=8 vs tile 16 의 50% occupancy ([`reference/I_amx_proper_design.md:13-20`](reference/I_amx_proper_design.md)) | `TDPBF16PS` 16-cycle throughput tile shape 무관 (Intel Opt Ref Manual #355308) | ✓ |
+| setup overhead 650-900 cyc > work 64 cyc × 10배 ([`reference/I_amx_proper_design.md:34-46`](reference/I_amx_proper_design.md)) | `LDTILECFG` high-latency, "함수 진입당 1회 amortize" (felixcloutier) | ✓ |
 | `(MNK)^(1/3) ≈ 22.6` → small matmul 영역 (정량 미언급) | libxsmm cutoff `≤ 64`, dispatch negligible 영역 `≥ 20×20` (libxsmm readthedocs) | ✓ (외부 fact 가 정량 backing) |
-| libgomp 43.75% (barrier spinning) ([`H_dynamic_analysis.md`](H_dynamic_analysis.md)) | EPCC barrier 1.3-2.6 μs / 2-4 thread × 80 layer × 256 batch = ms 단위 누적 | ✓ |
-| cdec wall 70% → Amdahl ceiling 3.33× ([`J_sub015_root_cause_analysis.md:15-30`](J_sub015_root_cause_analysis.md)) | Amdahl law 표준 | ✓ |
-| K cache BF16 store 의 이론 +1-5% (F3 가설) ([`K_sub015_improvement_roadmap.md`](K_sub015_improvement_roadmap.md)) | BF16 cast = single instruction, BW saving 대비 cast cost negligible (Wikichip) | ✓ |
+| libgomp 43.75% (barrier spinning) ([`reference/H_dynamic_analysis.md`](reference/H_dynamic_analysis.md)) | EPCC barrier 1.3-2.6 μs / 2-4 thread × 80 layer × 256 batch = ms 단위 누적 | ✓ |
+| cdec wall 70% → Amdahl ceiling 3.33× ([`reference/J_sub015_root_cause_analysis.md:15-30`](reference/J_sub015_root_cause_analysis.md)) | Amdahl law 표준 | ✓ |
+| K cache BF16 store 의 이론 +1-5% (F3 가설) ([`reference/K_sub015_improvement_roadmap.md`](reference/K_sub015_improvement_roadmap.md)) | BF16 cast = single instruction, BW saving 대비 cast cost negligible (Wikichip) | ✓ |
 
 ### 4.2 분석 문서 누락 / 외부 fact 가 추가하는 영역
 
@@ -290,7 +290,7 @@ foreach (h = 0 ... NUM_Q_HEADS) {
 
 ### 5.1 측정 결과 backing 강도별 우선순위
 
-[`L_sub015_evidence_based_priority.md`](L_sub015_evidence_based_priority.md) 의 evidence-based ranking + 외부 fact backing 으로 재책정:
+[`reference/L_sub015_evidence_based_priority.md`](reference/L_sub015_evidence_based_priority.md) 의 evidence-based ranking + 외부 fact backing 으로 재책정:
 
 | 순위 | Lever | Internal evidence | 외부 fact backing | 예상 win | Effort |
 |---|---|---|---|---:|:-:|
@@ -353,7 +353,7 @@ KMP_AFFINITY 값        : verbose,scatter (현재) vs granularity=fine,compact,1
 
 ### 5.3 시너지 분석
 
-[`K_sub015_improvement_roadmap.md:30-57`](K_sub015_improvement_roadmap.md) 의 interaction 표 + 외부 fact:
+[`reference/K_sub015_improvement_roadmap.md:30-57`](reference/K_sub015_improvement_roadmap.md) 의 interaction 표 + 외부 fact:
 
 | Pair | Interaction | Mechanism | 외부 fact backing |
 |---|:-:|---|---|
@@ -477,12 +477,12 @@ SUB_025/026 의 async swap_out 가 H2D direction 만 최적화. PCIe Gen5 의 bi
 ## 9. References
 
 ### 분석 문서 (내부)
-- [`I_amx_proper_design.md`](I_amx_proper_design.md) — AMX Strategy ranking (Step 1~6 설계)
-- [`J_sub015_root_cause_analysis.md`](J_sub015_root_cause_analysis.md) — Amdahl 한계 정밀 분석
-- [`K_sub015_improvement_roadmap.md`](K_sub015_improvement_roadmap.md) — F1~F6 lever roadmap
-- [`L_sub015_evidence_based_priority.md`](L_sub015_evidence_based_priority.md) — evidence-based 재책정
-- [`H_dynamic_analysis.md`](H_dynamic_analysis.md) — perf record 결과
-- [`E_amx_avx_applicability.md`](E_amx_avx_applicability.md), [`C_pacpu_vs_cpu_attn_amx_gap.md`](C_pacpu_vs_cpu_attn_amx_gap.md), [`D_roofline_notes.md`](D_roofline_notes.md)
+- [`reference/I_amx_proper_design.md`](reference/I_amx_proper_design.md) — AMX Strategy ranking (Step 1~6 설계)
+- [`reference/J_sub015_root_cause_analysis.md`](reference/J_sub015_root_cause_analysis.md) — Amdahl 한계 정밀 분석
+- [`reference/K_sub015_improvement_roadmap.md`](reference/K_sub015_improvement_roadmap.md) — F1~F6 lever roadmap
+- [`reference/L_sub015_evidence_based_priority.md`](reference/L_sub015_evidence_based_priority.md) — evidence-based 재책정
+- [`reference/H_dynamic_analysis.md`](reference/H_dynamic_analysis.md) — perf record 결과
+- [`archive/E_amx_avx_applicability.md`](archive/E_amx_avx_applicability.md), [`archive/C_pacpu_vs_cpu_attn_amx_gap.md`](archive/C_pacpu_vs_cpu_attn_amx_gap.md), [`archive/D_roofline_notes.md`](archive/D_roofline_notes.md)
 
 ### 측정 (내부)
 - [`../measurements/sub015_p3_measurement_timeline_20260518.md`](../measurements/sub015_p3_measurement_timeline_20260518.md)

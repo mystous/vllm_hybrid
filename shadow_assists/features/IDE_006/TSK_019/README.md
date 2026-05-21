@@ -1,6 +1,11 @@
 # TSK_019 — Best Configuration index
 
-> Best configuration 영역 history + 개략 정보. 상세 fact = 각 best file 영역.
+> ★ **전체 navigation**: [`INDEX.md`](INDEX.md) (모든 doc / measurement / plan 의 single entry point, turn 11 영역에서 신설)
+> ★ **분석 영역 status**: [`analysis/README.md`](analysis/README.md) (active / reference / archive 분류)
+> ★ **AMX 최적화 plan**: [`planning/AMX_OPTIMIZATION_PLAN.md`](planning/AMX_OPTIMIZATION_PLAN.md)
+> ★ **cdec leftover 제거 외부 idea 22 개**: [`analysis/N_cdec_leftover_elimination_ideas.md`](analysis/N_cdec_leftover_elimination_ideas.md)
+>
+> 본 README = Best configuration 영역 history + 개략 정보. 상세 fact = 각 best file 영역.
 
 ## Best history (3-run avg/min/max)
 
@@ -24,7 +29,7 @@
 | 2026-05-16 09:56 | [`measurements/neo_phase3_1_3_kmp200_500p_3run_20260516/`](measurements/neo_phase3_1_3_kmp200_500p_3run_20260516/) | 2,083.3 / 2,015.4 / 2,145.4 | 3.13% | 1,957s | 0.92 | 500p × 8192 | 3 | Phase 3.1+3.3 (cherry-pick `0717f4b8c`) |
 | 2026-05-17 20:02 | `eval/results/20260517_200212_cpu112_analysis_500p/` | 2,037.8 (1-run) | — | 2,001s | 0.92 | 500p × 8192 | 1 | **CPU 112-core util 분석 환경** (S1-S9 base + `KMP_AFFINITY=verbose,scatter` env) — CPU 활용도 / NUMA / wait state 정량 측정 용도. 1-run 측정. |
 | 2026-05-18 07:58 ~ 09:53 | [`measurements/sub015_p3_amx_500p_3run_20260518/`](measurements/sub015_p3_amx_500p_3run_20260518/) | **2,142.5** / 2,072.0 / 2,226.0 | **3.6%** | 1,898s | 0.92 | 500p × 8192 | 3 | **SUB_015-Phase 3 A: AMX qk_product (env `VLLM_NEO_USE_AMX=1`)** — host C++ AMX BF16 qk + ISPC softmax/av. **vs S1-S9 -4.3% 회귀** (작은 matmul 의 setup overhead > work). 코드 keep (env-gated, default off, future K cache BF16 store 의 base). round 단조 감소 (thermal). |
-| **2026-05-18 10:18 ~ 13:17** | [`measurements/sub015_p3_amx_steps_500p_1run_20260518/`](measurements/sub015_p3_amx_steps_500p_1run_20260518/) | **Step 1 = 2,237.4 / Step 2 = 2,275.6 / Step 3 = 2,184.7 / Step 4 = 2,184.0 / Step 5 = 2,284.0 / Step 6 = 2,199.7 (1-run each)** | — | 1,775s (Step 5) | 0.92 | 500p × 8192 | 1 each | **SUB_015-Phase 3 AMX optimization Step별 1-run sweep** (analysis/I_amx_proper_design.md 의 Strategy ranking 충실): **Step 1 (B thread-Q-cache)**, **Step 2 (B+A K^T outer pre-pack)**, **Step 3 (B+A+G SW prefetch)** revert, **Step 4 (B+A+C' 2-block fused)** revert, **Step 5 (B+A+vec K conv AVX-512 _mm512_cvtneps_pbh)**, **Step 6 (B+A+vec K+G+C' all)** revert. **1-run noise 큼 (CV >3%) — 3-run avg 만 신뢰**. Step 5 3-run 검증은 `sub015_p3_step5_amx_bav_500p_3run_20260518/` 참조 (3-run avg = 2,186.1, -2.35% vs S1-S9). |
+| **2026-05-18 10:18 ~ 13:17** | [`measurements/sub015_p3_amx_steps_500p_1run_20260518/`](measurements/sub015_p3_amx_steps_500p_1run_20260518/) | **Step 1 = 2,237.4 / Step 2 = 2,275.6 / Step 3 = 2,184.7 / Step 4 = 2,184.0 / Step 5 = 2,284.0 / Step 6 = 2,199.7 (1-run each)** | — | 1,775s (Step 5) | 0.92 | 500p × 8192 | 1 each | **SUB_015-Phase 3 AMX optimization Step별 1-run sweep** (analysis/reference/I_amx_proper_design.md 의 Strategy ranking 충실): **Step 1 (B thread-Q-cache)**, **Step 2 (B+A K^T outer pre-pack)**, **Step 3 (B+A+G SW prefetch)** revert, **Step 4 (B+A+C' 2-block fused)** revert, **Step 5 (B+A+vec K conv AVX-512 _mm512_cvtneps_pbh)**, **Step 6 (B+A+vec K+G+C' all)** revert. **1-run noise 큼 (CV >3%) — 3-run avg 만 신뢰**. Step 5 3-run 검증은 `sub015_p3_step5_amx_bav_500p_3run_20260518/` 참조 (3-run avg = 2,186.1, -2.35% vs S1-S9). |
 | **2026-05-18 12:46 ~ 15:44** | [`measurements/sub015_p3_step5_amx_bav_500p_3run_20260518/`](measurements/sub015_p3_step5_amx_bav_500p_3run_20260518/) | **2,186.1 / 2,120.0 / 2,284.0** (3-run) | **3.23%** | 1,852s | 0.92 | 500p × 8192 | 3 | **★ Step 5 (B+A+vec K conv) 3-run 정식 검증** — **-2.35% vs S1-S9** (1-run round 1 +2.0% 의 thermal noise 정정). round 단조 감소 (cold cache decay + thermal drift). |
 | **2026-05-19 ~ 20** | [`measurements/p3_compare_3run_085_20260520/`](measurements/p3_compare_3run_085_20260520/) | **vanilla 4,680.2 / v1.6 best 1,833.0 / S1-S9 1,800.1 / P3 1,787.9 / P1 1,745.1** (3-run avg each) | vanilla 0.01% / v1.6 6.6% / S1-S9 2.9% / P3 1.2% / P1 3.0% | — | **0.85** | 500p × 8192 | 3 each | **★ gmu=0.85 cross-env 5-case 검증** — v1.6 best 가 S1-S9 보다 높음 (gmu 환경 차이 fact 확정). P3 (K BF16 + AMX, env=1) -2.5% 회귀 확정. 5 × 3-run = 15 measurements (commit `3aeb9885f`). |
 | **2026-05-20** | [`measurements/p4_p5_lever_20260520/`](measurements/p4_p5_lever_20260520/) | **P4 sanity 920.4 (100p) / P4 long 1,803.0 (1-run lucky) / P5 MIRROR=60 = 1,766.8 / MIRROR=40·100 = NO_RESULT** | — | — | 0.85 | 100p/500p × 8192 | 1 each | **P4 (F1 async cdec, env `VLLM_NEO_ASYNC_CDEC=1`)** = 재현 시 EngineDeadError (30k+ OOB precheck, lucky variance). **P5 (F2 MIRROR_MAX sweep)** = baseline 80 이 진정한 best, 축소·확대 모두 회귀/crash. (commit `4857014e2`) |
@@ -194,7 +199,7 @@ overlap mechanism 이 작동 중인 상태에서, 추가 시간이 발생하는 
 | 영역 | 위치 |
 |---|---|
 | ★ S1-S9 best fact + 재현 | [`Best_S1_S9_2238tps.md`](Best_S1_S9_2238tps.md) |
-| S1-S9 rewrite plan (9 단계 + 정적 영향도) | [`analysis/G_neo_rewrite_plan.md`](analysis/G_neo_rewrite_plan.md) |
+| S1-S9 rewrite plan (9 단계 + 정적 영향도) | [`analysis/archive/G_neo_rewrite_plan.md`](analysis/archive/G_neo_rewrite_plan.md) |
 | v1.6 best fact | [`Best_v1.6_2157tps.md`](Best_v1.6_2157tps.md) |
 | Phase 3.1+KMP=50 (400p best) | [`Best_Phase3_1_kmp50.md`](Best_Phase3_1_kmp50.md) |
 | 5-phase 분석 산출 (Phase A-F + G_neo_rewrite_plan) | `analysis/` (14 .md) |

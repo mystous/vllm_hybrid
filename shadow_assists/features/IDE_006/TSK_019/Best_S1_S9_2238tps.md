@@ -65,7 +65,7 @@ vs vanilla 3-run avg (4,690.7): **47.7%**.
 
 ### Static 분석
 
-NEO 원본 함수 10/10 정합 (위 표). 자세한 trace = [`analysis/G_neo_rewrite_plan.md`](analysis/G_neo_rewrite_plan.md).
+NEO 원본 함수 10/10 정합 (위 표). 자세한 trace = [`analysis/archive/G_neo_rewrite_plan.md`](analysis/archive/G_neo_rewrite_plan.md).
 
 ### Dynamic 분석
 

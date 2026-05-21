@@ -243,9 +243,9 @@ py-spy sample 수 (Errors 0-4):
 
 #### 본 SVG 영역의 분석 결과 cross-ref
 
-- `shadow_assists/features/IDE_006/TSK_019/analysis/D_bottleneck_table.md` — SVG 영역 의 top frame 영역 분석
-- `shadow_assists/features/IDE_006/TSK_019/analysis/E_bottleneck_map.md` — BM01-BM22 영역 의 SVG 영역 cross-ref + thread 위치 + wall critical 분류
-- `shadow_assists/features/IDE_006/TSK_019/analysis/E_open_questions.md` — E.13.6 Phase 1 측정 fact (cdec_wait 2.55ms 정정 영역, TLB miss 0.01%, NUMA 99.6-99.9% 영역)
+- `shadow_assists/features/IDE_006/TSK_019/analysis/archive/D_bottleneck_table.md` — SVG 영역 의 top frame 영역 분석
+- `shadow_assists/features/IDE_006/TSK_019/analysis/archive/E_bottleneck_map.md` — BM01-BM22 영역 의 SVG 영역 cross-ref + thread 위치 + wall critical 분류
+- `shadow_assists/features/IDE_006/TSK_019/analysis/archive/E_open_questions.md` — E.13.6 Phase 1 측정 fact (cdec_wait 2.55ms 정정 영역, TLB miss 0.01%, NUMA 99.6-99.9% 영역)
 
 ---
 

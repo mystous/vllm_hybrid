@@ -771,7 +771,7 @@ dev (i9-12900KF, AVX-512 native) + prod (Xeon SPR, AVX-512 + AMX native) 모두 
 |---|---|---|---|
 | **NEO paper** | MLSys 2025, asymmetric pipelining | NEO: Saving GPU Memory Crisis with CPU Offloading | https://arxiv.org/abs/2411.01142 + https://yangzhou1997.github.io/paper/neo_mlsys25.pdf |
 | **NEO repo** | swiftllm, pacpu, ISPC kernel | NEO MLSys25 public 구현 영역 | https://github.com/NEO-MLSys25/NEO |
-| **NEO 동작 영역** | chain firing, cdec dispatch, mirror set | request 단위 exclusive KV ownership + sub-batch pipeline | (본 plan 의 `analysis/B_paper_section_notes.md` + `NEO_code_deepdive.md`) |
+| **NEO 동작 영역** | chain firing, cdec dispatch, mirror set | request 단위 exclusive KV ownership + sub-batch pipeline | (본 plan 의 `analysis/archive/B_paper_section_notes.md` + `NEO_code_deepdive.md`) |
 
 ### vllm 영역 (CPU backend + 통합)
 
@@ -786,17 +786,17 @@ dev (i9-12900KF, AVX-512 native) + prod (Xeon SPR, AVX-512 + AMX native) 모두 
 
 | 자료 | 위치 |
 |---|---|
-| Phase A — NEO upstream 감사 | `analysis/A_neo_upstream_audit.md` |
-| Phase A — kernel signature map | `analysis/A_kernel_signature_map.md` |
-| Phase B — paper section notes | `analysis/B_paper_section_notes.md` |
-| Phase B — paper vs 측정 | `analysis/B_paper_vs_our_measure.md` |
-| Phase C — vllm AMX/AVX inventory | `analysis/C_existing_paths_inventory.md` |
-| Phase C — pacpu vs cpu_attn gap | `analysis/C_pacpu_vs_cpu_attn_amx_gap.md` |
-| Phase D — flamegraph 분석 | `analysis/D_bottleneck_table.md` + `D_roofline_notes.md` + `D_candidate_long_list.md` |
-| Phase E — bottleneck map 최종 | `analysis/E_bottleneck_map.md` |
-| Phase E — AMX/AVX 적용 가능성 | `analysis/E_amx_avx_applicability.md` |
-| Phase E — 측정 미달 영역 | `analysis/E_open_questions.md` (OQ01-OQ18, Phase 1 측정 완료 영역 포함) |
-| Phase F — HW 가속 후보 inventory | `analysis/F_hardware_acceleration_candidates.md` |
+| Phase A — NEO upstream 감사 | `analysis/archive/A_neo_upstream_audit.md` |
+| Phase A — kernel signature map | `analysis/archive/A_kernel_signature_map.md` |
+| Phase B — paper section notes | `analysis/archive/B_paper_section_notes.md` |
+| Phase B — paper vs 측정 | `analysis/archive/B_paper_vs_our_measure.md` |
+| Phase C — vllm AMX/AVX inventory | `analysis/archive/C_existing_paths_inventory.md` |
+| Phase C — pacpu vs cpu_attn gap | `analysis/archive/C_pacpu_vs_cpu_attn_amx_gap.md` |
+| Phase D — flamegraph 분석 | `analysis/archive/D_bottleneck_table.md` + `D_roofline_notes.md` + `D_candidate_long_list.md` |
+| Phase E — bottleneck map 최종 | `analysis/archive/E_bottleneck_map.md` |
+| Phase E — AMX/AVX 적용 가능성 | `analysis/archive/E_amx_avx_applicability.md` |
+| Phase E — 측정 미달 영역 | `analysis/archive/E_open_questions.md` (OQ01-OQ18, Phase 1 측정 완료 영역 포함) |
+| Phase F — HW 가속 후보 inventory | `analysis/archive/F_hardware_acceleration_candidates.md` |
 | NEO 사전 분석 doc | `shadow_assists/features/IDE_006/NEO_code_deepdive.md`, `NEO_redesign.md`, `Objective-for-NEO-porting.md` |
 | 본 plan 의 Best Configuration | `shadow_assists/features/IDE_006/TSK_019/README.md` |
 

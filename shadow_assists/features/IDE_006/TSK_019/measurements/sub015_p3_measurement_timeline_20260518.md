@@ -138,7 +138,7 @@ timeline
 
 ## SUB_015-Phase 3 의 7 lever 종합 평가
 
-`analysis/I_amx_proper_design.md` 의 lever ranking 과 실측 매핑:
+`analysis/reference/I_amx_proper_design.md` 의 lever ranking 과 실측 매핑:
 
 | Strategy | 이론 win | 실측 (3-run avg 기준) | 결과 |
 |---|---:|---:|---|
