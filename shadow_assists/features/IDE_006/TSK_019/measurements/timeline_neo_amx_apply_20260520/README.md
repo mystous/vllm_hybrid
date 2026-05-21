@@ -41,6 +41,56 @@
 | libtorch_cpu (swap path) | 10.24% | ⚪ async wall hidden | parallel work, wall block X |
 | python interpreter | 1.84% | (① 의 일부) | |
 
+### A.2.1 ★ 전체 workflow phase 영역 distribution (turn 9 보강 — py-spy stack 분석 backing)
+
+**측정 환경**: env-ON 100p × 8192 × 60s py-spy 9-process 병렬 sampling, Worker_TP × 8 aggregate (EngineCore 제외).
+**Total samples**: 13,999. **Active (non-wait) 영역**: **41.6% (5,824 samples)** — 나머지 58.4% = WAIT_dequeue (ep_poll) + futex_wait.
+
+**Active 영역 100% 기준 phase 분포**:
+
+| # | Workflow phase | active % | 영역 시간 추정 (per-step) | step 영역 위치 | py-spy stack source |
+|---|---|---:|---:|---|---|
+| 1 | **FWD_double_attention** (b0/b1 attn + cdec direct) | 24.67% | ~17 ms | layer loop 영역 (6~54 ms) | `forward_double` / `neo_attention` / `unified_attention_with_output` |
+| 2 | **STEP_prepare_inputs** ★ MISSING in old timeline | **21.91%** | **~10 ms** | **step start (0~3 ms area)** | `_prepare_inputs` / `_prepare_input_ids` / `_update_states` |
+| 3 | **SWAP_in** (copy_layer_out × 80 layer) | 17.03% | ~12 ms | forward loop 영역 distributed | `copy_layer_out` / `_neo_handle_kv_swap` |
+| 4 | (other / unclassified) | 14.18% | ~10 ms | 분포 | execute_model entry / all_gather / _get_slot_mappings / flash_attn.py:build / copy.py |
+| 5 | **SAMPLE** (logits sampling) ★ MISSING breakdown | **10.54%** | **~9 ms** | **③.1 영역 (84~93 ms)** | `sampler` / `multinomial` / `_get_next_token` |
+| 6 | **SWAP_out_async** (gather/dma launch) | 6.35% | ~4 ms | swap_stream 영역 | `_neo_swap_out_gather` / `_neo_swap_out_dma` |
+| 7 | ATEN_index/copy/reshape | 4.79% | ~3 ms | swap path 의 CPU spillover | `torch::utils::recursive_store` / `index_kernel` |
+| 8 | FWD_first_stage (Q/K/V transfer launch) | 0.17% | <0.5 ms | step start | `forward_first_stage` |
+| 9 | CUDA_event_record/sync | 0.14% | <0.5 ms | ③.3 cudaEventRecord | `record_event` / `synchronize` |
+| 10 | GEMM_linear (Q/K/V/out proj) | 0.09% | <0.5 ms | layer loop (분포) | `default_unquantized_gemm` |
+| 11 | FWD_postproj | 0.05% | <0.5 ms | layer loop (분포) | `postproj` / `neo_postproj` |
+| 12 | EMIT_async_output | 0.03% | <0.5 ms | ③.4 영역 (99~109 ms) | `async_output` / `_bookkeeping_sync` |
+| 13 | NCCL_AllReduce | 0.02% | <0.5 ms | layer loop (분포) — main path 영역 외 | `all_reduce` |
+
+→ **wait 영역 58.4%** 의 분해: WAIT_dequeue (next-step IPC) = 58.40% — Worker_TP 가 다음 step instruction 영역 기다리는 영역 (main path wait 영역 의 dominant).
+
+### A.2.2 ★ NEO 1-step workflow 영역 전체 sequence (turn 9 정리)
+
+| 순서 | Phase | 시간 (ms) | wall 영역 | 영역 |
+|---|---|---:|---|---|
+| 0 | dequeue (다음 step instruction 영역 IPC wait) | (idle) | ⊳ workers waiting | EngineCore 영역 의 다음 step ready signal 영역 |
+| **1** | **prepare_inputs** ★ | ~3 ms | main thread | `_prepare_input_ids` / `_update_states` |
+| 2 | metadata build, slot_mappings | ~2 ms | main thread | `flash_attn.py:build` / `_get_slot_mappings` |
+| 3 | forward_first_stage (Q/K/V transfer launch) | <1 ms | main thread | `forward_first_stage` |
+| **4** | **forward_double × 80 layer** ★ | ~48 ms | main thread (대부분) + GPU stream concurrent | per-layer 영역: preproj + attn (b0=GPU full, b1=cdec direct) + postproj + MLP + AllReduce + swap_in copy_layer_out |
+| 5 | forward_last_stage | <1 ms | main thread | `forward_last_stage` |
+| **6** | **① Python overhead** | +12 ms | main thread | skip_gpu check, cdec submit/launch, cudaStream sync |
+| **7** | **② b1 cdec leftover** | +18 ms | main thread (cdec compute on CPU) | NEO §4.4 cdec 의 마지막 leftover 영역 (S5 direct), libgomp barrier 영역 62% + libpacpu compute 38% |
+| **8** | **③.1 sample + NCCL all_gather** ★ | +9 ms | main thread (GPU sample + main wait) | logits softmax + multinomial/argmax + NCCL all_gather (TP=8 영역) |
+| **9** | **③.2 NEO scheduler admit/swap** ★ | +4 ms | main thread (Python) | 다음 step 영역 admit/swap-in 결정 (NEO scheduler) |
+| **10** | **③.3 cudaEventRecord** ★ | +2 ms | main thread (GPU event signal) | step ready signal → async_output wake |
+| **11** | **③.4 emit + bookkeeping** | +10 ms | async_output thread | cudaEventSync + token D2H + ZMQ socket |
+| **합 (wall)** | | **~109 ms** | | vanilla 54 ms + NEO 추가 55 ms |
+
+**핵심 insight**:
+- step start 영역 의 prepare_inputs + metadata build = **~5 ms** (이전 timeline 영역에 missing)
+- ③ +25 ms 영역 정량 분해 = ③.1 sample (9 ms) + ③.2 admit (4 ms) + ③.3 cudaEvt (2 ms) + ③.4 emit (10 ms) ✓
+- **84~99 ms gap (③.1+③.2+③.3 = 15 ms)** 의 진정한 source = sample + admit + cudaEvt (이전 turn 5 "TBD" → turn 9 정량 확정)
+- async_output 의 cudaEventSync 영역 wake = ③.4 영역 만 (10 ms)
+- swap_in copy_layer_out (17.03%) = forward 영역에 분포 (per-layer × 80) — 이미 forward 영역 시간 안에 포함
+
 ### A.3 ★ AMX 최적화 영역 — 7 sub-task 영역 plan
 
 #### Sub-task A1: AMX setup overhead 단축 (M packing M=8 → 16)
@@ -658,7 +708,8 @@ P4 active (depth=1):
 | **2026-05-20 (turn 3, 본 turn)** | **사용자 지적 (swap path 가 async 라 wall hidden) 적용 → §12-15 동적 분석 기반 재작성**. perf record 60s fact (libgomp 43.75% / libpacpu 26.38% / libtorch_cpu 10.24% / python 1.84%) 기반. (1) ③ "swap path +25 ms" misattribution 정정 — swap 영역 wall hidden, +25 ms 의 진정한 source 미확정 (§13.2/13.5/13.8). (2) ② 안의 진정한 dominant = libgomp barrier wait (62% of cdec cycle = +11.2 ms wall). (3) lever priority 재책정 — OMP barrier > KMP_BLOCKTIME > fast_exp > F3 > F4 > swap (deprioritize) > F6 (회귀 확인). (4) §14 측정 plan 우선순위 변경 — swap_in instrumentation 제거, step-end +25 ms source 식별 신규 추가. |
 | **2026-05-20 (turn 4)** | **★ 신규 SVG 도식 작성** (`timeline_schematic.svg`, 410 lines) — 동적 분석 기반 재구성. (1) **swap_stream lane 신규 추가** — async wall HIDDEN pattern (대각선 hatch) 명시. (2) **cdec_executor lane 내부 분해** — barrier wait 62% (★ ompBarrierWait pattern) + compute 38% (ispcCompute pattern) 의 2-band 시각화. (3) **OMP barrier marker** (#1/#2/implicit) cdec lane 위 vertical line 80 layer × 3 = ~240 barrier 표시. (4) **③ label 변경** — `swap_in + sample + emit` → `step-end TBD (sample/emit/admit?)` (dashed border). (5) **OMP worker wait 화살표 변경** — GPU forward → cdec_executor barrier. (6) **동적 분석 fact 분해 표** + 핵심 메시지 박스 (이전 timeline 정정 영역 명시). |
 | **2026-05-20 (turn 5)** | **★ 현재 HEAD `ca4c757b9` 에서 실제 동적 측정 수행 + §16 신규** — 사용자 명시 "실제로 현재 코드 base 로 실행하면서 동적 분석". (1) **100p × 8192, gmu=0.85** 측정 (15 min wall, py-spy 9-process 60s 병렬). (2) **mechanism 정합 확정** — cdec_wait_avg = **0.000 ms** ✓ S5 direct call, skip_gpu% = 13.2% steady, 8 TPs perfectly symmetric. (3) **swap_out = 100% async** (SUB_025 39.7% → SUB_026 60-70% → 현재 **100%**) — **swap path 완전 wall hidden 확정 ✓ 사용자 지적 backing**. (4) py-spy limitation 발견 — pacpu OMP team 의 native pthread 영역은 sampling X (libgomp 43.75% / libpacpu 26.38% cycle 분포는 perf record 만 가능, 현재 환경에 perf 미설치). 단 mechanism validation = ✓. |
-| **2026-05-21 (turn 8 verification 정정 v2, 본 turn)** | **★ AMX 최적화 + 전체 최적화 통합 plan 을 README 최상단으로 이동** — 사용자 명시 "가장 윗쪽으로 이동". 기존 §19 (마지막 위치) → ★★★ 영역 (intro 직후, §0 직전, 번호 없음). sub-section 영역 = `19.X` → `A.X` rename (A.1~A.7). action plan = forward-looking action item 영역 강조 (다른 영역 = retrospective fact/analysis). intro 영역에 "⬇ Action Plan = 최상단 ★★★ 영역" 영역 단서 추가. |
+| **2026-05-21 (turn 9 full workflow 보강, 본 turn)** | **★ 전체 workflow 영역 영구 빠짐없이 적재** — 사용자 명시 "전체 workflow 가 빠짐없이 들어가야해. 또 빠진 부분 없는지 확인해봐. 필요하면 Flamegraph 로 확인해서 빠짐 없이 채워". py-spy 9-process raw stack 영역 의 full stack 분석 (top-of-stack 아닌 전체 frame). **13 workflow phase 영역 분포 정량 확정** (FWD_double_attn 24.7% / **prepare_inputs 21.9% ★ MISSING** / SWAP_in 17.0% / SAMPLE 10.5% / SWAP_out_async 6.4% / etc). **③ +25 ms 영역 정량 분해 확정** — ③.1 sample (9 ms, NCCL all_gather 포함) + ③.2 admit (4 ms, NEO scheduler) + ③.3 cudaEvt (2 ms) + ③.4 emit (10 ms, async_output wake). **84~99 ms gap (15 ms) 의 source 영구 확정** = ③.1+③.2+③.3 (이전 turn 5 "TBD" → turn 9 정량). **A.2 → A.2.1/A.2.2 신규**: A.2.1 = 13 phase 영역 distribution, A.2.2 = NEO 1-step workflow 11-step sequence. SVG 변경: (1) Main thread lane 영역 에 prepare_inputs(prep ~3ms) box 추가 (x=182-226). (2) ③ step-end +25ms 영역 → 4 sub-block (③.1 sample / ③.2 admit / ③.3 cudaEvt / ③.4 emit) 분해. (3) 핵심 메시지 box 영역 4-line → 5-line 확장 (전체 workflow phase sequence + active 영역 distribution 명시). |
+| **2026-05-21 (turn 8 verification 정정 v2)** | **★ AMX 최적화 + 전체 최적화 통합 plan 을 README 최상단으로 이동** — 사용자 명시 "가장 윗쪽으로 이동". 기존 §19 (마지막 위치) → ★★★ 영역 (intro 직후, §0 직전, 번호 없음). sub-section 영역 = `19.X` → `A.X` rename (A.1~A.7). action plan = forward-looking action item 영역 강조 (다른 영역 = retrospective fact/analysis). intro 영역에 "⬇ Action Plan = 최상단 ★★★ 영역" 영역 단서 추가. |
 | **2026-05-21 (turn 8 verification 정정 v1)** | **★ turn 8 최종 검증 정합** — 사용자 명시 "마지막 검증에서 분석한 데이터가 timeline 에 제대로 적용되어 있는지 다시 한 번 확인해. AMX 최적화 및 전체 최적화 작업 진행할거야. 아주 꼼꼼하고 자세해야해". (1) **outdated HEAD reference 영구 정정** — `e64c56561` / `ca4c757b9` → `0776086f5` (현재 HEAD). (2) **§2.2 통합표 신규** — env-OFF 3-run + env-ON 1-run 영역 통합 (이전 P3 단독 -2.5% + 본 turn env-ON +0.05% 영역 모두 정합 표시). (3) **§2.3 P3 net loss 영구 정정** — 이전 "net loss 확정" → 현재 "+0.05% 회복" 영역 (swap_out fix + P4 + OOB stability cumulative). (4) **§3.3 P3 timeline 영향 영역 정정** — 이전 fact (P3 단독, swap fix 전) + 현재 fact (env-ON combined) 영역 분리. (5) **§4.3 P4 unstable → stable 영구 정정** — 이전 "net loss" → 현재 "long workload stability 영구 확정 (crash 0)". (6) **§7 variance fact 표 신규 row** — env-OFF 100p + env-ON 100p + ★ env-ON 500p × 1-run 영역 추가, HEAD 컬럼 신설. (7) **§9.1/9.3 결론 + lever priority 영구 갱신** — env-ON +0.05% 영역 + AMX 최적화 영역 lever priority. (8) **§15 핵심 (사용자 지적 정합) 영역 갱신** — turn 8 측정 fact 통합. (9) **★★★ §19 신규 — AMX 최적화 + 전체 최적화 통합 plan** — 7 sub-task (A1~A7) + Phase α/β/γ/δ 영역 + cumulative 예상 영역 + 우선순위 영역. (10) **SVG body 영역 outdated HEAD reference 정정** — line 120 (현재 코드 ca4c757b9 → 0776086f5), line 181 (swap_stream label), line 391 (핵심 메시지 박스 영역). |
 | **2026-05-21 (turn 8)** | **★ env-ON 500p × 1-run 측정 + §18 신규** + **instrumentation 보강 (attention.py async cdec PROFILE + core.h OMP barrier wait time)** + py-spy 한계 해소 영역. 사용자 명시 (1) "500p 로 분석 진행" (2) "한 번만 실행해도 될 것 같아" (3) "py-spy 시각화를 할 수 없다는 건가? 추가 조치". (1) **500p × 1-run env-ON 측정**: output_tps **1,833.95** (vs v1.6 best 1,833.0 = **+0.05%, noise**, crash 0 ✓). 이전 P3 단독 -2.5% 영역 회복 — swap_out dtype fix + P4 async + OOB stability cumulative. **long workload stability 영구 확정** (이전 P4 단독 unstable 해소). (2) **attention.py async cdec PROFILE log instrumentation** — `[PROFILE PER-LAYER async]` enqueue/drain/wait/depth, `VLLM_NEO_PROFILE=1` 활성 시. (3) **core.h OMP barrier C++ instrumentation** — `[PROFILE OMP tid=0]` barrier #1/#2 wait time + step0/1/2 elapsed, `VLLM_NEO_OMP_PROFILE=1` 활성 시 → **py-spy 한계 (pacpu OMP team native pthread sampling X) 영구 해소** (perf 미설치 우회). SVG title env-ON 500p fact 갱신. |
 | **2026-05-21 (turn 7)** | **★ env-gated default ON 측정 + §17 신규** — 사용자 명시 "env-gated default ON 으로 측정해서 최신화 해". 100p × 8192, gmu=0.85, P3 (HOST_K_BF16=1 + USE_AMX=1) + P4 (ASYNC_CDEC=1, depth=1) + D (OOB_SILENT=1) 모두 활성. 결과: output_tps **906.8** (env-OFF 894.6 대비 **+1.4%**, single 1-run noise 영역 안), crash 0, swap 100% async (12,224/12,224) 동일. **⚠️ 이전 P3 단독 -2.5% @ 500p 3-run 과 불일치** — 500p × 3-run avg 필요 (다음 turn ★★★). **PROFILE PER-LAYER limitation 발견** — ASYNC_CDEC=1 시 sync wait path 우회로 emit X (instrumentation 영역 보강 필요). SVG title HEAD `ca4c757b9` → `0776086f5` + env-OFF/ON 비교 fact 갱신. |

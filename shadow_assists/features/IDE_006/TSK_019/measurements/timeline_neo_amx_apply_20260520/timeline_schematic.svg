@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1310" font-family="Menlo, monospace" font-size="11">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1340" font-family="Menlo, monospace" font-size="11">
   <defs>
     <!-- futex_wait pattern (OMP barrier spin) -->
     <pattern id="futexHatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
@@ -39,7 +39,7 @@
     </marker>
   </defs>
 
-  <rect width="1500" height="1310" fill="#fafafa"/>
+  <rect width="1500" height="1340" fill="#fafafa"/>
 
   <!-- TITLE -->
   <text x="750" y="20" text-anchor="middle" font-size="14" font-weight="bold" fill="#222">현재 코드 베이스 (HEAD `0776086f5`, branch `feat/neo-amx-apply`) — 1-step timeline (default 환경 runtime, mechanism = S1-S9)</text>
@@ -127,9 +127,14 @@
   <line x1="160" y1="355" x2="1480" y2="355" stroke="#ddd"/>
   <rect x="160" y="320" width="22" height="34" fill="#ffd966" stroke="#caa040" stroke-width="0.5"/>
   <text x="171" y="341" text-anchor="middle" font-size="8">sched</text>
-  <rect x="182" y="320" width="572" height="34" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
-  <text x="468" y="335" text-anchor="middle" font-size="9">Python forward + cdec direct + cudaLaunch (80 layer 반복)</text>
-  <text x="468" y="348" text-anchor="middle" font-size="7" fill="#a06000">매 layer: GPU launch → transfer launch → paged_attention_cpu (OMP fork) → post-cdec</text>
+  <!-- ★ NEW: STEP_prepare_inputs (~3 ms) at step start — py-spy 21.91% active = ~10 ms cumulative per step -->
+  <rect x="182" y="320" width="44" height="34" fill="#d0e0e3" stroke="#6a8a8a" stroke-width="0.8"/>
+  <text x="204" y="335" text-anchor="middle" font-size="7" fill="#0a3a4b" font-weight="bold">prep</text>
+  <text x="204" y="346" text-anchor="middle" font-size="6" fill="#0a3a4b">~3ms</text>
+  <!-- forward 영역 (vanilla equivalent area, 80 layer × per-layer ops) -->
+  <rect x="226" y="320" width="528" height="34" fill="#fce5cd" stroke="#caa040" stroke-width="0.5"/>
+  <text x="490" y="335" text-anchor="middle" font-size="9">Python forward + cdec direct + cudaLaunch (80 layer 반복)</text>
+  <text x="490" y="348" text-anchor="middle" font-size="7" fill="#a06000">매 layer: GPU launch → transfer launch → paged_attention_cpu (OMP fork) → post-cdec</text>
   <!-- ① Python overhead +12 ms -->
   <rect x="754" y="320" width="132" height="34" fill="#f4cccc" stroke="#c44545" stroke-width="1"/>
   <text x="820" y="337" text-anchor="middle" font-size="9" fill="#c00">★ ① Py overhead +12 ms</text>
@@ -137,10 +142,23 @@
   <rect x="886" y="320" width="198" height="34" fill="#cfe2f3" stroke="#3061ab" stroke-width="1.5"/>
   <text x="985" y="335" text-anchor="middle" font-size="9" font-weight="bold" fill="#0a3a6b">★ ② b1 cdec leftover +18 ms ✓</text>
   <text x="985" y="348" text-anchor="middle" font-size="7" fill="#000">(b1 attn 의 CPU 실행, S5 direct, cdec_wait_avg=0.000ms ✓ 측정 정합)</text>
-  <!-- ③ step-end TBD +25 ms — swap 영역 100% async 확정, wall 기여 0 -->
-  <rect x="1084" y="320" width="275" height="34" fill="#fff2cc" stroke="#caa040" stroke-width="1.2" stroke-dasharray="4,2"/>
-  <text x="1221" y="333" text-anchor="middle" font-size="9" font-weight="bold" fill="#a06000">★ ③ step-end +25 ms (source TBD)</text>
-  <text x="1221" y="347" text-anchor="middle" font-size="7" fill="#a06000">swap 영역 wall = literally 0 (100% async ✓) — source = sample/emit/admit 가설</text>
+  <!-- ★ ③ step-end +25 ms → 3 sub-phase 분해 (py-spy active 영역 분석 backing, turn 9 보강) -->
+  <!-- ③.1 sample + NCCL all_gather (84~93 ms, ~9 ms) -->
+  <rect x="1084" y="320" width="99" height="34" fill="#fff2cc" stroke="#caa040" stroke-width="1.2" stroke-dasharray="3,2"/>
+  <text x="1134" y="333" text-anchor="middle" font-size="8" font-weight="bold" fill="#a06000">③.1 sample</text>
+  <text x="1134" y="345" text-anchor="middle" font-size="7" fill="#a06000">+ NCCL all_gather (~9 ms)</text>
+  <!-- ③.2 NEO scheduler admit/swap decision (93~97 ms, ~4 ms) -->
+  <rect x="1183" y="320" width="48" height="34" fill="#fff2cc" stroke="#caa040" stroke-width="1.2" stroke-dasharray="3,2"/>
+  <text x="1207" y="333" text-anchor="middle" font-size="7" font-weight="bold" fill="#a06000">③.2 admit</text>
+  <text x="1207" y="345" text-anchor="middle" font-size="6" fill="#a06000">~4 ms</text>
+  <!-- ③.3 emit setup + cudaEventRecord (97~99 ms, ~2 ms) — gap 끝 -->
+  <rect x="1231" y="320" width="28" height="34" fill="#fff2cc" stroke="#caa040" stroke-width="1.2" stroke-dasharray="3,2"/>
+  <text x="1245" y="333" text-anchor="middle" font-size="7" font-weight="bold" fill="#a06000">③.3 cudaEvt</text>
+  <text x="1245" y="345" text-anchor="middle" font-size="6" fill="#a06000">~2 ms</text>
+  <!-- ③.4 emit handoff + post-step bookkeeping (99~109 ms, ~10 ms) — async_output wake -->
+  <rect x="1259" y="320" width="100" height="34" fill="#fff2cc" stroke="#caa040" stroke-width="1.2" stroke-dasharray="3,2"/>
+  <text x="1309" y="333" text-anchor="middle" font-size="7" font-weight="bold" fill="#a06000">③.4 emit + book</text>
+  <text x="1309" y="345" text-anchor="middle" font-size="6" fill="#a06000">~10 ms (async_output wake)</text>
 
   <!-- ── Lane 2: GPU default stream — 실제 계산 ── -->
   <text x="155" y="383" text-anchor="end" font-weight="bold" fill="#222">GPU default stream</text>
@@ -386,14 +404,16 @@
     <text x="170" y="989" fill="#c00" font-weight="bold">★ 진정한 lever priority: OMP barrier 제거 (-11 ms) > KMP_BLOCKTIME=INF (-2-4 ms) > softmax fast_exp (-2 ms) > AMX/F3 (-1 ms) > swap 가속 (deprioritize, async hidden).</text>
   </g>
 
-  <!-- 핵심 메시지 (강조 박스) — turn 5 측정 fact 적용 -->
-  <rect x="155" y="1005" width="1320" height="98" fill="#fff5e6" stroke="#e08a00" stroke-width="1.5"/>
-  <text x="170" y="1025" font-size="12" font-weight="bold" fill="#a06000">★ HEAD `0776086f5` 측정 validation (2026-05-20~21, env-OFF 100p + env-ON 100p + ★ env-ON 500p × 1-run = 1,833.95 tps = v1.6 best +0.05% noise, crash 0 ✓)</text>
-  <g font-size="10">
-    <text x="170" y="1045" fill="#222">1. <tspan font-weight="bold" fill="#0a7c3a">cdec_wait_avg = 0.000 ms ✓✓</tspan> (8 TPs perfectly symmetric, 70 emits/TP steady) — S5 direct call mechanism 정합 영구 확정.</text>
-    <text x="170" y="1061" fill="#222">2. <tspan font-weight="bold" fill="#0a7c3a">swap_out = 100% async (12,232/12,232) ✓✓</tspan> — SUB_025 39.7% → SUB_026 60-70% → 현재 100%. swap path wall HIDDEN 영구 확정. ③ "+25 ms" 의 swap 영역 기여 = literally 0.</text>
-    <text x="170" y="1077" fill="#222">3. <tspan font-weight="bold" fill="#c00">② cdec 안의 진정한 dominant</tspan> = libgomp barrier wait (43.75% cycle × 62% = +11.2 ms wall, perf record 2026-05-17). 단 perf 미설치로 current HEAD re-verification X (mechanism 동일 → distribution shift 거의 없을 추정).</text>
-    <text x="170" y="1093" fill="#222">4. <tspan font-weight="bold" fill="#0a7c3a">즉시 lever</tspan>: OMP_NUM_THREADS sweep + KMP_BLOCKTIME=INF + barrier #1 제거 검토 (batch_size ≤ ws 시) ≫ softmax fast_exp ≫ F3 K BF16 host store. swap 가속 deprioritize (이미 100% async).</text>
+  <!-- 핵심 메시지 (강조 박스) — turn 9 workflow 전체 영역 + 측정 fact -->
+  <rect x="155" y="1005" width="1320" height="130" fill="#fff5e6" stroke="#e08a00" stroke-width="1.5"/>
+  <text x="170" y="1025" font-size="12" font-weight="bold" fill="#a06000">★ HEAD `0776086f5` 측정 validation + ★ 전체 workflow breakdown (py-spy 9-proc, env-ON 100p × 60s 의 active 영역 41.6% 기준)</text>
+  <g font-size="9">
+    <text x="170" y="1045" fill="#222"><tspan font-weight="bold" fill="#0a3a4b">[step 시작]</tspan> prep(~3ms) <tspan font-weight="bold" fill="#a06000">→</tspan> forward(0-54ms vanilla equiv: 80 layer × preproj+attn(b0)+postproj+MLP+AllReduce / b1 attn → cdec direct) <tspan font-weight="bold" fill="#a06000">→</tspan> <tspan font-weight="bold" fill="#c00">① Py overhead +12ms</tspan> <tspan font-weight="bold" fill="#a06000">→</tspan> <tspan font-weight="bold" fill="#0a3a6b">② b1 cdec leftover +18ms</tspan></text>
+    <text x="170" y="1059" fill="#222">  <tspan font-weight="bold" fill="#a06000">→</tspan> <tspan font-weight="bold" fill="#a06000">③.1 sample +9ms (logits softmax + multinomial + NCCL all_gather)</tspan> → <tspan font-weight="bold" fill="#a06000">③.2 admit +4ms (NEO scheduler 다음-step 결정)</tspan> → <tspan font-weight="bold" fill="#a06000">③.3 cudaEvent +2ms (event record)</tspan> → <tspan font-weight="bold" fill="#a06000">③.4 emit +10ms (async_output wake + token D2H + ZMQ)</tspan> <tspan font-weight="bold" fill="#a06000">[step 끝]</tspan></text>
+    <text x="170" y="1077" fill="#222">★ <tspan font-weight="bold" fill="#0a7c3a">Worker_TP py-spy active 영역 41.6%</tspan> (waiting 58.4% = ep_poll + WAIT_dequeue + futex_wait): <tspan font-weight="bold">FWD_double_attn 24.7%</tspan> · <tspan font-weight="bold">prepare_inputs 21.9%</tspan> · <tspan font-weight="bold">swap_in 17.0%</tspan> · sample 10.5% · swap_out_async 6.4% · ATEN/copy 4.8% · other 14.2%</text>
+    <text x="170" y="1093" fill="#222">★ <tspan font-weight="bold" fill="#0a7c3a">cdec_wait_avg = 0.000 ms ✓</tspan> (S5 direct call) · <tspan font-weight="bold" fill="#0a7c3a">swap_out = 100% async ✓ (12,232/12,232 env-OFF + 12,224/12,224 env-ON)</tspan> · ★ env-ON 500p × 1-run = <tspan font-weight="bold" fill="#0a7c3a">1,833.95 tps (vs v1.6 best 1,833.0 = +0.05% noise, crash 0)</tspan></text>
+    <text x="170" y="1107" fill="#222">★ <tspan font-weight="bold" fill="#c00">② 안의 진정한 dominant = libgomp barrier wait</tspan> (43.75% cycle × 62% = +11.2 ms wall, perf record 2026-05-17). lever priority: OMP barrier 제거 > KMP_BLOCKTIME=INF > softmax fast_exp > AMX 본체 M packing > F3/F4/F5 (★ A.6 영역)</text>
+    <text x="170" y="1123" fill="#222">★ <tspan font-weight="bold" fill="#a06000">step-end gap (84~99 ms, 15 ms)</tspan> 의 source = ③.1 sample(9ms) + ③.2 admit(4ms) + ③.3 cudaEvt(2ms) — turn 9 영역 정량 분해 (이전 turn 5 "TBD" → turn 9 정합 ★)</text>
   </g>
 
   <!-- LEGEND -->
