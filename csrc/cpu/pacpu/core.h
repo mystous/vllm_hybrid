@@ -325,6 +325,26 @@ void ispc_attention_tasks(
   //   printf("thrd_start_task[%d] = %d\n", i, thrd_start_task[i]);
   // }
 
+  // [PROFILE OMP] turn 7 → 8 instrumentation —
+  // OMP barrier #1/#2 의 thread-level wait time 측정 (py-spy 의 한계 해소).
+  // env VLLM_NEO_OMP_PROFILE=1 활성 시만 enable. 비활성 시 omp_get_wtime()
+  // 호출 자체 skip (overhead 0).
+  static int _omp_prof_decided = 0;  // 0=undecided, 1=on, -1=off
+  if (_omp_prof_decided == 0) {
+    const char* _omp_pe = std::getenv("VLLM_NEO_OMP_PROFILE");
+    _omp_prof_decided = (_omp_pe && _omp_pe[0] && _omp_pe[0] != '0') ? 1 : -1;
+  }
+  const bool _omp_prof_on = (_omp_prof_decided == 1);
+  // per-tid barrier wait time 누적 영역 (call 별 reset)
+  static thread_local double _omp_b1_wait_sum_ms = 0.0;
+  static thread_local double _omp_b2_wait_sum_ms = 0.0;
+  static thread_local double _omp_step0_sum_ms = 0.0;
+  static thread_local double _omp_step1_sum_ms = 0.0;
+  static thread_local double _omp_step2_sum_ms = 0.0;
+  static thread_local uint64_t _omp_call_count = 0;
+  static thread_local double _omp_b1_max_ms = 0.0;
+  static thread_local double _omp_b2_max_ms = 0.0;
+
   # pragma omp parallel
   {
     // Step 0:
@@ -332,18 +352,28 @@ void ispc_attention_tasks(
     int tid = omp_get_thread_num();
     int l = tid * bch_blk_size, r = std::min((tid + 1) * bch_blk_size, batch_size);
     // NOTE: l >= r when batch_size < omp_get_max_threads()
+    double _t_start = _omp_prof_on ? omp_get_wtime() : 0.0;
     for (auto i = l; i < r; i++) {
       int seq_id = seq_ids[i];
       int seq_len = seq_lengths[i];
       auto kip = kbatch_p + i * NUM_KV_HEADS * HEAD_DIM;
       auto vip = vbatch_p + i * NUM_KV_HEADS * HEAD_DIM;
       auto btp = block_table_p + seq_id * block_table_width;
-      
+
       brute::store_kv(
         cur_layer, num_blocks, seq_len, kip, vip, kcache_p, vcache_p, btp
       );
     }
+    double _t_after_step0 = _omp_prof_on ? omp_get_wtime() : 0.0;
     # pragma omp barrier
+    double _t_after_b1 = _omp_prof_on ? omp_get_wtime() : 0.0;
+    if (_omp_prof_on) {
+      double _step0_ms = (_t_after_step0 - _t_start) * 1000.0;
+      double _b1_wait_ms = (_t_after_b1 - _t_after_step0) * 1000.0;
+      _omp_step0_sum_ms += _step0_ms;
+      _omp_b1_wait_sum_ms += _b1_wait_ms;
+      if (_b1_wait_ms > _omp_b1_max_ms) _omp_b1_max_ms = _b1_wait_ms;
+    }
 
     // Step 1:
     //   compute intermediate output for each sequence block
@@ -397,7 +427,16 @@ void ispc_attention_tasks(
           a_ptr, o_ptr, asb_ptr);
       }
     }
+    double _t_after_step1 = _omp_prof_on ? omp_get_wtime() : 0.0;
     # pragma omp barrier
+    double _t_after_b2 = _omp_prof_on ? omp_get_wtime() : 0.0;
+    if (_omp_prof_on) {
+      double _step1_ms = (_t_after_step1 - _t_after_b1) * 1000.0;
+      double _b2_wait_ms = (_t_after_b2 - _t_after_step1) * 1000.0;
+      _omp_step1_sum_ms += _step1_ms;
+      _omp_b2_wait_sum_ms += _b2_wait_ms;
+      if (_b2_wait_ms > _omp_b2_max_ms) _omp_b2_max_ms = _b2_wait_ms;
+    }
 
     // Step 2:
     // Gather intermediate output to final output
@@ -414,6 +453,30 @@ void ispc_attention_tasks(
           oip
         );
       }
+    }
+    double _t_after_step2 = _omp_prof_on ? omp_get_wtime() : 0.0;
+    if (_omp_prof_on) {
+      double _step2_ms = (_t_after_step2 - _t_after_b2) * 1000.0;
+      _omp_step2_sum_ms += _step2_ms;
+    }
+  }
+  // [PROFILE OMP] tid=0 영역 (master) 만 summary emit (log_freq=500 calls)
+  if (_omp_prof_on) {
+    _omp_call_count++;
+    if (_omp_call_count % 500 == 0) {
+      fprintf(stderr,
+        "[PROFILE OMP tid=0] calls=%lu step0_avg=%.3fms b1_wait_avg=%.3fms "
+        "b1_wait_max=%.3fms step1_avg=%.3fms b2_wait_avg=%.3fms "
+        "b2_wait_max=%.3fms step2_avg=%.3fms\n",
+        (unsigned long)_omp_call_count,
+        _omp_step0_sum_ms / _omp_call_count,
+        _omp_b1_wait_sum_ms / _omp_call_count,
+        _omp_b1_max_ms,
+        _omp_step1_sum_ms / _omp_call_count,
+        _omp_b2_wait_sum_ms / _omp_call_count,
+        _omp_b2_max_ms,
+        _omp_step2_sum_ms / _omp_call_count);
+      fflush(stderr);
     }
   }
 }

@@ -1185,8 +1185,62 @@ def unified_attention_with_output(
         _depth_p4 = int(
             _os_async_p4.environ.get("VLLM_NEO_CDEC_PIPELINE_DEPTH", "1")
         )
+        # [PROFILE PER-LAYER async] turn 7 → 8 instrumentation —
+        # async cdec path 의 enqueue + queue depth + drain stats.
+        # VLLM_NEO_PROFILE=1 활성 시만 emit. 비-async path 의 PROFILE
+        # log (line 1216) 가 cdec_count 기반인데 async path 가 sync
+        # wait 를 우회하므로 emit X. 본 영역에서 별도 trace 영구 적재.
+        if _pl_prof_on:
+            global _NEO_ASYNC_PL_STATS
+            if "_NEO_ASYNC_PL_STATS" not in globals():
+                _NEO_ASYNC_PL_STATS = {
+                    "enqueue_count": 0,
+                    "drain_count": 0,
+                    "drain_wait_ms_sum": 0.0,
+                    "drain_wait_ms_max": 0.0,
+                    "queue_depth_max": 0,
+                    "queue_depth_sum": 0,
+                    "queue_depth_samples": 0,
+                    "log_freq": 50,
+                    "depth_cap": _depth_p4,
+                }
+            _stA = _NEO_ASYNC_PL_STATS
+            _stA["enqueue_count"] += 1
+            _cur_depth = len(_neo_pending_cdec_queue)
+            _stA["queue_depth_sum"] += _cur_depth
+            _stA["queue_depth_samples"] += 1
+            if _cur_depth > _stA["queue_depth_max"]:
+                _stA["queue_depth_max"] = _cur_depth
         while len(_neo_pending_cdec_queue) > _depth_p4:
+            # timed drain (instrumentation 영역, see _neo_drain_pending_cdec)
             _neo_drain_pending_cdec()
+        # async PROFILE log emit (log_freq=50)
+        if _pl_prof_on:
+            _stA = _NEO_ASYNC_PL_STATS
+            if (_stA["enqueue_count"] > 0
+                    and _stA["enqueue_count"] % _stA["log_freq"] == 0):
+                from vllm.logger import init_logger as _init_async_pl
+                _async_pl_log = _init_async_pl(
+                    "vllm.attention.neo_async_pl_prof"
+                )
+                _drain_avg = (
+                    _stA["drain_wait_ms_sum"]
+                    / max(1, _stA["drain_count"])
+                )
+                _depth_avg = (
+                    _stA["queue_depth_sum"]
+                    / max(1, _stA["queue_depth_samples"])
+                )
+                _async_pl_log.info(
+                    "[PROFILE PER-LAYER async] enqueue=%d drain=%d "
+                    "drain_wait_avg=%.3fms drain_wait_max=%.3fms "
+                    "queue_depth_avg=%.2f queue_depth_max=%d "
+                    "(cap=%d)",
+                    _stA["enqueue_count"], _stA["drain_count"],
+                    _drain_avg, _stA["drain_wait_ms_max"],
+                    _depth_avg, _stA["queue_depth_max"],
+                    _stA["depth_cap"],
+                )
     elif cdec_future is not None:
         _t_cdec_wait_start = 0.0
         if _pl_prof_on:
@@ -1298,14 +1352,39 @@ _neo_cdec_call_count: int = 0
 def _neo_drain_pending_cdec() -> None:
     """Drain ONE oldest pending cdec future (FIFO). No-op when queue
     empty. Phase 3 — supports deque depth > 1.
+
+    turn 7 → 8 instrumentation: VLLM_NEO_PROFILE=1 시 cdec_future.result()
+    의 blocking wait time 측정 (= drain 의 진정한 cost). depth=1 ideal
+    상황에서는 ≈ 0 (cdec 가 미리 끝남), depth 모자란 상황에서는 > 0
+    (real wait). _NEO_ASYNC_PL_STATS 에 누적.
     """
     if not _neo_pending_cdec_queue:
         return
     cdec_future, out_tensor, cdec_t0, cdec_t1 = (
         _neo_pending_cdec_queue.popleft()
     )
+    # async cdec drain timing 영역
+    import os as _os_drain_prof
+    _drain_prof_on = (
+        _os_drain_prof.environ.get("VLLM_NEO_PROFILE", "0") == "1"
+    )
+    _drain_t0 = 0.0
+    if _drain_prof_on:
+        import time as _time_drain
+        _drain_t0 = _time_drain.perf_counter()
     try:
         out_buf = cdec_future.result()
+        if _drain_prof_on:
+            _drain_ms = (
+                _time_drain.perf_counter() - _drain_t0
+            ) * 1000
+            global _NEO_ASYNC_PL_STATS
+            if "_NEO_ASYNC_PL_STATS" in globals():
+                _stA = _NEO_ASYNC_PL_STATS
+                _stA["drain_count"] += 1
+                _stA["drain_wait_ms_sum"] += _drain_ms
+                if _drain_ms > _stA["drain_wait_ms_max"]:
+                    _stA["drain_wait_ms_max"] = _drain_ms
         import os as _os_drain
         _use_xfer = (
             _os_drain.environ.get("VLLM_NEO_CDEC_DRAIN_XFER_STREAM", "1")

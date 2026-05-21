@@ -42,12 +42,15 @@
   <rect width="1500" height="1310" fill="#fafafa"/>
 
   <!-- TITLE -->
-  <text x="750" y="22" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">현재 코드 베이스 (HEAD `ca4c757b9`, branch `feat/neo-amx-apply`) — 1-step timeline (S1-S9 mechanism, 동적 분석 정합)</text>
-  <text x="750" y="40" text-anchor="middle" font-size="11" fill="#555">
+  <text x="750" y="20" text-anchor="middle" font-size="14" font-weight="bold" fill="#222">현재 코드 베이스 (HEAD `0776086f5`, branch `feat/neo-amx-apply`) — 1-step timeline (default 환경 runtime, mechanism = S1-S9)</text>
+  <text x="750" y="36" text-anchor="middle" font-size="10" fill="#c00" font-weight="bold">
+    ⚠️ 코드 적재 영역: S1-S9 + SUB_015-Phase 3 (P3 K BF16+AMX) + P4 (async cdec) + D (OOB silent) + OOB G/H fix — 본 도식은 default env (모두 OFF) runtime path. env-ON 영역 측정 §17 참조.
+  </text>
+  <text x="750" y="50" text-anchor="middle" font-size="10" fill="#555">
     perf record 60s (2026-05-17): libgomp 43.75% (OMP barrier wait) + libpacpu 26.38% (ISPC compute) + libtorch_cpu 10.24% (★ async wall hidden) + python 1.84%.
   </text>
-  <text x="750" y="56" text-anchor="middle" font-size="11" font-weight="bold" fill="#0a7c3a">
-    ★ HEAD `ca4c757b9` validation (100p × 8192, gmu=0.85, py-spy 9-proc 60s): cdec_wait_avg = 0.000 ms ✓ / swap_out = 100% async (12,232/12,232) ✓✓ wall HIDDEN 영구 확정.
+  <text x="750" y="64" text-anchor="middle" font-size="10" font-weight="bold" fill="#0a7c3a">
+    ★ HEAD `0776086f5` validation: env-OFF 894.6 tps (100p) / env-ON 100p 906.8 tps (+1.4%) / ★ env-ON 500p 1,833.95 tps = v1.6 best 1,833.0 (+0.05%, noise) — env-ON 영구 stable ✓
   </text>
 
   <!-- TIME AXIS — 1 ms = 11 px, x=160 ~ 1480 (0~120 ms) -->
@@ -114,7 +117,7 @@
   <!-- ============================================================== -->
   <!-- BOTTOM: NEO S1-S9 의 thread 별 wait state — 동적 분석 정정 -->
   <!-- ============================================================== -->
-  <text x="155" y="285" text-anchor="end" font-size="10" font-weight="bold" fill="#222">현재 코드 (HEAD ca4c757b9)</text>
+  <text x="155" y="285" text-anchor="end" font-size="10" font-weight="bold" fill="#222">현재 코드 (HEAD 0776086f5)</text>
   <text x="155" y="297" text-anchor="end" font-size="9" fill="#555">= S1-S9 mechanism — thread 별 wait state</text>
   <text x="155" y="309" text-anchor="end" font-size="9" fill="#777">main running. swap = async hidden. ② = barrier+compute 분해.</text>
 
@@ -175,7 +178,7 @@
   <line x1="160" y1="503" x2="1480" y2="503" stroke="#ddd"/>
   <!-- swap_out (현재 HEAD 100% async — SUB_025 39.7% → SUB_026 60-70% → 현재 100%) -->
   <rect x="182" y="468" width="1177" height="32" fill="url(#asyncHidden)" stroke="#0a7c3a" stroke-width="1.2" stroke-dasharray="4,2"/>
-  <text x="770" y="483" text-anchor="middle" font-size="10" font-weight="bold" fill="#0a7c3a">cudaMemcpyAsync (swap_out D→H + swap_in H→D) — 100% async, sync fallback 0 ★ HEAD ca4c757b9 측정</text>
+  <text x="770" y="483" text-anchor="middle" font-size="10" font-weight="bold" fill="#0a7c3a">cudaMemcpyAsync (swap_out D→H + swap_in H→D) — 100% async, sync fallback 0 ★ HEAD 0776086f5 (env-OFF 12,232/12,232 + env-ON 12,224/12,224)</text>
   <text x="770" y="496" text-anchor="middle" font-size="8" fill="#666">libtorch_cpu 10.24% cycle = parallel work (cdec_executor 와 동시 실행) — wall 기여 = literally 0 (사용자 지적 정량 backing)</text>
   <!-- swap_out gather/DMA blips throughout -->
   <g fill="#888">
@@ -385,7 +388,7 @@
 
   <!-- 핵심 메시지 (강조 박스) — turn 5 측정 fact 적용 -->
   <rect x="155" y="1005" width="1320" height="98" fill="#fff5e6" stroke="#e08a00" stroke-width="1.5"/>
-  <text x="170" y="1025" font-size="12" font-weight="bold" fill="#a06000">★ HEAD `ca4c757b9` 측정 validation (2026-05-20, 100p × 8192, gmu=0.85, py-spy 9-proc 60s)</text>
+  <text x="170" y="1025" font-size="12" font-weight="bold" fill="#a06000">★ HEAD `0776086f5` 측정 validation (2026-05-20~21, env-OFF 100p + env-ON 100p + ★ env-ON 500p × 1-run = 1,833.95 tps = v1.6 best +0.05% noise, crash 0 ✓)</text>
   <g font-size="10">
     <text x="170" y="1045" fill="#222">1. <tspan font-weight="bold" fill="#0a7c3a">cdec_wait_avg = 0.000 ms ✓✓</tspan> (8 TPs perfectly symmetric, 70 emits/TP steady) — S5 direct call mechanism 정합 영구 확정.</text>
     <text x="170" y="1061" fill="#222">2. <tspan font-weight="bold" fill="#0a7c3a">swap_out = 100% async (12,232/12,232) ✓✓</tspan> — SUB_025 39.7% → SUB_026 60-70% → 현재 100%. swap path wall HIDDEN 영구 확정. ③ "+25 ms" 의 swap 영역 기여 = literally 0.</text>
