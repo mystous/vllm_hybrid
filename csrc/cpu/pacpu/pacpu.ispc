@@ -141,6 +141,39 @@ export void softmax(
   }
 }
 
+// SUB_033 B3: FlashDecoding++ style online softmax — 3-pass → 2-pass.
+// Pass 1 fused: scale + online max + online running-sum (rescaling).
+// Pass 2: normalize + log-sum-exp.
+// Same signature as softmax(), env-gated dispatch in C++ caller.
+export void softmax_online(
+  const uniform int seq_len,
+  const uniform itmd_t softmax_scale,
+  uniform itmd_t a[],
+  uniform itmd_t asb[]
+) {
+  uniform itmd_t amb[NUM_Q_HEADS];
+
+  foreach (h = 0 ... NUM_Q_HEADS) {
+    amb[h] = -1e20;
+    asb[h] = 0;
+    for (uniform int i = 0; i < seq_len; i++) {
+      itmd_t s = a[i * NUM_Q_HEADS + h] * softmax_scale;
+      a[i * NUM_Q_HEADS + h] = s;
+      itmd_t new_max = max(amb[h], s);
+      asb[h] = asb[h] * exp(amb[h] - new_max) + exp(s - new_max);
+      amb[h] = new_max;
+    }
+  }
+
+  foreach (h = 0 ... NUM_Q_HEADS) {
+    itmd_t inv_sum = 1.0 / asb[h];
+    for (uniform int i = 0; i < seq_len; i++) {
+      a[i * NUM_Q_HEADS + h] = exp(a[i * NUM_Q_HEADS + h] - amb[h]) * inv_sum;
+    }
+    asb[h] = log(asb[h]) + amb[h];
+  }
+}
+
 export void attn_one_seq(
   const uniform int cur_layer,
   const uniform int num_blocks,

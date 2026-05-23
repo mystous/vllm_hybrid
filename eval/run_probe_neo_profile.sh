@@ -23,6 +23,16 @@ export LD_PRELOAD=/usr/lib64/libcuda.so.1
 export VLLM_NEO_PREDICTOR=heuristic
 export VLLM_NEO_LOAD_AWARE_MIN_RUNNING=32
 export VLLM_NEO_LOAD_AWARE_SWAP_OUT_CAP_PER_STEP=2
+# IDE_006 Phase 4.2 — NEO 정통 Step 2/3 inline 활성. NeoScheduler 의
+# step_2_3_only() 호출 (perfpredictor hot-path 회피). NEO 원본 정통
+# threshold (95-100%) + hysteresis 동작. ratio 1.0 = NEO paper spec.
+# 본 환경 (H100×8) 에서 KV 100% 안 닿음 → ratio 작게 해야 fire.
+export VLLM_NEO_NEOSCHED_STEP23=1
+export VLLM_NEO_SWAP_OUT_RATIO=0.5
+# 6-step driving — dry-run observe mode (queue save/restore, no mutation).
+# DRY_RUN=0 시 apply mode (swap_out/swap_in 실제 적용).
+export VLLM_NEO_DRIVE_6STEP=1
+export VLLM_NEO_6STEP_DRY_RUN=1
 export VLLM_NEO_FORCE_SWAP_IN=1
 export VLLM_NEO_MAX_SWAP_IN_PER_STEP=4
 export VLLM_NEO_CPU_RESIDENT_REQS=64
@@ -72,8 +82,8 @@ taskset -c 0-111 "$PY" -u "${SCRIPT_DIR}/run_neo_baseline.py" \
 LAUNCHER_PID=$!
 echo "[neo_profile] launcher PID=${LAUNCHER_PID}"
 
-# 15분 measurement (4분 engine init + 11분 steady decode) — NEO 발현 확보
-sleep 900
+# 8분 measurement — dry-run 6-step driving deadlock 회피 + observe
+sleep 480
 
 # Cleanup
 pgrep -f "run_neo_baseline\|VLLM::EngineCore\|VLLM::Worker" 2>/dev/null \

@@ -326,7 +326,19 @@ class FlashAttentionMetadataBuilder(AttentionMetadataBuilder[FlashAttentionMetad
         self.headdim = self.model_config.get_head_size()
         self.block_size = kv_cache_spec.block_size
 
-        self.max_num_splits = 0  # No upper bound on the number of splits.
+        # [A5] Sequence-Aware Split Heuristic (turn 14 신규).
+        # env VLLM_NEO_MAX_NUM_SPLITS 활성 시 FA3 영역 영역 split 영역 영역
+        # 영역 영역 영역 고정 (low-head decode 영역 영역 영역 paper arXiv 2604.00028).
+        # default = 0 (FA3 영역 영역 영역 영역 영역 영역 영역 자동 split).
+        import os as _os_a5
+        _a5_splits_env = _os_a5.environ.get("VLLM_NEO_MAX_NUM_SPLITS", "")
+        if _a5_splits_env:
+            try:
+                self.max_num_splits = int(_a5_splits_env)
+            except ValueError:
+                self.max_num_splits = 0
+        else:
+            self.max_num_splits = 0  # No upper bound on the number of splits.
         self.aot_schedule = get_flash_attn_version() == 3
 
         try:

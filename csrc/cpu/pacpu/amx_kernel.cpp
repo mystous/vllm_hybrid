@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <cstdint>
+#include <cstdlib>
 #include <stdexcept>
 #include <vector>
 
@@ -96,6 +97,20 @@ static inline void fp16_to_bf16_batch(const _Float16* src, uint16_t* dst, int co
     }
     for (; i < count; ++i) {
         dst[i] = fp16_to_bf16(src[i]);
+    }
+}
+
+// SUB_039: Vectorized FP32 → BF16 batch conversion.
+//   16 elem at a time via _mm512_cvtneps_pbh.
+static inline void fp32_to_bf16_batch(const float* src, uint16_t* dst, int count) {
+    int i = 0;
+    for (; i + 15 < count; i += 16) {
+        __m512 fp32_v = _mm512_loadu_ps(src + i);
+        __m256bh bf16_v = _mm512_cvtneps_pbh(fp32_v);
+        _mm256_storeu_si256((__m256i*)(dst + i), (__m256i)bf16_v);
+    }
+    for (; i < count; ++i) {
+        dst[i] = f32_to_bf16(src[i]);
     }
 }
 
@@ -210,9 +225,25 @@ extern "C" void qk_amx(
 // External ISPC declarations (use after pacpu_ispc.h is generated).
 namespace ispc {
 extern "C" void softmax(int seq_len, float softmax_scale, float* a, float* asb);
+extern "C" void softmax_online(int seq_len, float softmax_scale, float* a, float* asb);
 extern "C" void av_product(int cur_layer, int num_blocks, int seq_len,
                             const float* a, const _Float16* v_cache,
                             const int* block_table, float* o);
+}
+
+// SUB_033 B3: env-gated dispatch (1회 결정, thread_local cached)
+//   VLLM_NEO_SOFTMAX_ONLINE=1 → ispc::softmax_online (2-pass)
+//   default                  → ispc::softmax        (3-pass, NEO 원본)
+typedef void (*softmax_fn_t)(int, float, float*, float*);
+static inline softmax_fn_t _softmax_dispatch() {
+    static thread_local softmax_fn_t fn = nullptr;
+    if (fn == nullptr) {
+        const char* env = std::getenv("VLLM_NEO_SOFTMAX_ONLINE");
+        fn = (env && env[0] && env[0] != '0')
+           ? (softmax_fn_t)&ispc::softmax_online
+           : (softmax_fn_t)&ispc::softmax;
+    }
+    return fn;
 }
 
 // attn_one_seq_amx — replaces ispc::attn_one_seq when VLLM_NEO_USE_AMX is set.
@@ -231,7 +262,7 @@ extern "C" void attn_one_seq_amx(
     itmd_t* asb
 ) {
     qk_amx(cur_layer, num_blocks, seq_len, q, k_cache, block_table, a);
-    ispc::softmax(seq_len, softmax_scale, a, asb);
+    _softmax_dispatch()(seq_len, softmax_scale, a, asb);
     ispc::av_product(cur_layer, num_blocks, seq_len, a, v_cache, block_table, o);
 }
 
@@ -332,6 +363,97 @@ extern "C" void qk_amx_bf16(
     }
 }
 
+// SUB_039: av_amx — AMX BF16 matmul for av_product.
+//   Shape: A[seq_len, NUM_Q_HEADS=64] @ V_per_kvhead[seq_len, HEAD_DIM=128]
+//          → O[NUM_Q_HEADS=64, HEAD_DIM=128]
+//   Per kv_head j (0..NUM_KV_HEADS=8), QH_PER_KVH=8 q heads share V[:, j, :].
+//   AMX tile config: M=16 (QH_PER_KVH=8 padded to 16), K=32 BF16, N=16.
+//
+//   K rounds: ceil(seq_len/32). N rounds: HEAD_DIM/16 = 8.
+//   Inner loop: tile_dpbf16ps(C, A_tile, V_tile) accumulates.
+//   FP32 accumulator → store to O.
+//
+//   CAUTION (turn N+2): 본 함수는 SKELETON. 실제 AMX matmul 검증 필요:
+//     (1) A_bf16 [QH_PER_KVH × K_padded] 의 tile_loadd stride
+//     (2) V_bf16 [K_padded × N=16] 의 interleave (qk_amx_bf16 의 K_pre 패턴 참조)
+//     (3) tile_stored → output[q_head*HEAD_DIM + n_offset:] padding 처리
+//     (4) BF16 cast 정확도 (FP32 A + FP16 V → BF16 의 relative error 검증)
+//   env-gated (VLLM_NEO_AV_AMX=1) default OFF — 정확도 verify 전까지 미사용.
+extern "C" void av_amx_bf16(
+    int cur_layer,
+    int num_blocks,
+    int seq_len,
+    const float* a,            // FP32 [seq_len, NUM_Q_HEADS=64]
+    const _Float16* v_cache,   // FP16
+    const int* block_table,
+    float* o                   // FP32 [NUM_Q_HEADS=64, HEAD_DIM=128]
+) {
+    if (!ensure_amx_init()) return;
+
+    int imax = (seq_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
+    // Step 1: V FP16 → BF16 cast (per block, all kv_heads + all positions).
+    //   layout target: V_bf16[i_block, j_kv, t, l] linearly
+    //   thread_local cache, resize on demand.
+    static thread_local std::vector<uint16_t> _v_bf16_cache;
+    size_t v_needed = (size_t)imax * NUM_KV_HEADS * BLOCK_SIZE * HEAD_DIM;
+    if (_v_bf16_cache.size() < v_needed) _v_bf16_cache.resize(v_needed);
+    for (int i = 0; i < imax; ++i) {
+        int tmax = std::min(BLOCK_SIZE, seq_len - i * BLOCK_SIZE);
+        const _Float16* v_block = v_cache +
+            (1ll * cur_layer * num_blocks + block_table[i]) * BLOCK_NELEM;
+        // V block layout: [NUM_KV_HEADS, BLOCK_SIZE, HEAD_DIM]
+        for (int j = 0; j < NUM_KV_HEADS; ++j) {
+            for (int t = 0; t < tmax; ++t) {
+                fp16_to_bf16_batch(
+                    v_block + (j * BLOCK_SIZE + t) * HEAD_DIM,
+                    _v_bf16_cache.data() + (((i * NUM_KV_HEADS + j) * BLOCK_SIZE + t) * HEAD_DIM),
+                    HEAD_DIM);
+            }
+            // zero-pad if partial block
+            for (int t = tmax; t < BLOCK_SIZE; ++t) {
+                std::memset(
+                    _v_bf16_cache.data() + (((i * NUM_KV_HEADS + j) * BLOCK_SIZE + t) * HEAD_DIM),
+                    0, HEAD_DIM * sizeof(uint16_t));
+            }
+        }
+    }
+
+    // Step 2: A FP32 → BF16 cast (entire [seq_len, NUM_Q_HEADS] matrix).
+    static thread_local std::vector<uint16_t> _a_bf16_cache;
+    size_t a_needed = (size_t)seq_len * NUM_Q_HEADS;
+    if (_a_bf16_cache.size() < a_needed) _a_bf16_cache.resize(a_needed);
+    fp32_to_bf16_batch(a, _a_bf16_cache.data(), (int)a_needed);
+
+    // Step 3: AMX matmul per kv_head.
+    //   For each kv_head j: compute A^T[j_head_group, seq_len] @ V_per_j[seq_len, HEAD_DIM]
+    //   AMX inner: tile_dpbf16ps with K=32 BF16 lanes.
+    //
+    //   TODO (SUB_039 next turn): Implement actual AMX tile loop here.
+    //   Skeleton: fallback to ispc::av_product for correctness.
+    //   When VLLM_NEO_AV_AMX=1 is set + this fallback removed, the AMX matmul
+    //   replaces ISPC av_product.
+
+    // FALLBACK — call ISPC av_product for now (correctness preserved).
+    // This branch will be replaced by AMX inner loop after verification.
+    ispc::av_product(cur_layer, num_blocks, seq_len, a, v_cache, block_table, o);
+}
+
+// SUB_039: env-gated dispatch for av_product.
+//   VLLM_NEO_AV_AMX=1 → av_amx_bf16 (currently skeleton with fallback)
+//   default          → ispc::av_product (NEO 원본)
+typedef void (*av_fn_t)(int, int, int, const float*, const _Float16*, const int*, float*);
+static inline av_fn_t _av_dispatch() {
+    static thread_local av_fn_t fn = nullptr;
+    if (fn == nullptr) {
+        const char* env = std::getenv("VLLM_NEO_AV_AMX");
+        fn = (env && env[0] && env[0] != '0')
+           ? (av_fn_t)&av_amx_bf16
+           : (av_fn_t)&ispc::av_product;
+    }
+    return fn;
+}
+
 // P3 (F3) — BF16-K variant of attn_one_seq_amx. K BF16, V FP16 (ISPC kernel
 //   요구). Q FP16 그대로.
 extern "C" void attn_one_seq_amx_bf16(
@@ -348,7 +470,7 @@ extern "C" void attn_one_seq_amx_bf16(
     itmd_t* asb
 ) {
     qk_amx_bf16(cur_layer, num_blocks, seq_len, q, k_cache_bf16, block_table, a);
-    ispc::softmax(seq_len, softmax_scale, a, asb);
+    _softmax_dispatch()(seq_len, softmax_scale, a, asb);
     ispc::av_product(cur_layer, num_blocks, seq_len, a, v_cache, block_table, o);
 }
 

@@ -356,6 +356,20 @@ void ispc_attention_tasks(
   }
   const bool _kv_prefetch_on = (_kv_prefetch_decided == 1);
 
+  // [C1a / SUB_035] OMP team launch overhead 측정 — env VLLM_NEO_OMP_LAUNCH_PROFILE=1
+  //   parallel region 진입 직전 / 종료 직후 wall 차이 = team launch + join cost.
+  //   기존 step0+b1+step1+b2+step2 합과 비교해서 진정한 launch overhead 분리.
+  static int _omp_launch_prof_decided = 0;
+  if (_omp_launch_prof_decided == 0) {
+    const char* _olp_pe = std::getenv("VLLM_NEO_OMP_LAUNCH_PROFILE");
+    _omp_launch_prof_decided = (_olp_pe && _olp_pe[0] && _olp_pe[0] != '0') ? 1 : -1;
+  }
+  const bool _omp_launch_prof_on = (_omp_launch_prof_decided == 1);
+  static thread_local double _omp_launch_total_ms = 0.0;
+  static thread_local double _omp_launch_max_ms = 0.0;
+  static thread_local uint64_t _omp_launch_count = 0;
+  double _olp_t0 = _omp_launch_prof_on ? omp_get_wtime() : 0.0;
+
   # pragma omp parallel
   {
     // Step 0:
@@ -498,6 +512,32 @@ void ispc_attention_tasks(
         _omp_b2_wait_sum_ms / _omp_call_count,
         _omp_b2_max_ms,
         _omp_step2_sum_ms / _omp_call_count);
+      fflush(stderr);
+    }
+  }
+
+  // [C1a / SUB_035] OMP team launch overhead summary emit (log_freq=500 calls)
+  if (_omp_launch_prof_on) {
+    double _olp_ms = (omp_get_wtime() - _olp_t0) * 1000.0;
+    _omp_launch_total_ms += _olp_ms;
+    if (_olp_ms > _omp_launch_max_ms) _omp_launch_max_ms = _olp_ms;
+    _omp_launch_count++;
+    if (_omp_launch_count % 500 == 0) {
+      double _step_sum = _omp_step0_sum_ms + _omp_b1_wait_sum_ms
+                       + _omp_step1_sum_ms + _omp_b2_wait_sum_ms
+                       + _omp_step2_sum_ms;
+      double _overhead = _omp_launch_total_ms - _step_sum;
+      double _overhead_pct = (_omp_launch_total_ms > 0)
+                           ? (_overhead / _omp_launch_total_ms) * 100.0 : 0.0;
+      fprintf(stderr,
+        "[PROFILE OMP LAUNCH] calls=%lu parallel_avg_ms=%.3f parallel_max_ms=%.3f "
+        "step_sum_ms=%.3f launch_overhead_ms=%.3f overhead_pct=%.2f%%\n",
+        (unsigned long)_omp_launch_count,
+        _omp_launch_total_ms / _omp_launch_count,
+        _omp_launch_max_ms,
+        _step_sum / _omp_launch_count,
+        _overhead / _omp_launch_count,
+        _overhead_pct);
       fflush(stderr);
     }
   }
