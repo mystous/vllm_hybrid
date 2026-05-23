@@ -1,36 +1,44 @@
-# SUB_047 t3 — 3-run avg/min/max 검증 (2026-05-23 KST)
+# SUB_047 t3 — canonical 3-run 검증 (2026-05-23 KST)
 
-> **parent**: TSK_019 / SUB_047 (Tier 1 B ngram numba thread cap)
-> **목적**: SUB_047 t3 (cap=8 + div_tp=0) 의 1-run best 10,949.8 tps 를 추가 2-run 으로 검증 → 3-run avg/min/max 확정
+> **parent**: TSK_020 / SUB_047 (Tier 1 B ngram numba thread cap)
+> **목적**: SUB_047 t3 (cap=8 + div_tp=0) winner config 의 canonical 3-run avg/min/max 확정. SUB_048 t1 (동일 config reproduce) 을 run 1 로 통합 + 추가 verify 2 회.
 > **base config**: HEAD `de85efff1`, Llama-3.3-70B, TP=8, gmu=0.85, fp8 KV, 500p × 8192, spec=7
 
 ---
 
 ## 1. 3-run 결과
 
-| run | tps | wall (s) | CPU busy avg (%) | GPU util avg (%) | crash |
-|---|---:|---:|---:|---:|---:|
-| run1 (SUB_047 t3 원본) | 10,949.8 | 367.1 | 5.52 | 54.6 | 0 |
-| run2 (verify) | 10,963.5 | 366.6 | 5.47 | 54.7 | 0 |
-| run3 (verify) | 10,956.5 | 366.8 | 5.55 | 54.8 | 0 |
+| run | source | tps | wall (s) | CPU busy avg (%) | GPU util avg (%) | crash |
+|---|---|---:|---:|---:|---:|---:|
+| 1 | SUB_048 t1 (통합) | 10,981.4 | 366.0 | 5.51 | 54.6 | 0 |
+| 2 | verify (new, 16:24 KST) | 10,931.7 | 367.7 | 5.57 | 54.7 | 0 |
+| 3 | verify (new, 16:35 KST) | 10,956.3 | 366.8 | 5.59 | 54.8 | 0 |
 
 ## 2. 통계 요약
 
 | 항목 | avg | min | max | range | range/avg |
 |---|---:|---:|---:|---:|---:|
-| **tps** | **10,956.6** | 10,949.8 | 10,963.5 | 13.7 | **0.125%** |
-| wall (s) | 366.83 | 366.6 | 367.1 | 0.5 | 0.136% |
-| CPU busy (%) | 5.51 | 5.47 | 5.55 | 0.08 | 1.45% |
+| **tps** | **10,956.5** | 10,931.7 | 10,981.4 | 49.7 | **0.454%** |
+| wall (s) | 366.83 | 366.0 | 367.7 | 1.7 | 0.46% |
+| CPU busy (%) | 5.557 | 5.51 | 5.59 | 0.08 | 1.43% |
 | GPU util (%) | 54.70 | 54.6 | 54.8 | 0.2 | 0.366% |
 
-→ tps variance **0.125%** = measurement noise 범위 안. configuration 매우 안정.
+→ tps variance **0.454%** = measurement noise 범위 안. configuration 안정.
 
 ## 3. vs vanilla baseline (4,679.8 tps)
 
 | 항목 | avg | min | max |
 |---|---:|---:|---:|
-| vs vanilla | **+134.1%** | +133.9% | +134.3% |
-| speedup | **2.341×** | 2.339× | 2.343× |
+| vs vanilla | **+134.12%** | +133.59% | +134.65% |
+| speedup | **2.341×** | 2.336× | 2.347× |
+
+## 3.1 Historical reference (canonical 3-run 외)
+
+다음 측정들은 canonical 3-run 영역 외 historical reference (동일 config 의 추가 데이터 포인트):
+- SUB_047 5-way sweep t3 (2026-05-23 08:16): 10,949.8 tps
+- SUB_047 1차 verify batch (2026-05-23 13:39): 10,963.5 / 10,956.5 (2-run)
+
+모두 canonical 3-run avg 10,956.5 의 noise band (±25 tps) 안.
 
 ## 4. 설정
 
@@ -74,21 +82,21 @@ SamplingParams(temperature=0.0, top_p=1.0, max_tokens=8192, seed=0)
 
 ## 5. 측정 환경 비고
 
-- run2/run3 측정 중 sub041 leftover `cpu_bg_workload` proc 112 개가 idle 상태로 잔존 (May 22 launch). run2 tps 가 run1 보다 +13.7 ↑ 라서 영향 없음 확인됨.
-- HEAD: `de85efff1` (3-run 검증 직전, SUB_047 patch + .gitignore + eval/results 산출물 commit 직후)
-- 측정 시각: run1 = 23:36 (UTC), run2 = 04:39 (UTC), run3 = 04:49 (UTC), 2026-05-23
+- HEAD: `de85efff1` 이상 (SUB_047 patch + .gitignore + eval/results 산출물 commit 후)
+- 측정 시각 (KST): run 1 = 19:04 (SUB_048 t1), run 2 = 16:24, run 3 = 16:35 — 2026-05-23
+- sub041 leftover `cpu_bg_workload` proc 112 개가 idle 상태로 잔존 (May 22 launch). 모든 run 에서 idle 상태로 영향 작음 (variance 0.454% 안).
 
 ## 6. raw 자료
 
 | 항목 | 위치 |
 |---|---|
-| run1 result.json | `eval/results/20260523_081619_sub047_ngram_threads/t3_cap8_div0/result.json` |
-| run2 result.json | `eval/results/20260523_133929_sub047_t3_verify/run2_cap8_div0/result.json` |
-| run3 result.json | `eval/results/20260523_133929_sub047_t3_verify/run3_cap8_div0/result.json` |
-| run2/3 SUMMARY | `eval/results/20260523_133929_sub047_t3_verify/SUMMARY.tsv` |
-| launcher | `/tmp/run_sub047_t3_verify_2runs.sh` |
+| run 1 result.json (SUB_048 t1 통합) | `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json` |
+| run 2 result.json (verify new) | `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json` |
+| run 3 result.json (verify new) | `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json` |
+| run 2/3 SUMMARY | `eval/results/20260523_162456_sub047_t3_verify/SUMMARY.tsv` |
+| launcher (verify) | `/tmp/run_sub047_t3_verify_2runs.sh` |
 | wrapper | `/tmp/run_spec_decode.py` |
 
 ## 7. 결론
 
-SUB_047 t3 (cap=8 + div_tp=0, spec=7) = **10,956.6 ± 7 tps (3-run avg, 0.125% variance)** 로 본 환경 (H100×8 + SPR dual, Llama-70B FP8 KV, 500p × 8192) 의 현재 throughput WINNER 확정. vs vanilla 4,679.8 tps: **+134.1% (2.341×)** ⭐
+SUB_047 t3 (cap=8 + div_tp=0, spec=7) = **10,956.5 ± 25 tps (3-run avg, 0.454% variance)** 로 본 환경 (H100×8 + SPR dual, Llama-70B FP8 KV, 500p × 8192) 의 현재 throughput WINNER 확정. vs vanilla 4,679.8 tps: **+134.12% (2.341×)** ⭐

@@ -1,7 +1,7 @@
 # TSK_020 — Best Configuration index (Spec decode tuning + CPU+spec 결합)
 
 > **부모**: [`IDE_006/README.md`](../README.md) · [`shadow_assists/README.md`](../../../README.md)
-> **상태**: 활성 — current best 10,956.6 tps (+134.1% vs vanilla)
+> **상태**: 활성 — current best 10,956.5 tps (+134.1% vs vanilla)
 > **branch**: `feat/spec-decode-tuning`
 > **navigation**: [`INDEX.md`](INDEX.md) — 전체 SUB / measurement / plan single entry
 > **task doc**: [`../TSK_020.md`](../TSK_020.md) — task 전체 개요 + sub-task 영역
@@ -10,15 +10,18 @@
 
 ## ★★★ 현 absolute best — SUB_047 t3 (cap=8 + div_tp=0, spec=7)
 
-**3-run avg 10,956.6 tps (variance 0.125%)**
+**3-run avg 10,956.5 tps (variance 0.454%)** — SUB_048 t1 통합 + 신규 verify 2 회
 
-| 항목 | run1 | run2 | run3 | **avg** | min | max |
-|---|---:|---:|---:|---:|---:|---:|
-| output_tps | 10,949.8 | 10,963.5 | 10,956.5 | **10,956.6** | 10,949.8 | 10,963.5 |
-| wall (s) | 367.1 | 366.6 | 366.8 | 366.83 | 366.6 | 367.1 |
-| CPU busy avg (%) | 5.52 | 5.47 | 5.55 | 5.51 | 5.47 | 5.55 |
-| GPU util avg (%) | 54.6 | 54.7 | 54.8 | 54.70 | 54.6 | 54.8 |
-| vs vanilla 4,679.8 | +134.0% | +134.3% | +134.1% | **+134.1%** | +133.9% | +134.3% |
+| run | source | tps | wall (s) | CPU% | GPU% |
+|---|---|---:|---:|---:|---:|
+| 1 | SUB_048 t1 (통합) | 10,981.4 | 366.0 | 5.51 | 54.6 |
+| 2 | verify (new) | 10,931.7 | 367.7 | 5.57 | 54.7 |
+| 3 | verify (new) | 10,956.3 | 366.8 | 5.59 | 54.8 |
+| **avg** | **3-run** | **10,956.5** | **366.83** | **5.557** | **54.70** |
+| min / max | — | 10,931.7 / 10,981.4 | 366.0 / 367.7 | 5.51 / 5.59 | 54.6 / 54.8 |
+| vs vanilla 4,679.8 | avg | **+134.12%** | — | — | — |
+
+variance 0.454% (range/avg). **10,956.5 ± 25 tps** 신뢰 가능.
 
 상세 fact / 설정 / pipeline 도식 / SUB_047 패치 = [`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)
 
@@ -31,9 +34,10 @@
 | 2026-05-23 00:53 | SUB_044 | **10,778.6 tps (+130.3%)** ⭐ | **첫 net-positive** — vanilla + ngram spec=7 (vLLM built-in feature) |
 | 2026-05-23 ~02:00 | SUB_045 | (진행 중) | spec=7 + CPU BG multi-workload (CLAUDE.md CPU 활용 목표 검증) |
 | 2026-05-23 08:16 | SUB_047 (5-way sweep) | 10,949.8 tps (+134%) ⭐ | ngram numba thread cap env-tunable patch (1→8) |
-| 2026-05-23 ~09:00 | SUB_048 | 중단 | spec sampling CPU offload → 본질이 GPU lever 라 사용자 중단 |
+| 2026-05-23 ~09:00 | SUB_048 | 통합됨 | t1_baseline 만 실행 (SUB_047 t3 config 동일) — SUB_047 reproducibility run 으로 통합 |
 | 2026-05-23 ~10:30 | SUB_049 | (진행 중) | 메인 vLLM (spec=7+cap=8) + 별도 CPU LLM (Qwen 0.5B/1.5B NUMA1) 동시 |
-| **2026-05-23 13:39** | **SUB_047 3-run 검증** | **avg 10,956.6 (min 10,949.8 / max 10,963.5, var 0.125%)** ⭐ | **현 best 확정** |
+| 2026-05-23 13:39 | (historical) SUB_047 verify batch 1 | 3-run avg 10,956.6 (1차 verify, 별도 batch) | reference 영역 |
+| **2026-05-23 16:24** | **SUB_047 t3 canonical 3-run** (SUB_048 t1 통합 + new verify 2 회) | **avg 10,956.5 / min 10,931.7 / max 10,981.4 (var 0.454%)** ⭐ | **★ 현 best 확정** |
 
 ---
 

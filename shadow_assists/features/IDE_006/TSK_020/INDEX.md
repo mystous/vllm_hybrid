@@ -1,23 +1,23 @@
 # TSK_020 — INDEX (navigation hub)
 
 > **목적**: TSK_020 의 모든 doc / measurement / plan 의 single entry point.
-> **상태**: 활성 — current best 10,956.6 tps (+134.1% vs vanilla)
+> **상태**: 활성 — current best 10,956.5 tps (+134.1% vs vanilla)
 > **branch**: `feat/spec-decode-tuning`
 > **상위**: [`README.md`](README.md) — Best Configuration index
 
 ---
 
-## ★★★ 0. 현 absolute best (2026-05-23) — SUB_047 t3 3-run verified
+## ★★★ 0. 현 absolute best (2026-05-23) — SUB_047 t3 3-run (SUB_048 t1 통합 + 신규 verify 2 회)
 
 | 항목 | 값 |
 |---|---:|
-| 3-run avg / min / max | **10,956.6** / 10,949.8 / 10,963.5 |
-| variance (CV) | **0.125%** |
-| wall (500p × 8192) | 366.83 s |
-| CPU busy / GPU util | 5.51 % / 54.70 % |
-| vs vanilla 4,679.8 | **+134.1% (2.341×)** ⭐ |
+| 3-run avg / min / max | **10,956.5** / 10,931.7 / 10,981.4 |
+| variance (range/avg) | **0.454%** |
+| wall (500p × 8192) | 366.83 s avg |
+| CPU busy / GPU util | 5.557 % / 54.70 % avg |
+| vs vanilla 4,679.8 | **+134.12% (2.341×)** ⭐ |
 
-상세: [`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)
+상세 3-run 표 / 동작 원리 / 코드 패치 = [`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)
 
 ### 활성화
 
@@ -54,9 +54,9 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 | 2026-05-23 | SUB_044 | measurement | [`measurements/sub044_spec_decode_20260523/RESULTS.md`](measurements/sub044_spec_decode_20260523/RESULTS.md) | 완료 (★ 첫 net-positive 10,778 tps) |
 | 2026-05-23 | SUB_045 | (CPU + spec multi-workload) | (eval/results 출력 예정) | background 측정 중 |
 | 2026-05-23 | SUB_047 (5-way sweep) | measurement | (eval/results/20260523_081619_sub047_ngram_threads/) | 완료 (ngram cap 1→8 patch, 10,949.8 tps) |
-| 2026-05-23 | SUB_048 | (spec sampling CPU) | — | 사용자 중단 |
+| 2026-05-23 | SUB_048 | (Tier 1 C 원래 plan, t1 만 실행) | — | 통합됨 → SUB_047 (t1_baseline 이 SUB_047 t3 config 동일) |
 | 2026-05-23 | SUB_049 | (CPU LLM + GPU spec) | (eval/results 출력 예정) | background 측정 중 |
-| **2026-05-23** | **SUB_047 3-run verify** | **measurement** | **[`measurements/sub047_t3_3run_verify_20260523/RESULTS.md`](measurements/sub047_t3_3run_verify_20260523/RESULTS.md)** | **★★★ 현 best 확정 (avg 10,956.6, variance 0.125%)** |
+| **2026-05-23** | **SUB_047 t3 canonical 3-run (SUB_048 t1 통합 + 신규 verify 2 회)** | **measurement** | **[`measurements/sub047_t3_3run_verify_20260523/RESULTS.md`](measurements/sub047_t3_3run_verify_20260523/RESULTS.md)** | **★★★ 현 best 확정 (3-run avg 10,956.5, variance 0.454%)** |
 
 ---
 
@@ -65,7 +65,7 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 | 날짜 | 디렉토리 | 측정 | 결과 |
 |---|---|---|---:|
 | 2026-05-23 | [`measurements/sub044_spec_decode_20260523/`](measurements/sub044_spec_decode_20260523/) | ngram spec=3/5/7/10 sweep | **t3 spec=7 = 10,778.6 tps (+130%)** ⭐ 첫 net-positive |
-| 2026-05-23 | [`measurements/sub047_t3_3run_verify_20260523/`](measurements/sub047_t3_3run_verify_20260523/) | SUB_047 t3 (cap=8 + div_tp=0) 3-run | **★★★ avg 10,956.6 / min 10,949.8 / max 10,963.5 (var 0.125%) — 현 best** |
+| 2026-05-23 | [`measurements/sub047_t3_3run_verify_20260523/`](measurements/sub047_t3_3run_verify_20260523/) | SUB_047 t3 (cap=8 + div_tp=0) canonical 3-run (SUB_048 t1 통합 + 신규 verify 2) | **★★★ avg 10,956.5 / min 10,931.7 / max 10,981.4 (var 0.454%) — 현 best** |
 
 추가 raw 결과 (RESULTS.md 미작성, eval/results 만):
 - `eval/results/20260523_005314_sub044_spec_decode/` (SUB_044 raw)
@@ -106,7 +106,7 @@ TSK_020/
 ├── Best_SpecDecode_10778tps.md            ← Best 상세 fact + 설정 + mechanism + 코드 변경
 ├── measurements/
 │   ├── sub044_spec_decode_20260523/       ← 첫 net-positive (spec=3/5/7/10 sweep)
-│   └── sub047_t3_3run_verify_20260523/    ← ★★★ 현 best 확정 (3-run avg 10,956.6)
+│   └── sub047_t3_3run_verify_20260523/    ← ★★★ 현 best 확정 (3-run avg 10,956.5)
 ├── planning/
 │   └── SUB_046_to_049_cpu_spec_plans.md   ← Tier 1/3 CPU+spec 결합 plan
 └── analysis/                              ← (현재 비어 있음, 향후 spec workload 분석 등)

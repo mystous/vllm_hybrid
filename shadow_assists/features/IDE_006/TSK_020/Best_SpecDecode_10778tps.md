@@ -1,28 +1,31 @@
-# ★★★ Best Configuration — Ngram Spec + ngram thread cap=8 (3-run avg 10,956.6 tps) (2026-05-23 KST, 3-run verified)
+# ★★★ Best Configuration — Ngram Spec + ngram thread cap=8 (3-run avg 10,956.5 tps) (2026-05-23 KST)
 
-> **갱신 (2026-05-23 turn — 3-run 검증 완료)**: SUB_047 t3 (cap=8 + div_tp=0) 3-run avg **10,956.6 tps (+134.1% vs vanilla)** ⭐
-> variance 매우 작음 (max-min = 13.7 tps = 0.125% of avg) → configuration 매우 안정.
+> **갱신 (2026-05-23 — SUB_048 통합 + 추가 2 회 측정으로 3-run 확정)**: SUB_047 t3 (cap=8 + div_tp=0) 3-run avg **10,956.5 tps (+134.12% vs vanilla 4,679.8)** ⭐
+> 3 runs (SUB_048 t1 + 추가 verify 2 회) — variance 0.454% (max-min = 49.7 tps).
 > 이전 (SUB_044 t3 spec=7 only) = 10,778.6 tps 는 vLLM 의 ngram numba cap=1 (TODO 미적용) 의 한계 — env `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` 로 해소.
 
 ---
 
 ## 1. 측정 fact (3-run, 500p × 8192, 2026-05-23)
 
-| 항목 | run1 | run2 | run3 | **avg** | min | max |
-|---|---:|---:|---:|---:|---:|---:|
-| **output_tps** | 10,949.8 | 10,963.5 | 10,956.5 | **10,956.6** | 10,949.8 | 10,963.5 |
-| wall (s) | 367.1 | 366.6 | 366.8 | 366.83 | 366.6 | 367.1 |
-| CPU busy avg (%) | 5.52 | 5.47 | 5.55 | 5.51 | 5.47 | 5.55 |
-| GPU util avg (%) | 54.6 | 54.7 | 54.8 | 54.70 | 54.6 | 54.8 |
-| crash | 0 | 0 | 0 | 0 | — | — |
-| vs vanilla 4,680 tps | +134.0% | +134.3% | +134.1% | **+134.1%** | +133.9% | +134.3% |
+| run | source | output_tps | wall (s) | CPU% | GPU% | vs vanilla 4,679.8 |
+|---|---|---:|---:|---:|---:|---:|
+| 1 | SUB_048 t1 (통합) | 10,981.4 | 366.0 | 5.51 | 54.6 | +134.65% |
+| 2 | SUB_047 verify (new) | 10,931.7 | 367.7 | 5.57 | 54.7 | +133.59% |
+| 3 | SUB_047 verify (new) | 10,956.3 | 366.8 | 5.59 | 54.8 | +134.12% |
+| **avg** | **3-run** | **10,956.5** | **366.83** | **5.557** | **54.70** | **+134.12%** |
+| min | — | 10,931.7 | 366.0 | 5.51 | 54.6 | +133.59% |
+| max | — | 10,981.4 | 367.7 | 5.59 | 54.8 | +134.65% |
+| range / avg (variance) | — | **0.454%** | 0.46% | 1.43% | 0.37% | 0.06pp |
 
-**3-run statistical confidence**: variance 0.125% — measurement noise 범위 안. 본 configuration 의 throughput 은 신뢰 가능한 ★ 10,956.6 ± 7 tps.
+본 configuration 의 throughput = **10,956.5 ± 25 tps**.
 
 **raw 위치**:
-- run1: `eval/results/20260523_081619_sub047_ngram_threads/t3_cap8_div0/result.json`
-- run2: `eval/results/20260523_133929_sub047_t3_verify/run2_cap8_div0/result.json`
-- run3: `eval/results/20260523_133929_sub047_t3_verify/run3_cap8_div0/result.json`
+- run 1 (SUB_048 t1 통합): `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json`
+- run 2 (verify new): `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json`
+- run 3 (verify new): `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json`
+
+> **이전 1차 verify batch (3 runs, 2026-05-23 13:39)**: 10,949.8 / 10,963.5 / 10,956.5 (avg 10,956.6). 본 doc 의 canonical 3-run 영역은 위 표 (SUB_048 t1 통합 + 신규 2회) 로 갱신. 이전 batch 는 historical reference (eval/results/20260523_133929_sub047_t3_verify/).
 
 ## 2. 설정 (production-ready)
 
@@ -93,7 +96,7 @@ SamplingParams(temperature=0.0, max_tokens=8192)
 
 ## 4. 동작 원리
 
-### 4.1 Best (10,956.6 tps) 동작 pipeline
+### 4.1 Best (10,956.5 tps) 동작 pipeline
 
 ```
 prompt
@@ -173,12 +176,14 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 
 | 항목 | 위치 |
 |---|---|
-| run1 result.json | `eval/results/20260523_081619_sub047_ngram_threads/t3_cap8_div0/result.json` |
-| run2 result.json | `eval/results/20260523_133929_sub047_t3_verify/run2_cap8_div0/result.json` |
-| run3 result.json | `eval/results/20260523_133929_sub047_t3_verify/run3_cap8_div0/result.json` |
+| **run 1 (SUB_048 t1 통합)** | `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json` |
+| **run 2 (verify new)** | `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json` |
+| **run 3 (verify new)** | `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json` |
 | RESULTS.md (SUB_044 base) | [`measurements/sub044_spec_decode_20260523/RESULTS.md`](measurements/sub044_spec_decode_20260523/RESULTS.md) |
 | RESULTS.md (SUB_047 3-run) | [`measurements/sub047_t3_3run_verify_20260523/RESULTS.md`](measurements/sub047_t3_3run_verify_20260523/RESULTS.md) |
 | launcher (5-way sweep) | `/tmp/run_sub047_ngram_threads.sh` |
-| launcher (3-run verify) | `/tmp/run_sub047_t3_verify_2runs.sh` |
+| launcher (verify 2-run) | `/tmp/run_sub047_t3_verify_2runs.sh` |
 | wrapper | `/tmp/run_spec_decode.py` |
-| stdout log (verify) | `/tmp/sub047_t3_verify.log` |
+| stdout log (verify new batch) | `/tmp/sub047_t3_verify_round2.log` |
+| historical (1차 verify batch) | `eval/results/20260523_133929_sub047_t3_verify/` (canonical 영역 제외, reference) |
+| historical (SUB_047 5-way sweep) | `eval/results/20260523_081619_sub047_ngram_threads/` (canonical 영역 제외, reference) |
