@@ -1,13 +1,65 @@
 # TSK_019 — Best Configuration index
 
-> ★ **전체 navigation**: [`INDEX.md`](INDEX.md) (모든 doc / measurement / plan 의 single entry point, turn 11 영역에서 신설)
-> ★ **분석 영역 status**: [`analysis/README.md`](analysis/README.md) (active / reference / archive 분류)
-> ★ **AMX 최적화 plan**: [`planning/AMX_OPTIMIZATION_PLAN.md`](planning/AMX_OPTIMIZATION_PLAN.md)
+> ★ **전체 navigation**: [`INDEX.md`](INDEX.md) (모든 doc / measurement / plan 의 single entry point, turn 11 신설)
+> ★ **분석 status**: [`analysis/README.md`](analysis/README.md) (active / reference / archive 분류)
+> ★ **AMX 최적화 plan** (역사적): [`planning/AMX_OPTIMIZATION_PLAN.md`](planning/AMX_OPTIMIZATION_PLAN.md)
 > ★ **cdec leftover 제거 외부 idea 22 개**: [`analysis/N_cdec_leftover_elimination_ideas.md`](analysis/N_cdec_leftover_elimination_ideas.md)
 >
-> 본 README = Best configuration 영역 history + 개략 정보. 상세 fact = 각 best file 영역.
+> 본 README = Best configuration history + 개략 정보. 상세 fact = 각 best file.
 
-## Best history (3-run avg/min/max)
+---
+
+## ★★★ 현 absolute best (2026-05-23) — vanilla + ngram spec=7 + cap=8
+
+**10,956.6 tps (3-run avg, +134.1% vs vanilla)** — branch `feat/spec-decode-tuning`
+
+| 항목 | 값 |
+|---|---:|
+| 3-run avg / min / max | **10,956.6** / 10,949.8 / 10,963.5 |
+| variance (CV) | **0.125%** (매우 안정) |
+| wall (500p × 8192) | 366.83 s |
+| vs vanilla 4,679.8 tps | **+134.1% (2.341×)** ⭐ |
+| CPU busy / GPU util | 5.51 % / 54.70 % |
+
+상세: [`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md) (§4 "동작 원리" 에 dual-path coexistence + default vs best + pipeline 도식 + cap=8 의 본질 정리)
+
+### 동작 원리 요약 (현 코드 베이스의 두 path)
+
+| Path | 활성 조건 | 상태 |
+|---|---|---|
+| **A. NEO/AMX** (CPU KV offload) | `LLM(enable_neo_asymmetric=True)` + `VLLM_NEO_*` env | **dead path** — 본 환경 net-negative (-13~62%), 코드만 잔존 |
+| **B. vanilla + ngram spec** (현 winning) | `LLM(speculative_config={"method":"ngram",num_speculative_tokens=7,...})` + `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` | **★ 현 best (+134.1%)** |
+
+env 안 줄 때 default = 순수 vanilla vLLM (~4,680 tps). NEO / pacpu / AMX 코드는 import 만 되고 호출 안 됨. SUB_033 / 035 / 039 / A5 patch 도 env-OFF.
+
+### 본 path 의 mechanism
+
+```
+prompt → [ngram lookup, CPU 8 thread/rank, sub-ms]  ← SUB_047 cap=8
+       → [1 + 7 = 8 token batch] GPU forward 1 회 (TP=8)
+       → [rejection sampler accept ~4-5 token/step]
+       → output (vanilla 의 ~5× step 압축)
+```
+
+vanilla = 1 step → 1 token / spec=7 = 1 step → 4-5 token. workload (sonnet) 의 어휘 반복 → acceptance rate ~60 %.
+
+### CLAUDE.md `# Objective` 평가
+
+| 목표 | 평가 |
+|---|---|
+| GPU 포함 서버 전체 throughput 향상 | ✓ **+134.1%** 달성 |
+| CPU 활용률 극도로 끌어올리기 | ✗ CPU 5.51 % (vanilla 4.66 % 거의 동일) |
+| CPU Idle 허락 안 함 | ✗ idle 94.5 % |
+
+→ throughput 목표 ✓, CPU 활용 목표 미달. 다음 path = **spec + CPU 결합** (SUB_046 CPU draft model, SUB_048 CPU spec sampling, SUB_045 multi-stream).
+
+### NEO 시대 (S1-S9 / v1.6 / Phase 3.1) 의 위치 변경
+
+본 README 의 아래 영역 (`## Best history` 이하) 의 NEO best 들 (S1-S9 2,238 tps, v1.6 2,197 tps, Phase 3.1 등) 은 **NEO 단독 시도의 historical record**. SUB_036/040/041/042 (2026-05-22) 의 vanilla baseline cross-check 에서 **NEO 가 본 환경 (H100×8 + SPR dual) 에서 vanilla 보다 항상 느림** 확정 (가장 좋은 NEO best 2,238 tps 도 vanilla 4,680 tps 의 **47.7%**) — 따라서 NEO best 들은 NEO 내부 ranking 일 뿐 absolute throughput WINNER 아님. dead path 결론 backing = [`measurements/sub036_pathA_500p_baseline_20260522/`](measurements/sub036_pathA_500p_baseline_20260522/), [`measurements/sub040_util_baseline_20260522/`](measurements/sub040_util_baseline_20260522/), [`measurements/sub041_multi_workload_20260522/`](measurements/sub041_multi_workload_20260522/), [`measurements/sub042_prefill_decode_20260522/`](measurements/sub042_prefill_decode_20260522/).
+
+---
+
+## Best history (3-run avg/min/max) — NEO 단독 시도 historical record
 
 > ⚠️ **환경 의존성**: 본 표의 best 순위는 측정 환경 (특히 `gmu` = `gpu_memory_utilization`) 에 의존. gmu=0.92 환경에서 S1-S9 가 best, gmu=0.85 환경에서는 v1.6 best 가 best ([`measurements/p3_compare_3run_085_20260520/`](measurements/p3_compare_3run_085_20260520/) — S1-S9 1,800.1 < v1.6 best 1,833.0). gmu cross-env ranking 차이 = NEO scheduler 의 KV pool 압박 영역의 wall-clock 의존 trigger.
 
