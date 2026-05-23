@@ -10,7 +10,8 @@
 | 날짜 | 파일 | size | 의미 |
 |---|---|---:|---|
 | 2026-05-20 | [`M_sub015_phase3_hpc_optimization.md`](M_sub015_phase3_hpc_optimization.md) | 599 lines | SUB_015-Phase 3 HPC 측면 최적화 분석 + 외부 1차 출처 backing (Intel ISA / OpenBLAS / FlashDecoding++) |
-| **2026-05-21** | [`N_cdec_leftover_elimination_ideas.md`](N_cdec_leftover_elimination_ideas.md) | **568 lines** | **★ cdec leftover 제거 외부 idea 22 개** (7 영역: pipelining / CPU kernel / OMP barrier / async / cross-layer / GPU-only / NEO-like) — turn 10 |
+| 2026-05-21 | [`N_cdec_leftover_elimination_ideas.md`](N_cdec_leftover_elimination_ideas.md) | 568 lines | cdec leftover 제거 외부 idea 22 개 (7 영역: pipelining / CPU kernel / OMP barrier / async / cross-layer / GPU-only / NEO-like) — turn 10 |
+| **2026-05-21** | [`O_stage1_stage3_root_cause.md`](O_stage1_stage3_root_cause.md) | — | **★ Stage 1+3 (24 tests, A1~A5) 영역 영역 영역** — 코드/라이브러리 레벨 분석 + B/C-tier 영역 영역 영역 — turn 17 |
 
 ---
 
@@ -65,10 +66,15 @@
                                               ↓
 2026-05-21                                   [★ active N: cdec leftover 제거 외부 idea]
                                               ↓
+2026-05-21                                   [Stage 1 (A1-A4 12 tests) + Stage 3 (A5+ 12 tests) 측정]
+                                              ↓
+2026-05-21                                   [★ active O: Stage 1+3 영역 영역 분석, turn 17]
+                                              ↓
 2026-05-20  [../planning/AMX_OPTIMIZATION_PLAN.md: 실행 plan, turn 8 작성]
                           ↓
 2026-05-21  [turn 11: 영역 정리 (archive/reference/active 분리)]
-            [turn 12: 카테고리 내 시간순 정렬 ★ 본 turn]
+            [turn 12: 카테고리 내 시간순 정렬]
+            [turn 17: Stage 1+3 결과 + O 영역 영역 영역 ★ 본 turn]
 ```
 
 ---

@@ -14,7 +14,10 @@
 | 2026-05-20 | timeline | [`measurements/timeline_neo_amx_apply_20260520/timeline_schematic.svg`](measurements/timeline_neo_amx_apply_20260520/timeline_schematic.svg) | 449 lines | 동적 분석 기반 도식 (b0/b1 + workflow phases + ③ sub-breakdown) |
 | 2026-05-20 | analysis | [`analysis/M_sub015_phase3_hpc_optimization.md`](analysis/M_sub015_phase3_hpc_optimization.md) | 599 lines | SUB_015-Phase 3 HPC 측면 최적화 분석 + 외부 1차 출처 backing |
 | 2026-05-20 | planning | [`planning/AMX_OPTIMIZATION_PLAN.md`](planning/AMX_OPTIMIZATION_PLAN.md) | 165 lines | AMX 최적화 + 전체 최적화 통합 plan (7 sub-task A1~A7 + Phase α/β/γ/δ) — turn 8 작성, turn 11 별도 doc 추출 |
-| 2026-05-21 | analysis | [`analysis/N_cdec_leftover_elimination_ideas.md`](analysis/N_cdec_leftover_elimination_ideas.md) | 568 lines | **★ cdec leftover 제거 외부 idea 22 개** (7 영역) — turn 10 |
+| 2026-05-21 | analysis | [`analysis/N_cdec_leftover_elimination_ideas.md`](analysis/N_cdec_leftover_elimination_ideas.md) | 568 lines | cdec leftover 제거 외부 idea 22 개 (7 영역) — turn 10 |
+| 2026-05-21 | measurements | [`measurements/stage1_a1a2a3a4_matrix_100p_20260521/RESULTS.md`](measurements/stage1_a1a2a3a4_matrix_100p_20260521/RESULTS.md) | — | Stage 1 A1~A4 조합 12 tests (100p × 8192, env-ON) — A4 단독 +1.0% ⭐ winner |
+| 2026-05-21 | measurements | [`measurements/stage3_a5_matrix_100p_20260521/RESULTS.md`](measurements/stage3_a5_matrix_100p_20260521/RESULTS.md) | — | Stage 3 A5 + 조합 12 tests — A3+A5 +0.6% (Stage 3 best), A1+A5 -1.7% (anti-synergy) |
+| **2026-05-21** | analysis | [`analysis/O_stage1_stage3_root_cause.md`](analysis/O_stage1_stage3_root_cause.md) | — | **★ Stage 1+3 (24 tests) 영역 영역 영역 — 코드/라이브러리 레벨 분석 + B/C-tier 영역 영역 영역 (turn 17)** |
 
 ---
 
@@ -24,7 +27,8 @@
 |---|---|---|---:|---|
 | 2026-05-14 | [`Best_v1.6_2157tps.md`](Best_v1.6_2157tps.md) | OFF | 2,197.4 | v1.6 best (commit `64f9e0c48`) |
 | 2026-05-15 | [`Best_Phase3_1_kmp50.md`](Best_Phase3_1_kmp50.md) | OFF | 2,038.7 (1-run) | Phase 3.1 + KMP_BLOCKTIME=50 (400p) |
-| **2026-05-17** | **[`Best_S1_S9_2238tps.md`](Best_S1_S9_2238tps.md)** | **OFF** | **2,238.6** | **★ current best @ gmu=0.92** (NEO §4.4 정합 S1-S9) |
+| 2026-05-17 | [`Best_S1_S9_2238tps.md`](Best_S1_S9_2238tps.md) | OFF | 2,238.6 | NEO S1-S9 best (deprecated by SpecDecode) |
+| **2026-05-23** | **[`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)** | **vanilla + spec=7** | **10,778.6** | **★★★ current absolute best — vanilla + ngram spec decode, +130% vs vanilla baseline, 본 환경 throughput WINNER** ⭐ |
 
 ---
 
@@ -76,6 +80,23 @@
 | 날짜 | 디렉토리 | 측정 | 결과 |
 |---|---|---|---:|
 | 2026-05-20 | [`measurements/timeline_neo_amx_apply_20260520/`](measurements/timeline_neo_amx_apply_20260520/) (★ active) | env-OFF 100p + env-ON 100p + ★ env-ON 500p × 1-run + workflow breakdown | env-ON 500p = 1,833.95 (+0.05% noise vs v1.6 best) |
+
+### 3.7 ★ Stage 1+3 A1~A5 조합 매트릭스 + SUB_032 검증 (HEAD `0d7dc0334`, 100p × 8192, env-ON baseline)
+
+| 날짜 | 디렉토리 | 측정 | 결과 |
+|---|---|---|---:|
+| 2026-05-21 | [`measurements/stage1_a1a2a3a4_matrix_100p_20260521/`](measurements/stage1_a1a2a3a4_matrix_100p_20260521/) | Stage 1 — A1~A4 조합 12 tests | t04 A4 단독 = 941.1 tps (1-run) → **noise** (SUB_032) |
+| 2026-05-21 | [`measurements/stage3_a5_matrix_100p_20260521/`](measurements/stage3_a5_matrix_100p_20260521/) | Stage 3 — A5 + 조합 12 tests | 모두 noise band 안 |
+| 2026-05-21 | [`analysis/O_stage1_stage3_root_cause.md`](analysis/O_stage1_stage3_root_cause.md) | Stage 1+3 root cause (코드/라이브러리 레벨) | A-tier 전체 무효 → B/C-tier 권고 |
+| **2026-05-21** | **[`measurements/sub032_a4_3run_20260521/`](measurements/sub032_a4_3run_20260521/)** | **SUB_032 — A4 단독 3-run avg** | **avg 930.2 tps (±0.18%), Δ=-0.21% — Stage 1 의 +1.0% 가 1-run artifact 확정** |
+| **2026-05-21** | **[`measurements/sub033_b3_softmax_20260521/`](measurements/sub033_b3_softmax_20260521/)** | **SUB_033 — B3 FlashDecoding++ online softmax (3-way)** | **OFF avg 922.65 / ON 915.1 / Δ=-0.82% → 기각 (default OFF 유지)** |
+| 2026-05-22 | [`measurements/sub034_b1_async_depth_20260522/`](measurements/sub034_b1_async_depth_20260522/) | SUB_034 — B1 OmniServe async cdec depth (5-way 1/2/3/1/2) | depth=1 avg 921.95 / depth=2 avg 922.95 / Δ=+0.1% → noise, default depth=1 유지 |
+| **2026-05-22** | **[`measurements/sub035_c1a_omp_launch_20260522/`](measurements/sub035_c1a_omp_launch_20260522/)** | **★ SUB_035 C1a — OMP team launch overhead instrumentation** | **launch=1.22% / step1 ISPC=70% / b2_wait=0-30% → C-tier 폐기, step1 algorithmic 변경이 진짜 lever** |
+| **2026-05-22** | **[`measurements/sub036_pathA_500p_baseline_20260522/`](measurements/sub036_pathA_500p_baseline_20260522/)** | **★ SUB_036 Path A — 500p × 8192 NEO + vanilla baseline** | **NEO 1779 / vanilla 4681 → vanilla 2.63× 빠름. NEO 본 워크로드에서 net negative → vanilla OOM 영역 점검 필요** |
+| **2026-05-22** | **[`measurements/sub040_util_baseline_20260522/`](measurements/sub040_util_baseline_20260522/)** | **★★★ SUB_040 CPU/GPU util baseline — 본 프로젝트 목표 미달 확정** | **NEO CPU 11.93% (목표 "극대화"와 큰 거리) / GPU 66% (vanilla 73.4% 대비 idle 발생) / power -31% → net trade-off 음수** |
+| **2026-05-22** | **[`measurements/sub041_multi_workload_20260522/`](measurements/sub041_multi_workload_20260522/)** | **★★★ SUB_041 Multi-workload 서버 throughput — NEO net-negative 최종 확정** | **vanilla+BG 4679 (-0.04%) vs NEO+BG 1652 (-13%) → vanilla 가 BG 와 자원 분담, NEO 는 contention 으로 손실. 본 환경에서 NEO 의 raison d'être 무효** |
+| **2026-05-22** | **[`measurements/sub042_prefill_decode_20260522/`](measurements/sub042_prefill_decode_20260522/)** | **★★★ SUB_042 prefill/decode 분리 — NEO 의 raison d'être 가설 깨짐** | **모든 phase 에서 vanilla 3.26-4.11× faster. NEO 가설 영역 decode-heavy 에서도 vanilla 4.00× 압승. 본 환경 batch+paging 으로 충분, NEO offload 가 항상 overhead** |
+| **2026-05-23** | **[`measurements/sub044_spec_decode_20260523/`](measurements/sub044_spec_decode_20260523/)** | **★★★ SUB_044 ngram spec decode — 첫 net-positive 성과!** | **vanilla 4680 → spec=7 10778 tps (+130%, 2.30× faster) ⭐ — SUB_032-043 12 SUB 모두 noise 후 처음으로 vanilla 보다 빠른 lever** |
 
 ---
 
