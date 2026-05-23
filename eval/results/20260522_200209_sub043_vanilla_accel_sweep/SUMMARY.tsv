@@ -1,0 +1,20 @@
+test	inf_tps	wall_s	cpu_busy_avg	gpu_util_avg	crash	levers
+t1_baseline	4679.8	875.3	4.04	58.7	0
+0	seqs=256/gmu=0.85/batch_tok=8192/prefix=off/chunked=on/kv=fp8
+t2_seqs512	4364.3	938.5	4.26	63.0	0
+0	seqs=512/gmu=0.85/batch_tok=8192/prefix=off/chunked=on/kv=fp8
+t3_seqs1024	4326.2	946.8	4.35	63.6	0
+0	seqs=1024/gmu=0.85/batch_tok=8192/prefix=off/chunked=on/kv=fp8
+t4_gmu092	NO_RESULT	?	1.36	0.0	0
+0	seqs=256/gmu=0.92/batch_tok=8192/prefix=off/chunked=on/kv=fp8
+t5_batch_tok16k	4634.4	883.8	4.35	59.4	0
+0	seqs=256/gmu=0.85/batch_tok=16384/prefix=off/chunked=on/kv=fp8
+t6_prefix_cache	4679.8	875.3	4.13	58.8	0
+0	seqs=256/gmu=0.85/batch_tok=8192/prefix=on/chunked=on/kv=fp8
+t7_no_chunked	NO_RESULT	?	1.30	0.0	0
+0	seqs=256/gmu=0.85/batch_tok=8192/prefix=off/chunked=off/kv=fp8
+t8_kv_e4m3	4676.7	875.8	4.29	58.7	0
+0	seqs=256/gmu=0.85/batch_tok=8192/prefix=off/chunked=on/kv=fp8_e4m3
+t9_kv_e5m2	NO_RESULT	?	1.28	0.0	1	seqs=256/gmu=0.85/batch_tok=8192/prefix=off/chunked=on/kv=fp8_e5m2
+t10_combo	NO_RESULT	?	1.24	0.0	0
+0	seqs=1024/gmu=0.92/batch_tok=16384/prefix=on/chunked=on/kv=fp8
