@@ -81,34 +81,9 @@ GPU forward (verify K tokens)  ←→  CPU thread (next K ngram lookup)
 
 ---
 
-## 3. Tier 1 C — SUB_048: spec sampling/logit CPU offload
+## 3. Tier 1 C (기각)
 
-### 3.1 mechanism
-
-spec decode 의 accept/reject 결정 = logit + sampling. GPU 에서 빠름 (TC 활용). 단 일부 영역 (rejection sampling, copy back to GPU) 이 CPU 가능:
-
-```
-GPU verify (forward + logit) → ★ CPU (sampling/reject + accept) → GPU 다음 step
-```
-
-### 3.2 surface
-
-| 파일 | 변경 |
-|---|---|
-| `vllm/v1/spec_decode/rejection_sampler.py` | GPU 영역 sampling → CPU 영역 sampling (output token id 만 다시 GPU 로) |
-| `vllm/v1/sample/` 영역 | sampling path 의 CPU 영역 hook |
-
-### 3.3 effort
-
-- large (vLLM sampling path 깊은 변경 + 정확도 verify)
-- 4-7 일
-
-### 3.4 효과 가설
-
-- sampling 자체 = GPU 의 micro-sec ops
-- CPU 영역 sampling = GIL 영역 + tensor copy overhead → **회귀 가능성 큼**
-
-→ **negative ROI 가능성**. 권장 안 함.
+spec sampling/logit CPU offload 원래 plan — negative ROI 가능성 + 본 task 영역에서 진행 안 함. (id_registry SUB_048 = 기각)
 
 ---
 
@@ -148,8 +123,7 @@ CPU draft (small LLM)  →  GPU verify (forward only)  →  CPU rejection sampli
 | 1 | **SUB_045 (Tier 3 F)** | spec=7 + CPU BG multi-workload — **본 turn 진행 중** | small | ★★★ CLAUDE.md 목표 직접 검증 |
 | 2 | **SUB_046 (Tier 1 A)** | CPU draft model | large (3-5일) | ★★ CPU 활용 적극 |
 | 3 | **SUB_047 (Tier 1 B)** | ngram CPU thread | medium (2-3일) | ★ ROI 작음 |
-| 4 | SUB_048 (Tier 1 C) | spec sampling CPU | large (4-7일) | ⚪ 회귀 가능성 |
-| 5 | SUB_049 (Tier 3 E) | A + C 결합 | very large (1-2주) | ⚪ A 결과 후 재평가 |
+| 4 | SUB_049 (Tier 3 E) | A + C 결합 | very large (1-2주) | ⚪ A 결과 후 재평가 |
 
 ## 6. 본 turn 결정
 

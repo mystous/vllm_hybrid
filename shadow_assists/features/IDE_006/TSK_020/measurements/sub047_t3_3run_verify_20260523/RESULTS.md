@@ -1,18 +1,18 @@
 # SUB_047 t3 — canonical 3-run 검증 (2026-05-23 KST)
 
 > **parent**: TSK_020 / SUB_047 (Tier 1 B ngram numba thread cap)
-> **목적**: SUB_047 t3 (cap=8 + div_tp=0) winner config 의 canonical 3-run avg/min/max 확정. SUB_048 t1 (동일 config reproduce) 을 run 1 로 통합 + 추가 verify 2 회.
+> **목적**: SUB_047 t3 (cap=8 + div_tp=0) winner config 의 canonical 3-run avg/min/max 확정.
 > **base config**: HEAD `de85efff1`, Llama-3.3-70B, TP=8, gmu=0.85, fp8 KV, 500p × 8192, spec=7
 
 ---
 
 ## 1. 3-run 결과
 
-| run | source | tps | wall (s) | CPU busy avg (%) | GPU util avg (%) | crash |
-|---|---|---:|---:|---:|---:|---:|
-| 1 | SUB_048 t1 (통합) | 10,981.4 | 366.0 | 5.51 | 54.6 | 0 |
-| 2 | verify (new, 16:24 KST) | 10,931.7 | 367.7 | 5.57 | 54.7 | 0 |
-| 3 | verify (new, 16:35 KST) | 10,956.3 | 366.8 | 5.59 | 54.8 | 0 |
+| run | tps | wall (s) | CPU busy avg (%) | GPU util avg (%) | crash |
+|---|---:|---:|---:|---:|---:|
+| 1 | 10,981.4 | 366.0 | 5.51 | 54.6 | 0 |
+| 2 | 10,931.7 | 367.7 | 5.57 | 54.7 | 0 |
+| 3 | 10,956.3 | 366.8 | 5.59 | 54.8 | 0 |
 
 ## 2. 통계 요약
 
@@ -83,16 +83,16 @@ SamplingParams(temperature=0.0, top_p=1.0, max_tokens=8192, seed=0)
 ## 5. 측정 환경 비고
 
 - HEAD: `de85efff1` 이상 (SUB_047 patch + .gitignore + eval/results 산출물 commit 후)
-- 측정 시각 (KST): run 1 = 19:04 (SUB_048 t1), run 2 = 16:24, run 3 = 16:35 — 2026-05-23
+- 측정 시각 (KST): run 1 = 19:04, run 2 = 16:24, run 3 = 16:35 — 2026-05-23
 - sub041 leftover `cpu_bg_workload` proc 112 개가 idle 상태로 잔존 (May 22 launch). 모든 run 에서 idle 상태로 영향 작음 (variance 0.454% 안).
 
 ## 6. raw 자료
 
 | 항목 | 위치 |
 |---|---|
-| run 1 result.json (SUB_048 t1 통합) | `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json` |
-| run 2 result.json (verify new) | `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json` |
-| run 3 result.json (verify new) | `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json` |
+| run 1 result.json | `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json` |
+| run 2 result.json | `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json` |
+| run 3 result.json | `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json` |
 | run 2/3 SUMMARY | `eval/results/20260523_162456_sub047_t3_verify/SUMMARY.tsv` |
 | launcher (verify) | `/tmp/run_sub047_t3_verify_2runs.sh` |
 | wrapper | `/tmp/run_spec_decode.py` |

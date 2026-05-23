@@ -219,9 +219,24 @@ flowchart TB
     TSK_020 --> SUB_044["SUB_044<br/>ngram spec=3/5/7/10 sweep<br/>🟢 첫 net-positive (10,778 tps, +130%)"]
     TSK_020 --> SUB_045["SUB_045<br/>spec=7 + CPU BG multi-workload<br/>🔵 background 측정 중"]
     SUB_044 --> SUB_047["SUB_047<br/>ngram numba thread cap 1→8<br/>🏆 canonical 3-run avg 10,956.5 (var 0.454%, +134.12%)"]
-    TSK_020 --> SUB_048["SUB_048<br/>t1_baseline 만 실행<br/>🔗 통합 → SUB_047 canonical run 1"]
-    SUB_048 -.통합.-> SUB_047
-    SUB_047 --> SUB_049["SUB_049<br/>메인 vLLM + 별도 CPU LLM 동시<br/>🔵 background 측정 중"]
+    SUB_047 --> SUB_049["SUB_049<br/>메인 vLLM + 별도 CPU LLM 동시<br/>🟢 완료 (3-scenario)"]
+
+    %% SUB_050~064 — Objective 정합 lever 후보 (2026-05-23 plan)
+    TSK_020 --> SUB_050["SUB_050<br/>Cat A: Eagle CPU draft head<br/>⚪ 대기 (★★ 우선)"]
+    TSK_020 --> SUB_051["SUB_051<br/>Cat A: Medusa CPU heads<br/>⚪ 대기"]
+    TSK_020 --> SUB_052["SUB_052<br/>Cat A: Lookahead (CPU Jacobi)<br/>⚪ 대기 (★★ 우선)"]
+    TSK_020 --> SUB_053["SUB_053<br/>Cat A: SpecInfer tree<br/>⚪ 대기"]
+    TSK_020 --> SUB_054["SUB_054<br/>Cat B: CPU embedding preprocessor<br/>⚪ 대기 (★★★ 우선)"]
+    TSK_020 --> SUB_055["SUB_055<br/>Cat B: CPU re-ranker / safety<br/>⚪ 대기"]
+    TSK_020 --> SUB_056["SUB_056<br/>Cat B: CPU prefill offload<br/>⚪ 대기 (위험)"]
+    SUB_047 --> SUB_057["SUB_057<br/>Cat C: ngram tree expansion<br/>⚪ 대기 (★ SUB_047 확장)"]
+    TSK_020 --> SUB_058["SUB_058<br/>Cat C: CPU radix prefix cache<br/>⚪ 대기"]
+    TSK_020 --> SUB_059["SUB_059<br/>Cat C: CPU tokenizer parallel<br/>⚪ 대기 (★★ 우선)"]
+    TSK_020 --> SUB_060["SUB_060<br/>Cat D: NUMA + hugepages 튜닝<br/>⚪ 대기 (★★★ 우선)"]
+    TSK_020 --> SUB_061["SUB_061<br/>Cat D: isolcpus + cgroup<br/>🏁 ★★★ CPU 70-90% target"]
+    TSK_020 --> SUB_062["SUB_062<br/>Cat D: GPU Direct + lockfree<br/>⚪ 대기"]
+    TSK_020 --> SUB_063["SUB_063<br/>Cat E: CPU-load scheduler<br/>⚪ 대기"]
+    TSK_020 --> SUB_064["SUB_064<br/>Cat E: Dynamic CPU/GPU migration<br/>⚪ 대기"]
 
     %% pending follow-ups
     PLN_001 --> TST_001["TST_001<br/>TSK_001 정확도<br/>(A · B(i) · C)"]

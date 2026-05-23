@@ -1,31 +1,29 @@
 # ★★★ Best Configuration — Ngram Spec + ngram thread cap=8 (3-run avg 10,956.5 tps) (2026-05-23 KST)
 
-> **갱신 (2026-05-23 — SUB_048 통합 + 추가 2 회 측정으로 3-run 확정)**: SUB_047 t3 (cap=8 + div_tp=0) 3-run avg **10,956.5 tps (+134.12% vs vanilla 4,679.8)** ⭐
-> 3 runs (SUB_048 t1 + 추가 verify 2 회) — variance 0.454% (max-min = 49.7 tps).
+> **갱신 (2026-05-23)**: SUB_047 t3 (cap=8 + div_tp=0) canonical 3-run avg **10,956.5 tps (+134.12% vs vanilla 4,679.8)** ⭐
+> variance 0.454% (max-min = 49.7 tps).
 > 이전 (SUB_044 t3 spec=7 only) = 10,778.6 tps 는 vLLM 의 ngram numba cap=1 (TODO 미적용) 의 한계 — env `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` 로 해소.
 
 ---
 
 ## 1. 측정 fact (3-run, 500p × 8192, 2026-05-23)
 
-| run | source | output_tps | wall (s) | CPU% | GPU% | vs vanilla 4,679.8 |
-|---|---|---:|---:|---:|---:|---:|
-| 1 | SUB_048 t1 (통합) | 10,981.4 | 366.0 | 5.51 | 54.6 | +134.65% |
-| 2 | SUB_047 verify (new) | 10,931.7 | 367.7 | 5.57 | 54.7 | +133.59% |
-| 3 | SUB_047 verify (new) | 10,956.3 | 366.8 | 5.59 | 54.8 | +134.12% |
-| **avg** | **3-run** | **10,956.5** | **366.83** | **5.557** | **54.70** | **+134.12%** |
-| min | — | 10,931.7 | 366.0 | 5.51 | 54.6 | +133.59% |
-| max | — | 10,981.4 | 367.7 | 5.59 | 54.8 | +134.65% |
-| range / avg (variance) | — | **0.454%** | 0.46% | 1.43% | 0.37% | 0.06pp |
+| run | output_tps | wall (s) | CPU% | GPU% | vs vanilla 4,679.8 |
+|---|---:|---:|---:|---:|---:|
+| 1 | 10,981.4 | 366.0 | 5.51 | 54.6 | +134.65% |
+| 2 | 10,931.7 | 367.7 | 5.57 | 54.7 | +133.59% |
+| 3 | 10,956.3 | 366.8 | 5.59 | 54.8 | +134.12% |
+| **avg** | **10,956.5** | **366.83** | **5.557** | **54.70** | **+134.12%** |
+| min | 10,931.7 | 366.0 | 5.51 | 54.6 | +133.59% |
+| max | 10,981.4 | 367.7 | 5.59 | 54.8 | +134.65% |
+| range / avg (variance) | **0.454%** | 0.46% | 1.43% | 0.37% | 0.06pp |
 
 본 configuration 의 throughput = **10,956.5 ± 25 tps**.
 
 **raw 위치**:
-- run 1 (SUB_048 t1 통합): `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json`
-- run 2 (verify new): `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json`
-- run 3 (verify new): `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json`
-
-> **이전 1차 verify batch (3 runs, 2026-05-23 13:39)**: 10,949.8 / 10,963.5 / 10,956.5 (avg 10,956.6). 본 doc 의 canonical 3-run 영역은 위 표 (SUB_048 t1 통합 + 신규 2회) 로 갱신. 이전 batch 는 historical reference (eval/results/20260523_133929_sub047_t3_verify/).
+- run 1: `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json`
+- run 2: `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json`
+- run 3: `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json`
 
 ## 2. 설정 (production-ready)
 
@@ -162,28 +160,25 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 
 → **서버 throughput 목표 ✓ 충족**, CPU 활용 목표 미달 (spec=GPU lever). CPU 활용 추가 lever (Tier 1/3) 별도 시도 중.
 
-## 7. 다음 path (CPU 활용 추가, SUB_046~049 plan)
+## 7. 다음 path (CPU 활용 추가)
 
-| Tier | Lever | SUB | 비고 |
+| Tier | Lever | SUB | 상태 / 비고 |
 |---|---|---|---|
-| Tier 1 A | CPU draft model (small LLM, 1B 정도 CPU 추론) | SUB_046 (plan) | vLLM 내부 코드 변경 필요 (draft device=cpu) |
-| Tier 1 B | ngram numba thread cap env-tunable | **SUB_047 (★ 완료)** | **+134.1% 달성** |
-| Tier 1 C | spec sampling/logit CPU offload | SUB_048 (plan) | rejection sampler 를 CPU 로 |
-| Tier 3 E | CPU draft + GPU verify + CPU sample 결합 | SUB_049 일부 (plan) | 3 path 결합 |
-| Tier 3 F | multi-stream (GPU spec + CPU BG workload) | SUB_045 (plan) | 서버 전체 CPU 활용 |
+| Tier 1 A | CPU draft model (small LLM, 1B 정도 CPU 추론) | (plan) | vLLM 내부 코드 변경 필요 (draft device=cpu) — 미시작 |
+| Tier 1 B | ngram numba thread cap env-tunable | **SUB_047 (★ 완료)** | **+134.1% 달성 (단 CPU idle)** |
+| Tier 3 E | CPU LLM + GPU spec 동시 (별도 instance) | SUB_049 (완료) | 3-scenario: solo / +Qwen0.5B / +Qwen1.5B — CPU 활용 ↑ 26~28% |
+| Tier 3 F | multi-stream (GPU spec + CPU BG workload) | SUB_045 (완료) | 3-scenario: spec solo / spec+BG / vanilla+BG — CPU 29% 달성 |
 
 ## 8. raw 자료
 
 | 항목 | 위치 |
 |---|---|
-| **run 1 (SUB_048 t1 통합)** | `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json` |
-| **run 2 (verify new)** | `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json` |
-| **run 3 (verify new)** | `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json` |
+| **run 1 result.json** | `eval/results/20260523_100441_sub048_ngram_refinement/t1_baseline/result.json` |
+| **run 2 result.json** | `eval/results/20260523_162456_sub047_t3_verify/run2_cap8_div0/result.json` |
+| **run 3 result.json** | `eval/results/20260523_162456_sub047_t3_verify/run3_cap8_div0/result.json` |
 | RESULTS.md (SUB_044 base) | [`measurements/sub044_spec_decode_20260523/RESULTS.md`](measurements/sub044_spec_decode_20260523/RESULTS.md) |
 | RESULTS.md (SUB_047 3-run) | [`measurements/sub047_t3_3run_verify_20260523/RESULTS.md`](measurements/sub047_t3_3run_verify_20260523/RESULTS.md) |
 | launcher (5-way sweep) | `/tmp/run_sub047_ngram_threads.sh` |
 | launcher (verify 2-run) | `/tmp/run_sub047_t3_verify_2runs.sh` |
 | wrapper | `/tmp/run_spec_decode.py` |
 | stdout log (verify new batch) | `/tmp/sub047_t3_verify_round2.log` |
-| historical (1차 verify batch) | `eval/results/20260523_133929_sub047_t3_verify/` (canonical 영역 제외, reference) |
-| historical (SUB_047 5-way sweep) | `eval/results/20260523_081619_sub047_ngram_threads/` (canonical 영역 제외, reference) |

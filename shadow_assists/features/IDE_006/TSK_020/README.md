@@ -10,16 +10,16 @@
 
 ## ★★★ 현 absolute best — SUB_047 t3 (cap=8 + div_tp=0, spec=7)
 
-**3-run avg 10,956.5 tps (variance 0.454%)** — SUB_048 t1 통합 + 신규 verify 2 회
+**canonical 3-run avg 10,956.5 tps (variance 0.454%)**
 
-| run | source | tps | wall (s) | CPU% | GPU% |
-|---|---|---:|---:|---:|---:|
-| 1 | SUB_048 t1 (통합) | 10,981.4 | 366.0 | 5.51 | 54.6 |
-| 2 | verify (new) | 10,931.7 | 367.7 | 5.57 | 54.7 |
-| 3 | verify (new) | 10,956.3 | 366.8 | 5.59 | 54.8 |
-| **avg** | **3-run** | **10,956.5** | **366.83** | **5.557** | **54.70** |
-| min / max | — | 10,931.7 / 10,981.4 | 366.0 / 367.7 | 5.51 / 5.59 | 54.6 / 54.8 |
-| vs vanilla 4,679.8 | avg | **+134.12%** | — | — | — |
+| run | tps | wall (s) | CPU% | GPU% |
+|---|---:|---:|---:|---:|
+| 1 | 10,981.4 | 366.0 | 5.51 | 54.6 |
+| 2 | 10,931.7 | 367.7 | 5.57 | 54.7 |
+| 3 | 10,956.3 | 366.8 | 5.59 | 54.8 |
+| **avg** | **10,956.5** | **366.83** | **5.557** | **54.70** |
+| min / max | 10,931.7 / 10,981.4 | 366.0 / 367.7 | 5.51 / 5.59 | 54.6 / 54.8 |
+| vs vanilla 4,679.8 | **+134.12%** | — | — | — |
 
 variance 0.454% (range/avg). **10,956.5 ± 25 tps** 신뢰 가능.
 
@@ -32,12 +32,10 @@ variance 0.454% (range/avg). **10,956.5 ± 25 tps** 신뢰 가능.
 | 시각 (KST) | SUB | 결과 | 의미 |
 |---|---|---:|---|
 | 2026-05-23 00:53 | SUB_044 | **10,778.6 tps (+130.3%)** ⭐ | **첫 net-positive** — vanilla + ngram spec=7 (vLLM built-in feature) |
-| 2026-05-23 ~02:00 | SUB_045 | (진행 중) | spec=7 + CPU BG multi-workload (CLAUDE.md CPU 활용 목표 검증) |
+| 2026-05-23 ~02:00 | SUB_045 | 완료 (3-scenario) | t1 spec=10,749 / t2 spec+BG=10,562 (CPU 29%) / t3 vanilla+BG=4,680 |
 | 2026-05-23 08:16 | SUB_047 (5-way sweep) | 10,949.8 tps (+134%) ⭐ | ngram numba thread cap env-tunable patch (1→8) |
-| 2026-05-23 ~09:00 | SUB_048 | 통합됨 | t1_baseline 만 실행 (SUB_047 t3 config 동일) — SUB_047 reproducibility run 으로 통합 |
-| 2026-05-23 ~10:30 | SUB_049 | (진행 중) | 메인 vLLM (spec=7+cap=8) + 별도 CPU LLM (Qwen 0.5B/1.5B NUMA1) 동시 |
-| 2026-05-23 13:39 | (historical) SUB_047 verify batch 1 | 3-run avg 10,956.6 (1차 verify, 별도 batch) | reference 영역 |
-| **2026-05-23 16:24** | **SUB_047 t3 canonical 3-run** (SUB_048 t1 통합 + new verify 2 회) | **avg 10,956.5 / min 10,931.7 / max 10,981.4 (var 0.454%)** ⭐ | **★ 현 best 확정** |
+| 2026-05-23 ~10:30 | SUB_049 | 완료 (3-scenario) | t1 solo=10,973 / t2 +Qwen0.5B=10,580 (CPU 28%) / t3 +Qwen1.5B=10,745 (CPU 26%) |
+| **2026-05-23 16:35** | **SUB_047 canonical 3-run** | **avg 10,956.5 / min 10,931.7 / max 10,981.4 (var 0.454%)** ⭐ | **★ 현 best 확정** |
 
 ---
 
