@@ -1,26 +1,28 @@
-# ★★★ Best Configuration — Ngram Spec + ngram thread cap=8 (10,949.8 tps) (2026-05-23 KST, updated)
+# ★★★ Best Configuration — Ngram Spec + ngram thread cap=8 (3-run avg 10,956.6 tps) (2026-05-23 KST, 3-run verified)
 
-> **갱신 (2026-05-23 turn)**: SUB_047 t3 (cap=8 + div_tp=0) = **10,949.8 tps (+134% vs vanilla, +1.6% vs SUB_044 spec=7)** ⭐.
-> 이전 (SUB_044 t3 spec=7 only) = 10,778.6 tps 는 vLLM 의 ngram numba cap=1 (TODO 영역 미적용) 의 한계 — env `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` 로 해소.
-
-# ★★★ 이전 Best — Ngram Speculative Decoding (10,778 tps) (2026-05-23 KST)
-
-> **출처**: SUB_044 v2 t3_spec7 ([RESULTS](measurements/sub044_spec_decode_20260523/RESULTS.md))
-> **본 환경 (HEAD `0d7dc0334`, H100×8 + SPR dual, Llama-70B FP8 KV, 500p × 8192) 의 throughput WINNER**.
-> **vs vanilla baseline 4,680 tps: +130.3% (2.30× faster)**
+> **갱신 (2026-05-23 turn — 3-run 검증 완료)**: SUB_047 t3 (cap=8 + div_tp=0) 3-run avg **10,956.6 tps (+134.1% vs vanilla)** ⭐
+> variance 매우 작음 (max-min = 13.7 tps = 0.125% of avg) → configuration 매우 안정.
+> 이전 (SUB_044 t3 spec=7 only) = 10,778.6 tps 는 vLLM 의 ngram numba cap=1 (TODO 미적용) 의 한계 — env `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` 로 해소.
 
 ---
 
-## 1. 측정 fact
+## 1. 측정 fact (3-run, 500p × 8192, 2026-05-23)
 
-| 항목 | 값 |
-|---|---|
-| **output_tps** | **10,778.6** |
-| wall (500p × 8192 = 4.1M token) | 372.9 s |
-| crash | 0 ✓ |
-| CPU busy avg | 2.46% |
-| GPU util avg | 21.9% |
-| GPU power avg | (측정 안 함, 추정 vanilla 와 비슷) |
+| 항목 | run1 | run2 | run3 | **avg** | min | max |
+|---|---:|---:|---:|---:|---:|---:|
+| **output_tps** | 10,949.8 | 10,963.5 | 10,956.5 | **10,956.6** | 10,949.8 | 10,963.5 |
+| wall (s) | 367.1 | 366.6 | 366.8 | 366.83 | 366.6 | 367.1 |
+| CPU busy avg (%) | 5.52 | 5.47 | 5.55 | 5.51 | 5.47 | 5.55 |
+| GPU util avg (%) | 54.6 | 54.7 | 54.8 | 54.70 | 54.6 | 54.8 |
+| crash | 0 | 0 | 0 | 0 | — | — |
+| vs vanilla 4,680 tps | +134.0% | +134.3% | +134.1% | **+134.1%** | +133.9% | +134.3% |
+
+**3-run statistical confidence**: variance 0.125% — measurement noise 범위 안. 본 configuration 의 throughput 은 신뢰 가능한 ★ 10,956.6 ± 7 tps.
+
+**raw 위치**:
+- run1: `eval/results/20260523_081619_sub047_ngram_threads/t3_cap8_div0/result.json`
+- run2: `eval/results/20260523_133929_sub047_t3_verify/run2_cap8_div0/result.json`
+- run3: `eval/results/20260523_133929_sub047_t3_verify/run3_cap8_div0/result.json`
 
 ## 2. 설정 (production-ready)
 
@@ -134,8 +136,12 @@ SamplingParams(temperature=0.0, max_tokens=8192)
 
 | 항목 | 위치 |
 |---|---|
-| result.json | `eval/results/20260523_005314_sub044_spec_decode/t3_spec7/result.json` |
-| RESULTS.md | [`measurements/sub044_spec_decode_20260523/RESULTS.md`](measurements/sub044_spec_decode_20260523/RESULTS.md) |
-| launcher | `/tmp/run_sub044_spec_decode.sh` |
+| run1 result.json | `eval/results/20260523_081619_sub047_ngram_threads/t3_cap8_div0/result.json` |
+| run2 result.json | `eval/results/20260523_133929_sub047_t3_verify/run2_cap8_div0/result.json` |
+| run3 result.json | `eval/results/20260523_133929_sub047_t3_verify/run3_cap8_div0/result.json` |
+| RESULTS.md (SUB_044 base) | [`measurements/sub044_spec_decode_20260523/RESULTS.md`](measurements/sub044_spec_decode_20260523/RESULTS.md) |
+| RESULTS.md (SUB_047 3-run) | [`measurements/sub047_t3_3run_verify_20260523/RESULTS.md`](measurements/sub047_t3_3run_verify_20260523/RESULTS.md) |
+| launcher (5-way sweep) | `/tmp/run_sub047_ngram_threads.sh` |
+| launcher (3-run verify) | `/tmp/run_sub047_t3_verify_2runs.sh` |
 | wrapper | `/tmp/run_spec_decode.py` |
-| stdout log | `/tmp/sub044_spec_v2.log` |
+| stdout log (verify) | `/tmp/sub047_t3_verify.log` |

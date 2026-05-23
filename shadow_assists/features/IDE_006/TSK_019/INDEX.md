@@ -28,7 +28,7 @@
 | 2026-05-14 | [`Best_v1.6_2157tps.md`](Best_v1.6_2157tps.md) | OFF | 2,197.4 | v1.6 best (commit `64f9e0c48`) |
 | 2026-05-15 | [`Best_Phase3_1_kmp50.md`](Best_Phase3_1_kmp50.md) | OFF | 2,038.7 (1-run) | Phase 3.1 + KMP_BLOCKTIME=50 (400p) |
 | 2026-05-17 | [`Best_S1_S9_2238tps.md`](Best_S1_S9_2238tps.md) | OFF | 2,238.6 | NEO S1-S9 best (deprecated by SpecDecode) |
-| **2026-05-23** | **[`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)** | **vanilla + spec=7** | **10,778.6** | **★★★ current absolute best — vanilla + ngram spec decode, +130% vs vanilla baseline, 본 환경 throughput WINNER** ⭐ |
+| **2026-05-23** | **[`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)** | **vanilla + spec=7 + ngram cap=8** | **10,956.6** | **★★★ current absolute best — SUB_047 t3 (cap=8 + div_tp=0) 3-run avg (min 10,949.8 / max 10,963.5, variance 0.125%), +134.1% vs vanilla** ⭐ |
 
 ---
 
@@ -97,6 +97,7 @@
 | **2026-05-22** | **[`measurements/sub041_multi_workload_20260522/`](measurements/sub041_multi_workload_20260522/)** | **★★★ SUB_041 Multi-workload 서버 throughput — NEO net-negative 최종 확정** | **vanilla+BG 4679 (-0.04%) vs NEO+BG 1652 (-13%) → vanilla 가 BG 와 자원 분담, NEO 는 contention 으로 손실. 본 환경에서 NEO 의 raison d'être 무효** |
 | **2026-05-22** | **[`measurements/sub042_prefill_decode_20260522/`](measurements/sub042_prefill_decode_20260522/)** | **★★★ SUB_042 prefill/decode 분리 — NEO 의 raison d'être 가설 깨짐** | **모든 phase 에서 vanilla 3.26-4.11× faster. NEO 가설 영역 decode-heavy 에서도 vanilla 4.00× 압승. 본 환경 batch+paging 으로 충분, NEO offload 가 항상 overhead** |
 | **2026-05-23** | **[`measurements/sub044_spec_decode_20260523/`](measurements/sub044_spec_decode_20260523/)** | **★★★ SUB_044 ngram spec decode — 첫 net-positive 성과!** | **vanilla 4680 → spec=7 10778 tps (+130%, 2.30× faster) ⭐ — SUB_032-043 12 SUB 모두 noise 후 처음으로 vanilla 보다 빠른 lever** |
+| **2026-05-23** | **[`measurements/sub047_t3_3run_verify_20260523/`](measurements/sub047_t3_3run_verify_20260523/)** | **★★★ SUB_047 t3 (cap=8 + div_tp=0) 3-run verify** | **avg 10,956.6 / min 10,949.8 / max 10,963.5 tps (variance 0.125%) — +134.1% vs vanilla ⭐ 현재 best 확정** |
 
 ---
 
