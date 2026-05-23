@@ -173,6 +173,8 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 | Cat D | NUMA + KMP/GOMP affinity | SUB_060 (회귀) | main 10,268 (-6.3%) — KMP_AFFINITY 영역 vLLM conflict 추정, 폐기 |
 | Cat D | isolcpus + cgroup isolated partition | SUB_061 (infeasible) | container 영역 host cgroup partition root 필요 — 본 env 영역 불가 |
 | (결합 시도) | SUB_054 + SUB_055 + SUB_049 동시 (NUMA1 56 core 분할) | Phase 1 combo (2026-05-23) | main 9,635 (**-12.1%**) / CPU 23.85% — contention 으로 단독 합 영역 영역, 영역 영역 영역 |
+| (2-way combo A) | Qwen 1.5B + BGE emb b=64 (28+28 thread NUMA1) | Phase 3 combo A (2026-05-23) | main 10,268 (-6.28%) / CPU 23.68% — 영역 영역 단독 SUB_054 영역 영역 (-1.0%) 영역 |
+| (2-way combo B) | BGE emb b=64 + BGE rerank (28+28 thread NUMA1) | Phase 3 combo B (2026-05-23) | main 9,598 (**-12.40%**) / CPU 24.01% — combo A 영역 영역 회귀, 영역 SUB 영역 단독 영역 사용 권장 |
 
 ## 8. raw 자료
 

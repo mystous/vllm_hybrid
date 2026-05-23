@@ -44,21 +44,28 @@ class NgramProposer:
         #             VLLM_NGRAM_DIVIDE_BY_TP (default 1 = divide, 0 = skip — rank 영역 thread 영역 ↑)
         cap = int(os.environ.get("VLLM_NGRAM_NUM_THREADS_CAP", "1"))
         divide_by_tp = int(os.environ.get("VLLM_NGRAM_DIVIDE_BY_TP", "1"))
-        # SUB_057 (Tier C) scaffold — ngram tree expansion (top-M multi-chain candidates).
-        #   default 1 = current SUB_047 behavior (single best chain).
-        #   > 1 = (NOT IMPLEMENTED yet) generate top-M chains, GPU tree-attention verify.
+        # SUB_057 (Tier C) — ngram tree expansion (top-M multi-chain candidates).
+        #   default 1 = current SUB_047 behavior (single longest chain).
+        #   > 1 = generate top-M chains via _find_top_m_matched_ngrams_and_propose_tokens,
+        #         currently 1st chain (longest) 영역 영역 사용 — rejection_sampler tree verify
+        #         적재 영역 영역 영역 same behavior 영역 top-1 (numba kernel time 영역 약간 ↑).
         #   plan: shadow_assists/features/IDE_006/TSK_020/planning/SUB_057_ngram_tree_expansion.md
-        #   surface: (1) batch_propose numba kernel — top-M heap, (2) rejection_sampler — tree path
+        #   surface: (1) batch_propose numba kernel — top-M heap [✓ wired], (2) rejection_sampler — tree path [✗ TODO]
         self.ngram_top_m = max(1, int(os.environ.get("VLLM_NGRAM_TOP_M", "1")))
         if self.ngram_top_m > 1:
-            # not yet implemented — log warning + fallback to 1
+            # Pre-allocate top-M buffer (3D: max_num_seqs × top_m × k)
+            self.valid_ngram_draft_topm = np.zeros(
+                (max_num_seqs, self.ngram_top_m, self.k), dtype=np.int32
+            )
+            self.valid_ngram_topm_count = np.zeros((max_num_seqs), dtype=np.int32)
+            # log activation
             import warnings
             warnings.warn(
-                f"VLLM_NGRAM_TOP_M={self.ngram_top_m} not yet implemented "
-                f"(SUB_057 plan). Falling back to top-1.",
+                f"SUB_057: VLLM_NGRAM_TOP_M={self.ngram_top_m} wired — top-M numba "
+                f"kernel active, but only chain 0 (longest) used until "
+                f"rejection_sampler tree verify is implemented.",
                 stacklevel=2,
             )
-            self.ngram_top_m = 1
         # Max number of threads for numba parallel processing.
         if cpu_count:
             # Divide by 2 to use physical cores
@@ -123,28 +130,55 @@ class NgramProposer:
             else:
                 set_num_threads(1)
 
-            batch_propose_numba(
-                valid_ngram_requests,
-                num_tokens_no_spec,
-                token_ids_cpu,
-                self.min_n,
-                self.max_n,
-                self.max_model_len,
-                self.k,
-                self.valid_ngram_draft,
-                self.valid_ngram_num_drafts,
-            )
+            if self.ngram_top_m > 1:
+                # SUB_057 top-M path — generate top-M chains, use chain 0 only
+                # (rejection_sampler tree verify TODO).
+                batch_propose_numba_topm(
+                    valid_ngram_requests,
+                    num_tokens_no_spec,
+                    token_ids_cpu,
+                    self.min_n,
+                    self.max_n,
+                    self.max_model_len,
+                    self.k,
+                    self.ngram_top_m,
+                    self.valid_ngram_draft_topm,
+                    self.valid_ngram_topm_count,
+                )
+            else:
+                batch_propose_numba(
+                    valid_ngram_requests,
+                    num_tokens_no_spec,
+                    token_ids_cpu,
+                    self.min_n,
+                    self.max_n,
+                    self.max_model_len,
+                    self.k,
+                    self.valid_ngram_draft,
+                    self.valid_ngram_num_drafts,
+                )
 
             # Restore original number of threads.
             set_num_threads(original_num_numba_threads)
 
-        for i in range(num_requests):
-            if i in valid_ngram_requests and self.valid_ngram_num_drafts[i] > 0:
-                draft_token_ids.append(
-                    self.valid_ngram_draft[i, : self.valid_ngram_num_drafts[i]].tolist()
-                )
-            else:
-                draft_token_ids.append([])
+        if self.ngram_top_m > 1:
+            # Use chain 0 (longest) — same length as top-1 best (output 영역 동일).
+            for i in range(num_requests):
+                if i in valid_ngram_requests and self.valid_ngram_topm_count[i] > 0:
+                    # chain 0 from top-M output (longest)
+                    draft_token_ids.append(
+                        self.valid_ngram_draft_topm[i, 0, : self.k].tolist()
+                    )
+                else:
+                    draft_token_ids.append([])
+        else:
+            for i in range(num_requests):
+                if i in valid_ngram_requests and self.valid_ngram_num_drafts[i] > 0:
+                    draft_token_ids.append(
+                        self.valid_ngram_draft[i, : self.valid_ngram_num_drafts[i]].tolist()
+                    )
+                else:
+                    draft_token_ids.append([])
 
         return draft_token_ids
 
@@ -213,6 +247,41 @@ def batch_propose_numba(
         valid_ngram_num_drafts[idx] = drafter_output.shape[0]
         if len(drafter_output):
             valid_ngram_draft[idx, : drafter_output.shape[0]] = drafter_output
+
+
+# SUB_057 — batch_propose top-M variant. Generates top-M chains per request,
+# stores in valid_ngram_draft_topm[idx, m, :k]. Caller uses chain 0 only
+# until rejection_sampler tree verify is wired (TODO).
+@njit(parallel=True)
+def batch_propose_numba_topm(
+    valid_ngram_requests: list,
+    num_tokens_no_spec: np.ndarray,
+    token_ids_cpu: np.ndarray,
+    min_n: int,
+    max_n: int,
+    max_model_len: int,
+    k: int,
+    top_m: int,
+    valid_ngram_draft_topm: np.ndarray,  # shape (max_num_seqs, top_m, k)
+    valid_ngram_topm_count: np.ndarray,  # shape (max_num_seqs,)
+):
+    for i in prange(len(valid_ngram_requests)):
+        idx = valid_ngram_requests[i]
+        num_tokens = num_tokens_no_spec[idx]
+        context_token_ids = token_ids_cpu[idx, :num_tokens]
+        # output shape: (M_actual, k)
+        topm_output = _find_top_m_matched_ngrams_and_propose_tokens(
+            origin_tokens=context_token_ids,
+            min_ngram=min_n,
+            max_ngram=max_n,
+            max_model_len=max_model_len,
+            k=k,
+            top_m=top_m,
+        )
+        m_actual = topm_output.shape[0]
+        valid_ngram_topm_count[idx] = m_actual
+        if m_actual > 0:
+            valid_ngram_draft_topm[idx, :m_actual, :] = topm_output
 
 
 @jit(nopython=True)

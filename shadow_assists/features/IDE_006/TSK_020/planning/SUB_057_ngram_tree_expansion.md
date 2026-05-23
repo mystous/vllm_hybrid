@@ -14,16 +14,19 @@
 |---|---|---|
 | 1 | env flag `VLLM_NGRAM_TOP_M` 영역 default 1 + fallback (no break) | ✓ 적재 |
 | 2 | numba top-M function `_find_top_m_matched_ngrams_and_propose_tokens` 영역 추가 | ✓ 작동 (smoke test pass — 3-chain 반환) |
-| 3 | batch_propose 영역 top-M 영역 처리 + 영역 2D output | 영역 |
-| 4 | rejection_sampler tree path 영역 verify | 영역 |
-| 5 | tree attention (Eagle2 leverage) | 영역 |
-| 6 | 측정 + best config 갱신 | 영역 |
+| 3 | batch_propose 영역 top-M 영역 처리 + 영역 2D output | ✓ wired (`batch_propose_numba_topm`, top-M=N 일 때 active, chain 0 만 사용) |
+| 4 | rejection_sampler tree path 영역 verify | ✗ TODO (현 영역 chain 0 만 사용) |
+| 5 | tree attention (Eagle2 leverage) | ✗ TODO |
+| 6 | 측정 + best config 갱신 | ✗ (4-5 영역 완성 후 영역 영역 영역) |
 
-본 turn 적재 영역: `vllm/v1/spec_decode/ngram_proposer.py`
-- env flag (line 47-57)
-- `_find_top_m_matched_ngrams_and_propose_tokens` (line ~309, no-side-effect alternative function)
+본 turn 적재 (2026-05-23):
+- `vllm/v1/spec_decode/ngram_proposer.py`:
+  - env flag `VLLM_NGRAM_TOP_M` (line 47-66) — pre-allocate `valid_ngram_draft_topm` 3D buffer
+  - `batch_propose` 영역 if-branch (top-M vs top-1)
+  - `_find_top_m_matched_ngrams_and_propose_tokens` numba function (~110 lines)
+  - `batch_propose_numba_topm` parallel kernel wrapper
 
-smoke test 영역 일부 duplicate 영역 후속 refinement 필요 (dedup by output position, tie-break by ngram length DESC + position DESC).
+⚠️ **caveat**: top-M chain 0 != longest function 영역 output (정렬 영역 영역). 영역 throughput 측정 영역 top-M=1 영역 영역 다를 가능성. integration 영역 영역 영역 chain 0 영역 longest 영역 dedup-by-position-tie-break-by-latest 영역 refine 영역 권장.
 
 ---
 

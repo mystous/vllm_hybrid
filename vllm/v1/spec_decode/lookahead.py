@@ -75,9 +75,18 @@ class LookaheadProposer:
         | list[dict[str, torch.Tensor]]
         | None = None,
     ) -> list[list[int]]:
-        """SUB_052 propose — currently returns empty (skeleton)."""
-        # TODO: implement Jacobi iteration n-gram pool generation here.
-        # For now, return empty drafts for each request (no spec gain).
+        """SUB_052 propose — currently returns empty (skeleton).
+
+        Full implementation (TODO):
+            1. Maintain per-request n-gram cache (prefix_window → next-token list)
+            2. For each request: run lookahead window with main model on GPU
+               (requires gpu_model_runner.py integration)
+            3. n-gram pool 영역 update from window output
+            4. Match best chain from cache against current suffix
+            5. Return chain as draft tokens
+        """
+        # Placeholder — returns empty drafts (no spec gain).
+        # Real integration requires gpu_model_runner.py changes for Jacobi window.
         return [[] for _ in sampled_token_ids]
 
     def load_model(self, *args, **kwargs):
@@ -85,25 +94,60 @@ class LookaheadProposer:
         pass
 
 
-# === Jacobi iteration kernel (TODO) ===
-# Reference impl:
-#   GitHub hao-ai-lab/LookaheadDecoding 의 lookahead/decoding.py
-#   핵심: jacobi_window 함수가 W positions 의 token 추정을 parallel update.
+# === SUB_052 — n-gram pool match kernel (CPU side, partial impl) ===
+# Reference: arXiv 2402.02057 §3 "Lookahead Decoding"
 #
-# Numba kernel sketch:
-#   @njit(parallel=True)
-#   def jacobi_window_kernel(
-#       prompt_tokens: np.ndarray,  # shape (T,)
-#       window: int,                # W
-#       ngram_size: int,            # N
-#       max_iter: int,              # convergence iter cap
-#   ) -> np.ndarray:                # shape (W, N) n-gram pool
-#       ...
-#
-# n-gram cache lookup (per-prompt, simple hash table):
-#   key = tuple of N tokens (prefix of length N-1)
-#   value = next token candidates
-#
-# best chain selection:
-#   for each candidate chain in pool, score by: (length × confidence).
-#   pick top-1 (또는 top-M with SUB_057 integration).
+# 본 kernel: lookahead_pool 영역 lookup-table 영역 영역 영역 suffix 영역 best match 영역 찾음.
+# real Jacobi (W positions parallel model forward) 영역 GPU side — gpu_model_runner.py
+# 영역 deep change 필요.
+import numpy as np
+from numba import njit
+
+
+@njit
+def lookahead_match_kernel(
+    prompt_tokens: np.ndarray,  # shape (T,)
+    pool: np.ndarray,           # shape (P, N) — N-gram pool (P chains × N tokens)
+    pool_count: int,            # actual P (chains in pool)
+    suffix_len: int,            # match window 영역 suffix 영역 length
+    k: int,                     # draft tokens count
+) -> np.ndarray:
+    """SUB_052 — find best matching chain in lookahead pool.
+
+    Match prompt's suffix (last `suffix_len` tokens) against the first
+    `suffix_len` tokens of each chain in pool. If found, return chain's
+    next K tokens.
+
+    Returns shape (k,) chain or empty.
+    """
+    T = prompt_tokens.shape[0]
+    if T < suffix_len or pool_count == 0 or suffix_len >= pool.shape[1]:
+        return np.empty((0,), dtype=prompt_tokens.dtype)
+
+    suffix = prompt_tokens[T - suffix_len:]
+    best_p = -1
+    for p in range(pool_count):
+        match = True
+        for i in range(suffix_len):
+            if pool[p, i] != suffix[i]:
+                match = False
+                break
+        if match:
+            best_p = p
+            break
+
+    if best_p < 0:
+        return np.empty((0,), dtype=prompt_tokens.dtype)
+
+    avail = pool.shape[1] - suffix_len
+    n_out = min(k, avail)
+    out = np.zeros(n_out, dtype=prompt_tokens.dtype)
+    for j in range(n_out):
+        out[j] = pool[best_p, suffix_len + j]
+    return out
+
+
+# TODO (gpu_model_runner.py integration):
+#   - run main model forward on lookahead window (W positions) parallel
+#   - extract argmax tokens for each position → update pool
+#   - call lookahead_match_kernel for each request's spec proposal

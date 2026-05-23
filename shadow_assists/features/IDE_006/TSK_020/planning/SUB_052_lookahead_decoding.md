@@ -14,14 +14,22 @@
 |---|---|---|
 | 1 | LookaheadProposer skeleton (`vllm/v1/spec_decode/lookahead.py`) — Proposer interface 정합 | ✓ 적재 (syntax OK) |
 | 2 | env config `VLLM_LOOKAHEAD_ENABLE/WINDOW/NGRAM_SIZE` (default disabled) | ✓ 적재 |
-| 3 | Jacobi iteration numba kernel (W × N parallel) | ✗ TODO |
-| 4 | n-gram cache lookup (per-prompt) | ✗ TODO |
-| 5 | best chain selection logic | ✗ TODO |
+| 3 | Jacobi iteration numba kernel (W × N parallel) | ✗ TODO (Jacobi 자체 영역 GPU model forward 영역 영역, CPU side 영역 영역 영역 영역) |
+| 4 | n-gram pool match kernel (CPU side) | ✓ 적재 (`lookahead_match_kernel`, smoke test 영역 chain 매칭 정상) |
+| 5 | best chain selection logic | partial — match kernel 영역 first-hit return (further: scoring) |
 | 6 | gpu_model_runner.py 영역 `method == "lookahead"` branch | ✗ TODO |
 | 7 | SpeculativeConfig 영역 method="lookahead" support | ✗ TODO |
-| 8 | 측정 + best config 갱신 | ✗ TODO |
+| 8 | 측정 + best config 갱신 | ✗ |
 
-본 turn 적재: `vllm/v1/spec_decode/lookahead.py` (skeleton + env config + Jacobi kernel sketch comments). 활성화 (`VLLM_LOOKAHEAD_ENABLE=1`) 시 warning + 빈 draft 반환 (no spec gain).
+본 turn 적재 (2026-05-23):
+- `vllm/v1/spec_decode/lookahead.py`:
+  - LookaheadProposer class skeleton (propose 영역 빈 draft 반환)
+  - env config 추가
+  - `lookahead_match_kernel` numba 영역 (n-gram pool 영역 suffix match → next K token 반환)
+  - smoke test 영역 matching 정상 (suffix [8,9,10] → pool chain 0 영역 next [99,100] 반환)
+
+본 lever 영역 critical missing piece: **GPU side Jacobi window** (model forward 영역 W positions parallel) — gpu_model_runner.py 영역 deep change 필요 (full integration 시 2-3 일 effort).
+대안: SUB_054/055 같은 별도 process pattern 영역 — n-gram pool 영역 standalone CPU process 영역 generate + IPC 영역 main vLLM 영역 사용. SUB_063 (CPU-load scheduler) 와 결합 영역 가능.
 
 ---
 
