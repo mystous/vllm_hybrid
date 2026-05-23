@@ -19,12 +19,21 @@
 
 상세: [`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)
 
-### 동작 원리 (요약)
+### 활성화
 
-| Path | 활성 조건 | 상태 |
-|---|---|---|
-| A. NEO/AMX (TSK_019) | `LLM(enable_neo_asymmetric=True)` + `VLLM_NEO_*` env | **dead path** — net-negative (-13~62%) |
-| **B. vanilla + ngram spec (TSK_020)** | `LLM(speculative_config={"method":"ngram",num_speculative_tokens=7,...})` + `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` | **★ 현 best (+134.1%)** |
+```python
+LLM(speculative_config={
+    "method": "ngram",
+    "num_speculative_tokens": 7,
+    "prompt_lookup_max": 5,
+    "prompt_lookup_min": 2,
+})
+```
+
+```bash
+export VLLM_NGRAM_NUM_THREADS_CAP=8     # vLLM 기본 1 → 8
+export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thread/rank
+```
 
 ### CLAUDE.md Objective 평가
 
@@ -44,7 +53,6 @@
 |---|---|---|---|---|
 | 2026-05-23 | SUB_044 | measurement | [`measurements/sub044_spec_decode_20260523/RESULTS.md`](measurements/sub044_spec_decode_20260523/RESULTS.md) | 완료 (★ 첫 net-positive 10,778 tps) |
 | 2026-05-23 | SUB_045 | (CPU + spec multi-workload) | (eval/results 출력 예정) | background 측정 중 |
-| 2026-05-23 | SUB_046 | (NEO+spec 결합 시도) | (eval/results) | 기각 (schedule path conflict) |
 | 2026-05-23 | SUB_047 (5-way sweep) | measurement | (eval/results/20260523_081619_sub047_ngram_threads/) | 완료 (ngram cap 1→8 patch, 10,949.8 tps) |
 | 2026-05-23 | SUB_048 | (spec sampling CPU) | — | 사용자 중단 |
 | 2026-05-23 | SUB_049 | (CPU LLM + GPU spec) | (eval/results 출력 예정) | background 측정 중 |
@@ -62,7 +70,6 @@
 추가 raw 결과 (RESULTS.md 미작성, eval/results 만):
 - `eval/results/20260523_005314_sub044_spec_decode/` (SUB_044 raw)
 - `eval/results/20260523_081619_sub047_ngram_threads/` (SUB_047 5-way sweep raw)
-- `eval/results/20260523_091142_sub046_neo_spec_combo/` (SUB_046 기각 raw)
 - `eval/results/20260523_133929_sub047_t3_verify/` (SUB_047 3-run raw)
 - `eval/results/<TS>_sub045_spec_multiworkload/` (SUB_045, 진행 중)
 - `eval/results/<TS>_sub049_cpu_llm_combo/` (SUB_049, 진행 중)
@@ -107,9 +114,9 @@ TSK_020/
 
 ---
 
-## 📜 6. 관련 task
+## 📜 6. 관련 doc
 
-| Task | 관계 |
+| 파일 | 의미 |
 |---|---|
-| [`../TSK_019/`](../TSK_019/) | NEO architecture 정합 — net-negative 확정, **dead path**. SUB_001~SUB_043 (1~3차 frame). 본 task (TSK_020) 가 후속 |
 | [`../TSK_020.md`](../TSK_020.md) | 본 task 의 정식 doc (sub-task 영역 + 상세 history) |
+| [`../../../id_registry.md`](../../../id_registry.md) | TSK_020 + SUB_044~049 entry |

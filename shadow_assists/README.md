@@ -211,11 +211,13 @@ flowchart TB
     SUB_026 --> SUB_027["SUB_027<br/>KV size sweep + 표준 (H5)<br/>🏆 winner (2,302 tps, 49.2%)"]
     SUB_025 --> SUB_028["SUB_028<br/>sync swap_out batched H2D<br/>🟢 완료 (-57% sync latency)"]
 
+    %% TSK_019 closing boundary experiment — NEO + spec 결합 (기각)
+    TSK_019 --> SUB_046["SUB_046<br/>NEO + spec=7 결합 (boundary 확인)<br/>❌ 기각 (schedule conflict crash)"]
+
     %% TSK_020 — Spec decode tuning + CPU+spec 결합 (2026-05-23 신설)
     PLN_001 --> TSK_020["TSK_020<br/>Spec decode tuning<br/>+ CPU+spec 결합<br/>🏆 현 best 10,956.6 tps (+134.1%)"]
     TSK_020 --> SUB_044["SUB_044<br/>ngram spec=3/5/7/10 sweep<br/>🟢 첫 net-positive (10,778 tps, +130%)"]
     TSK_020 --> SUB_045["SUB_045<br/>spec=7 + CPU BG multi-workload<br/>🔵 background 측정 중"]
-    TSK_020 --> SUB_046["SUB_046<br/>NEO + spec=7 결합<br/>❌ 기각 (schedule conflict crash)"]
     SUB_044 --> SUB_047["SUB_047<br/>ngram numba thread cap 1→8<br/>🏆 현 best 3-run avg 10,956.6 (+134.1%)"]
     TSK_020 --> SUB_048["SUB_048<br/>spec sampling CPU offload<br/>❌ 사용자 중단 (GPU lever 본질)"]
     SUB_047 --> SUB_049["SUB_049<br/>메인 vLLM + 별도 CPU LLM 동시<br/>🔵 background 측정 중"]

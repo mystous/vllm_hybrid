@@ -5,7 +5,6 @@
 > **branch**: `feat/spec-decode-tuning`
 > **navigation**: [`INDEX.md`](INDEX.md) — 전체 SUB / measurement / plan single entry
 > **task doc**: [`../TSK_020.md`](../TSK_020.md) — task 전체 개요 + sub-task 영역
-> **자매 task**: [`../TSK_019/`](../TSK_019/) — NEO 작업 (net-negative 확정, dead path)
 
 ---
 
@@ -31,7 +30,6 @@
 |---|---|---:|---|
 | 2026-05-23 00:53 | SUB_044 | **10,778.6 tps (+130.3%)** ⭐ | **첫 net-positive** — vanilla + ngram spec=7 (vLLM built-in feature) |
 | 2026-05-23 ~02:00 | SUB_045 | (진행 중) | spec=7 + CPU BG multi-workload (CLAUDE.md CPU 활용 목표 검증) |
-| 2026-05-23 ~04:00 | SUB_046 | 기각 | NEO + spec=7 결합 시도 → schedule path conflict crash |
 | 2026-05-23 08:16 | SUB_047 (5-way sweep) | 10,949.8 tps (+134%) ⭐ | ngram numba thread cap env-tunable patch (1→8) |
 | 2026-05-23 ~09:00 | SUB_048 | 중단 | spec sampling CPU offload → 본질이 GPU lever 라 사용자 중단 |
 | 2026-05-23 ~10:30 | SUB_049 | (진행 중) | 메인 vLLM (spec=7+cap=8) + 별도 CPU LLM (Qwen 0.5B/1.5B NUMA1) 동시 |
@@ -51,7 +49,6 @@ prompt → [ngram lookup, CPU 8 thread/rank, sub-ms]  ← SUB_047 cap=8 patch
 | 측면 | 값 |
 |---|---|
 | 출처 | vLLM built-in `speculative_config` + SUB_047 한 줄짜리 thread cap 패치 (6 줄 코드 변경) |
-| NEO 코드 사용 | **0 %** (vanilla path) |
 | draft model | 불필요 (pure prompt-based) |
 | 적합 workload | sonnet (어휘 반복 ↑) — 일반 chat/code 영역 acceptance 변화 가능, 검증 필요 |
 | KV memory 제약 | num_speculative_tokens=10 은 OOM → 7 이 sweet spot |
@@ -75,15 +72,13 @@ prompt → [ngram lookup, CPU 8 thread/rank, sub-ms]  ← SUB_047 cap=8 patch
 
 ---
 
-## NEO (TSK_019) vs spec decode (TSK_020) 비교
+## vs vanilla baseline
 
-| Approach | tps | wall (s) | vs vanilla | task |
-|---|---:|---:|---:|---|
-| vanilla baseline | 4,680 | 875 | — | (baseline) |
-| NEO best (S1-S9, gmu=0.92) | 2,238 | 1,819 | **-52.2%** ⚠️ | TSK_019 (dead path 확정) |
-| NEO multi-workload (NEO+BG) | 1,652 | — | **-13% (vs vanilla+BG)** | TSK_019 SUB_041 |
-| **★ vanilla + ngram spec=7 + cap=8** | **10,957** (3-run avg) | **367** | **★ +134.1%** ⭐ | **TSK_020 (현 active)** |
-| spec / NEO best ratio | — | — | **spec 가 NEO 의 4.90×** | — |
+| Approach | tps | wall (s) | vs vanilla |
+|---|---:|---:|---:|
+| vanilla baseline | 4,680 | 875 | — |
+| vanilla + ngram spec=7 (SUB_044) | 10,778 | 373 | +130.3% (2.30×) |
+| **★ vanilla + ngram spec=7 + cap=8 (SUB_047)** | **10,957** (3-run avg) | **367** | **★ +134.1% (2.341×)** ⭐ |
 
 ---
 

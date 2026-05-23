@@ -64,7 +64,6 @@ export HF_HUB_OFFLINE=1
 export LD_PRELOAD=/usr/lib64/libcuda.so.1
 export VLLM_NGRAM_NUM_THREADS_CAP=8
 export VLLM_NGRAM_DIVIDE_BY_TP=0
-# 모든 VLLM_NEO_* env unset
 ```
 
 ### 4.3 sampling

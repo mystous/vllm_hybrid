@@ -46,7 +46,6 @@ LLM(
         "prompt_lookup_max": 5,
         "prompt_lookup_min": 2,
     },
-    # NOTE: enable_neo_asymmetric NOT set (False) — 본 lever 는 vanilla path
 )
 ```
 
@@ -54,8 +53,7 @@ LLM(
 
 ```bash
 export HF_HUB_OFFLINE=1
-# 모든 VLLM_NEO_* env unset (vanilla path)
-# SUB_047 ★ env-tunable ngram numba thread cap (TODO 처리)
+# SUB_047 ★ env-tunable ngram numba thread cap (vLLM 의 TODO 처리)
 export VLLM_NGRAM_NUM_THREADS_CAP=8     # vLLM 기본 cap=1 → 8
 export VLLM_NGRAM_DIVIDE_BY_TP=0         # tp_size 영역 나누지 않음 → 8 thread/rank
 ```
@@ -93,28 +91,9 @@ SamplingParams(temperature=0.0, max_tokens=8192)
 
 → num_spec=7 이 throughput 영역 최적, num_spec=10 은 KV memory 또는 spec verification slot 부족.
 
-## 4. 동작 원리 (코드 베이스 안 두 path)
+## 4. 동작 원리
 
-### 4.1 코드 베이스 안에 두 path 가 공존
-
-| Path | 위치 | 활성 조건 | 현 상태 |
-|---|---|---|---|
-| **A. NEO/AMX** (CPU KV offload) | `vllm/v1/core/sched/neo_scheduler*.py`, `vllm/v1/core/sched/neo_cpu_kv_buffer.py`, `csrc/cpu/pacpu/{pacpu.cpp, pacpu.ispc, core.h, amx_kernel.cpp}` | `LLM(enable_neo_asymmetric=True)` + 다수 `VLLM_NEO_*` env | **dead path** — net-negative (-13~62%), 코드만 잔존 |
-| **B. vanilla + ngram spec** (현 winning) | `vllm/v1/spec_decode/ngram_proposer.py` (SUB_047 patch), vLLM built-in `speculative_config` | `LLM(speculative_config={"method":"ngram",...})` + `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` | **★ 현 best (+134.1%)** |
-
-### 4.2 Default 실행 동작 (env 안 줄 때)
-
-```python
-LLM(model="meta-llama/Llama-3.3-70B-Instruct", tensor_parallel_size=8)
-```
-
-→ `enable_neo_asymmetric=False` (default), `speculative_config=None`
-→ **순수 vanilla vLLM** (~4,680 tps baseline)
-→ NEO / pacpu / AMX 코드 import 만 되고 호출 안 됨
-→ SUB_033 (online softmax), SUB_035 (OMP profile), SUB_039 (av_amx), A5 (max_num_splits) 도 전부 env-gated OFF
-→ **SUB_047 ngram cap 만 default 1 으로 작동 (vLLM 기본과 동등)**
-
-### 4.3 Best (10,956.6 tps) 동작 pipeline
+### 4.1 Best (10,956.6 tps) 동작 pipeline
 
 ```
 prompt
@@ -130,14 +109,14 @@ prompt
 output (step 당 평균 ~5 token, vanilla 의 ~5× step 압축)
 ```
 
-### 4.4 왜 빠른가 (mechanism)
+### 4.2 왜 빠른가 (mechanism)
 
 - vanilla: 1 step = 1 forward = 1 token
 - spec=7: 1 step = 1 forward = `min(7, accept_count) + 1` token (평균 4-5)
 - workload (sonnet, Shakespeare) 의 어휘 반복 → ngram acceptance rate ~60%
 - GPU 가 batch size 작은 forward 도 어차피 latency-bound → multiple-token 동시 verify 가 거의 공짜 (FLOPs 만 늘고 wall 거의 그대로)
 
-### 4.5 왜 cap=8 이 필요한가 (SUB_047 의 본질)
+### 4.3 왜 cap=8 이 필요한가 (SUB_047 의 본질)
 
 vLLM upstream 의 `ngram_proposer.py` (SUB_047 패치 전):
 
@@ -151,26 +130,24 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 → ngram lookup 가 1 thread 로 직렬 처리 → CPU stall 이 GPU forward 사이에 끼어 pipeline stall
 → SUB_047 patch 로 env-tunable 화 (cap=8, tp_size 로 나누지 않음) → 8 thread/rank 가 병렬 검색 → stall 제거 → +1.6% (10,778 → 10,956)
 
-코드 변경 ≒ 6 줄 (`vllm/v1/spec_decode/ngram_proposer.py:36-58`). NEO/AMX 와 무관.
+코드 변경 ≒ 6 줄 (`vllm/v1/spec_decode/ngram_proposer.py:36-58`).
 
-### 4.6 본 lever 의 출처와 한계
+### 4.4 본 lever 의 출처와 한계
 
 | 측면 | 설명 |
 |---|---|
 | 출처 | vLLM **built-in feature** (`speculative_config={"method":"ngram",...}`) + SUB_047 한 줄짜리 thread cap 패치 |
-| NEO 코드 사용 | 0 % (`csrc/`, `vllm/v1/core/sched/neo_*`, `pacpu*` 모두 호출 안 됨) |
 | draft model | 불필요 — pure prompt-based |
 | target workload 적합 | sonnet 의 어휘 반복 → acceptance ↑. **일반 chat / code 에서는 acceptance ↓ 가능** → 별도 검증 필요 |
 | KV memory 제약 | `num_speculative_tokens=10` 은 OOM → 7 이 sweet spot |
 
-## 5. vs 본 NEO 시도
+## 5. vs vanilla baseline
 
 | Approach | tps | wall (s) | vs vanilla |
 |---|---:|---:|---:|
 | vanilla baseline | 4,680 | 875 | — |
-| NEO env-ON 500p (SUB_036/040) | 1,779 | 2,293 | **-62%** ⚠️ |
-| **★ vanilla + ngram spec=7 + cap=8** | **10,957** (3-run avg) | **367** | **★ +134.1%** ⭐ |
-| spec / NEO ratio | — | — | **spec 가 NEO 의 6.16×** |
+| vanilla + ngram spec=7 (SUB_044) | 10,778 | 373 | +130.3% (2.30×) |
+| **★ vanilla + ngram spec=7 + cap=8 (SUB_047)** | **10,957** (3-run avg) | **367** | **★ +134.1% (2.341×)** ⭐ |
 
 ## 6. CLAUDE.md `# Objective` 평가
 
