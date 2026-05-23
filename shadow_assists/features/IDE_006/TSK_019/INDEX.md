@@ -1,58 +1,35 @@
-# TSK_019 — INDEX (navigation hub)
+# TSK_019 — INDEX (navigation hub, NEO historical record)
 
-> **목적**: TSK_019 의 모든 doc / measurement 의 single entry point.
+> **상태**: 완료 — NEO net-negative 확정 (2026-05-22, dead path)
+> **목적**: TSK_019 의 모든 NEO 작업 doc / measurement single entry.
+> **★ 현 absolute best 영역**: 본 task 가 아닌 [`../TSK_020/`](../TSK_020/) — spec decode tuning + CPU+spec 결합 (10,956.6 tps, +134.1%)
 > **organization scheme** (turn 11): active / reference / archive / planning / measurements 카테고리 분리, 카테고리 내 시간순.
 > **★ 정렬 규칙** (turn 12): 각 카테고리 내 **시간순 (오래된 → 최신)** + 각 항목 옆 날짜 (YYYY-MM-DD).
 
 ---
 
-## ★★★ 0. 현 absolute best (2026-05-23) — vanilla + ngram spec=7 + cap=8
+## ⚠️ 0. TSK_019 상태: 완료 (NEO net-negative 확정) → 후속 TSK_020
 
-**[`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md) — 3-run avg 10,956.6 tps (+134.1% vs vanilla)** — branch `feat/spec-decode-tuning`
-
-| 항목 | 값 |
-|---|---:|
-| 3-run avg / min / max | **10,956.6** / 10,949.8 / 10,963.5 |
-| variance (CV) | **0.125%** (안정) |
-| wall (500p × 8192) | 366.83 s |
-| CPU busy / GPU util | 5.51 % / 54.70 % |
-| vs vanilla 4,679.8 | **+134.1% (2.341×)** ⭐ |
-
-### 동작 원리 (코드 베이스 안 두 path)
-
-| Path | 활성 조건 | 상태 |
+| 항목 | TSK_019 (본 task) | TSK_020 (후속) |
 |---|---|---|
-| **A. NEO/AMX** (CPU KV offload) | `LLM(enable_neo_asymmetric=True)` + 다수 `VLLM_NEO_*` env | **dead path** — 본 환경 net-negative (-13~62%), 코드만 잔존 |
-| **B. vanilla + ngram spec** (현 winning) | `LLM(speculative_config={"method":"ngram",num_speculative_tokens=7,...})` + `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` | **★ 현 best (+134.1%)** |
+| Scope | NEO architecture 정합 (4-layer port) | Spec decode tuning + CPU+spec 결합 |
+| Best | NEO S1-S9 = 2,238 tps (gmu=0.92 환경) | **★ SUB_047 3-run avg 10,956.6 tps** |
+| vs vanilla 4,680 | **-52.2%** ⚠️ (NEO best 도 vanilla 의 47.7% 만) | **+134.1% (2.341×)** ⭐ |
+| 결론 | dead path 확정 (SUB_036/040/041/042 cross-check) | 현 active winning lever |
+| Code 영역 | `csrc/cpu/pacpu/*`, `vllm/v1/core/sched/neo_*` (default OFF, env-gated) | `vllm/v1/spec_decode/ngram_proposer.py:48` (6 줄 patch + env) |
+| Best doc | (NEO best 들 — historical) | [`../TSK_020/Best_SpecDecode_10778tps.md`](../TSK_020/Best_SpecDecode_10778tps.md) |
+| INDEX | 본 파일 | [`../TSK_020/INDEX.md`](../TSK_020/INDEX.md) |
+| README | [`README.md`](README.md) | [`../TSK_020/README.md`](../TSK_020/README.md) |
+| task doc | [`../TSK_019.md`](../TSK_019.md) | [`../TSK_020.md`](../TSK_020.md) |
+| branch | (NEO 시대 — `feat/neo-amx-apply` 등) | **`feat/spec-decode-tuning`** |
 
-상세 mechanism / pipeline / cap=8 의 본질 = [`Best_SpecDecode_10778tps.md §4 동작 원리`](Best_SpecDecode_10778tps.md).
-
-### CLAUDE.md `# Objective` 평가
-
-| 목표 | 평가 |
-|---|---|
-| GPU 포함 서버 전체 throughput 향상 | ✓ **+134.1%** 달성 |
-| CPU 활용률 극도로 끌어올리기 | ✗ CPU 5.51 % (vanilla 4.66 % 거의 동일) |
-| CPU Idle 허락 안 함 | ✗ idle 94.5 % |
-
-→ throughput 목표 ✓, CPU 활용 목표 미달. 다음 path = **spec + CPU 결합** (SUB_046 CPU draft model / SUB_048 CPU spec sampling / SUB_045 multi-stream).
+후속 spec decode 작업 (SUB_044/045/046/047/048/049) 은 모두 TSK_020 으로 이전됨 (2026-05-23).
 
 ---
 
-## ★ 1. Active — 현재 작업 영역 (시간순)
+## ★ 1. Active — NEO 시대 historical record (dead path 확정)
 
-### 1.0 ★★★ Spec decode lever (현 winning path — 본 영역이 진짜 active)
-
-| 날짜 | 영역 | 파일 | 의미 |
-|---|---|---|---|
-| **2026-05-23** | **best doc** | **[`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)** | **★★★ 현 absolute best — SUB_047 t3 (cap=8 + div_tp=0) 3-run avg 10,956.6 tps, +134.1% vs vanilla** |
-| 2026-05-23 | measurement | [`measurements/sub044_spec_decode_20260523/`](measurements/sub044_spec_decode_20260523/) | 첫 net-positive (spec=7 = 10,778 tps) |
-| 2026-05-23 | measurement | [`measurements/sub047_t3_3run_verify_20260523/`](measurements/sub047_t3_3run_verify_20260523/) | SUB_047 t3 3-run 검증 (avg 10,956.6, variance 0.125%) |
-| 2026-05-23 | planning | [`planning/SUB_046_to_049_cpu_spec_plans.md`](planning/SUB_046_to_049_cpu_spec_plans.md) | 다음 path — Tier 1 A/B/C + Tier 3 E CPU+spec 결합 plan |
-
-### 1.1 NEO 시대 (~2026-05-22) — historical active record (dead path 확정)
-
-> ⚠️ 본 영역의 active 산출물 들은 SUB_036/040/041/042 cross-check 후 **NEO net-negative 확정** (vanilla 4,680 → NEO 1,779 = -62%) → dead path 로 정리. 코드는 codebase 에 잔존하지만 default OFF, 사실상 호출 안 됨.
+> ⚠️ 본 영역의 산출물 들은 SUB_036/040/041/042 cross-check 후 **NEO net-negative 확정** (vanilla 4,680 → NEO 1,779 = -62%) → dead path 로 정리. 코드는 codebase 에 잔존하지만 default OFF, 사실상 호출 안 됨.
 
 | 날짜 | 영역 | 파일 | size | 의미 |
 |---|---|---|---:|---|
@@ -73,8 +50,9 @@
 |---|---|---|---:|---|
 | 2026-05-14 | [`Best_v1.6_2157tps.md`](Best_v1.6_2157tps.md) | OFF | 2,197.4 | v1.6 best (commit `64f9e0c48`) |
 | 2026-05-15 | [`Best_Phase3_1_kmp50.md`](Best_Phase3_1_kmp50.md) | OFF | 2,038.7 (1-run) | Phase 3.1 + KMP_BLOCKTIME=50 (400p) |
-| 2026-05-17 | [`Best_S1_S9_2238tps.md`](Best_S1_S9_2238tps.md) | OFF | 2,238.6 | NEO S1-S9 best (deprecated by SpecDecode) |
-| **2026-05-23** | **[`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)** | **vanilla + spec=7 + ngram cap=8** | **10,956.6** | **★★★ current absolute best — SUB_047 t3 (cap=8 + div_tp=0) 3-run avg (min 10,949.8 / max 10,963.5, variance 0.125%), +134.1% vs vanilla** ⭐ |
+| 2026-05-17 | [`Best_S1_S9_2238tps.md`](Best_S1_S9_2238tps.md) | OFF | 2,238.6 | NEO S1-S9 best (vanilla 의 47.7% 만, dead path 확정) |
+
+> ★ **현 absolute best 영역**: [`../TSK_020/Best_SpecDecode_10778tps.md`](../TSK_020/Best_SpecDecode_10778tps.md) (10,956.6 tps, +134.1%) — 본 task 가 아니라 TSK_020 (spec decode) 가 winner. SUB_047 t3 (cap=8 + div_tp=0) 3-run avg.
 
 ---
 
@@ -142,8 +120,9 @@
 | **2026-05-22** | **[`measurements/sub040_util_baseline_20260522/`](measurements/sub040_util_baseline_20260522/)** | **★★★ SUB_040 CPU/GPU util baseline — 본 프로젝트 목표 미달 확정** | **NEO CPU 11.93% (목표 "극대화"와 큰 거리) / GPU 66% (vanilla 73.4% 대비 idle 발생) / power -31% → net trade-off 음수** |
 | **2026-05-22** | **[`measurements/sub041_multi_workload_20260522/`](measurements/sub041_multi_workload_20260522/)** | **★★★ SUB_041 Multi-workload 서버 throughput — NEO net-negative 최종 확정** | **vanilla+BG 4679 (-0.04%) vs NEO+BG 1652 (-13%) → vanilla 가 BG 와 자원 분담, NEO 는 contention 으로 손실. 본 환경에서 NEO 의 raison d'être 무효** |
 | **2026-05-22** | **[`measurements/sub042_prefill_decode_20260522/`](measurements/sub042_prefill_decode_20260522/)** | **★★★ SUB_042 prefill/decode 분리 — NEO 의 raison d'être 가설 깨짐** | **모든 phase 에서 vanilla 3.26-4.11× faster. NEO 가설 영역 decode-heavy 에서도 vanilla 4.00× 압승. 본 환경 batch+paging 으로 충분, NEO offload 가 항상 overhead** |
-| **2026-05-23** | **[`measurements/sub044_spec_decode_20260523/`](measurements/sub044_spec_decode_20260523/)** | **★★★ SUB_044 ngram spec decode — 첫 net-positive 성과!** | **vanilla 4680 → spec=7 10778 tps (+130%, 2.30× faster) ⭐ — SUB_032-043 12 SUB 모두 noise 후 처음으로 vanilla 보다 빠른 lever** |
-| **2026-05-23** | **[`measurements/sub047_t3_3run_verify_20260523/`](measurements/sub047_t3_3run_verify_20260523/)** | **★★★ SUB_047 t3 (cap=8 + div_tp=0) 3-run verify** | **avg 10,956.6 / min 10,949.8 / max 10,963.5 tps (variance 0.125%) — +134.1% vs vanilla ⭐ 현재 best 확정** |
+
+
+> ★ **SUB_044, SUB_047 측정**: TSK_020 으로 이전 — [`../TSK_020/INDEX.md §2`](../TSK_020/INDEX.md) 참조.
 
 ---
 
@@ -210,28 +189,21 @@
 | 17 | 2026-05-22 | Stage 1+3 root cause + B/C-tier 폐기 → vanilla path 영역 영역 |
 | 18 | 2026-05-22 | SUB_036/040/041/042 — **★ NEO net-negative 확정** (4 측정 cross-check). prefill/decode 분리 시도에서도 vanilla 3.26~4.11× faster |
 | 19 | 2026-05-22 | SUB_043 vanilla accel sweep |
-| 20 | 2026-05-23 | **★★★ SUB_044 ngram spec decode — 첫 net-positive** (spec=7 = 10,778 tps, +130%) |
-| 21 | 2026-05-23 | SUB_046 plan + SUB_047 ngram thread cap env-tunable patch + 5-way sweep (10,949.8 tps best) |
+| 20 | 2026-05-23 | **★★★ SUB_044 ngram spec decode — 첫 net-positive** (spec=7 = 10,778 tps, +130%) → 후속 작업 TSK_020 으로 분리 |
+| 21 | 2026-05-23 | SUB_046 plan + SUB_047 ngram thread cap env-tunable patch + 5-way sweep (10,949.8 tps best) [→ TSK_020] |
 | 22 | 2026-05-23 | git 정리 (3 commit + push) + main merge + branch rename `feat/neo-amx-apply` → `feat/spec-decode-tuning` |
-| **23** | **2026-05-23** | **★ 본 turn — SUB_047 t3 3-run 검증 (10,956.6 avg, variance 0.125%) + Best/README/INDEX 동작 원리 + dual path coexistence 반영** |
+| 23 | 2026-05-23 | SUB_047 t3 3-run 검증 (10,956.6 avg, variance 0.125%) + Best/README/INDEX 동작 원리 + dual path coexistence 반영 [→ TSK_020] |
+| **24** | **2026-05-23** | **★ 본 turn — TSK_019 → TSK_020 분리 (SUB_044~049 이전, NEO dead path 확정 + spec decode task 신설)** |
 
 ---
 
-## 🔧 8. 작업 진행 영역 (next steps, 우선순위 순)
+## 🔧 8. 작업 진행 영역
 
-→ 상세 plan: [`planning/SUB_046_to_049_cpu_spec_plans.md`](planning/SUB_046_to_049_cpu_spec_plans.md)
+본 task (TSK_019) 는 **NEO net-negative 확정 (dead path) 으로 종결** — 추가 작업 없음.
 
-본 영역의 모든 lever 는 **spec decode 위에 CPU 활용 추가** (CLAUDE.md `# Objective` 의 "CPU 극도로 활용" 미달 해소) — branch `feat/spec-decode-tuning` 에서 진행.
+현 active 작업 (spec decode + CPU 결합) = **[`../TSK_020/`](../TSK_020/)** 에서 진행 (branch `feat/spec-decode-tuning`).
 
-| 우선순위 | SUB | 작업 | Tier | effort | 가설 |
-|---|---|---|---|:-:|---|
-| **★★★** | SUB_046 | CPU draft model (Llama-3.2-1B CPU 추론 + GPU verify) | Tier 1 A | 3-5 일 | spec gain × CPU 활용 ↑↑ — vLLM 내부 `SpeculativeConfig.draft_device_type=cpu` 지원 추가 필요 |
-| **★★** | SUB_048 | spec sampling/logit CPU offload (rejection sampler 를 CPU 로) | Tier 1 C | 2-3 일 | GPU 영역 sampling 영역 CPU 로 → GPU 가 다음 forward 더 빠르게 시작 |
-| **★★** | SUB_049 | CPU draft + GPU verify + CPU sample 결합 | Tier 3 E | 1-2 주 | 3-stage pipeline (SUB_046 + SUB_048 결합) |
-| ★ | SUB_045 | multi-stream (GPU spec + CPU BG workload) | Tier 3 F | 1 주 | 서버 전체 CPU 활용 (vLLM 영역 + 별도 CPU workload 동시) |
-| ★ | spec workload generalization | sonnet 외 일반 chat / code workload 영역 acceptance rate 측정 | — | 1-2 일 | 본 best 가 sonnet 특화 인지 검증. **모든 workload 적용 전 필수** |
-
-### 폐기된 next steps (NEO 시대, dead path)
+### 폐기된 NEO next steps (참고용)
 
 이전 INDEX 의 §8 에 있던 다음 항목들은 **NEO net-negative 확정** 후 폐기 (실행 안 함):
 - ~~OMP barrier instrumentation 활성 + pacpu rebuild~~
