@@ -1,10 +1,29 @@
 # SUB_054 — CPU embedding model preprocessor
 
 > **parent**: TSK_020 / 카테고리 B (Multi-instance CPU pipeline)
-> **status**: 대기 (plan only)
-> **effort**: small (1-2 일)
-> **CPU% target**: 30-50% / **throughput 영향**: spec decode throughput 무영향 (별도 instance)
+> **status**: ✓ **측정 완료 (2026-05-23)** — batch sweep 32/64/128 측정 + Phase 1 결합 측정
+> **effort**: small (1-2 일) ✓
+> **CPU% 결과**: 19~21% (target 30-50% 미달 — SUB_049 영역 영역 영역 영역 영역 영역 영역)
+> **★ 최적 batch=64**: main_tps 10,848.1 (-1.0% vs SUB_047) / CPU 21.21% / embedder 36.7 sps
 > **master plan**: [`SUB_050_to_064_objective_levers.md`](SUB_050_to_064_objective_levers.md) §2
+
+---
+
+## 0. 측정 결과 종합 (2026-05-23)
+
+| batch | main tps | vs SUB_047 best | CPU% | GPU% | emb sps | wall(s) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 32 | 10,834.2 | -1.1% | 19.70 | 41.0 | ~36 | 371.0 |
+| **★ 64** | **10,848.1** | **-1.0%** | 21.21 | 41.1 | 36.7 | 370.5 |
+| 128 | 10,616.3 | -3.1% | 21.35 | 41.8 | 42.2 | 378.6 |
+
+**production config**: batch=64 권장 — throughput cost 최소 (-1.0%) + CPU 활성 +15.7pp + embedder sustained 36.7 sps. (batch=128 영역 embedder throughput +16% 영역 main throughput -2.1pp trade-off.)
+
+**raw**: `eval/results/20260523_182152_sub054_cpu_embedder/` (b=32), `..._194810_phase2_sub054_batch64/`, `..._batch128/`
+
+**참고 — Phase 1 결합 (Qwen 1.5B + BGE emb + BGE rerank 동시)**: main_tps 9,635.4 (-12.1%) / CPU 23.85% — CPU contention 으로 단독 합보다 throughput 큰 회귀. 결합 시 자원 분리 (NUMA1 56 core 영역 단일 lever) 가 합리적.
+
+---
 
 ---
 

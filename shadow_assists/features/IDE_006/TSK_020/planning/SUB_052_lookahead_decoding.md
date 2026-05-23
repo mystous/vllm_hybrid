@@ -1,10 +1,29 @@
 # SUB_052 — Lookahead Decoding (CPU Jacobi)
 
 > **parent**: TSK_020 / 카테고리 A (Advanced spec decode, CPU draft)
-> **status**: 대기 (plan only)
-> **effort**: medium (2-3 일)
+> **status**: **진입 (skeleton land, Jacobi kernel 영역)** (2026-05-23)
+> **effort**: medium (2-3 일) — skeleton ✓ / Jacobi numba ✗ / integration ✗
 > **CPU% target**: 40-60% / **throughput 가설**: SUB_047 대비 +5-15%
 > **master plan**: [`SUB_050_to_064_objective_levers.md`](SUB_050_to_064_objective_levers.md) §1
+
+---
+
+## 0. 진행 상태 (2026-05-23)
+
+| Phase | 작업 | 상태 |
+|---|---|---|
+| 1 | LookaheadProposer skeleton (`vllm/v1/spec_decode/lookahead.py`) — Proposer interface 정합 | ✓ 적재 (syntax OK) |
+| 2 | env config `VLLM_LOOKAHEAD_ENABLE/WINDOW/NGRAM_SIZE` (default disabled) | ✓ 적재 |
+| 3 | Jacobi iteration numba kernel (W × N parallel) | ✗ TODO |
+| 4 | n-gram cache lookup (per-prompt) | ✗ TODO |
+| 5 | best chain selection logic | ✗ TODO |
+| 6 | gpu_model_runner.py 영역 `method == "lookahead"` branch | ✗ TODO |
+| 7 | SpeculativeConfig 영역 method="lookahead" support | ✗ TODO |
+| 8 | 측정 + best config 갱신 | ✗ TODO |
+
+본 turn 적재: `vllm/v1/spec_decode/lookahead.py` (skeleton + env config + Jacobi kernel sketch comments). 활성화 (`VLLM_LOOKAHEAD_ENABLE=1`) 시 warning + 빈 draft 반환 (no spec gain).
+
+---
 
 ---
 

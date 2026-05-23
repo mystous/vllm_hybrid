@@ -44,6 +44,21 @@ class NgramProposer:
         #             VLLM_NGRAM_DIVIDE_BY_TP (default 1 = divide, 0 = skip — rank 영역 thread 영역 ↑)
         cap = int(os.environ.get("VLLM_NGRAM_NUM_THREADS_CAP", "1"))
         divide_by_tp = int(os.environ.get("VLLM_NGRAM_DIVIDE_BY_TP", "1"))
+        # SUB_057 (Tier C) scaffold — ngram tree expansion (top-M multi-chain candidates).
+        #   default 1 = current SUB_047 behavior (single best chain).
+        #   > 1 = (NOT IMPLEMENTED yet) generate top-M chains, GPU tree-attention verify.
+        #   plan: shadow_assists/features/IDE_006/TSK_020/planning/SUB_057_ngram_tree_expansion.md
+        #   surface: (1) batch_propose numba kernel — top-M heap, (2) rejection_sampler — tree path
+        self.ngram_top_m = max(1, int(os.environ.get("VLLM_NGRAM_TOP_M", "1")))
+        if self.ngram_top_m > 1:
+            # not yet implemented — log warning + fallback to 1
+            import warnings
+            warnings.warn(
+                f"VLLM_NGRAM_TOP_M={self.ngram_top_m} not yet implemented "
+                f"(SUB_057 plan). Falling back to top-1.",
+                stacklevel=2,
+            )
+            self.ngram_top_m = 1
         # Max number of threads for numba parallel processing.
         if cpu_count:
             # Divide by 2 to use physical cores
@@ -288,3 +303,118 @@ def _find_longest_matched_ngram_and_propose_tokens(
     start_position = total_token - 1 - position + longest_ngram
     k = min(k, total_token - start_position)
     return origin_tokens[start_position : start_position + k]
+
+
+# SUB_057 (Tier C) — top-M chain ngram extraction.
+#   기존 _find_longest_matched_ngram_and_propose_tokens 영역 longest 1 chain 만 반환.
+#   본 영역 longest 영역 영역 top_m 영역 후보 chain 영역 2D 영역 (M, K) 반환.
+#   현 상태: 영역 numba kernel 영역 작동 — chain 0 (longest) 영역 영역 기존 behavior 영역 영역 영역,
+#   chain 1~M-1 영역 영역 영역 alternative.
+#   사용: 영역 rejection_sampler 영역 tree path 영역 지원 영역 영역 영역 영역 영역 (현재 미지원).
+@jit(nopython=True)
+def _find_top_m_matched_ngrams_and_propose_tokens(
+    origin_tokens: np.ndarray,
+    min_ngram: int,
+    max_ngram: int,
+    max_model_len: int,
+    k: int,
+    top_m: int,
+) -> np.ndarray:
+    """
+    SUB_057: Find top-M longest n-grams matching the suffix of `origin_tokens`,
+    return up to M chains of K candidate tokens each as a 2D array (M_actual, K).
+
+    M_actual ≤ top_m (영역 영역 less 영역 영역 distinct candidate 영역 영역 영역 영역).
+    Returns shape (0, K) if no valid ngram.
+    """
+    total_token = origin_tokens.shape[0]
+    if total_token < min_ngram or top_m < 1:
+        return np.empty((0, k), dtype=origin_tokens.dtype)
+
+    k_actual = min(k, max_model_len - total_token)
+    if k_actual <= 0:
+        return np.empty((0, k), dtype=origin_tokens.dtype)
+
+    # Reverse for KMP-style scan
+    tokens = origin_tokens[::-1]
+    lps = np.zeros(max_ngram, dtype=np.int32)
+
+    # Track top-M (ngram_len, position) pairs — sorted ascending by length.
+    # 영역 영역 영역 영역 영역 새 후보 영역 영역 (ngram_len 더 큼 또는 영역 length 영역 다른 position).
+    cand_ngrams = np.zeros(top_m, dtype=np.int32)  # length
+    cand_positions = np.zeros(top_m, dtype=np.int32)  # rightmost matching position in reversed
+    n_cand = 0
+
+    prev_lps = 0
+    i = 1
+    while i < total_token:
+        if tokens[prev_lps] == tokens[i]:
+            prev_lps += 1
+            if prev_lps >= min_ngram:
+                # Insert candidate sorted by length (descending).
+                # We keep candidates with distinct end positions (i 영역 unique).
+                # Simple O(M) insertion sort 영역 (top_m 영역 small).
+                inserted = False
+                # Check if already have this position (deduplicate by position too)
+                dup = False
+                for j in range(n_cand):
+                    if cand_positions[j] == i:
+                        dup = True
+                        break
+                if not dup:
+                    if n_cand < top_m:
+                        # Append + bubble-sort by length descending
+                        cand_ngrams[n_cand] = prev_lps
+                        cand_positions[n_cand] = i
+                        n_cand += 1
+                        # bubble-sort (descending by length)
+                        for jj in range(n_cand - 1, 0, -1):
+                            if cand_ngrams[jj] > cand_ngrams[jj - 1]:
+                                # swap
+                                tmp_l = cand_ngrams[jj]
+                                tmp_p = cand_positions[jj]
+                                cand_ngrams[jj] = cand_ngrams[jj - 1]
+                                cand_positions[jj] = cand_positions[jj - 1]
+                                cand_ngrams[jj - 1] = tmp_l
+                                cand_positions[jj - 1] = tmp_p
+                            else:
+                                break
+                    elif prev_lps > cand_ngrams[top_m - 1]:
+                        # Replace smallest + re-sort
+                        cand_ngrams[top_m - 1] = prev_lps
+                        cand_positions[top_m - 1] = i
+                        for jj in range(top_m - 1, 0, -1):
+                            if cand_ngrams[jj] > cand_ngrams[jj - 1]:
+                                tmp_l = cand_ngrams[jj]
+                                tmp_p = cand_positions[jj]
+                                cand_ngrams[jj] = cand_ngrams[jj - 1]
+                                cand_positions[jj] = cand_positions[jj - 1]
+                                cand_ngrams[jj - 1] = tmp_l
+                                cand_positions[jj - 1] = tmp_p
+                            else:
+                                break
+
+            if i < max_ngram:
+                lps[i] = prev_lps
+            if prev_lps == max_ngram:
+                prev_lps = lps[max_ngram - 1]
+            i += 1
+        elif prev_lps != 0:
+            prev_lps = lps[prev_lps - 1]
+        else:
+            i += 1
+
+    if n_cand == 0:
+        return np.empty((0, k), dtype=origin_tokens.dtype)
+
+    # Build output 2D array — M_actual chains × k tokens
+    out = np.zeros((n_cand, k), dtype=origin_tokens.dtype)
+    for m in range(n_cand):
+        ngram_len = cand_ngrams[m]
+        position = cand_positions[m]
+        start_position = total_token - 1 - position + ngram_len
+        k_avail = min(k, total_token - start_position)
+        if k_avail > 0:
+            out[m, :k_avail] = origin_tokens[start_position : start_position + k_avail]
+
+    return out

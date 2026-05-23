@@ -1,10 +1,31 @@
 # SUB_057 — ngram tree expansion (multi-chain candidates)
 
 > **parent**: TSK_020 / 카테고리 C (vLLM 내부 CPU lever, SUB_047 확장)
-> **status**: 대기 (plan only)
-> **effort**: medium (2-3 일)
+> **status**: **진입 (scaffold + numba top-M 작동, integration 영역)** (2026-05-23)
+> **effort**: medium (2-3 일) — scaffold ✓ / numba top-M ✓ / rejection_sampler integration 영역
 > **CPU% target**: 15-25% / **throughput 가설**: acceptance 60→75% → +10-15%
 > **master plan**: [`SUB_050_to_064_objective_levers.md`](SUB_050_to_064_objective_levers.md) §3
+
+---
+
+## 0. 진행 상태 (2026-05-23)
+
+| Phase | 작업 | 상태 |
+|---|---|---|
+| 1 | env flag `VLLM_NGRAM_TOP_M` 영역 default 1 + fallback (no break) | ✓ 적재 |
+| 2 | numba top-M function `_find_top_m_matched_ngrams_and_propose_tokens` 영역 추가 | ✓ 작동 (smoke test pass — 3-chain 반환) |
+| 3 | batch_propose 영역 top-M 영역 처리 + 영역 2D output | 영역 |
+| 4 | rejection_sampler tree path 영역 verify | 영역 |
+| 5 | tree attention (Eagle2 leverage) | 영역 |
+| 6 | 측정 + best config 갱신 | 영역 |
+
+본 turn 적재 영역: `vllm/v1/spec_decode/ngram_proposer.py`
+- env flag (line 47-57)
+- `_find_top_m_matched_ngrams_and_propose_tokens` (line ~309, no-side-effect alternative function)
+
+smoke test 영역 일부 duplicate 영역 후속 refinement 필요 (dedup by output position, tie-break by ngram length DESC + position DESC).
+
+---
 
 ---
 

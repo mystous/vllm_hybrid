@@ -168,6 +168,11 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 | Tier 1 B | ngram numba thread cap env-tunable | **SUB_047 (★ 완료)** | **+134.1% 달성 (단 CPU idle)** |
 | Tier 3 E | CPU LLM + GPU spec 동시 (별도 instance) | SUB_049 (완료) | 3-scenario: solo / +Qwen0.5B / +Qwen1.5B — CPU 활용 ↑ 26~28% |
 | Tier 3 F | multi-stream (GPU spec + CPU BG workload) | SUB_045 (완료) | 3-scenario: spec solo / spec+BG / vanilla+BG — CPU 29% 달성 |
+| Cat B (SUB_050~064) | CPU embedding preprocessor (BGE-large) | SUB_054 (완료 2026-05-23) | **batch=64 production config: main 10,848 (-1.0%) / CPU 21.21% / embedder 36.7 sps** |
+| Cat B | CPU re-ranker (BGE-reranker) | SUB_055 (완료 2026-05-23) | main 10,556 (-3.7%) / CPU 21.23% / 44 pps |
+| Cat D | NUMA + KMP/GOMP affinity | SUB_060 (회귀) | main 10,268 (-6.3%) — KMP_AFFINITY 영역 vLLM conflict 추정, 폐기 |
+| Cat D | isolcpus + cgroup isolated partition | SUB_061 (infeasible) | container 영역 host cgroup partition root 필요 — 본 env 영역 불가 |
+| (결합 시도) | SUB_054 + SUB_055 + SUB_049 동시 (NUMA1 56 core 분할) | Phase 1 combo (2026-05-23) | main 9,635 (**-12.1%**) / CPU 23.85% — contention 으로 단독 합 영역 영역, 영역 영역 영역 |
 
 ## 8. raw 자료
 
