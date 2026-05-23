@@ -122,22 +122,53 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 
 ---
 
-## 🔧 4. 작업 진행 (next steps, 2026-05-23 기준 갱신)
+## 🔧 4. 작업 진행 (next steps, 2026-05-24 기준 갱신)
 
-### 4.1 ★ critical gate (현 추천 1순위)
+### 4.0 Rec 1/2/3 측정 완료 (2026-05-24)
+
+#### Rec 1: workload generalization (medium 200p × 4096 × 4096)
+
+| workload | vanilla | spec7+cap8 | speedup |
+|---|---:|---:|---:|
+| sonnet | 8,395.2 | 9,370.1 | **1.12x (+12%)** |
+| chat | 2,113.6 | 2,577.1 | **1.22x (+22%)** |
+| **code** | **7,889.1** | **5,505.6** | **0.70x (-30% 회귀!)** |
+
+→ **SUB_047 +134% 는 large workload (500p × 8192) 특화**. medium scale 에서 sonnet/chat 은 +12~22%, **code workload 는 -30% 회귀** (ngram acceptance 매우 낮음).
+→ small workload (200p × 1024) 에서는 sonnet/chat/code 모두 spec 가 0.67~0.73x (회귀).
+
+#### Rec 2: Eagle GPU smoke (200p × 4096 × 4096, sonnet)
+
+| config | tps | vs ngram (9,370) |
+|---|---:|---:|
+| Eagle (Llama-3 head + 3.3 base, num_spec=5) | 3,209.5 | **-65.7%** |
+
+→ Eagle Llama-3 head 가 Llama-3.3 base 와 호환 낮음. acceptance rate 매우 낮음 추정. SUB_050 결론: **같은 model 의 전용 Eagle head 없으면 효과 없음**. yuhuili/EAGLE-LLaMA3.3 ckpt 미존재 확인.
+
+#### Rec 3: SUB_055 deeper (Llama-Guard-3-1B + BGE-reranker, NUMA1 split 28+28)
+
+| 항목 | 결과 |
+|---|---|
+| main_tps | 10,844.5 (-1.0% vs SUB_047 best) |
+| LlamaGuard | **FAILED** — gated repo, HF 인증 없음 (meta-llama/Llama-Guard-3-1B access restricted) |
+| BGE-reranker | 36.4 pps sustained (28-core NUMA1) |
+
+→ LlamaGuard 영역 access 영역 — Meta gated model. 실효: BGE-reranker 단독 (28-core split). 결과 SUB_055 단독 (56-core, -3.7%) 과 비교 시 28-core split 가 main throughput 영역 덜 영향 (-1.0%).
+
+### 4.1 종합 결론 (Rec 1/2/3 통합)
+
+1. **SUB_047 best 는 workload-specific** — large+repetitive workload 외에서는 효과 작음 또는 회귀. production 적용 시 workload-aware 활성화 필요 (예: code workload 검출 시 spec OFF).
+2. **Eagle 경로는 model-matched ckpt 필수** — Llama-3.3 전용 head 없으면 의미 없음. self-train 1-2주 effort 외 path 없음.
+3. **CPU activation 단독 instance pattern 이 best** — multi-process combo 는 NUMA bandwidth contention. SUB_054 batch=64 (단독, -1.0% / CPU +15.7pp) 가 현 best dual-axis.
+4. **LlamaGuard 경로 차단** — Meta gated, HF 인증 필요. alternative (BGE-reranker 만 또는 다른 open safety model) 사용 가능.
+
+### 4.2 새 후보 (Rec 1/2/3 분석 후)
 
 | 우선순위 | 작업 | 사유 |
 |---|---|---|
-| **★★★ critical** | **workload generalization 검증** (sonnet 외 chat/code workload) | 본 best (SUB_047 +134%) 가 sonnet (Shakespeare 어휘 반복) 특화 가능성 큼. 일반 workload 영역 acceptance rate 30-40% 로 떨어질 수 있음. 본 검증 없이 다른 lever 진입 의미 작음 |
-
-### 4.2 검증 후 진입 후보
-
-| 우선순위 | SUB | 작업 | 조건 | effort |
-|---|---|---|---|:-:|
-| ★★ (조건부) | SUB_050 | Eagle CPU draft head | yuhuili/EAGLE-LLaMA3.3 ckpt 가용 확인 필요 | 3-5 일 (ckpt 있을 때) |
-| ★ | SUB_055 + LlamaGuard | LlamaGuard 7B INT8 추가 (CPU 25%+ saturate) | 영역 | 1-2 일 |
-| ★ | SUB_057 chain 0 정렬 fix + 측정 | top-M tie-break (latest position) refinement | 영역 | 0.5 일 |
-| ⚪ | 종결 + 문서 정리 | 현 결과 영역 production 권장 영역 명시 | — | — |
+| ★★ | workload-aware spec decode gating | code workload 자동 검출 + spec OFF 영역 라우팅 |
+| ★ | SUB_057 chain 0 정렬 fix + 측정 | top-M tie-break (latest position) refinement |
+| ⚪ | 종결 + production 권장 doc | 현 결과 충분, 추가 lever returns diminishing |
 
 ### 4.3 폐기 / 보류 (현 시점)
 
