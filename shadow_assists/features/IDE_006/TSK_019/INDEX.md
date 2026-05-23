@@ -1,12 +1,58 @@
 # TSK_019 — INDEX (navigation hub)
 
-> **목적**: TSK_019 영역 의 모든 doc / measurement 영역 의 single entry point.
-> **organization scheme** (turn 11): active / reference / archive / planning / measurements 카테고리 별 분리, 카테고리 내 시간순 정렬.
-> **★ 정렬 규칙** (turn 12): 각 카테고리 내 **시간순 (오래된 → 최신)** + 각 항목 옆에 날짜 (YYYY-MM-DD) 표기.
+> **목적**: TSK_019 의 모든 doc / measurement 의 single entry point.
+> **organization scheme** (turn 11): active / reference / archive / planning / measurements 카테고리 분리, 카테고리 내 시간순.
+> **★ 정렬 규칙** (turn 12): 각 카테고리 내 **시간순 (오래된 → 최신)** + 각 항목 옆 날짜 (YYYY-MM-DD).
+
+---
+
+## ★★★ 0. 현 absolute best (2026-05-23) — vanilla + ngram spec=7 + cap=8
+
+**[`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md) — 3-run avg 10,956.6 tps (+134.1% vs vanilla)** — branch `feat/spec-decode-tuning`
+
+| 항목 | 값 |
+|---|---:|
+| 3-run avg / min / max | **10,956.6** / 10,949.8 / 10,963.5 |
+| variance (CV) | **0.125%** (안정) |
+| wall (500p × 8192) | 366.83 s |
+| CPU busy / GPU util | 5.51 % / 54.70 % |
+| vs vanilla 4,679.8 | **+134.1% (2.341×)** ⭐ |
+
+### 동작 원리 (코드 베이스 안 두 path)
+
+| Path | 활성 조건 | 상태 |
+|---|---|---|
+| **A. NEO/AMX** (CPU KV offload) | `LLM(enable_neo_asymmetric=True)` + 다수 `VLLM_NEO_*` env | **dead path** — 본 환경 net-negative (-13~62%), 코드만 잔존 |
+| **B. vanilla + ngram spec** (현 winning) | `LLM(speculative_config={"method":"ngram",num_speculative_tokens=7,...})` + `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` | **★ 현 best (+134.1%)** |
+
+상세 mechanism / pipeline / cap=8 의 본질 = [`Best_SpecDecode_10778tps.md §4 동작 원리`](Best_SpecDecode_10778tps.md).
+
+### CLAUDE.md `# Objective` 평가
+
+| 목표 | 평가 |
+|---|---|
+| GPU 포함 서버 전체 throughput 향상 | ✓ **+134.1%** 달성 |
+| CPU 활용률 극도로 끌어올리기 | ✗ CPU 5.51 % (vanilla 4.66 % 거의 동일) |
+| CPU Idle 허락 안 함 | ✗ idle 94.5 % |
+
+→ throughput 목표 ✓, CPU 활용 목표 미달. 다음 path = **spec + CPU 결합** (SUB_046 CPU draft model / SUB_048 CPU spec sampling / SUB_045 multi-stream).
 
 ---
 
 ## ★ 1. Active — 현재 작업 영역 (시간순)
+
+### 1.0 ★★★ Spec decode lever (현 winning path — 본 영역이 진짜 active)
+
+| 날짜 | 영역 | 파일 | 의미 |
+|---|---|---|---|
+| **2026-05-23** | **best doc** | **[`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)** | **★★★ 현 absolute best — SUB_047 t3 (cap=8 + div_tp=0) 3-run avg 10,956.6 tps, +134.1% vs vanilla** |
+| 2026-05-23 | measurement | [`measurements/sub044_spec_decode_20260523/`](measurements/sub044_spec_decode_20260523/) | 첫 net-positive (spec=7 = 10,778 tps) |
+| 2026-05-23 | measurement | [`measurements/sub047_t3_3run_verify_20260523/`](measurements/sub047_t3_3run_verify_20260523/) | SUB_047 t3 3-run 검증 (avg 10,956.6, variance 0.125%) |
+| 2026-05-23 | planning | [`planning/SUB_046_to_049_cpu_spec_plans.md`](planning/SUB_046_to_049_cpu_spec_plans.md) | 다음 path — Tier 1 A/B/C + Tier 3 E CPU+spec 결합 plan |
+
+### 1.1 NEO 시대 (~2026-05-22) — historical active record (dead path 확정)
+
+> ⚠️ 본 영역의 active 산출물 들은 SUB_036/040/041/042 cross-check 후 **NEO net-negative 확정** (vanilla 4,680 → NEO 1,779 = -62%) → dead path 로 정리. 코드는 codebase 에 잔존하지만 default OFF, 사실상 호출 안 됨.
 
 | 날짜 | 영역 | 파일 | size | 의미 |
 |---|---|---|---:|---|
@@ -15,9 +61,9 @@
 | 2026-05-20 | analysis | [`analysis/M_sub015_phase3_hpc_optimization.md`](analysis/M_sub015_phase3_hpc_optimization.md) | 599 lines | SUB_015-Phase 3 HPC 측면 최적화 분석 + 외부 1차 출처 backing |
 | 2026-05-20 | planning | [`planning/AMX_OPTIMIZATION_PLAN.md`](planning/AMX_OPTIMIZATION_PLAN.md) | 165 lines | AMX 최적화 + 전체 최적화 통합 plan (7 sub-task A1~A7 + Phase α/β/γ/δ) — turn 8 작성, turn 11 별도 doc 추출 |
 | 2026-05-21 | analysis | [`analysis/N_cdec_leftover_elimination_ideas.md`](analysis/N_cdec_leftover_elimination_ideas.md) | 568 lines | cdec leftover 제거 외부 idea 22 개 (7 영역) — turn 10 |
-| 2026-05-21 | measurements | [`measurements/stage1_a1a2a3a4_matrix_100p_20260521/RESULTS.md`](measurements/stage1_a1a2a3a4_matrix_100p_20260521/RESULTS.md) | — | Stage 1 A1~A4 조합 12 tests (100p × 8192, env-ON) — A4 단독 +1.0% ⭐ winner |
+| 2026-05-21 | measurements | [`measurements/stage1_a1a2a3a4_matrix_100p_20260521/RESULTS.md`](measurements/stage1_a1a2a3a4_matrix_100p_20260521/RESULTS.md) | — | Stage 1 A1~A4 조합 12 tests (100p × 8192, env-ON) — A4 단독 +1.0% (1-run noise, SUB_032 에서 기각) |
 | 2026-05-21 | measurements | [`measurements/stage3_a5_matrix_100p_20260521/RESULTS.md`](measurements/stage3_a5_matrix_100p_20260521/RESULTS.md) | — | Stage 3 A5 + 조합 12 tests — A3+A5 +0.6% (Stage 3 best), A1+A5 -1.7% (anti-synergy) |
-| **2026-05-21** | analysis | [`analysis/O_stage1_stage3_root_cause.md`](analysis/O_stage1_stage3_root_cause.md) | — | **★ Stage 1+3 (24 tests) 영역 영역 영역 — 코드/라이브러리 레벨 분석 + B/C-tier 영역 영역 영역 (turn 17)** |
+| **2026-05-21** | analysis | [`analysis/O_stage1_stage3_root_cause.md`](analysis/O_stage1_stage3_root_cause.md) | — | **★ Stage 1+3 (24 tests) 통합 분석 — 코드/라이브러리 레벨 + B/C-tier 권고 (turn 17)** |
 
 ---
 
@@ -146,7 +192,7 @@
 
 ---
 
-## 📜 7. 시간순 history (turn 1 ~ 12)
+## 📜 7. 시간순 history (turn 1 ~ 18)
 
 | Turn | 날짜 | 작업 영역 |
 |---|---|---|
@@ -155,25 +201,44 @@
 | 6 | 2026-05-20 | b0/b1 sub-batch 구별 명확화 |
 | 7 | 2026-05-21 | env-gated default ON 측정 (100p) |
 | 8 | 2026-05-21 | env-ON 500p × 1-run validation + instrumentation 적재 + AMX plan 통합 plan 작성 |
-| 9 | 2026-05-21 | 전체 workflow 영역 빠짐없이 적재 (py-spy full stack) |
+| 9 | 2026-05-21 | 전체 workflow 빠짐없이 적재 (py-spy full stack) |
 | 10 | 2026-05-21 | cdec leftover 제거 외부 idea 22 개 (N doc) |
-| 11 | 2026-05-21 | 문서 영역 정리 (방안 B: active/reference/archive/planning 분리) |
-| **12** | **2026-05-21** | **★ 본 turn — 카테고리 내 시간순 정렬 + 날짜 표기** |
+| 11 | 2026-05-21 | 문서 정리 (방안 B: active/reference/archive/planning 분리) |
+| 12 | 2026-05-21 | 카테고리 내 시간순 정렬 + 날짜 표기 |
+| 13 | 2026-05-21 | Stage 1 A1~A4 조합 매트릭스 측정 (12 tests, A4 단독 lucky 1-run) |
+| 14-16 | 2026-05-21~22 | SUB_032~SUB_035 (A4 3-run reject + B3 softmax reject + B1 async noise + C1a OMP launch) |
+| 17 | 2026-05-22 | Stage 1+3 root cause + B/C-tier 폐기 → vanilla path 영역 영역 |
+| 18 | 2026-05-22 | SUB_036/040/041/042 — **★ NEO net-negative 확정** (4 측정 cross-check). prefill/decode 분리 시도에서도 vanilla 3.26~4.11× faster |
+| 19 | 2026-05-22 | SUB_043 vanilla accel sweep |
+| 20 | 2026-05-23 | **★★★ SUB_044 ngram spec decode — 첫 net-positive** (spec=7 = 10,778 tps, +130%) |
+| 21 | 2026-05-23 | SUB_046 plan + SUB_047 ngram thread cap env-tunable patch + 5-way sweep (10,949.8 tps best) |
+| 22 | 2026-05-23 | git 정리 (3 commit + push) + main merge + branch rename `feat/neo-amx-apply` → `feat/spec-decode-tuning` |
+| **23** | **2026-05-23** | **★ 본 turn — SUB_047 t3 3-run 검증 (10,956.6 avg, variance 0.125%) + Best/README/INDEX 동작 원리 + dual path coexistence 반영** |
 
 ---
 
 ## 🔧 8. 작업 진행 영역 (next steps, 우선순위 순)
 
-→ 상세: [`planning/AMX_OPTIMIZATION_PLAN.md`](planning/AMX_OPTIMIZATION_PLAN.md) §A.6
+→ 상세 plan: [`planning/SUB_046_to_049_cpu_spec_plans.md`](planning/SUB_046_to_049_cpu_spec_plans.md)
 
-| 우선순위 | 작업 | effort | 영역 |
-|---|---|:-:|---|
-| **★★★** | OMP barrier instrumentation 활성 + pacpu rebuild → barrier wait time 정량 | 30 min | AMX plan Phase α-1 |
-| **★★★** | Tournament barrier env var sweep (KMP_FORCE_REDUCTION_BARRIER_PATTERN) | 2-3 시간 | [N doc A1](analysis/N_cdec_leftover_elimination_ideas.md) |
-| ★★ | KMP_BLOCKTIME=INF + KMP_AFFINITY 명시 sweep | 1 시간 | [N doc A2](analysis/N_cdec_leftover_elimination_ideas.md) |
-| ★★ | env-ON 3-run avg (statistical confidence) | 90 min | [timeline §18.8](measurements/timeline_neo_amx_apply_20260520/README.md) |
-| ★★ | FlashDecoding++ unified-max softmax | 3-5 일 | [N doc B3](analysis/N_cdec_leftover_elimination_ideas.md) |
-| ★ | OmniServe LSE async pattern (P4 race-safe) | 1-2 주 | [N doc B1](analysis/N_cdec_leftover_elimination_ideas.md) |
+본 영역의 모든 lever 는 **spec decode 위에 CPU 활용 추가** (CLAUDE.md `# Objective` 의 "CPU 극도로 활용" 미달 해소) — branch `feat/spec-decode-tuning` 에서 진행.
+
+| 우선순위 | SUB | 작업 | Tier | effort | 가설 |
+|---|---|---|---|:-:|---|
+| **★★★** | SUB_046 | CPU draft model (Llama-3.2-1B CPU 추론 + GPU verify) | Tier 1 A | 3-5 일 | spec gain × CPU 활용 ↑↑ — vLLM 내부 `SpeculativeConfig.draft_device_type=cpu` 지원 추가 필요 |
+| **★★** | SUB_048 | spec sampling/logit CPU offload (rejection sampler 를 CPU 로) | Tier 1 C | 2-3 일 | GPU 영역 sampling 영역 CPU 로 → GPU 가 다음 forward 더 빠르게 시작 |
+| **★★** | SUB_049 | CPU draft + GPU verify + CPU sample 결합 | Tier 3 E | 1-2 주 | 3-stage pipeline (SUB_046 + SUB_048 결합) |
+| ★ | SUB_045 | multi-stream (GPU spec + CPU BG workload) | Tier 3 F | 1 주 | 서버 전체 CPU 활용 (vLLM 영역 + 별도 CPU workload 동시) |
+| ★ | spec workload generalization | sonnet 외 일반 chat / code workload 영역 acceptance rate 측정 | — | 1-2 일 | 본 best 가 sonnet 특화 인지 검증. **모든 workload 적용 전 필수** |
+
+### 폐기된 next steps (NEO 시대, dead path)
+
+이전 INDEX 의 §8 에 있던 다음 항목들은 **NEO net-negative 확정** 후 폐기 (실행 안 함):
+- ~~OMP barrier instrumentation 활성 + pacpu rebuild~~
+- ~~Tournament barrier env var sweep (KMP_FORCE_REDUCTION_BARRIER_PATTERN)~~
+- ~~KMP_BLOCKTIME=INF + KMP_AFFINITY 명시 sweep~~
+- ~~FlashDecoding++ unified-max softmax (SUB_033 에서 -0.82% reject)~~
+- ~~OmniServe LSE async pattern (P4 race-safe)~~
 
 ---
 
