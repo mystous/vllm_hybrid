@@ -59,19 +59,37 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 
 ---
 
-## 📊 2. Measurements
+## 📊 2. Measurements (sonnet workload 기준)
+
+### 2.1 SUB_044~049 (초기 active SUB)
 
 | 날짜 | 디렉토리 | 측정 | 결과 |
 |---|---|---|---:|
 | 2026-05-23 | [`measurements/sub044_spec_decode_20260523/`](measurements/sub044_spec_decode_20260523/) | ngram spec=3/5/7/10 sweep | **t3 spec=7 = 10,778.6 tps (+130%)** ⭐ 첫 net-positive |
 | 2026-05-23 | [`measurements/sub047_t3_3run_verify_20260523/`](measurements/sub047_t3_3run_verify_20260523/) | SUB_047 t3 (cap=8 + div_tp=0) canonical 3-run | **★★★ avg 10,956.5 / min 10,931.7 / max 10,981.4 (var 0.454%) — 현 best** |
+| 2026-05-23 | `eval/results/20260523_073053_sub045_spec_multiworkload/` | SUB_045 3-scenario (spec solo / +CPU BG / vanilla+BG) | t1=10,749 / t2=10,562 (CPU 29.4%) / t3=4,680 |
+| 2026-05-23 | `eval/results/20260523_102915_sub049_cpu_llm_combo/` | SUB_049 3-scenario (solo / +Qwen0.5B / +Qwen1.5B NUMA1) | t1=10,973 / t2=10,580 (CPU 27.6%) / t3=10,745 (CPU 26.4%) |
 
-추가 raw 결과 (RESULTS.md 미작성, eval/results 만):
-- `eval/results/20260523_005314_sub044_spec_decode/` (SUB_044 raw)
-- `eval/results/20260523_081619_sub047_ngram_threads/` (SUB_047 5-way sweep raw)
-- `eval/results/20260523_133929_sub047_t3_verify/` (SUB_047 3-run raw)
-- `eval/results/<TS>_sub045_spec_multiworkload/` (SUB_045, 진행 중)
-- `eval/results/<TS>_sub049_cpu_llm_combo/` (SUB_049, 진행 중)
+### 2.2 SUB_050~064 단독 측정 (2026-05-23)
+
+| SUB | 디렉토리 | main tps | vs SUB_047 | CPU% | GPU% | 비고 |
+|---|---|---:|---:|---:|---:|---|
+| SUB_054 (BGE emb b=32) | `eval/results/20260523_182152_sub054_cpu_embedder/` | 10,834.2 | -1.1% | 19.70 | 41.0 | embedder ~36 sps |
+| **SUB_054 (b=64)** | `eval/results/20260523_194409_phase2_sub054_batch64/` | **10,848.1** | **-1.0%** | **21.21** | 41.1 | **production sweet spot, embedder 36.7 sps** |
+| SUB_054 (b=128) | `eval/results/20260523_194409_phase2_sub054_batch128/` | 10,616.3 | -3.1% | 21.35 | 41.8 | embedder 42.2 sps (best emb throughput) |
+| SUB_055 (BGE reranker) | `eval/results/20260523_183915_sub055_cpu_reranker/` | 10,555.5 | -3.7% | 21.23 | 43.2 | reranker 44 pps |
+| SUB_060 (NUMA + KMP affinity) | `eval/results/20260523_180427_sub060_numa_hugepages/` | 10,268.0 | **-6.3%** | 24.92 | 49.9 | 회귀 — KMP_AFFINITY 영역 vLLM conflict 추정 |
+| SUB_061 (isolcpus + cgroup) | — | infeasible | — | — | — | container 영역 host cgroup partition root 필요 |
+
+### 2.3 Phase 1/3 combo 측정 — 모두 회귀
+
+| Phase | 디렉토리 | combo | main tps | vs SUB_047 | CPU% |
+|---|---|---|---:|---:|---:|
+| Phase 1 (3-way) | `eval/results/20260523_192729_phase1_combo/` | Qwen 16t + emb 20t + rerank 20t (NUMA1 split) | 9,635.4 | **-12.1%** | 23.85 |
+| Phase 3 combo A | `eval/results/20260523_220228_phase3_combo_A_qwen_emb/` | Qwen 28t + BGE emb b=64 28t (NUMA1) | 10,268.7 | -6.3% | 23.68 |
+| Phase 3 combo B | `eval/results/20260523_220228_phase3_combo_B_emb_rerank/` | BGE emb b=64 28t + BGE rerank 28t (NUMA1) | 9,598.2 | **-12.4%** | 24.01 |
+
+**결론**: 모든 multi-SUB combo 회귀 — NUMA bandwidth contention. **단일 SUB 영역 best Objective trade-off** (SUB_054 b=64 = -1.0% / CPU +15.7pp).
 
 ---
 
@@ -104,31 +122,38 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 
 ---
 
-## 🔧 4. 작업 진행 (next steps) — SUB_050~064 우선순위
+## 🔧 4. 작업 진행 (next steps, 2026-05-23 기준 갱신)
 
-상세 plan: [`planning/SUB_050_to_064_objective_levers.md`](planning/SUB_050_to_064_objective_levers.md)
+### 4.1 ★ critical gate (현 추천 1순위)
 
-| 우선순위 | SUB | 작업 | 카테고리 | effort | CPU% target |
-|---|---|---|---|:-:|---:|
-| **★★★** | **SUB_061** | Isolcpus + cgroup v2 cpuset 분리 | D HPC | 1 일 | **70-90% saturate** |
-| **★★★** | **SUB_060** | NUMA + hugepages + cache prefetch | D HPC | 1-2 일 | 30-40% |
-| **★★★** | **SUB_054** | CPU embedding model preprocessor | B Multi-inst | 1-2 일 | 30-50% |
-| ★★ | SUB_050 | Eagle/Eagle2 CPU draft head | A Adv spec | 3-5 일 | 40-60% |
-| ★★ | SUB_059 | CPU tokenizer / stop-string parallel | C vLLM 내부 | 1 일 | 5-15% |
-| ★★ | SUB_052 | Lookahead Decoding (CPU Jacobi) | A Adv spec | 2-3 일 | 40-60% |
-| ★ | SUB_055 | CPU re-ranker / safety filter | B Multi-inst | 1-2 일 | 25-45% |
-| ★ | SUB_057 | ngram tree expansion | C vLLM 내부 | 2-3 일 | 15-25% |
-| ★ | SUB_063 | CPU-load aware scheduler | E Scheduling | 2-3 일 | 30-50% (결합) |
-| ⚪ | SUB_051 | Medusa CPU | A | 3-5 일 | 30-50% |
-| ⚪ | SUB_056 | CPU prefill offload | B | 1-2 주 | 30-50% (위험) |
-| ⚪ | SUB_058 | CPU radix prefix cache | C | 1-2 주 | 20-40% |
-| ⚪ | SUB_053 | SpecInfer tree | A | 1-2 주 | 35-50% |
-| ⚪ | SUB_062 | GPU Direct + lockfree | D | 3-5 일 | marginal |
-| ⚪ | SUB_064 | Dynamic CPU/GPU migration | E | 1-2 주 | 결합 |
+| 우선순위 | 작업 | 사유 |
+|---|---|---|
+| **★★★ critical** | **workload generalization 검증** (sonnet 외 chat/code workload) | 본 best (SUB_047 +134%) 가 sonnet (Shakespeare 어휘 반복) 특화 가능성 큼. 일반 workload 영역 acceptance rate 30-40% 로 떨어질 수 있음. 본 검증 없이 다른 lever 진입 의미 작음 |
 
-### 권장 진입 sequence (다음 turn)
+### 4.2 검증 후 진입 후보
 
-1. **SUB_061** (isolcpus + cgroup) — 1-2 시간, CPU LLM 영역 dedicated 70%+
+| 우선순위 | SUB | 작업 | 조건 | effort |
+|---|---|---|---|:-:|
+| ★★ (조건부) | SUB_050 | Eagle CPU draft head | yuhuili/EAGLE-LLaMA3.3 ckpt 가용 확인 필요 | 3-5 일 (ckpt 있을 때) |
+| ★ | SUB_055 + LlamaGuard | LlamaGuard 7B INT8 추가 (CPU 25%+ saturate) | 영역 | 1-2 일 |
+| ★ | SUB_057 chain 0 정렬 fix + 측정 | top-M tie-break (latest position) refinement | 영역 | 0.5 일 |
+| ⚪ | 종결 + 문서 정리 | 현 결과 영역 production 권장 영역 명시 | — | — |
+
+### 4.3 폐기 / 보류 (현 시점)
+
+| SUB | 사유 |
+|---|---|
+| SUB_061 | container env 영역 infeasible |
+| SUB_060 | 측정 결과 회귀 (-6.3%) — KMP_AFFINITY 영역 영역 영향 |
+| Phase 1/3 multi-SUB combo | 모두 contention 영역 회귀 (-6~-12%) — 단일 SUB 사용 권장 |
+| SUB_051, 053, 056, 058, 062, 064 | large effort 또는 large risk — 본 critical gate 후 재평가 |
+| SUB_052 GPU Jacobi integration | gpu_model_runner.py 영역 deep change (2-3 일) — 본 critical gate 후 |
+
+### 4.4 권장 진입 sequence
+
+1. **workload generalization 검증** (1-2 일) — ★ critical gate
+2. SUB_050 Eagle CPU (ckpt 가용 확인 후, 가용 시) — 3-5 일
+3. SUB_055 + LlamaGuard (Eagle 불가 시 alternative) — 1-2 일
 2. **SUB_060** (NUMA/hugepages) — 1-2 시간, +5-10% CPU
 3. **SUB_054** (CPU embedding preprocessor) — 반나절, CPU 30-50%
 4. 위 3 lever 결합 측정 → CPU 60-80% target
@@ -149,7 +174,9 @@ TSK_020/
 │   ├── sub044_spec_decode_20260523/       ← 첫 net-positive (spec=3/5/7/10 sweep)
 │   └── sub047_t3_3run_verify_20260523/    ← ★★★ 현 best 확정 (3-run avg 10,956.5)
 ├── planning/
-│   └── SUB_046_to_049_cpu_spec_plans.md   ← Tier 1/3 CPU+spec 결합 plan
+│   ├── SUB_046_to_049_cpu_spec_plans.md   ← Tier 1/3 CPU+spec 결합 plan
+│   ├── SUB_050_to_064_objective_levers.md ← ★ Objective 정합 lever master plan (5 카테고리 × 15 SUB)
+│   └── SUB_050~SUB_064 *.md (15 개)        ← 각 SUB 개별 상세 plan
 └── analysis/                              ← (현재 비어 있음, 향후 spec workload 분석 등)
 ```
 
