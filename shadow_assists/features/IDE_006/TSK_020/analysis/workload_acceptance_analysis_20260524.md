@@ -10,17 +10,31 @@
 
 ---
 
-## 1. TL;DR
+## 1. TL;DR (★ SUB_075 실측 acceptance 반영, 2026-05-24)
 
-| workload | vanilla tps | spec7+cap8 tps | speedup | 추정 K (accept+1) | 추정 acceptance |
+| workload | vanilla tps | spec7+cap8 tps | speedup | **실측 mean_accept_len (per-draft K)** | **실측 per-pos α** |
 |---|---:|---:|---:|---:|---:|
-| **sonnet** | 4,679.8 | **10,956.5** | **+134.1%** | **≈ 5.0** | **≈ 60 %** |
-| **chat** | 2,186.0 | **3,006.6** | **+37.5%** | **≈ 1.8** | **≈ 12 %** |
-| **code** | 6,964.5 | **5,346.8** | **−23.2%** | **≈ 1.0** | **≈ 0 %** |
+| **sonnet** | 4,679.8 | **10,956.5** | **+134.1%** | **3.72** | **38.8 %** |
+| **chat** | 2,186.0 | **3,006.6** | **+37.5%** | **6.69** ⭐ | **81.2 %** ⭐ |
+| **code** | 6,964.5 | **5,346.8** | **−23.2%** | **1.10** | **1.4 %** |
+
+> **★ SUB_075 surprise (2026-05-24)**: per-draft acceptance rank = **chat ≫ sonnet ≫ code** (본 doc 의 사전 예측 sonnet ≫ chat ≫ code 와 반대). throughput rank 는 동일 (sonnet ≫ chat ≫ code). 이유: throughput speedup = **spec coverage × per-draft K**. chat 은 per-draft K 높지만 응답 짧고 spec hit 빈도 낮아 coverage 낮음. sonnet 은 K 중간이지만 응답 길고 coverage 높음. code 는 K, coverage 모두 0 → R 만 누적. 상세: [`measurements/sub075_acceptance_20260524/RESULTS.md`](measurements/sub075_acceptance_20260524/RESULTS.md).
+
+> **★ SUB_074 SuffixDecoding 결과 (2026-05-24, enforce_eager 모드 caveat)**: suffix vs ngram K — sonnet 4.42 vs 3.72 (1.19×), chat 11.58 vs 6.69 (1.73×), **code 7.67 vs 1.10 (★ 7× ⭐)**. tps (eager suffix vs cuda-graph ngram): sonnet 8236 vs 10909 (-25% eager penalty) / chat 2370 vs 2972 (-20% eager penalty) / **code 7094 vs 5362 (+32% net positive — eager penalty 에도 ngram 회귀 mitigation 성공)**. cuda graph 호환 시 suffix 가 모든 workload 에서 ngram 동등 또는 향상 가능성 강함 (code 영역 +70% 가능 추정). 상세: [`measurements/sub074_suffix_20260524/RESULTS.md`](measurements/sub074_suffix_20260524/RESULTS.md).
 
 → **결정 변수**: prompt 의 **n-gram self-similarity** (prompt 안 어휘 반복) + **generated 응답이 prompt 어휘를 그대로 인용/반사하는가**. sonnet 은 둘 다 ★★★, chat 은 ★★ (sonnet excerpt 인용), code 는 ★ (의미 없는 word salad, generated Python 과 무관).
 
 → **production 권장**: workload-aware gating — code-like prompt 검출 시 spec OFF. heuristic 는 §6 에 정리.
+
+### 1.1 sonnet "+134.1%" 의 contribution breakdown (SUB_073 / I001 정정)
+
+| 단계 | config | source | tps | vs 직전 | vs vanilla 누적 |
+|---|---|---|---:|---:|---:|
+| (1) vanilla | `speculative_config=None` | vLLM upstream (spec OFF) | 4,679.8 | — | — |
+| (2) **vLLM built-in spec ON (default cap=1)** | `num_spec=7, prompt_lookup=2/5` | **vLLM 영역 코드 변경 0** — feature 활성화만 | **10,778.6** (SUB_044 t3) | **+130.3%** | **+130.3%** |
+| (3) **SUB_047 fork patch** | `+ cap=8, div_tp=0` | **본 fork ~6 줄 patch** (env-tunable threading enable) | 10,956.5 (3-run avg) | **+1.65%** | **+134.12%** |
+
+→ +134% 중 **130 pp 는 vLLM built-in 효과**, **본 fork patch 의 추가 기여는 1.65 pp**. 본 doc 의 "+134%" 표기는 본 contribution breakdown 을 전제로 읽을 것.
 
 ## 2. 측정 fact
 
@@ -90,27 +104,30 @@ spec_wall ≈ N_total_tokens / K × spec_step_time
 
 → 정량 분석에서 **R ≈ 1.30 (중앙값) 고정** 가정 사용.
 
-### 3.3 K 역산 (R = 1.30 가정)
+### 3.3 K 역산 (R = 1.30 가정) + SUB_075 실측 (2026-05-24)
 
 ```
-K = R / (spec_wall / vanilla_wall) = 1.30 / wall_ratio
+모델: K_doc = R / wall_ratio  (step 평균, mixed spec+vanilla)
+실측: K_spec = mean_accept_len  (per-draft, spec-active step 안에서만)
+관계: K_doc = 1 + s × (K_spec − 1)  (s = spec coverage)
 ```
 
-| workload | wall_ratio | K = 1.30 / wall_ratio | 평균 accept α = K − 1 | acceptance ratio |
-|---|---:|---:|---:|---:|
-| sonnet | 0.419 | **3.10** | 2.10 token | 30 % (7 중 2.10) |
-| chat | 0.749 | **1.74** | 0.74 token | 11 % |
-| code | 1.292 | **1.01** | 0.01 token | ≈ 0 % |
+| workload | wall_ratio | **K_doc (model, R=1.30)** | **K_spec (실측, SUB_075)** | **per-pos α (실측)** | **s (fit, coverage)** |
+|---|---:|---:|---:|---:|---:|
+| sonnet | 0.419 | **3.10** | **3.72** | 38.8% | **21.1%** |
+| chat | 0.749 | **1.74** | **6.69** ⭐ | 81.2% ⭐ | **6.0%** (낮음) |
+| code | 1.292 | **1.01** | **1.10** | 1.4% | **~0%** |
+
+> **해석**: K_doc 은 *step 평균* (vanilla + spec mixed), K_spec 은 *spec-active step 안* per-draft K. 두 값이 다른 이유 = spec coverage s (draft 시도가 일어나는 step 비율). s × (K_spec − 1) 만큼 K_doc 가 vanilla (=1) 보다 상승.
+>
+> sonnet 의 s=21.1% (높은 coverage) 가 chat 의 s=6.0% 보다 결정적으로 큼 — chat 은 per-draft K 가 더 높음에도 coverage 가 낮아 net throughput 향상 폭이 작음. code 의 s=0 이 본 doc 의 ‟α≈0% near regression" 예측과 정합.
 
 > R = 1.30 은 보수적 중앙 추정. R = 1.40 가정 시 K 값 모두 +8% (sonnet K=3.34, chat K=1.87, code K=1.08). 어느 시나리오에서도 **rank order 와 정성적 결론 동일**:
-> - sonnet: 매 step ~3 token 진척 (acceptance 가 매우 높음)
-> - chat: 매 step ~1.7 token 진척 (acceptance 가 낮지만 R 보다는 큼 → 약한 net gain)
-> - code: 매 step ~1.0 token 진척 (zero acceptance, R 만 누적 → net regression)
+> - sonnet: 매 step ~3 token 진척 (step 평균 K_doc), per-draft 는 K_spec=3.72 / coverage 21%
+> - chat: 매 step ~1.7 token 진척 (K_doc), per-draft 는 K_spec=6.69 / coverage 6% — coverage 가 sonnet 보다 낮음
+> - code: 매 step ~1.0 token 진척 (K_doc), per-draft K_spec=1.10 / coverage ~0% (zero acceptance) → R 만 누적 → net regression
 
-> **참고**: 본 보수적 추정에서 sonnet K ≈ 3 (acceptance ~30%) 는 vLLM literature 의 ngram acceptance "sonnet workload ~60%" 값보다 작음. 그 이유:
-> - 본 추정은 R 가 1.30 으로 고정된 simple model. 실제로 sonnet 의 매우 작은 wall (366s) 영역 R 가 더 작을 수 있음 (8-token forward 도 H100 decode latency-bound 영역에서 거의 free).
-> - 만약 sonnet 환경의 effective R = 1.10 으로 두면 K = 1.10 / 0.419 = 2.63... 더 낮아짐. 즉 K 역산은 R 추정에 sensitive.
-> - **acceptance rate 직접 측정** (§7) 으로 R 와 K 를 독립적으로 분리 가능.
+> **참고**: 본 보수적 추정에서 sonnet K_doc ≈ 3 (step 평균) 는 본 환경 sonnet 의 per-pos α = 38.8% (SUB_075 실측) 과 정합. vLLM literature 의 "ngram sonnet ~60%" 은 다른 setup (workload generator / batch / seed) 기준일 가능성. 본 fork 환경 실측 SUB_075 결과 = canonical fact (본 doc 의 R/K framework 의 first empirical validation).
 
 본 doc 의 결론은 K 의 **절대값** 보다 **rank order** (sonnet ≫ chat ≫ code) 와 **K ≷ R 의 부호** (sonnet 가속 / chat 약한 가속 / code 회귀) 에 의존. 그 부분은 R 가정 범위 어디서나 동일.
 
@@ -134,13 +151,22 @@ K_exact = E[# tokens accepted + 1]
 | 0.6 | 5.20 | 2.460 | +111 % |
 | 0.8 | 6.60 | 4.165 | +58 % |
 
-**implication on K 역산**:
-- **code (α ≈ 0)**: linear 와 closed-form 거의 일치 (K ≈ 1). 본 doc 의 K_code ≈ 1.01 추정 변경 없음.
-- **chat (α ≈ 0.1)**: linear K = 1.7, Leviathan K = 1.11. 본 doc 의 K_chat ≈ 1.74 (wall_ratio + R=1.30 역산) 가 linear 추정과 부합 → 실제 α 가 본 doc 추정보다 *높을* 수도 있음 (R 가 1.0 에 가까운 경우).
-- **sonnet (α 가 vLLM literature 의 60% 라면)**: linear K = 5.2, Leviathan K = 2.46. 본 doc 의 wall_ratio 0.419 로부터 K_actual = R / 0.419:
-  - 만약 R ≈ 1.03 → K_actual ≈ 2.46 (literature α 60% + Leviathan closed-form 정합)
-  - 만약 R ≈ 1.30 (본 doc 가정) → K_actual ≈ 3.10 (literature α 와 정합 시 K_exact 보다 큼 → 본 환경의 α 가 60% 보다 낮을 가능성)
-  - 만약 R ≈ 2.18 → K_actual ≈ 5.20 (linear K @ α=60%, R 가 매우 큼)
+**implication on K 역산 + SUB_075 실측 비교 (2026-05-24)**:
+
+SUB_075 의 실측 α (per-pos) 를 두 식에 대입:
+
+| workload | 실측 α (per-pos) | linear K=1+7α | Leviathan K_exact | **실측 mean_accept_len** | linear/K_exact 와 실측의 gap |
+|---|---:|---:|---:|---:|---|
+| sonnet | 0.388 | 3.72 | **1.63** | **3.72** | linear 일치 ✓ / Leviathan 가 ~2.3× 과소 |
+| chat | 0.812 | 6.68 | **4.31** | **6.69** | linear 일치 ✓ / Leviathan 가 ~1.55× 과소 |
+| code | 0.014 | 1.10 | **1.01** | **1.10** | 둘 다 거의 일치 |
+
+→ **실측 mean_accept_len ≈ linear `1 + 7α` 와 일치, Leviathan closed-form 보다 항상 큼**. 이유 (추정):
+- vLLM ngram drafter 의 per-position acceptance 가 **i.i.d. 가정과 다름** — ngram match 가 발견된 시점이 본질적으로 *conformant* 한 위치, 한 position 이 accept 되면 다음 position 도 accept 될 확률 ↑ (correlation > 0).
+- Leviathan closed-form 의 `(1 − α^(γ+1)) / (1 − α)` 는 i.i.d. 가정 하의 *geometric stopping*. 실제 ngram 은 first-token-accept 이후 chain 끝까지 accept 되는 strong correlation 발견.
+- → linear `1 + 7α` 가 ngram drafter 의 acceptance length 의 **better approximation**. Leviathan closed-form 은 model-based drafter (Medusa/EAGLE 등 i.i.d. closer to assumption) 에 더 잘 fit.
+
+후속 SUB candidate: position-별 conditional acceptance probability 측정 (`num_accepted_tokens_per_pos` field 활용) → ngram 의 correlation structure 정량화.
 
 → **acceptance rate 직접 측정** (§7) 으로 R 와 K 를 분리하는 것이 정확한 framework alignment 의 전제. 본 doc §1 TL;DR 의 sonnet K ≈ 5.0 / acceptance ~60% 는 linear approximation + vLLM literature 의 acceptance 값을 그대로 차용한 것이며, Leviathan closed-form 적용 시 K ≈ 2.5 가 됨 — 이 두 framework 의 격차는 §7 의 직접 측정 시 closed.
 
@@ -244,6 +270,18 @@ def longest_common_subseq(two strings s1 s2):
 ## 6. workload-aware gating heuristic (production 권장)
 
 본 분석의 production 함의: **spec decode 의 ON/OFF 를 prompt content 로 dynamic 결정**.
+
+### 6.0 측정 결과 (SUB_076, 2026-05-24)
+
+본 환경 prompt builder (SUB_044/047/071 의 build_sonnet/chat/code_prompts) 의 prompt 1,500개 (3 workload × 500) 에 classifier 적용:
+
+| true \\ pred | sonnet | chat | code | acc |
+|---|---:|---:|---:|---:|
+| sonnet | **500** | 0 | 0 | 1.000 |
+| chat | 0 | **500** | 0 | 1.000 |
+| code | 0 | 0 | **500** | 1.000 |
+
+→ **Macro accuracy = 1.000 (perfect)**. 본 환경 prompt builder 는 강한 signature (chat template tag, code def/comment, sonnet free text) 를 부여하므로 trivial 분류 가능. real production traffic 에서는 accuracy 가 낮을 것 (보수 estimate 0.85-0.95). 후속: real dataset (ShareGPT / LMSYS-chat) reproduction (SUB_076 §4.2 candidate). 상세: [`measurements/sub076_classifier_20260524/RESULTS.md`](measurements/sub076_classifier_20260524/RESULTS.md).
 
 ### 6.1 권장 heuristic (1차 PoC level)
 
@@ -558,18 +596,18 @@ self.num_numba_thread_available //= tp_size
 
 본 doc 의 unique contribution 은 기존 literature 와 비교 시 다음 두 가지:
 
-1. **regression 측정의 정량 분리** — 기존 literature 대부분이 spec decoding 의 *gain* 만 보고하고 regression 은 "MoE / high-QPS / cold-start" 등 *부수 조건* 으로 다룸. 본 doc 은 동일 hardware · 동일 batch · 동일 num_spec=7 · 동일 prompt scale 에서 **순수 workload 차이만으로 +134 % ↔ −23 % 의 257 percentage-point 격차** 를 직접 측정. 이는 PLD README 의 "roleplay worst" 정성 보고를 정량화한 첫 사례에 가까움.
+1. **regression 측정의 정량 분리** — 기존 literature 대부분이 spec decoding 의 *gain* 만 보고하고 regression 은 "MoE / high-QPS / cold-start" 등 *부수 조건* 으로 다룸. 본 doc 은 동일 hardware · 동일 batch · 동일 num_spec=7 · 동일 prompt scale 에서 **순수 workload 차이만으로 +134 % ↔ −23 % 의 257 percentage-point 격차** 를 직접 측정. 이는 PLD README 의 "roleplay worst" 정성 보고를 정량화한 첫 사례에 가까움. **SUB_078 + SUB_079 (2026-05-24) cross-validation 확인**: small/fast model (Qwen 0.5B/1.5B) × {sonnet, chat, code} 6 cell 모두 −48~−65% 회귀 (workload-universal regression — R ≫ K 가 model-scale 의 함수, workload 무관). 외부 issue #16258 + 본 fork 측정 + small model 3 workload 측정 = **3 source corroboration**.
 2. **mechanism 의 prompt-content 수준 explanation** — 기존 adaptive literature (R4 Nightjar / R5 DSDE / R8 AdaEDL / R10 SpecDec++) 는 모두 *측정된* acceptance / KLD / entropy 를 feedback signal 로 사용 (즉 spec 시도 후 적응). 본 doc 의 §6 권장은 **spec 시도 전 prompt content 만으로 ON/OFF 결정** — feedback 비용 0 인 *predictive* gating. R3 Cascade 의 utility-driven approach 가 이쪽에 가깝지만 MoE expert activation 에 한정.
 
 ### 10.4 후속 reading
 
 - **R5 DSDE** 의 KLD-variance 신호와 §7 의 acceptance-rate 직접 측정을 결합하면 본 doc 의 R / K 분리 모델을 fully empirical 화 가능.
-- **R6 SuffixDecoding** 의 per-request suffix tree 가 본 doc 의 code workload (generated 가 prompt 와 disjoint) 에서 **self-generated tokens 만으로 ngram pool 구축** 으로 회귀를 완화할 가능성 — SUB_072 candidate.
+- **R6 SuffixDecoding** 의 per-request suffix tree 가 본 doc 의 code workload (generated 가 prompt 와 disjoint) 에서 **self-generated tokens 만으로 ngram pool 구축** 으로 회귀를 완화할 가능성 — **SUB_074 (2026-05-24) 측정 결과 확정**: code K=1.10→7.67 (7× 향상), tps 5362→7094 (+32% net positive, enforce_eager 패널티 영역도). cuda graph 호환 시 suffix 가 ngram 대비 모든 workload 에서 동등/향상 가능성 강함.
 - **R9 TAPS** 의 "draft training distribution 과 workload mismatch" framing 은 본 doc 의 code 회귀를 "ngram proposer 의 implicit prior 가 sonnet-like text 에 fit" 으로 재해석 가능 — draft model 기반 spec 영역으로 본 분석을 확장하는 path.
 - **R21 Leviathan closed-form 적용 + R33 PR #15151 의 spec metric** 결합: `disable_log_stats=False` 로 `mean_acceptance_length` 직접 측정 → α 도출 → Leviathan IF 식으로 expected speedup 계산 → 측정 speedup 과 대조 → R 의 정확값 분리 (10 분 effort, SUB_072 의 가장 빠른 entry).
 - **R23 EAGLE-3 의 code = best 패턴** 은 SUB_050 (Eagle CPU draft) 재시도의 motivation — model-matched ckpt (Llama-3.3 전용 EAGLE head) 가 가용해지면 본 doc 의 code 회귀 영역을 단번에 ngram → eagle 로 교체 가능. PR #24344 (Hybrid ngram-eagle drafting, R38 tracking issue 의 in-flight 항목) 는 두 drafter 를 workload 별로 switch 하는 vLLM 측의 같은 방향성.
 - **R25 REST 의 external datastore retrieval** — vLLM ngram 의 "prompt 안만" 한계를 datastore (The Stack / ShareGPT) 로 보완. Snowflake Arctic Inference (R14) 가 prod 배포 중. 본 doc 의 SUB_054~058 의 CPU pipeline lever 들과 self-host 관점에서 결합 가능.
-- **R35 vLLM Issue #16258 의 reproduction**: starcoder2-3b + opt-125m 영역 본 환경에서 재현하면 본 doc 의 "high acceptance ≠ net win" 명제를 두 번째 모델·hardware combo 에서 corroborate.
+- **R35 vLLM Issue #16258 의 reproduction**: starcoder2-3b + opt-125m 영역 본 환경에서 재현하면 본 doc 의 "high acceptance ≠ net win" 명제를 두 번째 모델·hardware combo 에서 corroborate. **SUB_078 (2026-05-24) 측정 — opt-125m/starcoder2-3b cache 부재로 Qwen2.5-0.5B/1.5B substitution**: Qwen 0.5B vanilla 11,056 / ngram 4,486 = **2.46× 회귀** (-59%), Qwen 1.5B vanilla 11,016 / ngram 4,195 = **2.63× 회귀** (-62%). issue #16258 의 2.1× 회귀 패턴과 일치, mechanism cross-validation 성공 (small model 영역 R≫K, 항상 net regression). 상세: [`measurements/sub078_repro_20260524/RESULTS.md`](measurements/sub078_repro_20260524/RESULTS.md).
 
 ## 11. 본 구현 (SUB_047) vs literature 구현 — 차별점 정리
 

@@ -4,6 +4,8 @@
 > **목적**: SUB_047 t3 (cap=8 + div_tp=0) winner config 의 canonical 3-run avg/min/max 확정.
 > **base config**: HEAD `de85efff1`, Llama-3.3-70B, TP=8, gmu=0.85, fp8 KV, 500p × 8192, spec=7
 
+> **★ SUB_073/I001 framing 정정 (2026-05-24)**: 본 SUB 의 "+134.12% vs vanilla 4,679.8" 은 vLLM built-in 효과 (+130.3%) 와 fork patch 추가 기여 (+1.65%) 의 합. 본 SUB 가 **단독으로 contribute 한 부분 = +1.65%** (10,778.6 SUB_044 t3 → 10,956.5 본 SUB canonical 3-run). 자세한 3-단계 breakdown 은 [`../../Best_SpecDecode_10778tps.md#5`](../../Best_SpecDecode_10778tps.md#5) 및 분석 doc §1.1 참조.
+
 ---
 
 ## 1. 3-run 결과

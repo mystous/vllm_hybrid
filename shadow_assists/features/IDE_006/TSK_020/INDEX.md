@@ -17,6 +17,8 @@
 | CPU busy / GPU util | 5.557 % / 54.70 % avg |
 | vs vanilla 4,679.8 | **+134.12% (2.341×)** ⭐ |
 
+**★ Contribution breakdown** (SUB_073/I001 정정, 2026-05-24): vanilla 4,680 → vLLM built-in spec ON (cap=1) 10,778.6 = **+130.3% (vLLM 영역 코드 변경 0)** → SUB_047 fork patch (cap=8/div_tp=0) 10,956.5 = **+1.65% over default (본 fork ~6 줄 patch)**. **본 작업 fork contribution = +1.65%**, 나머지 130 pp 는 vLLM built-in feature 활성화 효과.
+
 상세 3-run 표 / 동작 원리 / 코드 패치 = [`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md)
 
 ### 활성화
@@ -63,6 +65,12 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 | 2026-05-24 | SUB_066 (B-2 ngram broadcast) | measurement | `eval/results/20260524_121836_sub066_*/` | **기각** (broadcast 10,832 vs baseline 10,975 = -1.30% / pickle+broadcast overhead 가 duplicate 절감 보다 큼) |
 | 2026-05-24 | SUB_067 (C1 speculative precompute) | measurement | `eval/results/20260524_*_sub067_*/` | **기각** (precompute 10,573 vs baseline 10,987 = -3.77% / 최대 회귀, 16MB copy + low hit rate) |
 | 2026-05-24 | **SUB_071 (chat/code large 500p × 8192)** | **measurement** | **[`measurements/sub071_workload_large_20260524/RESULTS.md`](measurements/sub071_workload_large_20260524/RESULTS.md)** | **완료 — chat +37.5% / code −23.2% (workload-aware gating 필수성 확정)** |
+| 2026-05-24 | **SUB_075 (I003 acceptance rate 직접 측정)** | **measurement** | **[`measurements/sub075_acceptance_20260524/RESULTS.md`](measurements/sub075_acceptance_20260524/RESULTS.md)** | **완료 ★ — sonnet K=3.72/α=38.8% / chat K=6.69/α=81.2% (surprise) / code K=1.10/α=1.4% (예측 일치). 본 doc R/K framework 의 first empirical validation** |
+| 2026-05-24 | **SUB_076 (I004 workload classifier PoC)** | **measurement** | **[`measurements/sub076_classifier_20260524/RESULTS.md`](measurements/sub076_classifier_20260524/RESULTS.md)** | **완료 — macro accuracy 1.000 (3-workload × 500 prompt perfect, 본 환경 builder set 의 trivial classification capability)** |
+| 2026-05-24 | SUB_077 (I005 vLLM upstream PR) | doc / WebFetch | [`measurements/sub077_pr_draft_20260524/PR_DRAFT.md`](measurements/sub077_pr_draft_20260524/PR_DRAFT.md) | draft 완료 (duplicate check ✓, human review 후 submit) |
+| 2026-05-24 | **SUB_074 (I002 SuffixDecoding 측정)** | **measurement** | **[`measurements/sub074_suffix_20260524/RESULTS.md`](measurements/sub074_suffix_20260524/RESULTS.md)** | **완료 ⭐ — code workload K=1.10→7.67 (7×) / tps 5362→7094 (+32%, enforce_eager 모드도). sonnet/chat 는 eager penalty 로 회귀 (~-25%). cuda graph 호환 시 모든 workload 향상 가능성 강함** |
+| 2026-05-24 | **SUB_078 (IDE_014 Issue #16258 reproduction — code only)** | **measurement** | **[`measurements/sub078_repro_20260524/RESULTS.md`](measurements/sub078_repro_20260524/RESULTS.md)** | **완료 ⭐ — Qwen2.5-0.5B/1.5B + code → ngram 모두 2.5× 회귀 (-59~-62%). issue #16258 패턴 재현** |
+| 2026-05-24 | **SUB_079 (IDE_014 small model sonnet/chat 확장)** | **measurement** | **[`measurements/sub079_small_model_full_20260524/RESULTS.md`](measurements/sub079_small_model_full_20260524/RESULTS.md)** | **완료 ⭐ — Qwen 0.5B/1.5B × {sonnet, chat} 4 cell. sonnet -48~-60%, chat -61~-65%. 6/6 cell 회귀 = small model 영역 workload-universal regression 확정** |
 
 ---
 
@@ -262,7 +270,15 @@ TSK_020/
 │   ├── SUB_050~SUB_064 *.md (15 개)        ← 각 SUB 개별 상세 plan
 │   └── SUB_065~SUB_069 *.md (5 개, 2026-05-24) ← ★ bottleneck-driven SUB plan
 └── analysis/
-    └── workload_acceptance_analysis_20260524.md  ← ★ sonnet/chat/code spec decode 정량 분석 (K 역산 + prompt 구조)
+│   └── workload_acceptance_analysis_20260524.md  ← ★ sonnet/chat/code spec decode 정량 분석 (K 역산 + prompt 구조)
+└── idea/
+    ├── README.md                                  ← ★ SUB_072 idea backlog (6 idea: I001~I006)
+    ├── I001_vanilla_contribution_framing.md       ← vanilla +134% framing 의 vLLM built-in / fork patch 분리 (★★★)
+    ├── I002_suffix_decoding_measurement.md        ← SuffixDecoding 측정 candidate (★★)
+    ├── I003_acceptance_rate_direct_measure.md     ← acceptance rate 직접 측정 (★★)
+    ├── I004_workload_aware_gating_poc.md          ← workload-aware predictive gating PoC (★)
+    ├── I005_vllm_upstream_pr.md                   ← SUB_047 patch 의 vLLM upstream PR (★)
+    └── I006_issue_16258_repro.md                  ← vLLM Issue #16258 reproduction (◐)
 ```
 
 ---

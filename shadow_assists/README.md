@@ -215,7 +215,7 @@ flowchart TB
     TSK_019 --> SUB_046["SUB_046<br/>NEO + spec=7 결합 (boundary 확인)<br/>❌ 기각 (schedule conflict crash)"]
 
     %% TSK_020 — Spec decode tuning + CPU+spec 결합 (2026-05-23 신설)
-    PLN_001 --> TSK_020["TSK_020<br/>Spec decode tuning<br/>+ CPU+spec 결합<br/>🏆 canonical 3-run 10,956.5 tps (+134.12%)"]
+    PLN_001 --> TSK_020["TSK_020<br/>Spec decode tuning<br/>+ CPU+spec 결합<br/>🏆 sonnet 10,956.5 tps (+134.1%)<br/>chat 3,006.6 (+37.5%)<br/>code 7,094 (suffix +1.85%)"]
     TSK_020 --> SUB_044["SUB_044<br/>ngram spec=3/5/7/10 sweep<br/>🟢 첫 net-positive (10,778 tps, +130%)"]
     TSK_020 --> SUB_045["SUB_045<br/>spec=7 + CPU BG multi-workload<br/>🔵 background 측정 중"]
     SUB_044 --> SUB_047["SUB_047<br/>ngram numba thread cap 1→8<br/>🏆 canonical 3-run avg 10,956.5 (var 0.454%, +134.12%)"]
@@ -237,6 +237,37 @@ flowchart TB
     TSK_020 --> SUB_062["SUB_062<br/>Cat D: GPU Direct + lockfree<br/>⚪ 대기"]
     TSK_020 --> SUB_063["SUB_063<br/>Cat E: CPU-load scheduler<br/>⚪ 대기"]
     TSK_020 --> SUB_064["SUB_064<br/>Cat E: Dynamic CPU/GPU migration<br/>⚪ 대기"]
+
+    %% TSK_020 — bottleneck-driven SUB (2026-05-24) — 5/5 기각
+    TSK_020 --> SUB_065["SUB_065<br/>B-4 threshold sweep<br/>🔴 기각 (-0.07~-1.69%)"]
+    TSK_020 --> SUB_066["SUB_066<br/>B-2 ngram broadcast<br/>🔴 기각 (-1.30%)"]
+    TSK_020 --> SUB_067["SUB_067<br/>C1 spec ngram precompute<br/>🔴 기각 (-3.77%)"]
+    TSK_020 --> SUB_068["SUB_068<br/>D2/D4 stop+tokenizer parallel<br/>🔴 기각 (+0.03% noise)"]
+    TSK_020 --> SUB_069["SUB_069<br/>F1 prompt sorting<br/>🔴 기각 (3-run -0.23%)"]
+    TSK_020 --> SUB_070["SUB_070<br/>engine config sweep<br/>🟠 중단 (1/6 cell, A1 timeout)"]
+    TSK_020 --> SUB_071["SUB_071<br/>chat/code large workload<br/>🟢 chat +37.5% / code -23.2%"]
+
+    %% TSK_020 — idea backlog manager + IDE_009~014 (2026-05-24)
+    TSK_020 --> SUB_072["SUB_072<br/>idea backlog manager<br/>🟢 6 idea (IDE_009~014) 신설"]
+    SUB_072 --> IDE_009["IDE_009<br/>vanilla framing 정정<br/>✅ doc only (fork +1.65%)"]
+    SUB_072 --> IDE_010["IDE_010<br/>SuffixDecoding<br/>🏆 code +32% vs ngram"]
+    SUB_072 --> IDE_011["IDE_011<br/>acceptance 직접 측정<br/>🟢 R/K empirical (chat α=81%)"]
+    SUB_072 --> IDE_012["IDE_012<br/>workload classifier<br/>🟢 accuracy 1.000"]
+    SUB_072 --> IDE_013["IDE_013<br/>vLLM upstream PR<br/>🟠 draft 완료, submit 대기"]
+    SUB_072 --> IDE_014["IDE_014<br/>Issue #16258 cross-validation<br/>🟢 small model 6/6 cell -48~-65%"]
+    IDE_009 --> SUB_073["SUB_073<br/>framing 정정 실행<br/>🟢 완료"]
+    IDE_010 --> SUB_074["SUB_074<br/>suffix 3 workload 측정<br/>🏆 code +32% vs ngram"]
+    IDE_011 --> SUB_075["SUB_075<br/>3 workload acceptance<br/>🟢 chat K=6.69 surprise"]
+    IDE_012 --> SUB_076["SUB_076<br/>classifier accuracy<br/>🟢 1.000"]
+    IDE_013 --> SUB_077["SUB_077<br/>PR draft<br/>🟠 duplicate 통과, submit 대기"]
+    IDE_014 --> SUB_078["SUB_078<br/>Qwen 0.5B/1.5B code<br/>🟢 -59~-62% 회귀"]
+    IDE_014 --> SUB_079["SUB_079<br/>Qwen sonnet/chat 확장<br/>🟢 6/6 cell -48~-65%"]
+
+    %% TSK_020 — 성능 향상 plan Phase 1~4 (2026-05-24)
+    TSK_020 --> SUB_080["SUB_080<br/>Phase 1: gating analytical<br/>🟢 M2 +16% / M3 +26%"]
+    SUB_074 --> SUB_081["SUB_081<br/>Phase 2: suffix cuda graph<br/>🟠 1 blocker 해소, 다음 blocker 노출"]
+    SUB_080 --> SUB_082["SUB_082<br/>Phase 3: dual routing<br/>🟠 viability analytical viable"]
+    SUB_057 --> SUB_083["SUB_083<br/>Phase 4: top-M tree verify<br/>🟠 design + expected +40-80 pp"]
 
     %% pending follow-ups
     PLN_001 --> TST_001["TST_001<br/>TSK_001 정확도<br/>(A · B(i) · C)"]

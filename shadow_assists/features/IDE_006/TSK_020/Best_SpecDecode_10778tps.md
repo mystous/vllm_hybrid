@@ -4,6 +4,16 @@
 > variance 0.454% (max-min = 49.7 tps).
 > 이전 (SUB_044 t3 spec=7 only) = 10,778.6 tps 는 vLLM 의 ngram numba cap=1 (TODO 미적용) 의 한계 — env `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` 로 해소.
 
+> **★ Contribution breakdown** (SUB_073 / I001 정정, 2026-05-24): "+134.12% vs vanilla" 의 정확한 분해 —
+>
+> | 단계 | config | source | tps | vs 직전 | vs vanilla 누적 |
+> |---|---|---|---:|---:|---:|
+> | (1) vanilla | `speculative_config=None` | vLLM upstream (spec OFF) | 4,679.8 | — | — |
+> | (2) **vLLM built-in spec ON (default cap=1)** | `num_spec=7, prompt_lookup=2/5` | **vLLM 영역 코드 변경 0** — feature 활성화만 | **10,778.6** (SUB_044 t3) | **+130.3%** | **+130.3%** |
+> | (3) **SUB_047 fork patch** | `+ cap=8, div_tp=0` | **본 fork ~6 줄 patch** (env-tunable threading enable) | 10,956.5 (3-run avg) | **+1.65%** | **+134.12%** |
+>
+> → +134% 중 **130 pp 는 vLLM built-in 효과**, **본 fork patch 의 추가 기여는 1.65 pp**.
+
 ---
 
 ## 1. 측정 fact (3-run, 500p × 8192, 2026-05-23)
@@ -142,13 +152,15 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 | target workload 적합 | sonnet 의 어휘 반복 → acceptance ↑. **일반 chat / code 에서는 acceptance ↓ 가능** → 별도 검증 필요 |
 | KV memory 제약 | `num_speculative_tokens=10` 은 OOM → 7 이 sweet spot |
 
-## 5. vs vanilla baseline
+## 5. vs vanilla baseline (contribution breakdown)
 
-| Approach | tps | wall (s) | vs vanilla |
-|---|---:|---:|---:|
-| vanilla baseline | 4,680 | 875 | — |
-| vanilla + ngram spec=7 (SUB_044) | 10,778 | 373 | +130.3% (2.30×) |
-| **★ vanilla + ngram spec=7 + cap=8 (SUB_047)** | **10,957** (3-run avg) | **367** | **★ +134.1% (2.341×)** ⭐ |
+| Approach | tps | wall (s) | vs vanilla | source / 추가 기여 |
+|---|---:|---:|---:|---|
+| (1) vanilla baseline | 4,680 | 875 | — | vLLM upstream (spec OFF) |
+| (2) vLLM built-in spec ON (default cap=1, SUB_044) | 10,778 | 373 | +130.3% (2.30×) | **vLLM 영역 코드 변경 0** — `speculative_config={"method":"ngram",...}` 활성화만 |
+| (3) **★ + SUB_047 fork patch (cap=8 + div_tp=0)** | **10,957** (3-run avg) | **367** | **★ +134.1% (2.341×)** ⭐ | **본 fork ~6 줄 patch** — vLLM upstream PR #24986 의 disabled threading enable. **추가 기여 = +1.65%** (over default) |
+
+→ **본 작업 contribution = +1.65%** (fork patch) + workload generalization 분석 (SUB_071) + R/K framework + 외부 사례 통합. 나머지 130 pp 는 vLLM built-in ngram spec decoding 활성화 효과.
 
 ## 6. CLAUDE.md `# Objective` 평가
 

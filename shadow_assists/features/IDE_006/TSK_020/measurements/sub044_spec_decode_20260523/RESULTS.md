@@ -3,6 +3,8 @@
 > **parent**: TSK_020
 > **measurement**: HEAD `0d7dc0334`, 500p × 8192, gmu=0.85, vLLM ngram speculative decoding (draft model 불필요)
 
+> **★ SUB_073/I001 framing 정정 (2026-05-24)**: 본 SUB 의 "+130.3% vs vanilla" 는 **vLLM 영역 코드 변경 0 — `speculative_config={"method":"ngram",...}` 활성화만**으로 달성된 효과. 즉 vLLM 의 built-in ngram speculative decoding 을 본 환경에서 켰을 때의 fact 이며, fork patch contribution 이 아님. fork patch (cap=8 + div_tp=0) 의 추가 기여는 SUB_047 에서 +1.65% (10,778.6 → 10,956.5).
+
 ---
 
 ## 1. 측정 결과

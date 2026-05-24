@@ -5,6 +5,14 @@ import uuid
 
 import torch
 
+# SUB_081 (Phase 2): Re-export FlexibleArgumentParser at vllm.utils for
+# backward-compat with arctic_inference 0.1.2 (expects vllm 0.11.0 API
+# path). 본 fork 1.6 영역 official location 은 vllm.utils.argparse_utils.
+try:
+    from vllm.utils.argparse_utils import FlexibleArgumentParser  # noqa: F401
+except ImportError:
+    pass
+
 MASK_64_BITS = (1 << 64) - 1
 
 
