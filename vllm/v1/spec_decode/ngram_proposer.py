@@ -33,7 +33,11 @@ class NgramProposer:
 
         # Threshold of total number of tokens in the batch to enable
         # multi-threading in numba batch propose.
-        self.num_tokens_threshold = 8192
+        # SUB_065: env-tunable (default 8192 — current behavior). Lower → small
+        # decode batch 도 multi-thread enable (self-imposed barrier 제거).
+        self.num_tokens_threshold = int(
+            os.environ.get("VLLM_NGRAM_THRESHOLD", "8192")
+        )
         tp_size = vllm_config.parallel_config.tensor_parallel_size
         cpu_count = os.cpu_count()
         # SUB_047 (Tier 1 B) — env-tunable ngram numba thread cap.
@@ -44,6 +48,13 @@ class NgramProposer:
         #             VLLM_NGRAM_DIVIDE_BY_TP (default 1 = divide, 0 = skip — rank 영역 thread 영역 ↑)
         cap = int(os.environ.get("VLLM_NGRAM_NUM_THREADS_CAP", "1"))
         divide_by_tp = int(os.environ.get("VLLM_NGRAM_DIVIDE_BY_TP", "1"))
+        # SUB_066 (B-2 duplicate work 제거) — rank 0 만 ngram compute, 나머지 rank 는
+        #   torch.distributed broadcast 로 결과 receive. tp_size > 1 + env=1 시 활성.
+        #   default 0 (per-rank duplicate, 현 behavior).
+        self.broadcast_ngram = (
+            int(os.environ.get("VLLM_NGRAM_BROADCAST", "0")) == 1
+            and tp_size > 1
+        )
         # SUB_057 (Tier C) — ngram tree expansion (top-M multi-chain candidates).
         #   default 1 = current SUB_047 behavior (single longest chain).
         #   > 1 = generate top-M chains via _find_top_m_matched_ngrams_and_propose_tokens,
@@ -87,6 +98,53 @@ class NgramProposer:
             np.zeros((1024, self.max_model_len), dtype=np.int32),
         )
 
+    def _compute_ngram_local(
+        self,
+        num_ngram_requests: int,
+        valid_ngram_requests: list,
+        num_tokens_no_spec: np.ndarray,
+        token_ids_cpu: np.ndarray,
+    ) -> None:
+        """SUB_066: Pull out the numba propose call so rank 0 can run it solo
+        when broadcast mode is enabled."""
+        original_num_numba_threads = get_num_threads()
+        total_tokens = np.sum(num_tokens_no_spec)
+        if total_tokens >= self.num_tokens_threshold:
+            final_num_threads = max(
+                1, min(self.num_numba_thread_available, num_ngram_requests)
+            )
+            set_num_threads(final_num_threads)
+        else:
+            set_num_threads(1)
+
+        if self.ngram_top_m > 1:
+            batch_propose_numba_topm(
+                valid_ngram_requests,
+                num_tokens_no_spec,
+                token_ids_cpu,
+                self.min_n,
+                self.max_n,
+                self.max_model_len,
+                self.k,
+                self.ngram_top_m,
+                self.valid_ngram_draft_topm,
+                self.valid_ngram_topm_count,
+            )
+        else:
+            batch_propose_numba(
+                valid_ngram_requests,
+                num_tokens_no_spec,
+                token_ids_cpu,
+                self.min_n,
+                self.max_n,
+                self.max_model_len,
+                self.k,
+                self.valid_ngram_draft,
+                self.valid_ngram_num_drafts,
+            )
+
+        set_num_threads(original_num_numba_threads)
+
     def batch_propose(
         self,
         num_requests: int,
@@ -117,49 +175,37 @@ class NgramProposer:
         # avoid calling numba function with empty list which causes error
         # ValueError: cannot compute fingerprint of empty list
         if num_ngram_requests := len(valid_ngram_requests):
-            original_num_numba_threads = get_num_threads()
-            # Ensure we use at least one thread.
-            # If total tokens is small, using multiple threads
-            # may slow down due to overhead.
-            total_tokens = np.sum(num_tokens_no_spec)
-            if total_tokens >= self.num_tokens_threshold:
-                final_num_threads = max(
-                    1, min(self.num_numba_thread_available, num_ngram_requests)
+            # SUB_066: broadcast path — only rank 0 computes, other ranks receive.
+            if self.broadcast_ngram:
+                from vllm.distributed.parallel_state import (
+                    get_tensor_model_parallel_rank,
+                    get_tp_group,
                 )
-                set_num_threads(final_num_threads)
+                tp_group = get_tp_group()
+                rank = get_tensor_model_parallel_rank()
+                if rank == 0:
+                    self._compute_ngram_local(
+                        num_ngram_requests,
+                        valid_ngram_requests,
+                        num_tokens_no_spec,
+                        token_ids_cpu,
+                    )
+                    payload = (
+                        self.valid_ngram_draft.copy(),
+                        self.valid_ngram_num_drafts.copy(),
+                    )
+                    tp_group.broadcast_object(payload, src=0)
+                else:
+                    recv = tp_group.broadcast_object(None, src=0)
+                    self.valid_ngram_draft[:] = recv[0]
+                    self.valid_ngram_num_drafts[:] = recv[1]
             else:
-                set_num_threads(1)
-
-            if self.ngram_top_m > 1:
-                # SUB_057 top-M path — generate top-M chains, use chain 0 only
-                # (rejection_sampler tree verify TODO).
-                batch_propose_numba_topm(
+                self._compute_ngram_local(
+                    num_ngram_requests,
                     valid_ngram_requests,
                     num_tokens_no_spec,
                     token_ids_cpu,
-                    self.min_n,
-                    self.max_n,
-                    self.max_model_len,
-                    self.k,
-                    self.ngram_top_m,
-                    self.valid_ngram_draft_topm,
-                    self.valid_ngram_topm_count,
                 )
-            else:
-                batch_propose_numba(
-                    valid_ngram_requests,
-                    num_tokens_no_spec,
-                    token_ids_cpu,
-                    self.min_n,
-                    self.max_n,
-                    self.max_model_len,
-                    self.k,
-                    self.valid_ngram_draft,
-                    self.valid_ngram_num_drafts,
-                )
-
-            # Restore original number of threads.
-            set_num_threads(original_num_numba_threads)
 
         if self.ngram_top_m > 1:
             # Use chain 0 (longest) — same length as top-1 best (output 영역 동일).

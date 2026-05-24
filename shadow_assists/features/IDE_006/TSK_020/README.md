@@ -36,6 +36,16 @@ variance 0.454% (range/avg). **10,956.5 ± 25 tps** 신뢰 가능.
 | 2026-05-23 08:16 | SUB_047 (5-way sweep) | 10,949.8 tps (+134%) ⭐ | ngram numba thread cap env-tunable patch (1→8) |
 | 2026-05-23 ~10:30 | SUB_049 | 완료 (3-scenario) | t1 solo=10,973 / t2 +Qwen0.5B=10,580 (CPU 28%) / t3 +Qwen1.5B=10,745 (CPU 26%) |
 | **2026-05-23 16:35** | **SUB_047 canonical 3-run** | **avg 10,956.5 / min 10,931.7 / max 10,981.4 (var 0.454%)** ⭐ | **★ 현 best 확정** |
+| 2026-05-23 17:04~21:42 | SUB_054/055/060 단독 + Phase 1/3 combo | CPU activation 19~24% / 모든 multi-SUB combo 회귀 | 단독 lever 가 best, NUMA contention 확인 |
+| 2026-05-23 22:18 | SUB_050~064 plan 적재 (15 SUB) | 5 카테고리 × 15 plan | Objective 정합 lever 후보 |
+| 2026-05-24 07:17 | Rec 1: workload generalization | sonnet +12% / chat +22% / **code -30% 회귀** | SUB_047 +134% 는 large+repetitive 특화 |
+| 2026-05-24 08:17 | Rec 2: Eagle GPU smoke | -65.7% (Llama-3 head + 3.3 base 호환 낮음) | SUB_050 dead-end (model-matched ckpt 필요) |
+| 2026-05-24 08:35 | Rec 3: BGE-reranker NUMA1 split | -1.0% (LlamaGuard 영역 gated 영역 차단) | HF 인증 필요 |
+| **2026-05-24 ~09:30** | **Bottleneck-driven SUB_065~069 신설** | **5 SUB** — B-4 threshold / B-2 broadcast / C1 precompute / D2/D4 parallel / F1 sorting | bottleneck 분석 — sequential barrier 제거 + idle CPU time 활용 lever |
+| 2026-05-24 09:31 | SUB_065 (B-4 threshold sweep) | **기각** — thr=8192 10,982 / 4096 -0.17% / 2048 -1.69% / 1024 -0.07% / 0 -0.13% | small-batch self-imposed barrier 가설 기각, 모두 baseline 동등/미세 회귀 |
+| 2026-05-24 10:24 | SUB_069 (F1 prompt sorting) | sort=none 10,213 / desc -5.56% / asc +1.10% | desc 회귀 (long prompts KV pool 점유), asc small positive — 3-run 재측정 후보 |
+| 2026-05-24 11:00 | SUB_068 (D2/D4 stop+tokenizer parallel) | **기각** — rayon=8 10,985 vs baseline 10,982 = +0.03% noise | output processing 이 critical path 아님 확정 (env-only, 코드 변경 0) |
+| 2026-05-24 13:00 | SUB_069 3-run interleaved 재측정 | **기각** — none avg 10,324 / asc avg 10,300 = **-0.23%** (n=3) | 1-run +1.10% 는 baseline noise (SUB_065/068 baseline 10,982 vs SUB_069 baseline 10,213 의 7% drift) — F1 prompt sorting 가설 최종 기각 |
 
 ---
 
@@ -84,15 +94,36 @@ prompt → [ngram lookup, CPU 8 thread/rank, sub-ms]  ← SUB_047 cap=8 patch
 
 ---
 
-## 다음 path (CPU 활용 추가)
+## 다음 path — bottleneck-driven (SUB_065~069)
 
-| 우선순위 | SUB | 작업 | Tier | 상태 |
-|---|---|---|---|---|
-| ★★★ | SUB_045 | spec=7 solo / +CPU BG / vanilla+BG 비교 | Tier 3 F | background 측정 중 |
-| ★★★ | SUB_049 | 메인 vLLM (spec=7+cap=8) + 별도 CPU LLM (Qwen 0.5B/1.5B NUMA1) | Tier 3 E (redefined) | background 측정 중 |
-| ★ | (workload generalization) | sonnet 외 일반 chat/code workload 영역 acceptance rate 측정 | — | 미시작 |
+현 pipeline 분석 결과 GPU forward (70-90ms/step) 가 critical path, CPU 영역 5.51% idle. 진짜 lever 는 idle CPU time 영역 useful work 영역 채우는 것 + sequential barrier 영역 제거.
 
-상세 plan = [`planning/SUB_046_to_049_cpu_spec_plans.md`](planning/SUB_046_to_049_cpu_spec_plans.md).
+| 우선순위 | SUB | 작업 | bottleneck | effort |
+|---|---|---|---|:-:|
+| ★★★ | **SUB_065** | num_tokens_threshold sweep (8192/4096/2048/1024/0) | small batch self-imposed barrier | 1 시간 (★ 진행 중) |
+| ★★★ | **SUB_067** | speculative ngram precompute (background thread) | inter-step sequential barrier | 2-3 일 |
+| ★★ | **SUB_066** | ngram broadcast from rank 0 | TP rank 7x duplicate work | 1-2 일 |
+| ★★ | **SUB_068** | stop-string + tokenizer parallel | output processing idle | 1 일 |
+| ★ | **SUB_069** | prompt sorting by length | batch density / ngram cache hit | 0.5 일 |
+
+상세 plan = [`planning/SUB_065_ngram_threshold_lower.md`](planning/SUB_065_ngram_threshold_lower.md) ~ [`SUB_069_prompt_sorting.md`](planning/SUB_069_prompt_sorting.md)
+
+### skip 된 후보 (의미 작음)
+
+- ngram cap > 8 추가 sweep — SUB_047 t5 cap=56 이미 -14% 회귀 확인
+- Aho-Corasick / Suffix Array — ngram time 자체 작아서 효과 작음
+- 별도 CPU process pool 영역 ngram offload — inter-process latency 영역 step time 회귀 가능
+
+### SUB_050~064 후보 (Rec 1/2/3 검증 후)
+
+| 후보 | 상태 |
+|---|---|
+| SUB_050 (Eagle CPU) | Llama-3.3 영역 ckpt 미존재 — dead-end (self-train 1-2주 외 path 없음) |
+| SUB_055 + LlamaGuard | Meta gated repo, HF 인증 필요 (사용자 token 영역 대기) |
+| SUB_058 radix prefix cache | sonnet 영역 cache hit 작음 — workload generalization 영역 |
+| SUB_054 batch=64 | dual-axis best (-1.0% / CPU 21%) — production alternative |
+
+상세 = [`Best_SpecDecode_10778tps.md §7`](Best_SpecDecode_10778tps.md), [`INDEX.md §4`](INDEX.md)
 
 ---
 

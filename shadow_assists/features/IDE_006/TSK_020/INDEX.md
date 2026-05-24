@@ -56,6 +56,9 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 | 2026-05-23 | SUB_047 (5-way sweep) | measurement | (eval/results/20260523_081619_sub047_ngram_threads/) | 완료 (ngram cap 1→8 patch, 10,949.8 tps) |
 | 2026-05-23 | SUB_049 | (CPU LLM + GPU spec) | (eval/results 출력 예정) | 완료 (3-scenario: t1 solo / t2 +Qwen0.5B / t3 +Qwen1.5B) |
 | **2026-05-23** | **SUB_047 canonical 3-run** | **measurement** | **[`measurements/sub047_t3_3run_verify_20260523/RESULTS.md`](measurements/sub047_t3_3run_verify_20260523/RESULTS.md)** | **★★★ 현 best 확정 (3-run avg 10,956.5, variance 0.454%)** |
+| 2026-05-24 | SUB_065 (B-4 threshold sweep) | measurement | `eval/results/20260524_093106_sub065_thr*/` | **기각** (5-way 모두 baseline 동등/-1.7%) |
+| 2026-05-24 | SUB_069 (F1 prompt sorting) | measurement | `eval/results/20260524_102409_sub069_*/` | **완료** (none 10,213 / desc -5.6% / asc +1.1%) |
+| 2026-05-24 | SUB_068 (D2/D4 stop+tokenizer parallel) | measurement | `eval/results/20260524_110017_sub068_rayon8/` | **기각** (rayon=8 10,985 vs baseline 10,982 = +0.03% noise) |
 
 ---
 
@@ -99,6 +102,16 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 |---|---|
 | [`planning/SUB_046_to_049_cpu_spec_plans.md`](planning/SUB_046_to_049_cpu_spec_plans.md) | Tier 1 A/B/C + Tier 3 E CPU+spec 결합 plan (SUB_046~049 의 원래 plan) |
 | **[`planning/SUB_050_to_064_objective_levers.md`](planning/SUB_050_to_064_objective_levers.md)** | **★ Objective 정합 lever 탐색 (SUB_050~064, 15 SUB, 5 카테고리)** |
+
+### SUB_065~069 개별 plan (2026-05-24 신설, bottleneck-driven)
+
+| SUB | Lever | bottleneck | 상세 plan |
+|---|---|---|---|
+| **SUB_065** | num_tokens_threshold 영역 (B-4) | small batch self-imposed barrier | [`planning/SUB_065_ngram_threshold_lower.md`](planning/SUB_065_ngram_threshold_lower.md) |
+| SUB_066 | ngram broadcast from rank 0 (B-2) | TP rank 7x duplicate | [`planning/SUB_066_ngram_broadcast.md`](planning/SUB_066_ngram_broadcast.md) |
+| **SUB_067** | speculative ngram precompute (C1) | inter-step sequential barrier | [`planning/SUB_067_speculative_ngram_precompute.md`](planning/SUB_067_speculative_ngram_precompute.md) |
+| SUB_068 | stop-string + tokenizer parallel (D2/D4) | output processing idle | [`planning/SUB_068_stop_tokenizer_parallel.md`](planning/SUB_068_stop_tokenizer_parallel.md) |
+| SUB_069 | prompt sorting by length (F1) | batch density / cache hit | [`planning/SUB_069_prompt_sorting.md`](planning/SUB_069_prompt_sorting.md) |
 
 ### SUB_050~064 개별 plan (2026-05-23 신설)
 
@@ -170,6 +183,20 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 | ★ | SUB_057 chain 0 정렬 fix + 측정 | top-M tie-break (latest position) refinement |
 | ⚪ | 종결 + production 권장 doc | 현 결과 충분, 추가 lever returns diminishing |
 
+### 4.3 ★ Bottleneck-driven SUB_065~069 (2026-05-24 신설, 진행 중)
+
+SUB_047 step pipeline 의 sequential barrier + idle CPU time 활용 lever. 모두 500p × 8192 × 8192 1-run 검증, positive 확정 시에만 3-run 재측정 정책.
+
+| 우선순위 | SUB | 작업 | bottleneck | effort | 상태 | 결과 (vs baseline) |
+|---|---|---|---|:-:|---|---|
+| ★★★ | **SUB_065** | num_tokens_threshold sweep (8192/4096/2048/1024/0) | B-4 small-batch self-barrier | 1 시간 | **✅ 기각** (2026-05-24) | thr=8192 10,982 / 4096 -0.17% / 2048 -1.69% / 1024 -0.07% / 0 -0.13% — 가설 기각 |
+| ★★★ | **SUB_067** | speculative ngram precompute (background thread) | B-1 inter-step barrier | 2-3 일 | 대기 | (SUB_066 후) |
+| ★★ | **SUB_066** | ngram broadcast from rank 0 | B-2 TP duplicate | 1-2 일 | 대기 | (SUB_068 후) |
+| ★★ | **SUB_068** | stop-string + tokenizer parallel (RAYON=8 + TOKENIZERS_PARALLELISM=true) | D2/D4 output idle | 1 일 | **✅ 기각** (2026-05-24) | rayon=8 10,985 vs baseline 10,982 = **+0.03% noise** — output processing critical path 아님 |
+| ★ | **SUB_069** | prompt sorting by length (none/desc/asc) | F1 batch density | 0.5 일 | **✅ 기각** (2026-05-24, 3-run 재측정) | 1-run: none 10,213 / desc -5.56% / asc +1.10% → 3-run interleaved: none avg 10,323.9 / asc avg 10,299.7 = **-0.23%** (가설 기각) |
+
+**중간 정리** (2026-05-24): env-only 변경 3 개 측정 완료 (SUB_065/068/069) — **모두 기각**. SUB_069 asc 1-run +1.10% 는 baseline noise 였음 (3-run 재측정 -0.23%). SUB_066 (broadcast) 측정 진행 중, SUB_067 (precompute) 검토 단계.
+
 ### 4.3 폐기 / 보류 (현 시점)
 
 | SUB | 사유 |
@@ -207,7 +234,8 @@ TSK_020/
 ├── planning/
 │   ├── SUB_046_to_049_cpu_spec_plans.md   ← Tier 1/3 CPU+spec 결합 plan
 │   ├── SUB_050_to_064_objective_levers.md ← ★ Objective 정합 lever master plan (5 카테고리 × 15 SUB)
-│   └── SUB_050~SUB_064 *.md (15 개)        ← 각 SUB 개별 상세 plan
+│   ├── SUB_050~SUB_064 *.md (15 개)        ← 각 SUB 개별 상세 plan
+│   └── SUB_065~SUB_069 *.md (5 개, 2026-05-24) ← ★ bottleneck-driven SUB plan
 └── analysis/                              ← (현재 비어 있음, 향후 spec workload 분석 등)
 ```
 
