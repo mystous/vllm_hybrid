@@ -46,7 +46,8 @@ variance 0.454% (range/avg). **10,956.5 ± 25 tps** 신뢰 가능.
 | 2026-05-24 10:24 | SUB_069 (F1 prompt sorting) | sort=none 10,213 / desc -5.56% / asc +1.10% | desc 회귀 (long prompts KV pool 점유), asc small positive — 3-run 재측정 후보 |
 | 2026-05-24 11:00 | SUB_068 (D2/D4 stop+tokenizer parallel) | **기각** — rayon=8 10,985 vs baseline 10,982 = +0.03% noise | output processing 이 critical path 아님 확정 (env-only, 코드 변경 0) |
 | 2026-05-24 13:00 | SUB_069 3-run interleaved 재측정 | **기각** — none avg 10,324 / asc avg 10,300 = **-0.23%** (n=3) | 1-run +1.10% 는 baseline noise (SUB_065/068 baseline 10,982 vs SUB_069 baseline 10,213 의 7% drift) — F1 prompt sorting 가설 최종 기각 |
-| 2026-05-24 14:00 | SUB_066 (B-2 ngram broadcast, `broadcast_object`) | **기각** — broadcast 10,832 vs baseline 10,975 = **-1.30%** | CPU duplicate -1.21pp 절감되었으나 pickle+cpu_group broadcast overhead 가 더 큼. 5 SUB 중 4 기각 (SUB_067 만 남음, 가장 복잡한 implementation) |
+| 2026-05-24 14:00 | SUB_066 (B-2 ngram broadcast, `broadcast_object`) | **기각** — broadcast 10,832 vs baseline 10,975 = **-1.30%** | CPU duplicate -1.21pp 절감되었으나 pickle+cpu_group broadcast overhead 가 더 큼 |
+| 2026-05-24 ~17:00 | SUB_067 (C1 speculative precompute, ThreadPoolExecutor + per-request suffix cache) | **기각** — precompute 10,573 vs baseline 10,987 = **-3.77% (최대 회귀)** | 매 step 16MB token_ids copy + low cache hit rate + background numba overhead. **bottleneck-driven 5 SUB 모두 기각 — SUB_047 plateau 확정** |
 
 ---
 

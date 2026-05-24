@@ -55,6 +55,28 @@ class NgramProposer:
             int(os.environ.get("VLLM_NGRAM_BROADCAST", "0")) == 1
             and tp_size > 1
         )
+        # SUB_067 (C1 inter-step barrier 해소) — propose() 끝마다 background thread 가
+        #   next-step ngram 영역 precompute (chain[0][0] accept 가정). 다음 propose() 진입 시
+        #   per-request key match 영역 hit 영역 numba 호출 skip.
+        #   default 0. ngram_top_m == 1 + broadcast_ngram == False 영역 영역.
+        self.precompute_ngram = (
+            int(os.environ.get("VLLM_NGRAM_PRECOMPUTE", "0")) == 1
+            and not self.broadcast_ngram
+        )
+        if self.precompute_ngram:
+            from concurrent.futures import ThreadPoolExecutor
+            self._precompute_executor = ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="ngram_precompute"
+            )
+            self._precomp_pending = None  # future returning (draft, num_drafts, keys)
+            self._precomp_draft_local = np.zeros(
+                (max_num_seqs, self.k), dtype=np.int32
+            )
+            self._precomp_num_drafts_local = np.zeros(
+                (max_num_seqs), dtype=np.int32
+            )
+            self._precomp_hit_count = 0
+            self._precomp_miss_count = 0
         # SUB_057 (Tier C) — ngram tree expansion (top-M multi-chain candidates).
         #   default 1 = current SUB_047 behavior (single longest chain).
         #   > 1 = generate top-M chains via _find_top_m_matched_ngrams_and_propose_tokens,
@@ -97,6 +119,113 @@ class NgramProposer:
             np.zeros(1024, dtype=np.int32),
             np.zeros((1024, self.max_model_len), dtype=np.int32),
         )
+
+    def _make_precomp_keys(
+        self,
+        valid_ngram_requests: list,
+        num_tokens_no_spec: np.ndarray,
+        token_ids_cpu: np.ndarray,
+    ) -> tuple:
+        """SUB_067: per-request key = (idx, bytes of last max_n tokens) tuple.
+        ngram lookup result depends only on the suffix; matching suffix → same draft."""
+        keys = []
+        for idx in valid_ngram_requests:
+            n = int(num_tokens_no_spec[idx])
+            start = max(0, n - self.max_n)
+            keys.append((idx, n, token_ids_cpu[idx, start:n].tobytes()))
+        return tuple(keys)
+
+    def _launch_speculative_precompute(
+        self,
+        valid_ngram_requests: list,
+        num_tokens_no_spec: np.ndarray,
+        token_ids_cpu: np.ndarray,
+    ) -> None:
+        """SUB_067: snapshot current input + append chain[0][0] per request, launch
+        background numba propose. Result usable on next step if key matches."""
+        valid_reqs = list(valid_ngram_requests)
+        n_copy = num_tokens_no_spec.copy()
+        # Only copy the rows we touch + 1 extra token slot.
+        rows_touched = {}
+        for idx in valid_reqs:
+            n = int(n_copy[idx])
+            if self.valid_ngram_num_drafts[idx] > 0 and n + 1 <= self.max_model_len:
+                first_draft_tok = int(self.valid_ngram_draft[idx, 0])
+                # snapshot row (need last max_n + 1 tokens for hypothetical next-step ngram)
+                start = max(0, n - self.max_n)
+                row = token_ids_cpu[idx, start : n + 1].copy()
+                # overwrite the +1 slot with hypothetical accepted token
+                row[-1] = first_draft_tok
+                rows_touched[idx] = (start, row)
+                n_copy[idx] = n + 1
+            else:
+                # cannot speculate this request — skip
+                rows_touched[idx] = None
+
+        # Build expected next-step keys for the cache hit check.
+        expected_keys = []
+        for idx in valid_reqs:
+            entry = rows_touched[idx]
+            if entry is None:
+                continue
+            start, row = entry
+            n = int(n_copy[idx])
+            sfx_start = max(0, n - self.max_n)
+            sfx_in_row = sfx_start - start
+            expected_keys.append((idx, n, row[sfx_in_row:].tobytes()))
+        valid_reqs_speculatable = [
+            idx for idx in valid_reqs if rows_touched[idx] is not None
+        ]
+        if not valid_reqs_speculatable:
+            self._precomp_pending = None
+            return
+
+        # Snapshot token_ids_cpu rows for the speculative request set.
+        token_ids_snap = token_ids_cpu.copy()
+        for idx, entry in rows_touched.items():
+            if entry is None:
+                continue
+            _start, row = entry
+            n = int(n_copy[idx])
+            token_ids_snap[idx, n - 1] = row[-1]
+
+        self._precomp_pending = self._precompute_executor.submit(
+            self._precompute_worker,
+            valid_reqs_speculatable,
+            n_copy,
+            token_ids_snap,
+            tuple(expected_keys),
+        )
+
+    def _precompute_worker(
+        self,
+        valid_reqs: list,
+        num_tokens: np.ndarray,
+        token_ids: np.ndarray,
+        keys: tuple,
+    ):
+        """SUB_067: background thread. Single-threaded numba call to avoid stepping on
+        main thread's set_num_threads."""
+        local_draft = np.zeros_like(self._precomp_draft_local)
+        local_num_drafts = np.zeros_like(self._precomp_num_drafts_local)
+        # Force single-threaded numba in this worker (avoid contention with main).
+        original = get_num_threads()
+        set_num_threads(1)
+        try:
+            batch_propose_numba(
+                valid_reqs,
+                num_tokens,
+                token_ids,
+                self.min_n,
+                self.max_n,
+                self.max_model_len,
+                self.k,
+                local_draft,
+                local_num_drafts,
+            )
+        finally:
+            set_num_threads(original)
+        return local_draft, local_num_drafts, keys
 
     def _compute_ngram_local(
         self,
@@ -175,8 +304,26 @@ class NgramProposer:
         # avoid calling numba function with empty list which causes error
         # ValueError: cannot compute fingerprint of empty list
         if num_ngram_requests := len(valid_ngram_requests):
+            # SUB_067: speculative precompute cache hit check.
+            cache_hit = False
+            if self.precompute_ngram and self._precomp_pending is not None:
+                pre_draft, pre_num_drafts, pre_keys = self._precomp_pending.result()
+                self._precomp_pending = None
+                cur_keys = self._make_precomp_keys(
+                    valid_ngram_requests, num_tokens_no_spec, token_ids_cpu
+                )
+                if cur_keys == pre_keys:
+                    self.valid_ngram_draft[:] = pre_draft
+                    self.valid_ngram_num_drafts[:] = pre_num_drafts
+                    cache_hit = True
+                    self._precomp_hit_count += 1
+                else:
+                    self._precomp_miss_count += 1
+
             # SUB_066: broadcast path — only rank 0 computes, other ranks receive.
-            if self.broadcast_ngram:
+            if cache_hit:
+                pass  # precomputed result already copied
+            elif self.broadcast_ngram:
                 from vllm.distributed.parallel_state import (
                     get_tensor_model_parallel_rank,
                     get_tp_group,
@@ -202,6 +349,14 @@ class NgramProposer:
             else:
                 self._compute_ngram_local(
                     num_ngram_requests,
+                    valid_ngram_requests,
+                    num_tokens_no_spec,
+                    token_ids_cpu,
+                )
+
+            # SUB_067: launch background precompute for next step (assume chain[0][0] accepted).
+            if self.precompute_ngram and self.ngram_top_m == 1:
+                self._launch_speculative_precompute(
                     valid_ngram_requests,
                     num_tokens_no_spec,
                     token_ids_cpu,
