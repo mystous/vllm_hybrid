@@ -160,7 +160,9 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 
 → **서버 throughput 목표 ✓ 충족**, CPU 활용 목표 미달 (spec=GPU lever). CPU 활용 추가 lever (Tier 1/3) 별도 시도 중.
 
-## 7. 다음 path (CPU 활용 추가)
+## 7. 다음 path (CPU 활용 추가 + post-SUB_047 lever 시도 결과)
+
+### 7.1 SUB_050~064 (Objective lever 탐색, 2026-05-23) — 단독 best dual-axis = SUB_054 b=64
 
 | Tier | Lever | SUB | 상태 / 비고 |
 |---|---|---|---|
@@ -170,11 +172,49 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 | Tier 3 F | multi-stream (GPU spec + CPU BG workload) | SUB_045 (완료) | 3-scenario: spec solo / spec+BG / vanilla+BG — CPU 29% 달성 |
 | Cat B (SUB_050~064) | CPU embedding preprocessor (BGE-large) | SUB_054 (완료 2026-05-23) | **batch=64 production config: main 10,848 (-1.0%) / CPU 21.21% / embedder 36.7 sps** |
 | Cat B | CPU re-ranker (BGE-reranker) | SUB_055 (완료 2026-05-23) | main 10,556 (-3.7%) / CPU 21.23% / 44 pps |
-| Cat D | NUMA + KMP/GOMP affinity | SUB_060 (회귀) | main 10,268 (-6.3%) — KMP_AFFINITY 영역 vLLM conflict 추정, 폐기 |
-| Cat D | isolcpus + cgroup isolated partition | SUB_061 (infeasible) | container 영역 host cgroup partition root 필요 — 본 env 영역 불가 |
-| (결합 시도) | SUB_054 + SUB_055 + SUB_049 동시 (NUMA1 56 core 분할) | Phase 1 combo (2026-05-23) | main 9,635 (**-12.1%**) / CPU 23.85% — contention 으로 단독 합 영역 영역, 영역 영역 영역 |
-| (2-way combo A) | Qwen 1.5B + BGE emb b=64 (28+28 thread NUMA1) | Phase 3 combo A (2026-05-23) | main 10,268 (-6.28%) / CPU 23.68% — 영역 영역 단독 SUB_054 영역 영역 (-1.0%) 영역 |
-| (2-way combo B) | BGE emb b=64 + BGE rerank (28+28 thread NUMA1) | Phase 3 combo B (2026-05-23) | main 9,598 (**-12.40%**) / CPU 24.01% — combo A 영역 영역 회귀, 영역 SUB 영역 단독 영역 사용 권장 |
+| Cat D | NUMA + KMP/GOMP affinity | SUB_060 (회귀) | main 10,268 (-6.3%) — KMP_AFFINITY 가 vLLM 과 conflict 추정, 폐기 |
+| Cat D | isolcpus + cgroup isolated partition | SUB_061 (infeasible) | container 안에서 host cgroup partition root 필요 — 본 env 에서 불가 |
+| (결합 시도) | SUB_054 + SUB_055 + SUB_049 동시 (NUMA1 56 core 분할) | Phase 1 combo (2026-05-23) | main 9,635 (**-12.1%**) / CPU 23.85% — contention 으로 단독 합 미달 |
+| (2-way combo A) | Qwen 1.5B + BGE emb b=64 (28+28 thread NUMA1) | Phase 3 combo A (2026-05-23) | main 10,268 (-6.28%) / CPU 23.68% — 여전히 단독 SUB_054 (-1.0%) 보다 회귀 |
+| (2-way combo B) | BGE emb b=64 + BGE rerank (28+28 thread NUMA1) | Phase 3 combo B (2026-05-23) | main 9,598 (**-12.40%**) / CPU 24.01% — combo A 보다 더 회귀, 단독 SUB 사용 권장 |
+
+### 7.2 Bottleneck-driven SUB_065~069 (2026-05-24) — 5/5 모두 기각, plateau 신호
+
+5 lever 가설을 ngram lookup 내부 + step pipeline 내부에서 탐색했으나 모두 noise 또는 회귀:
+
+| SUB | bottleneck 가설 | 결과 (vs baseline ~10,980) | 판정 |
+|---|---|---:|---|
+| SUB_065 | B-4 small-batch threshold (`num_tokens_threshold` 5-way: 8192/4096/2048/1024/0) | -0.07 ~ -1.69% | **기각** |
+| SUB_066 | B-2 ngram broadcast from rank 0 (`broadcast_object` cpu_group) | **-1.30%** (CPU 5.58→4.37 duplicate 절감, broadcast overhead 가 더 큼) | **기각** |
+| SUB_067 | C1 speculative ngram precompute (background thread + per-request suffix cache + chain[0][0] 가정) | **-3.77%** (최대 회귀 — 16MB token_ids copy + low hit rate + numba single-thread overhead) | **기각** |
+| SUB_068 | D2/D4 stop-string + tokenizer parallel (`RAYON_NUM_THREADS=8` + `TOKENIZERS_PARALLELISM=true`) | +0.03% noise | **기각** |
+| SUB_069 | F1 prompt sorting by length (3-way + 3-run interleaved 재측정) | 1-run asc +1.10% (baseline noise) → 3-run -0.23% | **기각** |
+
+**자체 비판**: 5 가설 모두 ngram lookup 자체 안에서만 lever 를 찾음. 그러나 측정값을 보면 ngram time ~1-2 ms / step time 70-90 ms = **1-2% only** — search space 자체가 잘못. best case 도 +1-2% 였고, 실제로는 step overhead 가 더 커서 회귀.
+
+### 7.3 SUB_070 (2026-05-24) — engine config sweep, 사용자 중단 (1/6 cell)
+
+진짜 idle 영역은 **GPU SM 45.3%** (54.7% util). 5 SUB 실패 후 root lever 를 GPU concurrency ↑ (engine config) 로 재정의:
+
+| cell | gmu | seqs | bt | tps | 상태 |
+|---|---:|---:|---:|---:|---|
+| baseline | 0.85 | 256 | 8,192 | **10,983.8** | ✓ SUB_047 재현 |
+| A1 gmu+ | 0.90 | 256 | 8,192 | — | **fail** (KV init gloo 1,800,000ms timeout) |
+| A2 gmu++ | 0.92 | 256 | 8,192 | — | 중단 (사용자 지시) |
+| B1 seqs+ | 0.85 | 384 | 8,192 | — | 중단 |
+| B2 seqs++ | 0.85 | 512 | 8,192 | — | 중단 |
+| C1 bt+ | 0.85 | 256 | 16,384 | — | 중단 |
+
+A1 의 KV init timeout 으로 환경 안정성 이슈 확인 (gmu 0.85 → 0.90 도 본 env 에서는 too aggressive). 후속 진행 사용자 지시 대기.
+
+### 7.4 종합 결론 (2026-05-24)
+
+| 영역 | 결론 |
+|---|---|
+| ngram-spec 내부 lever | **SUB_047 (10,956.5 tps, +134.1%) = plateau 확정** (SUB_065~069 모두 기각) |
+| dual-axis (throughput + CPU) | **SUB_054 b=64 (10,848 tps / CPU 21.21% / -1.0%) = 현 best dual-axis production config** |
+| engine config (GPU concurrency ↑) | SUB_070 — gmu 0.90 도 환경에서 timeout, 사용자 결정 대기 |
+| 추가 방향 | workload-aware gating (code -30% fix), Eagle CPU draft (model-matched ckpt 대기), 별도 host process 등 ngram-spec 외부 lever |
 
 ## 8. raw 자료
 
