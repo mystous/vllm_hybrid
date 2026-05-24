@@ -62,6 +62,7 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 | 2026-05-24 | SUB_069 3-run interleaved 재측정 | measurement | `eval/results/20260524_112326_sub069v_*/` | **기각** (asc avg 10,300 vs none avg 10,324 = -0.23%, n=3) |
 | 2026-05-24 | SUB_066 (B-2 ngram broadcast) | measurement | `eval/results/20260524_121836_sub066_*/` | **기각** (broadcast 10,832 vs baseline 10,975 = -1.30% / pickle+broadcast overhead 가 duplicate 절감 보다 큼) |
 | 2026-05-24 | SUB_067 (C1 speculative precompute) | measurement | `eval/results/20260524_*_sub067_*/` | **기각** (precompute 10,573 vs baseline 10,987 = -3.77% / 최대 회귀, 16MB copy + low hit rate) |
+| 2026-05-24 | **SUB_071 (chat/code large 500p × 8192)** | **measurement** | **[`measurements/sub071_workload_large_20260524/RESULTS.md`](measurements/sub071_workload_large_20260524/RESULTS.md)** | **완료 — chat +37.5% / code −23.2% (workload-aware gating 필수성 확정)** |
 
 ---
 
@@ -106,15 +107,16 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 | [`planning/SUB_046_to_049_cpu_spec_plans.md`](planning/SUB_046_to_049_cpu_spec_plans.md) | Tier 1 A/B/C + Tier 3 E CPU+spec 결합 plan (SUB_046~049 의 원래 plan) |
 | **[`planning/SUB_050_to_064_objective_levers.md`](planning/SUB_050_to_064_objective_levers.md)** | **★ Objective 정합 lever 탐색 (SUB_050~064, 15 SUB, 5 카테고리)** |
 
-### SUB_065~069 개별 plan (2026-05-24 신설, bottleneck-driven)
+### SUB_065~071 개별 plan (2026-05-24 신설)
 
-| SUB | Lever | bottleneck | 상세 plan |
+| SUB | Lever | bottleneck / 목적 | 상세 plan |
 |---|---|---|---|
 | **SUB_065** | num_tokens_threshold 영역 (B-4) | small batch self-imposed barrier | [`planning/SUB_065_ngram_threshold_lower.md`](planning/SUB_065_ngram_threshold_lower.md) |
 | SUB_066 | ngram broadcast from rank 0 (B-2) | TP rank 7x duplicate | [`planning/SUB_066_ngram_broadcast.md`](planning/SUB_066_ngram_broadcast.md) |
 | **SUB_067** | speculative ngram precompute (C1) | inter-step sequential barrier | [`planning/SUB_067_speculative_ngram_precompute.md`](planning/SUB_067_speculative_ngram_precompute.md) |
 | SUB_068 | stop-string + tokenizer parallel (D2/D4) | output processing idle | [`planning/SUB_068_stop_tokenizer_parallel.md`](planning/SUB_068_stop_tokenizer_parallel.md) |
 | SUB_069 | prompt sorting by length (F1) | batch density / cache hit | [`planning/SUB_069_prompt_sorting.md`](planning/SUB_069_prompt_sorting.md) |
+| **SUB_071** | **chat/code workload large-scale validation (500p × 8192)** | workload generalization (post-plateau) | [`planning/SUB_071_workload_large_chatcode.md`](planning/SUB_071_workload_large_chatcode.md) |
 
 ### SUB_050~064 개별 plan (2026-05-23 신설)
 
@@ -153,6 +155,16 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 → **SUB_047 +134% 는 large workload (500p × 8192) 특화**. medium scale 에서 sonnet/chat 은 +12~22%, **code workload 는 -30% 회귀** (ngram acceptance 매우 낮음).
 → small workload (200p × 1024) 에서는 sonnet/chat/code 모두 spec 가 0.67~0.73x (회귀).
 
+#### Rec 1 + SUB_071: workload generalization (large 500p × 8192 × 8192, 2026-05-24)
+
+| workload | vanilla | spec7+cap8 | speedup | source |
+|---|---:|---:|---:|---|
+| sonnet | 4,679.8 | **10,956.5** | **+134.1%** ⭐ | SUB_047 canonical 3-run |
+| **chat** | **2,186.0** | **3,006.6** | **+37.5%** | **SUB_071** |
+| **code** | **6,964.5** | **5,346.8** | **−23.2% 회귀** | **SUB_071** |
+
+→ large scale 에서도 ranking 동일: sonnet ≫ chat > 0 > code. chat 은 medium (+22%) → large (+37.5%) 로 개선 (긴 prompt 의 ngram pool 효과). code 는 large 에서도 net regression (out_tok 3.9M / 500 = ~7,830 tok/prompt, EOS 없이 max 까지 생성 → spec overhead 누적).
+
 #### Rec 2: Eagle GPU smoke (200p × 4096 × 4096, sonnet)
 
 | config | tps | vs ngram (9,370) |
@@ -171,9 +183,9 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0        # tp_size 로 나누지 않음 → 8 thr
 
 → LlamaGuard 영역 access 영역 — Meta gated model. 실효: BGE-reranker 단독 (28-core split). 결과 SUB_055 단독 (56-core, -3.7%) 과 비교 시 28-core split 가 main throughput 영역 덜 영향 (-1.0%).
 
-### 4.1 종합 결론 (Rec 1/2/3 통합)
+### 4.1 종합 결론 (Rec 1/2/3 + SUB_071 통합)
 
-1. **SUB_047 best 는 workload-specific** — large+repetitive workload 외에서는 효과 작음 또는 회귀. production 적용 시 workload-aware 활성화 필요 (예: code workload 검출 시 spec OFF).
+1. **SUB_047 best 는 workload-shape 의존** — large+repetitive sonnet 만 +134%, chat large +37.5%, **code large −23.2% 회귀** (SUB_071 fact). production 적용 시 workload-aware 활성화 필수 (예: code workload 검출 시 spec OFF).
 2. **Eagle 경로는 model-matched ckpt 필수** — Llama-3.3 전용 head 없으면 의미 없음. self-train 1-2주 effort 외 path 없음.
 3. **CPU activation 단독 instance pattern 이 best** — multi-process combo 는 NUMA bandwidth contention. SUB_054 batch=64 (단독, -1.0% / CPU +15.7pp) 가 현 best dual-axis.
 4. **LlamaGuard 경로 차단** — Meta gated, HF 인증 필요. alternative (BGE-reranker 만 또는 다른 open safety model) 사용 가능.
@@ -249,7 +261,8 @@ TSK_020/
 │   ├── SUB_050_to_064_objective_levers.md ← ★ Objective 정합 lever master plan (5 카테고리 × 15 SUB)
 │   ├── SUB_050~SUB_064 *.md (15 개)        ← 각 SUB 개별 상세 plan
 │   └── SUB_065~SUB_069 *.md (5 개, 2026-05-24) ← ★ bottleneck-driven SUB plan
-└── analysis/                              ← (현재 비어 있음, 향후 spec workload 분석 등)
+└── analysis/
+    └── workload_acceptance_analysis_20260524.md  ← ★ sonnet/chat/code spec decode 정량 분석 (K 역산 + prompt 구조)
 ```
 
 ---
@@ -259,4 +272,5 @@ TSK_020/
 | 파일 | 의미 |
 |---|---|
 | [`../TSK_020.md`](../TSK_020.md) | 본 task 의 정식 doc (sub-task 영역 + 상세 history) |
-| [`../../../id_registry.md`](../../../id_registry.md) | TSK_020 + SUB_044~049 entry |
+| [`../../../id_registry.md`](../../../id_registry.md) | TSK_020 + SUB_044~071 entry |
+| **[`analysis/workload_acceptance_analysis_20260524.md`](analysis/workload_acceptance_analysis_20260524.md)** | **★ sonnet/chat/code 의 spec decode 효과 정량 분석 (R/K 모델 + Leviathan closed-form alignment + prompt 구조 + workload-aware gating heuristic). §10 = 40 reference (Leviathan/Chen/PLD/EAGLE/Medusa/REST/Lookahead/SuffixDecoding + vLLM PR #24986/#12193/#15151 + issue #16258/#19254 + Spec-Bench/Cascade/Nightjar/DSDE/AdaSpec 등 핵심 산학 자료). §11 = SUB_047 구현이 literature 8개 (PLD/Leviathan/Chen/Medusa/EAGLE/REST/SpecInfer/Lookahead) 와 어떤 axis 에서 다른지 정리 + 본 framework 차별점 + 정직한 contribution 위치** |

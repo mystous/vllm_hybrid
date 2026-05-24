@@ -192,7 +192,29 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 
 **자체 비판**: 5 가설 모두 ngram lookup 자체 안에서만 lever 를 찾음. 그러나 측정값을 보면 ngram time ~1-2 ms / step time 70-90 ms = **1-2% only** — search space 자체가 잘못. best case 도 +1-2% 였고, 실제로는 step overhead 가 더 커서 회귀.
 
-### 7.3 SUB_070 (2026-05-24) — engine config sweep, 사용자 중단 (1/6 cell)
+### 7.3 SUB_071 (2026-05-24) — chat/code large-scale workload generalization 검증
+
+SUB_044/047 와 동일 scale (500p × 8192in × 8192max) 에서 chat / code workload 측정. Rec 1 medium (200p × 4096) 의 결론이 large 에서도 유지되는지 검증.
+
+| workload | scale | vanilla | spec7+cap8 | speedup |
+|---|---|---:|---:|---:|
+| sonnet | 500p × 8192 | 4,679.8 | **10,956.5** | **+134.1%** ⭐ |
+| **chat** | **500p × 8192** | **2,186.0** | **3,006.6** | **+37.5%** |
+| **code** | **500p × 8192** | **6,964.5** | **5,346.8** | **−23.2% 회귀** |
+| (ref) chat | 200p × 4096 | 2,113.6 | 2,577.1 | +22% |
+| (ref) code | 200p × 4096 | 7,889.1 | 5,505.6 | −30% |
+
+**핵심 fact**:
+- chat 은 medium (+22%) → large (+37.5%) 로 **+15.5pp 개선** — sonnet excerpt 가 prompt 에 포함되어 ngram acceptance 일부 유지.
+- code 는 medium (−30%) → large (−23.2%) 로 약간 완화되지만 여전히 **net regression**. code 응답은 EOS 없이 max 까지 생성 (out_tok 3.9M / 500 = ~7,830 tok/prompt) → spec overhead 가 wall 에 누적.
+
+**production 함의**: SUB_047 best 는 **workload-shape 의존**. `workload-aware gating (code 검출 시 spec OFF)` 가 production 적용 시 필수 lever.
+
+raw / 상세: [`measurements/sub071_workload_large_20260524/RESULTS.md`](measurements/sub071_workload_large_20260524/RESULTS.md)
+
+**정량 mechanism 분석**: [`analysis/workload_acceptance_analysis_20260524.md`](analysis/workload_acceptance_analysis_20260524.md) — sonnet/chat/code 의 spec decode 효과를 K (평균 token 진척) + R (spec step overhead) 모델로 분해. 추정 K = sonnet ≈ 3.0~5.0 / chat ≈ 1.7~1.9 / code ≈ 1.0 (zero acceptance). 결정 인자 = **prompt ↔ generated 어휘 overlap**. workload-aware gating heuristic + Leviathan 2022 closed-form 정합 + 40 외부 reference (vLLM PR #24986 = SUB_047 patch 의 직접 origin, vLLM issue #16258/#19254 = code 회귀 외부 corroboration, PLD/EAGLE/REST/SuffixDecoding/Spec-Bench/Cascade/Nightjar 등) 포함.
+
+### 7.4 SUB_070 (2026-05-24) — engine config sweep, 사용자 중단 (1/6 cell)
 
 진짜 idle 영역은 **GPU SM 45.3%** (54.7% util). 5 SUB 실패 후 root lever 를 GPU concurrency ↑ (engine config) 로 재정의:
 
@@ -207,14 +229,15 @@ self.num_numba_thread_available //= tp_size                  # 1 // 8 = 0 → fa
 
 A1 의 KV init timeout 으로 환경 안정성 이슈 확인 (gmu 0.85 → 0.90 도 본 env 에서는 too aggressive). 후속 진행 사용자 지시 대기.
 
-### 7.4 종합 결론 (2026-05-24)
+### 7.5 종합 결론 (2026-05-24 갱신)
 
 | 영역 | 결론 |
 |---|---|
 | ngram-spec 내부 lever | **SUB_047 (10,956.5 tps, +134.1%) = plateau 확정** (SUB_065~069 모두 기각) |
 | dual-axis (throughput + CPU) | **SUB_054 b=64 (10,848 tps / CPU 21.21% / -1.0%) = 현 best dual-axis production config** |
 | engine config (GPU concurrency ↑) | SUB_070 — gmu 0.90 도 환경에서 timeout, 사용자 결정 대기 |
-| 추가 방향 | workload-aware gating (code -30% fix), Eagle CPU draft (model-matched ckpt 대기), 별도 host process 등 ngram-spec 외부 lever |
+| **workload generalization (large)** | **SUB_071 — sonnet +134.1% / chat +37.5% / code −23.2% (회귀). workload-aware gating 필수성 fact 확정** |
+| 추가 방향 | workload-aware gating PoC (code 검출 → spec OFF), Eagle CPU draft (model-matched ckpt 대기), 별도 host process 등 ngram-spec 외부 lever |
 
 ## 8. raw 자료
 
