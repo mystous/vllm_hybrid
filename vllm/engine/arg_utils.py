@@ -655,6 +655,14 @@ class EngineArgs:
     fail_on_environ_validation: bool = False
     gdn_prefill_backend: Literal["flashinfer", "triton"] | None = None
 
+    # SUB_084 (Phase 2 follow-up): no-op stub for arctic_inference 0.1.2 compat.
+    # vLLM 0.11.0 had `_is_v1_supported_oracle` to gate v0/v1 selection.
+    # 본 fork 1.6 영역 v1-only 이므로 그 method 영역 자체 영역 의미 없음 (deprecated).
+    # arctic_inference 의 EngineArgsPatch 가 본 method 영역 wrap 영역 의존
+    # → 항상 True 반환 stub 영역 추가 (호출되어도 v1 진행).
+    def _is_v1_supported_oracle(self, *args, **kwargs):
+        return True
+
     def __post_init__(self):
         # support `EngineArgs(compilation_config={...})`
         # without having to manually construct a
