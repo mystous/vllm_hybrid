@@ -32,7 +32,73 @@
 
 ---
 
-## 1. 측정 fact (3-run, 500p × 8192, 2026-05-23)
+## 0. ★ 현 Best Configuration — SUB_085 v2 (production-ready)
+
+### 0.1 측정 fact (SUB_089 canonical 3-run + SUB_085 v2 single-run)
+
+| workload | tps | wall (s) | source | vs SUB_086 vanilla (gmu=0.80) |
+|---|---:|---:|---|---:|
+| **sonnet (canonical)** | **11,687.4** (3-run avg) | 345.7 | SUB_089 (variance 0.20%) | **+51.6%** ⭐ |
+| sonnet (single) | 11,589.5 | 348.7 | SUB_085 v2 | +50.3% |
+| **chat** | **3,582.4** | 103.1 | SUB_085 v2 | **+63.8%** ⭐ |
+| **code** ⭐ | **7,990.0** | 494.2 | SUB_085 v2 | **+18.9%** (ngram −20.7% 회귀 영역 mitigation) |
+
+### 0.2 production-ready 설정
+
+```python
+from vllm import LLM, SamplingParams
+
+llm = LLM(
+    model="meta-llama/Llama-3.3-70B-Instruct",
+    tensor_parallel_size=8,
+    max_model_len=16384,
+    max_num_seqs=256,
+    gpu_memory_utilization=0.80,                       # ★ cudagraph PIECEWISE + spec memory headroom
+    enforce_eager=False,
+    kv_cache_dtype="fp8",
+    max_num_batched_tokens=8192,
+    disable_log_stats=True,
+    seed=0,
+    compilation_config={"cudagraph_mode": "PIECEWISE"}, # ★ SUB_085 핵심 patch (FULL graph capture 영역 skip)
+    speculative_config={
+        "method": "suffix",                             # ★ SuffixDecoding (arctic_inference.SuffixDecodingCache lazy import)
+        "num_speculative_tokens": 32,
+    },
+)
+
+sp = SamplingParams(temperature=0.0, top_p=1.0, max_tokens=8192, seed=0)
+outputs = llm.generate(prompts, sp)
+```
+
+### 0.3 필수 env
+
+```bash
+export HF_HUB_OFFLINE=1
+export ARCTIC_INFERENCE_ENABLED=0   # plugin disable (vLLM 1.6 binary incompat 우회)
+export VLLM_PLUGINS=""
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+```
+
+### 0.4 본 fork 영역 변경 (SUB_081 + SUB_084)
+
+| file | 변경 종류 | 라인 |
+|---|---|---:|
+| `vllm/utils/__init__.py` (SUB_081) | FlexibleArgumentParser re-export | +5 |
+| `vllm/engine/arg_utils.py` (SUB_084) | `_is_v1_supported_oracle` stub | +9 |
+| **합계** | (backward-compat 100%, default behavior 영향 0) | **+14** |
+
+### 0.5 small model (≤7B) 권장
+
+→ **vanilla 만** (모든 spec method universal regression — opt-125m 2.13× / Qwen 0.5B~7B 1.21~2.6× 회귀)
+
+상세: [`measurements/sub085_suffix_piecewise_20260525/RESULTS.md`](measurements/sub085_suffix_piecewise_20260525/RESULTS.md) · [`measurements/sub086_vanilla_gmu080_20260525/RESULTS.md`](measurements/sub086_vanilla_gmu080_20260525/RESULTS.md) · [`measurements/sub087_ngram_piecewise_20260525/RESULTS.md`](measurements/sub087_ngram_piecewise_20260525/RESULTS.md) · [`measurements/sub089_sonnet_3run_20260525/RESULTS.md`](measurements/sub089_sonnet_3run_20260525/RESULTS.md) · [`measurements/sub090_model_size_sweep_20260525/RESULTS.md`](measurements/sub090_model_size_sweep_20260525/RESULTS.md) · [`COMPREHENSIVE_REPORT_20260525.md`](COMPREHENSIVE_REPORT_20260525.md)
+
+---
+
+## 1. (historical) 측정 fact (3-run, 500p × 8192, 2026-05-23)
+
+> ⚠ 이하 §1~§7 영역 historical SUB_047 (ngram cap=8) — wrapper-historical baseline (gmu=0.85, run_spec_decode.py wrapper). 현 best 영역 §0 (SUB_085 v2, gmu=0.80, run_workload_gen.py wrapper) 영역 참조.
+
 
 | run | output_tps | wall (s) | CPU% | GPU% | vs vanilla 4,679.8 |
 |---|---:|---:|---:|---:|---:|
