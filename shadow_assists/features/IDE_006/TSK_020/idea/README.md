@@ -43,6 +43,24 @@
 - **[`code_base_impact_20260524.md`](code_base_impact_20260524.md)** — 각 IDE 가 본 fork 영역 어떤 file 에 영향을 미쳤는지 분류 (A=vLLM core / B=wrapper / C=외부 tool / D=doc / E=외부 PR). **IDE_009~014 모두 vLLM core 영역 변경 없음** — 측정/wrapper/doc/PR 만. 본 fork 영역 vLLM patch 는 IDE 이전 SUB_047 등에서 이미 적재. "파편화" 정정용 grouping (Group α/β/γ/δ) 도 포함.
 - **[`phase_execution_summary_20260524.md`](phase_execution_summary_20260524.md)** — 성능 향상 plan Phase 1~4 (SUB_080~083) 실행 결과 종합. **Phase 1 analytical +9.5~+30.3%**, Phase 2 부분 (1 blocker 해소, 다음 blocker 노출), Phase 3 viability analytical, Phase 4 design. 본 session 영역 vLLM core 추가 변경 = 5 줄 (`vllm/utils/__init__.py` re-export).
 
+### ★ 2026-05-25 추가 진행 (SUB_085~092)
+
+Phase 2 영역 **unblock 성공** ⭐⭐ + 모든 잔여 SUB 영역 진행 (제외 SUB_077 upstream PR). 종합: [`../COMPREHENSIVE_REPORT_20260525.md`](../COMPREHENSIVE_REPORT_20260525.md) (416 lines).
+
+| SUB | 핵심 결과 |
+|---|---|
+| SUB_084 (Phase 2 follow-up) | `_is_v1_supported_oracle` stub 추가 — 2nd blocker, fundamental incompat 영역 결론 영역 잘못됨 영역 SUB_085 영역 입증 |
+| **SUB_085 ⭐⭐ (Phase 2 unblock)** | `compilation_config={cudagraph_mode: PIECEWISE}` 영역 우회 — suffix + PIECEWISE 영역 3 workload 모두 net positive |
+| SUB_086 (fair baseline) | vanilla gmu=0.80 + PIECEWISE — sonnet 7,710 (wrapper-historical noise 발견) |
+| SUB_087 (all-fair) | ngram + PIECEWISE + gmu=0.80 — all-fair table 확정 |
+| SUB_088 (small + suffix) | Qwen 0.5B/1.5B × suffix = universal regression 확장 |
+| **SUB_089 ⭐ (canonical)** | sonnet 3-run avg **11,687.4** variance **0.20%** |
+| **SUB_090 ⭐ (model-size sweep)** | Qwen 0.5B/1.5B/7B × code × 3 config — boundary 7B↔70B 확정 |
+| **SUB_091 ⭐⭐ (issue #16258 정확 reproduction)** | opt-125m 영역 **2.13× regression — issue 영역 2.12× 영역 정확 일치** |
+| SUB_092 (router HTTP PoC) | classifier router 0.26 ms/prompt — production deploy-ready |
+
+→ 본 fork code 변경 **14 줄** (utils +5, arg_utils +9, 모두 backward-compat 100%) + wrapper env-tunable.
+
 ## 본 backlog 의 idea — 측정 결과 통합 (sonnet/chat/code workload 별)
 
 ### vanilla baseline (모든 비율의 기준)

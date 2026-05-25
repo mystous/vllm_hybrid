@@ -268,6 +268,17 @@ flowchart TB
     SUB_074 --> SUB_081["SUB_081<br/>Phase 2: suffix cuda graph<br/>🟠 1 blocker 해소, 다음 blocker 노출"]
     SUB_080 --> SUB_082["SUB_082<br/>Phase 3: dual routing<br/>🟠 viability analytical viable"]
     SUB_057 --> SUB_083["SUB_083<br/>Phase 4: top-M tree verify<br/>🟠 design + expected +40-80 pp"]
+    SUB_081 --> SUB_084["SUB_084<br/>Phase 2 follow-up<br/>🟠 2nd blocker (_is_v1_supported_oracle stub)"]
+
+    %% TSK_020 — Phase 2 unblock + fair baseline + canonical (2026-05-25)
+    SUB_084 --> SUB_085["SUB_085<br/>Phase 2 ★★ unblock<br/>🏆 suffix PIECEWISE 3 workload net positive"]
+    TSK_020 --> SUB_086["SUB_086<br/>vanilla gmu=0.80 fair baseline<br/>🟢 wrapper-historical noise 발견"]
+    SUB_086 --> SUB_087["SUB_087<br/>ngram + PIECEWISE + gmu=0.80<br/>🟢 all-fair table 확정"]
+    SUB_085 --> SUB_088["SUB_088<br/>small model + suffix<br/>🟢 universal regression 확장"]
+    SUB_085 --> SUB_089["SUB_089<br/>sonnet canonical 3-run<br/>🏆 avg 11,687.4 variance 0.20%"]
+    SUB_087 --> SUB_090["SUB_090<br/>R/K model-size sweep<br/>🟢 boundary 7B↔70B (Qwen 7B ngram -17%)"]
+    SUB_078 --> SUB_091["SUB_091<br/>issue #16258 precise reproduction<br/>🏆 opt-125m 2.13× 정확 일치"]
+    SUB_080 --> SUB_092["SUB_092<br/>router HTTP server PoC<br/>🟢 0.26 ms/prompt, production-ready"]
 
     %% pending follow-ups
     PLN_001 --> TST_001["TST_001<br/>TSK_001 정확도<br/>(A · B(i) · C)"]
