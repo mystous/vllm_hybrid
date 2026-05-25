@@ -137,6 +137,20 @@ def _is_v1_supported_oracle(self, *args, **kwargs):
 
 → **R/K boundary 영역 7B 영역 70B 사이** (Qwen 7B ngram -17% 영역 가장 boundary 근접, large 70B 영역 suffix +50% net positive). **production 권장: ≤7B → vanilla, ≥70B → suffix PIECEWISE, boundary 7B~70B 영역 후속 측정 필요**.
 
+### 2.3 ★ small model + ngram = universal regression — 5-model cross-validation (SUB_078/079/088/090/091)
+
+| source | hardware | model | code workload regression | 본 doc 영역 위치 |
+|---|---|---|---:|---|
+| **issue #16258 외부** | 2× L4 | opt-125m | **2.12×** | issue link |
+| **SUB_091 본 fork** | **H100×1** | **opt-125m** | **2.13×** ⭐ (정확 reproduction) | (R6, SUB_091 RESULTS) |
+| SUB_091 본 fork | H100×1 | starcoder2-3b | 2.30× | (SUB_091 RESULTS) |
+| SUB_078 본 fork | H100×1 | Qwen 0.5B | 2.46× | (SUB_078 RESULTS) |
+| SUB_078 본 fork | H100×1 | Qwen 1.5B | 2.63× | (SUB_078 RESULTS) |
+| SUB_090 본 fork (PIECEWISE) | H100×1 | Qwen 0.5B | **1.44×** ⭐ (PIECEWISE 영역 차이) | (SUB_090 RESULTS) |
+| SUB_090 본 fork (PIECEWISE) | H100×1 | Qwen 7B | **1.21×** (boundary 근접) | (SUB_090 RESULTS) |
+
+→ **5 model × 다양한 hardware/cudagraph mode 영역 small model + ngram = 1.2~2.6× regression** (universal). cudagraph PIECEWISE mode 영역 +28pp 영역 향상 발견 (SUB_090, default FULL_AND_PIECEWISE 영역 SUB_079 -59% vs PIECEWISE 영역 SUB_090 -30%).
+
 ### 2.3 acceptance metric (suffix vs ngram, all-fair gmu=0.80 + PIECEWISE)
 
 | workload | ngram K / α | suffix K / α | K 비율 | α 비율 |
@@ -315,6 +329,17 @@ prompt 입력
 | ◐ | Phase 4 tree verify | rejection_sampler tree path | 1 주 | sonnet/chat 추가 +40-80 pp 가능성 |
 
 **제외**: IDE_013/SUB_077 (vLLM upstream PR) — 사용자 지시.
+
+### 본 session 영역 추가 완료된 SUB (2026-05-25 KST 11:00~11:45)
+
+| SUB | scope | 결과 |
+|---|---|---|
+| **SUB_089** | sonnet canonical 3-run variance | avg 11,687.4, var 0.20%, fair +51.6% |
+| **SUB_090** | R/K model-size sweep (Qwen 0.5B/1.5B/7B × code) | boundary 7B↔70B 확정, PIECEWISE 영역 small model ngram +28pp 향상 |
+| **SUB_091** | precise issue #16258 reproduction (opt-125m + starcoder2-3b) | opt-125m 2.13× regression — issue 영역 2.12× 영역 정확 일치 ⭐⭐ |
+| **SUB_092** | router HTTP server PoC (Phase 1 actual deploy) | classifier router 0.26 ms/prompt, production-ready (CPU only) |
+
+→ **본 session 영역 12 SUB 완료**, 13+ commit, 본 fork code 14 줄, 종합 리포트 391+ lines.
 
 ---
 
