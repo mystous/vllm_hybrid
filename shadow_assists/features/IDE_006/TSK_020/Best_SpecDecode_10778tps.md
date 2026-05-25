@@ -4,7 +4,7 @@
 >
 > | workload | SUB_086 vanilla (gmu=0.80, fair baseline) | SUB_085 v2 suffix PIECEWISE (gmu=0.80) | **fair contribution** |
 > |---|---:|---:|---:|
-> | **sonnet** | 7,709.8 | **11,589.5** | **+50.3%** ⭐ |
+> | **sonnet** | 7,709.8 | **11,687.4** (canonical 3-run avg, var 0.20%, SUB_089) | **+51.6%** ⭐ |
 > | **chat** | 2,186.9 | **3,582.4** | **+63.8%** ⭐ |
 > | **code** | 6,717.8 | **7,990.0** | **+18.9%** ⭐ (ngram −23.2% 회귀 영역 완전 mitigation) |
 >
