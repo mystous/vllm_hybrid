@@ -1,13 +1,34 @@
 # TSK_020 — INDEX (navigation hub)
 
 > **목적**: TSK_020 의 모든 doc / measurement / plan 의 single entry point.
-> **상태**: 활성 — current best 10,956.5 tps (+134.1% vs vanilla)
+> **상태**: 활성 — **★ 현 best = Trident (SUB_085 v2 / SUB_089 canonical 11,687.4 tps, fair +51.6%)**
 > **branch**: `feat/spec-decode-tuning`
 > **상위**: [`README.md`](README.md) — Best Configuration index
+> **★★ user-facing entry point**: [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) — top-level production guide (Trident config + 3-workload all-fair benchmark)
+> **종합 리포트**: [`COMPREHENSIVE_REPORT_20260525.md`](COMPREHENSIVE_REPORT_20260525.md) (416 lines) / [`OUTSTANDING_CONTRIBUTIONS_20260525.md`](OUTSTANDING_CONTRIBUTIONS_20260525.md) (243 lines)
 
 ---
 
-## ★★★ 0. 현 absolute best (2026-05-23) — SUB_047 t3 canonical 3-run
+## ★★★ 0. 현 best — Trident (SUB_085 v2 + SUB_089 canonical, 2026-05-25)
+
+| workload | vanilla (SUB_086 fair) | Trident best | fair contribution |
+|---|---:|---:|---:|
+| **sonnet** | 7,709.8 | **11,687.4** (3-run avg, var 0.20%) | **+51.6%** ⭐ |
+| **chat** | 2,186.9 | **3,582.4** | **+63.8%** ⭐ |
+| **code** | 6,717.8 | **7,990.0** | **+18.9%** ⭐ (ngram −20.7% 회귀 mitigation) |
+
+**활성화 (한 줄)**:
+```python
+LLM(speculative_config={"method": "suffix", "num_speculative_tokens": 32},
+    compilation_config={"cudagraph_mode": "PIECEWISE"},
+    gpu_memory_utilization=0.80, ...)
+```
+
+상세 = [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) (production guide) / [`Best_SpecDecode_10778tps.md`](Best_SpecDecode_10778tps.md) §0.
+
+---
+
+## ★★ 0-historical. 이전 best (2026-05-23) — SUB_047 t3 canonical 3-run
 
 | 항목 | 값 |
 |---|---:|

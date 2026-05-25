@@ -4,6 +4,7 @@
 > **parent**: TSK_020 / PLN_001 (vLLM CPU 활용 + spec decode tuning)
 > **scope branch**: `feat/spec-decode-tuning`
 > **본 fork code 변경**: 14 줄 vLLM core (utils + arg_utils) + wrapper env-tunable
+> **★ user-facing top-level guide**: [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) — production-ready Trident config + 활성화 한 줄 + all-fair benchmark
 
 ---
 
