@@ -2,7 +2,7 @@
 
 > **parent**: TSK_020
 > **owner SUB**: [`SUB_072`](../planning/SUB_072_idea_backlog.md)
-> **★ user-facing entry point**: [`/spec_decoding/README.md`](../../../../../spec_decoding/README.md) — Trident production guide (활성화 한 줄 + all-fair benchmark)
+> **★ user-facing entry point**: [`/spec_decoding/README.md`](../../../../../spec_decoding/README.md) — Trident core (always-on) / AGSD (Trident core + workload·model-size gating) production guide + SUB_093 6-workload all-fair benchmark
 > **prefix 정정 (2026-05-24)**: 기존 임시 `I001~I006` → CLAUDE.md prefix rule 정합 위해 **`IDE_009~IDE_014`** 로 재명명. parent prefix `IDE` 는 id_registry 의 "Idea" prefix 와 동일 카운터 사용 (IDE_001~IDE_008 = 큰 architectural idea, IDE_009~ = 본 TSK_020 의 measurement/doc idea).
 
 ## 사용 방법

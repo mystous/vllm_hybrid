@@ -1,6 +1,8 @@
-# ★★★ Best Configuration — SUB_085 v2 (suffix + cudagraph PIECEWISE) — 2026-05-25 KST 갱신
+# ★★★ Best Configuration — Trident core (SUB_085 v2 / SUB_089 canonical / SUB_093 6-workload) — 2026-05-25 KST 갱신
 
-> **★ 갱신 (2026-05-25 KST 09:58)**: SUB_085 v2 (suffix_spec32 + cudagraph_mode=PIECEWISE + gmu=0.80) 영역 **3 workload 모두 fair net positive 영역 새 best 영역 SUB_047 ngram 대신**:
+> **용어 정리**: **Trident core** = spec config 자체 (suffix + cudagraph PIECEWISE + gmu=0.80, **always-on**) / **AGSD** = Trident core + workload·model-size **gating** (per-request method 선택). Llama 70B 영역 모든 workload 영역 Trident core 가 best → **AGSD = Trident core** (gating decision 영역 항상 suffix).
+
+> **★ 갱신 (2026-05-25 KST 09:58)**: Trident core (suffix_spec32 + cudagraph_mode=PIECEWISE + gmu=0.80) 영역 **3 workload 모두 fair net positive 영역 새 best 영역 SUB_047 ngram 대신**. SUB_093 (19:01 KST) 영역 6-workload (sonnet/chat/code/mix-sh/mix-bal/mix-ch) × 3 config 영역 util 캡처 확장:
 >
 > | workload | SUB_086 vanilla (gmu=0.80, fair baseline) | SUB_085 v2 suffix PIECEWISE (gmu=0.80) | **fair contribution** |
 > |---|---:|---:|---:|

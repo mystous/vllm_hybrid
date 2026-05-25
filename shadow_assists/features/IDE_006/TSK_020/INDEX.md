@@ -1,23 +1,32 @@
 # TSK_020 — INDEX (navigation hub)
 
 > **목적**: TSK_020 의 모든 doc / measurement / plan 의 single entry point.
-> **상태**: 활성 — **★ 현 best = Trident (SUB_085 v2 / SUB_089 canonical 11,687.4 tps, fair +51.6%)**
+> **상태**: 활성 — **★ 현 best = Trident core (SUB_093 sonnet 11,676.9 / SUB_089 canonical 11,687.4 / fair +51~+52%)**
 > **branch**: `feat/spec-decode-tuning`
 > **상위**: [`README.md`](README.md) — Best Configuration index
-> **★★ user-facing entry point**: [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) — top-level production guide (Trident config + 3-workload all-fair benchmark)
-> **종합 리포트**: [`COMPREHENSIVE_REPORT_20260525.md`](COMPREHENSIVE_REPORT_20260525.md) (416 lines) / [`OUTSTANDING_CONTRIBUTIONS_20260525.md`](OUTSTANDING_CONTRIBUTIONS_20260525.md) (243 lines)
+> **★★ user-facing entry point**: [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) — top-level production guide (Trident core + AGSD framework)
+> **종합 리포트**: [`COMPREHENSIVE_REPORT_20260525.md`](COMPREHENSIVE_REPORT_20260525.md) / [`OUTSTANDING_CONTRIBUTIONS_20260525.md`](OUTSTANDING_CONTRIBUTIONS_20260525.md) / [`SUB_093 RESULTS`](measurements/sub093_full_matrix_util_20260525/RESULTS.md) (57 cell + util)
 
 ---
 
-## ★★★ 0. 현 best — Trident (SUB_085 v2 + SUB_089 canonical, 2026-05-25)
+## ★★★ 0. 현 best — Trident core / AGSD framework (SUB_093, 2026-05-25)
 
-| workload | vanilla (SUB_086 fair) | Trident best | fair contribution |
-|---|---:|---:|---:|
-| **sonnet** | 7,709.8 | **11,687.4** (3-run avg, var 0.20%) | **+51.6%** ⭐ |
-| **chat** | 2,186.9 | **3,582.4** | **+63.8%** ⭐ |
-| **code** | 6,717.8 | **7,990.0** | **+18.9%** ⭐ (ngram −20.7% 회귀 mitigation) |
+**용어**: **Trident core** = spec config 자체 (suffix+PIECEWISE+gmu=0.80, always-on) / **AGSD** = Trident core + workload/model-size gating. Llama 70B 단독 영역 모든 workload 영역 Trident core 가 best 이므로 **AGSD = Trident core** (gating = 항상 suffix).
 
-**활성화 (한 줄)**:
+### Trident core × 6 workload (SUB_093)
+
+| workload | vanilla | **Trident core** | fair contribution | CPU% | GPU% |
+|---|---:|---:|---:|---:|---:|
+| **sonnet** | 7,678.7 | **11,676.9** | **+52.1%** ⭐ | 5.3 | 73.3 |
+| **chat** | 2,266.8 | **3,830.4** | **+68.9%** ⭐ | (config-wide) | (config-wide) |
+| **code** | 6,717.7 | **7,981.4** | **+18.8%** ⭐ | — | — |
+| **mix-sh** (M1 60:20:20) | 6,325.9 | **10,297.7** | **+62.8%** ⭐ | — | — |
+| **mix-bal** (M2 34:33:33) | 6,053.9 | **9,514.3** | **+57.2%** ⭐ | — | — |
+| **mix-ch** (M3 10:20:70) | 6,494.9 | **9,457.3** | **+45.6%** ⭐ | — | — |
+
+→ vanilla 영역 CPU 5.6% / GPU 93.8% / Trident core 영역 CPU 5.3% / GPU 73.3% — wall 31% 단축.
+
+**활성화 (한 줄, Trident core)**:
 ```python
 LLM(speculative_config={"method": "suffix", "num_speculative_tokens": 32},
     compilation_config={"cudagraph_mode": "PIECEWISE"},

@@ -1,24 +1,38 @@
-# vllm_hybrid — Speculative Decoding (Trident Best Configuration)
+# vllm_hybrid — Speculative Decoding (Trident core / AGSD framework)
 
-> **last update**: 2026-05-25 KST
+> **last update**: 2026-05-25 KST (SUB_093 full matrix + util 반영)
 > **branch**: `feat/spec-decode-tuning`
 > **base**: vLLM 1.6.dev0+g858b6df7a (fork)
 > **fork core change**: **14 줄** (`vllm/utils/__init__.py` +5, `vllm/engine/arg_utils.py` +9, backward-compat 100%)
-> **상세 doc**: [`shadow_assists/features/IDE_006/TSK_020/COMPREHENSIVE_REPORT_20260525.md`](../shadow_assists/features/IDE_006/TSK_020/COMPREHENSIVE_REPORT_20260525.md) (416 lines) + [`OUTSTANDING_CONTRIBUTIONS_20260525.md`](../shadow_assists/features/IDE_006/TSK_020/OUTSTANDING_CONTRIBUTIONS_20260525.md) (243 lines)
+> **상세 doc**: [`COMPREHENSIVE_REPORT_20260525.md`](../shadow_assists/features/IDE_006/TSK_020/COMPREHENSIVE_REPORT_20260525.md) (416 lines) + [`OUTSTANDING_CONTRIBUTIONS_20260525.md`](../shadow_assists/features/IDE_006/TSK_020/OUTSTANDING_CONTRIBUTIONS_20260525.md) (243 lines) + [`SUB_093 RESULTS`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub093_full_matrix_util_20260525/RESULTS.md) (57 cell + util)
 
 ---
 
-## Executive Summary
+## 0. 용어 정리 (Trident core vs AGSD)
 
-본 fork의 **Trident Configuration** (SUB_085 v2) = **SuffixDecoding + cudagraph_mode=PIECEWISE + gpu_memory_utilization=0.80**. Llama-3.3-70B + TP=8 + H100×8 환경에서 **3 workload 모두 vanilla 대비 net positive** ⭐.
+| 용어 | 의미 | 활성화 |
+|---|---|---|
+| **Trident core** | **spec config 자체** = SuffixDecoding + cudagraph PIECEWISE + gmu=0.80, **always-on** (모든 request 영역 suffix 적용) | §1 코드 영역 그대로 사용 |
+| **AGSD** (Auto Gating Spec Decoding) | **framework** = Trident core + workload/model-size **gating** (per-request method 선택) | classifier (SUB_076) + router (SUB_092) + per-request override (vLLM 영역 미지원 영역 후속 SUB) |
 
-| workload | vanilla (fair baseline, SUB_086) | **Trident best (SUB_085 v2)** | **fair contribution** |
-|---|---:|---:|---:|
-| **sonnet** | 7,709.8 | **11,687.4** (canonical 3-run avg, variance 0.20%) | **+51.6%** ⭐ |
-| **chat** | 2,186.9 | **3,582.4** | **+63.8%** ⭐ |
-| **code** | 6,717.8 | **7,990.0** | **+18.9%** ⭐ (ngram −20.7% 회귀 mitigation) |
+→ Llama 70B 단독 영역 모든 workload 영역 suffix 가 best 이므로 **AGSD = Trident core 결과 동일** (gating decision = 항상 suffix).
+→ AGSD 영역 별도 가치 영역 **mixed-model deployment** (예: Llama 70B + Qwen 동시) + 일부 cell (Qwen 7B chat 영역 vanilla 선택) 영역 발현.
 
-→ canonical sonnet variance 0.20% (3-run stable) + **모든 workload net positive** = production-ready.
+---
+
+## Executive Summary (Trident core, SUB_093 측정)
+
+| workload | vanilla | **Trident core** | **fair contribution** | CPU% | GPU% |
+|---|---:|---:|---:|---:|---:|
+| **sonnet** | 7,678.7 | **11,676.9** | **+52.1%** ⭐ | 5.3 (vs 5.6) | 73.3 (vs 93.8) |
+| **chat** | 2,266.8 | **3,830.4** | **+68.9%** ⭐ | (config-wide) | (config-wide) |
+| **code** | 6,717.7 | **7,981.4** | **+18.8%** ⭐ (ngram −20.2% 회귀 mitigation) | — | — |
+| **mix-sh** (M1 60:20:20) | 6,325.9 | **10,297.7** | **+62.8%** ⭐ | — | — |
+| **mix-bal** (M2 34:33:33) | 6,053.9 | **9,514.3** | **+57.2%** ⭐ | — | — |
+| **mix-ch** (M3 10:20:70) | 6,494.9 | **9,457.3** | **+45.6%** ⭐ | — | — |
+
+→ **6 workload 모두 net positive (+18.8% ~ +68.9%)**, mixed traffic 까지 포함. **wall 31% 단축** (config-wide).
+→ GPU util 영역 73.3% (vanilla 93.8%) — spec decoding 영역 GPU 영역 idle 늘리며 throughput 영역 상승.
 
 ---
 
@@ -74,15 +88,29 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 ---
 
-## 2. all-fair benchmark — vanilla / ngram / suffix (모두 gmu=0.80 + cudagraph PIECEWISE + same wrapper)
+## 2. all-fair benchmark — vanilla / ngram / Trident core / AGSD (모두 gmu=0.80 + cudagraph PIECEWISE + same wrapper)
 
-### 2.1 Large model (Llama-3.3-70B + TP=8 + H100×8 + 500p × 8192in × 8192max)
+### 2.1 Large model 6-workload matrix (Llama-3.3-70B + TP=8 + H100×8 + 500p × 8192in × 8192max, SUB_093)
 
-| workload | **vanilla** (SUB_086) | **ngram cap=8** (SUB_087) | **suffix PIECEWISE** (SUB_085 v2) | ngram vs vanilla | suffix vs vanilla | suffix vs ngram |
-|---|---:|---:|---:|---:|---:|---:|
-| sonnet | 7,709.8 | 10,139.2 | **11,589.5** (canonical 11,687.4 / SUB_089) | +31.5% | **+50.3%** ⭐ | +14.3% |
-| chat | 2,186.9 | 2,846.4 | **3,582.4** | +30.2% | **+63.8%** ⭐ | +25.9% |
-| code | 6,717.8 | 5,326.6 ✗ | **7,990.0** | **−20.7% (회귀)** ✗ | **+18.9%** ⭐ | **+50.0%** ⭐⭐ |
+| workload | **vanilla** | **ngram cap=8** | **Trident core** (suffix+PIECEWISE) | **AGSD** (Trident + gating) | Trident vs vanilla |
+|---|---:|---:|---:|---:|---:|
+| sonnet | 7,678.7 | 10,758.8 (+40.1%) | **11,676.9** | **11,676.9** (→suffix) | **+52.1%** ⭐ |
+| chat | 2,266.8 | 3,243.5 (+43.1%) | **3,830.4** | **3,830.4** (→suffix) | **+68.9%** ⭐ |
+| code | 6,717.7 | 5,361.5 (−20.2%) ✗ | **7,981.4** | **7,981.4** (→suffix) | **+18.8%** ⭐ |
+| **mix-sh** (M1 60:20:20) | 6,325.9 | 7,932.6 (+25.4%) | **10,297.7** | **10,297.7** | **+62.8%** ⭐ |
+| **mix-bal** (M2 34:33:33) | 6,053.9 | 6,553.6 (+8.3%) | **9,514.3** | **9,514.3** | **+57.2%** ⭐ |
+| **mix-ch** (M3 10:20:70) | 6,494.9 | 5,490.7 (−15.5%) ✗ | **9,457.3** | **9,457.3** | **+45.6%** ⭐ |
+
+→ Llama 70B 영역 모든 6 workload 영역 **AGSD = Trident core** (gating decision 영역 항상 suffix).
+→ ngram 영역 code-heavy mix-ch 까지 회귀 (−15.5%). Trident core 영역 mix-ch 까지 net positive (+45.6%).
+
+### 2.1.1 (참조) prior SUB measurements
+
+| 측정 | sonnet | chat | code | 비고 |
+|---|---:|---:|---:|---|
+| SUB_085 v2 (single run) | 11,589.5 | 3,582.4 | 7,990.0 | first Trident core measurement |
+| SUB_089 (canonical 3-run avg) | **11,687.4** | — | — | variance 0.20% |
+| **SUB_093 (latest)** | **11,676.9** | **3,830.4** | **7,981.4** | + mix 3 종 + util |
 
 ### 2.2 K (mean_accept_len) / α (per-position acceptance) — suffix vs ngram
 
@@ -104,7 +132,18 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 → **canonical sonnet best = 11,687.4 tps (var 0.20%, fair +51.6%)**.
 
-### 2.4 Small / medium model (Qwen 0.5B/1.5B/7B + TP=1 + 50p × 1024in × 512max, code workload)
+### 2.3a util matrix (SUB_093 config-wide avg, 6 workload 평균)
+
+| config | wall sum (s) | CPU util (%) | GPU util (%) | 비고 |
+|---|---:|---:|---:|---|
+| vanilla | 2,750.5 | 5.6% | 93.8% | spec OFF — GPU 영역 fully bound |
+| ngram | 2,635.8 | 7.6% | 84.2% | ngram drafter CPU 부담 (+2.0pp) / GPU −9.6pp (drafter wait) |
+| **Trident core** | **1,892.4** | **5.3%** | **73.3%** | suffix 영역 ngram 보다 CPU 가벼움 / GPU −20.5pp |
+| AGSD (Llama 70B) | =Trident core | =Trident core | =Trident core | gating decision 영역 항상 suffix → 동일 |
+
+→ **Trident core wall 31% 단축 + GPU −20pp**. spec decoding 영역 GPU 활용률 영역 떨어지나 wall throughput 영역 늘림 (per-step K token output).
+
+### 2.4 Small / medium model (Qwen 0.5B/1.5B/7B + TP=1 + 50p × 1024in × 512max, code workload, 이전 SUB_090 — default cudagraph)
 
 | model | vanilla | ngram (PIECEWISE) | suffix (PIECEWISE) | best |
 |---|---:|---:|---:|---|
@@ -113,7 +152,8 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 | **Qwen 7B** | **5,556** | **4,594 (−17.3%)** ⭐ boundary 근접 | 3,516 (−36.7%) | **vanilla** |
 | (참조) Llama 70B | 7,710 | 10,139 (+31.5%) | **11,590 (+50.3%)** ⭐ | **suffix PIECEWISE** |
 
-→ **R/K boundary는 7B ↔ 70B 사이**. ≤ 7B model = vanilla 권장, ≥ 70B = Trident (suffix PIECEWISE) 권장.
+→ **R/K boundary는 7B ↔ 70B 사이**. ≤ 7B model 영역 **AGSD gating decision = vanilla** / ≥ 70B model 영역 **AGSD gating decision = Trident core (suffix PIECEWISE)**.
+→ (caveat) SUB_093 Phase 2 영역 PIECEWISE-only 재측정 영역 short-wall noise (1-8s wall) — prior SUB_090 영역 default cudagraph 영역 비교 영역 reliable.
 
 ### 2.5 issue #16258 cross-validation (5-model × hardware)
 
@@ -130,11 +170,12 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 ---
 
-## 3. Trident 기술 stack — 14 component
+## 3. Trident core 기술 stack — 14 component
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ ★ Trident Best Configuration (SUB_085 v2)           │
+│ ★ Trident core (SUB_085 v2 / SUB_089 / SUB_093)     │
+│   spec config 자체 — always-on (no gating)          │
 ├─────────────────────────────────────────────────────┤
 │ ★ SuffixDecoding (arctic, NeurIPS 2025)             │  ← drafter
 │ ★ cudagraph_mode=PIECEWISE (vLLM v1 built-in)       │  ← capture mode
@@ -187,7 +228,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 ---
 
-## 4. mechanism — 왜 Trident가 모든 workload에서 net positive
+## 4. mechanism — 왜 Trident core가 모든 workload에서 net positive
 
 ### 4.1 ngram vs suffix drafter 차이
 
@@ -219,28 +260,27 @@ K < R → net regression
 
 ---
 
-## 5. production decision tree
+## 5. AGSD production decision tree (workload + model-size gating)
 
 ```
 prompt 입력
   ↓
-[ model size 기준 분류 ]
+[ AGSD gating: model size + workload 분류 ]
   ↓
   ├─ ≤ 7B (small/medium)
-  │   → vanilla (spec OFF)
+  │   → AGSD decision: vanilla (spec OFF)
   │   이유: 모든 spec method universal regression (-17~-73%, R≫K)
   │   증거: SUB_078/079/088/090/091 (5 model cross-validation, opt-125m 2.13× = issue #16258 정확 일치)
   │
-  ├─ 7B ↔ 70B (boundary, 미측정)
-  │   → 후속 측정 권장 (Qwen 32B candidate)
-  │   현재: 7B ngram −17.3% (boundary 근접), 70B suffix +50.3% (net positive)
+  ├─ 7B ↔ 70B (boundary, Qwen 32B 후속 권장)
+  │   → 현재: 7B ngram −17.3% (boundary 근접), 70B suffix +50.3% (net positive)
   │
   └─ ≥ 70B (large)
-      → ★ Trident (suffix + PIECEWISE + gmu=0.80)
-      효과: sonnet +51.6% / chat +63.8% / code +18.9%
+      → AGSD decision: Trident core (suffix + PIECEWISE + gmu=0.80)
+      효과 (SUB_093): sonnet +52.1% / chat +68.9% / code +18.8% / mix-sh +62.8% / mix-bal +57.2% / mix-ch +45.6%
 ```
 
-→ **workload-aware gating + model-size threshold** 통합 production guidance.
+→ **AGSD = Trident core + workload/model-size gating**. Llama 70B 단독 영역 모든 workload 영역 Trident core 가 best 이므로 gating = always suffix. AGSD 영역 진짜 가치 영역 mixed-model deployment.
 
 ---
 
@@ -417,6 +457,7 @@ prompt 입력
 | **SUB_086** | [`measurements/sub086_vanilla_gmu080_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub086_vanilla_gmu080_20260525/RESULTS.md) | fair vanilla baseline (gmu=0.80) |
 | **SUB_087** | [`measurements/sub087_ngram_piecewise_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub087_ngram_piecewise_20260525/RESULTS.md) | ngram cap=8 PIECEWISE fair baseline |
 | **SUB_089** | [`measurements/sub089_sonnet_3run_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub089_sonnet_3run_20260525/RESULTS.md) | sonnet canonical 3-run (var 0.20%) |
+| **SUB_093** ⭐⭐ | [`measurements/sub093_full_matrix_util_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub093_full_matrix_util_20260525/RESULTS.md) | **full 57-cell matrix + util** (Llama 70B 18 + 소형 27 + cross-val 12) |
 | **SUB_090** | [`measurements/sub090_model_size_sweep_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub090_model_size_sweep_20260525/RESULTS.md) | R/K boundary 7B↔70B |
 | **SUB_091** ⭐⭐ | [`measurements/sub091_issue16258_precise_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub091_issue16258_precise_20260525/RESULTS.md) | opt-125m 2.13× = issue #16258 정확 reproduction |
 | SUB_092 | [`measurements/sub092_router_poc_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub092_router_poc_20260525/RESULTS.md) | router HTTP server PoC |
@@ -436,12 +477,12 @@ prompt 입력
 ## 9. 적용 권장 한 줄
 
 ```python
-# Llama-70B + TP=8 + H100×8 → Trident (모든 workload net positive)
+# AGSD gating decision = Trident core (Llama-70B + TP=8 + H100×8 → 6 workload 모두 net positive)
 LLM(model="meta-llama/Llama-3.3-70B-Instruct", tensor_parallel_size=8, gpu_memory_utilization=0.80,
     compilation_config={"cudagraph_mode": "PIECEWISE"},
     speculative_config={"method": "suffix", "num_speculative_tokens": 32})
 
-# ≤7B model → vanilla 만 (spec OFF)
+# AGSD gating decision = vanilla (≤7B model → spec OFF)
 ```
 
 ```bash

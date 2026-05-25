@@ -4,7 +4,8 @@
 > **parent**: TSK_020 / PLN_001 (vLLM CPU 활용 + spec decode tuning)
 > **scope branch**: `feat/spec-decode-tuning`
 > **본 fork code 변경**: 14 줄 vLLM core (utils + arg_utils) + wrapper env-tunable
-> **★ user-facing top-level guide**: [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) — production-ready Trident config + 활성화 한 줄 + all-fair benchmark
+> **★ user-facing top-level guide**: [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) — production-ready Trident core (always-on) / AGSD (Trident core + gating) + 활성화 한 줄 + 6-workload all-fair benchmark (SUB_093)
+> **신규 측정**: [`SUB_093 RESULTS`](measurements/sub093_full_matrix_util_20260525/RESULTS.md) — 57 cell × util 캡처 (Llama 70B 18 + 소형 27 + cross-val 12, 2026-05-25 19:01 KST 완료)
 
 ---
 
