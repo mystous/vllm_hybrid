@@ -10,13 +10,25 @@
 
 ---
 
-## 1. TL;DR (★ SUB_075 실측 acceptance 반영, 2026-05-24)
+## 1. TL;DR (★ SUB_085 v2 suffix PIECEWISE — 2026-05-25 KST 갱신)
 
-| workload | vanilla tps | spec7+cap8 tps | speedup | **실측 mean_accept_len (per-draft K)** | **실측 per-pos α** |
+**최신 fair comparison (SUB_086 vanilla gmu=0.80 baseline 영역 SUB_085 v2 suffix PIECEWISE gmu=0.80)**:
+
+| workload | **SUB_086 vanilla (gmu=0.80)** | **SUB_085 v2 suffix PIECEWISE** | **fair contribution** | **best K (suffix)** | **best α (suffix)** |
 |---|---:|---:|---:|---:|---:|
-| **sonnet** | 4,679.8 | **10,956.5** | **+134.1%** | **3.72** | **38.8 %** |
-| **chat** | 2,186.0 | **3,006.6** | **+37.5%** | **6.69** ⭐ | **81.2 %** ⭐ |
-| **code** | 6,964.5 | **5,346.8** | **−23.2%** | **1.10** | **1.4 %** |
+| **sonnet** | 7,709.8 | **11,589.5** | **+50.3%** ⭐ | **5.11** | **77.0 %** |
+| **chat** | 2,186.9 | **3,582.4** | **+63.8%** ⭐ | **10.06** | **92.7 %** |
+| **code** | 6,717.8 | **7,990.0** | **+18.9%** ⭐ (mitigation) | **4.08** | **40.1 %** |
+
+→ **3 workload 모두 net positive (suffix PIECEWISE)**. code 영역 ngram −23.2% 회귀 → suffix 영역 +18.9% net positive 영역 완전 mitigation.
+
+**historical (SUB_071 vanilla gmu=0.85 baseline, ngram cap=8 영역)** — wrapper-historical caveat:
+
+| workload | vanilla tps (gmu=0.85, historical) | spec7+cap8 tps | speedup | mean_accept_len (per-draft K) | per-pos α |
+|---|---:|---:|---:|---:|---:|
+| **sonnet** | 4,679.8 (wrapper-historical) | 10,956.5 | +134.1% (unfair: SUB_086 영역 wrapper-consistent baseline = 7,710) | 3.72 | 38.8 % |
+| **chat** | 2,186.0 | 3,006.6 | +37.5% | 6.69 | 81.2 % |
+| **code** | 6,964.5 | 5,346.8 | **−23.2%** | 1.10 | 1.4 % |
 
 > **★ SUB_075 surprise (2026-05-24)**: per-draft acceptance rank = **chat ≫ sonnet ≫ code** (본 doc 의 사전 예측 sonnet ≫ chat ≫ code 와 반대). throughput rank 는 동일 (sonnet ≫ chat ≫ code). 이유: throughput speedup = **spec coverage × per-draft K**. chat 은 per-draft K 높지만 응답 짧고 spec hit 빈도 낮아 coverage 낮음. sonnet 은 K 중간이지만 응답 길고 coverage 높음. code 는 K, coverage 모두 0 → R 만 누적. 상세: [`measurements/sub075_acceptance_20260524/RESULTS.md`](measurements/sub075_acceptance_20260524/RESULTS.md).
 

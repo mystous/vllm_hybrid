@@ -1,8 +1,24 @@
-# ★★★ Best Configuration — Ngram Spec + ngram thread cap=8 (3-run avg 10,956.5 tps) (2026-05-23 KST)
+# ★★★ Best Configuration — SUB_085 v2 (suffix + cudagraph PIECEWISE) — 2026-05-25 KST 갱신
 
-> **갱신 (2026-05-23)**: SUB_047 t3 (cap=8 + div_tp=0) canonical 3-run avg **10,956.5 tps (+134.12% vs vanilla 4,679.8)** ⭐
+> **★ 갱신 (2026-05-25 KST 09:58)**: SUB_085 v2 (suffix_spec32 + cudagraph_mode=PIECEWISE + gmu=0.80) 영역 **3 workload 모두 fair net positive 영역 새 best 영역 SUB_047 ngram 대신**:
+>
+> | workload | SUB_086 vanilla (gmu=0.80, fair baseline) | SUB_085 v2 suffix PIECEWISE (gmu=0.80) | **fair contribution** |
+> |---|---:|---:|---:|
+> | **sonnet** | 7,709.8 | **11,589.5** | **+50.3%** ⭐ |
+> | **chat** | 2,186.9 | **3,582.4** | **+63.8%** ⭐ |
+> | **code** | 6,717.8 | **7,990.0** | **+18.9%** ⭐ (ngram −23.2% 회귀 영역 완전 mitigation) |
+>
+> 상세: [`measurements/sub085_suffix_piecewise_20260525/RESULTS.md`](measurements/sub085_suffix_piecewise_20260525/RESULTS.md), [`measurements/sub086_vanilla_gmu080_20260525/RESULTS.md`](measurements/sub086_vanilla_gmu080_20260525/RESULTS.md)
+
+---
+
+## ★ historical (SUB_047 ngram cap=8) — 본 doc 영역 baseline 영역 historical (gmu=0.85 + wrapper-historical) 영역 caveat 영역 보존
+
+> **이전 best (2026-05-23 KST)**: SUB_047 t3 (cap=8 + div_tp=0) canonical 3-run avg **10,956.5 tps (+134.12% vs vanilla 4,679.8)**
 > variance 0.454% (max-min = 49.7 tps).
 > 이전 (SUB_044 t3 spec=7 only) = 10,778.6 tps 는 vLLM 의 ngram numba cap=1 (TODO 미적용) 의 한계 — env `VLLM_NGRAM_NUM_THREADS_CAP=8` + `VLLM_NGRAM_DIVIDE_BY_TP=0` 로 해소.
+>
+> ⚠ **+134.12% 영역 historical baseline (4,679.8 영역 wrapper-historical) 영역 noise 포함**. SUB_086 영역 wrapper-consistent vanilla (gmu=0.80) = 7,709.8 영역 fair baseline 영역 SUB_047 (10,956.5 영역 gmu=0.85) vs SUB_086 (7,710 영역 gmu=0.80) 영역 직접 비교 영역 fair 아님 (gmu 차이) — 단 wrapper-consistent fair = vanilla 7,710 → ngram cap=8 10,957 = **+42%** / suffix PIECEWISE 11,590 = **+50%**.
 
 > **★ Contribution breakdown** (SUB_073 / I001 정정, 2026-05-24): "+134.12% vs vanilla" 의 정확한 분해 —
 >
