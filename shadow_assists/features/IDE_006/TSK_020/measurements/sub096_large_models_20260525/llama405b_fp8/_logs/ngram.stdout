@@ -1,0 +1,69 @@
+INFO 05-25 18:02:56 [arg_utils.py:702] HF_HUB_OFFLINE is True, replace model_id [meta-llama/Meta-Llama-3.1-405B-Instruct-FP8] to model_path [/root/.cache/huggingface/hub/models--meta-llama--Meta-Llama-3.1-405B-Instruct-FP8/snapshots/64a54b704768dfd589a3e4ac05d546052f67f4fd]
+INFO 05-25 18:02:56 [utils.py:233] non-default args: {'kv_cache_dtype': 'fp8', 'max_model_len': 9216, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.85, 'max_num_batched_tokens': 8192, 'max_num_seqs': 256, 'allow_deprecated_quantization': True, 'speculative_config': {'method': 'ngram', 'num_speculative_tokens': 7, 'prompt_lookup_max': 5, 'prompt_lookup_min': 2}, 'compilation_config': {'mode': None, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.PIECEWISE: 1>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}, 'model': '/root/.cache/huggingface/hub/models--meta-llama--Meta-Llama-3.1-405B-Instruct-FP8/snapshots/64a54b704768dfd589a3e4ac05d546052f67f4fd'}
+WARNING 05-25 18:02:56 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_SPEC_METHOD
+WARNING 05-25 18:02:56 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_ALLOW_DEPRECATED_QUANT
+WARNING 05-25 18:02:56 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_CUDAGRAPH_MODE
+WARNING 05-25 18:02:56 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_ENABLE_SPEC_STATS
+INFO 05-25 18:02:56 [model.py:554] Resolved architecture: LlamaForCausalLM
+INFO 05-25 18:02:56 [model.py:1685] Using max model len 9216
+WARNING 05-25 18:02:58 [model.py:1012] The quantization method fbgemm_fp8 is deprecated and will be removed in future versions of vLLM.
+INFO 05-25 18:02:58 [cache.py:247] Using fp8 data type to store kv cache. It reduces the GPU memory footprint and boosts the performance. Meanwhile, it may cause accuracy drop without a proper scaling factor
+INFO 05-25 18:02:58 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+WARNING 05-25 18:02:58 [vllm.py:806] Async scheduling not supported with ngram-based speculative decoding and will be disabled.
+INFO 05-25 18:02:58 [vllm.py:834] Asynchronous scheduling is disabled.
+INFO 05-25 18:02:58 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+<frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+INFO 05-25 18:03:01 [compilation.py:294] Enabled custom fusions: allreduce_rms
+You are using the default legacy behaviour of the <class 'transformers.models.llama.tokenization_llama.LlamaTokenizer'>. This is expected, and simply means that the `legacy` (previous) behavior will be used so nothing changes for you. If you want to use the new behaviour, set `legacy=False`. This should only be set if you understand what it means, and thoroughly read the reason why this was added as explained in https://github.com/huggingface/transformers/pull/24565 - if you loaded a llama tokenizer from a GGUF file you can ignore this message
+Traceback (most recent call last):
+  File "/tmp/run_workload_gen_v3.py", line 255, in <module>
+    main()
+  File "/tmp/run_workload_gen_v3.py", line 210, in main
+    llm = LLM(**llm_kwargs)
+          ^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/entrypoints/llm.py", line 381, in __init__
+    self.llm_engine = LLMEngine.from_engine_args(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/v1/engine/llm_engine.py", line 171, in from_engine_args
+    return cls(
+           ^^^^
+  File "/workspace/vllm_hybrid/vllm/v1/engine/llm_engine.py", line 91, in __init__
+    self.renderer = renderer = renderer_from_config(self.vllm_config)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/renderers/registry.py", line 83, in renderer_from_config
+    tokenizer = cached_tokenizer_from_config(model_config, **kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/tokenizers/registry.py", line 260, in cached_tokenizer_from_config
+    return cached_get_tokenizer(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/tokenizers/registry.py", line 243, in get_tokenizer
+    tokenizer = tokenizer_cls_.from_pretrained(tokenizer_name, *args, **kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_hybrid/vllm/tokenizers/hf.py", line 85, in from_pretrained
+    tokenizer = AutoTokenizer.from_pretrained(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/transformers/models/auto/tokenization_auto.py", line 1175, in from_pretrained
+    return tokenizer_class_fast.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 2113, in from_pretrained
+    return cls._from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 2151, in _from_pretrained
+    slow_tokenizer = (cls.slow_tokenizer_class)._from_pretrained(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 2359, in _from_pretrained
+    tokenizer = cls(*init_inputs, **init_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/transformers/models/llama/tokenization_llama.py", line 171, in __init__
+    self.sp_model = self.get_spm_processor(kwargs.pop("from_slow", False))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/transformers/models/llama/tokenization_llama.py", line 198, in get_spm_processor
+    tokenizer.Load(self.vocab_file)
+  File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/sentencepiece/__init__.py", line 961, in Load
+    return self.LoadFromFile(model_file)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/sentencepiece/__init__.py", line 316, in LoadFromFile
+    return _sentencepiece.SentencePieceProcessor_LoadFromFile(self, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: not a string

@@ -1,6 +1,6 @@
 # CPU Shadow Assists — New Idea 통합 설계
 
-> ★ **production-ready entry point**: [`/spec_decoding/README.md`](../spec_decoding/README.md) — **Trident core** (SuffixDecoding + cudagraph PIECEWISE + gmu=0.80, always-on) / **AGSD** (Trident core + workload/model-size gating) 의 활성화 코드 + Llama-70B 6-workload all-fair benchmark (sonnet +52.1% / chat +68.9% / code +18.8% / mix +45.6~+62.8%, SUB_093 2026-05-25 KST). 본 문서는 ideation / SUB 계보 / Mermaid trace 의 단일 출처.
+> ★ **production-ready entry point**: [`/spec_decoding/README.md`](../spec_decoding/README.md) — **Trident core** (SuffixDecoding + cudagraph PIECEWISE + gmu=0.80, always-on) / **AGSD** (Trident core + workload/model-size/vendor gating). 검증 범위: small (0.5B~3B) → 14B (Phi-3) → 32B (Qwen) → 70-72B (Llama / Qwen). SUB_093/094/095/096 영역 ~130 cell 영역 measured. **R/K boundary < 14B 확정** + **same-size cross-vendor 차이 첫 정량** (SUB_096).
 
 ## Part I · 왜 이 문서가 다시 필요한가
 

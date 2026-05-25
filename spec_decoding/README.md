@@ -152,8 +152,22 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 | **Qwen 7B** | **5,556** | **4,594 (−17.3%)** ⭐ boundary 근접 | 3,516 (−36.7%) | **vanilla** |
 | (참조) Llama 70B | 7,710 | 10,139 (+31.5%) | **11,590 (+50.3%)** ⭐ | **suffix PIECEWISE** |
 
-→ **R/K boundary는 7B ↔ 70B 사이**. ≤ 7B model 영역 **AGSD gating decision = vanilla** / ≥ 70B model 영역 **AGSD gating decision = Trident core (suffix PIECEWISE)**.
+→ **R/K boundary는 7B ↔ 70B 사이** (prior view). SUB_096 영역 **boundary 영역 < 14B 영역 refinement** (§2.4a 참조).
 → (caveat) SUB_093 Phase 2 영역 PIECEWISE-only 재측정 영역 short-wall noise (1-8s wall) — prior SUB_090 영역 default cudagraph 영역 비교 영역 reliable.
+
+### 2.4a Mid/Large model refinement (SUB_096, 6 workload × 3 config) — 새 R/K boundary point
+
+본 §2.4a 영역 SUB_093 Phase 1 (Llama 70B) 와 동일 setup × 새 2 모델 측정.
+
+| Model | TP | scale | sonnet (Trident vs vanilla) | chat | code | mix-bal | 종합 |
+|---|---:|---|---:|---:|---:|---:|---|
+| **Phi-3-medium 14B** | 1 | 500p × 2048in × 1024max | **+90%** ⭐ | **+33%** | **+52%** | **+117%** ⭐⭐ | **6/6 net positive** |
+| **Qwen 2.5-72B** | 8 | 500p × 8192in × 8192max | +54% | +47% | **−5%** ✗ | +44% | 5/6 positive (code 영역 회귀) |
+| (참조) Llama 3.3-70B | 8 | 500p × 8192in × 8192max | +52% | +69% | +19% | +57% | 6/6 net positive |
+
+→ **R/K boundary 영역 refinement**: Phi-3 14B 영역 6/6 net positive 영역 확정 → boundary 영역 7B 영역 14B 사이 영역 14B 측 영역 close.
+→ **same-size cross-vendor 차이 영역 첫 관측**: Llama 70B (6/6 positive +19~+69%) vs Qwen 72B (5/6, code −5%) — **model architecture 영역 spec acceptance 영역 정량 영향**.
+→ Llama 3.1-405B FP8 영역 측정 불가 (tokenizer 파일 미캐시 + fbgemm_fp8 deprecated — `huggingface-cli download` 후 재시도 가능).
 
 ### 2.5 issue #16258 cross-validation (5-model × hardware)
 
@@ -312,27 +326,35 @@ K < R → net regression
 
 ---
 
-## 5. AGSD production decision tree (workload + model-size gating)
+## 5. AGSD production decision tree (workload + model-size + vendor gating)
 
 ```
 prompt 입력
   ↓
-[ AGSD gating: model size + workload 분류 ]
+[ AGSD gating: model size + vendor + workload 분류 ]
   ↓
-  ├─ ≤ 7B (small/medium)
+  ├─ ≤ 7B (small)
   │   → AGSD decision: vanilla (spec OFF)
-  │   이유: 모든 spec method universal regression (-17~-73%, R≫K)
-  │   증거: SUB_078/079/088/090/091 (5 model cross-validation, opt-125m 2.13× = issue #16258 정확 일치)
+  │   이유: universal regression (R≫K), 5 model cross-validation (SUB_078/079/088/090/091)
   │
-  ├─ 7B ↔ 70B (boundary, Qwen 32B 후속 권장)
-  │   → 현재: 7B ngram −17.3% (boundary 근접), 70B suffix +50.3% (net positive)
+  ├─ 14B class (Phi-3 14B 확인, SUB_096)
+  │   → AGSD decision: Trident core ⭐
+  │   효과: sonnet +90% / chat +33% / code +52% / mix-bal +117% / 6/6 net positive
   │
-  └─ ≥ 70B (large)
-      → AGSD decision: Trident core (suffix + PIECEWISE + gmu=0.80)
-      효과 (SUB_093): sonnet +52.1% / chat +68.9% / code +18.8% / mix-sh +62.8% / mix-bal +57.2% / mix-ch +45.6%
+  ├─ 32B (Qwen 32B end-to-end SUB_095)
+  │   → AGSD decision: Trident core
+  │   효과 (end-to-end 2-instance): balanced +93.8% / sonnet-heavy +127.9% / code-heavy +144.1%
+  │
+  ├─ 70-72B (large dense)
+  │   → AGSD decision: workload-aware (model vendor 영역 따라 다름)
+  │   Llama 3.3-70B (SUB_093): 6/6 net positive — sonnet +52% / chat +69% / code +19%
+  │   Qwen 2.5-72B (SUB_096): 5/6 positive, code workload 영역 −5% 회귀 → code 영역 vanilla 권장
+  │
+  └─ ≥ 100B (Llama 405B FP8 영역 측정 불가)
+      → 후속: tokenizer 다운로드 + RedHatAI 영역 native FP8 variant 사용
 ```
 
-→ **AGSD = Trident core + workload/model-size gating**. Llama 70B 단독 영역 모든 workload 영역 Trident core 가 best 이므로 gating = always suffix. AGSD 영역 진짜 가치 영역 mixed-model deployment.
+→ **AGSD = Trident core + workload/model-size/vendor gating**. SUB_096 영역 same-size cross-vendor 차이 발견 — model architecture 영역 spec acceptance 영향 영역 정량 관측 (Llama 70B 6/6 vs Qwen 72B 5/6).
 
 ---
 
@@ -512,6 +534,7 @@ prompt 입력
 | **SUB_093** ⭐⭐ | [`measurements/sub093_full_matrix_util_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub093_full_matrix_util_20260525/RESULTS.md) | **full 57-cell matrix + util** (Llama 70B 18 + 소형 27 + cross-val 12) |
 | **SUB_094** ⭐⭐ | [`measurements/sub094_agsd_e2e_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub094_agsd_e2e_20260525/RESULTS.md) | **AGSD end-to-end** (Qwen 7B × 2 backend + CPU router + 3 mix benchmark) |
 | **SUB_095** ⭐⭐ | [`measurements/sub095_agsd_e2e_multi_model_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub095_agsd_e2e_multi_model_20260525/RESULTS.md) | **AGSD end-to-end × 4 모델** (Qwen 0.5B/1.5B/7B/32B × 3 mix = 36 cell, 12/12 net positive) |
+| **SUB_096** ⭐⭐ | [`measurements/sub096_large_models_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub096_large_models_20260525/RESULTS.md) | **Large-model validation** (Phi-3 14B + Qwen 72B = 36 cell). Phi-3 6/6 positive ⭐ / Qwen 72B 5/6 (code 회귀) / Llama 405B FP8 측정 불가 |
 | **SUB_090** | [`measurements/sub090_model_size_sweep_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub090_model_size_sweep_20260525/RESULTS.md) | R/K boundary 7B↔70B |
 | **SUB_091** ⭐⭐ | [`measurements/sub091_issue16258_precise_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub091_issue16258_precise_20260525/RESULTS.md) | opt-125m 2.13× = issue #16258 정확 reproduction |
 | SUB_092 | [`measurements/sub092_router_poc_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub092_router_poc_20260525/RESULTS.md) | router HTTP server PoC |
