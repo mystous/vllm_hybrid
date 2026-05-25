@@ -10,17 +10,25 @@
 
 ---
 
-## 1. TL;DR (★ SUB_085 v2 suffix PIECEWISE — 2026-05-25 KST 갱신)
+## 1. TL;DR (★ SUB_085-087 all-fair — 2026-05-25 KST 갱신)
 
-**최신 fair comparison (SUB_086 vanilla gmu=0.80 baseline 영역 SUB_085 v2 suffix PIECEWISE gmu=0.80)**:
+**all-fair comparison (vanilla / ngram / suffix 모두 gmu=0.80 + cudagraph PIECEWISE + same wrapper)**:
 
-| workload | **SUB_086 vanilla (gmu=0.80)** | **SUB_085 v2 suffix PIECEWISE** | **fair contribution** | **best K (suffix)** | **best α (suffix)** |
-|---|---:|---:|---:|---:|---:|
-| **sonnet** | 7,709.8 | **11,589.5** | **+50.3%** ⭐ | **5.11** | **77.0 %** |
-| **chat** | 2,186.9 | **3,582.4** | **+63.8%** ⭐ | **10.06** | **92.7 %** |
-| **code** | 6,717.8 | **7,990.0** | **+18.9%** ⭐ (mitigation) | **4.08** | **40.1 %** |
+| workload | **vanilla** (SUB_086) | **ngram cap=8** (SUB_087) | **suffix PIECEWISE** (SUB_085 v2) | ngram vs vanilla | suffix vs vanilla | suffix vs ngram |
+|---|---:|---:|---:|---:|---:|---:|
+| **sonnet** | 7,709.8 | **10,139.2** | **11,589.5** | +31.5% | **+50.3%** ⭐ | +14.3% |
+| **chat** | 2,186.9 | **2,846.4** | **3,582.4** | +30.2% | **+63.8%** ⭐ | +25.9% |
+| **code** | 6,717.8 | **5,326.6** ✗ | **7,990.0** | **−20.7%** ✗ | **+18.9%** ⭐ | **+50.0%** ⭐⭐ |
 
-→ **3 workload 모두 net positive (suffix PIECEWISE)**. code 영역 ngram −23.2% 회귀 → suffix 영역 +18.9% net positive 영역 완전 mitigation.
+→ **suffix PIECEWISE 영역 3 workload 모두 ngram 영역 fair 능가**. code 영역 ngram −20.7% 회귀 → suffix 영역 +18.9% net positive 영역 완전 mitigation. 
+
+K / α (suffix vs ngram, all-fair gmu=0.80 + PIECEWISE):
+
+| workload | ngram K/α | suffix K/α | K 비율 | α 비율 |
+|---|---:|---:|---:|---:|
+| sonnet | 1.66 / 9.5% | 5.11 / 77.0% | 3.08× | 8.1× |
+| chat | 5.98 / 71.2% | 10.06 / 92.7% | 1.68× | 1.30× |
+| code | 1.09 / 1.2% | 4.08 / 40.1% | **3.74×** | **33×** |
 
 **historical (SUB_071 vanilla gmu=0.85 baseline, ngram cap=8 영역)** — wrapper-historical caveat:
 

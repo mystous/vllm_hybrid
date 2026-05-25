@@ -136,7 +136,7 @@ PLN/TST 통과 후 본 코드 베이스에 들어가는 단위 기능. CLAUDE.md
 
 단일 `TSK_###` 가 여러 가설/path/Diff 를 동시에 다루는 경우 sub-단위 로 분리해 추적. 부모 `TSK` 와 1:N 관계. parent ID 를 비고 컬럼에 명시한다. SUB 의 카운터는 prefix 전역 (parent 와 무관하게 1 부터 1 씩 증가).
 
-**다음 부여 번호**: `SUB_087`
+**다음 부여 번호**: `SUB_093`
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
@@ -225,6 +225,12 @@ PLN/TST 통과 후 본 코드 베이스에 들어가는 단위 기능. CLAUDE.md
 | `SUB_084` | **부분 (Phase 2 follow-up — sequential incompat fix 시도)** (2026-05-24) — arctic_inference next blocker 해소 시도 | SUB_081 의 후속. (1) `EngineArgs._is_v1_supported_oracle` 영역 본 fork `vllm/engine/arg_utils.py` 영역 stub method 추가 (항상 True 반환, deprecated method 영역 caller 영역 안 부르므로 무영향). (2) 다음 blocker 노출: `vllm.attention.layer.Attention` 영역 본 fork 1.6 영역 부재 — **단 SUB_085 영역 cudagraph_mode=PIECEWISE 영역 우회 영역 fundamental incompat 영역 dead-end 영역 아님 영역 입증**. 본 fork 영역 추가 patch: `vllm/engine/arg_utils.py` +9 줄 stub. | parent `TSK_020` / SUB_081. **RESULTS**: [`features/IDE_006/TSK_020/measurements/sub084_arctic_next_blocker_20260524/RESULTS.md`](features/IDE_006/TSK_020/measurements/sub084_arctic_next_blocker_20260524/RESULTS.md) |
 | `SUB_085` | **완료 ⭐⭐ (Phase 2 unblock 성공)** (2026-05-25) — suffix + cudagraph_mode=PIECEWISE 영역 3 workload 모두 fair net positive | **fundamental incompat 영역 아니었음** — `compilation_config={cudagraph_mode: PIECEWISE}` 영역 한 줄 영역 우회. wrapper 영역 `VLLM_CUDAGRAPH_MODE` env-tunable 추가 (+5 줄). **v2 (gmu=0.80) 결과**: sonnet 11,589.5 / chat 3,582.4 / code 7,990.0. **fair vs SUB_086 (gmu=0.80 vanilla)**: **sonnet +50.3% / chat +63.8% / code +18.9%** ⭐. ngram cap=8 영역 code -23.2% 회귀 → 본 SUB_085 영역 +18.9% net positive 영역 완전 mitigation. K (suffix vs ngram): sonnet 5.11/3.72 / chat 10.06/6.69 / **code 4.08/1.10 (3.7×)**. | parent `TSK_020` / SUB_081 후속. **RESULTS**: [`features/IDE_006/TSK_020/measurements/sub085_suffix_piecewise_20260525/RESULTS.md`](features/IDE_006/TSK_020/measurements/sub085_suffix_piecewise_20260525/RESULTS.md) |
 | `SUB_086` | **완료 (vanilla gmu=0.80 fair baseline)** (2026-05-25) — SUB_085 v2 영역 fair vs vanilla 비교 baseline | vanilla × gmu=0.80 × same wrapper × 3 workload × 500p × 8192in × 8192max. **결과**: sonnet **7,709.8** (vs SUB_071 영역 historical 4,679.8 영역 +64.7% — wrapper 차이 영역 noise 추정) / chat **2,186.9** (vs SUB_071 chat 2,186.0 영역 stable) / code **6,717.8** (vs SUB_071 code 6,964.5 영역 -3.5% gmu 영향). **함의**: sonnet vanilla historical baseline 영역 wrapper-dependent 영역 noise — 본 doc 의 +134% 등 historical contribution claim 영역 caveat 필요. fair baseline 영역 SUB_086 영역 사용. | parent `TSK_020` (SUB_085 fair comparison baseline). **RESULTS**: [`features/IDE_006/TSK_020/measurements/sub086_vanilla_gmu080_20260525/RESULTS.md`](features/IDE_006/TSK_020/measurements/sub086_vanilla_gmu080_20260525/RESULTS.md) |
+| `SUB_087` | **활성** (2026-05-25 신설) — ngram cap=8 + PIECEWISE + gmu=0.80 fair 비교 baseline | SUB_085 (suffix PIECEWISE gmu=0.80) vs ngram cap=8 fair 비교 위해 ngram 영역도 same config (PIECEWISE + gmu=0.80) 영역 재측정. 3 workload. launcher: `/tmp/run_sub087_ngram_piecewise.sh` | parent `TSK_020` (SUB_085 fair sub-comparison) |
+| `SUB_088` | **활성** (2026-05-25 신설) — small model + suffix decoding 측정 | SUB_078/079 영역 small model + ngram 영역 -48~-65% regression 영역, suffix 영역 small model 에도 도움될 가능성 검증. Qwen 0.5B/1.5B × {sonnet, chat, code} × suffix PIECEWISE | parent `TSK_020` (IDE_010 SuffixDecoding 영역 확장) |
+| `SUB_089` | **활성** (2026-05-25 신설) — SUB_085 v2 canonical 3-run (variance) | SUB_085 v2 영역 single-run measurement. variance 확정 위해 sonnet 영역 3-run + chat/code 영역 추가 2-run | parent `TSK_020` (SUB_085 stability) |
+| `SUB_090` | **대기** (2026-05-25 신설) — R/K model-size scaling sweep | Qwen 0.5B/1.5B/7B/32B 영역 ngram + suffix 영역 code workload 측정 → R = f(model_size) curve 영역 정량화 | parent `TSK_020` (R/K framework 영역 model-size 확장) |
+| `SUB_091` | **대기** (2026-05-25 신설) — precise issue #16258 reproduction | opt-125m / starcoder2-3b HF 다운로드 가능 시 정확 issue setup 재현 | parent `TSK_020` / IDE_014 (cross-validation 영역 정확화) |
+| `SUB_092` | **대기** (2026-05-25 신설) — router HTTP server PoC (Phase 1 actual deploy) | SUB_080 analytical → actual HTTP router service 영역 classifier+router 통합 | parent `TSK_020` (Phase 1 actual implementation) |
 
 ---
 
