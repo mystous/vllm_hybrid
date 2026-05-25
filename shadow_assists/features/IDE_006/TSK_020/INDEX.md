@@ -37,6 +37,38 @@ LLM(speculative_config={"method": "suffix", "num_speculative_tokens": 32},
 
 ---
 
+## ★★ 0a. 전체 측정 결과 (129 cells × 9 모델 × util)
+
+본 § = 모든 모델 × 모든 workload × 모든 config × util 영역 종합 단일 표. 전체 표 ([`/spec_decoding/README.md`](../../../../spec_decoding/README.md) Appendix A) 또는 [`★ _ALL_RESULTS_20260526.md`](measurements/_ALL_RESULTS_20260526.md) 참조.
+
+| 영역 | cell 수 | 모델 |
+|---|---:|---|
+| single-instance per-cell | **93** | 8 모델 × 1-6 workload × 2-3 config (vanilla/ngram/Trident) + CPU%/GPU% util |
+| end-to-end 2-instance + router | **36** | 4 모델 × 3 mix × 3 scenario (vanilla-only/trident-only/AGSD-gated) |
+| **합계** | **129** | opt-125m, Qwen 0.5B/1.5B/7B/32B/72B, starcoder2-3b, Phi-3-medium-14B, Llama-3.3-70B |
+
+### Trident core 평균 효과 (single-instance, 6 workload 평균)
+
+| Model | TP | Trident vs vanilla | net positive |
+|---|---:|---:|:---:|
+| Llama-3.3-70B | 8 | **+50.9%** ⭐ | **6/6** ⭐ |
+| Phi-3-medium-14B | 1 | **+79.0%** ⭐ | **6/6** ⭐ |
+| Qwen2.5-72B | 8 | +38.1% | 5/6 (code 회귀) |
+| Qwen2.5-0.5B | 1 | +79.3% | 3/3 |
+| Qwen2.5-1.5B | 1 | +39.2% | 3/3 |
+| Qwen2.5-7B | 1 | +8.6% | 2/3 |
+
+### AGSD end-to-end 평균 효과 (3 mix 평균)
+
+| Model | TP per backend | AGSD vs vanilla | AGSD vs trident | net positive |
+|---|---:|---:|---:|:---:|
+| Qwen2.5-0.5B | 1 | +79.1% | +21.2% | 3/3 ⭐ |
+| Qwen2.5-1.5B | 1 | +70.2% | +15.0% | 3/3 ⭐ |
+| **Qwen2.5-7B** | 1 | **+80.1%** | **+25.3%** ⭐ | 3/3 ⭐ |
+| Qwen2.5-32B | 2 | +122.0% | +9.8% | 3/3 ⭐ |
+
+---
+
 ## ★★ 0-historical. 이전 best (2026-05-23) — SUB_047 t3 canonical 3-run
 
 | 항목 | 값 |

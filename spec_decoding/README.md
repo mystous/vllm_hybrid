@@ -567,3 +567,144 @@ export ARCTIC_INFERENCE_ENABLED=0 VLLM_PLUGINS=""
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 .venv/bin/pip install arctic-inference   # SuffixDecodingCache class 만 사용
 ```
+
+---
+
+## Appendix A — 전체 측정 결과 단일 표 (129 cells)
+
+> ★ 모든 모델 × 모든 workload × 모든 config × util — 한 표 영역 종합.
+> raw CSV: [`_ALL_MEASUREMENTS.csv`](../shadow_assists/features/IDE_006/TSK_020/measurements/_ALL_MEASUREMENTS.csv)
+> standalone doc: [`_ALL_RESULTS_20260526.md`](../shadow_assists/features/IDE_006/TSK_020/measurements/_ALL_RESULTS_20260526.md)
+> **bold** = 각 (model, workload, kind) 영역 best / single = 1-instance per cell / e2e = 2-backend + CPU router
+
+| # | Model | TP | kind | workload | config | tps | wall(s) | CPU% | GPU% |
+|---:|---|---:|---|---|---|---:|---:|---:|---:|
+| 1 | **opt-125m** | 1 | single | sonnet | **vanilla** | **8,008** ⭐ | 3.2 | 1.8 | 0.2 |
+| 2 | opt-125m | 1 | single | sonnet | ngram | 7,360 | 3.5 | 2.0 | 0.4 |
+| 3 | **opt-125m** | 1 | single | chat | **vanilla** | **9,542** ⭐ | 2.7 | 1.9 | 0.5 |
+| 4 | opt-125m | 1 | single | chat | ngram | 9,514 | 2.7 | 2.3 | 0.1 |
+| 5 | **opt-125m** | 1 | single | code | **vanilla** | **9,772** ⭐ | 2.6 | 2.5 | 0.4 |
+| 6 | opt-125m | 1 | single | code | ngram | 6,435 | 4.0 | 2.3 | 0.3 |
+| 7 | Qwen2.5-0.5B | 1 | single | sonnet | vanilla | 4,234 | 4.5 | 1.8 | 0.1 |
+| 8 | Qwen2.5-0.5B | 1 | single | sonnet | ngram | 4,317 | 4.4 | 1.9 | 0.2 |
+| 9 | **Qwen2.5-0.5B** | 1 | single | sonnet | **agsd** | **10,921** ⭐ | 1.7 | 2.8 | 0.3 |
+| 10 | Qwen2.5-0.5B | 1 | single | chat | vanilla | 6,576 | 3.6 | 2.1 | 0.4 |
+| 11 | Qwen2.5-0.5B | 1 | single | chat | ngram | 5,257 | 4.4 | 1.9 | 0.4 |
+| 12 | **Qwen2.5-0.5B** | 1 | single | chat | **agsd** | **7,694** ⭐ | 3.0 | 2.5 | 0.6 |
+| 13 | Qwen2.5-0.5B | 1 | single | code | vanilla | 7,228 | 3.5 | 1.9 | 0.7 |
+| 14 | Qwen2.5-0.5B | 1 | single | code | ngram | 7,949 | 3.2 | 2.1 | 0.4 |
+| 15 | **Qwen2.5-0.5B** | 1 | single | code | **agsd** | **11,785** ⭐ | 2.2 | 2.2 | 0.3 |
+| 16 | Qwen2.5-0.5B | 1 | e2e | mix-son | vanilla-only | 4,196 | 9.3 | — | — |
+| 17 | Qwen2.5-0.5B | 1 | e2e | mix-son | trident-only | 6,207 | 6.2 | — | — |
+| 18 | **Qwen2.5-0.5B** | 1 | e2e | mix-son | **agsd-gated** | **6,858** ⭐ | 5.7 | — | — |
+| 19 | Qwen2.5-0.5B | 1 | e2e | mix-bal | vanilla-only | 3,672 | 11.6 | — | — |
+| 20 | Qwen2.5-0.5B | 1 | e2e | mix-bal | trident-only | 4,644 | 9.1 | — | — |
+| 21 | **Qwen2.5-0.5B** | 1 | e2e | mix-bal | **agsd-gated** | **6,252** ⭐ | 6.8 | — | — |
+| 22 | Qwen2.5-0.5B | 1 | e2e | mix-cod | vanilla-only | 4,227 | 10.9 | — | — |
+| 23 | Qwen2.5-0.5B | 1 | e2e | mix-cod | trident-only | 7,267 | 6.3 | — | — |
+| 24 | **Qwen2.5-0.5B** | 1 | e2e | mix-cod | **agsd-gated** | **8,605** ⭐ | 5.3 | — | — |
+| 25 | Qwen2.5-1.5B | 1 | single | sonnet | vanilla | 4,771 | 4.4 | 2.0 | 0.5 |
+| 26 | Qwen2.5-1.5B | 1 | single | sonnet | ngram | 3,430 | 6.1 | 1.8 | 0.6 |
+| 27 | **Qwen2.5-1.5B** | 1 | single | sonnet | **agsd** | **6,389** ⭐ | 3.3 | 2.3 | 0.5 |
+| 28 | Qwen2.5-1.5B | 1 | single | chat | vanilla | 5,571 | 3.6 | 2.0 | 0.5 |
+| 29 | Qwen2.5-1.5B | 1 | single | chat | ngram | 4,669 | 4.6 | 1.9 | 0.7 |
+| 30 | **Qwen2.5-1.5B** | 1 | single | chat | **agsd** | **6,528** ⭐ | 3.2 | 1.9 | 0.6 |
+| 31 | Qwen2.5-1.5B | 1 | single | code | vanilla | 6,786 | 3.8 | 2.1 | 0.7 |
+| 32 | Qwen2.5-1.5B | 1 | single | code | ngram | 5,158 | 5.0 | 2.1 | 0.7 |
+| 33 | **Qwen2.5-1.5B** | 1 | single | code | **agsd** | **11,295** ⭐ | 2.3 | 2.7 | 0.8 |
+| 34 | Qwen2.5-1.5B | 1 | e2e | mix-son | vanilla-only | 4,068 | 9.9 | — | — |
+| 35 | Qwen2.5-1.5B | 1 | e2e | mix-son | trident-only | 5,050 | 7.8 | — | — |
+| 36 | **Qwen2.5-1.5B** | 1 | e2e | mix-son | **agsd-gated** | **5,449** ⭐ | 7.4 | — | — |
+| 37 | Qwen2.5-1.5B | 1 | e2e | mix-bal | vanilla-only | 3,512 | 12.2 | — | — |
+| 38 | Qwen2.5-1.5B | 1 | e2e | mix-bal | trident-only | 4,524 | 9.5 | — | — |
+| 39 | **Qwen2.5-1.5B** | 1 | e2e | mix-bal | **agsd-gated** | **5,783** ⭐ | 7.4 | — | — |
+| 40 | Qwen2.5-1.5B | 1 | e2e | mix-cod | vanilla-only | 4,211 | 11.2 | — | — |
+| 41 | Qwen2.5-1.5B | 1 | e2e | mix-cod | trident-only | 8,166 | 5.8 | — | — |
+| 42 | **Qwen2.5-1.5B** | 1 | e2e | mix-cod | **agsd-gated** | **8,932** ⭐ | 5.3 | — | — |
+| 43 | **starcoder2-3b** | 1 | single | sonnet | **vanilla** | **5,758** ⭐ | 4.5 | 3.3 | 0.7 |
+| 44 | starcoder2-3b | 1 | single | sonnet | ngram | 5,007 | 5.1 | 3.0 | 0.5 |
+| 45 | starcoder2-3b | 1 | single | chat | vanilla | 6,723 | 3.8 | 3.4 | 1.0 |
+| 46 | **starcoder2-3b** | 1 | single | chat | **ngram** | **7,486** ⭐ | 3.4 | 3.7 | 0.7 |
+| 47 | starcoder2-3b | 1 | single | code | vanilla | 6,794 | 3.8 | 3.8 | 1.1 |
+| 48 | **starcoder2-3b** | 1 | single | code | **ngram** | **7,242** ⭐ | 3.5 | 4.6 | 0.7 |
+| 49 | Qwen2.5-7B | 1 | single | sonnet | vanilla | 5,584 | 4.5 | 1.8 | 1.1 |
+| 50 | Qwen2.5-7B | 1 | single | sonnet | ngram | 3,200 | 8.0 | 1.8 | 1.2 |
+| 51 | **Qwen2.5-7B** | 1 | single | sonnet | **agsd** | **5,714** ⭐ | 4.5 | 1.9 | 1.5 |
+| 52 | **Qwen2.5-7B** | 1 | single | chat | **vanilla** | **4,557** ⭐ | 3.8 | 1.8 | 1.3 |
+| 53 | Qwen2.5-7B | 1 | single | chat | ngram | 2,777 | 6.3 | 1.9 | 1.4 |
+| 54 | Qwen2.5-7B | 1 | single | chat | agsd | 4,253 | 4.2 | 2.0 | 1.4 |
+| 55 | Qwen2.5-7B | 1 | single | code | vanilla | 6,196 | 4.1 | 2.7 | 1.6 |
+| 56 | Qwen2.5-7B | 1 | single | code | ngram | 5,902 | 4.3 | 2.2 | 1.2 |
+| 57 | **Qwen2.5-7B** | 1 | single | code | **agsd** | **8,071** ⭐ | 3.2 | 2.0 | 1.1 |
+| 58 | Qwen2.5-7B | 1 | e2e | mix-son | vanilla-only | 3,865 | 13.0 | — | — |
+| 59 | Qwen2.5-7B | 1 | e2e | mix-son | trident-only | 5,234 | 9.6 | — | — |
+| 60 | **Qwen2.5-7B** | 1 | e2e | mix-son | **agsd-gated** | **6,025** ⭐ | 8.3 | — | — |
+| 61 | Qwen2.5-7B | 1 | e2e | mix-bal | vanilla-only | 3,753 | 13.3 | — | — |
+| 62 | Qwen2.5-7B | 1 | e2e | mix-bal | trident-only | 4,238 | 11.7 | — | — |
+| 63 | **Qwen2.5-7B** | 1 | e2e | mix-bal | **agsd-gated** | **6,073** ⭐ | 8.2 | — | — |
+| 64 | Qwen2.5-7B | 1 | e2e | mix-cod | vanilla-only | 3,966 | 12.7 | — | — |
+| 65 | Qwen2.5-7B | 1 | e2e | mix-cod | trident-only | 7,512 | 6.7 | — | — |
+| 66 | **Qwen2.5-7B** | 1 | e2e | mix-cod | **agsd-gated** | **8,825** ⭐ | 5.7 | — | — |
+| 67 | Phi-3-medium-14B | 1 | single | sonnet | vanilla | 3,438 | 127.7 | 2.0 | 11.3 |
+| 68 | Phi-3-medium-14B | 1 | single | sonnet | ngram | 4,881 | 89.6 | 1.8 | 9.4 |
+| 69 | **Phi-3-medium-14B** | 1 | single | sonnet | **agsd** | **6,523** ⭐ | 66.8 | 1.8 | 9.0 |
+| 70 | Phi-3-medium-14B | 1 | single | chat | vanilla | 3,138 | 65.9 | 2.0 | 11.3 |
+| 71 | Phi-3-medium-14B | 1 | single | chat | ngram | 3,242 | 61.4 | 1.8 | 9.4 |
+| 72 | **Phi-3-medium-14B** | 1 | single | chat | **agsd** | **4,173** ⭐ | 48.8 | 1.8 | 9.0 |
+| 73 | Phi-3-medium-14B | 1 | single | code | vanilla | 3,340 | 153.3 | 2.0 | 11.3 |
+| 74 | **Phi-3-medium-14B** | 1 | single | code | **ngram** | **5,140** ⭐ | 99.6 | 1.8 | 9.4 |
+| 75 | Phi-3-medium-14B | 1 | single | code | agsd | 5,085 | 100.7 | 1.8 | 9.0 |
+| 76 | Phi-3-medium-14B | 1 | single | mix-sh | vanilla | 3,434 | 114.7 | 2.0 | 11.3 |
+| 77 | Phi-3-medium-14B | 1 | single | mix-sh | ngram | 4,744 | 84.7 | 1.8 | 9.4 |
+| 78 | **Phi-3-medium-14B** | 1 | single | mix-sh | **agsd** | **6,563** ⭐ | 60.6 | 1.8 | 9.0 |
+| 79 | Phi-3-medium-14B | 1 | single | mix-bal | vanilla | 3,374 | 114.2 | 2.0 | 11.3 |
+| 80 | Phi-3-medium-14B | 1 | single | mix-bal | ngram | 4,762 | 80.6 | 1.8 | 9.4 |
+| 81 | **Phi-3-medium-14B** | 1 | single | mix-bal | **agsd** | **7,312** ⭐ | 52.5 | 1.8 | 9.0 |
+| 82 | Phi-3-medium-14B | 1 | single | mix-ch | vanilla | 3,342 | 131.9 | 2.0 | 11.3 |
+| 83 | Phi-3-medium-14B | 1 | single | mix-ch | ngram | 5,246 | 83.8 | 1.8 | 9.4 |
+| 84 | **Phi-3-medium-14B** | 1 | single | mix-ch | **agsd** | **6,390** ⭐ | 68.8 | 1.8 | 9.0 |
+| 85 | Qwen2.5-32B | 2 | e2e | mix-son | vanilla-only | 1,792 | 28.1 | — | — |
+| 86 | Qwen2.5-32B | 2 | e2e | mix-son | trident-only | 4,004 | 12.6 | — | — |
+| 87 | **Qwen2.5-32B** | 2 | e2e | mix-son | **agsd-gated** | **4,084** ⭐ | 12.4 | — | — |
+| 88 | Qwen2.5-32B | 2 | e2e | mix-bal | vanilla-only | 1,779 | 27.9 | — | — |
+| 89 | Qwen2.5-32B | 2 | e2e | mix-bal | trident-only | 2,721 | 18.4 | — | — |
+| 90 | **Qwen2.5-32B** | 2 | e2e | mix-bal | **agsd-gated** | **3,449** ⭐ | 14.3 | — | — |
+| 91 | Qwen2.5-32B | 2 | e2e | mix-cod | vanilla-only | 1,874 | 26.3 | — | — |
+| 92 | Qwen2.5-32B | 2 | e2e | mix-cod | trident-only | 4,551 | 10.8 | — | — |
+| 93 | **Qwen2.5-32B** | 2 | e2e | mix-cod | **agsd-gated** | **4,575** ⭐ | 10.8 | — | — |
+| 94 | Qwen2.5-72B | 8 | single | sonnet | vanilla | 6,456 | 458.1 | 5.8 | 93.2 |
+| 95 | Qwen2.5-72B | 8 | single | sonnet | ngram | 7,968 | 378.4 | 5.4 | 82.0 |
+| 96 | **Qwen2.5-72B** | 8 | single | sonnet | **agsd** | **9,959** ⭐ | 298.7 | 5.3 | 74.7 |
+| 97 | Qwen2.5-72B | 8 | single | chat | vanilla | 2,560 | 164.3 | 5.8 | 93.2 |
+| 98 | Qwen2.5-72B | 8 | single | chat | ngram | 3,462 | 123.3 | 5.4 | 82.0 |
+| 99 | **Qwen2.5-72B** | 8 | single | chat | **agsd** | **3,770** ⭐ | 113.1 | 5.3 | 74.7 |
+| 100 | **Qwen2.5-72B** | 8 | single | code | **vanilla** | **6,227** ⭐ | 652.8 | 5.8 | 93.2 |
+| 101 | Qwen2.5-72B | 8 | single | code | ngram | 5,766 | 702.3 | 5.4 | 82.0 |
+| 102 | Qwen2.5-72B | 8 | single | code | agsd | 5,941 | 685.6 | 5.3 | 74.7 |
+| 103 | Qwen2.5-72B | 8 | single | mix-sh | vanilla | 5,832 | 463.2 | 5.8 | 93.2 |
+| 104 | Qwen2.5-72B | 8 | single | mix-sh | ngram | 6,586 | 410.2 | 5.4 | 82.0 |
+| 105 | **Qwen2.5-72B** | 8 | single | mix-sh | **agsd** | **8,795** ⭐ | 305.7 | 5.3 | 74.7 |
+| 106 | Qwen2.5-72B | 8 | single | mix-bal | vanilla | 5,702 | 446.0 | 5.8 | 93.2 |
+| 107 | Qwen2.5-72B | 8 | single | mix-bal | ngram | 6,692 | 369.3 | 5.4 | 82.0 |
+| 108 | **Qwen2.5-72B** | 8 | single | mix-bal | **agsd** | **8,228** ⭐ | 302.6 | 5.3 | 74.7 |
+| 109 | Qwen2.5-72B | 8 | single | mix-ch | vanilla | 6,231 | 515.6 | 5.8 | 93.2 |
+| 110 | Qwen2.5-72B | 8 | single | mix-ch | ngram | 5,989 | 538.6 | 5.4 | 82.0 |
+| 111 | **Qwen2.5-72B** | 8 | single | mix-ch | **agsd** | **8,491** ⭐ | 377.0 | 5.3 | 74.7 |
+| 112 | Llama-3.3-70B | 8 | single | sonnet | vanilla | 7,679 | 525.9 | 5.6 | 93.8 |
+| 113 | Llama-3.3-70B | 8 | single | sonnet | ngram | 10,759 | 373.3 | 7.6 | 84.2 |
+| 114 | **Llama-3.3-70B** | 8 | single | sonnet | **agsd** | **11,677** ⭐ | 346.1 | 5.3 | 73.3 |
+| 115 | Llama-3.3-70B | 8 | single | chat | vanilla | 2,267 | 159.9 | 5.6 | 93.8 |
+| 116 | Llama-3.3-70B | 8 | single | chat | ngram | 3,244 | 111.4 | 7.6 | 84.2 |
+| 117 | **Llama-3.3-70B** | 8 | single | chat | **agsd** | **3,830** ⭐ | 102.1 | 5.3 | 73.3 |
+| 118 | Llama-3.3-70B | 8 | single | code | vanilla | 6,718 | 581.5 | 5.6 | 93.8 |
+| 119 | Llama-3.3-70B | 8 | single | code | ngram | 5,362 | 729.7 | 7.6 | 84.2 |
+| 120 | **Llama-3.3-70B** | 8 | single | code | **agsd** | **7,981** ⭐ | 494.8 | 5.3 | 73.3 |
+| 121 | Llama-3.3-70B | 8 | single | mix-sh | vanilla | 6,326 | 518.3 | 5.6 | 93.8 |
+| 122 | Llama-3.3-70B | 8 | single | mix-sh | ngram | 7,933 | 407.7 | 7.6 | 84.2 |
+| 123 | **Llama-3.3-70B** | 8 | single | mix-sh | **agsd** | **10,298** ⭐ | 317.8 | 5.3 | 73.3 |
+| 124 | Llama-3.3-70B | 8 | single | mix-bal | vanilla | 6,054 | 452.7 | 5.6 | 93.8 |
+| 125 | Llama-3.3-70B | 8 | single | mix-bal | ngram | 6,554 | 427.6 | 7.6 | 84.2 |
+| 126 | **Llama-3.3-70B** | 8 | single | mix-bal | **agsd** | **9,514** ⭐ | 292.2 | 5.3 | 73.3 |
+| 127 | Llama-3.3-70B | 8 | single | mix-ch | vanilla | 6,495 | 492.2 | 5.6 | 93.8 |
+| 128 | Llama-3.3-70B | 8 | single | mix-ch | ngram | 5,491 | 586.1 | 7.6 | 84.2 |
+| 129 | **Llama-3.3-70B** | 8 | single | mix-ch | **agsd** | **9,457** ⭐ | 339.4 | 5.3 | 73.3 |
