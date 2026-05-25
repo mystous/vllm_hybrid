@@ -119,18 +119,23 @@ def _is_v1_supported_oracle(self, *args, **kwargs):
 → **suffix PIECEWISE 영역 3 workload 모두 ngram + vanilla 영역 능가**.
 → code workload 영역 ngram −20.7% 회귀 → suffix +18.9% **net positive 영역 완전 mitigation**.
 
-### 2.2 Small model (Qwen2.5-0.5B/1.5B + TP=1 + 50p × 1024in × 512max)
+### 2.2 Small / medium model (Qwen2.5-0.5B/1.5B/7B + TP=1)
 
-| model | workload | vanilla (SUB_079) | ngram (SUB_079) | suffix PIECEWISE (SUB_088) | best |
-|---|---|---:|---:|---:|---|
-| **Qwen 0.5B** | sonnet | 11,820.6 | 6,111.8 (−48.3%) | 4,118.5 (−65.2%) | **vanilla** |
-| Qwen 0.5B | chat | 13,675.5 | 4,745.9 (−65.3%) | 4,460.7 (−67.4%) | **vanilla** |
-| Qwen 0.5B | code | 11,056.2 | 4,485.9 (−59.4%) | 5,374.7 (−51.4%) | **vanilla** |
-| **Qwen 1.5B** | sonnet | 12,594.8 | 5,015.5 (−60.2%) | 3,404.9 (−73.0%) | **vanilla** |
-| Qwen 1.5B | chat | 11,589.4 | 4,539.6 (−60.8%) | 4,392.5 (−62.1%) | **vanilla** |
-| Qwen 1.5B | code | 11,015.5 | 4,195.1 (−62.0%) | 4,154.2 (−62.3%) | **vanilla** |
+본 doc 영역 multiple SUB 의 cross-cut (SUB_079 / SUB_088 / SUB_090):
 
-→ **small model 영역 모든 spec method 영역 net regression**. R ≫ K fundamental constraint. **production 권장: spec OFF (vanilla)**.
+| model | config | tps | vs vanilla | source |
+|---|---|---:|---:|---|
+| Qwen 0.5B | vanilla | 11,220.2 | — | SUB_090 |
+| Qwen 0.5B | ngram cap=8 PIECEWISE | 7,793.9 | **−30.5%** | SUB_090 (PIECEWISE 영역 SUB_079 영역 -59% 영역 +28pp 향상) |
+| Qwen 0.5B | suffix PIECEWISE | 5,376.2 | -52.1% | SUB_088/090 |
+| Qwen 1.5B | vanilla | 10,388.5 | — | SUB_090 |
+| Qwen 1.5B | ngram PIECEWISE | 5,855.0 | −43.6% | SUB_090 |
+| Qwen 1.5B | suffix PIECEWISE | 4,064.4 | −60.9% | SUB_090 |
+| **Qwen 7B** | **vanilla** | **5,556.2** | — | **SUB_090** ⭐ |
+| **Qwen 7B** | **ngram PIECEWISE** | **4,593.5** | **−17.3%** ⭐ | **SUB_090 (boundary 근접)** |
+| Qwen 7B | suffix PIECEWISE | 3,515.5 | −36.7% | SUB_090 |
+
+→ **R/K boundary 영역 7B 영역 70B 사이** (Qwen 7B ngram -17% 영역 가장 boundary 근접, large 70B 영역 suffix +50% net positive). **production 권장: ≤7B → vanilla, ≥70B → suffix PIECEWISE, boundary 7B~70B 영역 후속 측정 필요**.
 
 ### 2.3 acceptance metric (suffix vs ngram, all-fair gmu=0.80 + PIECEWISE)
 
@@ -237,20 +242,22 @@ prompt 입력
 
 → **모든 workload 영역 suffix PIECEWISE** 권장 (3 workload 모두 fair best).
 
-### 6.2 Small model (≤ 1.5B)
+### 6.2 Small / medium model (≤ 7B) — SUB_090 측정 확정
 
 ```
 prompt 입력
   ↓
-  → vanilla (spec OFF) — 모든 spec method 영역 -48~-73% 회귀
+  ├─ 0.5B/1.5B → vanilla (spec OFF) — 모든 spec method -30~-61% 회귀
+  └─ 7B (boundary 근접) → vanilla 권장, 또는 ngram PIECEWISE (-17%, acceptable 영역 단 net loss)
 ```
 
-→ **모든 workload 영역 vanilla** 권장.
+→ **≤ 7B 영역 모든 workload 영역 vanilla 권장**. ngram 영역 PIECEWISE mode 영역 small model 영역 영역 회귀 폭 영역 ~30% 감소 (SUB_079 영역 -59% → SUB_090 영역 -30.5%), 단 still net negative.
 
-### 6.3 boundary (1.5B → 70B 사이)
+### 6.3 boundary (7B → 70B 사이)
 
-- 미측정 — SUB_090 영역 R/K model-size sweep 영역 확정 예정.
-- 가설: 7B 영역 boundary, 32B 영역 net positive 가능성 강함.
+- **SUB_090 영역 7B 영역 ngram -17% 영역 boundary 근접** 확인.
+- (참조) Llama-70B 영역 suffix +50.3% net positive 확정 (SUB_085 v2).
+- **boundary 영역 7B↔70B 사이 (예: 14B, 32B)** — 후속 측정 candidate (Qwen 32B cached, TP=2/4).
 
 ---
 
