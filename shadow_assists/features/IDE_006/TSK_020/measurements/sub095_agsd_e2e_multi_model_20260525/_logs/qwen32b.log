@@ -1,0 +1,30 @@
+[22:05:12 KST] qwen32b — launching vanilla (CUDA=1,2, TP=2)
+  vanilla PID: 435825
+[22:05:12 KST] qwen32b — launching trident (CUDA=3,4, TP=2)
+  trident PID: 435827
+[22:05:12 KST] waiting for backends...
+  attempt 1: v=wait t=wait
+  attempt 2: v=wait t=wait
+  attempt 3: v=wait t=wait
+  attempt 4: v=wait t=wait
+  attempt 5: v=wait t=wait
+  attempt 6: v=wait t=wait
+  attempt 7: v=wait t=wait
+  attempt 8: v=wait t=wait
+  attempt 9: v=wait t=wait
+  attempt 10: v=wait t=wait
+  attempt 11: v=wait t=wait
+  both ready at attempt 12
+  router PID: 447944
+[22:07:20 KST] qwen32b — all ready
+[22:07:20 KST] benchmark qwen32b/balanced
+  done
+[22:07:44 KST] benchmark qwen32b/sonnet-heavy
+  done
+[22:08:03 KST] benchmark qwen32b/code-heavy
+  done
+[22:08:21 KST] qwen32b — cleanup
+/tmp/sub095_e2e_launcher.sh: line 82: 447946 Killed                  nohup "$PY" sub094_router.py > "${OUT_DIR}/logs/router.log" 2>&1
+/tmp/sub095_e2e_launcher.sh: line 106: 435825 Killed                  CUDA_VISIBLE_DEVICES=${GPUS_VANILLA} nohup "${VLLM}" serve "${MODEL}" --port ${PORT_V} --host 127.0.0.1 --tensor-parallel-size ${TP} --gpu-memory-utilization ${GMU} --max-model-len ${MML} --max-num-seqs ${MNS} --max-num-batched-tokens ${MNBT} --kv-cache-dtype auto --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${OUT_DIR}/logs/vanilla.log" 2>&1
+/tmp/sub095_e2e_launcher.sh: line 106: 435827 Killed                  CUDA_VISIBLE_DEVICES=${GPUS_TRIDENT} nohup "${VLLM}" serve "${MODEL}" --port ${PORT_T} --host 127.0.0.1 --tensor-parallel-size ${TP} --gpu-memory-utilization ${GMU} --max-model-len ${MML} --max-num-seqs ${MNS} --max-num-batched-tokens ${MNBT} --kv-cache-dtype auto --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${OUT_DIR}/logs/trident.log" 2>&1
+[22:08:31 KST] qwen32b — done

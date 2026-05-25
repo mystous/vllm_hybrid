@@ -1,0 +1,15 @@
+[mix=sonnet-heavy] counts={'sonnet': 120, 'chat': 40, 'code': 40}
+
+=== vanilla-only (url=http://127.0.0.1:8001/v1/completions, n=200, concurrency=32) ===
+  wall=9.3s tps=4196.2 p50=1812ms p99=1985ms
+  backend_counts={'direct': 200}
+
+=== trident-only (url=http://127.0.0.1:8002/v1/completions, n=200, concurrency=32) ===
+  wall=6.2s tps=6206.9 p50=821ms p99=2333ms
+  backend_counts={'direct': 200}
+
+=== agsd-gated (url=http://127.0.0.1:8000/generate, n=200, concurrency=32) ===
+  wall=5.7s tps=6857.7 p50=625ms p99=1951ms
+  backend_counts={'vanilla': 40, 'trident': 160}
+
+[saved] /workspace/vllm_hybrid/shadow_assists/features/IDE_006/TSK_020/measurements/sub095_agsd_e2e_multi_model_20260525/qwen05b/benchmark_sonnet-heavy.json

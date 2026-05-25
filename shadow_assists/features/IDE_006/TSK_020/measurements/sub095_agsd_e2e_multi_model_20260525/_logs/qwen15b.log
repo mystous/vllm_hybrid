@@ -1,0 +1,22 @@
+[22:03:33 KST] qwen15b — launching vanilla (CUDA=1, TP=1)
+  vanilla PID: 425667
+[22:03:33 KST] qwen15b — launching trident (CUDA=2, TP=1)
+  trident PID: 425669
+[22:03:33 KST] waiting for backends...
+  attempt 1: v=wait t=wait
+  attempt 2: v=wait t=wait
+  attempt 3: v=wait t=wait
+  both ready at attempt 4
+  router PID: 430880
+[22:04:21 KST] qwen15b — all ready
+[22:04:21 KST] benchmark qwen15b/balanced
+  done
+[22:04:35 KST] benchmark qwen15b/sonnet-heavy
+  done
+[22:04:50 KST] benchmark qwen15b/code-heavy
+  done
+[22:05:01 KST] qwen15b — cleanup
+/tmp/sub095_e2e_launcher.sh: line 105: 425667 Killed                  CUDA_VISIBLE_DEVICES=${GPUS_VANILLA} nohup "${VLLM}" serve "${MODEL}" --port ${PORT_V} --host 127.0.0.1 --tensor-parallel-size ${TP} --gpu-memory-utilization ${GMU} --max-model-len ${MML} --max-num-seqs ${MNS} --max-num-batched-tokens ${MNBT} --kv-cache-dtype auto --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${OUT_DIR}/logs/vanilla.log" 2>&1
+/tmp/sub095_e2e_launcher.sh: line 105: 425669 Killed                  CUDA_VISIBLE_DEVICES=${GPUS_TRIDENT} nohup "${VLLM}" serve "${MODEL}" --port ${PORT_T} --host 127.0.0.1 --tensor-parallel-size ${TP} --gpu-memory-utilization ${GMU} --max-model-len ${MML} --max-num-seqs ${MNS} --max-num-batched-tokens ${MNBT} --kv-cache-dtype auto --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${OUT_DIR}/logs/trident.log" 2>&1
+/tmp/sub095_e2e_launcher.sh: line 82: 430882 Killed                  nohup "$PY" sub094_router.py > "${OUT_DIR}/logs/router.log" 2>&1
+[22:05:12 KST] qwen15b — done

@@ -5,7 +5,7 @@
 > **scope branch**: `feat/spec-decode-tuning`
 > **본 fork code 변경**: 14 줄 vLLM core (utils + arg_utils) + wrapper env-tunable
 > **★ user-facing top-level guide**: [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) — production-ready Trident core (always-on) / AGSD (Trident core + gating) + 활성화 한 줄 + 6-workload all-fair benchmark (SUB_093)
-> **신규 측정**: [`SUB_093 RESULTS`](measurements/sub093_full_matrix_util_20260525/RESULTS.md) — 57 cell × util 캡처 (Llama 70B 18 + 소형 27 + cross-val 12, 2026-05-25 19:01 KST 완료)
+> **신규 측정**: [`SUB_093 RESULTS`](measurements/sub093_full_matrix_util_20260525/RESULTS.md) — 57 cell × util 캡처 (Llama 70B 18 + 소형 27 + cross-val 12, 2026-05-25 19:01 KST 완료) / [`SUB_094`](measurements/sub094_agsd_e2e_20260525/RESULTS.md) — AGSD end-to-end (Qwen 7B 2-backend) / [`SUB_095`](measurements/sub095_agsd_e2e_multi_model_20260525/RESULTS.md) — AGSD multi-model (Qwen 0.5B/1.5B/7B/32B × 3 mix = 36 cell, 12/12 cell net positive)
 
 ---
 

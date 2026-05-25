@@ -1,0 +1,22 @@
+[22:01:58 KST] qwen05b — launching vanilla (CUDA=1, TP=1)
+  vanilla PID: 415048
+[22:01:58 KST] qwen05b — launching trident (CUDA=2, TP=1)
+  trident PID: 415050
+[22:01:58 KST] waiting for backends...
+  attempt 1: v=wait t=wait
+  attempt 2: v=wait t=wait
+  attempt 3: v=wait t=wait
+  both ready at attempt 4
+  router PID: 421129
+[22:02:46 KST] qwen05b — all ready
+[22:02:46 KST] benchmark qwen05b/balanced
+  done
+[22:02:59 KST] benchmark qwen05b/sonnet-heavy
+  done
+[22:03:11 KST] benchmark qwen05b/code-heavy
+  done
+[22:03:22 KST] qwen05b — cleanup
+/tmp/sub095_e2e_launcher.sh: line 105: 415048 Killed                  CUDA_VISIBLE_DEVICES=${GPUS_VANILLA} nohup "${VLLM}" serve "${MODEL}" --port ${PORT_V} --host 127.0.0.1 --tensor-parallel-size ${TP} --gpu-memory-utilization ${GMU} --max-model-len ${MML} --max-num-seqs ${MNS} --max-num-batched-tokens ${MNBT} --kv-cache-dtype auto --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${OUT_DIR}/logs/vanilla.log" 2>&1
+/tmp/sub095_e2e_launcher.sh: line 82: 421131 Killed                  nohup "$PY" sub094_router.py > "${OUT_DIR}/logs/router.log" 2>&1
+/tmp/sub095_e2e_launcher.sh: line 106: 415050 Killed                  CUDA_VISIBLE_DEVICES=${GPUS_TRIDENT} nohup "${VLLM}" serve "${MODEL}" --port ${PORT_T} --host 127.0.0.1 --tensor-parallel-size ${TP} --gpu-memory-utilization ${GMU} --max-model-len ${MML} --max-num-seqs ${MNS} --max-num-batched-tokens ${MNBT} --kv-cache-dtype auto --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${OUT_DIR}/logs/trident.log" 2>&1
+[22:03:33 KST] qwen05b — done

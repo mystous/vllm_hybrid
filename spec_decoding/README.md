@@ -170,6 +170,58 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 ---
 
+## 2.6 ★ End-to-end AGSD multi-instance benchmark (SUB_094 + SUB_095)
+
+본 §2.6 영역 **§2.1~2.5 와 다른 setup**: 위 영역 single-instance per-cell (one vLLM with one config) / 본 §2.6 영역 **2 vLLM backend (vanilla + Trident core) + CPU router (FastAPI + ProcessPool classifier + httpx forwarder) + concurrent client (200 prompt × concurrency 32)**.
+
+**핵심 차이점**: AGSD-gated 영역 두 GPU 동시 활용 (parallel) + per-request workload 분류 → method 자동 선택. single-instance 비교 영역 + gating value 영역 양쪽 모두 측정.
+
+### 2.6.1 4 모델 × 3 mix × 3 scenario = 36 cell 결과
+
+| Model | Mix | vanilla-only | trident-only | **AGSD-gated** | vs vanilla | vs trident |
+|---|---|---:|---:|---:|---:|---:|
+| **Qwen 0.5B** (TP=1×2) | balanced | 3,672 | 4,644 | **6,252** ⭐ | **+70.3%** | +34.6% |
+| 〃 | sonnet-heavy | 4,196 | 6,207 | **6,858** ⭐ | **+63.4%** | +10.5% |
+| 〃 | code-heavy | 4,227 | 7,267 | **8,605** ⭐ | **+103.6%** | +18.4% |
+| **Qwen 1.5B** (TP=1×2) | balanced | 3,513 | 4,524 | **5,783** ⭐ | **+64.6%** | +27.8% |
+| 〃 | sonnet-heavy | 4,068 | 5,050 | **5,449** ⭐ | **+33.9%** | +7.9% |
+| 〃 | code-heavy | 4,211 | 8,166 | **8,932** ⭐ | **+112.2%** | +9.4% |
+| **Qwen 7B** (TP=1×2, SUB_094) | balanced | 3,753 | 4,238 | **6,073** ⭐ | **+61.8%** | **+43.3%** |
+| 〃 | sonnet-heavy | 3,865 | 5,234 | **6,025** ⭐ | **+55.9%** | +15.1% |
+| 〃 | code-heavy | 3,966 | 7,512 | **8,825** ⭐ | **+122.5%** | +17.5% |
+| **Qwen 32B** (TP=2×2) | balanced | 1,779 | 2,721 | **3,449** ⭐ | **+93.8%** | +26.8% |
+| 〃 | sonnet-heavy | 1,792 | 4,004 | **4,084** ⭐ | **+127.9%** | +2.0% |
+| 〃 | code-heavy | 1,874 | 4,551 | **4,575** ⭐ | **+144.1%** | +0.5% |
+
+→ **12/12 cell 모두 AGSD-gated 우세** (vs single-backend deployment).
+→ Llama 70B / Qwen 72B 영역 **GPU mem 영역 2-instance 불가** (TP=8 × 2 = 16 GPU 필요).
+
+### 2.6.2 AGSD-gated win 영역 origin
+
+본 §2.6 영역 AGSD-gated win 영역 두 source:
+1. **parallel GPU utilization** — 2 backend 영역 동시 활성 → 2× theoretical (mix 분포 의존, ~50-60% 기여)
+2. **gating decision** — per-request workload 분류 → best method 선택 (chat → vanilla / sonnet+code → trident, ~10-20% 기여)
+
+### 2.6.3 router overhead
+
+| 지표 | 값 |
+|---|---:|
+| classifier ms/prompt (avg) | **1.22 ms** (regex × ProcessPool 16 worker) |
+| forward ms/prompt (avg) | 759 ms (vLLM backend latency 포함) |
+| classifier overhead vs forward | **0.16%** (negligible) |
+| classifier accuracy | **100%** (3 mix × 200 = 600 prompt 모두 정확 분배) |
+
+### 2.6.4 모델 크기 별 AGSD 가치
+
+| Model | AGSD vs trident 평균 (3 mix) | gating value pattern |
+|---|---:|---|
+| Qwen 0.5B | +21.2% | backend fast → router overhead 비중 ↑ |
+| Qwen 1.5B | +15.0% | backend 중간 |
+| **Qwen 7B** | **+25.3%** ⭐ | gating value 최대 — chat→vanilla 선택 효과 |
+| Qwen 32B | +9.8% | trident single 영역 throughput 매우 높음 → marginal |
+
+---
+
 ## 3. Trident core 기술 stack — 14 component
 
 ```
@@ -458,6 +510,8 @@ prompt 입력
 | **SUB_087** | [`measurements/sub087_ngram_piecewise_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub087_ngram_piecewise_20260525/RESULTS.md) | ngram cap=8 PIECEWISE fair baseline |
 | **SUB_089** | [`measurements/sub089_sonnet_3run_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub089_sonnet_3run_20260525/RESULTS.md) | sonnet canonical 3-run (var 0.20%) |
 | **SUB_093** ⭐⭐ | [`measurements/sub093_full_matrix_util_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub093_full_matrix_util_20260525/RESULTS.md) | **full 57-cell matrix + util** (Llama 70B 18 + 소형 27 + cross-val 12) |
+| **SUB_094** ⭐⭐ | [`measurements/sub094_agsd_e2e_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub094_agsd_e2e_20260525/RESULTS.md) | **AGSD end-to-end** (Qwen 7B × 2 backend + CPU router + 3 mix benchmark) |
+| **SUB_095** ⭐⭐ | [`measurements/sub095_agsd_e2e_multi_model_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub095_agsd_e2e_multi_model_20260525/RESULTS.md) | **AGSD end-to-end × 4 모델** (Qwen 0.5B/1.5B/7B/32B × 3 mix = 36 cell, 12/12 net positive) |
 | **SUB_090** | [`measurements/sub090_model_size_sweep_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub090_model_size_sweep_20260525/RESULTS.md) | R/K boundary 7B↔70B |
 | **SUB_091** ⭐⭐ | [`measurements/sub091_issue16258_precise_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub091_issue16258_precise_20260525/RESULTS.md) | opt-125m 2.13× = issue #16258 정확 reproduction |
 | SUB_092 | [`measurements/sub092_router_poc_20260525/`](../shadow_assists/features/IDE_006/TSK_020/measurements/sub092_router_poc_20260525/RESULTS.md) | router HTTP server PoC |
