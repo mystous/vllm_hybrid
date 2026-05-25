@@ -5,7 +5,7 @@
 > **branch**: `feat/spec-decode-tuning`
 > **상위**: [`README.md`](README.md) — Best Configuration index
 > **★★ user-facing entry point**: [`/spec_decoding/README.md`](../../../../spec_decoding/README.md) — top-level production guide (Trident core + AGSD framework)
-> **종합 리포트**: [`COMPREHENSIVE_REPORT_20260525.md`](COMPREHENSIVE_REPORT_20260525.md) / [`OUTSTANDING_CONTRIBUTIONS_20260525.md`](OUTSTANDING_CONTRIBUTIONS_20260525.md) / [`SUB_093 RESULTS`](measurements/sub093_full_matrix_util_20260525/RESULTS.md) (57 cell + util) / [`SUB_094 AGSD e2e`](measurements/sub094_agsd_e2e_20260525/RESULTS.md) (Qwen 7B 2-backend) / [`SUB_095 AGSD multi-model`](measurements/sub095_agsd_e2e_multi_model_20260525/RESULTS.md) (4 모델 × 3 mix = 36 cell) / [`SUB_096 Large-model`](measurements/sub096_large_models_20260525/RESULTS.md) (Phi-3 14B + Qwen 72B = 36 cell, R/K boundary refinement)
+> **종합 리포트**: [`COMPREHENSIVE_REPORT_20260525.md`](COMPREHENSIVE_REPORT_20260525.md) / [`OUTSTANDING_CONTRIBUTIONS_20260525.md`](OUTSTANDING_CONTRIBUTIONS_20260525.md) / **[`★ _ALL_RESULTS_20260526.md`](measurements/_ALL_RESULTS_20260526.md)** (전체 129 cell 단일 doc) / [`SUB_093`](measurements/sub093_full_matrix_util_20260525/RESULTS.md) / [`SUB_094`](measurements/sub094_agsd_e2e_20260525/RESULTS.md) / [`SUB_095`](measurements/sub095_agsd_e2e_multi_model_20260525/RESULTS.md) / [`SUB_096`](measurements/sub096_large_models_20260525/RESULTS.md)
 
 ---
 
