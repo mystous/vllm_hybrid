@@ -92,39 +92,66 @@ sub,model,tp,workload,config,kind,tps,wall_s,cpu_pct,gpu_pct
 096,Phi-3-medium-14B,1,mix-ch,agsd,single-instance,6389.70,68.78,1.79,9.04
 096,Phi-3-medium-14B,1,mix-sh,agsd,single-instance,6562.60,60.56,1.79,9.04
 096,Phi-3-medium-14B,1,sonnet,agsd,single-instance,6523.06,66.81,1.79,9.04
-094,Qwen2.5-7B,1,mix-bal,vanilla-only,end-to-end (2-instance),3753.32,13.29,,
-094,Qwen2.5-7B,1,mix-bal,trident-only,end-to-end (2-instance),4238.27,11.73,,
-094,Qwen2.5-7B,1,mix-bal,agsd-gated,end-to-end (2-instance),6072.82,8.20,,
-094,Qwen2.5-7B,1,mix-son,vanilla-only,end-to-end (2-instance),3864.68,13.02,,
-094,Qwen2.5-7B,1,mix-son,trident-only,end-to-end (2-instance),5233.54,9.61,,
-094,Qwen2.5-7B,1,mix-son,agsd-gated,end-to-end (2-instance),6025.35,8.35,,
-094,Qwen2.5-7B,1,mix-cod,vanilla-only,end-to-end (2-instance),3966.38,12.66,,
-094,Qwen2.5-7B,1,mix-cod,trident-only,end-to-end (2-instance),7512.25,6.69,,
-094,Qwen2.5-7B,1,mix-cod,agsd-gated,end-to-end (2-instance),8824.66,5.70,,
-095,Qwen2.5-0.5B,1,mix-bal,vanilla-only,end-to-end (2-instance),3672.37,11.56,,
-095,Qwen2.5-0.5B,1,mix-bal,trident-only,end-to-end (2-instance),4643.57,9.06,,
-095,Qwen2.5-0.5B,1,mix-bal,agsd-gated,end-to-end (2-instance),6252.11,6.78,,
-095,Qwen2.5-0.5B,1,mix-son,vanilla-only,end-to-end (2-instance),4196.18,9.31,,
-095,Qwen2.5-0.5B,1,mix-son,trident-only,end-to-end (2-instance),6206.93,6.23,,
-095,Qwen2.5-0.5B,1,mix-son,agsd-gated,end-to-end (2-instance),6857.68,5.66,,
-095,Qwen2.5-0.5B,1,mix-cod,vanilla-only,end-to-end (2-instance),4227.17,10.86,,
-095,Qwen2.5-0.5B,1,mix-cod,trident-only,end-to-end (2-instance),7267.24,6.27,,
-095,Qwen2.5-0.5B,1,mix-cod,agsd-gated,end-to-end (2-instance),8605.48,5.32,,
-095,Qwen2.5-1.5B,1,mix-bal,vanilla-only,end-to-end (2-instance),3512.46,12.17,,
-095,Qwen2.5-1.5B,1,mix-bal,trident-only,end-to-end (2-instance),4523.97,9.46,,
-095,Qwen2.5-1.5B,1,mix-bal,agsd-gated,end-to-end (2-instance),5782.84,7.44,,
-095,Qwen2.5-1.5B,1,mix-son,vanilla-only,end-to-end (2-instance),4067.51,9.95,,
-095,Qwen2.5-1.5B,1,mix-son,trident-only,end-to-end (2-instance),5050.41,7.84,,
-095,Qwen2.5-1.5B,1,mix-son,agsd-gated,end-to-end (2-instance),5449.34,7.39,,
-095,Qwen2.5-1.5B,1,mix-cod,vanilla-only,end-to-end (2-instance),4210.87,11.24,,
-095,Qwen2.5-1.5B,1,mix-cod,trident-only,end-to-end (2-instance),8165.64,5.77,,
-095,Qwen2.5-1.5B,1,mix-cod,agsd-gated,end-to-end (2-instance),8931.97,5.29,,
-095,Qwen2.5-32B,2,mix-bal,vanilla-only,end-to-end (2-instance),1779.28,27.86,,
-095,Qwen2.5-32B,2,mix-bal,trident-only,end-to-end (2-instance),2720.58,18.42,,
-095,Qwen2.5-32B,2,mix-bal,agsd-gated,end-to-end (2-instance),3449.07,14.33,,
-095,Qwen2.5-32B,2,mix-son,vanilla-only,end-to-end (2-instance),1792.07,28.07,,
-095,Qwen2.5-32B,2,mix-son,trident-only,end-to-end (2-instance),4004.11,12.55,,
-095,Qwen2.5-32B,2,mix-son,agsd-gated,end-to-end (2-instance),4084.03,12.41,,
-095,Qwen2.5-32B,2,mix-cod,vanilla-only,end-to-end (2-instance),1874.12,26.30,,
-095,Qwen2.5-32B,2,mix-cod,trident-only,end-to-end (2-instance),4550.59,10.83,,
-095,Qwen2.5-32B,2,mix-cod,agsd-gated,end-to-end (2-instance),4574.94,10.77,,
+097-A,Qwen2.5-32B,8,chat,vanilla,single-instance,8943.15,197.68,5.77,93.23
+097-A,Qwen2.5-32B,8,code,vanilla,single-instance,10636.53,385.09,5.77,93.23
+097-A,Qwen2.5-32B,8,mix-bal,vanilla,single-instance,9514.41,352.90,5.77,93.23
+097-A,Qwen2.5-32B,8,mix-ch,vanilla,single-instance,9814.03,368.00,5.77,93.23
+097-A,Qwen2.5-32B,8,mix-sh,vanilla,single-instance,10050.79,360.38,5.77,93.23
+097-A,Qwen2.5-32B,8,sonnet,vanilla,single-instance,11724.87,346.11,5.77,93.23
+097-A,Qwen2.5-32B,8,chat,ngram,single-instance,10542.07,162.18,5.34,73.63
+097-A,Qwen2.5-32B,8,code,ngram,single-instance,10174.21,402.59,5.34,73.63
+097-A,Qwen2.5-32B,8,mix-bal,ngram,single-instance,11900.04,283.19,5.34,73.63
+097-A,Qwen2.5-32B,8,mix-ch,ngram,single-instance,10545.68,344.71,5.34,73.63
+097-A,Qwen2.5-32B,8,mix-sh,ngram,single-instance,13367.75,275.13,5.34,73.63
+097-A,Qwen2.5-32B,8,sonnet,ngram,single-instance,16622.41,242.69,5.34,73.63
+097-A,Qwen2.5-32B,8,chat,agsd,single-instance,12066.49,142.85,5.33,62.59
+097-A,Qwen2.5-32B,8,code,agsd,single-instance,10551.32,388.20,5.33,62.59
+097-A,Qwen2.5-32B,8,mix-bal,agsd,single-instance,15837.82,208.42,5.33,62.59
+097-A,Qwen2.5-32B,8,mix-ch,agsd,single-instance,14379.59,249.43,5.33,62.59
+097-A,Qwen2.5-32B,8,mix-sh,agsd,single-instance,15347.28,232.94,5.33,62.59
+097-A,Qwen2.5-32B,8,sonnet,agsd,single-instance,19205.96,210.90,5.33,62.59
+094,Qwen2.5-7B,1,mix-bal,vanilla-only,e2e TP=1×2,3753.32,13.29,,
+094,Qwen2.5-7B,1,mix-bal,trident-only,e2e TP=1×2,4238.27,11.73,,
+094,Qwen2.5-7B,1,mix-bal,agsd-gated,e2e TP=1×2,6072.82,8.20,,
+094,Qwen2.5-7B,1,mix-son,vanilla-only,e2e TP=1×2,3864.68,13.02,,
+094,Qwen2.5-7B,1,mix-son,trident-only,e2e TP=1×2,5233.54,9.61,,
+094,Qwen2.5-7B,1,mix-son,agsd-gated,e2e TP=1×2,6025.35,8.35,,
+094,Qwen2.5-7B,1,mix-cod,vanilla-only,e2e TP=1×2,3966.38,12.66,,
+094,Qwen2.5-7B,1,mix-cod,trident-only,e2e TP=1×2,7512.25,6.69,,
+094,Qwen2.5-7B,1,mix-cod,agsd-gated,e2e TP=1×2,8824.66,5.70,,
+095,Qwen2.5-0.5B,1,mix-bal,vanilla-only,e2e TP=1×2,3672.37,11.56,,
+095,Qwen2.5-0.5B,1,mix-bal,trident-only,e2e TP=1×2,4643.57,9.06,,
+095,Qwen2.5-0.5B,1,mix-bal,agsd-gated,e2e TP=1×2,6252.11,6.78,,
+095,Qwen2.5-0.5B,1,mix-son,vanilla-only,e2e TP=1×2,4196.18,9.31,,
+095,Qwen2.5-0.5B,1,mix-son,trident-only,e2e TP=1×2,6206.93,6.23,,
+095,Qwen2.5-0.5B,1,mix-son,agsd-gated,e2e TP=1×2,6857.68,5.66,,
+095,Qwen2.5-0.5B,1,mix-cod,vanilla-only,e2e TP=1×2,4227.17,10.86,,
+095,Qwen2.5-0.5B,1,mix-cod,trident-only,e2e TP=1×2,7267.24,6.27,,
+095,Qwen2.5-0.5B,1,mix-cod,agsd-gated,e2e TP=1×2,8605.48,5.32,,
+095,Qwen2.5-1.5B,1,mix-bal,vanilla-only,e2e TP=1×2,3512.46,12.17,,
+095,Qwen2.5-1.5B,1,mix-bal,trident-only,e2e TP=1×2,4523.97,9.46,,
+095,Qwen2.5-1.5B,1,mix-bal,agsd-gated,e2e TP=1×2,5782.84,7.44,,
+095,Qwen2.5-1.5B,1,mix-son,vanilla-only,e2e TP=1×2,4067.51,9.95,,
+095,Qwen2.5-1.5B,1,mix-son,trident-only,e2e TP=1×2,5050.41,7.84,,
+095,Qwen2.5-1.5B,1,mix-son,agsd-gated,e2e TP=1×2,5449.34,7.39,,
+095,Qwen2.5-1.5B,1,mix-cod,vanilla-only,e2e TP=1×2,4210.87,11.24,,
+095,Qwen2.5-1.5B,1,mix-cod,trident-only,e2e TP=1×2,8165.64,5.77,,
+095,Qwen2.5-1.5B,1,mix-cod,agsd-gated,e2e TP=1×2,8931.97,5.29,,
+095,Qwen2.5-32B,2,mix-bal,vanilla-only,e2e TP=2×2,1779.28,27.86,,
+095,Qwen2.5-32B,2,mix-bal,trident-only,e2e TP=2×2,2720.58,18.42,,
+095,Qwen2.5-32B,2,mix-bal,agsd-gated,e2e TP=2×2,3449.07,14.33,,
+095,Qwen2.5-32B,2,mix-son,vanilla-only,e2e TP=2×2,1792.07,28.07,,
+095,Qwen2.5-32B,2,mix-son,trident-only,e2e TP=2×2,4004.11,12.55,,
+095,Qwen2.5-32B,2,mix-son,agsd-gated,e2e TP=2×2,4084.03,12.41,,
+095,Qwen2.5-32B,2,mix-cod,vanilla-only,e2e TP=2×2,1874.12,26.30,,
+095,Qwen2.5-32B,2,mix-cod,trident-only,e2e TP=2×2,4550.59,10.83,,
+095,Qwen2.5-32B,2,mix-cod,agsd-gated,e2e TP=2×2,4574.94,10.77,,
+097-B,Qwen2.5-32B,4,mix-bal,vanilla-only,e2e TP=4×2,2416.27,20.61,,
+097-B,Qwen2.5-32B,4,mix-bal,trident-only,e2e TP=4×2,3461.32,14.37,,
+097-B,Qwen2.5-32B,4,mix-bal,agsd-gated,e2e TP=4×2,4894.25,10.18,,
+097-B,Qwen2.5-32B,4,mix-son,vanilla-only,e2e TP=4×2,2505.93,20.13,,
+097-B,Qwen2.5-32B,4,mix-son,trident-only,e2e TP=4×2,5329.66,9.50,,
+097-B,Qwen2.5-32B,4,mix-son,agsd-gated,e2e TP=4×2,5576.35,9.08,,
+097-B,Qwen2.5-32B,4,mix-cod,vanilla-only,e2e TP=4×2,2569.27,19.15,,
+097-B,Qwen2.5-32B,4,mix-cod,trident-only,e2e TP=4×2,5381.54,9.20,,
+097-B,Qwen2.5-32B,4,mix-cod,agsd-gated,e2e TP=4×2,6139.43,8.03,,

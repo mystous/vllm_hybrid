@@ -136,7 +136,7 @@ PLN/TST 통과 후 본 코드 베이스에 들어가는 단위 기능. CLAUDE.md
 
 단일 `TSK_###` 가 여러 가설/path/Diff 를 동시에 다루는 경우 sub-단위 로 분리해 추적. 부모 `TSK` 와 1:N 관계. parent ID 를 비고 컬럼에 명시한다. SUB 의 카운터는 prefix 전역 (parent 와 무관하게 1 부터 1 씩 증가).
 
-**다음 부여 번호**: `SUB_097`
+**다음 부여 번호**: `SUB_098`
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
@@ -235,6 +235,7 @@ PLN/TST 통과 후 본 코드 베이스에 들어가는 단위 기능. CLAUDE.md
 | `SUB_094` | **완료** (2026-05-25) — AGSD end-to-end (2 vLLM backend + CPU router + mixed traffic benchmark) | Qwen 7B × 2 instance (vanilla GPU 1 / Trident GPU 2) + FastAPI router (uvloop + ProcessPool × 16 worker + httpx conn pool 1024). 3 mix × 200 prompt × concurrency 32. **AGSD-gated 3 mix 모두 net positive** (vs trident-only): balanced +43.3%, sonnet-heavy +15.1%, code-heavy +17.5%. classifier 100% accuracy, overhead 1.22 ms/prompt (= 0.16%). 본 fork vLLM core 변경 없음. | parent `TSK_020`. **RESULTS**: [`features/IDE_006/TSK_020/measurements/sub094_agsd_e2e_20260525/RESULTS.md`](features/IDE_006/TSK_020/measurements/sub094_agsd_e2e_20260525/RESULTS.md) |
 | `SUB_095` | **활성** (2026-05-25 redesigned) — Option A: end-to-end AGSD multi-instance gating (3 new models) | SUB_094 형식 (2 backend + CPU router + mixed traffic) 영역 추가 모델 확장. 대상: Qwen 0.5B (TP=1 × 2 = 2 GPU), Qwen 1.5B (TP=1 × 2), Qwen 32B (TP=2 × 2 = 4 GPU). Qwen 7B 영역 SUB_094 영역 done. Llama 70B / Qwen 72B 영역 GPU mem 불가 (TP=8 × 2 = 16 GPU 필요). 각 모델 × 3 mix × 3 scenario (vanilla-only / trident-only / AGSD-gated). 예상 3-4 시간. | parent `TSK_020`. **RESULTS**: [`features/IDE_006/TSK_020/measurements/sub095_agsd_e2e_multi_model_20260525/`](features/IDE_006/TSK_020/measurements/sub095_agsd_e2e_multi_model_20260525/) |
 | `SUB_096` | **활성** (2026-05-25 launched) — large-model validation (no MoE) | Qwen 72B (TP=8) / Phi-3 14B (TP=1) / Llama 3.1-405B FP8 (TP=8) × 6 workload × 3 config = 54 cells. SUB_093 Phase 1 형식 (single-instance per cell). 예상 ~10-15 시간. | parent `TSK_020`. **RESULTS**: [`features/IDE_006/TSK_020/measurements/sub096_large_models_20260525/`](features/IDE_006/TSK_020/measurements/sub096_large_models_20260525/) |
+| `SUB_097` | **활성** (2026-05-26 launched) — Qwen 32B TP=8 single-instance + AGSD TP=4×2 end-to-end | Phase A: Qwen 32B TP=8 (Llama 70B 동일 scale 500p × 8192 × 8192) × 6 workload × 3 config = 18 cells. Phase B: Qwen 32B TP=4 × 2 backend (vanilla GPU 0-3 / Trident GPU 4-7) + CPU router × 3 mix × 3 scenario = 9 cells. 합 27 cells. 예상 ~3-4 시간. | parent `TSK_020`. **RESULTS**: [`features/IDE_006/TSK_020/measurements/sub097_qwen32b_tp8_and_agsd_20260526/`](features/IDE_006/TSK_020/measurements/sub097_qwen32b_tp8_and_agsd_20260526/) |
 
 ---
 

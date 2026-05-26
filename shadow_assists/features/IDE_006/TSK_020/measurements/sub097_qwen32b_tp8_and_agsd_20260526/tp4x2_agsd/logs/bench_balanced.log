@@ -1,0 +1,15 @@
+[mix=balanced] counts={'sonnet': 68, 'chat': 66, 'code': 66}
+
+=== vanilla-only (url=http://127.0.0.1:8001/v1/completions, n=200, concurrency=32) ===
+  wall=20.6s tps=2416.3 p50=3101ms p99=3218ms
+  backend_counts={'direct': 200}
+
+=== trident-only (url=http://127.0.0.1:8002/v1/completions, n=200, concurrency=32) ===
+  wall=14.4s tps=3461.3 p50=1685ms p99=5036ms
+  backend_counts={'direct': 200}
+
+=== agsd-gated (url=http://127.0.0.1:8000/generate, n=200, concurrency=32) ===
+  wall=10.2s tps=4894.3 p50=791ms p99=3235ms
+  backend_counts={'vanilla': 66, 'trident': 134}
+
+[saved] /workspace/vllm_hybrid/shadow_assists/features/IDE_006/TSK_020/measurements/sub097_qwen32b_tp8_and_agsd_20260526/tp4x2_agsd/benchmark_balanced.json
