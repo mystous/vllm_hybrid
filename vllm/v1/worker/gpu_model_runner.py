@@ -5,6 +5,7 @@ import functools
 import gc
 import itertools
 import logging
+import os
 import threading
 import time
 from collections import defaultdict
@@ -223,6 +224,66 @@ logger = init_logger(__name__)
 
 # TSK_019 plan C2 — swap_out 발화 counter (module-level, all worker procs).
 _neo_swap_out_call_count = 0
+
+# ─── IDE_018 Phase-Burst integration (SUB_169) ───────────────────────────
+# ENV `VLLM_USE_PHASE_BURST=1` 시 phase_burst module 의 lazy init.
+# multiprocess executor 의 child fork race 회피 — module import 시점에 worker
+# thread spawn 않고, 첫 mark_phase 호출 시점 (worker process 의 main loop 안)
+# 에서 init.
+_phase_burst_enabled: bool = (
+    os.environ.get("VLLM_USE_PHASE_BURST", "0") == "1"
+)
+_phase_burst_rt = None
+_phase_burst_init_attempted: bool = False
+_phase_burst_PHASE_ATTENTION = 1
+_phase_burst_PHASE_LINEAR = 2
+_phase_burst_PHASE_SAMPLE = 3
+_phase_burst_PHASE_POST_STEP = 5
+
+
+def _phase_burst_get_runtime():
+    """Lazy initialise phase_burst runtime in the calling process.
+
+    First call inside a worker process spawns the C++ worker thread pool
+    pinned to cpu_base..cpu_base+num_workers-1. Subsequent calls return
+    the cached instance.
+    """
+    global _phase_burst_rt, _phase_burst_init_attempted
+    global _phase_burst_PHASE_ATTENTION, _phase_burst_PHASE_LINEAR
+    global _phase_burst_PHASE_SAMPLE, _phase_burst_PHASE_POST_STEP
+    global _phase_burst_enabled
+    if not _phase_burst_enabled:
+        return None
+    if _phase_burst_rt is not None:
+        return _phase_burst_rt
+    if _phase_burst_init_attempted:
+        return None
+    _phase_burst_init_attempted = True
+    try:
+        import phase_burst as _phase_burst_mod  # noqa: E402
+        rt = _phase_burst_mod.PhaseBurstRuntime.global_instance()
+        _phase_burst_PHASE_ATTENTION = int(_phase_burst_mod.Phase.ATTENTION)
+        _phase_burst_PHASE_LINEAR = int(_phase_burst_mod.Phase.LINEAR)
+        _phase_burst_PHASE_SAMPLE = int(_phase_burst_mod.Phase.SAMPLE)
+        _phase_burst_PHASE_POST_STEP = int(_phase_burst_mod.Phase.POST_STEP)
+        import atexit  # noqa: E402
+        atexit.register(_phase_burst_mod.PhaseBurstRuntime.shutdown_global)
+        _phase_burst_rt = rt
+        logger.info(
+            "IDE_018 phase-burst: lazy-init OK (runtime=%s workers/cpu_base=%s/%s)",
+            type(rt).__name__,
+            getattr(rt, "num_workers", "?"),
+            getattr(rt, "cpu_base", "?"),
+        )
+        return rt
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "IDE_018 phase-burst: lazy-init failed (%s) — disabled",
+            exc,
+        )
+        _phase_burst_enabled = False
+        return None
+# ────────────────────────────────────────────────────────────────────────
 
 AttnMetadataDict: TypeAlias = dict[str, AttentionMetadata]
 # list when ubatching is enabled
@@ -3514,6 +3575,15 @@ class GPUModelRunner(
         logits: torch.Tensor | None,
         spec_decode_metadata: SpecDecodeMetadata | None,
     ) -> SamplerOutput:
+        # ── IDE_018 phase-burst hook (SUB_169) ──
+        if _phase_burst_enabled:
+            _pb_rt = _phase_burst_get_runtime()
+            if _pb_rt is not None:
+                _pb_rt.mark_phase(
+                    _phase_burst_PHASE_SAMPLE,
+                    getattr(self, "_phase_burst_step_id", 0),
+                )
+        # ────────────────────────────────────────
         # Sample the next token and get logprobs if needed.
         sampling_metadata = self.input_batch.sampling_metadata
         # Update output token ids with tokens sampled in last step
@@ -3556,6 +3626,15 @@ class GPUModelRunner(
         dict[str, int],
         list[int],
     ]:
+        # ── IDE_018 phase-burst hook (SUB_169) ──
+        if _phase_burst_enabled:
+            _pb_rt = _phase_burst_get_runtime()
+            if _pb_rt is not None:
+                _pb_rt.mark_phase(
+                    _phase_burst_PHASE_POST_STEP,
+                    getattr(self, "_phase_burst_step_id", 0),
+                )
+        # ────────────────────────────────────────
         num_nans_in_logits = {}
         if envs.VLLM_COMPUTE_NANS_IN_LOGITS:
             num_nans_in_logits = self._get_nans_in_logits(logits)
@@ -3705,6 +3784,15 @@ class GPUModelRunner(
         Returns:
             Model output tensor
         """
+        # ── IDE_018 phase-burst hook (SUB_169) ──
+        if _phase_burst_enabled:
+            _pb_rt = _phase_burst_get_runtime()
+            if _pb_rt is not None:
+                _pb_rt.mark_phase(
+                    _phase_burst_PHASE_ATTENTION,
+                    getattr(self, "_phase_burst_step_id", 0),
+                )
+        # ────────────────────────────────────────
         # NEO 식 dual sub-batch dispatch — Step 5.4 + Step 5.5.
         # Step 5.4 wired the ``forward_neo_pipelined`` branch + list-output
         # merge. Step 5.5 (本 commit) routes the call through vLLM's
@@ -4086,6 +4174,20 @@ class GPUModelRunner(
         scheduler_output: "SchedulerOutput",
         intermediate_tensors: IntermediateTensors | None = None,
     ) -> ModelRunnerOutput | AsyncModelRunnerOutput | IntermediateTensors | None:
+        # ── IDE_018 phase-burst hook (SUB_169) ──
+        # step boundary: bump step_id + mark ATTENTION (compose phase).
+        # task enqueue 는 본 turn 에서 stub (실제 task wiring 별도 turn).
+        if _phase_burst_enabled:
+            _pb_rt = _phase_burst_get_runtime()
+            if _pb_rt is not None:
+                self._phase_burst_step_id = (
+                    getattr(self, "_phase_burst_step_id", 0) + 1
+                )
+                _pb_rt.mark_phase(
+                    _phase_burst_PHASE_ATTENTION,
+                    self._phase_burst_step_id,
+                )
+        # ────────────────────────────────────────
         if self.execute_model_state is not None:
             raise RuntimeError(
                 "State error: sample_tokens() must be called "
