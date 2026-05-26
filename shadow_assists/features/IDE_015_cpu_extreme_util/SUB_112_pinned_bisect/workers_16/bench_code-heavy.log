@@ -1,0 +1,15 @@
+[mix=code-heavy] counts={'sonnet': 20, 'chat': 40, 'code': 140}
+
+=== vanilla-only (url=http://127.0.0.1:8001/v1/completions, n=200, concurrency=32) ===
+  wall=18.0s tps=2703.9 p50=2853ms p99=2902ms
+  backend_counts={'direct': 200}
+
+=== trident-only (url=http://127.0.0.1:8002/v1/completions, n=200, concurrency=32) ===
+  wall=5.8s tps=8494.7 p50=785ms p99=1743ms
+  backend_counts={'direct': 200}
+
+=== agsd-gated (url=http://127.0.0.1:8000/generate, n=200, concurrency=32) ===
+  wall=8.1s tps=6051.1 p50=647ms p99=2800ms
+  backend_counts={'trident': 160, 'vanilla': 40}
+
+[saved] /workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_112_pinned_bisect/workers_16/benchmark_code-heavy.json
