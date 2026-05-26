@@ -1,15 +1,15 @@
 # CPU Activation Layer v2.0 — 2026년 1~5월 LLM Inference 최적화 논문 보강 분석
 
 ## TL;DR
-- **2026년 1~5월 사이 발표된 LLM inference 최적화 논문 30+편 중 18편이 LG U+ "Ninja Gap CPU Activation Layer v1.0" 청사진을 직접 보강하며, 가장 큰 충격은 (a) UPenn+Intel의 κ_crit 이론(arXiv 2601.19910, Meng/Lee/Wang), (b) Georgia Tech의 CPU provisioning empirical study(arXiv 2603.22774, Chung/Jia/Jezghani/Kim; TTFT 1.36–5.40×), (c) ASPLOS'26 SwiftSpec의 disaggregated speculative decoding (1.75×, Llama3-70B 348 tok/s @ 8×H100), (d) CAS+SJTU의 DALI MoE workload-aware offloading (prefill 7.62×, decode 3.97×) 네 축으로 정리된다.**
-- **이 4개 축은 v1.0의 6개 영역 중 "GPU-CPU Hybrid Inference", "MoE 최적화", "Speculative Decoding" 영역을 정량적으로 재정의하며, 특히 코딩 워크로드(LG U+ 2026 연간 목표 #4)에서는 Zhejiang U+Huawei의 "SD on SE Tasks" (ISSTA'26, arXiv 2604.26469)가 "model-free SD가 repository-level repair/editing에서 model-based보다 더 큰 가속"이라는 비대칭성을 처음 입증했고, UChicago PPD (arXiv 2603.13358)가 multi-turn TTFT를 -68% 줄였다.**
+- **2026년 1~5월 사이 발표된 LLM inference 최적화 논문 30+편 중 18편이   "Ninja Gap CPU Activation Layer v1.0" 청사진을 직접 보강하며, 가장 큰 충격은 (a) UPenn+Intel의 κ_crit 이론(arXiv 2601.19910, Meng/Lee/Wang), (b) Georgia Tech의 CPU provisioning empirical study(arXiv 2603.22774, Chung/Jia/Jezghani/Kim; TTFT 1.36–5.40×), (c) ASPLOS'26 SwiftSpec의 disaggregated speculative decoding (1.75×, Llama3-70B 348 tok/s @ 8×H100), (d) CAS+SJTU의 DALI MoE workload-aware offloading (prefill 7.62×, decode 3.97×) 네 축으로 정리된다.**
+- **이 4개 축은 v1.0의 6개 영역 중 "GPU-CPU Hybrid Inference", "MoE 최적화", "Speculative Decoding" 영역을 정량적으로 재정의하며, 특히 코딩 워크로드(  2026 연간 목표 #4)에서는 Zhejiang U+Huawei의 "SD on SE Tasks" (ISSTA'26, arXiv 2604.26469)가 "model-free SD가 repository-level repair/editing에서 model-based보다 더 큰 가속"이라는 비대칭성을 처음 입증했고, UChicago PPD (arXiv 2603.13358)가 multi-turn TTFT를 -68% 줄였다.**
 - **권고: v1.0 청사진의 Phase 1(진단)을 즉시 2603.22774의 microbenchmark 방법론(dequeue/shm_broadcast 측정)으로 재실험하고, Phase 2(구현)에서는 DALI의 0-1 정수계획 expert placement + SwiftSpec disaggregated draft + PPD multi-turn router를 vLLM v1 fork에 합칠 것 — 이 세 가지로 violet-h100-023에서 코딩 토큰 ROI v1.0의 70% → v2.0의 추정 88-94%까지 도달 가능하며, MLSys 2027 / OSDI 2027 / ISSTA 2027 / NeurIPS 2026 / ASPLOS 2028에 제출할 학술 contribution도 v1.0의 3편에서 v2.0의 5편으로 확장된다.**
 
 ---
 
 ## Key Findings
 
-1. **CPU bottleneck이 학계 main stage로 올라왔다.** Georgia Tech 그룹(Euijun Chung, Yuxiao Jia, Aaron Jezghani, Hyesoon Kim)이 arXiv 2603.22774에서 vLLM v0.11.1 V1 engine + H100 TP=4 환경에서 "CPU-induced slowdown"을 정량화하며, "providing adequate CPU resources … reduces TTFT latency by 1.36–5.40×"라고 보고했다. dequeue()의 shm_broadcast latency가 19× 증가(12ms → 228ms)하면서 H100 decode step(44ms)의 5배가 되는 현상은 LG U+ violet-h100-023 노드에서도 곧바로 재현 가능하며, 이는 v1.0 청사진 영역 1(detokenizer/sampler/scheduler single-thread bottleneck)을 처음으로 peer-reviewed 학회급 데이터로 입증한 사례다.
+1. **CPU bottleneck이 학계 main stage로 올라왔다.** Georgia Tech 그룹(Euijun Chung, Yuxiao Jia, Aaron Jezghani, Hyesoon Kim)이 arXiv 2603.22774에서 vLLM v0.11.1 V1 engine + H100 TP=4 환경에서 "CPU-induced slowdown"을 정량화하며, "providing adequate CPU resources … reduces TTFT latency by 1.36–5.40×"라고 보고했다. dequeue()의 shm_broadcast latency가 19× 증가(12ms → 228ms)하면서 H100 decode step(44ms)의 5배가 되는 현상은   violet-h100-023 노드에서도 곧바로 재현 가능하며, 이는 v1.0 청사진 영역 1(detokenizer/sampler/scheduler single-thread bottleneck)을 처음으로 peer-reviewed 학회급 데이터로 입증한 사례다.
 
 2. **KV cache offload는 이론적 임계점(κ_crit)이 도출되었다.** William Meng·Benjamin Lee·Hong Wang (UPenn + Intel)이 arXiv 2601.19910에서 κ_crit = (F_pf/B_kv)·(BW_PCIe/C_eff)라는 dimensionless 임계점을 제안하며, LLaMA-3.1-405B 기준 κ_crit ≈ 12 (sustained PCIe 5.0 15 GB/s), Qwen3-235B-A22B 기준 κ_crit ≈ 7.8이라고 보고했다. 실제 workload(ShareGPT/NarrativeQA/FinQA)의 cached-to-prefill ratio는 100~10,000으로 임계점을 1~3 orders of magnitude 초과 → "99% of execution time spent on PCIe transfers, GPUs consume only 28% of TDP" (700W H100 SXM5 기준 평균 196W). 이 수식은 v1.0의 LMCache/CXL offload 영역에 정량적 toolbox를 제공한다.
 
@@ -17,9 +17,9 @@
 
 4. **MoE offloading은 workload-aware 0-1 정수계획으로 진화.** CAS+SJTU의 DALI (arXiv 2602.03495)는 expert placement를 min max(T_GPU, T_CPU)의 0-1 IP로 정식화하고 Greedy assignment + Residual-based prefetching + Workload-Aware Cache Replacement를 통합 → DeepSeek-V2-Lite / Qwen3-30B-A3B / Mixtral-8×7B에서 "7.62×, 3.80×, 2.45×, 2.00× during prefill … 3.97×, 2.16×, 1.48×, 1.32× during decoding" (대 llama.cpp/KTransformers/MoE-Lightning/HybriMoE). HybriMoE의 PCIe transfer가 "over 60% of inference time"이고 expert cache hit rate "only 25.3% on Mixtral-8×7B"라는 정량 진단도 함께 제공.
 
-5. **Multi-turn / agentic workload는 PD disaggregation의 약점.** UChicago의 PPD (arXiv 2603.13358, Zongze Li·Jingyu Liu·Zach Xu·Yineng Zhang·Tahseen Rabbani·Ce Zhang)는 append-prefill을 decode 노드로 라우팅하는 비율 x∈[0,1]를 SLO-weighted 최적화 → "PPD reduces Turn 2+ TTFT by 68% while maintaining competitive TPOT", "1P 3D achieving up to 73.3% improvement". 이는 ReAct-style agentic loop(SWE-Bench)의 핵심 보틀넥을 직접 공격하며 LG U+ 코딩 에이전트 워크로드와 정확히 매칭된다.
+5. **Multi-turn / agentic workload는 PD disaggregation의 약점.** UChicago의 PPD (arXiv 2603.13358, Zongze Li·Jingyu Liu·Zach Xu·Yineng Zhang·Tahseen Rabbani·Ce Zhang)는 append-prefill을 decode 노드로 라우팅하는 비율 x∈[0,1]를 SLO-weighted 최적화 → "PPD reduces Turn 2+ TTFT by 68% while maintaining competitive TPOT", "1P 3D achieving up to 73.3% improvement". 이는 ReAct-style agentic loop(SWE-Bench)의 핵심 보틀넥을 직접 공격하며 코딩 에이전트 워크로드와 정확히 매칭된다.
 
-6. **코딩 워크로드 SD의 비대칭성.** Yijia Li·Junkai Chen·Xing Hu·Xin Xia (Zhejiang U + Huawei, ISSTA'26, arXiv 2604.26469)는 처음으로 SE task별 SD 방법 비교 → "Model-based approaches are well-suited for code generation, whereas model-free methods are better adapted to repository-level repair and editing scenarios". 즉, LG U+ 의 코딩 agent에서 (a) function-level completion = EAGLE-3, (b) repo-level refactor/repair = PLD + SuffixDecoding의 hybrid가 정량적으로 정당화됨.
+6. **코딩 워크로드 SD의 비대칭성.** Yijia Li·Junkai Chen·Xing Hu·Xin Xia (Zhejiang U + Huawei, ISSTA'26, arXiv 2604.26469)는 처음으로 SE task별 SD 방법 비교 → "Model-based approaches are well-suited for code generation, whereas model-free methods are better adapted to repository-level repair and editing scenarios". 즉,   의 코딩 agent에서 (a) function-level completion = EAGLE-3, (b) repo-level refactor/repair = PLD + SuffixDecoding의 hybrid가 정량적으로 정당화됨.
 
 7. **AMX/AVX-512 path는 KTransformers의 dynamic kernel switching로 안정화.** SOSP'25 정식 출간된 KTransformers paper (ACM DL 10.1145/3731569.3764843)는 high-ARI task는 AMX, low-ARI(decode) task는 AVX-512 kernel을 동적으로 교체 → "AVX-512 kernel … achieving up to 2.22× speedup over baseline" in decode. NUMA-aware tensor placement까지 통합되어 v1.0 영역 5의 reference design이 된다.
 
@@ -132,7 +132,7 @@
 #### 2-10. DAS — Distribution-Aware Speculative Decoding for RL Training (MLSys'26)
 - **저자**: WukLab (UChicago/Berkeley 그룹)
 - **핵심**: RL rollout의 long-tail generation을 distribution-aware하게 가속, GRPO 파이프라인 전체 latency 단축
-- **v1.0 매핑**: 영역 3 — 향후 LG U+ post-training pipeline 보강
+- **v1.0 매핑**: 영역 3 — 향후   post-training pipeline 보강
 
 #### 2-11. EAGLE-Pangu (arXiv 2603.08088)
 - **핵심**: Ascend NPU 상에서 EAGLE-3 tree spec decoding을 accelerator-safe 구현 — branch/commit cache manager, tree tensorization, fused-kernel-compatible teacher verification
@@ -148,7 +148,7 @@
 - **핵심 기여**: append-prefill(Turn-2+의 prior-output)을 decode 노드로 라우팅하는 비율 x∈[0,1]을 SLO-weighted 최적화. PD는 x=0 special case.
   - "PPD reduces Turn 2+ TTFT by 68% while maintaining competitive TPOT"
   - "1P 3D achieving up to 73.3% improvement"
-- **v1.0 매핑**: 영역 3 (PD Disaggregation 신규) + 영역 6 (multi-turn agent) — **LG U+ 코딩 에이전트에 직접 적용**
+- **v1.0 매핑**: 영역 3 (PD Disaggregation 신규) + 영역 6 (multi-turn agent) — **  코딩 에이전트에 직접 적용**
 - **vLLM 패치 위치**: vLLM-Omni의 PD config + LMCache의 KV TTL 정책 확장, router 레벨 prompt classification
 - **구현 난이도**: 중간
 
@@ -275,7 +275,7 @@
 - **v1.0 매핑**: 영역 5 — Phase 3 (extreme quantization)
 
 #### 5-3. Granite Rapids / EPYC Turin / Graviton4 Benchmarks
-- LG U+ 자원 결정 기준 (Phoronix AWS M8 review):
+-   자원 결정 기준 (Phoronix AWS M8 review):
   - Intel Xeon 6 Granite Rapids 6975P: 12-channel DDR5-6400~8800 MT/s, AMX BF16/INT8
   - AMD EPYC Turin 9R45: 192 cores, AVX-512 full path, 12-channel DDR5-6400
   - Graviton4 (Neoverse V2): SVE2, $0.718/h (m8g.4xlarge) vs $0.847 (Intel m8i) vs $0.974 (AMD m8a)
@@ -297,7 +297,7 @@
 - **핵심 기여**:
   - 처음으로 SE task별 (generation / editing / repair) × SD method (model-based EAGLE-2/3 vs model-free PLD/SuffixDecoding) 체계적 벤치마크
   - "Model-based approaches are well-suited for code generation, whereas model-free methods are better adapted to repository-level repair and editing scenarios"
-  - "smaller models achieve higher speedups than larger counterparts" — LG U+ 의 7B/13B 코딩 모델에 유리
+  - "smaller models achieve higher speedups than larger counterparts" —   의 7B/13B 코딩 모델에 유리
   - SE task의 반복성이 model-free SD의 acceptance rate를 끌어올림
 - **v1.0 매핑**: 영역 3 + 영역 6 — **연간 목표 #4 직접 정당화**
 - **vLLM 패치 위치**: `vllm/spec_decode/`의 task-aware dispatcher — incoming request의 task type을 prompt classifier로 판별 후 EAGLE 또는 PLD path로 라우팅
@@ -331,7 +331,7 @@
 
 #### 6-8. Confucius Code Agent (arXiv 2512.10398)
 - **핵심**: AX/UX/DX 3-perspective SDK + meta-agent build-test-improve cycle → SWE-Bench-Pro Resolve@1 59%
-- **v1.0 매핑**: 영역 6 — 향후 LG U+ 코딩 에이전트 reference
+- **v1.0 매핑**: 영역 6 — 향후   코딩 에이전트 reference
 
 ---
 
@@ -339,7 +339,7 @@
 
 ### 표 1. 2026년 신규 논문 종합 비교 (18편 핵심)
 
-| # | 논문 | 카테고리 | 측정 가속 | ROI (LG U+ 추정) | Phase |
+| # | 논문 | 카테고리 | 측정 가속 | ROI (  추정) | Phase |
 |---|------|----------|-----------|-------------------|-------|
 | 1 | Characterizing CPU Slowdowns (arXiv 2603.22774) | 1, 5 | TTFT 1.36–5.40× | 매우 높음 | 1 |
 | 2 | KV Offload κ_crit (arXiv 2601.19910) | 1, 4 | 분석 (99% PCIe, 28% TDP) | 매우 높음 | 1 |
@@ -425,7 +425,7 @@ graph TB
         S3[MuxWise + Bullet + QoServe<br/>ASPLOS'26]:::v20new
         S4[Spec^2 Decoding async<br/>ICLR'26 Stanford]:::v20new
         S5[Granite Rapids 12ch DDR5-8800<br/>+ CXL memory pool]:::v20new
-        M3{LG U+ Annual Goal #4<br/>v1.0 70% to v2.0 88-94%}:::measure
+        M3{  Annual Goal #4<br/>v1.0 70% to v2.0 88-94%}:::measure
         S1 --> M3
         S2 --> M3
         S3 --> M3
@@ -497,13 +497,13 @@ gantt
 **v1.0 contribution potential**: SOSP / OSDI / MLSys 각 1편 (3편).
 
 **v2.0 확장된 contribution potential** (5편):
-1. **MLSys 2027** (Oct 2026 deadline) — "CPU Activation Layer: A Unified Diagnostic and Mitigation Framework for vLLM v1 Control-Plane Bottlenecks on H100 Nodes" (Georgia Tech 2603.22774에 LG U+ 사내 워크로드 + DALI/PPD 통합)
+1. **MLSys 2027** (Oct 2026 deadline) — "CPU Activation Layer: A Unified Diagnostic and Mitigation Framework for vLLM v1 Control-Plane Bottlenecks on H100 Nodes" (Georgia Tech 2603.22774에   사내 워크로드 + DALI/PPD 통합)
 2. **OSDI 2027** (Dec 2026 deadline) — "Asymmetric Hybrid Inference for Coding Workloads: A Workload-Aware 0-1 IP Approach" (DALI + SwiftSpec + PPD 통합)
 3. **NeurIPS 2026** (May 2026 deadline) — Task-aware Spec Decode Router for SE workloads (ISSTA'26 후속)
-4. **ISSTA 2027** — Production-grade evaluation of speculative decoding on internal LG U+ SWE / Korean coding benchmark
+4. **ISSTA 2027** — Production-grade evaluation of speculative decoding on internal   SWE / Korean coding benchmark
 5. **ASPLOS 2028** — CXL memory pool + Granite Rapids AMX integration for κ_crit > 50 workloads
 
-### LG U+ 2026 연간 목표 #4 (코딩 에이전트 토큰 최적화) — 영향 재계산
+###   2026 연간 목표 #4 (코딩 에이전트 토큰 최적화) — 영향 재계산
 
 **v1.0 baseline**: 코딩 에이전트 토큰 비용 ROI 70% (현재 대비 30% 절감).
 
@@ -562,7 +562,7 @@ v1.0의 "단일 노드 활성화" governance metric에서 → v2.0의 SwiftSpec 
 
 1. **arXiv 2603.22774 (Georgia Tech CPU slowdown)의 dequeue 19× 수치는 H100 TP=4 + 5 req/s + 100k token input 특정 조건**. violet-h100-023에서 코딩 워크로드(typically 4k~16k input)는 다른 분포를 가질 수 있음. v1만 존재, peer-review 미통과 preprint.
 2. **DALI (arXiv 2602.03495)는 "Local PC" 시나리오 대상**. 8×H100 80GB HBM 환경에서는 expert offload 자체가 불필요한 모델 사이즈가 많음. ROI는 large MoE (DeepSeek-V3 671B, Qwen3-Coder-480B 등)에서만 유효.
-3. **PPD (arXiv 2603.13358) 68% TTFT 개선은 Turn 2+ 한정**. 첫 turn은 영향 없음. paper의 모델 list가 명시되지 않아 LG U+ 모델 (Qwen3, GLM-4.7 등)에서 재실험 필요.
+3. **PPD (arXiv 2603.13358) 68% TTFT 개선은 Turn 2+ 한정**. 첫 turn은 영향 없음. paper의 모델 list가 명시되지 않아   모델 (Qwen3, GLM-4.7 등)에서 재실험 필요.
 4. **SwiftSpec (ASPLOS'26) 1.75×는 8×H100에서 측정**. 더 작은 GPU pool에서는 disagg overhead가 이득을 잠식.
 5. **arXiv 2601.19910 (κ_crit)은 MLAttention(DeepSeek-V3)에 대해 "implementation-specific overheads"로 deferred**. DeepSeek-V3.2 / V4의 정확한 κ_crit은 사내 재측정 필요.
 6. **"Beyond the Buzz" (NVIDIA MLSys'26)는 NVIDIA Dynamo의 자사 평가** — 독립적으로 교차검증 필요.
