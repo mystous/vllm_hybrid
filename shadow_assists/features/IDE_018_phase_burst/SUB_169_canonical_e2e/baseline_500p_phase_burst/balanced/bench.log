@@ -1,0 +1,15 @@
+[mix=balanced] counts={'sonnet': 170, 'chat': 165, 'code': 165}
+
+=== vanilla-only (url=http://127.0.0.1:8001/v1/completions, n=500, concurrency=32) ===
+  wall=49.5s tps=2519.2 p50=3109ms p99=3286ms
+  backend_counts={'direct': 500}
+
+=== trident-only (url=http://127.0.0.1:8002/v1/completions, n=500, concurrency=32) ===
+  wall=31.7s tps=3900.0 p50=1517ms p99=4653ms
+  backend_counts={'direct': 500}
+
+=== agsd-gated (url=http://127.0.0.1:8000/generate, n=500, concurrency=32) ===
+  wall=22.7s tps=5476.8 p50=672ms p99=2901ms
+  backend_counts={'trident': 335, 'vanilla': 165}
+
+[saved] /workspace/vllm_hybrid/shadow_assists/features/IDE_018_phase_burst/SUB_169_canonical_e2e/baseline_500p_phase_burst/balanced/benchmark_balanced.json

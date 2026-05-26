@@ -2,7 +2,12 @@
 
 > **scope**: GPU sublayer phase (attention vs linear) 별 CPU task switching — paper main contribution.
 > **paper angle**: 직접 대응 논문 없음 — sublayer-granular phase detection + CPU task pool 의 OS-coordination + production e2e.
-> **status**: ✅ design + skeleton 작성 완료 / ⚠ vLLM CUDA event hook + scheduler runtime 별도 turn.
+> **status (2026-05-27)**: ✅ TSK_031/032/033/034 source 완성 + C++ unit test + microbench PASS + pybind11 module PASS. ⚠ vLLM forward path patch (design doc 완성) + canonical 500p e2e 측정은 별도 turn.
+
+**microbench 결과 (dev RTX 3090 + 12900KF, 2026-05-27 KST)**:
+- phase signal IPC latency: **p50 = 4.82 μs / p99 = 9.63 μs** (target 50 μs, 10× margin)
+- worker dispatch latency: **~25 μs** (Python callable 경유, GIL reacquire 포함)
+- C++ unit test 3/3 PASS / pytest scaffolding 3/3 PASS / e2e 2 skip (별도 turn)
 
 ---
 
