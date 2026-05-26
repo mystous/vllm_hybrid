@@ -1,0 +1,41 @@
+Process 3903451: VLLM::EngineCore
+Python v3.12.13 (/usr/bin/python3.12)
+
+Thread 3903451 (idle): "MainThread"
+    wait (threading.py:355)
+    get (queue.py:171)
+    _process_input_queue (vllm/v1/engine/core.py:1480)
+    run_busy_loop (vllm/v1/engine/core.py:1458)
+    run_engine_core (vllm/v1/engine/core.py:1419)
+    run (multiprocessing/process.py:108)
+    _bootstrap (multiprocessing/process.py:314)
+    _main (multiprocessing/spawn.py:135)
+    spawn_main (multiprocessing/spawn.py:122)
+    <module> (<string>:1)
+Thread 3907550 (idle): "MultiprocWorkerMonitor"
+    select (selectors.py:415)
+    wait (multiprocessing/connection.py:1136)
+    monitor_workers (vllm/v1/executor/multiproc_executor.py:278)
+    run (threading.py:1012)
+    _bootstrap_inner (threading.py:1075)
+    _bootstrap (threading.py:1032)
+Thread 3910396 (idle): "Thread-1 (process_input_sockets)"
+    poll (zmq/sugar/poll.py:106)
+    process_input_sockets (vllm/v1/engine/core.py:1724)
+    run (threading.py:1012)
+    _bootstrap_inner (threading.py:1075)
+    _bootstrap (threading.py:1032)
+Thread 3910397 (idle): "Thread-2 (process_output_sockets)"
+    wait (threading.py:355)
+    get (queue.py:171)
+    process_output_sockets (vllm/v1/engine/core.py:1791)
+    run (threading.py:1012)
+    _bootstrap_inner (threading.py:1075)
+    _bootstrap (threading.py:1032)
+Thread 3910567 (idle): "signal-callback"
+    wait (threading.py:355)
+    wait (threading.py:655)
+    _run (vllm/v1/engine/utils.py:233)
+    run (threading.py:1012)
+    _bootstrap_inner (threading.py:1075)
+    _bootstrap (threading.py:1032)

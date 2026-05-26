@@ -1,0 +1,10 @@
+[Unit]
+Description=vLLM trident backend (GPU 4-7, NUMA 1)
+PartOf=spec_decode.slice
+Before=vllm_trident.service
+
+[Slice]
+AllowedCPUs=62-79
+AllowedMemoryNodes=1
+CPUWeight=200
+MemoryHigh=512G

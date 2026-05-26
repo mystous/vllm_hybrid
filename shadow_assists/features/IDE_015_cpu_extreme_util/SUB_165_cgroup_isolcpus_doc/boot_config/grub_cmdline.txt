@@ -1,0 +1,28 @@
+# /etc/default/grub — GRUB_CMDLINE_LINUX additions for spec decode CPU co-inference
+# 사용자 constraint: 물리 코어 100 max (12 core kernel 여유)
+# Layout: cpu 0-5 + 56-61 = kernel free (12 cores)
+#         cpu 6-30 = vllm vanilla (NUMA 0, 25 cores)
+#         cpu 62-79 = vllm trident (NUMA 1, 18 cores)
+#         cpu 80-99 = CPU fill workers (NUMA 1, 20 cores, isolated)
+#         cpu 100-111 = NUMA 1 buffer (12 cores)
+#         cpu 112-223 = HT siblings (사용 금지)
+
+GRUB_CMDLINE_LINUX="rhgb quiet \
+  isolcpus=80-99 \
+  nohz_full=80-99 \
+  rcu_nocbs=80-99 \
+  irqaffinity=0-23 \
+  default_hugepagesz=2M \
+  hugepagesz=2M \
+  hugepages=4096 \
+  transparent_hugepage=madvise \
+"
+
+# 적용:
+# sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+# sudo reboot
+
+# 검증:
+# cat /proc/cmdline | grep isolcpus
+# cat /sys/devices/system/cpu/isolated  → 80-99
+# cat /proc/meminfo | grep HugePages_Total  → 4096

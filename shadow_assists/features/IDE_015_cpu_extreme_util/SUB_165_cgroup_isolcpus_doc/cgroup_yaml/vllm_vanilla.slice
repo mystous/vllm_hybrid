@@ -1,0 +1,10 @@
+[Unit]
+Description=vLLM vanilla backend (GPU 0-3, NUMA 0)
+PartOf=spec_decode.slice
+Before=vllm_vanilla.service
+
+[Slice]
+AllowedCPUs=6-30
+AllowedMemoryNodes=0
+CPUWeight=200
+MemoryHigh=512G

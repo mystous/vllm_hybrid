@@ -1,0 +1,19 @@
+[Unit]
+Description=Spec Decode CPU Co-Inference root slice
+Documentation=https://github.com/mystous/vllm_hybrid spec_decoding/plan/README.md
+Before=slices.target
+
+[Slice]
+# cgroup v2 properties (systemd 통해 적용)
+CPUAffinity=6-30 62-99
+AllowedCPUs=6-99
+AllowedMemoryNodes=0,1
+MemoryHigh=1.5T
+TasksMax=infinity
+
+# 사용자 constraint: 물리 100 core max
+# 6-30 = vllm vanilla (NUMA 0, 25 cores)
+# 62-79 = vllm trident (NUMA 1, 18 cores)
+# 80-99 = CPU fill workers (NUMA 1, 20 cores, isolcpus)
+# kernel-free: 0-5, 56-61, 100-111 (총 24 cores 여유 — kernel + IRQ + future)
+# HT siblings 112-223 = 사용 금지

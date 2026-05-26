@@ -1,0 +1,48 @@
+[Unit]
+Description=CPU AMX fill workers N=20 pinned cpu 80-99 (NUMA 1)
+After=vllm_trident.service vllm_vanilla.service
+PartOf=cpu_fill.slice
+
+[Service]
+Type=simple
+Slice=cpu_fill.slice
+User=vllm
+Group=vllm
+WorkingDirectory=/opt/vllm_hybrid
+
+# 사용자 constraint: 물리 100 core max — N=20 (cpu 80-99)
+ExecStart=/opt/venv/bin/python /opt/vllm_hybrid/scripts/sub112_cpu_fill_pinned.py \
+    --workers 20 \
+    --shape qwen32b \
+    --batch 128 \
+    --dtype bf16 \
+    --duration-s 86400 \
+    --cpu-base 80 \
+    --out-dir /var/log/vllm_hybrid/cpu_workers
+
+# Hugepages 활용
+Environment=OMP_NUM_THREADS=1
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=MKL_NUM_THREADS=1
+Environment=MALLOC_CONF=tcache:false,opt.thp:always
+Environment=LD_PRELOAD=
+
+# 안정성
+Restart=on-failure
+RestartSec=10
+StartLimitBurst=3
+StartLimitIntervalSec=60
+
+# 보안 + 자원
+LimitNOFILE=65536
+LimitNPROC=2048
+LimitMEMLOCK=infinity
+PrivateTmp=true
+NoNewPrivileges=true
+
+# 로깅
+StandardOutput=append:/var/log/vllm_hybrid/cpu_fill.log
+StandardError=append:/var/log/vllm_hybrid/cpu_fill.log
+
+[Install]
+WantedBy=spec_decode.slice

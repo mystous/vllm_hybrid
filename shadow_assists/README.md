@@ -324,6 +324,49 @@ flowchart TB
     TST_001 --> TST_003
     TST_004 --> TST_002
     TST_003 --> TST_002
+
+    %% ── IDE_015~021 — Extreme CPU Utilization plan (2026-05-26 신설)
+    %% parent: TSK_020 후속. plan doc: spec_decoding/plan/README.md
+    TSK_020 --> IDE_015["IDE_015<br/>Sub-Layer Profile +<br/>CPU Idle Gap Mapping<br/>★ Phase A 1차 PoC 완료"]
+    TSK_020 --> IDE_016["IDE_016<br/>AVX-512 + AMX<br/>CPU SIMD Pool<br/>⚪ 대기 (Phase 2)"]
+    TSK_020 --> IDE_017["IDE_017<br/>DMA + Zero-Copy<br/>CPU-GPU Data Plane<br/>⚪ 대기"]
+    TSK_020 --> IDE_018["IDE_018 ★★★<br/>Sub-Layer Phase-Aware<br/>CPU Burst (paper main)<br/>⚪ 대기"]
+    TSK_020 --> IDE_019["IDE_019<br/>CPU Multi-Source<br/>Spec Drafter<br/>⚪ 대기"]
+    TSK_020 --> IDE_020["IDE_020<br/>CPU Isolation + NUMA +<br/>Hugepages (production)<br/>⚪ 대기"]
+    TSK_020 --> IDE_021["IDE_021<br/>Paper Synthesis +<br/>Open Release<br/>⚪ 대기"]
+
+    IDE_015 --> TSK_021["TSK_021<br/>Baseline util + CPU fill PoC +<br/>mechanism 규명<br/>🟢 Phase A 완료"]
+    IDE_015 --> TSK_022["TSK_022<br/>Nsight Systems<br/>sublayer profile<br/>🟠 nsys 부재 — ncu/py-spy 대체"]
+    IDE_015 --> TSK_023["TSK_023<br/>CPU idle gap<br/>categorization<br/>🟠 perf 부재 — /proc/py-spy 대체"]
+
+    %% TSK_021 — Phase A 완료 SUB (15개)
+    TSK_021 --> SUB_098["SUB_098<br/>canonical baseline 1-run<br/>(CPU 4.1% / GPU 27.7%)<br/>🟢 완료"]
+    TSK_021 --> SUB_099["SUB_099<br/>3-run extended baseline<br/>(var 3-13%)<br/>🟢 완료"]
+    TSK_021 --> SUB_100["SUB_100<br/>TP=8 single-instance<br/>util baseline<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_106["SUB_106 ⭐<br/>AMX BF16 microbench<br/>22.05 TFLOPS peak<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_107["SUB_107<br/>cpu fill v1<br/>(OpenBLAS segfault)<br/>🟠 no RESULTS (재정의)"]
+    TSK_021 --> SUB_108["SUB_108<br/>cpu fill v2 naive 16W<br/>AGSD −9% (paper-worthy neg)<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_109["SUB_109<br/>qwen7b shape unpinned bisect<br/>N=2 +3.5%<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_110["SUB_110<br/>qwen32b shape unpinned bisect<br/>N=2 +2.8%<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_111["SUB_111<br/>unpinned 3-mix sweep<br/>3-mix avg +0.07%<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_112["SUB_112 🏆⭐⭐<br/>physical-core pinned bisect<br/>3-mix avg +3.9% (N=32)<br/>🏆 Phase A core PoC (재정의)"]
+    TSK_021 --> SUB_113["SUB_113<br/>NUMA + GPU PCIe affinity audit<br/>GPU 0-3↔NUMA0, 4-7↔NUMA1<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_114["SUB_114<br/>IRQ + cgroup feasibility<br/>container partition invalid<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_116["SUB_116 ⚠<br/>N=16 outlier 3-run variance<br/>−14.35% consistent 회귀<br/>🟢 완료 (paper §4 main)"]
+    TSK_021 --> SUB_117["SUB_117<br/>per-worker actual CPU util<br/>N=32 99.4% / 10.24 TFLOPS<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_148["SUB_148 ⭐<br/>VLLM trident worker thread<br/>placement audit (N curve mechanism)<br/>🟢 완료 (재정의)"]
+    TSK_021 --> SUB_160["SUB_160<br/>500p baseline + N=32 1h stability<br/>🔵 진행 중"]
+
+    %% TSK_022 / TSK_023 — alternative profiling SUB (nsys/perf 부재)
+    TSK_022 --> SUB_161["SUB_161<br/>ncu per-kernel + py-spy<br/>sublayer profile<br/>🔵 queued"]
+    TSK_023 --> SUB_162["SUB_162<br/>/proc + py-spy<br/>CPU thread state sampling<br/>🔵 queued"]
+
+    %% IDE_020 — Production deploy config
+    IDE_020 --> TSK_039["TSK_039<br/>cgroup + isolcpus + hugepages<br/>🟠 doc 완료 / host 적용 대기"]
+    TSK_039 --> SUB_165["SUB_165<br/>cgroup yaml + isolcpus +<br/>hugepages doc (100 core max)<br/>🟢 완료 doc-only"]
+
+    %% IDE_018 (paper main) — 대기
+    IDE_018 --> TSK_034["TSK_034 ★ paper main result<br/>phase-burst scheduler integration<br/>⚪ 대기 (10.24 TFLOPS = main lever)"]
 ```
 
 > 축 노드(`독창 축`, `선행 연구 적용 축`)는 분류용 가상 노드이며 ID 를 가지지 않는다. 진입 판정 후 각 IDE 노드 아래로 후속 prefix(예: `FEA_###` → `TSK_###` → `TST_###`)가 매달리며 Tree 가 아래로 깊어진다.

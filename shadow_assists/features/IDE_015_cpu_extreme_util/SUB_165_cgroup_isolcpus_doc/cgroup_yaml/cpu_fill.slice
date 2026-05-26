@@ -1,0 +1,11 @@
+[Unit]
+Description=CPU AMX fill workers (NUMA 1, isolated cpu 80-99)
+PartOf=spec_decode.slice
+Before=cpu_fill_n20.service
+
+[Slice]
+AllowedCPUs=80-99
+AllowedMemoryNodes=1
+CPUWeight=100
+# isolcpus 와 함께 동작 — OS scheduler 가 다른 task 를 여기 자동 배치 안 함
+# sched_setaffinity 로 명시 핀해야 실행 가능
