@@ -1,0 +1,11 @@
+[launch] /workspace/vllm_dev_prj/bin/python /tmp/sub112_cpu_fill_pinned.py --workers 32 --shape qwen32b --batch 128 --dtype bf16 --duration-s 85 --cpu-base 80 --out-dir /workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_117_per_worker_util/N32_pinned/cpu_workers
+[warmup] 15s
+[discover] 32 workers: [(3389999, [80]), (3390000, [81]), (3390001, [82]), (3390002, [83])]...
+[sample] 60s at 2.0Hz
+[teardown]
+[csv] /workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_117_per_worker_util/N32_pinned/samples.csv
+[json] /workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_117_per_worker_util/N32_pinned/summary.json
+
+SYSTEM CPU avg=16.0% max=42.4%
+WORKER (n=32) avg=99.4% (max across workers avg=101.4%)
+PINNED CORE (n=32) avg=99.9% (max avg=100.0%)

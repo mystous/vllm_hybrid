@@ -1,0 +1,69 @@
+{
+  "mix": "balanced",
+  "mix_counts": {
+    "sonnet": 68,
+    "chat": 66,
+    "code": 66
+  },
+  "num_prompts": 200,
+  "max_tokens": 256,
+  "concurrency": 32,
+  "scenarios": [
+    {
+      "scenario": "vanilla-only",
+      "n_prompts": 200,
+      "wall_s": 18.200112234102562,
+      "total_out_tokens": 49292,
+      "tps": 2708.334946838341,
+      "latency_p50_s": 2.8338968560565263,
+      "latency_p99_s": 2.870635915081948,
+      "backend_counts": {
+        "direct": 200
+      },
+      "concurrency": 32
+    },
+    {
+      "scenario": "trident-only",
+      "n_prompts": 200,
+      "wall_s": 7.908389546908438,
+      "total_out_tokens": 49597,
+      "tps": 6271.441196190007,
+      "latency_p50_s": 0.7025915740523487,
+      "latency_p99_s": 3.8885329798795283,
+      "backend_counts": {
+        "direct": 200
+      },
+      "concurrency": 32
+    },
+    {
+      "scenario": "agsd-gated",
+      "n_prompts": 200,
+      "wall_s": 9.655651652952656,
+      "total_out_tokens": 49752,
+      "tps": 5152.629961001758,
+      "latency_p50_s": 0.6135953119955957,
+      "latency_p99_s": 2.8426571760792285,
+      "backend_counts": {
+        "vanilla": 66,
+        "trident": 134
+      },
+      "concurrency": 32
+    }
+  ],
+  "gating_stats": {
+    "total": 201,
+    "by_backend": {
+      "vanilla": 66,
+      "trident": 135
+    },
+    "by_workload": {
+      "sonnet": 65,
+      "chat": 66,
+      "code": 70
+    },
+    "classify_time_total_s": 0.2172673160675913,
+    "forward_time_total_s": 262.1154487445019,
+    "classify_ms_avg": 1.0809319207342851,
+    "forward_ms_avg": 1304.0569589278703
+  }
+}

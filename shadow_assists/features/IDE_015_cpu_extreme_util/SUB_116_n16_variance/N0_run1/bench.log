@@ -1,0 +1,15 @@
+[mix=balanced] counts={'sonnet': 68, 'chat': 66, 'code': 66}
+
+=== vanilla-only (url=http://127.0.0.1:8001/v1/completions, n=200, concurrency=32) ===
+  wall=20.9s tps=2392.8 p50=3159ms p99=3215ms
+  backend_counts={'direct': 200}
+
+=== trident-only (url=http://127.0.0.1:8002/v1/completions, n=200, concurrency=32) ===
+  wall=14.3s tps=3486.0 p50=1646ms p99=4695ms
+  backend_counts={'direct': 200}
+
+=== agsd-gated (url=http://127.0.0.1:8000/generate, n=200, concurrency=32) ===
+  wall=10.2s tps=4882.7 p50=803ms p99=3188ms
+  backend_counts={'vanilla': 66, 'trident': 134}
+
+[saved] /workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_116_n16_variance/N0_run1/benchmark_balanced.json

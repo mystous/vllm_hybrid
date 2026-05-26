@@ -65,9 +65,9 @@ GIT_ASKPASS=/tmp/git_askpass.sh git push origin feat/spec-decode-tuning
 | **SUB_106** | `SUB_106_amx_microbench/` | AMX BF16 microbench — Qwen 7B B=256 **20.79× speedup, peak 22 TFLOPS** ⭐ | ✅ |
 | SUB_107 | `SUB_107_cpu_fill_canonical/` | OpenBLAS thread limit segfault (diagnosed) | ⚠ no RESULTS |
 | **SUB_108** | `SUB_108_cpu_fill_v2/` | Naive 16-worker fill → **AGSD −9% degrade** (paper-worthy negative) | ✅ |
-| **SUB_109** | `SUB_109_bisect_workers/` | qwen7b shape bisect — **N=2 sweet spot +3.5%** ⭐ | ⚠ no RESULTS |
-| **SUB_110** | `SUB_110_bisect_qwen32b/` | qwen32b shape bisect — N=2 +2.8% / N≥4 회귀 | ⚠ no RESULTS |
-| **SUB_111** | `SUB_111_sweet_spot_3mix/` | qwen32b × 3 mix × N=0/2/4 — code-heavy 영역 음수 | ⚠ no RESULTS |
+| **SUB_109** | `SUB_109_bisect_workers/` | qwen7b shape bisect — **N=2 sweet spot +3.5%** ⭐ | ✅ (2026-05-26 추가) |
+| **SUB_110** | `SUB_110_bisect_qwen32b/` | qwen32b shape bisect — N=2 +2.8% / N≥4 회귀 | ✅ (2026-05-26 추가) |
+| **SUB_111** | `SUB_111_sweet_spot_3mix/` | qwen32b × 3 mix × N=0/2/4 — code-heavy 음수 (3-mix avg +0.07%) | ✅ (2026-05-26 추가) |
 | **SUB_112** ⭐ | `SUB_112_pinned_bisect/` | **physical-core pin (CPU 80-111) — N=4/8/32 영역 +3.5~3.9% sustained net positive** ⭐⭐ | ✅ |
 
 ### 핵심 성능 수치 (canonical Qwen 32B TP=4×2)
@@ -86,13 +86,13 @@ GIT_ASKPASS=/tmp/git_askpass.sh git push origin feat/spec-decode-tuning
 
 ### Phase A — CPU 안전 활용 확립 (5-7 SUB, immediate ★★★)
 
-| SUB | 영역 | 의존 |
+| SUB | 영역 | 상태 |
 |---|---|---|
-| SUB_113 | NUMA topology audit (`lstopo` + GPU-PCIe affinity) | shell |
-| SUB_114 | proper cgroup cpuset.cpus + memory pinning | root 필요 가능 |
-| SUB_115 | 1-hour sustained throughput stability test | Phase A 종합 |
-| SUB_116 | SUB_112 N=16 outlier 재측정 (variance check) | 30 min |
-| SUB_117 | N=8/32 영역 actual CPU util 정량 측정 (per-worker active %) | python script |
+| **SUB_113** | NUMA topology audit (`numactl` + `nvidia-smi topo -m`) | ✅ 2026-05-26 완료 — GPU 0-3↔NUMA0, GPU 4-7↔NUMA1, SUB_112 의 "cross-NUMA" 가설 정정 |
+| SUB_114 | proper cgroup cpuset.cpus + memory pinning | 대기 — root 필요 |
+| SUB_115 | 1-hour sustained throughput stability test | 대기 |
+| **SUB_116** | SUB_112 N=16 outlier 재측정 (variance check) | ✅ 2026-05-26 완료 — 3-run avg **−14.35%** (outlier 아니라 consistent 회귀) ⚠ |
+| **SUB_117** | N=8/32 actual CPU util 정량 측정 (per-worker active %) | ✅ 2026-05-26 완료 — N=32 99.4% saturated **10.24 TFLOPS**, N=8 50% throttle |
 
 ### Phase B — Phase-aware CPU burst (★ paper main, 8-12 SUB)
 
@@ -129,13 +129,19 @@ GIT_ASKPASS=/tmp/git_askpass.sh git push origin feat/spec-decode-tuning
 
 ---
 
-## 4. 즉시 우선순위 (restart 후 첫 1 일)
+## 4. 즉시 우선순위 (restart 후 첫 1 일) — **모두 완료**
 
-1. **commit + push** (사용자 명시 지시 영역 이미 받음)
-2. **SUB_109/110/111 RESULTS.md 작성** (raw data 영역 있고 doc 만 미작성)
-3. **SUB_113 — NUMA topology audit** (shell only, 30 min)
-4. **SUB_116 — N=16 outlier 재측정** (15 min)
-5. **SUB_117 — per-worker CPU util 측정** (1 h)
+1. ~~**commit + push**~~ ✅ 2026-05-26 완료 (commit `9d9dd0503`, push to origin/feat/spec-decode-tuning)
+2. ~~**SUB_109/110/111 RESULTS.md 작성**~~ ✅ 2026-05-26 추가 — 모두 doc 화 완료
+3. ~~**SUB_113 — NUMA topology audit**~~ ✅ 2026-05-26 완료 — GPU 0-3↔NUMA0, GPU 4-7↔NUMA1 매핑 확정, "cross-NUMA isolation" 가설 정정
+4. ~~**SUB_116 — N=16 outlier 재측정**~~ ✅ 2026-05-26 완료 — **3-run avg −14.35%** (outlier 아닌 consistent 회귀), N 의 비단조 throughput curve 발견
+5. ~~**SUB_117 — per-worker CPU util 측정**~~ ✅ 2026-05-26 완료 — N=32 99.4% saturated **10.24 TFLOPS available**
+
+### 다음 우선순위 (2 일차 이후)
+
+1. **SUB_148 (IDE_020/TSK_038)** — cgroup `cpuset.cpus=80-111` + `cpuset.cpus=56-79` for trident 분리 → N=16 valley 해소 검증 (SUB_116 결과 기반)
+2. **(미할당)** N=16 valley deep-dive: `/proc/interrupts` + `ps -eLo psr` for vllm trident worker — IRQ contention 가설 검증
+3. **SUB_138 (IDE_018 main)** — phase-burst scheduler 기반 e2e 측정 (SUB_117 의 10 TFLOPS 가용 compute 가 입력)
 
 ---
 
