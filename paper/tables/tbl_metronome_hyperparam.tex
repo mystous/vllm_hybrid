@@ -1,31 +1,34 @@
 %% tables/tbl_metronome_hyperparam.tex
-%% Table V — METRONOME 단계별 hyperparameter (단일 컬럼 fit)
+%% Table V — METRONOME 단계별 hyperparameter (단일 컬럼 + resizebox)
 
 \begin{table}[t]
 \centering
-\caption{\algname 의 단계별 hyperparameter. 본 환경 (Qwen 2.5-32B + 4$\times$2 TP) 측정값으로부터 도출.}
+\caption{\algname 의 단계별 hyperparameter (Qwen 2.5-32B + 4$\times$2 TP 측정 도출).}
 \label{tbl:metronome-hyperparam}
-\footnotesize
-\begin{tabular}{@{}lll@{}}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}llp{2.4cm}@{}}
 \toprule
-\textbf{Stage}        & \textbf{Parameter}      & \textbf{Value / source} \\
+\textbf{Stage}     & \textbf{Parameter}     & \textbf{Value / source} \\
 \midrule
-\textsc{Tempo}        & probe samples $n$       & 10 steps \\
-                      & $\tgpu$ (measured)      & $\approx 40$\,ms \\
+\textsc{Tempo}     & $n$                    & 10 steps \\
+                   & $\tgpu$ (measured)     & $\approx 40$\,ms \\
 \midrule
-\textsc{Chord}        & $L_{\text{primary}}$    & NUMA pin (system) \\
-                      & $L_{\text{secondary}}$  & auxiliary work (work) \\
-                      & constraint              & $\dom(L_p) \neq \dom(L_s)$ \\
+\textsc{Chord}     & $L_{\text{primary}}$   & NUMA pin (system) \\
+                   & $L_{\text{secondary}}$ & aux work (work) \\
+                   & constraint             & $\dom(L_p)\!\neq\!\dom(L_s)$ \\
 \midrule
-\textsc{Meter}        & multiplier $k$          & 2 or 3 \\
-                      & $\tcpu^{\min}$          & 100\,ms \\
-                      & $\tcpu$ (derived)       & $\max(2\tgpu, 100) = 100$\,ms \\
+\textsc{Meter}     & $k$                    & 2 or 3 \\
+                   & $\tcpu^{\min}$         & 100\,ms \\
+                   & $\tcpu$                & $\max(2\tgpu, 100)$\,ms \\
 \midrule
-\textsc{Accent}       & PCIe threshold $\tau$   & 0.5 (normalized) \\
-                      & pattern (8$\times$ TP)  & BRANCHY \\
+\textsc{Accent}    & $\tau$                 & 0.5 (normalized) \\
+                   & pattern (8 GPU TP)     & BRANCHY \\
 \midrule
-\textsc{Ritardando}   & drift $\delta_{\max}$    & 0.20 \\
-                      & monitor interval        & per-step \\
+\textsc{Ritardando}& $\delta_{\max}$        & 0.20 \\
+                   & monitor                & per-step \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}

@@ -1,22 +1,24 @@
 %% tables/tbl_superposition.tex
-%% Table III — Cross-domain pair vs same-domain stack: 도메인 간섭 비용
+%% Table III — Superposition (table* + resizebox)
 
 \begin{table*}[t]
 \centering
-\caption{Theorem~\ref{thm:superposition} 의 경험적 검증. 도메인 간섭 비용 $\varepsilon$ 는 동일 도메인 stacking 에서 1.18\,pp, 교차 도메인에서 0.55\,pp 로 약 2배 격차를 보이며, 3+ 동일 도메인 stack 은 superlinear destructive (4.56\,pp) 로 발산한다.}
+\caption{Theorem~\ref{thm:superposition} 의 경험적 검증. 도메인 간섭 비용 $\varepsilon$ 가 동일 도메인 stacking 에서 1.18\,pp, 교차 도메인에서 0.55\,pp 로 약 2배 격차를 보이며, 3+ 동일 도메인 stack 은 superlinear destructive (4.56\,pp).}
 \label{tbl:superposition}
-\footnotesize
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}lccccc@{}}
 \toprule
 \textbf{Stack composition} & \textbf{Domain relation} & \textbf{Linear sum} & \textbf{Actual} & \textbf{Residual $\varepsilon$} & \textbf{Verdict} \\
 \midrule
-NUMA pin $\oplus$ softmax auxiliary    & \textbf{cross} (B$\oplus$E) & $+3.38\,\%$ & $+2.83\,\%$ & $\mathbf{-0.55\,pp}$ & near-linear superposition \\
-cgroup $\oplus$ taskset                & same (B$\oplus$B)            & $+0.06\,\%$ & $-0.39\,\%$ & $-0.45\,pp$           & destructive \\
-4-OS-lever stack (cgroup+hp+taskset+NUMA) & same (B$^{4}$)            & $+1.15\,\%$ & $-0.03\,\%$ & $\mathbf{-1.18\,pp}$ & destructive \\
-Triple-OS-lever stack                  & same (B$^{3}$)               & $+1.10\,\%$ & $-2.83\,\%$ & $\mathbf{-3.93\,pp}$ & superlinear destructive \\
-\midrule
-\multicolumn{6}{l}{\emph{Empirically derived interference cost (Theorem~\ref{thm:superposition})}: } \\
-\multicolumn{6}{l}{\quad $\varepsilon_{\text{cross}} \approx 0.55\,$pp (2-lever cross-domain) $\ll$ $\varepsilon_{\text{same}} \approx 1.18\,$pp (2-lever same-domain) $\ll$ $\varepsilon_{\text{same}}^{(3+)} \approx 4.56\,$pp (3+-lever same-domain)} \\
+NUMA pin $\oplus$ softmax aux        & \textbf{cross} (B$\oplus$E) & $+3.38\%$ & $+2.83\%$ & $\mathbf{-0.55\,pp}$ & near-linear \\
+cgroup $\oplus$ taskset              & same (B$\oplus$B)           & $+0.06\%$ & $-0.39\%$ & $-0.45\,pp$          & destructive \\
+4-OS-lever (cgroup+hp+taskset+NUMA)  & same (B$^{4}$)               & $+1.15\%$ & $-0.03\%$ & $\mathbf{-1.18\,pp}$ & destructive \\
+Triple-OS-lever                      & same (B$^{3}$)               & $+1.10\%$ & $-2.83\%$ & $\mathbf{-3.93\,pp}$ & superlinear destructive \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
+\smallskip
+\par\noindent\scriptsize Empirically derived: $\varepsilon_{\text{cross}} \!\approx\! 0.55\,$pp $\ll \varepsilon_{\text{same}}^{(2)} \!\approx\! 1.18\,$pp $\ll \varepsilon_{\text{same}}^{(3+)} \!\approx\! 4.56\,$pp.
 \end{table*}

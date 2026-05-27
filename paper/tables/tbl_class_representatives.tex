@@ -1,30 +1,28 @@
 %% tables/tbl_class_representatives.tex
-%% Table II — 분류군별 대표 기법의 단독 효과 + 실패/성공 메커니즘 요약
-%% table* — 2-컬럼 spanning
+%% Table II — 분류군별 대표 기법 + 메커니즘 (table* + resizebox, multirow 제거)
 
 \begin{table*}[t]
 \centering
 \caption{5 분류군 대표 기법의 단독 효과와 실패/성공 메커니즘. 각 분류군은 자원의 도메인에 따라 정의되며, 동일 분류군 내 기법들은 공통 메커니즘으로 실패 또는 성공한다.}
 \label{tbl:class-representatives}
-\footnotesize
-\begin{tabular}{@{}clrcl@{}}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}cp{4.3cm}rlp{6.0cm}@{}}
 \toprule
-\textbf{Class} & \textbf{Representative technique} & \textbf{$\Delta$ (1-run)} & \textbf{Verdict} & \textbf{Mechanism} \\
+\textbf{Class} & \textbf{Representative} & \textbf{$\Delta$ (1-run)} & \textbf{Verdict} & \textbf{Mechanism} \\
 \midrule
-\multirow{2}{*}{A. Direct kernel}    & AMX matmul drop-in              & $+0.26\,\%$ & noise         & H2D/D2H sync overhead 누적이 microbench gain 상쇄 \\
-                                      & 4-method Jacobi router          & $-94.20\,\%$ & catastrophic & LM-head 1.81\,s $\times$ 165 chat req 직렬 큐 collapse \\
-\midrule
-\multirow{2}{*}{B. System isolation} & NUMA pin (dual instance)        & $\mathbf{+1.54\,\%}$ ($\uparrow$ multi-run $+2.24\,\%$) & \textbf{robust} & local/remote 2.1$\times$ latency 비대칭 hardware-level 회수 \\
-                                      & 4-OS-lever stack                & $-0.03\,\%$ & destructive   & 동일 도메인 stacking $\rightarrow$ context-switch + cache thrash \\
-\midrule
-\multirow{1}{*}{C. Sub-step sched.}  & task-pool fill (actual fire)    & $-1.75\,\%$ & catastrophic   & step-internal lock contention 으로 critical path stall \\
-\midrule
-\multirow{1}{*}{D. Aux. workload}    & AMX draft proxy (Qwen 0.5B)     & $-2.77\,\%$ & failure        & microbench 0.524\,ms $\rightarrow$ invasive integration 부재 \\
-\midrule
-\multirow{2}{*}{E. Concurrent aux.}  & branchy $\times$ 100\,ms (cellB) & $\mathbf{+5.28\,\%}$ (single cell $+12.04\,\%$) & \textbf{threshold} & step-boundary 정렬 + prefetcher inhibit \\
-                                      & regular $\times$ 10\,ms (cellA)  & $+0.98\,\%$ & noise              & 비정수배 alignment $\rightarrow$ critical-path 침범 \\
+A & AMX matmul drop-in              & $+0.26\%$  & noise         & H2D/D2H sync overhead 누적이 microbench gain 상쇄 \\
+A & 4-method Jacobi router          & $-94.20\%$ & catastrophic  & LM-head 1.81\,s $\times$ 165 chat req 직렬 큐 collapse \\
+B & NUMA pin (dual instance)        & $\mathbf{+1.54\%}$ ($\uparrow$ multi $+2.24\%$) & \textbf{robust} & local/remote 2.1$\times$ latency 비대칭의 hardware-level 회수 \\
+B & 4-OS-lever stack                & $-0.03\%$  & destructive   & 동일 도메인 stacking $\rightarrow$ context-switch + cache thrash \\
+C & task-pool fill (actual fire)    & $-1.75\%$  & catastrophic  & step-internal lock contention 으로 critical path stall \\
+D & AMX draft proxy (Qwen 0.5B)     & $-2.77\%$  & failure       & microbench 0.524\,ms, invasive integration 부재로 e2e 변환 실패 \\
+E & branchy $\times$ 100\,ms (cellB) & $\mathbf{+5.28\%}$ (cell $+12.04\%$) & \textbf{threshold} & step-boundary 정렬 + prefetcher 억제의 결합 효과 \\
+E & regular $\times$ 10\,ms (cellA)  & $+0.98\%$  & noise         & 비정수배 alignment 로 critical-path 침범 \\
 \bottomrule
-\multicolumn{5}{l}{\footnotesize 본 분류군 대표 검증은 가설 H1--H3 (\S\ref{subsec:hypotheses}) 의 정당화 근거이다. 분류군 B 와 E 의 cross-domain pair (NUMA $\oplus$ branchy)} \\
-\multicolumn{5}{l}{\footnotesize 가 \algname 의 \textsc{Chord} + \textsc{Accent} 단계 design 의 경험적 backing 을 제공한다 (Table~\ref{tbl:superposition}).}
-\end{tabular}
+\end{tabular}%
+}
+\smallskip
+\par\noindent\scriptsize 본 분류군 대표 검증은 가설 H1--H3 (\S\ref{subsec:hypotheses}) 의 정당화 근거. 분류군 B 와 E 의 cross-domain pair (NUMA $\oplus$ branchy) 가 \algname 의 \textsc{Chord} + \textsc{Accent} 단계 design 의 직접 backing (Table~\ref{tbl:superposition}).
 \end{table*}
