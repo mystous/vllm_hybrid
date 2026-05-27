@@ -1,46 +1,65 @@
 %% paper/sections/01_introduction.tex
-%% §1 Introduction
+%% §1 Introduction — principled framing
 
 \section{서론}
 \label{sec:introduction}
 
-\subsection{LLM 추론 서빙의 자원 비대칭 문제}
+\subsection{문제 의식: GPU 박자에 정렬되지 않은 CPU 자원}
 
-최근 대규모 언어모델(LLM) 의 상용 서빙 시스템은 PagedAttention 기반의 vLLM~\cite{kwon2023vllm} 과 Continuous Batching~\cite{yu2022orca} 의 보편화에 의해 GPU 활용률 측면에서 큰 진전을 이루었다.
-나아가 투기적 디코딩(speculative decoding)~\cite{leviathan2023spec, chen2023spec, stern2018blockwise} 이 대중적으로 도입되면서, 동일한 GPU 자원으로 처리되는 토큰 수가 모델 크기와 워크로드에 따라 2--3배까지 증가하는 결과가 보고되고 있다~\cite{cai2024medusa, li2024eagle}.
+vLLM~\cite{kwon2023vllm} 의 PagedAttention 과 Continuous Batching~\cite{yu2022orca} 의 보편화, 그리고 투기적 디코딩~\cite{leviathan2023spec, chen2023spec, stern2018blockwise, cai2024medusa, li2024eagle, li2025eagle3} 의 도입으로 GPU 자원의 활용률은 상당히 회복되었다.
+그러나 GPU 가속 노드에 함께 배치된 호스트 CPU 자원은 평균 4--5\,\% 수준에 머무는 비대칭이 일관되게 관찰된다~\cite{chung2026cpuslowdowns}.
 
-그러나 GPU 자원의 효율적 활용과 대조적으로, GPU 가속 노드에 함께 배치된 호스트 CPU 자원은 평균 4--5\,\% 수준에서 머무는 비대칭이 측정 자료를 통해 일관되게 관찰된다.
-이는 GPU 가속 LLM 추론의 critical path 가 GPU forward와 attention 연산이 dominant 이며, 호스트 CPU 는 토크나이저(tokenizer), 결과 detokenization, 워크로드 라우팅 등 비교적 가벼운 부차 작업에만 사용되기 때문이다.
-이러한 비대칭 환경에서 \emph{어떻게 CPU 자원을 활용해 시스템 전체의 처리량을 추가로 회수할 것인가} 는 LLM 추론 서빙 분야의 중요한 미해결 문제로 남아 있다.
+이 문제에 대한 두 가지 대조적 접근이 동시에 제안되고 있다.
+ArcLight~\cite{xu2026arclight} 는 NUMA 인지 CPU 자체를 추론 가속기로 변환하는 \emph{CPU-as-accelerator} 접근이고, Blink~\cite{siavashi2026blink} 는 호스트 CPU 를 critical path 에서 완전히 제거하는 \emph{CPU-free} 접근이다.
+본 논문은 그 \emph{중간 지점}---CPU 를 critical path 의 가속기로 만들지도, 완전히 제거하지도 않고, GPU step 주기에 정렬된 \emph{박자 정렬 보조 자원}으로 활용하는 접근---을 채택한다.
 
-\subsection{24-기법 체계적 탐색의 결과}
+\subsection{본 논문의 핵심 통찰: 박자와 화음}
 
-본 연구는 위 문제에 대한 답을 찾기 위해 CPU 자원을 활용하는 24가지 후보 최적화 기법을 5개 분류군---(A) 직접 CPU 커널 대체, (B) 시스템 수준 격리, (C) sub-step CPU 스케줄링, (D) 보조 워크로드 오프로딩, (E) 동시 보조 작업---으로 체계화하고 paired control/treatment 측정을 통해 각 기법의 단독 효과를 분석하였다.
+본 논문은 LLM 추론 서빙에서 CPU 자원의 활용을 두 가지 시간/공간 차원으로 분해한다.
 
-측정 결과 다음 세 가지 음성 현상이 일관되게 관찰되었다.
-첫째, 24개 단일 기법 중 어떤 기법도 처리량 +5\,\% 의 유의미한 임계점에 도달하지 못했다.
-둘째, microbench 수준에서 1.5--5배의 속도 향상을 보였던 직접 CPU 커널 대체 기법들이 end-to-end 처리량으로 변환되는 비율은 0/7 로 일관되게 실패하였다.
-셋째, 단순한 기법 조합 stacking 은 동일 도메인일 경우 destructive interference 를 발생시켜 단독 기법 합산보다 더 낮은 효과를 보였다.
+\emph{시간 차원 (박자)}: GPU 의 step 주기 $\tgpu \approx 35$--$44$\,ms 는 추론 시스템의 자연스러운 박자 (tempo) 이다.
+CPU 보조 작업의 주기 $\tcpu$ 가 이 박자의 정수배 ($\tcpu = k \cdot \tgpu$, $k \geq 2$) 로 정렬될 때 critical path 침범 없이 amortize window 가 최대화된다.
+직관과 반대로 고빈도의 정규 작업 ($\tcpu \ll \tgpu$) 은 critical path 를 침범하여 net-negative 가 된다 (\S\ref{sec:results}).
+
+\emph{공간 차원 (화음)}: CPU 자원 활용 기법들은 서로 다른 \emph{도메인} (시스템 격리, CPU 작업, 직접 커널, 스케줄링) 으로 분류된다.
+서로 다른 도메인의 두 기법 (교차 도메인 화음) 을 stacking 했을 때 그 결합 효과는 단순 합에 가깝게 \emph{near-linear superposition} 을 보이며, 동일 도메인 stacking 은 superlinear destructive interference 로 발산한다.
+
+본 논문은 이 두 통찰을 통합한 \emph{원리적 알고리즘}을 제시한다.
+
+\subsection{\algname 알고리즘과 두 정리}
+
+\algname 알고리즘은 음악적 metaphor 의 5단계 파이프라인이다.
+\textsc{Tempo} 가 $\tgpu$ 를 측정하고, \textsc{Chord} 가 교차 도메인 기법 쌍을 선택하며, \textsc{Meter} 가 $\tcpu$ 를 $\tgpu$ 의 정수배로 정렬하고, \textsc{Accent} 가 PCIe pressure 에 따라 작업 패턴을 결정하며, \textsc{Ritardando} 가 runtime drift 시 \textsc{Tempo} 로 복귀하여 재측정한다.
+
+본 논문은 \algname 의 설계를 두 정리로 형식화한다.
+\textbf{정리 1 (교차 도메인 중첩 — Cross-Domain Superposition)} 은 도메인 간섭 비용 $\varepsilon(A,B)$ 의 도메인-의존 분해를 정량화하고, \textbf{정리 2 (단계 경계 정렬 — Step-Boundary Alignment)} 는 정수배 주기 정렬의 amortize 이득을 유도한다.
+
+\subsection{경험적 정당화: 분류군 기반 대표 검증}
+
+\algname 의 두 설계 결정 (교차 도메인 + 박자 정렬) 은 추가 가정 없이 검증 가능해야 한다.
+이를 위해 본 논문은 CPU 자원 활용 기법의 \emph{설계 공간 (design space) 을 5분류군으로 체계화} 하고, 각 분류군에서 \emph{대표 기법}을 선정하여 paired control/treatment 측정 protocol 로 검증한다.
+이 분류군 기반 접근의 두 가지 학술적 가치는 다음과 같다.
+
+첫째, 분류군 자체가 본 연구의 contribution 이다.
+직접 커널 대체 (분류군 A), 시스템 격리 (B), sub-step 스케줄링 (C), 보조 워크로드 (D), 동시 보조 작업 (E) 의 분류는 향후 LLM 자원 활용 연구에 재사용 가능한 taxonomy 이다.
+
+둘째, 각 분류군의 \emph{실패 메커니즘 분석}은 단순 음성 결과 보고가 아닌 \emph{원리적 진단}이다.
+예를 들어 분류군 A 의 실패는 H2D/D2H 동기화 비용 누적으로, 분류군 C 의 실패는 task-pool 의 lock contention 으로 메커니즘 차원에서 설명되며, 이는 향후 같은 분류군의 시도를 위한 정량적 design constraint 가 된다.
 
 \subsection{본 논문의 기여}
 
-본 논문은 위 음성 결과들을 단순 보고에 그치지 않고, 그 안에서 발견된 두 가지 비자명한 현상을 출발점으로 통합 알고리즘 \algname 을 제안한다.
+본 논문의 핵심 기여는 다음 세 가지이다.
 
-\textbf{Contribution 1: \algname 알고리즘.}
-GPU step 주기에 정렬된 CPU 자원 오케스트레이션 알고리즘을 음악적 metaphor 로 형식화한다.
-5단계 파이프라인---\emph{Tempo} (박자 측정), \emph{Chord} (교차 도메인 기법 쌍 선택), \emph{Meter} (CPU 주기 정렬), \emph{Accent} (작업 패턴 선택), \emph{Ritardando} (drift 시 재조정)---은 24개 단일 기법이 모두 미달한 5\,\% 임계점을 단일 구성에서 도달한다.
+\textbf{기여 1 (Algorithm).} \algname 알고리즘.
+박자 측정, 교차 도메인 화음, 주기 정렬, 작업 강세, drift 적응의 5단계 음악적 파이프라인 (Algorithm~\ref{alg:metronome-init}--\ref{alg:metronome-serve}, Fig.~\ref{fig:metronome-pipeline}).
+단일 구성으로 처리량 임계점 +5\,\% 도달.
 
-\textbf{Contribution 2: 교차 도메인 중첩 정리.}
-LLM 추론 서빙에서 CPU 최적화 기법의 stacking 효과를 처음으로 정량적으로 정식화한다.
-도메인 간섭 비용 $\varepsilon(A,B)$ 은 동일 도메인 stacking 시 약 1.18 pp, 교차 도메인 시 0.55 pp, 동일 도메인 3+ stack 시 4.56 pp 의 초선형 destructive 패턴을 나타냄을 경험적으로 보였다.
+\textbf{기여 2 (Theorem).} 교차 도메인 중첩 정리 (Theorem~\ref{thm:superposition}) 와 단계 경계 정렬 정리 (Theorem~\ref{thm:alignment}).
+LLM 추론 서빙에서 CPU 보조 기법의 stacking 효과와 시간 정렬 효과를 처음으로 정량적으로 형식화.
 
-\textbf{Contribution 3: 분기 패턴 + 저빈도 cycle 의 역설.}
-직관과 반대로, 고빈도 regular work 보다 저빈도 branchy work 가 5.4배 높은 효과를 나타내는 현상을 발견하고 CPU prefetcher 의 GPU PCIe 트래픽과의 contention 회피 메커니즘으로 설명한다.
+\textbf{기여 3 (Mechanism).} 5 분류군 taxonomy 와 분류군별 실패/성공 메커니즘의 원리적 진단.
+특히 분기 패턴 + 저빈도 cycle 의 우월성을 PCIe-contention-aware alignment 원칙으로 설명.
 
 \subsection{논문 구성}
 
-\S\ref{sec:related} 은 관련 연구를 정리하고, \S\ref{sec:background} 은 투기적 디코딩과 NUMA 아키텍처의 배경을 설명한다.
-\S\ref{sec:problem} 은 GPU step 주기와 CPU offload window 의 관계를 Amdahl 류 분석으로 정량화한다.
-\S\ref{sec:metronome} 은 \algname 알고리즘과 두 정리(Theorem 1, 2)를 제안한다.
-\S\ref{sec:methodology} 은 24-기법 분류와 측정 protocol 을, \S\ref{sec:results} 은 측정 결과를, \S\ref{sec:mechanism} 은 메커니즘 분석을 제시한다.
-\S\ref{sec:discussion} 은 이론과 실측의 통합 및 실용적 함의를, \S\ref{sec:conclusion} 은 결론과 향후 연구 방향을 제시한다.
+\S\ref{sec:related} 관련 연구, \S\ref{sec:background} 배경 (투기적 디코딩, 적응형 라우팅, NUMA), \S\ref{sec:problem} 문제 정의 (Amdahl 류 분석), \S\ref{sec:metronome} \algname 알고리즘과 정리 1, 2 의 형식화, \S\ref{sec:methodology} 분류군 기반 대표 검증 방법, \S\ref{sec:results} 측정 결과, \S\ref{sec:mechanism} 분류군별 메커니즘 분석, \S\ref{sec:discussion} 논의와 실용적 함의, \S\ref{sec:conclusion} 결론.

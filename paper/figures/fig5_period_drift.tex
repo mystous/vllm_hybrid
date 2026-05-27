@@ -1,56 +1,56 @@
 %% figures/fig5_period_drift.tex
-%% Fig.5 — Step period drift 시계열 + Ritardando re-probing 동작
+%% Fig.5 — Step period drift 시계열 (단일 컬럼 fit, 단순화)
 
 \begin{figure}[t]
 \centering
+\resizebox{0.95\columnwidth}{!}{%
 \begin{tikzpicture}[
-    x=0.45cm, y=0.42cm,
-    axis/.style={-{Stealth[length=1.8mm]}, thick},
-    grid/.style={dotted, gray!50},
-    measurement/.style={fill=blue!20, draw=blue!50!black, thick},
+    x=0.40cm, y=0.30cm,
+    axis/.style={-{Stealth[length=1.5mm]}, thick},
+    measurement/.style={fill=blue!22, draw=blue!50!black, thick},
+    reprobe/.style={fill=orange!25, draw=orange!60!black, thick},
+    aftermath/.style={fill=green!22, draw=green!50!black, thick},
     threshold/.style={red!60!black, dashed, thick},
-    annotation/.style={font=\footnotesize, align=left},
+    label/.style={font=\scriptsize, align=left, fill=white, inner sep=1pt},
 ]
 % Axes
-\draw[axis] (0, 0) -- (22, 0) node[right, font=\footnotesize] {request index};
-\draw[axis] (0, 0) -- (0, 8) node[above, font=\footnotesize] {$\delta(t)$};
-
-% Y-axis labels
+\draw[axis] (0, 0) -- (24, 0)  node[right, font=\scriptsize] {req idx};
+\draw[axis] (0, 0) -- (0, 8)   node[above, font=\scriptsize] {$\delta(t)$};
 \foreach \y/\v in {0/0, 2/0.10, 4/0.20, 6/0.30} {
-    \node[left, font=\scriptsize] at (-0.2, \y) {\v};
+    \node[left, font=\tiny] at (-0.1, \y) {\v};
+    \draw (-0.05, \y) -- (0.05, \y);
+}
+\draw[threshold] (0, 4) -- (24, 4);
+\node[label, text=red!60!black, anchor=west] at (15.5, 4.6) {$\delta_{\max}\!=\!0.2$};
+
+% Stable phase (1-10): drift around 0.05
+\foreach \x/\h in {1/0.6, 2/0.9, 3/1.0, 4/0.8, 5/1.0, 6/1.1, 7/1.0, 8/1.1, 9/1.2, 10/1.0} {
+    \fill[measurement] (\x, 0) rectangle (\x+0.6, \h);
 }
 
-% Threshold line (delta = 0.2)
-\draw[threshold] (0, 4) -- (22, 4)
-    node[right, font=\scriptsize, text=red!60!black] {threshold $\delta_{\max}{=}0.2$};
-
-% Drift trajectory (simulated step periods)
-% Stable phase (0-10): drift around 0.05
-\foreach \x/\y in {1/0.8, 2/1.0, 3/1.1, 4/0.9, 5/1.0, 6/1.2, 7/1.1, 8/1.0, 9/1.3, 10/1.1} {
-    \fill[measurement] (\x, 0) rectangle (\x+0.4, \y);
+% Workload shift (11-14): rising drift
+\foreach \x/\h in {11/1.8, 12/3.0, 13/4.2, 14/5.4} {
+    \fill[reprobe] (\x, 0) rectangle (\x+0.6, \h);
 }
 
-% Workload shift (req 11+): drift increasing
-\foreach \x/\y in {11/2.0, 12/3.5, 13/4.5, 14/5.5} {
-    \fill[measurement] (\x, 0) rectangle (\x+0.4, \y);
+% Re-probe trigger annotation
+\node[label, text=orange!70!black, anchor=south] at (14, 6.0)
+    {drift $>\delta_{\max}$};
+\draw[orange!60!black, thick, ->] (14.3, 5.8) -- (14.3, 5.6);
+
+% Re-probe phase (15-16)
+\foreach \x/\h in {15/0.4, 16/0.5} {
+    \fill[gray!30, draw=gray!60] (\x, 0) rectangle (\x+0.6, \h);
 }
+\node[label, text=gray!50!black, anchor=north] at (15.8, -0.4) {re-probe};
 
-% Mark re-probe trigger
-\node[annotation, text=red!60!black] at (14, 6.5) {drift $> 0.2$\\$\rightarrow$ re-probe};
-\draw[red!60!black, thick, ->] (14.5, 6.2) -- (14.5, 5.7);
-
-% Re-probe phase (req 15-16): re-measurement
-\draw[gray!50, very thick, decoration={brace, amplitude=4pt}, decorate]
-    (15, -0.8) -- (16, -0.8);
-\node[annotation, below=4pt of {(15.5, -0.8)}] {re-probe};
-
-% After re-probe, new stable phase (req 17-21)
-\foreach \x/\y in {17/0.9, 18/1.0, 19/1.1, 20/1.0, 21/1.2} {
-    \fill[fill=green!25, draw=green!50!black, thick] (\x, 0) rectangle (\x+0.4, \y);
+% New stable (17-23)
+\foreach \x/\h in {17/0.9, 18/1.0, 19/1.0, 20/1.1, 21/1.0, 22/1.0, 23/0.9} {
+    \fill[aftermath] (\x, 0) rectangle (\x+0.6, \h);
 }
-\node[annotation, text=green!50!black] at (19, 3.5) {a tempo\\(new $\tgpu$)};
-
-\end{tikzpicture}
-\caption{\textsc{Ritardando} 단계의 drift 감지와 re-probing. step 주기의 정상 상태 분산은 $\delta < 0.1$ 수준이지만, model swap 또는 워크로드 변화 시 drift가 임계값 $\delta_{\max} = 0.2$를 초과하면 Stage 1으로 복귀하여 $\tgpu$를 재측정 (\emph{a tempo}).}
+\node[label, text=green!50!black, anchor=south] at (20, 3.0) {a tempo};
+\end{tikzpicture}%
+}
+\caption{\textsc{Ritardando} 의 drift 감지와 박자 재측정. 정상 phase 의 $\delta < 0.1$ 에서 workload shift 시 $\delta$ 가 $\delta_{\max}\!=\!0.2$ 를 초과하면 \textsc{Initialize} 로 복귀 (a tempo).}
 \label{fig:period-drift}
 \end{figure}

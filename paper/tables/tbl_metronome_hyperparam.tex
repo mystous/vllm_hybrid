@@ -1,32 +1,31 @@
 %% tables/tbl_metronome_hyperparam.tex
-%% Table V — METRONOME 단계별 hyperparameter 와 그 경험적 도출 근거
+%% Table V — METRONOME 단계별 hyperparameter (단일 컬럼 fit)
 
 \begin{table}[t]
 \centering
-\caption{\algname 의 단계별 hyperparameter 와 경험적 도출 근거.}
+\caption{\algname 의 단계별 hyperparameter. 본 환경 (Qwen 2.5-32B + 4$\times$2 TP) 측정값으로부터 도출.}
 \label{tbl:metronome-hyperparam}
-\small
+\footnotesize
 \begin{tabular}{@{}lll@{}}
 \toprule
-\textbf{Stage} & \textbf{Hyperparameter} & \textbf{값 / 근거} \\
+\textbf{Stage}        & \textbf{Parameter}      & \textbf{Value / source} \\
 \midrule
-\textsc{Tempo}    & probe sample size $n$       & $n = 10$ steps \\
-\textsc{Tempo}    & $\tgpu$ (측정값)            & $\approx 40$\,ms (Qwen 2.5-32B + TP=4) \\
+\textsc{Tempo}        & probe samples $n$       & 10 steps \\
+                      & $\tgpu$ (measured)      & $\approx 40$\,ms \\
 \midrule
-\textsc{Chord}    & $L_{\text{primary}}$        & NUMA pin (domain = system) \\
-\textsc{Chord}    & $L_{\text{secondary}}$      & auxiliary work (domain = work) \\
-\textsc{Chord}    & domain constraint           & $\dom(L_{\text{primary}}) \neq \dom(L_{\text{secondary}})$ \\
+\textsc{Chord}        & $L_{\text{primary}}$    & NUMA pin (system) \\
+                      & $L_{\text{secondary}}$  & auxiliary work (work) \\
+                      & constraint              & $\dom(L_p) \neq \dom(L_s)$ \\
 \midrule
-\textsc{Meter}    & integer multiplier $k$      & $k \in \{2, 3\}$, default 2.5 \\
-\textsc{Meter}    & $\tcpu^{\min}$              & 100\,ms \\
-\textsc{Meter}    & $\tcpu$ (도출값)            & $\max(2\tgpu, 100\,\mathrm{ms}) = 100$\,ms \\
+\textsc{Meter}        & multiplier $k$          & 2 or 3 \\
+                      & $\tcpu^{\min}$          & 100\,ms \\
+                      & $\tcpu$ (derived)       & $\max(2\tgpu, 100) = 100$\,ms \\
 \midrule
-\textsc{Accent}   & PCIe pressure threshold $\tau$ & 0.5 (정규화) \\
-\textsc{Accent}   & 본 환경 pattern               & BRANCHY (8-GPU TP $\rightarrow$ PCIe 압박) \\
+\textsc{Accent}       & PCIe threshold $\tau$   & 0.5 (normalized) \\
+                      & pattern (8$\times$ TP)  & BRANCHY \\
 \midrule
-\textsc{Ritardando} & drift threshold $\delta_{\max}$ & 0.20 \\
-\textsc{Ritardando} & monitor interval            & per-step \\
+\textsc{Ritardando}   & drift $\delta_{\max}$    & 0.20 \\
+                      & monitor interval        & per-step \\
 \bottomrule
-\multicolumn{3}{l}{\footnotesize 모든 hyperparameter는 \S\ref{sec:results}의 24-기법 ablation으로부터 경험적 도출.} \\
 \end{tabular}
 \end{table}

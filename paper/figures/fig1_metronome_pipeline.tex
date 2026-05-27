@@ -1,43 +1,41 @@
 %% figures/fig1_metronome_pipeline.tex
-%% Fig.1 — METRONOME 5-stage pipeline flow diagram (TikZ)
-%% \input from §5.
+%% Fig.1 — METRONOME 5-stage pipeline (단일 컬럼 fit, 컴팩트)
 
 \begin{figure}[t]
 \centering
+\resizebox{0.92\columnwidth}{!}{%
 \begin{tikzpicture}[
-    node distance=0.42cm and 0.50cm,
-    stage/.style={rectangle, draw, rounded corners=2pt, minimum width=2.4cm,
-                  minimum height=0.65cm, align=center, font=\small},
-    decision/.style={diamond, draw, aspect=2.4, minimum width=2.4cm,
-                     minimum height=0.4cm, align=center, font=\footnotesize},
-    annot/.style={font=\footnotesize\itshape, text=gray!70!black, align=left},
-    arrow/.style={-{Stealth[length=2.0mm]}, thick},
+    node distance=0.35cm,
+    stage/.style={rectangle, draw, rounded corners=2pt,
+                  minimum width=4.4cm, minimum height=0.62cm,
+                  align=center, font=\small, fill=blue!10},
+    serve/.style={rectangle, draw, rounded corners=2pt,
+                  minimum width=4.4cm, minimum height=0.62cm,
+                  align=center, font=\small, fill=green!12},
+    decision/.style={diamond, draw, aspect=2.4,
+                     minimum width=1.6cm, minimum height=0.3cm,
+                     align=center, font=\footnotesize, fill=yellow!15},
+    arrow/.style={-{Stealth[length=2mm]}, thick},
 ]
-% Stages — top to bottom
-\node[stage, fill=blue!8] (s1) {Stage 1 — \textsc{Tempo}\\\footnotesize $\tgpu \gets$ probe step period};
-\node[stage, fill=blue!8, below=of s1] (s2) {Stage 2 — \textsc{Chord}\\\footnotesize cross-domain pair};
-\node[stage, fill=blue!8, below=of s2] (s3) {Stage 3 — \textsc{Meter}\\\footnotesize $\tcpu \gets k \cdot \tgpu$, $k \geq 2$};
-\node[stage, fill=blue!8, below=of s3] (s4) {Stage 4 — \textsc{Accent}\\\footnotesize work pattern: branchy/regular};
-\node[stage, fill=green!12, below=of s4] (s5) {Stage 5 — \textsc{Ritardando}\\\footnotesize continuous adaptive};
-\node[decision, fill=yellow!12, below=of s5] (drift) {drift $> 20\%$?};
+\node[stage]                  (s1) {\textsc{Tempo} : probe $\tgpu$};
+\node[stage, below=of s1]     (s2) {\textsc{Chord} : cross-domain pair};
+\node[stage, below=of s2]     (s3) {\textsc{Meter} : $\tcpu = k\tgpu,\ k\!\ge\!2$};
+\node[stage, below=of s3]     (s4) {\textsc{Accent} : pattern by $\rho_{\text{pcie}}$};
+\node[serve, below=of s4]     (s5) {\textsc{Ritardando} : adaptive serve};
+\node[decision, below=of s5]  (d)  {drift $> \delta_{\max}$?};
 
-% Arrows
 \draw[arrow] (s1) -- (s2);
 \draw[arrow] (s2) -- (s3);
 \draw[arrow] (s3) -- (s4);
 \draw[arrow] (s4) -- (s5);
-\draw[arrow] (s5) -- (drift);
-\draw[arrow] (drift.east) -- ++(0.7,0) |- node[pos=0.25, right, font=\footnotesize] {yes (a tempo)} (s1.east);
-\draw[arrow] (drift.west) -- ++(-0.7,0) |- node[pos=0.25, left, font=\footnotesize] {no} (s5.west);
+\draw[arrow] (s5) -- (d);
 
-% Annotations on the right
-\node[annot, right=0.20cm of s1] {박자 측정};
-\node[annot, right=0.20cm of s2] {도메인 분리};
-\node[annot, right=0.20cm of s3] {주기 정렬};
-\node[annot, right=0.20cm of s4] {강세 결정};
-\node[annot, right=0.20cm of s5] {지속 적응};
-
-\end{tikzpicture}
-\caption{\algname 알고리즘의 5단계 파이프라인. 음악적 명명은 각 단계의 역할을 직관적으로 묶는다: \textsc{Tempo}는 박자 측정, \textsc{Chord}는 교차 도메인 기법 쌍 선택, \textsc{Meter}는 주기 정렬, \textsc{Accent}는 작업 패턴 강세 결정, \textsc{Ritardando}는 runtime drift 시 tempo 재측정이다.}
+\draw[arrow] (d.east) .. controls +(1.0,0) and +(1.0,0) ..
+    node[right=2pt, font=\scriptsize, pos=0.5] {yes} (s1.east);
+\draw[arrow] (d.west) .. controls +(-0.6,0) and +(-0.6,0) ..
+    node[left=2pt, font=\scriptsize, pos=0.5] {no} (s5.west);
+\end{tikzpicture}%
+}
+\caption{\algname 5-stage pipeline. \textsc{Tempo--Accent} 는 초기화 (Algorithm~\ref{alg:metronome-init}), \textsc{Ritardando} 는 runtime drift 적응 (Algorithm~\ref{alg:metronome-serve}).}
 \label{fig:metronome-pipeline}
 \end{figure}

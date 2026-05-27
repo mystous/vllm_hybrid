@@ -142,40 +142,71 @@ $\tcpu = 10$\,ms ($k = 0.25$)에서 $+0.98\,\%$, $\tcpu = 20$\,ms ($k = 0.5$)에
 
 \subsection{알고리즘 의사 코드}
 
+\algname 은 두 함수로 분해된다.
+\textsc{Initialize} 는 박자 측정과 화음/주기/강세 결정의 \emph{초기화 단계}이며 (Algorithm~\ref{alg:metronome-init}), \textsc{Serve} 는 runtime 실행과 drift 적응의 \emph{실행 단계}이다 (Algorithm~\ref{alg:metronome-serve}).
+두 함수의 분리는 hyperparameter 도출이 한 번 일어나고 runtime 은 그 결과를 안정적으로 활용함을 명확히 한다.
+
 \begin{algorithm}[t]
-\caption{\algname --- Multi-domain Empirically-derived Timing-aligned Resource Orchestration with Negative-result-driven Optimization for Modular Execution.}
-\label{alg:metronome}
+\caption{\algname --- Initialization phase.}
+\label{alg:metronome-init}
 \begin{algorithmic}[1]
-\Require model config $M$, NUMA topology $N$, lever pool $\mathcal{L}$, threshold $\tau$
-\Ensure $\Delta \geq 5\,\%$ versus baseline
-\Statex
-\State \textbf{Stage 1 (Tempo):} $\tgpu \gets \frac{1}{n} \sum_{i=1}^{n} t_{\text{step},i}$, $n=10$
-\Statex
-\State \textbf{Stage 2 (Chord):}
-\State \quad $L_{\text{primary}} \gets \texttt{NumaPin}(N)$ \Comment{$\dom = \mathrm{system}$}
-\State \quad $L_{\text{secondary}} \gets \texttt{AuxiliaryWork}$ \Comment{$\dom = \mathrm{work}$}
-\State \quad \textbf{assert} $\dom(L_{\text{primary}}) \neq \dom(L_{\text{secondary}})$
-\Statex
-\State \textbf{Stage 3 (Meter):} $\tcpu \gets \max(2 \cdot \tgpu, 100\,\mathrm{ms})$
-\Statex
-\State \textbf{Stage 4 (Accent):}
-\If{$\rho_{\text{pcie}}(M) > \tau$}
-   \State pattern $\gets \mathrm{BRANCHY}$ \Comment{prefetcher inhibit}
-\Else
-   \State pattern $\gets \mathrm{REGULAR}$
-\EndIf
-\Statex
-\State \textbf{Stage 5 (Ritardando):}
-\State \texttt{deploy}$(L_{\text{primary}}, L_{\text{secondary}})$
-\Loop
-   \State \texttt{fire\_auxiliary\_work}(pattern, $\tcpu$)
-   \State $\delta \gets \texttt{monitor\_drift}(\tgpu)$
-   \If{$\delta > 0.2$}
-      \State \textbf{goto} Stage 1 \Comment{a tempo}
-   \EndIf
-\EndLoop
+\Function{Initialize}{$M$, $N$, $\tau$}
+  \LineComment{$M$: model config, $N$: NUMA topology, $\tau$: PCIe threshold}
+  \LineComment{\textsc{Stage 1 — Tempo}: 박자 측정}
+  \State $S \gets \emptyset$
+  \For{$i = 1$ \textbf{to} $10$}
+    \State $S \gets S \cup \{$\Call{ProbeStepLatency}{$M$}$\}$
+  \EndFor
+  \State $\tgpu \gets \frac{1}{|S|}\sum_{s \in S} s$
+  \LineComment{\textsc{Stage 2 — Chord}: 교차 도메인 화음}
+  \State $L_p \gets$ \Call{NumaPin}{$N$} \Comment{$\dom(L_p) = \mathrm{system}$}
+  \State $L_s \gets$ \Call{AuxiliaryWorkHandle}{$\;$} \Comment{$\dom(L_s) = \mathrm{work}$}
+  \If{$\dom(L_p) = \dom(L_s)$}
+    \State \Return \textsc{Error} \Comment{Theorem~\ref{thm:superposition} 위반}
+  \EndIf
+  \LineComment{\textsc{Stage 3 — Meter}: 주기 정렬}
+  \State $\tcpu \gets \max(2 \cdot \tgpu, \, 100\,\mathrm{ms})$
+  \Comment{$k = \lceil \tcpu / \tgpu \rceil \in \{2,3\}$}
+  \LineComment{\textsc{Stage 4 — Accent}: 작업 패턴 결정}
+  \State $\rho \gets$ \Call{MeasurePcieUtilization}{$M$}
+  \If{$\rho > \tau$}
+    \State $P \gets \mathrm{BRANCHY}$
+  \Else
+    \State $P \gets \mathrm{REGULAR}$
+  \EndIf
+  \State \Return $(\tgpu, L_p, L_s, \tcpu, P)$
+\EndFunction
 \end{algorithmic}
 \end{algorithm}
 
-알고리즘~\ref{alg:metronome}은 \algname 의 의사 코드이다.
-각 단계의 결정 기준은 \S\ref{sec:results}의 측정 결과로 정당화되며, runtime adaptation(Stage 5)은 model swap 또는 워크로드 변화에 대한 강건성을 보장한다.
+\begin{algorithm}[t]
+\caption{\algname --- Serve phase with adaptive re-probing.}
+\label{alg:metronome-serve}
+\begin{algorithmic}[1]
+\Function{Serve}{$M$, $N$, $\tau$, $\delta_{\max}$}
+  \LineComment{$\delta_{\max}$: drift threshold (default 0.20)}
+  \State $(\tgpu, L_p, L_s, \tcpu, P) \gets$ \Call{Initialize}{$M$, $N$, $\tau$}
+  \State \Call{Deploy}{$L_p, L_s$}
+  \State $h \gets$ \Call{LaunchAuxiliaryWorker}{$L_s, P, \tcpu$}
+  \LineComment{\textsc{Stage 5 — Ritardando}: 지속 적응}
+  \While{server is running}
+    \State $t \gets$ \Call{ObserveCurrentStepLatency}{$M$}
+    \State $\delta \gets |t - \tgpu| / \tgpu$
+    \If{$\delta > \delta_{\max}$}
+      \State \Call{Stop}{$h$} \Comment{a tempo: 박자 재측정}
+      \State $(\tgpu, L_p, L_s, \tcpu, P) \gets$ \Call{Initialize}{$M$, $N$, $\tau$}
+      \State $h \gets$ \Call{LaunchAuxiliaryWorker}{$L_s, P, \tcpu$}
+    \EndIf
+    \State \Call{Sleep}{$\tgpu$} \Comment{step boundary 마다 1회 점검}
+  \EndWhile
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+알고리즘~\ref{alg:metronome-init} 의 \textsc{Initialize} 는 한 번 호출되어 $\tgpu, L_p, L_s, \tcpu, P$ 의 5 가지 hyperparameter 를 반환한다.
+이 중 \textsc{Chord} 단계 (line 8--11) 는 Theorem~\ref{thm:superposition} 의 $\dom(L_p) \neq \dom(L_s)$ 제약을 강제로 검사한다.
+\textsc{Meter} 단계 (line 12) 는 Theorem~\ref{thm:alignment} 의 정수배 정렬을 보장하기 위해 $k \geq 2$ 의 lower bound 와 $\tcpu^{\min} = 100$\,ms 의 floor 를 동시에 적용한다.
+
+알고리즘~\ref{alg:metronome-serve} 의 \textsc{Serve} 는 runtime adaptive loop 이다.
+매 $\tgpu$ 주기마다 step latency 의 drift 를 점검하여 $\delta > \delta_{\max}$ 일 때 박자 재측정을 trigger 한다.
+이는 model swap, workload mix 변화, 또는 하드웨어 thermal throttle 같은 environmental change 에 대한 강건성을 제공한다.

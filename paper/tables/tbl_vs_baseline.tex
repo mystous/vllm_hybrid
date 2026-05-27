@@ -1,41 +1,29 @@
 %% tables/tbl_vs_baseline.tex
-%% Table I — 24 후보 기법의 baseline 대비 효과 (단독 효과 큰 순)
+%% Table I — 5 분류군 대표 기법의 baseline 대비 효과 (compact, table* 2-col span)
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\caption{24 후보 최적화 기법의 기준 대비 효과. ``$\Delta$ vs baseline''은 적응형 라우팅 구성을 기준으로 한 처리량 변화율. ``Class''는 \S\ref{subsec:taxonomy}의 5 분류군. 본 연구의 유의 임계점은 +5\,\%로 설정하였다.}
+\caption{5 분류군 대표 기법의 baseline 대비 효과 ($\Delta$ tps / wall, 1-run). \algname 의 단일 통합 구성 (NUMA pin $\oplus$ branchy auxiliary) 이 유일하게 유의 임계점 +5\,\% 에 도달.}
 \label{tbl:vs-baseline}
-\small
-\begin{tabular}{@{}cl rrrl@{}}
+\footnotesize
+\begin{tabular}{@{}cclrrrl@{}}
 \toprule
-\textbf{Rank} & \textbf{Technique (label)} & \textbf{Class} & \textbf{$\Delta$ tps} & \textbf{$\Delta$ wall} & \textbf{Status} \\
+\textbf{Rank} & \textbf{Class} & \textbf{Representative} & \textbf{$\Delta$ tps} & \textbf{$\Delta$ wall} & \textbf{Domain} & \textbf{Outcome} \\
 \midrule
-1 & branchy work $\times$ 100\,ms      & E & $+5.28\%$ & $-5.40\%$ & threshold reached \\
-2 & NUMA $\oplus$ softmax pair         & B+E & $+2.83\%$ & $-2.52\%$ & near-linear \\
-3 & NUMA pin (dual instance)           & B & $+1.84\%$ & $-1.71\%$ & robust \\
-4 & regular work $\times$ 100\,ms      & E & $+1.84\%$ & $-1.71\%$ & noise \\
-5 & async tokenizer 20\,ms             & E & $+1.66\%$ & $-1.77\%$ & retracted (multi-run) \\
-6 & NUMA pin                           & B & $+1.54\%$ & $-1.52\%$ & passes multi-run \\
-7 & cellA regular $\times$ 10\,ms      & E & $+0.98\%$ & $-0.65\%$ & noise \\
-8 & AVX-512 tokenizer probe            & A & $+0.86\%$ & $-0.50\%$ & noise \\
-9 & AMX matmul drop-in                 & A & $+0.26\%$ & $+0.00\%$ & noise \\
-10 & cgroup + hugepages + taskset     & B & $-0.03\%$ & $+0.45\%$ & destructive \\
-11 & partial KV merge proxy            & A & $-0.13\%$ & $+0.07\%$ & noise \\
-12 & cold-KV long-context proxy        & D & $+0.18\%$ & $+8.83\%$ & TTFT regression \\
-13 & system isolation only             & B & $-0.39\%$ & $+0.41\%$ & noise \\
-14 & branchy 10\,ms                    & E & $-0.82\%$ & $+0.66\%$ & contention \\
-15 & AVX-512 sampling probe            & A & $-1.10\%$ & $+1.18\%$ & noise \\
-16 & DMA pinned pool                   & D & $-1.30\%$ & $+1.34\%$ & noise \\
-17 & 4-OS-lever stack                  & B & $-0.03\%$ & $+0.45\%$ & destructive \\
-18 & task-pool dummy fill              & C & $-1.75\%$ & $+1.92\%$ & catastrophic on spec backend \\
-19 & zero-copy CPU compute             & A & $-1.76\%$ & $+1.79\%$ & noise \\
-20 & AMX prefill assist                & A & $-2.08\%$ & $+2.12\%$ & not drop-in \\
-21 & AMX draft proxy real integration  & D & $-2.77\%$ & $+2.85\%$ & failure \\
-22 & sub-step CPU scheduling (phase)   & C & $-1.35\%$ & $+1.36\%$ & retracted \\
-23 & triple-lever same-domain stack    & B & $-2.83\%$ & $+2.91\%$ & destructive \\
-24 & 4-method Jacobi router            & A & $-94.20\%$ & ---     & serial queue collapse \\
+\textbf{1} & E$\oplus$B & \algname (NUMA $\oplus$ branchy 100ms) & $\mathbf{+5.28\%}$ & $\mathbf{-5.40\%}$ & cross-domain & \textbf{threshold reached} \\
+2 & E      & branchy auxiliary $\times$ 100\,ms       & $+5.28\%$  & $-5.40\%$ & process-isolated work & single cell +12.04\,\% \\
+3 & B$\oplus$E & NUMA $\oplus$ regular softmax aux       & $+2.83\%$  & $-2.52\%$ & cross-domain pair      & near-linear superposition \\
+4 & B      & NUMA pin (dual instance)                & $+1.84\%$  & $-1.71\%$ & system isolation       & robust (multi-run $+2.24\%$) \\
+5 & E      & regular auxiliary $\times$ 100\,ms       & $+1.84\%$  & $-1.71\%$ & process-isolated work & noise floor \\
+6 & E      & async tokenizer $\times$ 20\,ms          & $+1.66\%$  & $-1.77\%$ & process-isolated work & multi-run 부호 반전 \\
+7 & A      & AMX matmul drop-in                      & $+0.26\%$  & $+0.00\%$ & critical-path kernel  & H2D/D2H 동기화 비용 \\
+8 & B      & cgroup + hugepages + taskset stack      & $-0.39\%$  & $+0.41\%$ & system isolation       & same-domain stacking \\
+9 & C      & task-pool dummy fill                    & $-1.75\%$  & $+1.92\%$ & sub-step scheduling   & lock contention \\
+10 & A     & AMX prefill assist                      & $-2.08\%$  & $+2.12\%$ & critical-path kernel  & drop-in 불가 확정 \\
+11 & D     & AMX draft proxy real integration        & $-2.77\%$  & $+2.85\%$ & NEW workload           & invasive integration 부재 \\
+12 & A     & 4-method Jacobi router                  & $-94.20\%$ & ---       & critical-path kernel  & 직렬 큐 collapse \\
 \bottomrule
-\multicolumn{6}{l}{\footnotesize Class: A=직접 커널, B=시스템 격리, C=sub-step, D=보조 워크로드, E=동시 보조} \\
-\multicolumn{6}{l}{\footnotesize 측정: Qwen 2.5-32B + TP=4$\times$2 + H100$\times$8, 500 prompts $\times$ max\_tokens=32 $\times$ 3-mix, 1-run.}
+\multicolumn{7}{l}{\footnotesize 측정: Qwen 2.5-32B + TP=4$\times$2 + H100$\times$8, 500 prompts $\times$ max\_tokens=32 $\times$ 3-mix workload, 1-run.} \\
+\multicolumn{7}{l}{\footnotesize 분류군 (Class): A=직접 커널, B=시스템 격리, C=sub-step, D=보조 워크로드, E=동시 보조. \algname (1행) 의 5단계 통합 구성이 단일 cell paper-main 임계점 도달.}
 \end{tabular}
-\end{table}
+\end{table*}

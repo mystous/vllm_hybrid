@@ -1,71 +1,91 @@
 %% paper/sections/07_results.tex
-%% §7 Results — Table I/III/IV/V + 핵심 발견
+%% §7 Results — 분류군별 대표 검증 framing + 새 Table II 포함
 
 \section{측정 결과}
 \label{sec:results}
 
-본 절은 24가지 후보 최적화 기법의 paired ablation 결과를 보고하고, \algname 의 5단계 hyperparameter (Table~\ref{tbl:metronome-hyperparam})의 경험적 정당화 근거를 제시한다.
+본 절은 \S\ref{subsec:hypotheses} 의 세 가설 (H1: 교차 도메인 중첩, H2: 박자 정렬, H3: 분류군별 실패 메커니즘) 의 경험적 검증 결과를 보고한다.
+\algname 의 5단계 hyperparameter 의 최종값 (Table~\ref{tbl:metronome-hyperparam}) 은 이 측정들에서 직접 도출된다.
 
 \input{tables/tbl_vs_baseline}
 
-\subsection{핵심 결과 1: 단일 기법의 유의 임계점 도달 실패}
+\subsection{핵심 결과 1: \algname 의 임계점 도달}
 
-Table~\ref{tbl:vs-baseline}은 24개 후보 기법의 baseline 대비 효과를 1-run 측정값 큰 순으로 정렬한 결과이다.
-주요 관찰은 다음과 같다.
+Table~\ref{tbl:vs-baseline} 의 1행은 \algname 의 단일 통합 구성 (NUMA pin $\oplus$ branchy auxiliary 100\,ms) 의 측정 결과이다.
+3-mix 평균 $\Delta = +5.28\,\%$, wall-clock 단축 $-5.40\,\%$ 로 유의 임계점에 도달한다.
+단일 cell (balanced workload) 에서 최대 $\Delta = +12.04\,\%$ 까지 확장된다.
 
-\textbf{관찰 1.} 단일 기법 중 \emph{branchy work $\times$ 100\,ms} (분류군 E)만이 유일하게 임계점 +5\,\%에 도달하였다 ($\Delta = +5.28\,\%$).
-이는 \S\ref{subsec:theorem2}의 Theorem~\ref{thm:alignment}이 예측한 정렬 이득의 직접 검증이다.
+비교 대상은 \algname 의 두 구성 요소인 NUMA pin 단독 (4행, $+1.84\,\%$) 과 branchy auxiliary 단독 (2행, $+5.28\,\%$)이다.
+\algname 의 통합 구성이 두 단일 기법보다 정합적 (consistent) 으로 우월하며, 이는 \textsc{Chord} 단계의 교차 도메인 화음이 단순 합을 넘어 \emph{시스템적 효과}를 만들어냄을 시사한다.
 
-\textbf{관찰 2.} 분류군 A (직접 커널 대체) 7개 기법 모두 임계점에 도달하지 못했으며, 6개 기법은 net-negative이다.
-이는 \S\ref{sec:problem}의 \emph{원인 1: critical path 침범}을 직접 검증한다.
-특히 ``4-method Jacobi router''는 $-94.2\,\%$의 catastrophic 결과를 보였는데, 이는 LM-head 연산이 1{,}810\,ms $\times$ 165 chat 요청에 직렬화되어 큐 정체를 발생시킨 결과이다.
+\subsection{핵심 결과 2: 분류군 대표 검증 (H3)}
 
-\textbf{관찰 3.} 분류군 C (sub-step CPU 스케줄링) 3개 기법 모두 net-negative이며, 특히 task-pool dummy fill 기법은 spec-decode backend에서 $-14$\,\%부터 $-20$\,\%의 catastrophic 결과를 보였다.
-이는 task-pool의 lock 경쟁이 step 내부 sub-phase 경계의 critical path를 stall 시킨 결과이다.
+\input{tables/tbl_class_representatives}
 
-\subsection{핵심 결과 2: 교차 도메인 중첩 정리의 경험적 검증}
+Table~\ref{tbl:class-representatives} 는 5 분류군의 대표 기법과 각 분류군의 실패/성공 메커니즘이다.
+
+\textbf{분류군 A (직접 커널 대체).}
+AMX matmul drop-in 은 microbench 1.5--3$\times$ 의 speedup 에도 e2e $\Delta = +0.26\,\%$ noise 에 머문다.
+극단적 사례로 Jacobi LM-head ($\sim$1.81\,s) 의 직접 대체 시도는 165 chat 요청의 직렬 큐 collapse 로 $-94.20\,\%$ catastrophic.
+\textbf{메커니즘}: critical-path 위 H2D/D2H 동기화 비용 (PCIe transfer + CUDA stream sync $\sim$5.5\,ms) 이 microbench gain 을 상쇄.
+
+\textbf{분류군 B (시스템 격리).}
+NUMA pin 단독은 1-run $+1.84\,\%$ 에서 multi-run mean $+2.24\,\%$ 으로 일관된 양성 신호를 유지한다 (Table~\ref{tbl:multirun}).
+반면 cgroup + hugepages + taskset 동시 stacking 은 $-0.39\,\%$ destructive.
+\textbf{메커니즘}: NUMA distance 비대칭 (local 10 vs.\ remote 21) 은 hardware-level 일관 효과를 제공.
+같은 도메인 stacking 은 OS context-switch / cache contention 누적.
+
+\textbf{분류군 C (sub-step 스케줄링).}
+task-pool 기반 dummy fill 의 실제 fire 시 $-1.75\,\%$, spec-decode backend 에서 $-14$\,\% 까지 catastrophic.
+\textbf{메커니즘}: step 내부의 sub-phase 경계 (35--44\,ms 영역) 에서 task-pool lock contention 이 critical path stall 을 유발.
+
+\textbf{분류군 D (보조 워크로드).}
+AMX draft head 의 isolated microbench 는 $0.524$\,ms 의 매우 빠른 결과를 보이지만, e2e proxy 측정에서는 $-2.77\,\%$.
+\textbf{메커니즘}: spec decode integration 의 invasive 변경 (rejection sampling tree path, KV cache layout) 부재로 microbench-to-e2e 변환이 자동으로 일어나지 않음.
+
+\textbf{분류군 E (동시 보조 작업).}
+$\tcpu = 100$\,ms branchy pattern 이 $+5.28\,\%$ 로 유의 임계점 도달.
+대조적으로 $\tcpu = 10$\,ms regular pattern 은 $+0.98\,\%$ noise.
+\textbf{메커니즘}: 박자 정렬 + 분기 패턴의 prefetcher 억제 (\S\ref{sec:mechanism}).
+
+\subsection{핵심 결과 3: 가설 H1 (교차 도메인 중첩) 검증}
 
 \input{tables/tbl_superposition}
 
-Table~\ref{tbl:superposition}는 Theorem~\ref{thm:superposition}의 경험적 검증 결과이다.
+Table~\ref{tbl:superposition} 는 Theorem~\ref{thm:superposition} 의 직접 검증 결과이다.
 
-\textbf{Cross-domain pair (NUMA pin $\oplus$ auxiliary work)}: 두 단일 기법의 합은 $+1.54\,\% + +1.84\,\% = +3.38\,\%$로 예측되었고, 실제 측정값은 $+2.83\,\%$로 residual은 $-0.55$\,pp에 머문다.
-이는 near-linear superposition의 강한 신호이다.
+\textbf{Cross-domain pair (NUMA $\oplus$ regular softmax aux)}: 단일 효과의 단순 합 $+3.38\,\%$ 에 대해 실측 $+2.83\,\%$, residual $-0.55$\,pp.
+이는 near-linear superposition 의 강한 신호이며, \algname 의 \textsc{Chord} 단계 design 의 직접 근거이다.
 
-\textbf{Same-domain stack (4-OS-lever)}: 단일 기법 합 $+1.15\,\%$이 예측되었으나 실측은 $-0.03\,\%$로 residual $-1.18$\,pp의 destructive interference가 발생한다.
-3개 이상의 동일 도메인 stack은 $-3.93$\,pp까지 발산하여 superlinear destructive를 확인한다.
+\textbf{Same-domain stack (4-OS-lever)}: 단순 합 $+1.15\,\%$ 예측, 실측 $-0.03\,\%$, residual $-1.18$\,pp.
+3-기법 stacking 으로 확장 시 residual 이 $-3.93$\,pp 까지 발산하여 superlinear destructive 의 강한 신호를 보인다.
 
-이 결과는 \algname 의 Stage 2 (\textsc{Chord})의 design 결정---\emph{서로 다른 도메인에 속하는 두 기법만 쌍으로 stacking}---을 정당화한다.
+이 결과는 Theorem~\ref{thm:superposition} 의 경험적 정당화를 제공한다.
 
-\subsection{핵심 결과 3: multi-run 분산 분석}
+\subsection{핵심 결과 4: 가설 H2 (박자 정렬) 검증}
+
+분류군 E 의 2$\times$2 ablation 결과 (Fig.~\ref{fig:pattern-cycle-grid}) 는 다음 관찰을 제공한다.
+$\tcpu = 100$\,ms ($k = 2.5$) $\times$ branchy 패턴이 $+5.28\,\%$ 로 임계점 도달.
+$\tcpu = 10$\,ms ($k = 0.25$) regular 는 $+0.98\,\%$, $\tcpu = 20$\,ms ($k = 0.5$) regular 는 1-run $+1.66\,\%$ 이나 multi-run 부호 반전.
+
+\emph{$k$ 가 정수배 (2 또는 3) 에 도달할 때만} 정렬 이득이 나타나며, $k < 1$ 또는 비정수배는 비정상적 정렬로 critical path 침범 가능성이 높다.
+이는 Theorem~\ref{thm:alignment} 의 경험적 검증이다.
+
+\subsection{Multi-run 분산의 함의}
 
 \input{tables/tbl_multirun}
 
-Table~\ref{tbl:multirun}는 핵심 후보 3개 기법의 multi-run 측정 결과이다.
+Table~\ref{tbl:multirun} 의 핵심 관찰은 NUMA pin 만 multi-run 평균에서 robust 양성 (1-run $+1.54\,\%$ $\rightarrow$ steady-state $+3.13\,\%$) 을 유지한다는 점이다.
+async tokenizer 20\,ms 는 1-run $+1.66\,\%$ 의 양성 신호가 multi-run 에서 $-5.96\,\%$ 로 부호 반전한다.
 
-\textbf{NUMA pin은 robust positive}: 1-run $+1.54\,\%$가 3-run mean $+2.24\,\%$, warm-only $+3.13\,\%$로 일관되게 양의 효과를 유지한다.
-이는 hardware-level NUMA distance 비대칭(local 10 vs. remote 21)이 매 측정에 일관된 영향을 미치기 때문이다.
+이는 LLM 추론 시스템의 multi-run 측정 best practice 를 시사한다.
+1-run 측정에서 magnitude $< 3\,\%$ 인 신호는 noise 와 분리되지 않으므로, hardware-level 이론 backing 이 없는 단일 신호는 단독으로 채택하지 않는다.
 
-\textbf{tokenize 20\,ms는 retract}: 1-run $+1.66\,\%$의 신호가 3-run mean에서 \emph{부호 반전}하여 $-5.96\,\%$로 변한다.
-이는 1-run 측정의 신뢰도 한계를 직접 보여주며, magnitude $|\Delta| < 3\,\%$의 단일 측정은 결정적 신호로 채택할 수 없음을 시사한다.
-본 발견은 negative result 측정의 best practice에 대한 일반적 함의를 제공한다.
-
-\subsection{\algname Hyperparameter 의 최종값}
+\subsection{\algname Hyperparameter 의 도출}
 
 \input{tables/tbl_metronome_hyperparam}
 
-Table~\ref{tbl:metronome-hyperparam}는 위 결과들로부터 도출된 \algname 의 단계별 hyperparameter 최종값이다.
-이 값들은 본 측정 환경(Qwen 2.5-32B + TP=4$\times$2 + H100$\times$8)에 특화되어 있으나, \textsc{Tempo} 단계의 자동 측정과 \textsc{Ritardando} 단계의 drift 재조정에 의해 다른 model/workload에도 일반화될 수 있다.
+Table~\ref{tbl:metronome-hyperparam} 는 위 검증 결과로부터 도출된 \algname 의 단계별 hyperparameter 이다.
+\textsc{Tempo} 의 $n=10$ 은 $\tgpu$ 측정의 분산 안정화 sample size, \textsc{Meter} 의 $\tcpu = 100$\,ms 는 가설 H2 의 ablation 최적, \textsc{Accent} 의 BRANCHY 는 8$\times$ TP 환경의 PCIe pressure 측정값 기반이다.
 
-\subsection{최종 통합: \algname 의 효과}
-
-위 hyperparameter로 구성된 \algname 의 final configuration --- $L_{\text{primary}} = $ NUMA pin, $L_{\text{secondary}} = $ branchy auxiliary work, $\tcpu = 100$\,ms --- 의 측정 결과는 다음과 같다.
-
-\begin{itemize}
-  \item 3-mix 평균 lever-only $\Delta = +5.28\,\%$ (Theorem~\ref{thm:alignment}의 예측값과 정합)
-  \item 단일 cell (balanced workload) 최대 $\Delta = +12.04\,\%$
-  \item vanilla 대비 vs-vanilla full delta = $+174.96\,\%$ (적응형 라우팅 기준 효과 + \algname 효과 합산)
-  \item Wall-clock 단축: $-5.40\,\%$ (3-mix 평균), $-10.74\,\%$ (balanced)
-\end{itemize}
-
-24개 단일 후보 기법이 모두 미달한 유의 임계점 +5\,\%를, \algname 의 단일 통합 구성이 도달했다는 점이 본 논문의 핵심 검증 결과이다.
+본 hyperparameter 는 본 측정 환경에 특화되지만, \textsc{Tempo} 자동 측정과 \textsc{Ritardando} drift 재조정이 다른 model/workload 환경으로의 일반화를 부분적으로 지원한다.

@@ -1,48 +1,41 @@
 %% figures/fig3_pattern_cycle_grid.tex
-%% Fig.3 — 작업 패턴 × cycle 2×2 ablation grid (heatmap-style)
+%% Fig.3 — 2×3 work pattern × cycle ablation heatmap (단일 컬럼 fit)
 
 \begin{figure}[t]
 \centering
+\resizebox{0.90\columnwidth}{!}{%
 \begin{tikzpicture}[
-    x=1.5cm, y=1.2cm,
-    cell/.style={rectangle, draw, minimum width=2.2cm, minimum height=1.0cm,
-                 align=center, font=\small, thick},
-    label/.style={font=\small\bfseries, align=center},
-    axislabel/.style={font=\footnotesize, align=center, text=gray!50!black},
+    x=1.4cm, y=1.0cm,
+    cell/.style={rectangle, draw, minimum width=1.7cm, minimum height=0.85cm,
+                 align=center, font=\scriptsize, thick, inner sep=1pt},
+    header/.style={font=\scriptsize\bfseries, align=center},
+    rowlabel/.style={font=\scriptsize\bfseries, align=center, anchor=east},
 ]
-% Axis labels
-\node[label] at (1.0, 2.7) {Cycle $\tcpu$};
-\node[label, rotate=90] at (-1.4, 0.7) {Pattern};
-
 % Column headers
-\node[axislabel] at (0, 2.2) {10\,ms};
-\node[axislabel] at (1.0, 2.2) {20\,ms};
-\node[axislabel] at (2.0, 2.2) {100\,ms};
+\node[header] at (0, 1.5)  {$\tcpu\!=\!10$\,ms};
+\node[header] at (1.0, 1.5) {$\tcpu\!=\!20$\,ms};
+\node[header] at (2.0, 1.5) {$\tcpu\!=\!100$\,ms};
 
-% Row headers
-\node[axislabel, rotate=90] at (-0.8, 1.4) {regular};
-\node[axislabel, rotate=90] at (-0.8, 0.0) {branchy};
+% Row labels
+\node[rowlabel] at (-0.95, 0.6) {regular};
+\node[rowlabel] at (-0.95, -0.6) {branchy};
 
-% Cells — regular row
-\node[cell, fill=yellow!25] at (0, 1.4)
-    {$+0.98\%$\\\scriptsize(cellA)};
-\node[cell, fill=yellow!40] at (1.0, 1.4)
-    {$+1.66\%$\\\scriptsize($\rightarrow -5.96\%$)};
-\node[cell, fill=orange!30] at (2.0, 1.4)
-    {$+1.84\%$\\\scriptsize(noise)};
+% Regular row
+\node[cell, fill=yellow!20] at (0, 0.6)
+    {$+0.98\%$\\\tiny noise};
+\node[cell, fill=yellow!30] at (1.0, 0.6)
+    {$+1.66\%$\\\tiny ($-5.96\%$ multi)};
+\node[cell, fill=orange!25] at (2.0, 0.6)
+    {$+1.84\%$\\\tiny noise};
 
-% Cells — branchy row
-\node[cell, fill=red!15] at (0, 0.0)
-    {$-0.82\%$\\\scriptsize(contention)};
-\node[cell, fill=gray!10] at (1.0, 0.0)
-    {---};
-\node[cell, fill=green!35] at (2.0, 0.0)
-    {$\mathbf{+5.28\%}$\\\scriptsize\textbf{(cellB)}};
-
-% Highlight cellB
-\draw[ultra thick, green!50!black] (1.5, -0.55) rectangle (2.5, 0.55);
-
-\end{tikzpicture}
-\caption{작업 패턴(regular/branchy) $\times$ cycle($\tcpu$) 2$\times$2 ablation. branchy $\times$ 100\,ms 만 유의 임계점 +5\,\%에 도달. 직관(고빈도 regular work가 더 효과적)과 반대되는 역설 finding.}
+% Branchy row
+\node[cell, fill=red!12] at (0, -0.6)
+    {$-0.82\%$\\\tiny contention};
+\node[cell, fill=gray!15] at (1.0, -0.6) {---};
+\node[cell, fill=green!35, very thick, draw=green!60!black] at (2.0, -0.6)
+    {$\mathbf{+5.28\%}$\\\tiny\textbf{threshold}};
+\end{tikzpicture}%
+}
+\caption{작업 패턴 $\times$ 주기 2$\times$3 ablation. branchy $\times$ 100\,ms 만 유의 임계점 $+5\,\%$ 도달. 박자 정렬 (Theorem~\ref{thm:alignment}) 과 prefetcher 억제의 결합 효과 (\S\ref{sec:mechanism}).}
 \label{fig:pattern-cycle-grid}
 \end{figure}

@@ -1,62 +1,59 @@
 %% figures/fig6_class_taxonomy.tex
-%% Fig.6 — 24 후보 기법 5 분류군 dendrogram
+%% Fig.6 — 5 분류군 dendrogram (단일 컬럼 fit)
 
 \begin{figure}[t]
 \centering
+\resizebox{0.95\columnwidth}{!}{%
 \begin{tikzpicture}[
-    x=0.55cm, y=0.55cm,
-    root/.style={rectangle, draw, thick, fill=blue!20, font=\small, align=center,
-                 minimum width=3.5cm, minimum height=0.7cm},
-    class/.style={rectangle, draw, fill=yellow!15, font=\footnotesize, align=center,
-                  minimum width=2.4cm, minimum height=0.6cm},
-    leaf/.style={font=\scriptsize, align=center},
-    pos/.style={text=green!50!black},
-    neg/.style={text=red!60!black},
+    x=0.85cm, y=0.65cm,
+    root/.style={rectangle, draw, rounded corners=2pt, thick, fill=blue!18,
+                 font=\scriptsize\bfseries, align=center,
+                 minimum width=3.5cm, minimum height=0.6cm},
+    class/.style={rectangle, draw, rounded corners=1pt, fill=yellow!15,
+                  font=\tiny\bfseries, align=center,
+                  minimum width=1.3cm, minimum height=0.85cm,
+                  inner sep=1pt},
+    rep/.style={font=\tiny, align=center, inner sep=1pt},
+    pos/.style={text=green!50!black, font=\tiny\bfseries},
+    neg/.style={text=red!60!black, font=\tiny},
 ]
 % Root
-\node[root] (root) at (8, 7) {24 CPU optimization\\candidates};
+\node[root] (root) at (0, 3.2) {CPU resource utilization (24 candidates)};
 
 % 5 classes
-\node[class, fill=red!10] (A) at (1, 4.5) {Class A\\Direct kernel\\(7 cand.)};
-\node[class, fill=red!10] (B) at (5, 4.5) {Class B\\System isolation\\(4 cand.)};
-\node[class, fill=red!10] (C) at (9, 4.5) {Class C\\Sub-step sched.\\(3 cand.)};
-\node[class, fill=red!10] (D) at (13, 4.5) {Class D\\Aux. workload\\(4 cand.)};
-\node[class, fill=green!12] (E) at (16.5, 4.5) {Class E\\Concurrent aux.\\(5 cand. + 2$\times$2)};
+\node[class] (A) at (-4, 1.8) {A\\Direct\\kernel};
+\node[class] (B) at (-2, 1.8) {B\\System\\isolation};
+\node[class] (C) at (0,  1.8) {C\\Sub-step\\sched.};
+\node[class] (D) at (2,  1.8) {D\\Aux.\\workload};
+\node[class] (E) at (4,  1.8) {E\\Concurrent\\aux.};
 
-% Lines from root to classes
+% Lines root-to-class
 \foreach \child in {A, B, C, D, E} {
-    \draw[thick] (root.south) -- (\child.north);
+    \draw[thick, gray!60] (root.south) -- (\child.north);
 }
 
-% Leaves under each class — sample representative
-\node[leaf, neg] (a1) at (1, 3.0) {AVX-512 tokenizer};
-\node[leaf, neg] (a2) at (1, 2.4) {AMX matmul};
-\node[leaf, neg] (a3) at (1, 1.8) {Jacobi router (--94\%)};
+% Representatives
+\node[rep, neg] at (-4, 0.7) {AMX matmul};
+\node[rep, neg] at (-4, 0.3) {Jacobi (-94\%)};
+\node[rep, pos] at (-2, 0.7) {NUMA pin};
+\node[rep, neg] at (-2, 0.3) {4-OS stack};
+\node[rep, neg] at (0,  0.7) {task-pool};
+\node[rep, neg] at (0,  0.3) {(catastrophic)};
+\node[rep, neg] at (2,  0.7) {AMX draft};
+\node[rep, neg] at (2,  0.3) {cold-KV};
+\node[rep, pos] at (4,  0.7) {\textbf{branchy 100\,ms}};
+\node[rep      ] at (4,  0.3) {regular};
 
-\node[leaf, pos] (b1) at (5, 3.0) {NUMA pin};
-\node[leaf, neg] (b2) at (5, 2.4) {cgroup+hugepages};
-\node[leaf, pos] (b3) at (5, 1.8) {NUMA $\oplus$ aux};
-
-\node[leaf, neg] (c1) at (9, 3.0) {task-pool stub};
-\node[leaf, neg] (c2) at (9, 2.4) {task-pool fill (--14\%)};
-
-\node[leaf, neg] (d1) at (13, 3.0) {AMX draft proxy};
-\node[leaf, neg] (d2) at (13, 2.4) {cold-KV long ctx};
-
-\node[leaf, pos] (e1) at (16.5, 3.0) {\textbf{branchy 100ms}};
-\node[leaf] (e2) at (16.5, 2.4) {regular 100ms};
-\node[leaf, neg] (e3) at (16.5, 1.8) {tokenize 20ms};
-
-% Class-to-leaf lines
-\foreach \c/\l in {A/a1, A/a2, A/a3, B/b1, B/b2, B/b3, C/c1, C/c2, D/d1, D/d2, E/e1, E/e2, E/e3} {
-    \draw[gray!50] (\c.south) -- (\l.north);
+% Class to rep
+\foreach \c/\y in {A/0.3, B/0.3, C/0.3, D/0.3, E/0.3} {
+    \draw[gray!40, thin] (\c.south) -- ($(\c.south)+(0,-0.3)$);
 }
 
 % Legend
-\node[leaf, pos] at (8, 0.4) {green = positive ($\Delta > 0$)};
-\node[leaf, neg] at (12, 0.4) {red = negative ($\Delta \leq 0$)};
-
-\end{tikzpicture}
-\caption{24 후보 최적화 기법의 5 분류군 dendrogram. 분류군 A/C/D는 전부 net-negative, 분류군 B는 부분 양성 (NUMA pin만 robust), 분류군 E는 유일하게 paper-main 임계점 도달 (branchy $\times$ 100\,ms).}
+\node[font=\tiny, anchor=west, text=green!50!black] at (-4.5, -0.4) {green = positive};
+\node[font=\tiny, anchor=west, text=red!60!black]   at (-0.5, -0.4) {red = negative};
+\end{tikzpicture}%
+}
+\caption{5 분류군 taxonomy. 분류군 B 의 NUMA pin 과 분류군 E 의 branchy auxiliary 만 양성, 나머지는 분류군별 공통 메커니즘으로 실패.}
 \label{fig:class-taxonomy}
 \end{figure}
