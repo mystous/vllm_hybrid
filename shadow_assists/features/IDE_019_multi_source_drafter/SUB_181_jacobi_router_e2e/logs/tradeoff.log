@@ -1,0 +1,20 @@
+[tradeoff] microbench small-draft Qwen 0.5B shape (hidden=896 vocab=152064)
+  K=3 B=1 BK=3 hidden=896 vocab=152064 T=64 p50=249.2 ms
+  K=3 B=4 BK=12 hidden=896 vocab=152064 T=64 p50=245.3 ms
+  K=5 B=1 BK=5 hidden=896 vocab=152064 T=64 p50=249.1 ms
+  K=5 B=4 BK=20 hidden=896 vocab=152064 T=64 p50=246.5 ms
+  K=7 B=1 BK=7 hidden=896 vocab=152064 T=64 p50=245.3 ms
+  K=7 B=4 BK=28 hidden=896 vocab=152064 T=64 p50=250.9 ms
+[tradeoff] microbench partial-vocab (top-N=8192) Qwen 32B hidden
+  K=5 B=1 BK=5 hidden=5120 vocab=8192 T=64 p50=73.4 ms
+  K=5 B=4 BK=20 hidden=5120 vocab=8192 T=64 p50=72.9 ms
+  K=7 B=1 BK=7 hidden=5120 vocab=8192 T=64 p50=73.0 ms
+  K=7 B=4 BK=28 hidden=5120 vocab=8192 T=64 p50=73.4 ms
+[tradeoff] wrote /workspace/vllm_hybrid/shadow_assists/features/IDE_019_multi_source_drafter/SUB_181_jacobi_router_e2e/measurements/tradeoff_analysis.json
+[tradeoff] any_net_win=True cases=12
+  - {'draft': 'partial_top8k', 'K': 'K=5', 'workload': 'chat', 'alpha_case': 'alpha=0.75', 'speedup': 1.1646}
+  - {'draft': 'partial_top8k', 'K': 'K=5', 'workload': 'chat', 'alpha_case': 'alpha=0.80', 'speedup': 1.3067}
+  - {'draft': 'partial_top8k', 'K': 'K=5', 'workload': 'chat', 'alpha_case': 'alpha=0.85', 'speedup': 1.4707}
+  - {'draft': 'partial_top8k', 'K': 'K=5', 'workload': 'code', 'alpha_case': 'alpha=0.72', 'speedup': 1.0887}
+  - {'draft': 'partial_top8k', 'K': 'K=5', 'workload': 'code', 'alpha_case': 'alpha=0.75', 'speedup': 1.1646}
+  - {'draft': 'partial_top8k', 'K': 'K=7', 'workload': 'chat', 'alpha_case': 'alpha=0.75', 'speedup': 1.2742}

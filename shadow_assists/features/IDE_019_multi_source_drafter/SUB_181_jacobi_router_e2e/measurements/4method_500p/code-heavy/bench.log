@@ -1,0 +1,15 @@
+[mix=code-heavy] counts={'sonnet': 50, 'chat': 100, 'code': 350}
+
+=== vanilla-only (url=http://127.0.0.1:8001/v1/completions, n=500, concurrency=32) ===
+  wall=8.3s tps=1918.7 p50=521ms p99=584ms
+  backend_counts={'direct': 500}
+
+=== trident-only (url=http://127.0.0.1:8002/v1/completions, n=500, concurrency=32) ===
+  wall=5.3s tps=3028.2 p50=308ms p99=647ms
+  backend_counts={'direct': 500}
+
+=== agsd-gated (url=http://127.0.0.1:8000/generate, n=500, concurrency=32) ===
+  wall=89.3s tps=179.1 p50=110ms p99=28387ms
+  backend_counts={'trident': 400, 'cpu_jacobi': 100}
+
+[saved] /workspace/vllm_hybrid/shadow_assists/features/IDE_019_multi_source_drafter/SUB_181_jacobi_router_e2e/measurements/4method_500p/code-heavy/benchmark_code-heavy.json

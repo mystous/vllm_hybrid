@@ -1,0 +1,20 @@
+[AMX] avail=True threads=1
+  AMX qwen32b_gate_up B=  512 5120x27648: best=3022.73ms TFLOPS=0.0480
+  AMX qwen32b_gate_up B= 1024 5120x27648: best=6058.38ms TFLOPS=0.0479
+  AMX qwen32b_gate_up B= 2048 5120x27648: best=12159.89ms TFLOPS=0.0477
+  AMX qwen32b_down B=  512 27648x5120: best=3183.61ms TFLOPS=0.0455
+  AMX qwen32b_down B= 1024 27648x5120: best=6389.10ms TFLOPS=0.0454
+  AMX qwen32b_down B= 2048 27648x5120: best=12820.79ms TFLOPS=0.0452
+  AMX qwen32b_qkv B=  512 5120x7680: best=460.83ms TFLOPS=0.0874
+  AMX qwen32b_qkv B= 1024 5120x7680: best=908.60ms TFLOPS=0.0886
+  AMX qwen32b_qkv B= 2048 5120x7680: best=1905.58ms TFLOPS=0.0845
+  AMX qwen32b_o_proj B=  512 5120x5120: best=260.46ms TFLOPS=0.1031
+  AMX qwen32b_o_proj B= 1024 5120x5120: best=522.95ms TFLOPS=0.1027
+  AMX qwen32b_o_proj B= 2048 5120x5120: best=1085.56ms TFLOPS=0.0989
+
+=== per-layer estimate (Qwen 32B, 64 layers) ===
+         amx B=  512: per_layer=6927.63ms total_64L=443.37s
+         amx B= 1024: per_layer=13879.04ms total_64L=888.26s
+         amx B= 2048: per_layer=27971.83ms total_64L=1790.20s
+
+wrote amx_rows.json

@@ -1,0 +1,15 @@
+[mix=sonnet-heavy] counts={'sonnet': 300, 'chat': 100, 'code': 100}
+
+=== vanilla-only (url=http://127.0.0.1:8001/v1/completions, n=500, concurrency=32) ===
+  wall=7.8s tps=2039.0 p50=482ms p99=573ms
+  backend_counts={'direct': 500}
+
+=== trident-only (url=http://127.0.0.1:8002/v1/completions, n=500, concurrency=32) ===
+  wall=4.9s tps=3271.4 p50=239ms p99=817ms
+  backend_counts={'direct': 500}
+
+=== agsd-gated (url=http://127.0.0.1:8000/generate, n=500, concurrency=32) ===
+  wall=91.4s tps=175.1 p50=126ms p99=29672ms
+  backend_counts={'trident': 400, 'cpu_jacobi': 100}
+
+[saved] /workspace/vllm_hybrid/shadow_assists/features/IDE_019_multi_source_drafter/SUB_181_jacobi_router_e2e/measurements/4method_500p/sonnet-heavy/benchmark_sonnet-heavy.json

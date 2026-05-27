@@ -47,6 +47,7 @@ add_library(phase_burst_core STATIC
     src/scheduler.cpp
     src/task_pool_attention.cpp
     src/task_pool_linear.cpp
+    src/task_pool_dummy_fill.cpp
 )
 target_include_directories(phase_burst_core PUBLIC src)
 target_link_libraries(phase_burst_core PUBLIC pthread)

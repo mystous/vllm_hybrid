@@ -1,0 +1,9 @@
+[2026-05-27 12:27:58 KST] SUB_185 mode=on starting
+[12:27:58 KST] waiting vllm V_PID=3770719
+[12:29:08 KST] vllm ready 7x10s (boot=70s)
+[12:29:08 KST] starting cold-KV firer
+[12:29:10 KST] === on long-context bench 500p x 8K input (max-tokens=32) ===
+[12:31:45 KST] bench rc=0
+[12:31:45 KST] cleanup
+/workspace/vllm_hybrid/shadow_assists/features/IDE_017_dma_zero_copy/SUB_185_cold_kv_long_context/launcher.sh: line 134: 3770719 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup taskset -c "${VLLM_CORES}" "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 10240 --max-num-seqs 64 --max-num-batched-tokens 32768 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vllm_${SUFFIX}.log" 2>&1
+[2026-05-27 12:31:58 KST] SUB_185 mode=on done

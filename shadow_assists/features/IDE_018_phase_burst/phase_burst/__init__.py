@@ -82,6 +82,10 @@ class PhaseBurstRuntime:
         self.signal: PhaseSignal = _core.get_global_signal()
         self.scheduler = PhaseBurstScheduler(self.signal, num_workers, cpu_base)
         self.started = False
+        # SUB_184 dummy-fill config (ENV-gated)
+        self._dummy_fill_enabled = _env_bool("VLLM_PHASE_BURST_DUMMY_FILL", False)
+        self._dummy_count = _env_int("VLLM_PHASE_BURST_DUMMY_COUNT", num_workers)
+        self._dummy_iters = _env_int("VLLM_PHASE_BURST_DUMMY_ITERS", 8)
 
     # ── lifecycle ───────────────────────────────────────────────────
     def start(self) -> None:
@@ -124,8 +128,32 @@ class PhaseBurstRuntime:
     # ── phase marking ───────────────────────────────────────────────
     def mark_phase(self, phase: int, step_id: int = 0) -> None:
         """Update phase signal. Called from vLLM forward thread *after*
-        cuda stream sync (so phase reflects what GPU is actually doing)."""
+        cuda stream sync (so phase reflects what GPU is actually doing).
+
+        SUB_184 dummy-fill: when VLLM_PHASE_BURST_DUMMY_FILL=1, the runtime
+        also enqueues N heavy C++ dummy tasks on each ATTENTION / LINEAR
+        phase mark — to validate the paper §4 overlap hypothesis (CPU util
+        ↑ without throughput loss) before wiring real AVX-512 kernels.
+        """
         self.signal.update(int(phase), int(step_id))
+        if self._dummy_fill_enabled:
+            self._maybe_enqueue_dummy(int(phase), int(step_id))
+
+    def _maybe_enqueue_dummy(self, phase: int, step_id: int) -> None:
+        # ATTENTION (=PHASE_ATTENTION=1) → attention burst
+        # LINEAR    (=PHASE_LINEAR=2)    → linear burst
+        try:
+            if phase == int(Phase.ATTENTION):
+                _core.enqueue_dummy_attention_burst(
+                    self.scheduler, step_id,
+                    self._dummy_count, self._dummy_iters)
+            elif phase == int(Phase.LINEAR):
+                _core.enqueue_dummy_linear_burst(
+                    self.scheduler, step_id,
+                    self._dummy_count, self._dummy_iters)
+        except Exception:
+            # never let dummy-fill break the forward path.
+            pass
 
     # ── enqueue ────────────────────────────────────────────────────
     def enqueue_python(

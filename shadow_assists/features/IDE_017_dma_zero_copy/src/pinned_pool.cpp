@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
 #if __has_include(<numa.h>)

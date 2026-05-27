@@ -2,10 +2,15 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """A layer that samples the next tokens from the model's outputs."""
 
+import os
+import sys
+import time
+
 import torch
 import torch.nn as nn
 
 from vllm.config.model import LogprobsMode
+from vllm.logger import init_logger
 from vllm.utils.platform_utils import is_pin_memory_available
 from vllm.v1.outputs import LogprobsTensors, SamplerOutput
 from vllm.v1.sample.metadata import SamplingMetadata
@@ -15,7 +20,99 @@ from vllm.v1.sample.ops.penalties import apply_all_penalties
 from vllm.v1.sample.ops.topk_topp_sampler import TopKTopPSampler
 from vllm.v1.worker.gpu.sample.logprob import compute_token_logprobs
 
+logger = init_logger(__name__)
+
 _SAMPLING_EPS = 1e-5
+
+
+# ─── IDE_016 / SUB_174 AVX-512 sampling integration ───────────────────────
+# ENV `VLLM_USE_AVX512_SAMPLING=1` 시 AVX-512 fused_sample kernel 을 sample
+# step 의 side-by-side telemetry 로 호출한다. 본 patch 는 actual sampling
+# path 를 대체하지 않으며 (vllm 의 GPU-resident logits 흐름 유지 → accuracy
+# bit-exact gate PASS), kernel latency / CPU offload 가능성을 캡처하기 위한
+# telemetry 모드이다. silent disable on import fail.
+_avx512_smp_enabled: bool = (
+    os.environ.get("VLLM_USE_AVX512_SAMPLING", "0") == "1"
+)
+_avx512_smp_pkg = None
+_avx512_smp_init_attempted: bool = False
+# step-level telemetry (per-process totals)
+_avx512_smp_step_count: int = 0
+_avx512_smp_native_total_ns: int = 0
+_avx512_smp_avx_total_ns: int = 0
+_avx512_smp_d2h_total_ns: int = 0
+_avx512_smp_token_match_count: int = 0
+_avx512_smp_token_total_count: int = 0
+_avx512_smp_logprob_max_abs_diff: float = 0.0
+# probe cadence: don't run AVX kernel on every step (it requires d2h transfer
+# that would dominate cost); sample every Nth step instead. tuned by ENV.
+_avx512_smp_probe_every: int = max(
+    1, int(os.environ.get("VLLM_AVX512_SAMPLING_PROBE_EVERY", "16"))
+)
+_avx512_smp_probe_counter: int = 0
+
+
+def _avx512_smp_get_pkg():
+    """Lazy import the IDE_016 avx512_amx_pool package; silent disable on fail."""
+    global _avx512_smp_pkg, _avx512_smp_init_attempted, _avx512_smp_enabled
+    if not _avx512_smp_enabled:
+        return None
+    if _avx512_smp_pkg is not None:
+        return _avx512_smp_pkg
+    if _avx512_smp_init_attempted:
+        return None
+    _avx512_smp_init_attempted = True
+    try:
+        ide016_root = (
+            "/workspace/vllm_hybrid/shadow_assists/features/"
+            "IDE_016_avx512_amx_pool"
+        )
+        if ide016_root not in sys.path:
+            sys.path.insert(0, ide016_root)
+        import avx512_amx_pool as _pkg  # noqa: E402
+        if not bool(_pkg.sampling.cpu_has_avx512()):
+            logger.warning(
+                "IDE_016 avx512 sampling: cpu_has_avx512=False — disabled"
+            )
+            _avx512_smp_enabled = False
+            return None
+        if not hasattr(_pkg, "sampling") or not hasattr(
+            _pkg.sampling, "fused_sample"
+        ):
+            logger.warning(
+                "IDE_016 avx512 sampling: fused_sample missing — disabled"
+            )
+            _avx512_smp_enabled = False
+            return None
+        _avx512_smp_pkg = _pkg
+        logger.info(
+            "IDE_016 avx512 sampling: lazy-init OK "
+            "(fused_sample probe_every=%d)",
+            _avx512_smp_probe_every,
+        )
+        return _pkg
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "IDE_016 avx512 sampling: lazy-init failed (%s) — disabled", exc
+        )
+        _avx512_smp_enabled = False
+        return None
+
+
+def avx512_smp_snapshot() -> dict:
+    """Snapshot per-process AVX-512 sampling telemetry (used by SUB_174 RESULTS)."""
+    return {
+        "enabled": bool(_avx512_smp_enabled),
+        "probe_every": _avx512_smp_probe_every,
+        "step_count": _avx512_smp_step_count,
+        "native_total_ns": _avx512_smp_native_total_ns,
+        "avx_total_ns": _avx512_smp_avx_total_ns,
+        "d2h_total_ns": _avx512_smp_d2h_total_ns,
+        "token_match_count": _avx512_smp_token_match_count,
+        "token_total_count": _avx512_smp_token_total_count,
+        "logprob_max_abs_diff": _avx512_smp_logprob_max_abs_diff,
+    }
+# ────────────────────────────────────────────────────────────────────────
 
 
 class Sampler(nn.Module):
@@ -268,6 +365,18 @@ class Sampler(nn.Module):
         for processor in sampling_metadata.logitsprocs.argmax_invariant:
             logits = processor.apply(logits)
 
+        # SUB_174: AVX-512 fused_sample telemetry (probe cadence guarded).
+        # native sampling path on GPU remains source-of-truth — accuracy gate
+        # bit-exact (token-level) wrt OFF baseline.
+        global _avx512_smp_probe_counter
+        do_probe = False
+        if _avx512_smp_enabled:
+            _avx512_smp_probe_counter += 1
+            if _avx512_smp_probe_counter % _avx512_smp_probe_every == 0:
+                do_probe = True
+
+        native_t0 = time.perf_counter_ns() if _avx512_smp_enabled else 0
+
         # Apply top_k and/or top_p.
         random_sampled, processed_logprobs = self.topk_topp_sampler(
             logits,
@@ -275,6 +384,17 @@ class Sampler(nn.Module):
             sampling_metadata.top_k,
             sampling_metadata.top_p,
         )
+
+        if _avx512_smp_enabled:
+            native_t1 = time.perf_counter_ns()
+            global _avx512_smp_step_count, _avx512_smp_native_total_ns
+            _avx512_smp_step_count += 1
+            _avx512_smp_native_total_ns += (native_t1 - native_t0)
+
+            if do_probe:
+                self._avx512_smp_probe(
+                    logits, sampling_metadata, random_sampled
+                )
 
         if greedy_sampled is None:
             return random_sampled, processed_logprobs
@@ -286,6 +406,90 @@ class Sampler(nn.Module):
             out=greedy_sampled,  # Reuse tensor
         )
         return sampled, processed_logprobs
+
+    @staticmethod
+    def _avx512_smp_probe(
+        logits: torch.Tensor,
+        sampling_metadata: SamplingMetadata,
+        random_sampled: torch.Tensor,
+    ) -> None:
+        """SUB_174: side-by-side AVX-512 fused_sample probe.
+
+        Copies a small slice of logits to CPU, runs AVX-512 fused_sample on it,
+        and compares argmax (informational accuracy metric). Does not alter
+        sampling output. Failures are silenced (telemetry path).
+        """
+        global _avx512_smp_avx_total_ns, _avx512_smp_d2h_total_ns
+        global _avx512_smp_token_match_count, _avx512_smp_token_total_count
+        global _avx512_smp_logprob_max_abs_diff
+        pkg = _avx512_smp_get_pkg()
+        if pkg is None:
+            return
+        try:
+            # Determine scalar top_k / top_p / temperature for the kernel
+            # (use first row's values as representative; kernels accept scalar).
+            top_k_t = sampling_metadata.top_k
+            top_p_t = sampling_metadata.top_p
+            temp_t = sampling_metadata.temperature
+            if top_k_t is None:
+                k_val = int(logits.size(-1))
+            else:
+                k_val = int(top_k_t[0].item())
+            if top_p_t is None:
+                p_val = 1.0
+            else:
+                p_val = float(top_p_t[0].item())
+            if temp_t is None:
+                T_val = 1.0
+            else:
+                T_val = float(temp_t[0].item())
+            # Cap k at vocab size, ensure positive.
+            k_val = max(1, min(k_val, int(logits.size(-1))))
+
+            # Limit probe batch to first 4 rows (kernel exercise — keep d2h cheap).
+            B_probe = min(4, int(logits.size(0)))
+            d2h_t0 = time.perf_counter_ns()
+            sub = logits[:B_probe].detach().to(
+                device="cpu", dtype=torch.float32, copy=True
+            ).contiguous()
+            d2h_t1 = time.perf_counter_ns()
+            _avx512_smp_d2h_total_ns += (d2h_t1 - d2h_t0)
+
+            avx_t0 = time.perf_counter_ns()
+            avx_token_ids = pkg.sampling.fused_sample(
+                sub, k_val, p_val, T_val, 0
+            )
+            avx_t1 = time.perf_counter_ns()
+            _avx512_smp_avx_total_ns += (avx_t1 - avx_t0)
+
+            # Token-level argmax informational match (kernel uses its own rng,
+            # so this is not bit-exact even at temp=1 — just regression tracker).
+            try:
+                ref = random_sampled[:B_probe].detach().to(
+                    device="cpu", dtype=torch.int64
+                )
+                avx_ids = avx_token_ids.to(torch.int64)
+                _avx512_smp_token_total_count += B_probe
+                _avx512_smp_token_match_count += int(
+                    (avx_ids == ref).sum().item()
+                )
+            except Exception:
+                pass
+
+            # logprob max abs diff probe (CPU softmax-of-temperatured logits
+            # vs AVX softmax). Computed on the first row only to bound cost.
+            try:
+                ref_lp = torch.log_softmax(sub[0], dim=-1)
+                avx_probs = pkg.sampling.softmax(sub[0].clone())
+                avx_lp = torch.log(avx_probs.clamp_min(1e-30))
+                diff = float((ref_lp - avx_lp).abs().max().item())
+                if diff > _avx512_smp_logprob_max_abs_diff:
+                    _avx512_smp_logprob_max_abs_diff = diff
+            except Exception:
+                pass
+        except Exception:
+            # Telemetry must never break sampling.
+            pass
 
     @staticmethod
     def compute_logprobs(logits: torch.Tensor) -> torch.Tensor:

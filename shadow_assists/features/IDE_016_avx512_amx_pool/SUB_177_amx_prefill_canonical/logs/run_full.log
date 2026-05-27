@@ -1,0 +1,12 @@
+[2026-05-27 10:22:23 KST] SUB_177 starting
+[10:22:23 KST] waiting vllm (V_PID=3130171 T_PID=3130172)
+[10:23:43 KST] vllm ready 8×10s (boot=80s)
+[10:23:43 KST] === Step 2 TTFT profile (vanilla port 8001) ===
+[10:24:00 KST] === Step 4 canonical baseline 500p × 3 mix ===
+[10:24:00 KST] mix=balanced
+[10:25:51 KST] mix=sonnet-heavy
+[10:27:25 KST] mix=code-heavy
+[10:28:57 KST] cleanup
+run_sub177.sh: line 120: 3130171 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+run_sub177.sh: line 120: 3130172 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 10:29:09 KST] SUB_177 done

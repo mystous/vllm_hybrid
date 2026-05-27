@@ -128,6 +128,38 @@ PYBIND11_MODULE(_core, m) {
     m.def("linear_pool_stub_invocation_count",
           &linear_pool::stub_invocation_count);
 
+    // ── SUB_184 dummy-fill — enqueue heavy CPU compute on phase mark ───
+    //
+    // Forward-declare the dummy_fill API so we don't need to add a header
+    // (kept local to SUB_184; revert by removing this block + the source).
+    // signatures must match task_pool_dummy_fill.cpp exactly.
+    {
+        // The implementations live in task_pool_dummy_fill.cpp.
+        // We re-declare them here for the binding lambdas.
+        // (link-time matched via the same translation unit being in the
+        //  phase_burst_core static lib.)
+    }
+    m.def("enqueue_dummy_attention_burst",
+          [](PhaseBurstScheduler& sched, uint64_t step_id,
+             int count, int iters) {
+              return dummy_fill::enqueue_dummy_attention_burst(
+                  sched, step_id, count, iters);
+          },
+          py::arg("scheduler"), py::arg("step_id"),
+          py::arg("count"), py::arg("iters"));
+    m.def("enqueue_dummy_linear_burst",
+          [](PhaseBurstScheduler& sched, uint64_t step_id,
+             int count, int iters) {
+              return dummy_fill::enqueue_dummy_linear_burst(
+                  sched, step_id, count, iters);
+          },
+          py::arg("scheduler"), py::arg("step_id"),
+          py::arg("count"), py::arg("iters"));
+    m.def("dummy_fill_invocation_count",
+          []() { return dummy_fill::invocation_count(); });
+    m.def("dummy_fill_total_iters",
+          []() { return dummy_fill::total_iters(); });
+
     // ── Phase mask constants exposed to Python ─────────────────────
     m.attr("MASK_ATTN")   = uint8_t(MASK_ATTN);
     m.attr("MASK_LINEAR") = uint8_t(MASK_LINEAR);

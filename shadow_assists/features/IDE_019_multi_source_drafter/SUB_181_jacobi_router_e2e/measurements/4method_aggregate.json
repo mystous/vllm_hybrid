@@ -1,0 +1,143 @@
+{
+  "suffix": "4method",
+  "mixes": {
+    "balanced": {
+      "scenarios": {
+        "vanilla-only": {
+          "tps": 1594.6919561925715,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        },
+        "trident-only": {
+          "tps": 1622.4694362851862,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        },
+        "agsd-gated": {
+          "tps": 105.15292263191361,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        }
+      },
+      "router_stats": {
+        "total": 501,
+        "by_backend": {
+          "vanilla": 1,
+          "trident": 335,
+          "cpu_jacobi": 165
+        },
+        "by_workload": {
+          "sonnet": 164,
+          "chat": 165,
+          "code": 172
+        },
+        "classify_time_total_s": 0.5337085812352598,
+        "forward_time_total_s": 102.82599271181971,
+        "jacobi_draft_time_total_ms": 301308.27670008875,
+        "jacobi_calls": 165,
+        "classify_ms_avg": 1.0652865892919356,
+        "forward_ms_avg": 205.24150241880182,
+        "jacobi_ms_avg": 1826.1107678793257,
+        "use_jacobi": true,
+        "jacobi_healthy": true
+      }
+    },
+    "sonnet-heavy": {
+      "scenarios": {
+        "vanilla-only": {
+          "tps": 2038.9847780516711,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        },
+        "trident-only": {
+          "tps": 3271.4402277586946,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        },
+        "agsd-gated": {
+          "tps": 175.0548219890262,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        }
+      },
+      "router_stats": {
+        "total": 501,
+        "by_backend": {
+          "vanilla": 1,
+          "trident": 400,
+          "cpu_jacobi": 100
+        },
+        "by_workload": {
+          "sonnet": 292,
+          "chat": 100,
+          "code": 109
+        },
+        "classify_time_total_s": 0.3764028961304575,
+        "forward_time_total_s": 86.31471357424743,
+        "jacobi_draft_time_total_ms": 181850.16812966205,
+        "jacobi_calls": 100,
+        "classify_ms_avg": 0.7513031858891368,
+        "forward_ms_avg": 172.28485743362762,
+        "jacobi_ms_avg": 1818.5016812966205,
+        "use_jacobi": true,
+        "jacobi_healthy": true
+      }
+    },
+    "code-heavy": {
+      "scenarios": {
+        "vanilla-only": {
+          "tps": 1918.6947662959635,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        },
+        "trident-only": {
+          "tps": 3028.1660448911953,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        },
+        "agsd-gated": {
+          "tps": 179.1429521542313,
+          "p50_latency_ms": null,
+          "total_tokens": null
+        }
+      },
+      "router_stats": {
+        "total": 501,
+        "by_backend": {
+          "vanilla": 1,
+          "trident": 400,
+          "cpu_jacobi": 100
+        },
+        "by_workload": {
+          "sonnet": 48,
+          "chat": 100,
+          "code": 353
+        },
+        "classify_time_total_s": 0.3928449267987162,
+        "forward_time_total_s": 79.63098558969796,
+        "jacobi_draft_time_total_ms": 177664.58210349083,
+        "jacobi_calls": 100,
+        "classify_ms_avg": 0.784121610376679,
+        "forward_ms_avg": 158.94408301336918,
+        "jacobi_ms_avg": 1776.6458210349083,
+        "use_jacobi": true,
+        "jacobi_healthy": true
+      }
+    }
+  },
+  "summary": {
+    "avg_tps": {
+      "vanilla-only": 1850.7905001800689,
+      "trident-only": 2640.691902978359,
+      "agsd-gated": 153.11689892505703
+    },
+    "jacobi": {
+      "total_calls": 365,
+      "total_ms": 660823.0269332416,
+      "calls_by_workload_chat": 365,
+      "avg_call_ms": 1810.474046392443
+    },
+    "agsd_vs_vanilla_speedup": 0.08273054076631571,
+    "agsd_vs_trident_speedup": 0.05798362874228567
+  }
+}

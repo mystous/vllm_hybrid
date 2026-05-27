@@ -1,0 +1,59 @@
+{
+  "config": {
+    "lib": "/workspace/vllm_hybrid/shadow_assists/features/IDE_019_multi_source_drafter/SUB_180_jacobi_canonical/build/libjacobi_avx512.so",
+    "hidden": 128,
+    "vocab": 512,
+    "K_list": [
+      3
+    ],
+    "B_list": [
+      1
+    ],
+    "threads_list": [
+      1
+    ],
+    "iters": 1,
+    "warmup": 0
+  },
+  "accuracy": {
+    "BK": 4,
+    "hidden": 128,
+    "vocab": 512,
+    "avx_vs_scalar_match": 4,
+    "avx_vs_numpy_match": 4,
+    "scalar_vs_numpy_match": 4,
+    "out_avx": [
+      40,
+      242,
+      326,
+      421
+    ],
+    "out_scalar": [
+      40,
+      242,
+      326,
+      421
+    ],
+    "out_numpy": [
+      40,
+      242,
+      326,
+      421
+    ]
+  },
+  "cells": [
+    {
+      "K": 3,
+      "B": 1,
+      "BK": 3,
+      "threads": 1,
+      "p50_ms": 0.26814895682036877,
+      "mean_ms": 0.26814895682036877,
+      "samples_ms": [
+        0.26814895682036877
+      ],
+      "tflops_p50": 0.001466408837321761,
+      "argmax_first": 220
+    }
+  ]
+}

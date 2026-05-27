@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# SUB_177 — IDE_016 / TSK_027 AMX prefill assist canonical 500p + TTFT profile
+# (1) canonical 500p baseline (control measurement, AMX 사용 안 함 — 환경 정합성)
+# (2) TTFT profile (512/1024/2048 prefill 길이 × 1-run)
+# AMX kernel 은 vllm 안에서 사용되지 않음 — 한계 인지 baseline + analysis SUB.
+set -uo pipefail
+
+BASE=/workspace/vllm_hybrid/shadow_assists/features/IDE_016_avx512_amx_pool/SUB_177_amx_prefill_canonical
+mkdir -p "${BASE}/logs" "${BASE}/baseline_500p_off" "${BASE}/ttft_profile"
+
+ROOT=/workspace/vllm_hybrid
+PY=/workspace/vllm_dev_prj/bin/python
+VLLM=/workspace/vllm_dev_prj/bin/vllm
+
+export HF_HUB_OFFLINE=1
+export LD_PRELOAD=/usr/lib64/libcuda.so.1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export ARCTIC_INFERENCE_ENABLED=0
+export VLLM_PLUGINS=""
+
+# pthread EAGAIN 회피
+export RAYON_NUM_THREADS=4
+export OMP_NUM_THREADS=4
+export OPENBLAS_NUM_THREADS=4
+export MKL_NUM_THREADS=4
+export TOKENIZERS_PARALLELISM=false
+
+MODEL="Qwen/Qwen2.5-32B-Instruct"
+SUFFIX="off"
+OUT_PREFIX="${BASE}/baseline_500p_off"
+
+unset VLLM_USE_AVX512_SAMPLING
+
+echo "[$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST')] SUB_177 starting" | tee -a "${BASE}/logs/main_${SUFFIX}.log"
+
+"$PY" "${ROOT}/eval/monitor.py" "${BASE}/_monitor_${SUFFIX}" --interval 0.5 > "${BASE}/logs/monitor_${SUFFIX}.log" 2>&1 &
+MON_PID=$!
+echo "[monitor] pid=${MON_PID}" >> "${BASE}/logs/main_${SUFFIX}.log"
+
+CUDA_VISIBLE_DEVICES=0,1,2,3 nohup "${VLLM}" serve "${MODEL}" \
+    --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 \
+    --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 \
+    --kv-cache-dtype auto --disable-custom-all-reduce \
+    --compilation-config '{"cudagraph_mode": "PIECEWISE"}' \
+    > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1 &
+V_PID=$!
+
+CUDA_VISIBLE_DEVICES=4,5,6,7 nohup "${VLLM}" serve "${MODEL}" \
+    --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 \
+    --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 \
+    --kv-cache-dtype auto --disable-custom-all-reduce \
+    --compilation-config '{"cudagraph_mode": "PIECEWISE"}' \
+    --speculative-config '{"method":"suffix","num_speculative_tokens":32}' \
+    > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1 &
+T_PID=$!
+
+BOOT_T0=$(date +%s)
+echo "[$(TZ=Asia/Seoul date '+%H:%M:%S KST')] waiting vllm (V_PID=${V_PID} T_PID=${T_PID})" | tee -a "${BASE}/logs/main_${SUFFIX}.log"
+READY=0
+for i in $(seq 1 120); do
+    sleep 10
+    V_OK=$(curl -sf -m 3 "http://127.0.0.1:8001/v1/models" 2>/dev/null | head -c 30 || echo "")
+    T_OK=$(curl -sf -m 3 "http://127.0.0.1:8002/v1/models" 2>/dev/null | head -c 30 || echo "")
+    if [ -n "$V_OK" ] && [ -n "$T_OK" ]; then
+        READY=1
+        break
+    fi
+done
+BOOT_T1=$(date +%s)
+BOOT_DUR=$(( BOOT_T1 - BOOT_T0 ))
+if [ "${READY}" = "0" ]; then
+    echo "[$(TZ=Asia/Seoul date '+%H:%M:%S KST')] vllm not ready in 20 min, abort" | tee -a "${BASE}/logs/main_${SUFFIX}.log"
+    kill ${MON_PID} ${V_PID} ${T_PID} 2>/dev/null
+    pgrep -f "vllm serve ${MODEL}" 2>/dev/null | xargs -r kill -9 2>/dev/null
+    exit 1
+fi
+echo "[$(TZ=Asia/Seoul date '+%H:%M:%S KST')] vllm ready ${i}×10s (boot=${BOOT_DUR}s)" | tee -a "${BASE}/logs/main_${SUFFIX}.log"
+echo "${BOOT_DUR}" > "${BASE}/logs/boot_${SUFFIX}_seconds.txt"
+
+# === Step 2: TTFT profile (Qwen 32B vanilla, single TP=4 instance) ===
+echo "[$(TZ=Asia/Seoul date '+%H:%M:%S KST')] === Step 2 TTFT profile (vanilla port 8001) ===" | tee -a "${BASE}/logs/main_${SUFFIX}.log"
+"$PY" "${BASE}/ttft_profile.py" \
+    --url http://127.0.0.1:8001/v1/completions \
+    --model "${MODEL}" \
+    --n-requests 20 --max-tokens 32 --concurrency 4 \
+    --input-tokens 512 1024 2048 \
+    --out "${BASE}/ttft_profile/ttft_vanilla.json" \
+    > "${BASE}/logs/ttft_vanilla.log" 2>&1 || echo "ttft vanilla failed (continuing)"
+
+# === Step 4: canonical 500p × 3 mix (AGSD router) ===
+export AGSD_VANILLA_URL="http://127.0.0.1:8001/v1/completions"
+export AGSD_TRIDENT_URL="http://127.0.0.1:8002/v1/completions"
+export AGSD_MODEL="${MODEL}" AGSD_MODEL_SIZE=qwen_7b
+export AGSD_CLASSIFIER_WORKERS=4 AGSD_ROUTER_PORT=8000
+cd /tmp && nohup "$PY" sub094_router.py > "${BASE}/logs/router_${SUFFIX}.log" 2>&1 &
+R_PID=$!
+sleep 10
+
+export BENCH_MODEL="${MODEL}"
+
+echo "[$(TZ=Asia/Seoul date '+%H:%M:%S KST')] === Step 4 canonical baseline 500p × 3 mix ===" | tee -a "${BASE}/logs/main_${SUFFIX}.log"
+for MIX in balanced sonnet-heavy code-heavy; do
+    OUT="${OUT_PREFIX}/${MIX}"
+    mkdir -p "${OUT}"
+    curl -sX POST http://127.0.0.1:8000/reset > /dev/null
+    echo "[$(TZ=Asia/Seoul date '+%H:%M:%S KST')] mix=${MIX}" | tee -a "${BASE}/logs/main_${SUFFIX}.log"
+    "$PY" /tmp/sub094_benchmark.py \
+        --num-prompts 500 --max-tokens 256 --concurrency 32 \
+        --mix ${MIX} --out-dir "${OUT}/" \
+        > "${OUT}/bench.log" 2>&1
+done
+
+# cleanup
+echo "[$(TZ=Asia/Seoul date '+%H:%M:%S KST')] cleanup" | tee -a "${BASE}/logs/main_${SUFFIX}.log"
+kill ${R_PID} 2>/dev/null
+sleep 2
+pgrep -f sub094_router 2>/dev/null | xargs -r kill -9 2>/dev/null
+sleep 2
+pgrep -f "vllm serve ${MODEL}" 2>/dev/null | xargs -r kill -9 2>/dev/null
+sleep 5
+pgrep -f "VLLM::" 2>/dev/null | xargs -r kill -9 2>/dev/null
+sleep 3
+kill ${MON_PID} 2>/dev/null
+
+echo "[$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST')] SUB_177 done" | tee -a "${BASE}/logs/main_${SUFFIX}.log"

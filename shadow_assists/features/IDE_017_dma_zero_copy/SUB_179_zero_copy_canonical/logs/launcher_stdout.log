@@ -1,0 +1,11 @@
+[2026-05-27 10:48:57 KST] SUB_179 canonical baseline starting
+[10:48:57 KST] waiting vllm (V_PID=3263336 T_PID=3263337)
+[10:50:17 KST] vllm ready 8x10s (boot=80s)
+[10:50:27 KST] === canonical baseline 500p × 3 mix benchmark (max-tokens=32) ===
+[10:50:27 KST] mix=balanced
+[10:50:56 KST] mix=sonnet-heavy
+[10:51:18 KST] mix=code-heavy
+[10:51:40 KST] cleanup
+launcher.sh: line 107: 3263336 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+launcher.sh: line 107: 3263337 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 10:51:52 KST] SUB_179 done

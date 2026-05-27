@@ -1,0 +1,12 @@
+[2026-05-27 11:54:39 KST] SUB_183 mode=on starting
+[11:54:39 KST] waiting vllm (V_PID=3599690 T_PID=3599691)
+[11:55:59 KST] vllm ready 8x10s (boot=80s)
+[11:56:09 KST] router health: {"ok":true,"workers":4}
+[11:56:09 KST] === on 500p x 3 mix benchmark (max-tokens=32) ===
+[11:56:09 KST] mix=balanced
+[11:56:38 KST] mix=sonnet-heavy
+[11:56:58 KST] mix=code-heavy
+[11:57:20 KST] cleanup
+/workspace/vllm_hybrid/shadow_assists/features/IDE_017_dma_zero_copy/SUB_183_numa_pinning_canonical/launcher.sh: line 175: 3599690 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${NUMACTL_V} ${TASKSET_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+/workspace/vllm_hybrid/shadow_assists/features/IDE_017_dma_zero_copy/SUB_183_numa_pinning_canonical/launcher.sh: line 175: 3599691 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${NUMACTL_T} ${TASKSET_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 11:57:33 KST] SUB_183 mode=on done

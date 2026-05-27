@@ -125,4 +125,16 @@ uint64_t stub_invocation_count();
 
 }  // namespace linear_pool
 
+// ── SUB_184 dummy-fill ─────────────────────────────────────────────
+namespace dummy_fill {
+
+size_t enqueue_dummy_attention_burst(PhaseBurstScheduler& sched,
+                                     uint64_t step_id, int count, int iters);
+size_t enqueue_dummy_linear_burst(PhaseBurstScheduler& sched,
+                                  uint64_t step_id, int count, int iters);
+uint64_t invocation_count();
+uint64_t total_iters();
+
+}  // namespace dummy_fill
+
 }  // namespace vllm_hybrid_phase
