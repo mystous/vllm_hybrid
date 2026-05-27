@@ -17,6 +17,7 @@
 | **S2** | + `VLLM_NGRAM_NUM_THREADS_CAP=8` (SUB_047 patch) | 10,956.5 | +134.12% | **38 줄** (`vllm/v1/spec_decode/ngram_proposer.py`) |
 | **S3** | + `method="suffix"`, `num_speculative_tokens=32` (SUB_085 v2) | 11,589 | +147.7% | 0 (vLLM 기본 — suffix decoder) |
 | **S4** | + `compilation_config={"cudagraph_mode": "PIECEWISE"}` | 11,687.4 | +149.8% | 0 (vLLM 기본 flag) |
+| **S5** | + **AGSD gating** (workload-aware 라우터, 2 backend) | 8,825 ~ 6,073 (mix scenario) | **+55.9% ~ +122.5%** vs vanilla / **+15.1% ~ +43.3%** vs single-backend trident | router 별도 (`gating/`) |
 
 → **+134~+150% 중 +130 pp 는 vLLM built-in feature 활성화 효과** (코드 변경 0). 본 fork 의 *실측 가치는 +1.65 pp (SUB_047 ngram 스레드 cap 풀기)* + *측정 자체* (어떤 config 가 워크로드별 어떻게 동작하는지 156 cell 으로 확정).
 
@@ -27,9 +28,11 @@ flowchart TB
     S2["S2 + SUB_047 (cap=8)<br/>10,956 tps · +134.1%<br/>fork 38 줄"]
     S3["S3 + suffix method<br/>11,589 tps · +147.7%"]
     S4["S4 + PIECEWISE cudagraph<br/>11,687 tps · +149.8%"]
-    S0 ==> S1 ==> S2 ==> S3 ==> S4
+    S5["S5 + AGSD gating<br/>mix +55~+122% vs vanilla<br/>+15~+43% vs single-backend<br/>(gating/ router)"]
+    S0 ==> S1 ==> S2 ==> S3 ==> S4 ==> S5
     style S1 fill:#FFC,stroke:#FA0,stroke-width:3px
     style S2 fill:#FFC,stroke:#FA0,stroke-width:1px
+    style S5 fill:#CFC,stroke:#080,stroke-width:3px
 ```
 
 ---
@@ -205,8 +208,28 @@ export VLLM_NGRAM_DIVIDE_BY_TP=0
 
 ### 3.6 AGSD (Adaptive Gated Spec Decode) — workload-aware 라우터
 
-Llama 70B 환경에선 모든 workload 가 Trident core net-positive 이므로 **AGSD = Trident core** (gating 불필요).
-Qwen 7B 이하 small model 에서는 workload 별 분기가 필요 — [측정](measurements/sub095_agsd_e2e_multi_model_20260525/RESULTS.md) 참조.
+본 deliverable 의 `gating/` 디렉토리에 production-ready 영역 라우터 + classifier + benchmark 가 포함됨.
+
+```bash
+# 2 vLLM backend + CPU router 동시 기동
+bash vllm_config_perf/gating/launcher.sh up
+
+# mixed traffic benchmark (3 scenario × 3 mix = 9 회차)
+.venv/bin/python vllm_config_perf/gating/benchmark_mixed.py \
+    --scenario AGSD --mix balanced --out /tmp/agsd_bal.json
+```
+
+**측정 결과 (SUB_094, Qwen 7B × 2 GPU)**:
+
+| Mix | vanilla-only | trident-only | **AGSD-gated** | vs vanilla | vs trident |
+|---|---:|---:|---:|---:|---:|
+| balanced (34:33:33) | 3,753 | 4,238 | **6,073** | **+61.8%** ⭐ | **+43.3%** ⭐ |
+| sonnet-heavy (60:20:20) | 3,865 | 5,234 | **6,025** | **+55.9%** ⭐ | **+15.1%** |
+| code-heavy (10:20:70) | 3,966 | 7,512 | **8,825** | **+122.5%** ⭐ | **+17.5%** |
+
+**Llama 70B 환경 차이점**: 모든 workload 가 Trident core net-positive 이므로 *single-instance* 환경에선 AGSD = Trident core (gating decision = 항상 suffix). AGSD 의 *별도 가치* 는 **mixed-model deployment** (Llama 70B + Qwen 동시) + **2-backend parallel GPU 활용**.
+
+상세 (architecture / routing 정책 / classifier 알고리즘 / launcher / benchmark): [`gating/README.md`](gating/README.md)
 
 ---
 
@@ -298,15 +321,27 @@ vllm_config_perf/
 │   ├── COMPREHENSIVE_REPORT_20260525.md   ← 종합 리포트
 │   ├── OUTSTANDING_CONTRIBUTIONS_20260525.md
 │   ├── workload_acceptance_analysis_20260524.md  ← R/K 분석
+│   ├── spec_decoding/
+│   │   ├── README.md                      ← ★ production guide (user-facing)
+│   │   ├── plan_README.md
+│   │   ├── spec_decoding_idea.md
+│   │   └── spec_decode_openai.md
 │   └── idea/
 │       ├── README.md
 │       ├── IDE_009_vanilla_contribution_framing.md  ← ★ +130pp vs +1.65pp framing
 │       ├── IDE_010_suffix_decoding_measurement.md
 │       ├── IDE_011_acceptance_rate_direct_measure.md  ← R/K 측정
-│       ├── IDE_012_workload_aware_gating_poc.md
+│       ├── IDE_012_workload_aware_gating_poc.md      ← AGSD 이론적 근거
 │       ├── IDE_013_vllm_upstream_pr.md
 │       ├── IDE_014_issue_16258_repro.md
 │       └── code_base_impact_20260524.md
+├── gating/                                ← ★ AGSD 라우터 서브시스템 (재구성)
+│   ├── README.md                          ← gating 가이드
+│   ├── workload_classifier.py             ← regex 분류기 (SUB_076)
+│   ├── recommendations.py                 ← spec config 권장 매트릭스 (SUB_080)
+│   ├── agsd_router.py                     ← FastAPI 라우터 (SUB_092/094)
+│   ├── launcher.sh                        ← 2 backend + router 기동
+│   └── benchmark_mixed.py                 ← 3 mix × 3 scenario 클라이언트
 ├── measurements/
 │   ├── _ALL_RESULTS_20260526.md           ← ★ 156 cell 단일 표
 │   ├── _ALL_TABLE_20260526.md
@@ -321,6 +356,7 @@ vllm_config_perf/
 │   ├── sub089_sonnet_3run_20260525/        ← S4 3-run variance
 │   ├── sub091_issue16258_precise_20260525/ ← small model 회귀 재현
 │   ├── sub092_router_poc_20260525/         ← HTTP router PoC
+│   ├── sub080_gating_prod_20260524/        ← analytical gating decision
 │   ├── sub093_full_matrix_util_20260525/   ← ★ Llama 70B full matrix
 │   ├── sub094_agsd_e2e_20260525/           ← AGSD end-to-end
 │   └── sub095_agsd_e2e_multi_model_20260525/  ← Qwen 0.5B~32B
@@ -329,6 +365,8 @@ vllm_config_perf/
 │   ├── 20260523_005314_sub044_spec_decode/
 │   ├── 20260523_133929_sub047_t3_verify/
 │   ├── 20260523_162456_sub047_t3_verify/
+│   ├── 20260525_003850_sub076_classifier/       ← classifier accuracy 1.000
+│   ├── 20260525_073811_sub080_gating_analytical/← analytical gating
 │   ├── 20260525_085000_sub085_smoke_sonnet_piecewise/
 │   ├── 20260525_085511_sub085_chat_suffix_piecewise/
 │   ├── 20260525_091016_sub085v2_*_suffix_piecewise/ (3)
@@ -371,9 +409,26 @@ vllm_config_perf/
 - 결과: 6/6 net-positive, 평균 +50.9 %
 - 상세: [`measurements/sub093_full_matrix_util_20260525/RESULTS.md`](measurements/sub093_full_matrix_util_20260525/RESULTS.md) + `_all_cells.csv`
 
-### SUB_094 — AGSD end-to-end 라우터 (2026-05-25)
+### SUB_076 — Workload classifier PoC (2026-05-24)
+- 측정: regex classifier, 본 환경 builder accuracy **1.000**
+- 알고리즘: 3 카테고리 (sonnet / chat / code), 규칙 기반
+- 재구성된 production 코드: [`gating/workload_classifier.py`](gating/workload_classifier.py)
+- 상세: [`measurements/sub076_classifier_20260524/RESULTS.md`](measurements/sub076_classifier_20260524/RESULTS.md)
+
+### SUB_080 — Analytical gating decision (2026-05-24)
+- 측정: workload + model size 기반 spec config 권장 매트릭스
+- 재구성된 production 코드: [`gating/recommendations.py`](gating/recommendations.py)
+- 상세: [`measurements/sub080_gating_prod_20260524/RESULTS.md`](measurements/sub080_gating_prod_20260524/RESULTS.md)
+
+### SUB_092 — HTTP router PoC (2026-05-25)
+- 측정: routing decision-only HTTP server, **0.26 ms / prompt**
+- 상세: [`measurements/sub092_router_poc_20260525/RESULTS.md`](measurements/sub092_router_poc_20260525/RESULTS.md)
+
+### SUB_094 — AGSD end-to-end 라우터 (2026-05-25, ★ 핵심)
 - 측정: vanilla / trident / AGSD-gated 3 backend × 3 mix scenario
-- 결과: classifier 100 % accuracy, overhead 0.26 ms/prompt
+- 결과: classifier **100 % accuracy**, overhead **1.22 ms / prompt**
+- AGSD-gated **모든 mix net positive**: balanced +61.8% / sonnet-heavy +55.9% / code-heavy +122.5% (vs vanilla)
+- 재구성된 production 코드: [`gating/agsd_router.py`](gating/agsd_router.py) + [`gating/launcher.sh`](gating/launcher.sh) + [`gating/benchmark_mixed.py`](gating/benchmark_mixed.py)
 - 상세: [`measurements/sub094_agsd_e2e_20260525/RESULTS.md`](measurements/sub094_agsd_e2e_20260525/RESULTS.md)
 
 ### SUB_095 — AGSD × small model 다중 (Qwen 0.5B/1.5B/7B/32B)
