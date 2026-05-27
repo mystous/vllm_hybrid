@@ -1,0 +1,38 @@
+diff --git a/vllm/v1/spec_decode/ngram_proposer.py b/vllm/v1/spec_decode/ngram_proposer.py
+index 53199d0ce2..e63a28ecad 100644
+--- a/vllm/v1/spec_decode/ngram_proposer.py
++++ b/vllm/v1/spec_decode/ngram_proposer.py
+@@ -36,19 +36,24 @@ class NgramProposer:
+         self.num_tokens_threshold = 8192
+         tp_size = vllm_config.parallel_config.tensor_parallel_size
+         cpu_count = os.cpu_count()
++        # SUB_047 (Tier 1 B) — env-tunable ngram numba thread cap.
++        #   Original vLLM cap = min(1, cpu_count//2) → effectively 1 thread!
++        #   TODO(ekagra-ranjan): bump up the cap from 1 to 8 when TP parallelization
++        #   for ngram is implemented.
++        #   본 lever: VLLM_NGRAM_NUM_THREADS_CAP (default 1, recommended 8 or higher)
++        #             VLLM_NGRAM_DIVIDE_BY_TP (default 1 = divide, 0 = skip — rank 영역 thread 영역 ↑)
++        cap = int(os.environ.get("VLLM_NGRAM_NUM_THREADS_CAP", "1"))
++        divide_by_tp = int(os.environ.get("VLLM_NGRAM_DIVIDE_BY_TP", "1"))
+         # Max number of threads for numba parallel processing.
+         if cpu_count:
+             # Divide by 2 to use physical cores
+             # and not logical cores (hyper-threading).
+-            # Cap the number of threads to 8 to avoid using too many threads
+-            # since other components like frontend (incl tokenization)
+-            # and Structured Outputs also use multiple threads.
+-            # TODO(ekagra-ranjan): bump up the cap from 1 to 8
+-            # when TP parallelization for ngram is implemented.
+-            self.num_numba_thread_available = min(1, (cpu_count // 2))
+-            # Divide by tp_size to ensure each tensor parallel rank
+-            # has some threads since all ranks will run this.
+-            self.num_numba_thread_available //= tp_size
++            self.num_numba_thread_available = max(1, min(cap, (cpu_count // 2)))
++            if divide_by_tp:
++                # Divide by tp_size to ensure each tensor parallel rank
++                # has some threads since all ranks will run this.
++                self.num_numba_thread_available //= tp_size
++            self.num_numba_thread_available = max(1, self.num_numba_thread_available)
+         else:
+             self.num_numba_thread_available = 1
+ 
