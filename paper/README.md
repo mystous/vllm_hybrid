@@ -37,15 +37,24 @@ paper/
 
 ## 빌드 환경
 
-### 필수 패키지
+본 프로젝트는 **XeLaTeX + kotex + fontspec + Nanum 폰트** 조합 사용.
+
+### Overleaf (권장)
+
+1. 프로젝트를 Overleaf 에 업로드 (zip 또는 git import)
+2. Menu → Settings → **Compiler: XeLaTeX** 선택
+3. Recompile
+
+Overleaf 는 NanumMyeongjo / NanumGothic 폰트 사전 설치되어 있어 별도 작업 불필요.
+`main.tex` 첫 줄의 `% !TEX program = xelatex` 매직 코멘트는 일부 에디터 영역만
+인식하므로 Overleaf 의 Settings 에서 직접 지정해야 합니다.
+
+### 로컬 (Ubuntu/Debian)
 
 ```bash
-# Ubuntu/Debian
 sudo apt install texlive-xetex texlive-lang-korean texlive-bibtex-extra \
-                 texlive-pictures texlive-fonts-extra chktex
-
-# 한글 폰트 (Nanum)
-sudo apt install fonts-nanum
+                 texlive-pictures texlive-fonts-extra chktex \
+                 fonts-nanum
 fc-cache -fv
 ```
 

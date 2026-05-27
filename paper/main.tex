@@ -1,27 +1,28 @@
+% !TEX program = xelatex
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
 %% METRONOME: 투기적 디코딩 환경의 박자 정렬 교차 도메인
 %%            CPU 자원 오케스트레이션 알고리즘
 %% Authors: Kyunam Cho (first), Heon-Chang Yoo (corresponding)
 %% Target:  IEEE/ACM 국제 학술대회 (IEEEtran conference, 10 pages × 2-column)
-%% Build:   XeLaTeX + kotex (Korean)
+%% Build:   XeLaTeX + kotex + fontspec (Korean — Overleaf 또는 로컬 TeX Live)
+%%
+%% [중요] Overleaf 사용 시: Menu → Settings → Compiler: XeLaTeX 선택 필수.
+%%   (`% !TEX program = xelatex` 매직 코멘트는 일부 에디터만 인식하므로
+%%    Overleaf 의 Settings 에서 명시적으로 지정)
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \documentclass[conference,10pt]{IEEEtran}
 \IEEEoverridecommandlockouts
 
-%% --- Korean typesetting (XeLaTeX + kotex) ---------------------------------
+%% --- Korean typesetting (XeLaTeX + kotex + fontspec) ----------------------
+%% Overleaf 는 Nanum 폰트 사전 설치 — fontspec + setmainhangulfont 정상 작동.
+%% 로컬 빌드 시 fc-cache -fv 후 Nanum 폰트 인식 확인.
 \usepackage{kotex}
 \usepackage{fontspec}
-% NanumMyeongjo / NanumGothic 미설치 시 폰트 자동 fallback
-% (production 빌드 환경에서는 \setmainhangulfont 명시 권장)
-\IfFontExistsTF{NanumMyeongjo}
-  {\setmainhangulfont{NanumMyeongjo}[Script=Hangul]}
-  {}
-\IfFontExistsTF{NanumGothic}
-  {\setsanshangulfont{NanumGothic}[Script=Hangul]}
-  {}
+\setmainhangulfont{NanumMyeongjo}
+\setsanshangulfont{NanumGothic}
 
 %% --- Standard packages ----------------------------------------------------
 \usepackage{cite}
