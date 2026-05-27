@@ -1,0 +1,62 @@
+%% paper/sections/04_problem_formulation.tex
+%% §4 Problem Formulation — GPU step 주기 vs CPU offload window 정량화
+
+\section{문제 정의: GPU 단계 주기와 CPU 활용 창의 비대칭}
+\label{sec:problem}
+
+본 절은 \algname 알고리즘이 해결하려는 문제를 Amdahl 류 분석으로 정량화한다.
+
+\subsection{LLM 추론 단계 주기의 분해}
+
+vLLM~\cite{kwon2023vllm}의 단일 추론 step은 다음 sub-phase로 분해된다.
+
+\begin{equation}
+T_{\text{step}} = T_{\text{sched}} + T_{\text{prep}} + T_{\text{fwd}} + T_{\text{samp}} + T_{\text{post}}
+\label{eq:step-decomp}
+\end{equation}
+
+여기서 각 항은 (1) scheduler가 batch를 구성하는 시간 $T_{\text{sched}}$, (2) inputs 준비 $T_{\text{prep}}$, (3) GPU forward $T_{\text{fwd}}$, (4) sampling $T_{\text{samp}}$, (5) post-processing $T_{\text{post}}$이다.
+
+본 연구의 측정 환경(Qwen 2.5-32B + TP=4$\times$2 + H100$\times$8)에서 GPU forward는 $T_{\text{fwd}} \approx 30$--$40$\,ms로 dominant이며, 나머지 단계의 합은 약 $5$--$10$\,ms로 측정된다.
+따라서 step 주기는 약 $\tgpu \in [35, 44]$\,ms 범위에 머문다.
+
+\subsection{CPU 자원 활용의 Amdahl 류 상한}
+
+CPU 보조 작업이 LLM 추론의 critical path \emph{외부}에서 실행될 수 있는 시간 창은 $T_{\text{fwd}}$ 동안의 CPU idle window로 제한된다.
+보조 작업이 step당 $T_{\text{aux}}$의 wall-clock을 점유한다면, Amdahl 류 가속비~\cite{amdahl1967, hill2008amdahl}에 따라
+
+\begin{equation}
+S_{\text{ideal}} = \frac{T_{\text{step}}}{T_{\text{step}} - \min(T_{\text{aux}}, T_{\text{fwd}})}
+\label{eq:amdahl-ideal}
+\end{equation}
+
+이 이상적 가속 한계이다.
+$T_{\text{aux}} \leq T_{\text{fwd}}$ 인 경우(완벽 overlap), $S_{\text{ideal}} \leq T_{\text{step}} / T_{\text{sched+prep+samp+post}} \approx 40/8 = 5$배이다.
+그러나 실제 측정에서 본 연구의 24개 후보 기법 중 어떤 단일 기법도 이 상한에 가까이 도달하지 못했다.
+대부분의 기법은 단일 효과가 $\Delta(L) < 3\%$의 noise floor 안에 머문다.
+
+이 \emph{이상-실측 격차}는 세 가지 원인에 기인한다.
+
+\textbf{원인 1: critical path 침범.}
+직접 CPU 커널 대체 기법(예: AVX-512 토크나이저, AMX matmul)은 critical path \emph{안에} CPU 작업을 추가하므로 PCIe H2D/D2H 동기화 비용이 누적되어 net-negative가 된다.
+
+\textbf{원인 2: 자원 도메인 간섭.}
+동일 도메인의 기법을 stacking 하면 OS-level context-switch와 cache thrashing 비용이 누적된다.
+본 연구의 측정에서 동일 도메인 4-lever stack은 단일 기법 합 대비 $-1.18$\,pp의 destructive interference를 나타냈다.
+
+\textbf{원인 3: 시간적 비정렬.}
+보조 작업 주기 $\tcpu$가 GPU step 주기 $\tgpu$와 \emph{비정수배}로 정렬되면 idle window를 효율적으로 활용하지 못한다.
+$\tcpu \ll \tgpu$인 고빈도 보조 작업은 매 step의 sub-phase 경계에 끼어들어 critical path를 침범하고, $\tcpu \gg \tgpu$인 저빈도 보조 작업은 idle window 대부분을 낭비한다.
+
+\subsection{본 논문이 해결하려는 문제}
+
+위 세 가지 원인을 종합하면 다음 문제를 정의할 수 있다.
+
+\smallskip
+\noindent\textbf{문제 정의.}
+GPU step 주기 $\tgpu$가 주어진 LLM 추론 환경에서, CPU 보조 작업의 (i) \emph{도메인 선택}, (ii) \emph{시간 정렬}, (iii) \emph{작업 패턴}을 결정하여 critical path 침범 없이 $\Delta \geq 5\%$의 처리량 회복을 달성하는 시스템 알고리즘을 설계한다.
+
+\smallskip
+
+\S\ref{sec:metronome}의 \algname 알고리즘은 이 문제에 대한 본 논문의 답이다.
+세 결정 차원(도메인/정렬/패턴)을 5단계 파이프라인으로 분해하며, 각 단계의 선택 기준은 \S\ref{sec:results}의 24-기법 ablation 결과로부터 경험적으로 도출된다.

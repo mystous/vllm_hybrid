@@ -1,0 +1,91 @@
+%% paper/sections/09_discussion.tex
+%% §9 Discussion — 이론과 실측의 통합 + 실용적 함의 + 한계
+
+\section{논의}
+\label{sec:discussion}
+
+본 절은 \algname 의 이론적 결과와 실측의 통합적 의미, 실용적 함의, 그리고 본 연구의 한계와 미래 연구 방향을 논의한다.
+
+\subsection{이론과 실측의 통합}
+
+본 논문은 두 가지 이론적 결과(Theorem~\ref{thm:superposition}, \ref{thm:alignment})와 24-기법의 paired ablation 결과를 통합하여 \algname 알고리즘을 도출하였다.
+
+\textbf{이론 1 (교차 도메인 중첩)} 은 Table~\ref{tbl:superposition}에서 직접 검증되었다.
+$\varepsilon_{\text{cross}} \approx 0.55$\,pp 과 $\varepsilon_{\text{same}} \approx 1.18$\,pp 의 약 2배 격차는 noise floor의 한계를 고려해도 통계적으로 유의하다.
+3-기법 이상 stacking의 초선형 destructive interference($\varepsilon_{\text{same}}^{(3)} \approx 4.56$\,pp)는 LLM 추론 시스템 설계에서 \emph{도메인 다양성 우선}이라는 일반 원칙을 제시한다.
+
+\textbf{이론 2 (단계 경계 정렬)} 은 Fig.~\ref{fig:pattern-cycle-grid}의 2$\times$2 ablation에서 검증되었다.
+$\tcpu = k \cdot \tgpu$, $k \in \{2, 3\}$의 정수배 정렬이 $k < 1$ 또는 $k > k_{\max}$ 보다 일관되게 우월하다.
+이는 GPU step 주기를 직접 관찰 가능한 \emph{박자}로 활용하여 CPU 자원을 시간적으로 정렬하는 일반 패러다임의 단초이다.
+
+이 두 이론은 독립적으로 도출되었으나, \algname 의 Stage 2(\textsc{Chord})와 Stage 3(\textsc{Meter})에서 동시에 적용되어 \emph{single-lever 임계점 미달}을 \emph{integrated-algorithm 임계점 도달}로 전환한다.
+
+\subsection{Negative Result Paper의 의의}
+
+본 연구는 24개 단일 기법의 임계점 미달이라는 음성 결과에서 출발하였다.
+이는 단순 보고 시 reviewer에게 ``더 시도해봐야 한다''로 받아들여질 위험이 있는 결과이지만, 본 논문은 다음 두 가지 측면에서 음성 결과를 \emph{generative}하게 활용하였다.
+
+\textbf{Negative result 의 systematic exploration value.}
+24-기법의 paired ablation은 향후 같은 문제를 풀려는 연구가 같은 dead-end를 반복하지 않도록 한다.
+특히 분류군 A(직접 커널 대체)와 C(sub-step 스케줄링)의 일관된 실패는 LLM 추론 시스템 연구의 fundamental limit을 정량화한다.
+
+\textbf{Counter-intuitive finding 의 디스커버리 가치.}
+분류군 E의 branchy $\times$ 100\,ms 역설은 ``보조 작업은 빠를수록 좋다''는 직관에 반하는 발견이다.
+이러한 비자명한 현상은 \emph{단일 lever 평가에서는 드러나지 않고} 5 분류군 $\times$ 2$\times$2 ablation의 systematic exploration에서만 부각된다.
+음성 결과 paper의 한 가지 generative 활용 사례를 본 연구가 제공한다.
+
+\subsection{실용적 함의 (Practical Implications)}
+
+본 연구의 결과는 LLM 추론 시스템 운영자에게 다음과 같은 즉각적 실용 가치를 제공한다.
+
+\textbf{Recipe 1 (low-risk deploy).}
+NUMA pin 단독 적용. multi-run binding 통과한 robust positive 기법으로, 어떤 환경에서도 +1--3\,\% 의 일관된 처리량 회복을 보장한다.
+
+\textbf{Recipe 2 (paper-main 임계점 도달).}
+NUMA pin $\oplus$ branchy auxiliary work ($\tcpu = 100$\,ms) 의 cross-domain pair.
+본 측정에서 +5\,\% 임계점에 도달한 \emph{유일한 single configuration} 이며, PCIe pressure가 높은 환경(GPU 4+장 + 텐서 병렬)에서 권장.
+
+\textbf{Recipe 3 (avoid traps).}
+같은 도메인 3+ lever stacking 금지(특히 OS isolation 다중 stacking), sub-step task-pool 기반 스케줄링 금지(catastrophic on spec-decode backend), Jacobi-style heavy LM-head 라우팅 금지.
+
+\subsection{관련 연구와의 위치}
+
+\algname 은 최근 발표된 두 가지 대조적 접근---ArcLight~\cite{xu2026arclight}의 \emph{CPU-as-accelerator} 와 Blink~\cite{siavashi2026blink}의 \emph{CPU-free serving}---사이의 \emph{중간 지점}을 제시한다.
+ArcLight가 CPU를 추론의 일차 가속기로 변환하기 위해 많은 system-level 변경을 요구하는 반면, Blink는 CPU를 critical path에서 완전히 제거하기 위해 SmartNIC + GPU 만으로 구성된 새 서빙 스택을 요구한다.
+
+\algname 은 두 극단의 중간에서, 기존 vLLM 서빙 스택에 \emph{최소 invasive 변경}만으로 CPU를 \emph{보조 자원}으로 활용한다.
+NUMA pin은 외부 launcher script 수준의 변경, branchy auxiliary work는 별도 process로 분리되므로 vLLM 코어에는 변경이 없다.
+이러한 deployment 친화성은 \algname 의 실용적 가치를 보강한다.
+
+\subsection{본 연구의 한계}
+
+본 연구는 다음 한계를 인식한다.
+
+\textbf{Hardware specificity.}
+본 측정 환경(Qwen 2.5-32B + TP=4$\times$2 + H100$\times$8 + duo-NUMA Xeon SPR)에 특화된 결과이다.
+다른 model architecture (예: MoE), GPU generation (예: H200, B100), 또는 single-instance deployment에서 hyperparameter (특히 $\tcpu$의 정수배 $k$)는 재측정이 필요하다.
+\algname 의 Stage 1(\textsc{Tempo}) 자동 측정과 Stage 5(\textsc{Ritardando}) drift 재조정은 이러한 일반화를 부분적으로 지원하지만, multi-environment 검증은 별도 future work이다.
+
+\textbf{1-run 측정의 신뢰도 한계.}
+Table~\ref{tbl:vs-baseline}의 24-기법 측정은 1-run 기반이며, 일부 기법은 multi-run 측정에서 부호 반전(tokenize 20\,ms)을 보였다.
+\algname 의 핵심 구성(NUMA pin + branchy 100\,ms)도 multi-run binding 검증이 미완료이다.
+본 연구의 후속에서 모든 핵심 lever의 3-run 검증이 필요하다.
+
+\textbf{단일 워크로드 type 가정.}
+본 연구는 3-mix 워크로드(sonnet/chat/code)를 통일된 mix로 측정하였다.
+극단적 워크로드 mix(예: 100\,\% code-heavy 또는 multimodal)에서 \algname 의 hyperparameter 안정성은 별도 검증이 필요하다.
+
+\subsection{Future Work}
+
+\textbf{F1 (Multi-environment 일반화).}
+\algname 을 다른 model (Llama-3.3-70B, Mixtral-8$\times$7B), 다른 GPU generation (H200, B100), single-instance deployment에서 재측정.
+
+\textbf{F2 (Invasive integration).}
+분류군 D의 AMX draft head를 vLLM spec decode와 deeply integrate하여 microbench-to-e2e 변환을 달성.
+
+\textbf{F3 (Multi-run binding 확장).}
+\algname 의 핵심 구성과 분류군 E의 다른 cell (branchy $\times$ 20\,ms, branchy $\times$ 50\,ms 등)을 multi-run binding으로 검증하여 PCIe-contention-aware alignment 원칙의 일반화.
+
+\textbf{F4 (Cross-domain superposition theorem의 확장).}
+3-lever cross-domain stacking ($A \oplus B \oplus C$ where $\dom(A) \neq \dom(B) \neq \dom(C)$)의 superposition 가능성 검증.
+본 연구는 2-lever cross-domain만 검증하였다.

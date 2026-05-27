@@ -1,0 +1,81 @@
+%% paper/sections/06_methodology.tex
+%% §6 Methodology — 24 기법 5 분류군 + paired 측정 protocol
+
+\section{실험 방법}
+\label{sec:methodology}
+
+\subsection{실험 환경}
+\label{subsec:setup}
+
+본 연구의 모든 측정은 다음의 통일된 환경에서 수행되었다.
+
+\begin{itemize}
+  \item \textbf{모델}: Qwen 2.5-32B-Instruct (bf16, 활성 파라미터 $\sim$32B)
+  \item \textbf{GPU}: NVIDIA H100 8장
+  \item \textbf{CPU}: Intel Xeon SPR-class, 듀얼 NUMA 노드 (각 노드 56 phys cores)
+  \item \textbf{인스턴스 구성}: 텐서 병렬도 4 $\times$ 2 인스턴스 분리 (baseline backend $\rightarrow$ GPU 0--3, spec-decode-enabled backend $\rightarrow$ GPU 4--7)
+  \item \textbf{max\_model\_len}: 4{,}096, \textbf{max\_num\_seqs}: 128, \textbf{max\_num\_batched\_tokens}: 4{,}096
+  \item \textbf{워크로드}: 500-prompt 3-mix --- (i) balanced (각 워크로드 균등), (ii) sonnet-heavy, (iii) code-heavy
+  \item \textbf{max\_tokens}: 32 (보조 작업의 fine-grained 효과 측정에 적합하도록 짧은 output 설정)
+  \item \textbf{concurrency}: 32
+  \item \textbf{spec config (spec-decode backend)}: SuffixDecoding~\cite{snowflake-arctic}, $K=32$
+  \item \textbf{cudagraph}: PIECEWISE 모드
+\end{itemize}
+
+\subsection{24 후보 최적화 기법의 5 분류군}
+\label{subsec:taxonomy}
+
+본 연구는 CPU 자원을 활용하는 24가지 후보 최적화 기법을 다음 5개 분류군(taxonomic classes)으로 체계화하였다.
+
+\textbf{분류군 A --- 직접 CPU 커널 대체 (Direct kernel substitution).}
+GPU의 일부 연산(tokenizer, sampling, matmul, prefill assist)을 CPU AVX-512 또는 AMX 커널로 대체하는 기법. 본 분류군에는 7개 후보가 포함된다.
+
+\textbf{분류군 B --- 시스템 수준 격리 (System-level isolation).}
+OS/kernel 수준에서 CPU/메모리 자원을 격리하는 기법. NUMA 고정, cgroup, transparent hugepages, taskset 등 4개 후보.
+
+\textbf{분류군 C --- Sub-step CPU 스케줄링 (Sub-step CPU scheduling).}
+GPU step 내부의 sub-phase(attention vs. linear) 경계를 인지하여 그 사이의 idle 구간에 CPU 작업을 burst하는 기법. 3개 후보.
+
+\textbf{분류군 D --- 보조 워크로드 오프로딩 (Auxiliary workload offloading).}
+NEW workload (cold-KV 압축 해제, Jacobi LM-head, AMX draft head 등)를 CPU에 추가로 부담시키는 기법. 4개 후보.
+
+\textbf{분류군 E --- 동시 보조 작업 (Concurrent auxiliary workload).}
+GPU와 무관한 CPU side-channel 작업(work pattern $\times$ cycle 변수)을 별도 process에서 fire하는 기법. 5개 후보 + cellA/cellB의 2$\times$2 ablation.
+
+\subsection{paired control/treatment 측정 protocol}
+\label{subsec:protocol}
+
+각 후보 최적화 기법 $L$에 대해 다음 paired 측정을 수행한다.
+
+\begin{enumerate}
+  \item \textbf{Control 모드 (OFF)}: 기준 적응형 워크로드 라우팅 구성 (\S\ref{subsec:agsd}). 기법 $L$ 비활성.
+  \item \textbf{Treatment 모드 (ON)}: 기준 구성 + 기법 $L$ 활성. 다른 모든 인자는 동일.
+\end{enumerate}
+
+각 모드에서 3-mix 워크로드(balanced/sonnet-heavy/code-heavy) $\times$ 3 backend scenario(baseline-only / spec-decode-only / adaptive-routed)를 측정한다.
+주요 메트릭은 다음과 같다.
+
+\begin{itemize}
+  \item \textbf{Throughput} (tokens/s): 각 cell의 평균 처리량
+  \item \textbf{Wall-clock time} (s): 500-prompt 처리 완료 시간
+  \item \textbf{Latency p50, p99} (ms): 요청당 latency 분포
+\end{itemize}
+
+기법 $L$의 단독 효과는 ON과 OFF의 차이로 정의한다.
+
+\begin{equation}
+\Delta(L) = \frac{\text{tps}_{\text{ON}}(L) - \text{tps}_{\text{OFF}}}{\text{tps}_{\text{OFF}}} \times 100\,\%
+\end{equation}
+
+본 연구의 \emph{유의 임계점}은 $\Delta(L) \geq 5\,\%$로 설정한다. 이는 1-run 측정 분산이 $\pm 1$--$3\,\%$ 범위에 있는 경험적 관찰에 기반한 보수적 경계값이다.
+
+\subsection{multi-run 분산 protocol}
+\label{subsec:multirun}
+
+핵심 후보 기법(SUB\_183 NUMA pin, SUB\_188 정규 100\,ms, SUB\_190 토크나이저 20\,ms)에 대해서는 3회 반복 측정을 수행하여 분산을 확인한다.
+첫 번째 실행은 cudagraph PIECEWISE 컴파일이 진행 중인 cold-start 상태로 outlier 가능성이 있어, \emph{warm-only}(2회/3회의 평균)와 \emph{multi-run mean}(3회 평균)을 별도로 보고한다.
+
+\subsection{재현성 (Reproducibility)}
+
+본 연구의 모든 측정 스크립트와 raw bench 결과는 본 연구의 보조 자료~\cite{ourrepo}에 공개되어 있다.
+3-agent 병렬 reference verification protocol(arXiv + DBLP + Semantic Scholar 독립 검증)은 본 논문의 \emph{모든} reference에 적용되었으며, 검증 일자는 2026-05-27이다.

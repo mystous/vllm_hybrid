@@ -1,0 +1,51 @@
+%% paper/sections/10_conclusion.tex
+%% §10 Conclusion + Acknowledgments (AI use disclosure)
+
+\section{결론}
+\label{sec:conclusion}
+
+본 논문은 GPU 가속 LLM 추론 서빙 환경에서 호스트 CPU 자원이 평균 4--5\,\% 수준으로 저활용되는 비대칭 문제를 다루었다.
+24가지 후보 최적화 기법의 paired ablation을 통해 어떤 단일 기법도 유의 임계점 +5\,\%에 도달하지 못함을 확인하였고, 그 안에서 두 가지 비자명한 현상---교차 도메인 2-항 중첩의 near-linear 합산 가능성, 분기 패턴 + 저빈도 cycle의 직관 반대 우월성---을 발견하였다.
+
+본 연구의 핵심 기여를 다음과 같이 요약한다.
+
+\textbf{기여 1.} \algname (Multi-domain Empirically-derived Timing-aligned Resource Orchestration with Negative-result-driven Optimization for Modular Execution) 알고리즘을 형식화하였다.
+5단계 음악적 파이프라인---\textsc{Tempo} (박자 측정), \textsc{Chord} (교차 도메인 기법 쌍 선택), \textsc{Meter} (CPU 주기 정렬), \textsc{Accent} (작업 패턴 선택), \textsc{Ritardando} (drift 재조정)---는 GPU step 주기를 박자로 간주하고 CPU 자원을 그 박자에 정렬하는 일반 패러다임을 제시한다.
+\algname 의 단일 구성이 24-기법 ablation에서 임계점 미달이었던 결과를 \emph{유의 임계점 도달}로 전환하였다 (3-mix 평균 +5.28\,\%, balanced cell +12.04\,\%).
+
+\textbf{기여 2.} 교차 도메인 중첩 정리(Theorem~\ref{thm:superposition})를 경험적으로 정식화하였다.
+LLM 추론 서빙에서 CPU 최적화 기법의 stacking 시 도메인 간섭 비용 $\varepsilon(A, B)$이 도메인 동일성에 따라 결정됨을 처음으로 정량적으로 보였다 (cross-domain $\varepsilon \approx 0.55$\,pp $\ll$ same-domain $\approx 1.18$\,pp, $3+$-domain $\approx 4.56$\,pp의 superlinear destructive).
+이는 향후 LLM 시스템 설계에서 lever stacking의 quantitative design rule을 제공한다.
+
+\textbf{기여 3.} 단계 경계 정렬 + 분기 패턴 역설(Theorem~\ref{thm:alignment})의 메커니즘을 해석하였다.
+$\tcpu = k \cdot \tgpu$, $k \in \{2, 3\}$의 정수배 cycle 정렬과 branchy work pattern의 PCIe contention 회피 메커니즘이 결합하여, ``보조 작업은 빠를수록 좋다''는 직관에 반하는 우월성을 만든다.
+이는 PCIe pressure가 높은 다중 GPU 서빙 환경의 일반 design 원칙으로 확장 가능하다.
+
+향후 연구는 \algname 의 multi-environment 일반화, 분류군 D의 invasive integration, multi-run binding 확장, cross-domain superposition theorem의 3-lever 확장 방향이 있다.
+
+\section*{감사의 글}
+\label{sec:acknowledgments}
+
+\subsection*{생성형 AI 사용 disclosure}
+
+본 논문의 작성 과정에서 Anthropic 사의 Claude (모델 ID: \texttt{claude-opus-4-7})를 측정 자료 분석 및 초고 작성 보조에 활용하였다~\cite{ieee-ai-policy-2024, acm-ai-policy-2024}.
+구체적으로 다음 단계에서 AI 보조가 사용되었다.
+
+\begin{itemize}
+  \item 24-기법 측정 raw data로부터 분류군 taxonomy 도출
+  \item LaTeX 본문의 한국어 초고 작성
+  \item BibTeX entry의 metadata 검색 보조 (DBLP/OpenReview/arXiv 3-agent 병렬 검증 일부)
+  \item TikZ 그림과 표의 초기 layout 작성
+\end{itemize}
+
+알고리즘 설계의 모든 결정, Theorem 1, 2의 정식화, 측정 결과의 해석, 메커니즘 분석의 결론은 \emph{모두 저자의 책임 하에 검토}되었으며, 본 논문의 모든 주장과 결론의 학술적 정확성에 대한 책임은 저자에게 있다.
+AI가 생성한 자료의 모든 인용은 본 논문에 별도로 표시되지 않으며, 통합된 본문은 저자가 직접 작성, 편집, 검증한 결과로 간주한다.
+
+\subsection*{Funding 및 자원}
+
+[funding 출처 명시: 본 연구는 \dots 의 지원을 받아 수행되었다.]
+
+\subsection*{관련 오픈소스 프로젝트}
+
+본 연구는 vLLM 오픈소스 프로젝트~\cite{kwon2023vllm}의 투기적 디코딩 구현 위에서 수행되었다.
+24 후보 최적화 기법의 실험 코드와 측정 raw 데이터는 \cite{ourrepo}에 공개되어 있다.

@@ -1,0 +1,93 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% METRONOME: 투기적 디코딩 환경의 박자 정렬 교차 도메인
+%%            CPU 자원 오케스트레이션 알고리즘
+%% Authors: Kyunam Cho (first), Heon-Chang Yoo (corresponding)
+%% Target:  IEEE/ACM 국제 학술대회 (IEEEtran conference, 10 pages × 2-column)
+%% Build:   XeLaTeX + kotex (Korean)
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[conference,10pt]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+%% --- Korean typesetting (XeLaTeX + kotex) ---------------------------------
+\usepackage{kotex}
+\usepackage{fontspec}
+% NanumMyeongjo / NanumGothic 미설치 시 폰트 자동 fallback
+% (production 빌드 환경에서는 \setmainhangulfont 명시 권장)
+\IfFontExistsTF{NanumMyeongjo}
+  {\setmainhangulfont{NanumMyeongjo}[Script=Hangul]}
+  {}
+\IfFontExistsTF{NanumGothic}
+  {\setsanshangulfont{NanumGothic}[Script=Hangul]}
+  {}
+
+%% --- Standard packages ----------------------------------------------------
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,calc,fit,backgrounds}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=blue,urlcolor=blue}
+
+%% --- Theorems -------------------------------------------------------------
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{definition}{Definition}
+
+%% --- Custom commands ------------------------------------------------------
+\newcommand{\algname}{\textsc{Metronome}}
+\newcommand{\tgpu}{T_{\mathrm{gpu}}}
+\newcommand{\tcpu}{T_{\mathrm{cpu}}}
+\newcommand{\dom}{\mathrm{dom}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+\title{\algname: 투기적 디코딩 환경의 박자 정렬 교차 도메인 CPU\\
+       자원 오케스트레이션 알고리즘 ---\\
+       24-기법 실험 기반 설계와 검증}
+
+\author{
+\IEEEauthorblockN{Kyunam Cho\IEEEauthorrefmark{1}}
+\IEEEauthorblockA{컴퓨터학과\\
+고려대학교\\
+서울, 대한민국\\
+Email: cho.kyunam@example.org}
+\and
+\IEEEauthorblockN{Heon-Chang Yoo\IEEEauthorrefmark{1,*}}
+\IEEEauthorblockA{컴퓨터학과\\
+고려대학교\\
+서울, 대한민국\\
+Email: yoo.heonchang@example.org\\
+\IEEEauthorrefmark{*}\,교신저자 (Corresponding Author)}
+}
+
+\maketitle
+
+\input{sections/00_abstract}
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/03_background}
+\input{sections/04_problem_formulation}
+\input{sections/05_metronome_algorithm}
+\input{sections/06_methodology}
+\input{sections/07_results}
+\input{sections/08_mechanism_analysis}
+\input{sections/09_discussion}
+\input{sections/10_conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

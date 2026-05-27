@@ -1,0 +1,56 @@
+%% figures/fig5_period_drift.tex
+%% Fig.5 — Step period drift 시계열 + Ritardando re-probing 동작
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    x=0.45cm, y=0.42cm,
+    axis/.style={-{Stealth[length=1.8mm]}, thick},
+    grid/.style={dotted, gray!50},
+    measurement/.style={fill=blue!20, draw=blue!50!black, thick},
+    threshold/.style={red!60!black, dashed, thick},
+    annotation/.style={font=\footnotesize, align=left},
+]
+% Axes
+\draw[axis] (0, 0) -- (22, 0) node[right, font=\footnotesize] {request index};
+\draw[axis] (0, 0) -- (0, 8) node[above, font=\footnotesize] {$\delta(t)$};
+
+% Y-axis labels
+\foreach \y/\v in {0/0, 2/0.10, 4/0.20, 6/0.30} {
+    \node[left, font=\scriptsize] at (-0.2, \y) {\v};
+}
+
+% Threshold line (delta = 0.2)
+\draw[threshold] (0, 4) -- (22, 4)
+    node[right, font=\scriptsize, text=red!60!black] {threshold $\delta_{\max}{=}0.2$};
+
+% Drift trajectory (simulated step periods)
+% Stable phase (0-10): drift around 0.05
+\foreach \x/\y in {1/0.8, 2/1.0, 3/1.1, 4/0.9, 5/1.0, 6/1.2, 7/1.1, 8/1.0, 9/1.3, 10/1.1} {
+    \fill[measurement] (\x, 0) rectangle (\x+0.4, \y);
+}
+
+% Workload shift (req 11+): drift increasing
+\foreach \x/\y in {11/2.0, 12/3.5, 13/4.5, 14/5.5} {
+    \fill[measurement] (\x, 0) rectangle (\x+0.4, \y);
+}
+
+% Mark re-probe trigger
+\node[annotation, text=red!60!black] at (14, 6.5) {drift $> 0.2$\\$\rightarrow$ re-probe};
+\draw[red!60!black, thick, ->] (14.5, 6.2) -- (14.5, 5.7);
+
+% Re-probe phase (req 15-16): re-measurement
+\draw[gray!50, very thick, decoration={brace, amplitude=4pt}, decorate]
+    (15, -0.8) -- (16, -0.8);
+\node[annotation, below=4pt of {(15.5, -0.8)}] {re-probe};
+
+% After re-probe, new stable phase (req 17-21)
+\foreach \x/\y in {17/0.9, 18/1.0, 19/1.1, 20/1.0, 21/1.2} {
+    \fill[fill=green!25, draw=green!50!black, thick] (\x, 0) rectangle (\x+0.4, \y);
+}
+\node[annotation, text=green!50!black] at (19, 3.5) {a tempo\\(new $\tgpu$)};
+
+\end{tikzpicture}
+\caption{\textsc{Ritardando} 단계의 drift 감지와 re-probing. step 주기의 정상 상태 분산은 $\delta < 0.1$ 수준이지만, model swap 또는 워크로드 변화 시 drift가 임계값 $\delta_{\max} = 0.2$를 초과하면 Stage 1으로 복귀하여 $\tgpu$를 재측정 (\emph{a tempo}).}
+\label{fig:period-drift}
+\end{figure}

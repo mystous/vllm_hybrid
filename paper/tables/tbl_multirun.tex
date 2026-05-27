@@ -1,0 +1,21 @@
+%% tables/tbl_multirun.tex
+%% Table IV — Multi-run variance: cold-start outlier 영향과 warm-only signal
+
+\begin{table}[t]
+\centering
+\caption{핵심 후보 기법의 multi-run 분산 분석. cold-start outlier (1회) 분리 시 warm-only 신호가 1-run 측정과 다르게 부호 또는 magnitude가 변화하는 경우가 발생함.}
+\label{tbl:multirun}
+\small
+\begin{tabular}{@{}lrrrl@{}}
+\toprule
+\textbf{Technique} & \textbf{1-run} & \textbf{3-run mean} & \textbf{warm-only} & \textbf{Verdict} \\
+\midrule
+NUMA pin           & $+1.54\%$ & $\mathbf{+2.24\%}$ & $\mathbf{+3.13\%}$ & \textbf{robust positive} \\
+softmax aux 100ms  & $+1.84\%$ & $+0.53\%$          & $+0.81\%$          & noise floor \\
+tokenize aux 20ms  & $+1.66\%$ & $\mathbf{-5.96\%}$ & $\mathbf{-6.40\%}$ & \textbf{retract} \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize 1-run 측정에서 부호가 양이라도 multi-run 평균이 부호 반전을 보이는} \\
+\multicolumn{5}{l}{\footnotesize 사례(tokenize 20\,ms)가 존재하므로, magnitude $<3\%$ 의 단일 측정은} \\
+\multicolumn{5}{l}{\footnotesize 신뢰도가 낮다. NUMA pin은 hardware 비대칭에 기반하여 robust.} \\
+\end{tabular}
+\end{table}

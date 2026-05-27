@@ -1,0 +1,52 @@
+%% paper/sections/02_related_work.tex
+%% §2 Related Work — 세 가지 카테고리로 관련 연구 정리
+
+\section{관련 연구}
+\label{sec:related}
+
+본 절은 LLM 추론 서빙의 세 가지 관련 연구 흐름---(i) 투기적 디코딩의 발전, (ii) CPU 자원 활용과 NUMA 인지 시스템, (iii) 워크로드 인지 라우팅---에서 본 연구의 위치를 명확히 한다.
+
+\subsection{투기적 디코딩의 발전}
+
+투기적 디코딩은 작은 \emph{drafter} 모델 또는 휴리스틱 방법이 $K$개의 후보 토큰을 제안하고 큰 \emph{verifier} 모델이 단일 forward로 검증하는 기법으로, Stern \emph{et al.}~\cite{stern2018blockwise}의 Blockwise Parallel Decoding에서 처음 제시된 후 Leviathan \emph{et al.}~\cite{leviathan2023spec}과 Chen \emph{et al.}~\cite{chen2023spec}에 의해 형식화되었다.
+Medusa~\cite{cai2024medusa}는 추가 디코딩 헤드를 통해 단순한 구현을 보였고, EAGLE 계열~\cite{li2024eagle, li2025eagle3}은 feature uncertainty를 활용한 더 정교한 draft 분포를 학습한다.
+최근 EAGLE-Pangu~\cite{han2026eaglepangu}는 트리 구조 투기적 디코딩을 Ascend NPU와 같은 이질적 가속기에 안전하게 이식하는 방법을 제시하였다.
+
+별도로 drafter 모델 없이 \emph{휴리스틱 검색} 기반 방법도 발전하고 있다.
+Prompt Lookup Decoding~\cite{saxena2024prompt}은 입력 prompt와 누적 출력 내의 n-gram 일치를 활용하며, Snowflake의 Arctic Inference~\cite{snowflake-arctic}는 suffix tree 기반의 SuffixDecoding을 제안한다.
+본 연구는 이러한 drafter-free 방법(suffix 디코더)을 기준 구성으로 채택한다.
+
+\subsection{CPU 자원 활용과 NUMA 인지 시스템}
+
+GPU 가속 LLM 추론 환경에서 호스트 CPU의 역할에 대한 관심은 최근 급증하고 있다.
+Chung \emph{et al.}~\cite{chung2026cpuslowdowns}은 multi-GPU LLM 추론에서 성능 저하의 상당 부분이 GPU 포화가 아니라 \emph{CPU가 GPU를 충분히 빠르게 채우지 못해} 발생함을 정량적으로 보였다.
+이 발견은 본 논문의 문제 의식과 직접 연결된다.
+
+이에 대한 두 가지 대조적인 접근이 동시에 제안되었다.
+Xu \emph{et al.}~\cite{xu2026arclight}의 ArcLight는 many-core CPU 자체를 추론 가속기로 활용하기 위해 cross-NUMA 메모리 접근 오버헤드를 줄이는 경량 추론 아키텍처를 제안한다.
+반대로 Siavashi \emph{et al.}~\cite{siavashi2026blink}의 Blink는 호스트 CPU를 추론의 critical path에서 \emph{완전히 제거}하여 GPU와 SmartNIC만으로 서빙 스택을 구성한다.
+
+본 연구의 \algname 알고리즘은 이 두 접근의 \emph{중간 지점}을 차지한다.
+즉, CPU를 critical path의 핵심 가속기로 만들지도, 완전히 제거하지도 않고, GPU step 주기에 정렬된 \emph{보조 자원}으로서 활용한다.
+이러한 위치 선정은 \S\ref{sec:results}의 측정 결과에서 보이는 ``직접 CPU 커널 대체''의 한계(0/7 e2e 변환)에 의해 경험적으로 정당화된다.
+
+KV 캐시 관점에서, Mooncake~\cite{qin2024mooncake}는 KVCache 중심의 disaggregated 아키텍처를, KVComp~\cite{xia2024kvcomp}은 LLM-aware lossy compression을 제안한다.
+이들은 본 논문과 대체 가능한 보조 lever이지만, 본 연구의 \algname 알고리즘과 직교적 영역(KV memory 차원)이므로 결합 가능하다.
+
+\subsection{워크로드 인지 라우팅과 적응형 서빙}
+
+vLLM~\cite{kwon2023vllm}의 PagedAttention과 SGLang~\cite{zheng2024sglang}의 RadixAttention은 단일 인스턴스 내 메모리/계산 효율을 극대화하는 반면, 워크로드 인지 라우팅은 서로 다른 특성의 요청을 적절한 backend에 분배한다.
+Liu \emph{et al.}~\cite{liu2026dualpool}의 Dual-Pool Token-Budget Routing은 short-context와 long-context를 별도 pool로 분리하여 KV 캐시 over-provisioning을 줄이는 방법을 제시하였다.
+
+본 연구의 적응형 워크로드 라우팅 구성(\S\ref{sec:background})은 \cite{liu2026dualpool}과 유사하게 backend pool 분리를 활용하지만, 라우팅 기준이 token budget이 아닌 \emph{워크로드 유형}(sonnet/chat/code)이라는 점에서 차별화된다.
+이는 투기적 디코더의 accept rate가 워크로드 유형에 따라 크게 달라진다는 관찰에 기반한다.
+
+\subsection{본 논문의 차별점}
+
+이상의 관련 연구와 비교하여 본 논문의 차별점은 다음과 같다.
+
+첫째, 기존 연구가 단일 최적화 기법(spec decoding, NUMA 인지, 라우팅)을 독립적으로 다루는 반면, 본 논문은 24가지 후보 기법의 \emph{체계적 paired ablation}을 통해 단일 기법의 e2e 처리량 한계를 \emph{경험적으로} 도출한다.
+
+둘째, 음성 결과(0/24 paper-main 미달)를 단순 보고하지 않고, 그 안에서 \emph{교차 도메인 중첩}과 \emph{분기 패턴 역설}이라는 두 가지 비자명한 현상을 발견하여 통합 알고리즘 \algname 으로 형식화한다.
+
+셋째, GPU step 주기와 CPU 자원 활용의 시간적 정렬을 명시적 알고리즘 단계(\emph{Tempo}, \emph{Chord}, \emph{Meter}, \emph{Accent}, \emph{Ritardando})로 분해하여, 향후 LLM 추론 시스템 설계의 \emph{시간 인지 자원 오케스트레이션}의 한 가지 청사진을 제공한다.

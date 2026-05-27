@@ -1,0 +1,65 @@
+%% paper/sections/03_background.tex
+%% §3 Background — 투기적 디코딩 이론 + 적응형 라우팅 + NUMA 아키텍처
+
+\section{배경}
+\label{sec:background}
+
+본 절은 \algname 알고리즘 이해에 필요한 세 가지 배경 지식---투기적 디코딩의 가속 모델, 적응형 워크로드 라우팅 구성, 듀얼-NUMA 하드웨어 아키텍처---을 정리한다.
+
+\subsection{투기적 디코딩의 가속 모델 (R/K Framework)}
+\label{subsec:rkframework}
+
+투기적 디코딩의 평균 가속 효과는 Leviathan \emph{et al.}~\cite{leviathan2023spec}에 의해 다음과 같이 형식화된다.
+draft 분포가 verifier 분포와 일치할 확률을 토큰 단위 accept rate $\alpha \in [0,1]$로 정의하면, $K$개의 후보 토큰 중 평균적으로 수락되는 토큰 수는
+
+\begin{equation}
+\mathbb{E}[\text{accepted}] = \frac{1-\alpha^{K+1}}{1-\alpha}
+\label{eq:accept-expected}
+\end{equation}
+
+이며, 단위 verifier forward당 진행되는 평균 토큰 수는 $1 + \alpha \cdot \mathbb{E}[\text{accepted}]$로 근사된다.
+실제 측정에서는 본 연구의 R/K 분석(\cite{leviathan2023spec, li2024eagle})에 따라 워크로드별로 $\alpha$가 크게 다르다.
+예를 들어 본 측정 환경에서 $K=7$ 일 때 sonnet 워크로드의 $\alpha \approx 0.39$, chat의 $\alpha \approx 0.81$, code의 $\alpha \approx 0.014$로 나타난다.
+
+이러한 워크로드 의존성은 \emph{단일 spec config가 모든 워크로드에 최적이 아니다}는 결론을 강제하며, 이는 \S\ref{subsec:agsd}의 적응형 라우팅 구성의 근거가 된다.
+
+\subsection{적응형 워크로드 라우팅 구성}
+\label{subsec:agsd}
+
+본 연구는 두 개의 vLLM 인스턴스를 분리 운용하는 \emph{적응형 워크로드 라우팅 구성}을 기준 배포로 채택한다.
+구성은 다음 두 backend로 분리된다.
+
+\begin{itemize}
+  \item \textbf{Baseline backend}: 투기적 디코딩 비활성. 모든 워크로드에서 안정적이지만 평균 처리량은 낮다.
+  \item \textbf{Spec-decode-enabled backend}: SuffixDecoding~\cite{snowflake-arctic} 기반 투기적 디코딩 + cudagraph PIECEWISE 모드 활성. sonnet/code 워크로드에서 큰 가속을 보이지만 chat 워크로드에서는 약간의 회귀가 있을 수 있다.
+\end{itemize}
+
+CPU 측의 \emph{워크로드 분류기}(regex 기반)는 입력 prompt를 sonnet/chat/code로 분류하여, 분류 결과에 따라 두 backend 중 하나로 요청을 라우팅한다.
+이 구성은 Liu \emph{et al.}~\cite{liu2026dualpool}의 dual-pool routing과 유사한 구조이지만, 라우팅 기준이 token budget이 아닌 \emph{워크로드 유형}이라는 점에서 차이가 있다.
+
+본 논문의 모든 측정은 이 적응형 라우팅 구성을 \emph{기준 배포}로 하며, 후보 최적화 기법들은 이 구성 \emph{위에} 추가로 적용된다.
+따라서 측정 결과는 ``적응형 라우팅 자체의 효과''와 ``추가 후보 기법의 lever 효과''를 분리하여 보고한다(\S\ref{sec:results}).
+
+\subsection{듀얼-NUMA 하드웨어 아키텍처}
+\label{subsec:numa}
+
+본 연구의 측정 환경은 듀얼 NUMA 노드 Xeon SPR-class 서버와 H100 GPU 8장으로 구성된다.
+NUMA(Non-Uniform Memory Access) 아키텍처에서 메모리 접근 latency는 \emph{local node}와 \emph{remote node} 사이에 비대칭이며, 본 환경에서 측정된 remote/local distance 비는 약 2.1배(local 10, remote 21)이다.
+
+GPU PCIe 연결도 NUMA-aware하다.
+즉, GPU 0--3은 NUMA node 0에, GPU 4--7은 NUMA node 1에 PCIe affinity가 있다.
+따라서 vLLM 인스턴스의 CPU/메모리 affinity를 GPU의 NUMA node와 일치시키면 cross-socket 트래픽이 제거되어 처리량 회복이 가능하다.
+
+본 논문의 \emph{NUMA 고정} 후보 기법은 이러한 hardware-level 비대칭을 활용하며, ArcLight~\cite{xu2026arclight}가 동일 NUMA 인지 메모리 관리를 CPU-side 추론에 적용한 것과 정확히 같은 동기를 공유한다.
+
+\subsection{표기 약속}
+
+이후 본문에서 다음 표기를 일관 사용한다.
+
+\begin{itemize}
+  \item $\tgpu$ : GPU step 주기. forward + sampling의 평균 wall-clock 시간(ms).
+  \item $\tcpu$ : CPU 보조 작업의 주기. 본 연구에서는 step 주기의 정수배로 정렬됨.
+  \item $\dom(L)$ : 최적화 기법 $L$의 도메인 분류(예: system, work, scheduling).
+  \item $\Delta(L)$ : 기법 $L$ 적용 시 기준 대비 처리량 변화율(\%).
+  \item $\varepsilon(A, B)$ : 두 기법 $A, B$의 stacking 시 도메인 간섭 비용(pp).
+\end{itemize}

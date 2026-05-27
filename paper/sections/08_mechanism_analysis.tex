@@ -1,0 +1,118 @@
+%% paper/sections/08_mechanism_analysis.tex
+%% §8 Mechanism Analysis — 5 분류군별 fail/success 메커니즘 분석
+
+\section{메커니즘 분석}
+\label{sec:mechanism}
+
+본 절은 \S\ref{sec:results}의 측정 결과에서 발견된 패턴들의 메커니즘을 분석한다.
+각 분류군의 실패 또는 성공 원인을 정리하고, \algname 의 design 결정을 그 메커니즘으로 정당화한다.
+
+\input{figures/fig6_class_taxonomy}
+
+\subsection{분류군 A 실패 메커니즘: H2D/D2H 동기화 비용 누적}
+
+분류군 A(직접 CPU 커널 대체)의 7개 기법이 모두 e2e 처리량 증가에 실패한 근본 원인은 \emph{critical path 안에 H2D/D2H 동기화가 추가}되기 때문이다.
+microbench 수준에서 AMX BF16 matmul은 GPU H100 FP8 대비 약 3배 빠르지만, 다음의 비용이 추가된다.
+
+\begin{itemize}
+  \item H2D PCIe transfer: $\sim$1\,ms (텐서 크기 의존)
+  \item CPU 커널 실행: $\sim$3\,ms (microbench 1.5--5$\times$ speedup의 결과)
+  \item D2H PCIe transfer: $\sim$1\,ms
+  \item CUDA stream 동기화: $\sim$0.5\,ms (launch overhead)
+\end{itemize}
+
+총 $\sim$5.5\,ms의 추가 비용이 step 주기 $\tgpu \approx 40$\,ms의 약 14\,\%를 점유하므로, microbench 이득이 sync overhead로 상쇄된다.
+``4-method Jacobi router''의 $-94.2\,\%$ catastrophic 결과는 LM-head 행렬 곱이 1{,}810\,ms로 너무 무거워 165개 chat 요청에 대해 큐가 직렬화된 극단적 사례이다.
+
+이 분석은 \algname 의 Stage 2(\textsc{Chord})에서 분류군 A를 lever pool에서 제외하는 design 결정을 정당화한다.
+
+\subsection{분류군 B 부분 성공 메커니즘: NUMA 비대칭의 hardware-level 활용}
+
+분류군 B(시스템 격리) 중 NUMA 고정 단독 기법만 multi-run binding을 통과한다(Table~\ref{tbl:multirun}).
+이는 NUMA distance 비대칭(local 10 vs. remote 21)이 \emph{hardware-level 의 일관된 효과}를 갖기 때문이다.
+
+vLLM의 텐서 병렬 인스턴스는 NCCL all-reduce 트래픽이 매우 빈번하므로, 인스턴스의 CPU/메모리 affinity를 GPU PCIe affinity가 있는 NUMA 노드와 일치시키면 cross-socket QPI 트래픽이 제거된다.
+이는 측정마다 일관된 latency 회복을 보장하며, 따라서 1-run noise floor에 의존하지 않는 robust 양성 신호를 만든다.
+
+반면 cgroup/hugepages/taskset 같은 OS-level 단독 isolation은 vLLM의 Python 프로세스가 이미 page-fault rate가 낮은 환경에서는 marginal effect만 보인다.
+또한 이들을 여러 개 stacking 하면 context-switch와 cache eviction이 누적되어 destructive interference를 발생시킨다(Table~\ref{tbl:superposition}의 4-OS-lever residual $-1.18$\,pp).
+
+이 분석은 Theorem~\ref{thm:superposition}의 \emph{same-domain interference cost} $\varepsilon_{\text{same}} \approx 1.18$\,pp의 직접적 메커니즘 설명이다.
+
+\subsection{분류군 C 실패 메커니즘: task-pool lock contention}
+
+분류군 C(sub-step CPU 스케줄링)는 GPU step 내부의 attention/linear sub-phase 경계에 CPU 작업을 burst하는 접근이다.
+이는 이론적으로 GPU의 sub-phase idle window를 활용할 수 있어 매력적이지만, 본 측정에서 task-pool 기반 구현은 catastrophic failure를 보였다.
+
+근본 원인은 \emph{task-pool의 enqueue/dequeue lock 경쟁이 step 내부 critical path를 stall} 시키기 때문이다.
+spec-decode backend의 step latency는 약 35--44\,ms로 매우 짧고, 이 시간 안에서 sub-phase 신호 IPC(p50 $\sim$4.82\,us)는 OK이지만 task-pool lock acquisition은 contention 시 수 ms까지 spike한다.
+이로 인해 spec-decode backend에서 $-14$\,\%부터 $-20$\,\%의 catastrophic 결과가 발생한다.
+
+이 분석은 \algname 이 sub-step 스케줄링 대신 \emph{step boundary 외부의 별도 process}로 보조 작업을 분리하는 design 결정의 메커니즘 근거이다.
+
+\subsection{분류군 E 성공 메커니즘 (역설): 정렬 + prefetcher 억제}
+
+\input{figures/fig3_pattern_cycle_grid}
+
+분류군 E의 2$\times$2 ablation(Fig.~\ref{fig:pattern-cycle-grid})에서 cellB (branchy $\times$ 100\,ms)만 paper-main 임계점에 도달한 \emph{역설}의 메커니즘은 두 가지로 분해된다.
+
+\subsubsection{메커니즘 1: Step-boundary alignment (Theorem~\ref{thm:alignment})}
+
+$\tcpu = 100$\,ms 의 보조 작업은 GPU step 주기 $\tgpu = 40$\,ms 의 약 2.5배이다.
+즉 보조 작업이 \emph{2-3 step boundary마다 한 번} 발사되어 step boundary와 정확히 정렬된다(Fig.~\ref{fig:step-alignment}).
+이는 보조 작업이 step 내부의 sub-phase 경계를 침범하지 않으면서 step 간 idle window를 amortize한다.
+
+반대로 $\tcpu = 10$\,ms (cellA)는 step 내부에 끼어들어 critical path 위에 작업을 추가하므로 정렬 이득이 거의 없다.
+$\tcpu = 20$\,ms는 step boundary와 비정수배 정렬(0.5배)이므로 일부 step에서만 정렬되어 1-run noise level만 보이며, multi-run 측정에서 $-5.96\,\%$로 부호 반전(Table~\ref{tbl:multirun}).
+
+\subsubsection{메커니즘 2: Branchy pattern의 prefetcher 억제}
+
+\input{figures/fig4_prefetcher_contention}
+
+본 환경(GPU 8장 + 텐서 병렬 4$\times$2)은 PCIe pressure가 매우 높다.
+NCCL all-reduce + KV cache prefetch + activation transfer가 PCIe 버스를 거의 포화시킨다.
+
+이 환경에서 보조 작업의 \emph{패턴}이 중요해진다(Fig.~\ref{fig:prefetcher-contention}).
+\textbf{Regular SIMD work}(예: softmax 100\,ms, cellA regular 10\,ms)는 CPU 하드웨어 prefetcher의 적극 활성화를 유도한다.
+prefetcher가 speculative fetch를 발사하면 PCIe 버스에 추가 트래픽이 발생하여 GPU 트래픽과 contention을 일으킨다.
+이는 GPU step latency를 미세하게 늘려 보조 작업의 정렬 이득을 상쇄한다.
+
+\textbf{Branchy work}(rank/sort 같이 분기 예측 불가 코드)는 CPU prefetcher가 거의 활성되지 않으므로 PCIe 버스에 추가 트래픽이 없다.
+GPU 트래픽이 contention 없이 진행되어 보조 작업의 정렬 이득이 그대로 회복된다.
+
+\subsubsection{역설 finding의 일반화}
+
+본 메커니즘 분석은 다음 일반 원칙을 제시한다.
+
+\smallskip
+\noindent\textbf{원칙 (PCIe-contention-aware alignment).}
+PCIe pressure가 높은 LLM 추론 환경에서 CPU 보조 작업의 패턴은 \emph{prefetcher activation 최소화}를 기준으로 선택되어야 한다.
+
+\smallskip
+
+이는 직관적으로 ``보조 작업은 빠를수록 좋다''는 가설(고빈도 regular pattern)에 반하지만, 본 환경의 measurement evidence는 이를 분명히 부정한다.
+이 원칙은 \algname 의 Stage 4(\textsc{Accent})의 design 결정 ($\rho_{\text{pcie}} > \tau$ 시 BRANCHY 선택)의 정당화 근거이다.
+
+\input{figures/fig5_period_drift}
+
+\subsection{분류군 D 실패 메커니즘: microbench-to-e2e 변환 실패}
+
+분류군 D(보조 워크로드 오프로딩)의 4개 기법은 모두 \emph{microbench와 e2e 사이의 변환} 단계에서 실패한다.
+구체적으로 AMX draft head (Qwen 0.5B 한 forward)는 microbench에서 $0.524$\,ms로 매우 빠르지만, e2e proxy 측정에서는 $-2.77\,\%$의 net-negative이다.
+
+원인은 spec decode integration이 \emph{invasive 변경}(rejection sampling tree path 수정, KV cache layout 변경)을 요구하는데, 본 연구의 proxy 측정은 이러한 통합 없이 isolated kernel만 추가한 형태이기 때문이다.
+따라서 isolated kernel의 빠른 결과가 실제 vllm spec decode와 통합되었을 때 자동으로 e2e 이득으로 변환되지 않는다.
+
+이 분석은 향후 분류군 D의 실용적 활성화를 위해 \emph{invasive integration}이 필수임을 시사한다 (\S\ref{sec:discussion} future work).
+
+\subsection{종합: \algname design 결정의 mechanism 근거}
+
+이상의 분석을 종합하면 \algname 의 5단계 design 결정이 다음과 같이 정당화된다.
+
+\begin{itemize}
+  \item \textbf{Stage 1 \textsc{Tempo}}: $\tgpu$ 측정은 분류군 E의 step-boundary alignment에 필수.
+  \item \textbf{Stage 2 \textsc{Chord}}: cross-domain pair는 Theorem~\ref{thm:superposition}의 $\varepsilon_{\text{cross}} \ll \varepsilon_{\text{same}}$ 메커니즘 (\S\ref{sec:mechanism}.B)에 기반.
+  \item \textbf{Stage 3 \textsc{Meter}}: $\tcpu = k \cdot \tgpu$ 정렬은 Theorem~\ref{thm:alignment}의 amortize window 메커니즘 (\S\ref{sec:mechanism}.E.1).
+  \item \textbf{Stage 4 \textsc{Accent}}: BRANCHY 선택은 PCIe-contention-aware alignment 원칙 (\S\ref{sec:mechanism}.E.2).
+  \item \textbf{Stage 5 \textsc{Ritardando}}: drift 재측정은 model swap 강건성을 보장 (Fig.~\ref{fig:period-drift}).
+\end{itemize}

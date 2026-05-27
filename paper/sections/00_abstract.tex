@@ -1,0 +1,16 @@
+%% paper/sections/00_abstract.tex
+%% §0 Abstract — 한국어 본문 + 영문 Index Terms
+
+\begin{abstract}
+대규모 언어모델(LLM) 추론 서빙에서 GPU 가속과 함께 호스트 CPU 자원이 평균 4--5\,\% 수준으로 저활용되는 자원 비대칭이 관찰된다.
+본 논문은 투기적 디코딩(speculative decoding)이 활성화된 멀티-인스턴스 vLLM 서빙 환경에서, CPU 자원을 활용해 추가 처리량을 회수하기 위한 24가지 후보 최적화 기법의 paired ablation 측정 결과를 분석한다.
+어떤 단일 기법도 유의미한 개선의 경험적 임계점(처리량 +5\,\%)에 도달하지 못했으며, 단순한 기법 조합은 동일 도메인 stacking 시 오히려 destructive interference를 일으켰다.
+본 연구는 이러한 음성 결과를 출발점으로 두 가지 비자명한 현상---교차 도메인 2-항 중첩이 near-linear 합산 가능하다는 관찰, 그리고 분기적 작업 패턴과 GPU step 주기의 정수배 cycle 정렬이 직관과 반대로 우월하다는 역설---를 발견하였다.
+이를 단일 통합 알고리즘 \algname (Multi-domain Empirically-derived Timing-aligned Resource Orchestration with Negative-result-driven Optimization for Modular Execution)으로 형식화한다.
+\algname 은 GPU step 주기 측정(\emph{Tempo}), 교차 도메인 기법 쌍 선택(\emph{Chord}), CPU 작업 주기 정렬(\emph{Meter}), 작업 패턴 선택(\emph{Accent}), runtime drift 적응(\emph{Ritardando})의 5단계 파이프라인으로 구성된다.
+Qwen 2.5-32B + 텐서 병렬도 4$\times$2 + H100$\times$8 환경에서 500-prompt 3-mix workload 실험 결과 \algname 의 단일 구성이 유일하게 +5\,\% 임계점에 도달하였다(3-mix 평균 +5.28\,\%, single cell +12.04\,\%).
+본 논문의 기여는 (i) 통합 알고리즘 \algname, (ii) 경험적으로 도출된 교차 도메인 중첩 정리, (iii) 분기 패턴 역설의 메커니즘 해석이다.
+
+\smallskip
+\noindent\textbf{Index Terms}--- Large Language Model inference, Speculative decoding, CPU-GPU heterogeneous scheduling, NUMA-aware serving, Workload-aware routing, Negative result.
+\end{abstract}

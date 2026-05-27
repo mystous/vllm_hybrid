@@ -1,0 +1,49 @@
+%% figures/fig4_prefetcher_contention.tex
+%% Fig.4 — Prefetcher contention sequence diagram (UML-style)
+%% regular vs branchy work 의 CPU prefetcher 활성 차이 + GPU PCIe traffic 의 contention 시각화
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    x=0.55cm, y=0.55cm,
+    actor/.style={font=\footnotesize\bfseries, align=center},
+    lane/.style={dashed, gray!50},
+    arrow/.style={-{Stealth[length=1.6mm]}, thick},
+    msg/.style={font=\scriptsize, align=center},
+    box/.style={rectangle, draw, minimum height=0.4cm, font=\scriptsize, align=center},
+]
+
+% Actors (lanes)
+\node[actor] at (0, 6.0) {CPU};
+\node[actor] at (4, 6.0) {Prefetcher};
+\node[actor] at (8, 6.0) {PCIe Bus};
+\node[actor] at (12, 6.0) {GPU};
+
+% Lane lines
+\foreach \x in {0, 4, 8, 12} {
+    \draw[lane] (\x, -1) -- (\x, 5.6);
+}
+
+% Regular pattern scenario
+\node[font=\footnotesize\itshape, text=red!60!black] at (6, 4.8) {Regular pattern (cellA)};
+\node[box, fill=blue!10] at (0, 4.0) {regular SIMD work};
+\draw[arrow] (0.7, 4.0) -- node[msg, above] {trigger} (3.4, 4.0);
+\node[box, fill=yellow!20] at (4, 3.5) {prefetch active};
+\draw[arrow] (4.7, 3.5) -- node[msg, above] {speculative fetch} (7.4, 3.5);
+\node[box, fill=red!20] at (8, 3.0) {PCIe contention};
+\draw[arrow] (8.7, 3.0) -- node[msg, above] {delay} (11.4, 3.0);
+\node[box, fill=red!10] at (12, 2.5) {GPU stall};
+
+% Branchy pattern scenario
+\node[font=\footnotesize\itshape, text=green!50!black] at (6, 1.5) {Branchy pattern (cellB)};
+\node[box, fill=blue!10] at (0, 0.8) {branchy work\\(rank/sort)};
+\draw[arrow] (0.7, 0.8) -- node[msg, above] {trigger} (3.4, 0.8);
+\node[box, fill=gray!20] at (4, 0.3) {prefetch suppressed};
+\node[box, fill=green!20] at (8, -0.2) {PCIe clear};
+\draw[arrow] (8.7, -0.2) -- (11.4, -0.2);
+\node[box, fill=green!20] at (12, -0.7) {GPU progresses};
+
+\end{tikzpicture}
+\caption{Regular vs branchy 작업 패턴의 prefetcher 거동 차이. Regular 패턴은 CPU 하드웨어 prefetcher의 적극 활성화를 유도하여 PCIe 버스에 speculative fetch를 발생시키고 GPU 트래픽과 contention을 일으킨다. Branchy 패턴(분기 예측 불가)은 prefetcher 활성을 억제하여 PCIe를 GPU 전용으로 유지한다.}
+\label{fig:prefetcher-contention}
+\end{figure}

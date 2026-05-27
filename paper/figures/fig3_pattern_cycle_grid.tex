@@ -1,0 +1,48 @@
+%% figures/fig3_pattern_cycle_grid.tex
+%% Fig.3 — 작업 패턴 × cycle 2×2 ablation grid (heatmap-style)
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    x=1.5cm, y=1.2cm,
+    cell/.style={rectangle, draw, minimum width=2.2cm, minimum height=1.0cm,
+                 align=center, font=\small, thick},
+    label/.style={font=\small\bfseries, align=center},
+    axislabel/.style={font=\footnotesize, align=center, text=gray!50!black},
+]
+% Axis labels
+\node[label] at (1.0, 2.7) {Cycle $\tcpu$};
+\node[label, rotate=90] at (-1.4, 0.7) {Pattern};
+
+% Column headers
+\node[axislabel] at (0, 2.2) {10\,ms};
+\node[axislabel] at (1.0, 2.2) {20\,ms};
+\node[axislabel] at (2.0, 2.2) {100\,ms};
+
+% Row headers
+\node[axislabel, rotate=90] at (-0.8, 1.4) {regular};
+\node[axislabel, rotate=90] at (-0.8, 0.0) {branchy};
+
+% Cells — regular row
+\node[cell, fill=yellow!25] at (0, 1.4)
+    {$+0.98\%$\\\scriptsize(cellA)};
+\node[cell, fill=yellow!40] at (1.0, 1.4)
+    {$+1.66\%$\\\scriptsize($\rightarrow -5.96\%$)};
+\node[cell, fill=orange!30] at (2.0, 1.4)
+    {$+1.84\%$\\\scriptsize(noise)};
+
+% Cells — branchy row
+\node[cell, fill=red!15] at (0, 0.0)
+    {$-0.82\%$\\\scriptsize(contention)};
+\node[cell, fill=gray!10] at (1.0, 0.0)
+    {---};
+\node[cell, fill=green!35] at (2.0, 0.0)
+    {$\mathbf{+5.28\%}$\\\scriptsize\textbf{(cellB)}};
+
+% Highlight cellB
+\draw[ultra thick, green!50!black] (1.5, -0.55) rectangle (2.5, 0.55);
+
+\end{tikzpicture}
+\caption{작업 패턴(regular/branchy) $\times$ cycle($\tcpu$) 2$\times$2 ablation. branchy $\times$ 100\,ms 만 유의 임계점 +5\,\%에 도달. 직관(고빈도 regular work가 더 효과적)과 반대되는 역설 finding.}
+\label{fig:pattern-cycle-grid}
+\end{figure}
