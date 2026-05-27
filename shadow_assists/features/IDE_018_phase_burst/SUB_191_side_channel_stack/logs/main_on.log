@@ -1,0 +1,29 @@
+[2026-05-27 14:01:23 KST] SUB_191 mode=on starting
+  softmax_bin=/workspace/vllm_hybrid/shadow_assists/features/IDE_018_phase_burst/SUB_188_side_channel_precompute/build/side_channel_precompute
+  tokenize_bin=/workspace/vllm_hybrid/shadow_assists/features/IDE_016_avx512_amx_pool/SUB_190_async_tokenizer_worker/build/async_tokenizer_worker
+[monitor] pid=63471
+[14:01:23 KST] waiting vllm (V_PID=63472 T_PID=63473)
+[14:02:44 KST] vllm ready 8x10s (boot=81s)
+[14:02:44 KST] softmax pid=71273 cores=80-87
+[14:02:45 KST] tokenize pid=71338 cores=88-95
+[14:02:57 KST] router health: {"ok":true,"workers":4}
+[14:02:57 KST] === on 500p x 3 mix benchmark (max-tokens=32) ===
+[14:02:57 KST] mix=balanced
+[14:03:25 KST] mix=sonnet-heavy
+[14:03:46 KST] mix=code-heavy
+[14:04:08 KST] stopping softmax pid=71273
+[14:04:08 KST] stopping tokenize pid=71338
+[14:04:10 KST] softmax stats:
+[precompute] cycles=650 avg=2.33 ms/cycle
+[precompute] cycles=700 avg=2.32 ms/cycle
+[precompute] cycles=750 avg=2.31 ms/cycle
+[precompute] cycles=800 avg=2.31 ms/cycle
+[precompute] stop cycles=844 avg=2.30 ms/cycle
+[14:04:10 KST] tokenize stats:
+[tokenizer] cycles=3250 avg=0.948 ms/cycle
+[tokenizer] cycles=3500 avg=0.952 ms/cycle
+[tokenizer] cycles=3750 avg=0.949 ms/cycle
+[tokenizer] cycles=4000 avg=0.946 ms/cycle
+[tokenizer] stop cycles=4155 avg=0.944 ms/cycle
+[14:04:10 KST] cleanup
+[2026-05-27 14:04:23 KST] SUB_191 mode=on done

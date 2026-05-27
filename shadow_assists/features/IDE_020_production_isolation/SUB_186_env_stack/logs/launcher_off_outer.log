@@ -1,2 +1,12 @@
 [2026-05-27 12:50:17 KST] SUB_186 mode=off starting
 [12:50:17 KST] waiting vllm (V_PID=3883505 T_PID=3883508)
+[12:51:38 KST] vllm ready 8x10s (boot=81s)
+[12:51:48 KST] router health: {"ok":true,"workers":4}
+[12:51:48 KST] === off 500p x 3 mix benchmark (max-tokens=32) ===
+[12:51:48 KST] mix=balanced
+[12:52:17 KST] mix=sonnet-heavy
+[12:52:38 KST] mix=code-heavy
+[12:53:00 KST] cleanup
+/workspace/vllm_hybrid/shadow_assists/features/IDE_020_production_isolation/SUB_186_env_stack/launcher.sh: line 239: 3883505 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${WRAP_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+/workspace/vllm_hybrid/shadow_assists/features/IDE_020_production_isolation/SUB_186_env_stack/launcher.sh: line 239: 3883508 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${WRAP_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 12:53:12 KST] SUB_186 mode=off done

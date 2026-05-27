@@ -1,0 +1,15 @@
+[mix=code-heavy] counts={'sonnet': 50, 'chat': 100, 'code': 350}
+
+=== vanilla-only (url=http://127.0.0.1:8001/v1/completions, n=500, concurrency=32) ===
+  wall=10.3s tps=1550.3 p50=631ms p99=767ms
+  backend_counts={'direct': 500}
+
+=== trident-only (url=http://127.0.0.1:8002/v1/completions, n=500, concurrency=32) ===
+  wall=5.2s tps=3090.0 p50=306ms p99=595ms
+  backend_counts={'direct': 500}
+
+=== agsd-gated (url=http://127.0.0.1:8000/generate, n=500, concurrency=32) ===
+  wall=3.7s tps=4289.3 p50=160ms p99=487ms
+  backend_counts={'trident': 400, 'vanilla': 100}
+
+[saved] /workspace/vllm_hybrid/shadow_assists/features/IDE_018_phase_burst/SUB_196_work_pattern_ablation/cellB_branchy_100ms/measurements/off/code-heavy/benchmark_code-heavy.json

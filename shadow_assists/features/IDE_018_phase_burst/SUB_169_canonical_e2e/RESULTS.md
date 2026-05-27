@@ -1,8 +1,10 @@
 # SUB_169 — IDE_018 vLLM patch + canonical 500p e2e (Phase-Burst ON/OFF)
 
-> **parent**: IDE_018 / TSK_034 (paper main contribution)
+> **⚠ RETRACT NOTE (2026-05-27 14:20 KST, by SUB_193)**: 본 SUB 의 **+1.35% 3-mix avg AGSD 결과는 retract** — SUB_184 dummy fill 측정 (3-mix avg AGSD −1.75%) 가 본 SUB 의 stub 상태 (task pool wiring 없음, phase signal IPC 만 fire) 의 +1.35% 가 **IPC overhead 의 noise positive + 1-run variance 합** 이었음을 거꾸로 입증. binding verdict 는 SUB_184 (−1.75%) + paper main lever 자격 **상실**. 자세히는 [`features/IDE_018_phase_burst/SUB_193_phase_burst_retract_writeup/RESULTS.md`](../SUB_193_phase_burst_retract_writeup/RESULTS.md) 참고.
+
+> **parent**: IDE_018 / TSK_034 (paper main contribution → 자격 상실, SUB_193 retract)
 > **scope**: 2026-05-27 KST. Qwen2.5-32B-Instruct TP=4×2 (vanilla GPU 0-3 / trident GPU 4-7) + AGSD router (port 8000) canonical setup. 500p × 3 mix (balanced/sonnet-heavy/code-heavy) × 3 scenario (vanilla-only/trident-only/agsd-gated) = 9 cells × 2 modes (phase-burst OFF baseline / ON treatment).
-> **status**: **완료** (2026-05-27 07:50 KST). aggregate.py 후 본 문서 작성.
+> **status**: **완료** (2026-05-27 07:50 KST). aggregate.py 후 본 문서 작성. **결과 retract by SUB_193 / 2026-05-27 14:20 KST**.
 
 ---
 

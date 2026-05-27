@@ -1,0 +1,125 @@
+[14:34:56 KST] SUB_194 runner start
+[14:34:56 KST] >>>>> cycle L183 off
+[2026-05-27 14:34:56 KST] SUB_194 lever=L183 mode=off N=3 starting
+[14:34:56 KST] waiting vllm (V_PID=233981 T_PID=233982)
+[14:36:16 KST] vllm ready (boot=80s)
+[14:36:26 KST] router health: {"ok":true,"workers":4}
+[14:36:26 KST] ===== run 1/3 (agsd-only, 500p × 3 mix) =====
+[14:36:26 KST] run=1 mix=balanced
+[14:36:35 KST] run=1 mix=sonnet-heavy
+[14:36:40 KST] run=1 mix=code-heavy
+[14:36:46 KST] ===== run 2/3 (agsd-only, 500p × 3 mix) =====
+[14:36:46 KST] run=2 mix=balanced
+[14:36:50 KST] run=2 mix=sonnet-heavy
+[14:36:55 KST] run=2 mix=code-heavy
+[14:36:59 KST] ===== run 3/3 (agsd-only, 500p × 3 mix) =====
+[14:36:59 KST] run=3 mix=balanced
+[14:37:03 KST] run=3 mix=sonnet-heavy
+[14:37:07 KST] run=3 mix=code-heavy
+[14:37:11 KST] cleanup
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 233981 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${NUMACTL_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 233982 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${NUMACTL_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 14:37:23 KST] SUB_194 lever=L183 mode=off done
+[14:37:23 KST] <<<<< cycle L183 off done; cooldown 15s
+[14:37:38 KST] >>>>> cycle L183 on
+[2026-05-27 14:37:38 KST] SUB_194 lever=L183 mode=on N=3 starting
+[14:37:38 KST] NUMA pin applied (vanilla=node0, trident=node1)
+[14:37:38 KST] waiting vllm (V_PID=248841 T_PID=248842)
+[14:38:59 KST] vllm ready (boot=81s)
+[14:39:09 KST] router health: {"ok":true,"workers":4}
+[14:39:09 KST] ===== run 1/3 (agsd-only, 500p × 3 mix) =====
+[14:39:09 KST] run=1 mix=balanced
+[14:39:17 KST] run=1 mix=sonnet-heavy
+[14:39:22 KST] run=1 mix=code-heavy
+[14:39:28 KST] ===== run 2/3 (agsd-only, 500p × 3 mix) =====
+[14:39:28 KST] run=2 mix=balanced
+[14:39:32 KST] run=2 mix=sonnet-heavy
+[14:39:36 KST] run=2 mix=code-heavy
+[14:39:40 KST] ===== run 3/3 (agsd-only, 500p × 3 mix) =====
+[14:39:40 KST] run=3 mix=balanced
+[14:39:45 KST] run=3 mix=sonnet-heavy
+[14:39:48 KST] run=3 mix=code-heavy
+[14:39:52 KST] cleanup
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 248841 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${NUMACTL_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 248842 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${NUMACTL_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 14:40:05 KST] SUB_194 lever=L183 mode=on done
+[14:40:05 KST] <<<<< cycle L183 on done; cooldown 15s
+[14:40:20 KST] >>>>> cycle L188 off
+[2026-05-27 14:40:20 KST] SUB_194 lever=L188 mode=off N=3 starting
+[14:40:20 KST] waiting vllm (V_PID=263530 T_PID=263531)
+[14:41:40 KST] vllm ready (boot=80s)
+[14:41:50 KST] router health: {"ok":true,"workers":4}
+[14:41:50 KST] ===== run 1/3 (agsd-only, 500p × 3 mix) =====
+[14:41:50 KST] run=1 mix=balanced
+[14:41:58 KST] run=1 mix=sonnet-heavy
+[14:42:04 KST] run=1 mix=code-heavy
+[14:42:10 KST] ===== run 2/3 (agsd-only, 500p × 3 mix) =====
+[14:42:10 KST] run=2 mix=balanced
+[14:42:14 KST] run=2 mix=sonnet-heavy
+[14:42:18 KST] run=2 mix=code-heavy
+[14:42:22 KST] ===== run 3/3 (agsd-only, 500p × 3 mix) =====
+[14:42:22 KST] run=3 mix=balanced
+[14:42:27 KST] run=3 mix=sonnet-heavy
+[14:42:31 KST] run=3 mix=code-heavy
+[14:42:35 KST] cleanup
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 263530 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${NUMACTL_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 263531 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${NUMACTL_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 14:42:47 KST] SUB_194 lever=L188 mode=off done
+[14:42:47 KST] <<<<< cycle L188 off done; cooldown 15s
+[14:43:02 KST] >>>>> cycle L188 on
+[2026-05-27 14:43:02 KST] SUB_194 lever=L188 mode=on N=3 starting
+[14:43:02 KST] waiting vllm (V_PID=278311 T_PID=278312)
+[14:44:22 KST] vllm ready (boot=80s)
+[14:44:22 KST] side-channel pid=286064 bin=/workspace/vllm_hybrid/shadow_assists/features/IDE_018_phase_burst/SUB_188_side_channel_precompute/build/side_channel_precompute
+[14:44:34 KST] router health: {"ok":true,"workers":4}
+[14:44:34 KST] ===== run 1/3 (agsd-only, 500p × 3 mix) =====
+[14:44:34 KST] run=1 mix=balanced
+[14:44:43 KST] run=1 mix=sonnet-heavy
+[14:44:48 KST] run=1 mix=code-heavy
+[14:44:54 KST] ===== run 2/3 (agsd-only, 500p × 3 mix) =====
+[14:44:54 KST] run=2 mix=balanced
+[14:44:58 KST] run=2 mix=sonnet-heavy
+[14:45:03 KST] run=2 mix=code-heavy
+[14:45:07 KST] ===== run 3/3 (agsd-only, 500p × 3 mix) =====
+[14:45:07 KST] run=3 mix=balanced
+[14:45:11 KST] run=3 mix=sonnet-heavy
+[14:45:15 KST] run=3 mix=code-heavy
+[14:45:19 KST] stopping side-channel pid=286064
+[precompute] cycles=400 avg=2.90 ms/cycle
+[precompute] cycles=450 avg=2.93 ms/cycle
+[precompute] cycles=500 avg=2.95 ms/cycle
+[precompute] cycles=550 avg=2.97 ms/cycle
+[precompute] stop cycles=564 avg=2.98 ms/cycle
+[14:45:21 KST] cleanup
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 278311 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${NUMACTL_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 278312 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${NUMACTL_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 14:45:33 KST] SUB_194 lever=L188 mode=on done
+[14:45:33 KST] <<<<< cycle L188 on done; cooldown 15s
+[14:45:48 KST] >>>>> cycle L190 off
+[2026-05-27 14:45:48 KST] SUB_194 lever=L190 mode=off N=3 starting
+[14:45:48 KST] waiting vllm (V_PID=293577 T_PID=293578)
+[14:47:09 KST] vllm ready (boot=81s)
+[14:47:19 KST] router health: {"ok":true,"workers":4}
+[14:47:19 KST] ===== run 1/3 (agsd-only, 500p × 3 mix) =====
+[14:47:19 KST] run=1 mix=balanced
+[14:47:27 KST] run=1 mix=sonnet-heavy
+[14:47:33 KST] run=1 mix=code-heavy
+[14:47:38 KST] ===== run 2/3 (agsd-only, 500p × 3 mix) =====
+[14:47:38 KST] run=2 mix=balanced
+[14:47:43 KST] run=2 mix=sonnet-heavy
+[14:47:47 KST] run=2 mix=code-heavy
+[14:47:51 KST] ===== run 3/3 (agsd-only, 500p × 3 mix) =====
+[14:47:51 KST] run=3 mix=balanced
+[14:47:55 KST] run=3 mix=sonnet-heavy
+[14:48:00 KST] run=3 mix=code-heavy
+[14:48:04 KST] cleanup
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 293577 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${NUMACTL_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/launcher.sh: line 178: 293578 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${NUMACTL_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 14:48:16 KST] SUB_194 lever=L190 mode=off done
+[14:48:16 KST] <<<<< cycle L190 off done; cooldown 15s
+[14:48:31 KST] >>>>> cycle L190 on
+[2026-05-27 14:48:31 KST] SUB_194 lever=L190 mode=on N=3 starting
+[14:48:31 KST] waiting vllm (V_PID=308616 T_PID=308617)
+/workspace/vllm_hybrid/shadow_assists/features/IDE_015_cpu_extreme_util/SUB_194_multi_run_variance/runner.sh: line 12: 308609 Killed                  bash "${LAUNCH}" "${LEVER}" "${MODE}" 3
+[14:58:16 KST] <<<<< cycle L190 on done; cooldown 15s
+[14:58:31 KST] SUB_194 runner finished all cycles

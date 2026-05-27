@@ -1,0 +1,47 @@
+[13:58:09 KST] chain: OFF then ON
+[2026-05-27 13:58:09 KST] SUB_191 mode=off starting
+  softmax_bin=/workspace/vllm_hybrid/shadow_assists/features/IDE_018_phase_burst/SUB_188_side_channel_precompute/build/side_channel_precompute
+  tokenize_bin=/workspace/vllm_hybrid/shadow_assists/features/IDE_016_avx512_amx_pool/SUB_190_async_tokenizer_worker/build/async_tokenizer_worker
+[13:58:09 KST] waiting vllm (V_PID=45047 T_PID=45048)
+[13:59:29 KST] vllm ready 8x10s (boot=80s)
+[13:59:39 KST] router health: {"ok":true,"workers":4}
+[13:59:39 KST] === off 500p x 3 mix benchmark (max-tokens=32) ===
+[13:59:39 KST] mix=balanced
+[14:00:08 KST] mix=sonnet-heavy
+[14:00:29 KST] mix=code-heavy
+[14:00:51 KST] cleanup
+launcher.sh: line 236: 45047 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${NUMACTL_V} ${TASKSET_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+launcher.sh: line 236: 45048 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${NUMACTL_T} ${TASKSET_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 14:01:03 KST] SUB_191 mode=off done
+[14:01:03 KST] sleep 20s between cycles
+[2026-05-27 14:01:23 KST] SUB_191 mode=on starting
+  softmax_bin=/workspace/vllm_hybrid/shadow_assists/features/IDE_018_phase_burst/SUB_188_side_channel_precompute/build/side_channel_precompute
+  tokenize_bin=/workspace/vllm_hybrid/shadow_assists/features/IDE_016_avx512_amx_pool/SUB_190_async_tokenizer_worker/build/async_tokenizer_worker
+[14:01:23 KST] waiting vllm (V_PID=63472 T_PID=63473)
+[14:02:44 KST] vllm ready 8x10s (boot=81s)
+[14:02:44 KST] softmax pid=71273 cores=80-87
+[14:02:45 KST] tokenize pid=71338 cores=88-95
+[14:02:57 KST] router health: {"ok":true,"workers":4}
+[14:02:57 KST] === on 500p x 3 mix benchmark (max-tokens=32) ===
+[14:02:57 KST] mix=balanced
+[14:03:25 KST] mix=sonnet-heavy
+[14:03:46 KST] mix=code-heavy
+[14:04:08 KST] stopping softmax pid=71273
+[14:04:08 KST] stopping tokenize pid=71338
+[14:04:10 KST] softmax stats:
+[precompute] cycles=650 avg=2.33 ms/cycle
+[precompute] cycles=700 avg=2.32 ms/cycle
+[precompute] cycles=750 avg=2.31 ms/cycle
+[precompute] cycles=800 avg=2.31 ms/cycle
+[precompute] stop cycles=844 avg=2.30 ms/cycle
+[14:04:10 KST] tokenize stats:
+[tokenizer] cycles=3250 avg=0.948 ms/cycle
+[tokenizer] cycles=3500 avg=0.952 ms/cycle
+[tokenizer] cycles=3750 avg=0.949 ms/cycle
+[tokenizer] cycles=4000 avg=0.946 ms/cycle
+[tokenizer] stop cycles=4155 avg=0.944 ms/cycle
+[14:04:10 KST] cleanup
+launcher.sh: line 236: 63472 Killed                  CUDA_VISIBLE_DEVICES=0,1,2,3 nohup ${NUMACTL_V} ${TASKSET_V} "${VLLM}" serve "${MODEL}" --port 8001 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' > "${BASE}/logs/vanilla_${SUFFIX}.log" 2>&1
+launcher.sh: line 236: 63473 Killed                  CUDA_VISIBLE_DEVICES=4,5,6,7 nohup ${NUMACTL_T} ${TASKSET_T} "${VLLM}" serve "${MODEL}" --port 8002 --host 127.0.0.1 --tensor-parallel-size 4 --gpu-memory-utilization 0.80 --max-model-len 4096 --max-num-seqs 128 --max-num-batched-tokens 4096 --kv-cache-dtype auto --disable-custom-all-reduce --compilation-config '{"cudagraph_mode": "PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "${BASE}/logs/trident_${SUFFIX}.log" 2>&1
+[2026-05-27 14:04:23 KST] SUB_191 mode=on done
+[14:04:23 KST] chain done

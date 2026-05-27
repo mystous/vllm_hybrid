@@ -1,0 +1,24 @@
+[hw] AMX available = True
+[hw] OMP threads (env) = 16
+
+=== Single LM-head matmul (1 step) ===
+B= 1 K=1 : p50=3.221 ms p90=4.247 mean=3.347
+B= 4 K=1 : p50=3.575 ms p90=5.343 mean=3.719
+B=16 K=1 : p50=3.054 ms p90=3.132 mean=3.059
+
+=== K-step draft loop (LM-head × K) ===
+B= 1 K=5 : total p50=15.424 ms  per-step=3.085 ms  mean=17.852 ms
+B= 1 K=7 : total p50=21.757 ms  per-step=3.108 ms  mean=22.672 ms
+B= 4 K=5 : total p50=15.127 ms  per-step=3.025 ms  mean=15.450 ms
+B= 4 K=7 : total p50=21.179 ms  per-step=3.026 ms  mean=22.333 ms
+
+=== Per-layer MLP-gate matmul (hidden × intermediate) ===
+B= 1 MLP-gate ms = 6.429
+B= 4 MLP-gate ms = 0.032
+B=16 MLP-gate ms = 0.039
+
+=== Verdict ===
+  B=1 K=5: per-step 3.08 ms (target < 5.0 ms) → PASS
+  B=1 K=7: per-step 3.11 ms (target < 5.0 ms) → PASS
+  B=4 K=5: per-step 3.03 ms (target < 5.0 ms) → PASS
+  B=4 K=7: per-step 3.03 ms (target < 5.0 ms) → PASS
