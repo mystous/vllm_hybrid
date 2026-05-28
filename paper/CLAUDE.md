@@ -18,6 +18,38 @@ xelatex main.tex && bibtex main && xelatex main.tex && xelatex main.tex
 
 ---
 
+## Git Remote 복수 관리
+
+논문은 두 개의 remote에 동시 관리된다.
+
+| Remote | URL | 용도 |
+|--------|-----|------|
+| `origin` | `git@github.com:mystous/vllm_hybrid.git` | 코드 전체 + 논문 (메인) |
+| `overleaf` | `https://github.com/mystous/CERES-Workload-Level-Speculative-Gating-with-CPU-Slack-Harvesting-for-LLM-Serving.git` | 논문 PDF 빌드 (Overleaf ↔ GitHub Sync) |
+
+### 논문 수정 후 Overleaf 동기화 방법
+
+`paper/` 현재 내용을 Overleaf 연동 레포에 직접 push한다 (히스토리 없이 현재 스냅샷만).
+
+```bash
+# 1. GitHub push (vllm_hybrid 메인 레포)
+git push origin feat/spec-decode-tuning
+
+# 2. Overleaf 동기화 (paper/ 내용만 별도 레포로)
+cd /tmp && rm -rf ceres-paper-push
+git clone git@github.com:mystous/CERES-Workload-Level-Speculative-Gating-with-CPU-Slack-Harvesting-for-LLM-Serving.git ceres-paper-push
+cp -r /mnt/d/projects/vllm_hybrid/paper/. /tmp/ceres-paper-push/
+cd /tmp/ceres-paper-push && git add -A && git commit -m "sync: paper/ 업데이트" && git push origin main
+```
+
+Overleaf에서는 **Sync with GitHub → Pull from GitHub** 으로 최신 내용 반영.
+
+### 주의사항
+- Overleaf는 `CERES-Workload-...` GitHub 레포와 **Sync with GitHub**으로 연결됨.
+- **Claude Code가 push를 담당** — 사용자가 직접 실행할 필요 없음.
+
+---
+
 ## 컬럼 레이아웃 규칙 (절대 규칙)
 
 | 환경 | 너비 지정 | 용도 |
