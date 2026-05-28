@@ -44,9 +44,9 @@ Llama-3.3-70B: 500 prompts $\times$ 8,192 max tokens.
 Qwen-2.5-32B: 500 prompts $\times$ 32 max tokens (lever 측정용).
 
 \textbf{시나리오 2 — End-to-end dual-backend.}
-vanilla backend(GPU 0--3)와 Trident backend(GPU 4--7)를
+standard backend(GPU 0--3)와 spec-decode backend(GPU 4--7)를
 동시에 기동하고, \algname\ 분류기가 200 prompts를 concurrency 32로 분배한다.
-AGSD-gated 대비 vanilla-only, trident-only를 비교한다.
+\algname-gated 대비 baseline-only, spec-only를 비교한다.
 
 \subsection{워크로드 정의}
 
@@ -59,17 +59,24 @@ AGSD-gated 대비 vanilla-only, trident-only를 비교한다.
   sonnet-heavy(60:20:20), code-heavy(10:20:70) 비율로 혼합.
 \end{itemize}
 
+현재 워크로드는 합성 분류 기반이며, 실제 트래픽 분포에 대한 검증은 후속 연구로 남긴다.
+
+% TODO: 현재 워크로드(sonnet/chat/code)는 합성 분류 데이터 기반으로,
+%       실제 서빙 트래픽과 분포가 다를 수 있다.
+%       ShareGPT, LMSYS-Chat-1M, HumanEval 등 공개 벤치마크로의
+%       교체 및 재측정이 필요하다 (추가 실험 예정).
+
 \subsection{기준선 및 공정 비교}
 
 모든 측정에서 공정 비교(fair comparison)를 위해
-vanilla와 Trident가 동일한 \texttt{gpu\_memory\_utilization=0.80} 및
+baseline과 spec-decode가 동일한 \texttt{gpu\_memory\_utilization=0.80} 및
 동일한 벤치마크 래퍼(\texttt{run\_workload\_gen.py})를 사용한다.
 이전 측정의 래퍼 편향($+64.7\%$ wrapper noise)을
 제거한 fair baseline을 적용한다.
 
 \subsection{CPU 슬랙 하베스팅 측정 방법}
 
-lever 단독 기여 $\Delta(L)$는 AGSD-gated ON/OFF 쌍 측정으로 분리한다.
+lever 단독 기여 $\Delta(L)$는 \algname-gated ON/OFF 쌍 측정으로 분리한다.
 핵심 lever(NUMA pin, softmax aux)에 대해 3-run 반복으로
 multi-run mean 및 warm-only(run 2, 3 평균)를 보고한다.
 신뢰도 기준: $|\Delta| < 3\%$인 1-run 신호는 multi-run binding 없이 채택하지 않는다.

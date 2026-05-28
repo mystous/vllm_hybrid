@@ -27,6 +27,16 @@ K > R \Rightarrow \text{gain}, \quad K < R \Rightarrow \text{regression}
 $R$은 모델 크기와 TP 구성에 의존하며, $K$는 드래프터 품질과 워크로드 특성에 의존한다.
 소형 모델($\leq$7B)에서 $R$이 커지는 이유는
 스펙 디코딩 검증 forward pass의 상대 비용이 증가하기 때문이다.
+
+\textbf{$R$ 산출 방법.}
+$R$은 이론값이 아니라 실측값으로, 다음과 같이 정의된다.
+\begin{equation}
+R = \frac{T_{\text{spec\_step}}}{T_{\text{vanilla\_step}}}
+\label{eq:r-measured}
+\end{equation}
+투기적 디코딩 스텝은 드래프트(draft) 생성과 타깃 모델 검증(verify)의
+두 단계를 포함하므로, 동일 모델의 baseline 스텝보다 오버헤드가 발생한다.
+따라서 $R > 1$이 일반적이며, 이 값은 하드웨어 구성과 TP 설정에 따라 달라진다.
 본 연구의 측정 환경(Qwen-2.5-32B + TP=4$\times$2 + H100$\times$8)에서
 $R \approx 1.3$이며, $K < 1.3$인 드래프터 설정은 net-negative가 된다.
 
@@ -62,8 +72,8 @@ remote/local 접근 거리 비는 $2.1\times$(local 10, remote 21)이다.
 GPU PCIe 연결도 NUMA-aware하다:
 GPU 0--3은 NUMA node 0에, GPU 4--7은 NUMA node 1에
 PCIe affinity가 있다.
-이중 백엔드에서 vanilla 인스턴스(GPU 0--3)를 NUMA node 0에,
-Trident 인스턴스(GPU 4--7)를 NUMA node 1에 바인딩하면
+이중 백엔드에서 baseline 인스턴스(GPU 0--3)를 NUMA node 0에,
+spec-decode 인스턴스(GPU 4--7)를 NUMA node 1에 바인딩하면
 cross-socket QPI 트래픽이 제거된다.
 
 \subsection{vLLM 아키텍처}

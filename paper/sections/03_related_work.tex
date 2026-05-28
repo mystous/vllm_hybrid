@@ -16,7 +16,7 @@ EAGLE-Pangu~\cite{han2026eaglepangu}(이종 가속기 이식)로 발전했다.
 드래프터 없이 휴리스틱 검색을 사용하는 방법으로는
 Prompt Lookup Decoding~\cite{saxena2024prompt}(프롬프트 내 n-gram),
 SuffixDecoding~\cite{snowflake-arctic}(suffix tree 기반, NeurIPS 2025 Spotlight)이 있다.
-본 연구는 SuffixDecoding을 Trident core의 드래프터로 채택한다.
+본 연구는 SuffixDecoding을 spec-decode engine의 드래프터로 채택한다.
 
 \subsection{워크로드 인지 라우팅}
 
@@ -55,4 +55,4 @@ vLLM Issue \#16258~\cite{vllmissue16258}은 소형 모델($\leq$7B)에서
 L4$\times$2 환경의 $2.12\times$와 정확히 일치함을 확인하고,
 Qwen 0.5B/1.5B/7B + starcoder2-3b의 5개 모델로 cross-validation하여
 이 회귀가 하드웨어 독립적 현상임을 정량적으로 입증한다.
-이 분석은 \algname 의 모델 크기 게이팅($\leq$7B $\to$ vanilla)의 근거가 된다.
+이 분석은 \algname 의 모델 크기 게이팅($\leq$7B $\to$ baseline)의 근거가 된다.

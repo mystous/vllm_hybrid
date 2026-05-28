@@ -68,7 +68,7 @@ $-0.39\%$에 그치고, 4개를 stacking하면 $-0.03\%$로 destructive interfer
 
 \subsection{Gating decision 원천 분해}
 
-End-to-end AGSD-gated 이득의 두 원천을 분리한다.
+End-to-end \algname-gated 이득의 두 원천을 분리한다.
 
 \begin{itemize}
 \item \textbf{병렬 GPU 활용 ($\sim 50\text{--}60\%$ 기여)}: 두 backend가 동시 활성화되어
@@ -76,8 +76,8 @@ End-to-end AGSD-gated 이득의 두 원천을 분리한다.
   이는 gating 자체와 무관하게 dual-backend 구조에서 발생하는 기저 이득이다.
 
 \item \textbf{Gating decision ($\sim 10\text{--}20\%$ 기여)}: per-request 방법 선택이
-  chat $\to$ vanilla(회귀 방지), sonnet/code $\to$ Trident(가속 유지)를 선택하여
-  trident-only 대비 추가 이득을 확보한다.
-  Qwen-7B에서 gating value가 최대($+25.3\%$ vs trident)인 이유는
-  chat 워크로드에서 vanilla 선택 효과가 특히 크기 때문이다.
+  chat $\to$ baseline(회귀 방지), sonnet/code $\to$ spec-decode(가속 유지)를 선택하여
+  spec-only 대비 추가 이득을 확보한다.
+  Qwen-7B에서 gating value가 최대($+25.3\%$ vs spec-only)인 이유는
+  chat 워크로드에서 baseline 선택 효과가 특히 크기 때문이다.
 \end{itemize}

@@ -4,15 +4,15 @@
 \begin{table*}[t]
 \centering
 \caption{\algname\ \textsc{Gate} end-to-end 결과.
-  소형 모델은 AGSD-gated $\gg$ vanilla-only (병렬 GPU $+$ gating decision),
-  대형 모델은 Trident core $\equiv$ AGSD (gating decision $=$ 항상 suffix).}
+  소형 모델은 \algname-gated $\gg$ baseline-only (병렬 GPU $+$ gating decision),
+  대형 모델은 spec-decode engine $\equiv$ \algname\ (gating decision $=$ 항상 suffix).}
 \label{tbl:gating-main}
 \scriptsize
 \begin{tabularx}{\textwidth}{@{}lXrrrcrr@{}}
 \toprule
 \textbf{Model} & \textbf{Setup} & \textbf{Mix} &
-  \textbf{Vanilla} & \textbf{Trident} & \textbf{AGSD} &
-  \textbf{vs Vanilla} & \textbf{vs Trident} \\
+  \textbf{Baseline} & \textbf{Spec-only} & \textbf{\algname} &
+  \textbf{vs Baseline} & \textbf{vs Spec-only} \\
 \midrule
 Qwen-2.5-0.5B & e2e TP=1$\times$2 & balanced   & 3,672 & 4,644 & \textbf{6,252} & $+70.3\%$ & $+34.6\%$ \\
               &                   & code-heavy & 4,227 & 7,267 & \textbf{8,605} & $+103.6\%$ & $+18.4\%$ \\
@@ -33,7 +33,7 @@ Qwen-2.5-72B  & single TP=8 & sonnet & 6,456 & 9,959  & \textbf{9,959}  & $+54.2
               &             & code   & \textbf{6,227} & 5,941 & \textbf{6,227} & $0\%$ & $+4.8\%$ \\
 \bottomrule
 \multicolumn{8}{@{}l@{}}{\scriptsize
-  H100$\times$8, dual-NUMA Xeon SPR. $\equiv$: gating decision $=$ 항상 Trident이므로 AGSD = Trident.
+  H100$\times$8, dual-NUMA Xeon SPR. $\equiv$: gating decision $=$ 항상 Spec-only이므로 \algname\ = Spec-only.
   e2e: 2 backend $+$ CPU router $+$ concurrent client.}
 \end{tabularx}
 \end{table*}

@@ -2,7 +2,7 @@
 
 \begin{table*}[t]
 \centering
-\caption{CPU 슬랙 하베스팅 lever 단독 기여 (AGSD ON vs OFF 비교).
+\caption{CPU 슬랙 하베스팅 lever 단독 기여 (\algname\ ON vs OFF 비교).
   Qwen-2.5-32B $+$ TP=4$\times$2, 500 prompts $\times$ max\_tokens=32, 3-mix 평균.
   Multi-run은 3-run 반복. Warm = run~2, 3 평균.}
 \label{tbl:harvest-results}
@@ -26,6 +26,6 @@ Jacobi Drop-in & Jacobi LM-head & drop-in & $-94.2\%$ & — & critical & confirm
 \end{tabular}%
 }
 \smallskip\\
-{\scriptsize 측정: AGSD-gated 상태 기준. 1-run $|\Delta| < 3\%$는 multi-run binding 없이 채택 불가.
+{\scriptsize 측정: \algname-gated 상태 기준. 1-run $|\Delta| < 3\%$는 multi-run binding 없이 채택 불가.
 branchy aux, NUMA⊕aux multi-run binding 검증은 추가 측정 필요.}
 \end{table*}

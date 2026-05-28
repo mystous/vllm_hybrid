@@ -10,7 +10,7 @@
 \subsection{투기적 디코딩의 강력한 효과}
 \label{subsec:mot-spec-power}
 
-SuffixDecoding~\cite{snowflake-arctic} 기반 Trident core
+SuffixDecoding~\cite{snowflake-arctic} 기반 spec-decode engine
 (SuffixDecoding $+$ cudagraph PIECEWISE $+$ \texttt{gmu=0.80})는
 H100 $\times$ 8 환경의 Llama-3.3-70B 모델에서 다음과 같은 처리량 향상을 달성한다.
 
@@ -18,13 +18,13 @@ H100 $\times$ 8 환경의 Llama-3.3-70B 모델에서 다음과 같은 처리량 
 
 \begin{table}[t]
 \centering
-\caption{Trident core vs.\ vanilla: Llama-3.3-70B, TP=8, H100$\times$8,
+\caption{spec-decode engine vs.\ baseline: Llama-3.3-70B, TP=8, H100$\times$8,
   500 prompts $\times$ 8192 max tokens.}
 \label{tbl:trident-vs-vanilla}
 \footnotesize
 \begin{tabular}{@{}lrrl@{}}
 \toprule
-\textbf{Workload} & \textbf{Vanilla (tps)} & \textbf{Trident (tps)} & \textbf{$\Delta$} \\
+\textbf{Workload} & \textbf{Baseline (tps)} & \textbf{Spec-only (tps)} & \textbf{$\Delta$} \\
 \midrule
 sonnet  & 7,678.7  & 11,676.9 & $\mathbf{+52.1\%}$ \\
 chat    & 2,266.8  & 3,830.4  & $\mathbf{+68.9\%}$ \\
@@ -36,7 +36,7 @@ mix-ch  & 6,494.9  & 9,457.3  & $+45.6\%$ \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tbl:trident-vs-vanilla}이 보여주듯, 투기적 디코딩은 6개 워크로드
+Table~\ref{tbl:trident-vs-vanilla}이 보여주듯, spec-decode는 6개 워크로드
 전체에서 순 양성(net positive)이며 처리량 향상은 $+18.8\%$에서 $+68.9\%$에 달한다.
 그러나 워크로드 간 효과 편차가 3.7배에 이른다는 사실에 주목해야 한다.
 code 워크로드의 이득($+18.8\%$)은 chat($+68.9\%$)의 약 $\frac{1}{4}$에 불과하다.
@@ -114,7 +114,7 @@ SuffixDecoding~\cite{snowflake-arctic}은 입력 프롬프트뿐 아니라
 \footnotesize
 \begin{tabular}{@{}lrrr@{}}
 \toprule
-\textbf{Model}       & \textbf{Vanilla} & \textbf{Suffix} & \textbf{$\Delta$} \\
+\textbf{Model}       & \textbf{Baseline} & \textbf{Suffix} & \textbf{$\Delta$} \\
 \midrule
 Llama-3.3-70B        & 6,717.7 & 7,981.4 & $+18.8\%$ \\
 Phi-3-medium-14B     & 3,340   & 5,085   & $+52.2\%$ \\
@@ -174,9 +174,9 @@ llm-d의 접근은 강력하지만 다음 한계가 있다.
 
 \begin{itemize}
 \item 두 인스턴스가 각자 별도 GPU 그룹을 점유하므로
-  (GPU 0--3: vanilla backend, GPU 4--7: Trident backend),
+  (GPU 0--3: standard backend, GPU 4--7: spec-decode backend),
   NUMA 노드도 GPU PCIe affinity에 따라 자연 분리된다.
-\item 각 인스턴스의 CPU 이용률은 Trident $5.3\%$, vanilla $5.6\%$로
+\item 각 인스턴스의 CPU 이용률은 spec-decode $5.3\%$, baseline $5.6\%$로
   $94\%$ 이상의 CPU가 유휴 상태다 (config-wide 평균).
 \item 듀얼-NUMA 아키텍처에서 remote/local 접근 거리 비가 $2.1\times$이므로
   NUMA 비인지(NUMA-unaware) 배치는 지속적인 지연 패널티를 초래한다.

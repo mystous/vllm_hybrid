@@ -1,5 +1,5 @@
 %% figures/fig2_throughput_gain.tex
-%% Fig.2 — Llama-3.3-70B 워크로드별 처리량 (vanilla / Trident / AGSD), 1컬럼
+%% Fig.2 — Llama-3.3-70B 워크로드별 처리량 (baseline / Spec-only / \algname), 1컬럼
 
 \begin{figure}[t]
 \centering
@@ -31,12 +31,12 @@
     (sonnet,11677) (chat,3830) (code,7981) (mix-bal,9514)};
 \addplot[fill=blue!25, draw=blue!60!black] coordinates {
     (sonnet,11677) (chat,3830) (code,7981) (mix-bal,9514)};
-\legend{Vanilla, Trident, AGSD-gated}
+\legend{Baseline, Spec-only, \algname-gated}
 \end{axis}
 \end{tikzpicture}%
 }
 \caption{Llama-3.3-70B + TP=8 + H100$\times$8 처리량 비교.
-  Trident core가 모든 워크로드에서 vanilla 대비 $+18.8\%$--$+68.9\%$를 달성한다.
-  Llama-70B는 전 워크로드에서 suffix가 최적이므로 AGSD $\equiv$ Trident.}
+  spec-decode engine이 모든 워크로드에서 baseline 대비 $+18.8\%$--$+68.9\%$를 달성한다.
+  Llama-70B는 전 워크로드에서 suffix가 최적이므로 \algname\ $\equiv$ Spec-only.}
 \label{fig:throughput-gain}
 \end{figure}

@@ -1,6 +1,6 @@
 %% figures/fig2_agsd_e2e.tex
-%% Fig.2 — AGSD-gated vs vanilla-only vs trident-only, end-to-end
-%% 소형~중형 모델에서 AGSD > trident > vanilla 차이 명확히 시각화
+%% Fig.2 — \algname-gated vs baseline-only vs spec-only, end-to-end
+%% 소형~중형 모델에서 \algname > spec-only > baseline 차이 명확히 시각화
 
 \begin{figure}[t]
 \centering
@@ -41,13 +41,13 @@
 \addplot[fill=blue!35, draw=blue!60!black] coordinates {
     ({7B-bal},6073) ({7B-cod},8825)
     ({32B-bal},3449) ({32B-son},4084) ({32B-cod},4575)};
-\legend{Vanilla-only, Trident-only, AGSD-gated}
+\legend{Baseline-only, Spec-only, \algname-gated}
 \end{axis}
 \end{tikzpicture}%
 }
 \caption{End-to-end 처리량 비교: Qwen-7B (TP=1$\times$2)와 Qwen-32B (TP=2$\times$2).
-  AGSD-gated가 vanilla-only 대비 $+61.8\%$--$+144.1\%$,
-  trident-only 대비에서도 일관되게 우위.
+  \algname-gated가 baseline-only 대비 $+61.8\%$--$+144.1\%$,
+  spec-only 대비에서도 일관되게 우위.
   7B-cod: code-heavy mix. 32B-son: sonnet-heavy mix.}
 \label{fig:agsd-e2e}
 \end{figure}

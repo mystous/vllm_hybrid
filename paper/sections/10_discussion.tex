@@ -22,7 +22,7 @@ llm-d~\cite{llmd2025}는 Kubernetes 기반 LLM disaggregation으로
 인프라 요구 & Kubernetes, etcd, & vLLM $+$ FastAPI \\
             & 노드 간 KV 전송 & (+14줄 패치) \\
 라우팅 기준 & prefill/decode 분리 & 워크로드$\times$모델 \\
-투기적 디코딩 & 별도 설계 필요 & Trident core 내장 \\
+투기적 디코딩 & 별도 설계 필요 & spec-decode engine 내장 \\
 CPU 활용 & 미다룸 & NUMA pin $+$ branchy \\
 \midrule
 목표 & 클러스터 규모 확장 & 서버 내 효율 극대화 \\
@@ -66,7 +66,7 @@ SUB\_194 유형의 추가 측정이 필요하다.
 production 배포 전 검증을 권장한다.
 
 \textbf{Gating 규칙의 확장성.}
-현재 벤더-워크로드 게이팅 규칙(Qwen-72B code $\to$ vanilla)은
+현재 벤더-워크로드 게이팅 규칙(Qwen-72B code $\to$ baseline)은
 수동 측정 결과에서 도출된다.
 Llama-405B FP8, 새 아키텍처 등 미측정 모델에서
 runtime accept rate 모니터링 기반 자동 규칙 생성이 필요하다.
