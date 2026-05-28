@@ -7,9 +7,10 @@
 \subsection{Trident Core 효과: 워크로드별 처리량}
 \label{subsec:res-trident}
 
-\input{figures/fig2_throughput_gain}
+\input{figures/fig2_agsd_e2e}
 
-Fig.~\ref{fig:throughput-gain}과 Table~\ref{tbl:trident-vs-vanilla}는
+Fig.~\ref{fig:agsd-e2e}는 AGSD-gated의 end-to-end 처리량 우위를 보여주며,
+Table~\ref{tbl:trident-vs-vanilla}는
 Trident core (SuffixDecoding $+$ cudagraph PIECEWISE)의 워크로드별 처리량을 보여준다.
 Llama-3.3-70B + TP=8 + H100$\times$8 환경(SUB\_093)에서
 vanilla 대비 처리량 향상은 다음과 같다.
@@ -36,9 +37,11 @@ GPU가 짧게 쉬어도 총 처리량이 늘어나는 구조를 확인한다.
 \subsection{모델 크기 게이팅: 소형 모델 회귀 검증}
 \label{subsec:res-small-model}
 
+\input{figures/fig5_rk_boundary}
 \input{figures/fig3_small_model_regression}
 
-Fig.~\ref{fig:small-model-regression}은 모델 크기에 따른 투기적 디코딩 효과를 보여준다.
+Fig.~\ref{fig:rk-boundary}는 드래프터별 $K$ 값을 $R$ 임계값과 비교하고,
+Fig.~\ref{fig:small-model-regression}은 모델 크기에 따른 처리량 변화를 보여준다.
 
 \textbf{소형 모델 ($\leq$7B): 일관된 회귀.}
 Qwen-0.5B/1.5B/7B에서 ngram과 suffix 모두 단일 인스턴스에서 회귀한다 (SUB\_090).
@@ -128,6 +131,7 @@ sonnet($+54.2\%$), chat($+47.3\%$)에서는 suffix를 유지한다.
 \subsection{CPU 슬랙 하베스팅 결과}
 \label{subsec:res-harvest}
 
+\input{figures/fig4_harvest_lever}
 \input{tables/tbl_harvest_results}
 
 \textbf{NUMA 바인딩}: 3-run mean $+2.24\%$, warm-only $+3.13\%$ (SUB\_183, SUB\_194).
