@@ -4,28 +4,28 @@
 \centering
 \caption{CPU 슬랙 하베스팅 lever 단독 기여 (AGSD ON vs OFF 비교).
   Qwen-2.5-32B $+$ TP=4$\times$2, 500 prompts $\times$ max\_tokens=32, 3-mix 평균.
-  Multi-run은 3-run 반복 (SUB\_194). Warm = run~2, 3 평균.}
+  Multi-run은 3-run 반복. Warm = run~2, 3 평균.}
 \label{tbl:harvest-results}
 \footnotesize
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}lllrrlll@{}}
 \toprule
-\textbf{SUB} & \textbf{Lever} & \textbf{Pattern} &
+\textbf{Layer} & \textbf{Lever} & \textbf{Pattern} &
   \textbf{1-run $\Delta$ (3-mix)} & \textbf{Multi-run $\Delta$} &
   \textbf{Domain} & \textbf{신뢰도} & \textbf{상태} \\
 \midrule
-SUB\_183 & NUMA pin       & startup bind & $+1.54\%$ & $+2.24\%$ (warm $+3.13\%$) & system & \textbf{binding 통과} & \textbf{production-ready} \\
-SUB\_196B & branchy aux   & 100\,ms cycle & $+5.28\%$ (cell $+12.04\%$) & 미검증 & work & 1-run only & \textbf{임계점 도달} \\
-SUB\_197 & NUMA $\oplus$ softmax aux & cross pair & $+2.83\%$ (code-heavy $+7.73\%$) & 미검증 & cross & 1-run & near-linear \\
-SUB\_188 & softmax aux    & 100\,ms cycle & $+1.84\%$ & $+0.53\%$ & work & partial & 약한 신호 \\
+NUMA Bind & NUMA pin       & startup bind & $+1.54\%$ & $+2.24\%$ (warm $+3.13\%$) & system & \textbf{binding 통과} & \textbf{production-ready} \\
+Branchy Aux & branchy aux   & 100\,ms cycle & $+5.28\%$ (cell $+12.04\%$) & 미검증 & work & 1-run only & \textbf{임계점 도달} \\
+NUMA⊕Aux & NUMA $\oplus$ softmax aux & cross pair & $+2.83\%$ (code-heavy $+7.73\%$) & 미검증 & cross & 1-run & near-linear \\
+Softmax Aux & softmax aux    & 100\,ms cycle & $+1.84\%$ & $+0.53\%$ & work & partial & 약한 신호 \\
 \midrule
-SUB\_186 & 4-OS-lever stack & env$\times$4 & $-0.03\%$ & — & system & confirmed & \textbf{destructive $-1.18$\,pp} \\
-SUB\_184 & task-pool dummy fill & sub-step & $-1.75\%$ & — & critical & confirmed & \textbf{catastrophic} \\
-SUB\_181 & Jacobi LM-head & drop-in & $-94.2\%$ & — & critical & confirmed & \textbf{queue collapse} \\
+OS Stack×4 & 4-OS-lever stack & env$\times$4 & $-0.03\%$ & — & system & confirmed & \textbf{destructive $-1.18$\,pp} \\
+Task-pool & task-pool dummy fill & sub-step & $-1.75\%$ & — & critical & confirmed & \textbf{catastrophic} \\
+Jacobi Drop-in & Jacobi LM-head & drop-in & $-94.2\%$ & — & critical & confirmed & \textbf{queue collapse} \\
 \bottomrule
 \end{tabular}%
 }
 \smallskip\\
 {\scriptsize 측정: AGSD-gated 상태 기준. 1-run $|\Delta| < 3\%$는 multi-run binding 없이 채택 불가.
-SUB\_196B, SUB\_197 multi-run binding 검증은 추가 측정 필요.}
+branchy aux, NUMA⊕aux multi-run binding 검증은 추가 측정 필요.}
 \end{table*}

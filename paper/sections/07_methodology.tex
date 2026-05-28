@@ -40,13 +40,13 @@ SuffixDecoding & arctic-inference (lazy import) \\
 단일 vLLM 인스턴스에서 하나의 설정(config)으로
 하나의 워크로드(cell)를 측정한다.
 R/K 특성 분석, 방법별 비교, 모델 크기 스윕에 사용한다.
-Llama-3.3-70B: 500 prompts $\times$ 8,192 max tokens (SUB\_093).
+Llama-3.3-70B: 500 prompts $\times$ 8,192 max tokens.
 Qwen-2.5-32B: 500 prompts $\times$ 32 max tokens (lever 측정용).
 
 \textbf{시나리오 2 — End-to-end dual-backend.}
 vanilla backend(GPU 0--3)와 Trident backend(GPU 4--7)를
 동시에 기동하고, \algname\ 분류기가 200 prompts를 concurrency 32로 분배한다.
-AGSD-gated 대비 vanilla-only, trident-only를 비교한다 (SUB\_094, SUB\_095).
+AGSD-gated 대비 vanilla-only, trident-only를 비교한다.
 
 \subsection{워크로드 정의}
 
@@ -64,16 +64,16 @@ AGSD-gated 대비 vanilla-only, trident-only를 비교한다 (SUB\_094, SUB\_095
 모든 측정에서 공정 비교(fair comparison)를 위해
 vanilla와 Trident가 동일한 \texttt{gpu\_memory\_utilization=0.80} 및
 동일한 벤치마크 래퍼(\texttt{run\_workload\_gen.py})를 사용한다.
-이전 측정의 래퍼 편향($+64.7\%$ wrapper noise, SUB\_047 대비 SUB\_086 분석)을
+이전 측정의 래퍼 편향($+64.7\%$ wrapper noise)을
 제거한 fair baseline을 적용한다.
 
 \subsection{CPU 슬랙 하베스팅 측정 방법}
 
 lever 단독 기여 $\Delta(L)$는 AGSD-gated ON/OFF 쌍 측정으로 분리한다.
 핵심 lever(NUMA pin, softmax aux)에 대해 3-run 반복으로
-multi-run mean 및 warm-only(run 2, 3 평균)를 보고한다 (SUB\_194).
+multi-run mean 및 warm-only(run 2, 3 평균)를 보고한다.
 신뢰도 기준: $|\Delta| < 3\%$인 1-run 신호는 multi-run binding 없이 채택하지 않는다.
 
 % TODO: CERES 완전 통합 설정(NUMA pin + branchy 100ms + AGSD-gated)의
-%       end-to-end 3-run 측정 SUB 필요.
+%       end-to-end 3-run 측정 필요.
 %       현재는 각 lever를 독립 측정 후 Property 1로 결합 추정.
