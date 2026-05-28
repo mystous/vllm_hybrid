@@ -1,13 +1,15 @@
 % !TEX program = xelatex
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
-%% CERES: Workload-Level Speculative Gating with CPU Slack Harvesting
-%%        for LLM Serving
+%% METRONOME: 투기적 디코딩 환경의 박자 정렬 교차 도메인
+%%            CPU 자원 오케스트레이션 알고리즘
 %% Authors: Kyunam Cho (first), Heon-Chang Yoo (corresponding)
 %% Target:  IEEE/ACM 국제 학술대회 (IEEEtran conference, 10 pages × 2-column)
 %% Build:   XeLaTeX + kotex + fontspec (Korean — Overleaf 또는 로컬 TeX Live)
 %%
 %% [중요] Overleaf 사용 시: Menu → Settings → Compiler: XeLaTeX 선택 필수.
+%%   (`% !TEX program = xelatex` 매직 코멘트는 일부 에디터만 인식하므로
+%%    Overleaf 의 Settings 에서 명시적으로 지정)
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -15,6 +17,8 @@
 \IEEEoverridecommandlockouts
 
 %% --- Korean typesetting (XeLaTeX + kotex + fontspec) ----------------------
+%% Overleaf 는 Nanum 폰트 사전 설치 — fontspec + setmainhangulfont 정상 작동.
+%% 로컬 빌드 시 fc-cache -fv 후 Nanum 폰트 인식 확인.
 \usepackage{kotex}
 \usepackage{fontspec}
 \setmainhangulfont{NanumMyeongjo}
@@ -41,15 +45,12 @@
 \newtheorem{lemma}{Lemma}
 \newtheorem{proposition}{Proposition}
 \newtheorem{definition}{Definition}
-\newtheorem{property}{Property}
 
 %% --- Custom commands ------------------------------------------------------
-\newcommand{\algname}{\textsc{Ceres}}
+\newcommand{\algname}{\textsc{Metronome}}
 \newcommand{\tgpu}{T_{\mathrm{gpu}}}
 \newcommand{\tcpu}{T_{\mathrm{cpu}}}
-\newcommand{\tspec}{T_{\mathrm{spec}}}
-\newcommand{\rk}{\mathit{R/K}}
-\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+\newcommand{\dom}{\mathrm{dom}}
 
 %% algpseudocode 의 line-level 주석 helper
 \algnewcommand{\LineComment}[1]{\State \(\triangleright\) \textit{#1}}
@@ -57,8 +58,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
 
-\title{\algname: Workload-Level Speculative Gating\\
-       with CPU Slack Harvesting for LLM Serving}
+\title{\algname: Step-Aligned CPU Orchestration\\
+       for LLM Inference with Speculative Decoding}
 
 \author{
 \IEEEauthorblockN{Kyunam Cho\IEEEauthorrefmark{1}}
@@ -79,16 +80,15 @@ Email: yoo.heonchang@example.org\\
 
 \input{sections/00_abstract}
 \input{sections/01_introduction}
-\input{sections/02_motivation}
-\input{sections/03_related_work}
-\input{sections/04_background}
-\input{sections/05_problem_formulation}
-\input{sections/06_ceres_algorithm}
-\input{sections/07_methodology}
-\input{sections/08_results}
-\input{sections/09_mechanism_analysis}
-\input{sections/10_discussion}
-\input{sections/11_conclusion}
+\input{sections/02_related_work}
+\input{sections/03_background}
+\input{sections/04_problem_formulation}
+\input{sections/05_metronome_algorithm}
+\input{sections/06_methodology}
+\input{sections/07_results}
+\input{sections/08_mechanism_analysis}
+\input{sections/09_discussion}
+\input{sections/10_conclusion}
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

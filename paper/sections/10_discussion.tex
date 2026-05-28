@@ -1,0 +1,79 @@
+%% sections/10_discussion.tex
+
+\section{논의}
+\label{sec:discussion}
+
+\subsection{llm-d와의 비교}
+
+llm-d~\cite{llmd2025}는 Kubernetes 기반 LLM disaggregation으로
+워크로드 인지 라우팅을 지원하는 강력한 접근이다.
+두 시스템의 설계 철학은 다음과 같이 대비된다.
+
+\begin{table}[t]
+\centering
+\caption{\algname\ vs.\ llm-d 설계 비교.}
+\label{tbl:vs-llmd}
+\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{항목} & \textbf{llm-d} & \textbf{\algname} \\
+\midrule
+배포 범위 & 클러스터(다중 노드) & 단일 서버 \\
+인프라 요구 & Kubernetes, etcd, & vLLM $+$ FastAPI \\
+            & 노드 간 KV 전송 & (+14줄 패치) \\
+라우팅 기준 & prefill/decode 분리 & 워크로드$\times$모델 \\
+투기적 디코딩 & 별도 설계 필요 & Trident core 내장 \\
+CPU 활용 & 미다룸 & NUMA pin $+$ branchy \\
+\midrule
+목표 & 클러스터 규모 확장 & 서버 내 효율 극대화 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% TODO: llm-d 실제 배포 대비 CERES 배포 시간, 운영 파라미터 수 정량 비교.
+%       현재 Table의 llm-d 내용은 공개 문서 기반; 동일 환경에서의 직접 비교 실험 필요.
+
+두 접근은 상호 보완적이다.
+대규모 클러스터에서 llm-d가 노드 간 prefill/decode를 분리하는 동시에,
+각 노드 내부에서 \algname 이 워크로드 레벨 게이팅과 CPU 슬랙 하베스팅을 수행할 수 있다.
+
+\subsection{Code Agent에 대한 함의}
+
+\S\ref{subsec:mot-code-fail}에서 논의한 바와 같이,
+code agent의 반복 호출 패턴은 투기적 디코딩 회귀의 누적 효과를 심화시킨다.
+\algname 의 워크로드 분류기는 현재 단발성 코드 생성(code workload)과
+code agent를 동일하게 처리한다.
+
+% TODO: Code agent 특화 게이팅 전략.
+%       (1) tool calling JSON 생성(반복 구조 → suffix 적합)과
+%       (2) reasoning chain(고유 토큰 → suffix 불리)을 구분하는
+%       세분화 분류기 필요.
+%       현재 regex 분류기를 code agent 세부 패턴으로 확장하는 실험 필요.
+
+\subsection{한계}
+
+\textbf{하드웨어 특화.}
+본 측정은 H100$\times$8 + Xeon SPR 듀얼-NUMA 환경에 특화되어 있다.
+다른 GPU 세대(A100, H200), AMD GPU, 단일 소켓 서버에서
+하베스팅 hyperparameter($T_{\text{aux}}$, branchy 패턴)를 재조정해야 할 수 있다.
+\algname 의 $T_{\text{gpu}}$ 자동 측정이 부분적 일반화를 지원하지만
+multi-environment 검증은 후속 연구이다.
+
+\textbf{Multi-run binding 미완료.}
+Branchy $\times$ 100ms의 $+5.28\%$(1-run)가 multi-run에서도 유지되는지
+SUB\_194 유형의 추가 측정이 필요하다.
+현재 magnitude($+5.28\%$, noise floor $\pm 3\%$ 초과)는 의미 있는 신호로 판단하나
+production 배포 전 검증을 권장한다.
+
+\textbf{Gating 규칙의 확장성.}
+현재 벤더-워크로드 게이팅 규칙(Qwen-72B code $\to$ vanilla)은
+수동 측정 결과에서 도출된다.
+Llama-405B FP8, 새 아키텍처 등 미측정 모델에서
+runtime accept rate 모니터링 기반 자동 규칙 생성이 필요하다.
+
+\subsection{재현성}
+
+실험 스크립트, raw benchmark JSON, \algname\ 참조 구현은
+보조 자료\footnote{Anonymous; URL will be provided in camera-ready.}로 공개한다.
+모든 참조의 publication metadata는 DBLP, OpenReview, arXiv, Semantic Scholar의
+다중 채널 검증(2026-05-27 기준)으로 확인되었다.

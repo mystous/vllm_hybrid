@@ -1,0 +1,56 @@
+%% figures/fig5_period_drift.tex
+%% Fig.5 — Step period drift 시계열 (단일 컬럼 fit, 단순화)
+
+\begin{figure}[t]
+\centering
+\resizebox{0.95\columnwidth}{!}{%
+\begin{tikzpicture}[
+    x=0.40cm, y=0.30cm,
+    axis/.style={-{Stealth[length=1.5mm]}, thick},
+    measurement/.style={fill=blue!22, draw=blue!50!black, thick},
+    reprobe/.style={fill=orange!25, draw=orange!60!black, thick},
+    aftermath/.style={fill=green!22, draw=green!50!black, thick},
+    threshold/.style={red!60!black, dashed, thick},
+    label/.style={font=\scriptsize, align=left, fill=white, inner sep=1pt},
+]
+% Axes
+\draw[axis] (0, 0) -- (24, 0)  node[right, font=\scriptsize] {req idx};
+\draw[axis] (0, 0) -- (0, 8)   node[above, font=\scriptsize] {$\delta(t)$};
+\foreach \y/\v in {0/0, 2/0.10, 4/0.20, 6/0.30} {
+    \node[left, font=\tiny] at (-0.1, \y) {\v};
+    \draw (-0.05, \y) -- (0.05, \y);
+}
+\draw[threshold] (0, 4) -- (24, 4);
+\node[label, text=red!60!black, anchor=west] at (15.5, 4.6) {$\delta_{\max}\!=\!0.2$};
+
+% Stable phase (1-10): drift around 0.05
+\foreach \x/\h in {1/0.6, 2/0.9, 3/1.0, 4/0.8, 5/1.0, 6/1.1, 7/1.0, 8/1.1, 9/1.2, 10/1.0} {
+    \fill[measurement] (\x, 0) rectangle (\x+0.6, \h);
+}
+
+% Workload shift (11-14): rising drift
+\foreach \x/\h in {11/1.8, 12/3.0, 13/4.2, 14/5.4} {
+    \fill[reprobe] (\x, 0) rectangle (\x+0.6, \h);
+}
+
+% Re-probe trigger annotation
+\node[label, text=orange!70!black, anchor=south] at (14, 6.0)
+    {drift $>\delta_{\max}$};
+\draw[orange!60!black, thick, ->] (14.3, 5.8) -- (14.3, 5.6);
+
+% Re-probe phase (15-16)
+\foreach \x/\h in {15/0.4, 16/0.5} {
+    \fill[gray!30, draw=gray!60] (\x, 0) rectangle (\x+0.6, \h);
+}
+\node[label, text=gray!50!black, anchor=north] at (15.8, -0.4) {re-probe};
+
+% New stable (17-23)
+\foreach \x/\h in {17/0.9, 18/1.0, 19/1.0, 20/1.1, 21/1.0, 22/1.0, 23/0.9} {
+    \fill[aftermath] (\x, 0) rectangle (\x+0.6, \h);
+}
+\node[label, text=green!50!black, anchor=south] at (20, 3.0) {a tempo};
+\end{tikzpicture}%
+}
+\caption{\textsc{Ritardando} 의 drift 감지와 박자 재측정. 정상 phase 의 $\delta < 0.1$ 에서 workload shift 시 $\delta$ 가 $\delta_{\max}\!=\!0.2$ 를 초과하면 \textsc{Initialize} 로 복귀 (a tempo).}
+\label{fig:period-drift}
+\end{figure}

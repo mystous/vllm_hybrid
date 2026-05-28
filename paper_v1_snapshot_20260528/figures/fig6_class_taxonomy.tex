@@ -1,0 +1,59 @@
+%% figures/fig6_class_taxonomy.tex
+%% Fig.6 — 5 분류군 dendrogram (단일 컬럼 fit)
+
+\begin{figure}[t]
+\centering
+\resizebox{0.95\columnwidth}{!}{%
+\begin{tikzpicture}[
+    x=0.85cm, y=0.65cm,
+    root/.style={rectangle, draw, rounded corners=2pt, thick, fill=blue!18,
+                 font=\scriptsize\bfseries, align=center,
+                 minimum width=3.5cm, minimum height=0.6cm},
+    class/.style={rectangle, draw, rounded corners=1pt, fill=yellow!15,
+                  font=\tiny\bfseries, align=center,
+                  minimum width=1.3cm, minimum height=0.85cm,
+                  inner sep=1pt},
+    rep/.style={font=\tiny, align=center, inner sep=1pt},
+    pos/.style={text=green!50!black, font=\tiny\bfseries},
+    neg/.style={text=red!60!black, font=\tiny},
+]
+% Root
+\node[root] (root) at (0, 3.2) {CPU resource utilization (24 candidates)};
+
+% 5 classes
+\node[class] (A) at (-4, 1.8) {A\\Direct\\kernel};
+\node[class] (B) at (-2, 1.8) {B\\System\\isolation};
+\node[class] (C) at (0,  1.8) {C\\Sub-step\\sched.};
+\node[class] (D) at (2,  1.8) {D\\Aux.\\workload};
+\node[class] (E) at (4,  1.8) {E\\Concurrent\\aux.};
+
+% Lines root-to-class
+\foreach \child in {A, B, C, D, E} {
+    \draw[thick, gray!60] (root.south) -- (\child.north);
+}
+
+% Representatives
+\node[rep, neg] at (-4, 0.7) {AMX matmul};
+\node[rep, neg] at (-4, 0.3) {Jacobi (-94\%)};
+\node[rep, pos] at (-2, 0.7) {NUMA pin};
+\node[rep, neg] at (-2, 0.3) {4-OS stack};
+\node[rep, neg] at (0,  0.7) {task-pool};
+\node[rep, neg] at (0,  0.3) {(catastrophic)};
+\node[rep, neg] at (2,  0.7) {AMX draft};
+\node[rep, neg] at (2,  0.3) {cold-KV};
+\node[rep, pos] at (4,  0.7) {\textbf{branchy 100\,ms}};
+\node[rep      ] at (4,  0.3) {regular};
+
+% Class to rep
+\foreach \c/\y in {A/0.3, B/0.3, C/0.3, D/0.3, E/0.3} {
+    \draw[gray!40, thin] (\c.south) -- ($(\c.south)+(0,-0.3)$);
+}
+
+% Legend
+\node[font=\tiny, anchor=west, text=green!50!black] at (-4.5, -0.4) {green = positive};
+\node[font=\tiny, anchor=west, text=red!60!black]   at (-0.5, -0.4) {red = negative};
+\end{tikzpicture}%
+}
+\caption{5 분류군 taxonomy. 분류군 B 의 NUMA pin 과 분류군 E 의 branchy auxiliary 만 양성, 나머지는 분류군별 공통 메커니즘으로 실패.}
+\label{fig:class-taxonomy}
+\end{figure}

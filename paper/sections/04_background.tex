@@ -1,0 +1,77 @@
+%% sections/04_background.tex
+
+\section{배경}
+\label{sec:background}
+
+\subsection{R/K 프레임워크}
+\label{subsec:rk-framework}
+
+투기적 디코딩의 처리량 이득은 R/K 비율로 정량화된다~\cite{leviathan2023spec}.
+$K$개의 후보 토큰 중 평균 수락 토큰 수는
+
+\begin{equation}
+\mathbb{E}[\text{accepted}] = \frac{1 - \alpha^{K+1}}{1 - \alpha}
+\label{eq:expected-accept}
+\end{equation}
+
+이며, 여기서 $\alpha \in [0,1]$은 토큰 단위 수락률이다.
+스텝당 오버헤드 비율 $R$과 평균 수락 토큰 수 $K$의 관계로
+순이익 조건이 결정된다.
+
+\begin{equation}
+\frac{T_{\text{spec}}}{T_{\text{vanilla}}} \approx \frac{R}{K}, \quad
+K > R \Rightarrow \text{가속}, \quad K < R \Rightarrow \text{회귀}
+\label{eq:rk-ratio}
+\end{equation}
+
+$R$은 모델 크기와 TP 구성에 의존하며, $K$는 드래프터 품질과 워크로드 특성에 의존한다.
+소형 모델($\leq$7B)에서 $R$이 커지는 이유는
+스펙 디코딩 검증 forward pass의 상대 비용이 증가하기 때문이다.
+본 연구의 측정 환경(Qwen-2.5-32B + TP=4$\times$2 + H100$\times$8)에서
+$R \approx 1.3$이며, $K < 1.3$인 드래프터 설정은 net-negative가 된다.
+
+\subsection{SuffixDecoding}
+\label{subsec:suffix-decoding}
+
+SuffixDecoding~\cite{snowflake-arctic}은 입력 프롬프트와
+누적된 이전 생성 출력 양쪽으로부터 suffix tree를 구성하고,
+빈도 가중치 기반으로 최대 $K_{\max}$개의 후보 토큰을 \emph{adaptive}하게 제안한다.
+이 adaptive draft length($1 \leq K \leq K_{\max}$)가 핵심 강점이다.
+n-gram 드래프터가 고정 길이 draft를 생성하는 데 반해,
+SuffixDecoding은 suffix tree hit가 없는 경우 draft를 $1$개로 줄여
+$R$ 오버헤드를 최소화한다.
+
+특히 code 워크로드에서 이전 생성 코드 패턴이 suffix tree에 누적됨으로써
+$\alpha$가 지속적으로 향상된다
+($\alpha_{\text{code}}^{\text{ngram}} = 1.2\%$ vs.\ $\alpha_{\text{code}}^{\text{suffix}} = 40.1\%$,
+$K$ 비율 $3.74\times$, $\alpha$ 비율 $33\times$, SUB\_093).
+
+\textbf{cudagraph PIECEWISE 호환.}
+SuffixDecoding의 adaptive draft length는 동적 shape를 생성하므로
+전체 CUDA graph 캡처(FULL 모드)와 비호환이다.
+vLLM v1의 \texttt{cudagraph\_mode=PIECEWISE}를 사용하면
+dynamic shape 연산만 graph 외부로 분리되어 호환성이 확보된다.
+
+\subsection{듀얼-NUMA 하드웨어 아키텍처}
+\label{subsec:numa-arch}
+
+본 연구의 측정 환경은 듀얼 NUMA 노드 Xeon SPR-class 서버다.
+각 NUMA 노드는 56개 물리 코어와 약 1\,TB DRAM을 보유하며,
+remote/local 접근 거리 비는 $2.1\times$(local 10, remote 21)이다.
+
+GPU PCIe 연결도 NUMA-aware하다:
+GPU 0--3은 NUMA node 0에, GPU 4--7은 NUMA node 1에
+PCIe affinity가 있다.
+이중 백엔드에서 vanilla 인스턴스(GPU 0--3)를 NUMA node 0에,
+Trident 인스턴스(GPU 4--7)를 NUMA node 1에 바인딩하면
+cross-socket QPI 트래픽이 제거된다.
+
+\subsection{vLLM 아키텍처}
+\label{subsec:vllm-arch}
+
+vLLM~\cite{kwon2023vllm}은 PagedAttention 기반 KV 캐시 가상화와
+continuous batching~\cite{yu2022orca}으로 GPU 메모리 효율과 처리량을 최적화한다.
+본 연구는 vLLM v1.6.dev0+g858b6df7a 포크를 기반으로 하며,
+vLLM 코어 변경은 하위 호환성을 완전히 유지하는 14줄에 불과하다:
+\texttt{vllm/utils/\_\_init\_\_.py} ($+5$ 줄, \texttt{FlexibleArgumentParser} re-export)와
+\texttt{vllm/engine/arg\_utils.py} ($+9$ 줄, \texttt{\_is\_v1\_supported\_oracle} stub).

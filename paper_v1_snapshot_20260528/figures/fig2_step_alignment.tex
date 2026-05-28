@@ -1,0 +1,50 @@
+%% figures/fig2_step_alignment.tex
+%% Fig.2 — Step boundary timing diagram (단일 컬럼 fit)
+
+\begin{figure}[t]
+\centering
+\resizebox{0.95\columnwidth}{!}{%
+\begin{tikzpicture}[
+    x=0.40cm, y=0.55cm,
+    gpu/.style={rectangle, draw, fill=blue!20, minimum height=0.42cm,
+                font=\scriptsize, inner sep=1pt},
+    cpu/.style={rectangle, draw, fill=green!22, minimum height=0.38cm,
+                font=\scriptsize, inner sep=1pt},
+    axis/.style={-{Stealth[length=1.6mm]}},
+    annot/.style={font=\scriptsize, text=gray!60!black},
+]
+% Time axis
+\draw[axis] (-0.2, 0) -- (16, 0) node[right, font=\scriptsize] {ms};
+\foreach \x/\t in {0/0, 4/40, 8/80, 12/120, 16/160} {
+    \draw (\x, 0) -- (\x, -0.1);
+    \node[below, font=\tiny] at (\x, -0.1) {\t};
+}
+
+% GPU step lane (label on left)
+\node[font=\scriptsize, anchor=east] at (-0.2, 0.7) {GPU};
+\foreach \i in {0,1,2,3} {
+    \pgfmathsetmacro{\xs}{\i*4}
+    \node[gpu, anchor=south west, minimum width={4*0.40cm-1pt}]
+        at (\xs, 0.4) {\(\tgpu\)};
+}
+
+% CPU aux lane
+\node[font=\scriptsize, anchor=east] at (-0.2, 1.7) {CPU};
+\node[cpu, anchor=south west, minimum width={3*0.40cm-1pt}] at (0, 1.4) {aux};
+\node[cpu, anchor=south west, minimum width={3*0.40cm-1pt}] at (10, 1.4) {aux};
+
+% Cycle marker
+\draw[<->, thick, gray!70!black] (0, 2.4) -- (10, 2.4)
+    node[midway, above=1pt, annot] {$\tcpu = k\tgpu = 100$\,ms ($k\!=\!2.5$)};
+\draw[<->, thick, gray!70!black] (0, -0.6) -- (4, -0.6)
+    node[midway, below=1pt, annot] {$\tgpu \approx 40$\,ms};
+
+% Boundary alignment
+\foreach \x in {0, 4, 8, 12} {
+    \draw[dotted, gray!50] (\x, -0.6) -- (\x, 2.4);
+}
+\end{tikzpicture}%
+}
+\caption{\textsc{Meter} 단계의 박자 정렬 (Theorem~\ref{thm:alignment}). GPU step 주기 $\tgpu \approx 40$\,ms 에 대해 CPU 보조 작업 주기 $\tcpu = 100$\,ms ($k=2.5$) 가 step boundary 와 정수배로 정렬되어 critical path 침범 없이 amortize window 를 확보한다.}
+\label{fig:step-alignment}
+\end{figure}

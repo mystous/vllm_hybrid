@@ -1,0 +1,42 @@
+%% tables/tbl_gating_main.tex
+%% Table: CERES Gating 핵심 결과 — 모델별 end-to-end
+
+\begin{table*}[t]
+\centering
+\caption{\algname\ \textsc{Gate} end-to-end 결과.
+  소형 모델은 AGSD-gated $\gg$ vanilla-only (병렬 GPU $+$ gating decision),
+  대형 모델은 Trident core $\equiv$ AGSD (gating decision $=$ 항상 suffix).}
+\label{tbl:gating-main}
+\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llrrrrrr@{}}
+\toprule
+\textbf{Model} & \textbf{Setup} & \textbf{Mix} &
+  \textbf{Vanilla-only} & \textbf{Trident-only} & \textbf{AGSD-gated} &
+  \textbf{vs Vanilla} & \textbf{vs Trident} \\
+\midrule
+Qwen-2.5-0.5B & e2e TP=1$\times$2 & balanced   & 3,672 & 4,644 & \textbf{6,252} & $+70.3\%$ & $+34.6\%$ \\
+              &                   & code-heavy & 4,227 & 7,267 & \textbf{8,605} & $+103.6\%$ & $+18.4\%$ \\
+\midrule
+Qwen-2.5-7B   & e2e TP=1$\times$2 & balanced   & 3,753 & 4,238 & \textbf{6,073} & $+61.8\%$ & $+43.3\%$ \\
+              &                   & code-heavy & 3,966 & 7,512 & \textbf{8,825} & $+122.5\%$ & $+17.5\%$ \\
+\midrule
+Qwen-2.5-32B  & e2e TP=2$\times$2 & balanced   & 1,779 & 2,721 & \textbf{3,449} & $+93.8\%$ & $+26.8\%$ \\
+              &                   & sonnet-hvy & 1,792 & 4,004 & \textbf{4,084} & $+127.9\%$ & $+2.0\%$ \\
+              &                   & code-heavy & 1,874 & 4,551 & \textbf{4,575} & $+144.1\%$ & $+0.5\%$ \\
+\midrule
+Llama-3.3-70B & single TP=8 & sonnet & 7,678.7 & \textbf{11,676.9} & \textbf{11,676.9} & $+52.1\%$ & $\equiv$ \\
+              &             & chat   & 2,266.8 & \textbf{3,830.4}  & \textbf{3,830.4}  & $+68.9\%$ & $\equiv$ \\
+              &             & code   & 6,717.7 & \textbf{7,981.4}  & \textbf{7,981.4}  & $+18.8\%$ & $\equiv$ \\
+\midrule
+Qwen-2.5-72B  & single TP=8 & sonnet & 6,456 & 9,959  & \textbf{9,959}  & $+54.2\%$ & $\equiv$ \\
+              &             & chat   & 2,560 & 3,770  & \textbf{3,770}  & $+47.3\%$ & $\equiv$ \\
+              &             & code   & \textbf{6,227} & 5,941 & \textbf{6,227} & $0\%$ & $+4.8\%$ \\
+\bottomrule
+\multicolumn{8}{@{}l@{}}{\scriptsize
+  SUB\_093 (Llama 70B), SUB\_095 (Qwen 0.5B/7B/32B e2e), SUB\_096 (Qwen 72B, Phi-3 14B).
+  $\equiv$: gating decision $=$ 항상 Trident이므로 AGSD = Trident.
+  e2e: 2 backend $+$ CPU router $+$ concurrent client.}
+\end{tabular}%
+}
+\end{table*}

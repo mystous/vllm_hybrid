@@ -1,0 +1,32 @@
+%% tables/tbl_vs_baseline.tex
+%% Table I — 5 분류군 대표 기법의 baseline 대비 효과 (table* + resizebox)
+
+\begin{table*}[t]
+\centering
+\caption{5 분류군 대표 기법의 baseline 대비 효과 ($\Delta$ tps / wall, 1-run 측정). \algname 의 단일 통합 구성 (NUMA pin $\oplus$ branchy aux) 이 유일하게 유의 임계점 $+5\,\%$ 에 도달.}
+\label{tbl:vs-baseline}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}clp{4.6cm}rrll@{}}
+\toprule
+\textbf{Rank} & \textbf{Class} & \textbf{Representative} & \textbf{$\Delta$ tps} & \textbf{$\Delta$ wall} & \textbf{Domain} & \textbf{Outcome} \\
+\midrule
+\textbf{1} & E$\oplus$B & \algname\ (NUMA $\oplus$ branchy 100ms) & $\mathbf{+5.28\%}$ & $\mathbf{-5.40\%}$ & cross-domain        & \textbf{threshold} \\
+2          & E          & branchy aux $\times$ 100\,ms             & $+5.28\%$           & $-5.40\%$           & process work        & cell $+12.04\%$ \\
+3          & B$\oplus$E & NUMA $\oplus$ regular softmax aux        & $+2.83\%$           & $-2.52\%$           & cross-domain        & near-linear \\
+4          & B          & NUMA pin (dual instance)                 & $+1.84\%$           & $-1.71\%$           & system              & robust (m-run $+2.24\%$) \\
+5          & E          & regular aux $\times$ 100\,ms             & $+1.84\%$           & $-1.71\%$           & process work        & noise \\
+6          & E          & async tokenizer $\times$ 20\,ms          & $+1.66\%$           & $-1.77\%$           & process work        & m-run 부호 반전 \\
+7          & A          & AMX matmul drop-in                       & $+0.26\%$           & $+0.00\%$           & critical-path       & H2D/D2H sync \\
+8          & B          & cgroup + hugepages + taskset             & $-0.39\%$           & $+0.41\%$           & system              & same-domain stack \\
+9          & C          & task-pool dummy fill                     & $-1.75\%$           & $+1.92\%$           & sub-step            & lock contention \\
+10         & A          & AMX prefill assist                       & $-2.08\%$           & $+2.12\%$           & critical-path       & drop-in 불가 \\
+11         & D          & AMX draft proxy real integration         & $-2.77\%$           & $+2.85\%$           & NEW workload        & invasive 부재 \\
+12         & A          & 4-method Jacobi router                   & $-94.20\%$          & ---                 & critical-path       & queue collapse \\
+\bottomrule
+\end{tabular}%
+}
+\smallskip
+\par\noindent\scriptsize 측정: Qwen 2.5-32B + TP=4$\times$2 + H100$\times$8, 500 prompts $\times$ \texttt{max\_tokens}=32, 3-mix workload, 1-run. Class: A=직접 커널, B=시스템 격리, C=sub-step, D=보조 워크로드, E=동시 보조. m-run = multi-run.
+\end{table*}

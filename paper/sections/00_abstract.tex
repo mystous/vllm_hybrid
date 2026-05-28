@@ -1,19 +1,33 @@
-%% paper/sections/00_abstract.tex
-%% §0 Abstract — principled framing (24 ablation 중심 X)
+%% sections/00_abstract.tex
 
 \begin{abstract}
-LLM 추론 서빙 환경에서 GPU 와 호스트 CPU 의 활용률 비대칭은 잘 알려진 문제이지만, CPU 자원을 critical path 외부의 \emph{박자 정렬된 보조 자원}으로 활용하는 \emph{원리적 알고리즘}은 아직 제시되지 않았다.
-본 논문은 LLM 추론에서 GPU step 주기 ($\tgpu$) 와 CPU 작업 주기 ($\tcpu$) 의 \emph{시간적 정렬}, 그리고 자원 도메인 사이의 \emph{교차 도메인 중첩}을 두 가지 핵심 설계 원리로 도출하고, 이를 통합한 알고리즘 \algname (\textbf{M}ulti-domain \textbf{E}mpirically-derived \textbf{T}iming-aligned \textbf{R}esource \textbf{O}rchestration with \textbf{N}egative-result-driven \textbf{O}ptimization for \textbf{M}odular \textbf{E}xecution) 을 제안한다.
+투기적 디코딩(speculative decoding)은 LLM 추론 처리량을 크게 향상시키지만,
+워크로드 유형에 따라 효과가 극도로 다르게 나타난다.
+특히 코드 생성 워크로드에서는 n-gram 기반 드래프터가 catastrophic regression
+($-20.2\%$)을 일으키며, code agent와 같은 최신 응용에서는 이 문제가 더욱 심각하다.
+suffix 기반 방법이 코드 워크로드의 한계를 완화하지만,
+모델 아키텍처와 워크로드 조합에 따라 여전히 성능 손실이 발생한다.
+한편 기존의 워크로드 인지 라우팅 시스템(예: llm-d)은 이 문제를 다루지만
+disaggregation 구조의 복잡성이 배포 장벽으로 작용한다.
 
-\algname 은 음악적 metaphor 의 5단계---박자 측정(\textsc{Tempo}), 교차 도메인 화음(\textsc{Chord}), 주기 정렬(\textsc{Meter}), 작업 강세(\textsc{Accent}), drift 적응(\textsc{Ritardando})---로 구성된 실행 가능한 시스템 알고리즘이다.
-본 논문은 두 가지 정리를 형식화한다.
-\textbf{정리 1 (교차 도메인 중첩)} 은 두 보조 기법의 결합 효과가 도메인 동일성에 따라 결정되는 간섭 비용 $\varepsilon(A,B)$ 으로 분해됨을 보인다 (교차 $\approx 0.55$\,pp $\ll$ 동일 $\approx 1.18$\,pp).
-\textbf{정리 2 (단계 경계 정렬)} 은 $\tcpu = k \cdot \tgpu$, $k \in \{2,3\}$ 의 정수배 정렬이 amortize window 를 최대화함을 보인다.
+본 논문은 \algname\ (\textbf{C}ontext-aware \textbf{E}fficient \textbf{R}outing
+with \textbf{E}xploited \textbf{S}lack)을 제안한다.
+\algname 은 두 가지 설계 원리를 통합한다.
+첫째, 워크로드 유형·모델 크기·벤더 아키텍처를 기준으로
+요청별(per-request) 투기적 디코딩 방법을 자동 선택하는 \emph{워크로드 레벨 게이팅}이다.
+둘째, 게이팅이 필연적으로 생성하는 이중 백엔드(dual-backend) 구조에서
+CPU 유휴 사이클을 수확하는 \emph{CPU 슬랙 하베스팅}이다.
 
-설계 원리의 경험적 정당화를 위해 5가지 분류군에 걸친 대표 기법들을 paired 측정 protocol 로 검증하였고, 분류군별 \emph{실패 메커니즘}을 사례 분석으로 제시한다.
-Qwen 2.5-32B + 8$\times$H100 환경에서 \algname 단일 구성이 처리량 +5.28\,\% 임계점에 도달하였다 (단일 cell 최대 +12.04\,\%).
-본 논문의 기여는 (i) 통합 알고리즘 \algname, (ii) 교차 도메인 중첩 정리, (iii) 단계 경계 정렬과 분기 패턴의 메커니즘 해석이다.
+H100 $\times$ 8 환경에서 Llama-3.3-70B 모델로 측정한 결과,
+\algname 은 vanilla 대비 sonnet 워크로드에서 $+52.1\%$,
+chat에서 $+68.9\%$, code에서 $+18.8\%$의 처리량 향상을 달성하며
+6개 워크로드 전체에서 순 양성(net positive)을 유지한다.
+NUMA 고정 및 스텝 경계 정렬 보조 작업을 통한 CPU 슬랙 하베스팅은
+추가로 최대 $+5.28\%$(3-mix 평균)의 처리량을 회수한다.
+코드는 보조 자료로 공개된다.
 
 \smallskip
-\noindent\textbf{Index Terms}--- LLM inference, Speculative decoding, CPU-GPU heterogeneous scheduling, NUMA-aware serving, Step-aligned resource orchestration.
+\noindent\textbf{Index Terms}---
+LLM inference, Speculative decoding, Workload-aware routing,
+CPU-GPU heterogeneous serving, NUMA-aware optimization.
 \end{abstract}

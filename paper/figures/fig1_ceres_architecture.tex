@@ -1,0 +1,75 @@
+%% figures/fig1_ceres_architecture.tex
+%% Fig.1 — CERES 전체 아키텍처 (2컬럼, figure*)
+
+\begin{figure*}[t]
+\centering
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[
+    >=Stealth,
+    node distance=0.4cm,
+    box/.style={draw, rounded corners=3pt, minimum height=0.55cm,
+                align=center, font=\small},
+    gate/.style={box, fill=blue!10, minimum width=3.8cm},
+    vanilla/.style={box, fill=gray!12, minimum width=3.2cm},
+    trident/.style={box, fill=green!12, minimum width=3.2cm},
+    harvest/.style={box, fill=orange!12, minimum width=3.2cm},
+    arrow/.style={-{Stealth[length=2mm]}, thick},
+    label/.style={font=\scriptsize\bfseries},
+]
+
+%% ── 요청 입력 ──
+\node[box, fill=white, minimum width=2cm] (req) {요청 $r$};
+
+%% ── GATE 블록 ──
+\node[gate, below=0.5cm of req, minimum width=8cm] (gate)
+    {\textsc{Gate}: 워크로드$\times$모델 크기$\times$벤더 분류 → 방법 선택};
+\draw[arrow] (req) -- (gate);
+
+%% ── 두 backend ──
+\node[vanilla, below left=0.7cm and 1.8cm of gate]  (van)
+    {Vanilla Backend\\GPU 0--3 / NUMA node 0};
+\node[trident, below right=0.7cm and 1.8cm of gate] (tri)
+    {Trident Backend\\GPU 4--7 / NUMA node 1\\SuffixDecode + PIECEWISE};
+
+\draw[arrow] (gate.south) -- ++(0,-0.15) -| (van.north)
+    node[midway, above left, font=\scriptsize] {$\leq$7B / chat(Qwen72B) / code(Qwen72B)};
+\draw[arrow] (gate.south) -- ++(0,-0.15) -| (tri.north)
+    node[midway, above right, font=\scriptsize] {$\geq$14B / sonnet / chat / code(Llama)};
+
+%% ── HARVEST 블록 ──
+\node[harvest, below=0.6cm of van, minimum width=3.2cm] (numa)
+    {NUMA 바인딩\\system domain};
+\node[harvest, below=0.6cm of tri, minimum width=3.2cm] (branchy)
+    {Branchy aux $\times$ 100ms\\work domain\\스텝 경계 정렬};
+
+\draw[arrow, dashed, orange!60!black] (van.south) -- (numa.north);
+\draw[arrow, dashed, orange!60!black] (tri.south) -- (branchy.north);
+
+%% ── cross-domain 규칙 표시 ──
+\draw[<->, thick, orange!50!black]
+    ([xshift=0.5cm]numa.east) -- ([xshift=-0.5cm]branchy.west)
+    node[midway, above, font=\scriptsize, orange!60!black]
+    {cross-domain pair\\$\varepsilon \approx 0.55$\,pp};
+
+%% ── 응답 출력 ──
+\node[box, fill=white, minimum width=8cm,
+      below=1.2cm of $(numa.south)!0.5!(branchy.south)$] (out)
+    {처리량: $T_{\algname} = T_{\text{gate}} + \Delta_{\text{NUMA}} + \Delta_{\text{branchy}}$};
+
+\draw[arrow] (numa.south) |- (out.west);
+\draw[arrow] (branchy.south) |- (out.east);
+
+%% ── 범례 레이블 ──
+\node[label, text=blue!60!black, above=0.05cm of gate] {\textsc{Gate} (문제 A 해결)};
+\node[label, text=orange!70!black, below=0.05cm of out]
+    {\textsc{Harvest} (문제 B 해결 — Gate의 구조적 부산물 수확)};
+
+\end{tikzpicture}%
+}
+\caption{\algname\ 전체 아키텍처.
+  \textsc{Gate}가 워크로드 레벨 게이팅으로 문제 A를 해결하고,
+  이중 백엔드 구조가 필연적으로 만드는 CPU 슬랙을
+  \textsc{Harvest}가 NUMA 바인딩(system domain)과
+  branchy 보조 작업(work domain)의 cross-domain pair로 수확한다.}
+\label{fig:ceres-arch}
+\end{figure*}

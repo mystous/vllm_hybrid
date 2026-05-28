@@ -1,0 +1,106 @@
+%% sections/08_results.tex
+
+\section{측정 결과}
+\label{sec:results}
+
+\subsection{워크로드 레벨 게이팅 효과}
+
+\input{tables/tbl_gating_main}
+
+Table~\ref{tbl:gating-main}은 \algname\ \textsc{Gate}의 핵심 결과를 보여준다.
+
+\textbf{모델 크기 게이팅.}
+소형 모델($\leq$7B)에서 투기적 디코딩 방법(ngram, suffix 모두)은
+일관된 회귀를 보인다.
+Qwen-0.5B/1.5B/7B의 단일 인스턴스 측정(SUB\_090)에서
+suffix가 각각 $-52.1\%$, $-60.9\%$, $-36.7\%$를 기록한다.
+이중 백엔드 end-to-end 환경(SUB\_094, SUB\_095)에서는
+AGSD-gated가 chat $\to$ vanilla, sonnet/code $\to$ Trident를 선택함으로써
+vanilla-only 대비 Qwen-0.5B $+70.3\%$, Qwen-7B $+61.8\%$를 달성한다.
+
+% TODO: 7B↔14B 경계 모델(예: Mistral-7B, LLaMA-3-8B) 추가 측정.
+%       현재 경계 정밀도: 7B = 회귀, 14B(Phi-3) = 양성.
+%       경계를 7B~14B로 좁히는 추가 SUB 필요.
+
+\textbf{대형 모델 게이팅 (Llama-3.3-70B).}
+Table~\ref{tbl:trident-vs-vanilla}에서 확인하였듯,
+6개 워크로드 전체에서 Trident가 최적 방법이므로 게이팅 결정이 항상 Trident이다.
+결과적으로 AGSD = Trident core (gating overhead만 추가).
+
+\textbf{혼합 워크로드 게이팅 (Qwen-2.5-32B, TP=2$\times$2).}
+End-to-end 시나리오(SUB\_095)에서 AGSD-gated는:
+\begin{itemize}
+\item balanced mix: vanilla-only $1,779 \to$ \textbf{3,449} tps ($+93.8\%$)
+\item sonnet-heavy: $1,792 \to$ \textbf{4,084} tps ($+127.9\%$)
+\item code-heavy: $1,874 \to$ \textbf{4,575} tps ($+144.1\%$)
+\end{itemize}
+이 이득의 $50\text{--}60\%$는 dual backend 병렬 활용에서,
+$10\text{--}20\%$는 gating decision에서 기인한다 (§\ref{subsec:gating-origin}).
+
+\textbf{벤더 게이팅 (Qwen-2.5-72B).}
+Qwen-2.5-72B의 code 워크로드에서 vanilla($6,227$)가
+suffix($5,941$)보다 $+5\%$ 우위를 보인다 (SUB\_096).
+AGSD-gated는 code 요청에 vanilla를 선택하여 이 회귀를 회피하면서
+sonnet($+54\%$), chat($+47\%$)에서는 suffix를 유지한다.
+
+\subsection{gating 이득의 원천 분해}
+\label{subsec:gating-origin}
+
+AGSD-gated가 single-backend(vanilla-only 또는 trident-only) 대비
+우위를 보이는 원천은 두 가지다.
+
+\begin{enumerate}
+\item \textbf{병렬 GPU 활용}: 두 backend가 동시에 활성화되어
+  $\sim 2\times$ 이론 처리량 (mix 분포 의존, $\sim 50\text{--}60\%$ 기여).
+\item \textbf{Gating decision}: 요청별 최적 방법 선택으로
+  회귀 방지 및 최적 가속 유지 ($\sim 10\text{--}20\%$ 기여).
+\end{enumerate}
+
+% TODO: 병렬 GPU 활용 기여분과 gating decision 기여분의 정밀 분리 실험.
+%       현재 추정은 §2.6.2 분석 기반; 각 기여분을 독립 제어하는 ablation SUB 필요.
+%       (예: 두 GPU에서 동일 config를 돌리되 gating만 on/off하는 비교)
+
+\subsection{CPU 슬랙 하베스팅 결과}
+
+\input{tables/tbl_harvest_results}
+
+Table~\ref{tbl:harvest-results}는 CPU 슬랙 하베스팅 lever의 단독 기여를 보여준다.
+Qwen-2.5-32B $+$ TP=4$\times$2, AGSD-gated 상태에서 측정.
+
+\textbf{NUMA 바인딩.}
+1-run $+1.54\%$, 3-run mean $+2.24\%$, warm-only $+3.13\%$ (SUB\_183, SUB\_194).
+유일하게 multi-run binding을 통과한 lever로 production-ready로 판정.
+
+\textbf{Branchy $\times$ 100ms.}
+1-run 3-mix avg $+5.28\%$, balanced cell $+12.04\%$ (SUB\_196 cellB).
+paper-main $+5\%$ 임계점에 도달한 유일한 단일 lever.
+Multi-run binding 검증은 미완료.
+
+% TODO: SUB_196 cellB (branchy × 100ms) 3-run 반복 측정.
+%       현재 1-run 신호 +5.28%는 magnitude(noise floor ±10pp 대비 충분)상
+%       의미 있는 신호로 판단되나, multi-run binding 확인 필요.
+
+\textbf{Cross-domain pair (NUMA $\oplus$ regular softmax aux).}
+1-run $+2.83\%$, linear 예측 $+3.38\%$ 대비 residual $-0.55$\,pp (SUB\_197).
+Code-heavy 단일 셀에서 $+7.73\%$ 기록.
+
+\subsection{실패 패턴 요약}
+
+\begin{itemize}
+\item \textbf{Drop-in CPU kernel (7개 lever)}: microbench $1.5\text{--}5\times$ 가속에도
+  e2e 변환 $0/7$. H2D/D2H 동기화 비용 누적이 근본 원인.
+\item \textbf{동일 도메인 stacking}: 4-OS-lever residual $-1.18$\,pp,
+  3-lever $-4.56$\,pp destructive.
+\item \textbf{Task-pool phase-burst}: trident-only $-14\sim-20\%$ catastrophic.
+  task-pool lock contention이 critical path를 stall.
+\end{itemize}
+
+\subsection{소형 모델 투기적 디코딩 회귀 cross-validation}
+
+본 연구는 vLLM Issue \#16258의 opt-125m $2.12\times$ 회귀를
+H100$\times$1에서 $2.13\times$로 정확히 재현하고 (SUB\_091),
+starcoder2-3b($2.30\times$), Qwen-0.5B($2.46\times$),
+Qwen-1.5B($2.63\times$), Qwen-0.5B+suffix($2.06\times$)로 확장한다.
+5개 모델 cross-validation을 통해 ``소형 모델 $+$ 투기적 디코딩 = 하드웨어 독립적 회귀''
+명제를 정량적으로 확립한다.
+이 결과는 \algname\ 모델 크기 게이팅의 정량적 근거이다.

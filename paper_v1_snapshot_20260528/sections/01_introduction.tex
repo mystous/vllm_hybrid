@@ -1,0 +1,65 @@
+%% paper/sections/01_introduction.tex
+%% §1 Introduction — principled framing
+
+\section{서론}
+\label{sec:introduction}
+
+\subsection{문제 의식: GPU 박자에 정렬되지 않은 CPU 자원}
+
+vLLM~\cite{kwon2023vllm} 의 PagedAttention 과 Continuous Batching~\cite{yu2022orca} 의 보편화, 그리고 투기적 디코딩~\cite{leviathan2023spec, chen2023spec, stern2018blockwise, cai2024medusa, li2024eagle, li2025eagle3} 의 도입으로 GPU 자원의 활용률은 상당히 회복되었다.
+그러나 GPU 가속 노드에 함께 배치된 호스트 CPU 자원은 평균 4--5\,\% 수준에 머무는 비대칭이 일관되게 관찰된다~\cite{chung2026cpuslowdowns}.
+
+이 문제에 대한 두 가지 대조적 접근이 동시에 제안되고 있다.
+ArcLight~\cite{xu2026arclight} 는 NUMA 인지 CPU 자체를 추론 가속기로 변환하는 \emph{CPU-as-accelerator} 접근이고, Blink~\cite{siavashi2026blink} 는 호스트 CPU 를 critical path 에서 완전히 제거하는 \emph{CPU-free} 접근이다.
+본 논문은 그 \emph{중간 지점}---CPU 를 critical path 의 가속기로 만들지도, 완전히 제거하지도 않고, GPU step 주기에 정렬된 \emph{박자 정렬 보조 자원}으로 활용하는 접근---을 채택한다.
+
+\subsection{본 논문의 핵심 통찰: 박자와 화음}
+
+본 논문은 LLM 추론 서빙에서 CPU 자원의 활용을 두 가지 시간/공간 차원으로 분해한다.
+
+\emph{시간 차원 (박자)}: GPU 의 step 주기 $\tgpu \approx 35$--$44$\,ms 는 추론 시스템의 자연스러운 박자 (tempo) 이다.
+CPU 보조 작업의 주기 $\tcpu$ 가 이 박자의 정수배 ($\tcpu = k \cdot \tgpu$, $k \geq 2$) 로 정렬될 때 critical path 침범 없이 amortize window 가 최대화된다.
+직관과 반대로 고빈도의 정규 작업 ($\tcpu \ll \tgpu$) 은 critical path 를 침범하여 net-negative 가 된다 (\S\ref{sec:results}).
+
+\emph{공간 차원 (화음)}: CPU 자원 활용 기법들은 서로 다른 \emph{도메인} (시스템 격리, CPU 작업, 직접 커널, 스케줄링) 으로 분류된다.
+서로 다른 도메인의 두 기법 (교차 도메인 화음) 을 stacking 했을 때 그 결합 효과는 단순 합에 가깝게 \emph{near-linear superposition} 을 보이며, 동일 도메인 stacking 은 superlinear destructive interference 로 발산한다.
+
+본 논문은 이 두 통찰을 통합한 \emph{원리적 알고리즘}을 제시한다.
+
+\subsection{\algname 알고리즘과 두 정리}
+
+\algname 알고리즘은 음악적 metaphor 의 5단계 파이프라인이다.
+\textsc{Tempo} 가 $\tgpu$ 를 측정하고, \textsc{Chord} 가 교차 도메인 기법 쌍을 선택하며, \textsc{Meter} 가 $\tcpu$ 를 $\tgpu$ 의 정수배로 정렬하고, \textsc{Accent} 가 PCIe pressure 에 따라 작업 패턴을 결정하며, \textsc{Ritardando} 가 runtime drift 시 \textsc{Tempo} 로 복귀하여 재측정한다.
+
+본 논문은 \algname 의 설계를 두 정리로 형식화한다.
+\textbf{정리 1 (교차 도메인 중첩 — Cross-Domain Superposition)} 은 도메인 간섭 비용 $\varepsilon(A,B)$ 의 도메인-의존 분해를 정량화하고, \textbf{정리 2 (단계 경계 정렬 — Step-Boundary Alignment)} 는 정수배 주기 정렬의 amortize 이득을 유도한다.
+
+\subsection{경험적 정당화: 분류군 기반 대표 검증}
+
+\algname 의 두 설계 결정 (교차 도메인 + 박자 정렬) 은 추가 가정 없이 검증 가능해야 한다.
+이를 위해 본 논문은 CPU 자원 활용 기법의 \emph{설계 공간 (design space) 을 5분류군으로 체계화} 하고, 각 분류군에서 \emph{대표 기법}을 선정하여 paired control/treatment 측정 protocol 로 검증한다.
+이 분류군 기반 접근의 두 가지 학술적 가치는 다음과 같다.
+
+첫째, 분류군 자체가 본 연구의 contribution 이다.
+직접 커널 대체 (분류군 A), 시스템 격리 (B), sub-step 스케줄링 (C), 보조 워크로드 (D), 동시 보조 작업 (E) 의 분류는 향후 LLM 자원 활용 연구에 재사용 가능한 taxonomy 이다.
+
+둘째, 각 분류군의 \emph{실패 메커니즘 분석}은 단순 음성 결과 보고가 아닌 \emph{원리적 진단}이다.
+예를 들어 분류군 A 의 실패는 H2D/D2H 동기화 비용 누적으로, 분류군 C 의 실패는 task-pool 의 lock contention 으로 메커니즘 차원에서 설명되며, 이는 향후 같은 분류군의 시도를 위한 정량적 design constraint 가 된다.
+
+\subsection{본 논문의 기여}
+
+본 논문의 핵심 기여는 다음 세 가지이다.
+
+\textbf{기여 1 (Algorithm).} \algname 알고리즘.
+박자 측정, 교차 도메인 화음, 주기 정렬, 작업 강세, drift 적응의 5단계 음악적 파이프라인 (Algorithm~\ref{alg:metronome-init}--\ref{alg:metronome-serve}, Fig.~\ref{fig:metronome-pipeline}).
+단일 구성으로 처리량 임계점 +5\,\% 도달.
+
+\textbf{기여 2 (Theorem).} 교차 도메인 중첩 정리 (Theorem~\ref{thm:superposition}) 와 단계 경계 정렬 정리 (Theorem~\ref{thm:alignment}).
+LLM 추론 서빙에서 CPU 보조 기법의 stacking 효과와 시간 정렬 효과를 처음으로 정량적으로 형식화.
+
+\textbf{기여 3 (Mechanism).} 5 분류군 taxonomy 와 분류군별 실패/성공 메커니즘의 원리적 진단.
+특히 분기 패턴 + 저빈도 cycle 의 우월성을 PCIe-contention-aware alignment 원칙으로 설명.
+
+\subsection{논문 구성}
+
+\S\ref{sec:related} 관련 연구, \S\ref{sec:background} 배경 (투기적 디코딩, 적응형 라우팅, NUMA), \S\ref{sec:problem} 문제 정의 (Amdahl 류 분석), \S\ref{sec:metronome} \algname 알고리즘과 정리 1, 2 의 형식화, \S\ref{sec:methodology} 분류군 기반 대표 검증 방법, \S\ref{sec:results} 측정 결과, \S\ref{sec:mechanism} 분류군별 메커니즘 분석, \S\ref{sec:discussion} 논의와 실용적 함의, \S\ref{sec:conclusion} 결론.

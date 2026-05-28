@@ -1,0 +1,83 @@
+%% sections/09_mechanism_analysis.tex
+
+\section{메커니즘 분석}
+\label{sec:mechanism}
+
+\subsection{Code Workload R/K 메커니즘}
+
+\textbf{왜 n-gram은 code에서 실패하는가.}
+n-gram 드래프터는 입력 프롬프트 내 n-gram 패턴 일치에 의존한다.
+자연어(sonnet: $\alpha=9.5\%$, chat: $\alpha=71.2\%$)와 달리
+코드는 함수명, 변수 식별자, API 호출 등 고유한 토큰이 지배적이다.
+이러한 비반복적 분포에서 n-gram hit rate가 $\alpha=1.2\%$로 급락하고
+$K=1.09 \approx 1$이 되어 $K < R$ 조건을 만족하지 못한다.
+
+\textbf{왜 suffix는 code에서 작동하는가.}
+SuffixDecoding은 입력 프롬프트뿐 아니라
+\emph{이전 생성 출력}을 suffix tree에 누적한다.
+코드 생성 세션에서 함수 정의, 반복 패턴, 라이브러리 호출이
+suffix tree에 축적되면서 $\alpha$가 $1.2\% \to 40.1\%$로 향상된다.
+adaptive draft length($K_{\max}=32$)가 hit가 없는 경우 draft를 1개로 줄여
+$R$ 오버헤드도 최소화한다.
+
+\textbf{왜 Qwen-72B code에서 suffix가 회귀하는가.}
+% TODO: Qwen-72B code 회귀의 정확한 메커니즘 분석.
+%       가설: (1) Qwen tokenizer의 code 토큰 어휘 분포가 Llama와 다름,
+%       (2) Qwen attention pattern이 suffix tree hit pattern과 불일치.
+%       tokenizer vocab 분포 분석 및 accept rate 분포 세분화 측정 필요.
+현재 측정(SUB\_096)에서 Qwen-2.5-72B code는 suffix $-5\%$를 기록한다.
+동일 크기(Llama-3.3-70B)에서 $+18.8\%$와의 차이는
+모델 아키텍처가 suffix acceptance에 미치는 영향을 시사한다.
+이 메커니즘의 정확한 분석은 후속 연구로 남긴다.
+
+\subsection{CPU 슬랙 하베스팅 메커니즘}
+
+\textbf{스텝 경계 정렬.}
+GPU 추론 스텝 주기 $T_{\text{gpu}} \approx 35\text{--}44$\,ms에서
+$T_{\text{aux}} = 100$\,ms는 $k = T_{\text{aux}} / T_{\text{gpu}} \approx 2.5$에 해당한다.
+즉 보조 작업이 $2$--$3$ 스텝 경계마다 한 번 발사되어
+스텝 내부 critical path와 겹치지 않는다.
+이와 달리 $T_{\text{aux}} = 10$\,ms ($k=0.25$)는 스텝 내부에 개입하여
+$-0.82\%$의 net-negative를 초래하고,
+$T_{\text{aux}} = 20$\,ms는 multi-run에서 $-5.96\%$로 부호가 반전된다 (SUB\_194).
+
+\textbf{Branchy 패턴의 prefetcher 억제.}
+H100 $\times$ 8 환경에서 NCCL all-reduce, KV cache prefetch,
+activation transfer가 PCIe 버스를 거의 포화시킨다.
+이 환경에서 regular SIMD 작업(softmax, vectorized loop)은
+CPU hardware prefetcher를 적극 활성화하여 speculative fetch 트래픽을 발생시키고
+GPU PCIe 트래픽과 경쟁한다.
+Branchy 패턴(rank/sort 등 분기 예측 불가 코드)은 prefetcher를 억제하여
+PCIe 버스를 GPU 전용으로 유지한다.
+
+이 두 메커니즘의 결합이 ``직관과 반대인'' 발견,
+즉 \emph{느리고 불규칙한} 100ms branchy 작업이
+\emph{빠르고 규칙적인} 10ms regular 작업보다 우월한 이유이다.
+
+\textbf{NUMA 바인딩 효과.}
+vLLM의 텐서 병렬 인스턴스는 NCCL all-reduce 트래픽이 빈번하다.
+인스턴스의 CPU/메모리 affinity를 GPU PCIe affinity와 일치시키면
+cross-socket QPI 트래픽이 제거된다.
+이는 측정마다 일관된 latency 회복을 보장하여
+multi-run binding을 유일하게 통과하는 robust 양성 신호($+3.13\%$ warm-only)가 된다.
+
+반면 OS isolation lever(cgroup, hugepages, taskset) 단독은
+$-0.39\%$에 그치고, 4개를 stacking하면 $-0.03\%$로 destructive interference가 발생한다.
+이는 동일 도메인(system) 내 자원(context-switch slot, TLB, cache)의
+경쟁 누적이 원인이다.
+
+\subsection{Gating decision 원천 분해}
+
+End-to-end AGSD-gated 이득의 두 원천을 분리한다.
+
+\begin{itemize}
+\item \textbf{병렬 GPU 활용 ($\sim 50\text{--}60\%$ 기여)}: 두 backend가 동시 활성화되어
+  단일 인스턴스 대비 $\sim 2\times$ GPU 자원이 서빙에 투입된다.
+  이는 gating 자체와 무관하게 dual-backend 구조에서 발생하는 기저 이득이다.
+
+\item \textbf{Gating decision ($\sim 10\text{--}20\%$ 기여)}: per-request 방법 선택이
+  chat $\to$ vanilla(회귀 방지), sonnet/code $\to$ Trident(가속 유지)를 선택하여
+  trident-only 대비 추가 이득을 확보한다.
+  Qwen-7B에서 gating value가 최대($+25.3\%$ vs trident, SUB\_094/095)인 이유는
+  chat 워크로드에서 vanilla 선택 효과가 특히 크기 때문이다.
+\end{itemize}

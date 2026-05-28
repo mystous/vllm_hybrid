@@ -1,0 +1,79 @@
+%% sections/07_methodology.tex
+
+\section{실험 방법}
+\label{sec:methodology}
+
+\subsection{하드웨어 및 소프트웨어 환경}
+
+\begin{table}[t]
+\centering
+\caption{실험 환경.}
+\label{tbl:setup}
+\footnotesize
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{항목} & \textbf{사양} \\
+\midrule
+GPU & NVIDIA H100 SXM5 $\times$ 8 (80\,GB HBM3) \\
+CPU & Intel Xeon SPR-class, 듀얼 NUMA \\
+    & 노드당 56 물리 코어, NUMA distance 2.1$\times$ \\
+메모리 & 듀얼 NUMA, 노드당 $\sim$1\,TB DRAM \\
+\midrule
+vLLM & v1.6.dev0+g858b6df7a (본 연구 포크, +14줄) \\
+SuffixDecoding & arctic-inference (lazy import) \\
+분류기 & FastAPI $+$ ProcessPool 16 worker \\
+\midrule
+모델 & Llama-3.3-70B, Qwen-2.5-32B, \\
+     & Phi-3-medium-14B, Qwen-2.5-72B \\
+     & (소형: Qwen-0.5B/1.5B/7B) \\
+측정 도구 & vLLM benchmark\_serving, \\
+          & nvidia-smi, /proc/stat \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{측정 시나리오}
+
+본 연구는 두 가지 측정 시나리오를 사용한다.
+
+\textbf{시나리오 1 — Single-instance per-cell.}
+단일 vLLM 인스턴스에서 하나의 설정(config)으로
+하나의 워크로드(cell)를 측정한다.
+R/K 특성 분석, 방법별 비교, 모델 크기 스윕에 사용한다.
+Llama-3.3-70B: 500 prompts $\times$ 8,192 max tokens (SUB\_093).
+Qwen-2.5-32B: 500 prompts $\times$ 32 max tokens (lever 측정용).
+
+\textbf{시나리오 2 — End-to-end dual-backend.}
+vanilla backend(GPU 0--3)와 Trident backend(GPU 4--7)를
+동시에 기동하고, \algname\ 분류기가 200 prompts를 concurrency 32로 분배한다.
+AGSD-gated 대비 vanilla-only, trident-only를 비교한다 (SUB\_094, SUB\_095).
+
+\subsection{워크로드 정의}
+
+\begin{itemize}
+\item \textbf{sonnet}: 시 생성 스타일의 창의적 텍스트 생성.
+  $\alpha_{\text{suffix}} = 77.0\%$, $K = 5.11$ (높은 반복성).
+\item \textbf{chat}: 대화형 질의응답. $\alpha_{\text{suffix}} = 92.7\%$, $K = 10.06$.
+\item \textbf{code}: 코드 생성 및 완성. $\alpha_{\text{suffix}} = 40.1\%$, $K = 4.08$.
+\item \textbf{3-mix}: sonnet/chat/code를 balanced(34:33:33),
+  sonnet-heavy(60:20:20), code-heavy(10:20:70) 비율로 혼합.
+\end{itemize}
+
+\subsection{기준선 및 공정 비교}
+
+모든 측정에서 공정 비교(fair comparison)를 위해
+vanilla와 Trident가 동일한 \texttt{gpu\_memory\_utilization=0.80} 및
+동일한 벤치마크 래퍼(\texttt{run\_workload\_gen.py})를 사용한다.
+이전 측정의 래퍼 편향($+64.7\%$ wrapper noise, SUB\_047 대비 SUB\_086 분석)을
+제거한 fair baseline을 적용한다.
+
+\subsection{CPU 슬랙 하베스팅 측정 방법}
+
+lever 단독 기여 $\Delta(L)$는 AGSD-gated ON/OFF 쌍 측정으로 분리한다.
+핵심 lever(NUMA pin, softmax aux)에 대해 3-run 반복으로
+multi-run mean 및 warm-only(run 2, 3 평균)를 보고한다 (SUB\_194).
+신뢰도 기준: $|\Delta| < 3\%$인 1-run 신호는 multi-run binding 없이 채택하지 않는다.
+
+% TODO: CERES 완전 통합 설정(NUMA pin + branchy 100ms + AGSD-gated)의
+%       end-to-end 3-run 측정 SUB 필요.
+%       현재는 각 lever를 독립 측정 후 Property 1로 결합 추정.

@@ -1,0 +1,23 @@
+%% tables/tbl_multirun.tex
+%% Table IV — Multi-run variance, 단일 컬럼 + resizebox
+
+\begin{table}[t]
+\centering
+\caption{핵심 후보의 multi-run 분산 분석. magnitude $<3\,\%$ 단일 측정은 신호 vs.\ noise 가 모호하며, multi-run 평균에서 부호 반전 가능.}
+\label{tbl:multirun}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Technique}    & \textbf{1-run} & \textbf{3-run} & \textbf{Steady} \\
+\midrule
+NUMA pin              & $+1.54\%$ & $\mathbf{+2.24\%}$ & $\mathbf{+3.13\%}$ \\
+regular aux 100\,ms   & $+1.84\%$ & $+0.53\%$          & $+0.81\%$ \\
+async tokenizer 20\,ms& $+1.66\%$ & $\mathbf{-5.96\%}$ & $\mathbf{-6.40\%}$ \\
+\bottomrule
+\end{tabular}%
+}
+\smallskip
+\par\noindent\scriptsize Steady = run 2 + 3 평균 (initialization-phase outlier 제외). NUMA pin 만 hardware-level 비대칭 기반 robust positive.
+\end{table}

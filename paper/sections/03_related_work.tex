@@ -1,0 +1,58 @@
+%% sections/03_related_work.tex
+
+\section{관련 연구}
+\label{sec:related}
+
+\subsection{투기적 디코딩}
+
+투기적 디코딩은 Stern~\emph{et al.}~\cite{stern2018blockwise}의
+Blockwise Parallel Decoding에서 처음 제시된 후
+Leviathan~\emph{et al.}~\cite{leviathan2023spec}과
+Chen~\emph{et al.}~\cite{chen2023spec}에 의해 형식화되었다.
+이후 Medusa~\cite{cai2024medusa}(추가 디코딩 헤드),
+EAGLE 계열~\cite{li2024eagle,li2025eagle3}(feature-level 드래프팅),
+EAGLE-Pangu~\cite{han2026eaglepangu}(이종 가속기 이식)로 발전했다.
+
+드래프터 없이 휴리스틱 검색을 사용하는 방법으로는
+Prompt Lookup Decoding~\cite{saxena2024prompt}(프롬프트 내 n-gram),
+SuffixDecoding~\cite{snowflake-arctic}(suffix tree 기반, NeurIPS 2025 Spotlight)이 있다.
+본 연구는 SuffixDecoding을 Trident core의 드래프터로 채택한다.
+
+\subsection{워크로드 인지 라우팅}
+
+투기적 디코딩의 워크로드 의존성 문제를 인식한 연구들이 등장하고 있다.
+Liu~\emph{et al.}~\cite{liu2026dualpool}의 Dual-Pool Token-Budget Routing은
+context 길이에 따라 short/long 풀을 분리하여 KV 캐시 효율을 개선한다.
+llm-d~\cite{llmd2025}는 Kubernetes 기반 LLM disaggregation으로
+prefill/decode 노드 분리와 워크로드 라우팅을 지원하지만
+복잡한 인프라 요구사항을 수반한다.
+arXiv 2505.08600~\cite{specrouting2025}과
+Nightjar~\cite{nightjar2025}는 워크로드 인지 투기적 방법 선택을 탐구한다.
+
+\algname 은 이들과 달리 단일 서버 수준에서
+경량 분류기($1.22$\,ms/요청)만으로 워크로드 레벨 게이팅을 구현하며,
+vLLM 코어 변경 $14$줄로 기존 스택에 통합된다.
+
+\subsection{이종 CPU-GPU 서빙}
+
+호스트 CPU를 LLM 서빙에 활용하는 연구는 두 방향으로 나뉜다.
+CPU-as-accelerator 접근~\cite{xu2026arclight}은 many-core CPU를
+추론 가속기로 직접 활용하지만 대규모 시스템 변경이 필요하다.
+CPU-free 접근~\cite{siavashi2026blink}은 SmartNIC 기반으로
+CPU를 critical path에서 제거한다.
+Chung~\emph{et al.}~\cite{chung2026cpuslowdowns}은
+멀티-GPU 추론에서 성능 저하의 주요 원인이 CPU 병목임을 정량화했다.
+
+\algname 의 CPU 슬랙 하베스팅은 이 스펙트럼의 중간 지점으로,
+기존 서빙 스택을 그대로 유지하면서 이중 백엔드 구조에서
+자연 발생하는 CPU 유휴를 수확한다.
+
+\subsection{소형 모델 투기적 디코딩 회귀}
+
+vLLM Issue \#16258~\cite{vllmissue16258}은 소형 모델($\leq$7B)에서
+투기적 디코딩이 회귀를 일으킨다고 보고했다.
+본 연구는 opt-125m에서 H100$\times$1 환경의 $2.13\times$ 회귀가
+L4$\times$2 환경의 $2.12\times$와 정확히 일치함을 확인하고(SUB\_091),
+Qwen 0.5B/1.5B/7B + starcoder2-3b의 5개 모델로 cross-validation하여
+이 회귀가 하드웨어 독립적 현상임을 정량적으로 입증한다.
+이 분석은 \algname 의 모델 크기 게이팅($\leq$7B $\to$ vanilla)의 근거가 된다.

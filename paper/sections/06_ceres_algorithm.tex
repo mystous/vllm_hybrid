@@ -1,0 +1,166 @@
+%% sections/06_ceres_algorithm.tex
+
+\section{\algname\ 알고리즘}
+\label{sec:ceres}
+
+\algname\ (로마 수확의 여신 Ceres에서 명명)은 두 구성요소로 이루어진다:
+\textsc{Gate}(워크로드 레벨 게이팅)와 \textsc{Harvest}(CPU 슬랙 하베스팅).
+게이팅이 이중 백엔드 구조를 만들고, 그 구조가 CPU 슬랙을 낳으며,
+하베스팅이 그 슬랙을 수확한다 (Eq.~\ref{eq:causal-chain}).
+
+\input{figures/fig1_ceres_architecture}
+
+%% -------------------------------------------------------------------------
+\subsection{\textsc{Gate}: 워크로드 레벨 게이팅}
+\label{subsec:gate}
+
+\textsc{Gate}는 세 가지 축의 정보를 조합하여 요청별로 최적 방법을 선택한다.
+
+\begin{algorithm}[t]
+\caption{\algname\ -- \textsc{Gate}: 요청별 방법 선택}
+\label{alg:gate}
+\begin{algorithmic}[1]
+\Function{Gate}{$r$, $\theta$}
+  \LineComment{축 1: 모델 크기 게이팅}
+  \If{$\theta.\mathit{params} \leq 7\mathrm{B}$}
+    \State \Return \textsc{Vanilla}
+    \Comment{$R \gg K$ 구조적 회귀 (5-model cross-validated)}
+  \EndIf
+  \LineComment{축 2: 워크로드 분류}
+  \State $w \gets \Call{Classify}{r}$
+    \Comment{regex 분류기, $1.22$\,ms/req, acc $100\%$}
+  \LineComment{축 3: 벤더-워크로드 게이팅}
+  \If{$w = \texttt{code}$ \textbf{and} $\theta.\mathit{vendor} = \texttt{Qwen72B}$}
+    \State \Return \textsc{Vanilla}
+    \Comment{suffix code: $-5\%$ 회귀 (SUB\_096)}
+  \EndIf
+  \LineComment{기본: suffix (Trident core)}
+  \State \Return \textsc{Trident}
+    \Comment{SuffixDecoding $+$ cudagraph PIECEWISE}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{축 1 — 모델 크기 게이팅.}
+$\leq$7B 모델에서 투기적 디코딩은 하드웨어 독립적으로 회귀한다.
+opt-125m에서 L4$\times$2($2.12\times$ 회귀)와 H100$\times$1($2.13\times$ 회귀)의
+정확한 일치(SUB\_091)를 포함해 5개 모델로 cross-validation한 결과,
+$R \gg K$ 조건이 모든 소형 모델에서 성립함을 확인한다.
+따라서 $\leq$7B 모델은 vanilla를 선택한다.
+
+\textbf{축 2 — 워크로드 분류.}
+입력 프롬프트를 정규식 기반 분류기로 sonnet/chat/code 세 유형으로 분류한다.
+분류기는 ProcessPool 기반 16 worker 병렬 처리로
+요청당 평균 $1.22$\,ms의 오버헤드를 가지며
+500-prompt $\times$ 3-mix 전수에서 $100\%$ 정확도를 달성한다.
+
+\textbf{축 3 — 벤더-워크로드 게이팅.}
+동일 모델 크기에서도 아키텍처에 따라 code 워크로드의 suffix 효과가 다르다.
+Qwen-2.5-72B의 code 워크로드에서 suffix가 $-5\%$ 회귀하므로
+해당 조합에 대해 vanilla를 선택한다.
+
+% TODO: 벤더-워크로드 게이팅 규칙의 자동화.
+%       현재 Qwen-72B code 회귀는 수동 측정(SUB_096) 기반.
+%       런타임 accept rate 모니터링으로 자동 재조정하는 adaptive gate 확장 필요.
+%       Llama-405B FP8 등 미측정 모델에 대한 규칙 일반화도 future work.
+
+\textbf{이중 백엔드 배포.}
+\textsc{Gate}는 두 vLLM 인스턴스를 병렬 운영한다:
+vanilla backend(GPU 0--3, NUMA node 0)와
+Trident backend(GPU 4--7, NUMA node 1).
+HTTP 포워더가 \textsc{Gate} 결정에 따라 요청을 분배한다.
+
+%% -------------------------------------------------------------------------
+\subsection{\textsc{Harvest}: CPU 슬랙 하베스팅}
+\label{subsec:harvest}
+
+이중 백엔드 구조가 생성하는 CPU 슬랙을 두 단계로 수확한다.
+
+\begin{algorithm}[t]
+\caption{\algname\ -- \textsc{Harvest}: CPU 슬랙 수확 (서버 시작 시 1회)}
+\label{alg:harvest}
+\begin{algorithmic}[1]
+\Function{Harvest}{$H$}
+  \LineComment{단계 1: NUMA 바인딩 (system domain)}
+  \State $n_0 \gets \Call{GetNUMANode}{\text{GPU}_{0\text{--}3}}$
+  \State $n_1 \gets \Call{GetNUMANode}{\text{GPU}_{4\text{--}7}}$
+  \State \Call{NUMABind}{\text{vanilla\_instance}, $n_0$}
+  \Comment{cross-socket QPI 제거}
+  \State \Call{NUMABind}{\text{trident\_instance}, $n_1$}
+  \LineComment{단계 2: branchy 보조 작업 (work domain)}
+  \State $T_{\text{gpu}} \gets \Call{ProbeStepLatency}{}$
+    \Comment{10 step 평균}
+  \State $T_{\text{aux}} \gets \max(2 \cdot T_{\text{gpu}},\; 100\,\text{ms})$
+    \Comment{스텝 경계 정렬}
+  \State \Call{SpawnAuxWorker}{
+    \textit{pattern}=\textsc{Branchy},
+    \textit{period}=$T_{\text{aux}}$,
+    \textit{cores}=$n_1.\text{remaining}$}
+    \Comment{독립 프로세스, work domain}
+  \LineComment{cross-domain 규칙: system $\oplus$ work ($\varepsilon \approx 0.55$\,pp)}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{단계 1 — NUMA 바인딩 (system domain).}
+\texttt{numactl --membind --cpunodebind}로 각 인스턴스를
+대응하는 GPU의 PCIe affinity NUMA 노드에 바인딩한다.
+이를 통해 cross-socket QPI 트래픽을 제거하고
+$2.1\times$ remote 메모리 접근 패널티를 해소한다.
+multi-run 측정에서 warm-only $+3.13\%$, 3-run mean $+2.24\%$의
+robust 양성 효과를 확인한다 (SUB\_183, SUB\_194).
+
+\textbf{단계 2 — Branchy 보조 작업 (work domain).}
+GPU 스텝 주기 $T_{\text{gpu}} \approx 35\text{--}44$\,ms의
+약 $2.5$배인 $T_{\text{aux}} = 100$\,ms 주기로
+독립 프로세스에서 branchy 패턴(rank/sort 등 분기 예측 불가 코드)의
+보조 작업을 발사한다.
+이 설계는 두 가지 메커니즘을 결합한다:
+
+\begin{itemize}
+\item \emph{스텝 경계 정렬}: $T_{\text{aux}} \approx 2.5 \cdot T_{\text{gpu}}$로
+  $2$--$3$ 스텝 경계마다 한 번 발사되어
+  critical path 침범 없이 GPU 스텝 간 idle window를 활용한다.
+
+\item \emph{Prefetcher 억제}: branchy 코드는 CPU 하드웨어 prefetcher를
+  비활성화하여 PCIe 버스에 추가 트래픽을 발생시키지 않는다.
+  이를 통해 GPU PCIe 트래픽과의 경쟁이 방지된다.
+\end{itemize}
+
+\textbf{Cross-domain 조합 규칙.}
+NUMA 바인딩(system domain)과 branchy 보조 작업(work domain)의
+도메인 간섭 비용은 $\varepsilon_{\text{cross}} \approx 0.55$\,pp로,
+동일 도메인 stacking($\varepsilon_{\text{same}} \approx 1.18$\,pp,
+3-lever $\approx 4.56$\,pp)보다 훨씬 작다 (SUB\_197, SUB\_186, SUB\_191).
+따라서 \algname 은 두 lever를 cross-domain pair로 조합하되
+3개 이상의 lever stacking을 금지한다.
+
+%% -------------------------------------------------------------------------
+\subsection{\algname\ 통합 흐름}
+\label{subsec:ceres-full}
+
+\begin{property}[\algname\ 처리량 모델]
+\label{prop:ceres-throughput}
+\algname 의 총 처리량은
+\[
+T_{\algname} = T_{\text{gate}} + \Delta_{\text{NUMA}} + \Delta_{\text{branchy}}
+\]
+이며, 여기서 $T_{\text{gate}}$는 워크로드 레벨 게이팅으로 달성되는 기본 처리량,
+$\Delta_{\text{NUMA}}$와 $\Delta_{\text{branchy}}$는
+각 CPU 하베스팅 lever의 처리량 기여분이다.
+두 lever의 결합 효과는 $\Delta_{\text{NUMA}} + \Delta_{\text{branchy}} - \varepsilon_{\text{cross}}$이며,
+$\varepsilon_{\text{cross}} \approx 0.55$\,pp의 간섭 비용만이 발생한다.
+\end{property}
+
+\textbf{Gating → Harvest 인과 연결.}
+이중 백엔드 구조에서 vanilla(NUMA node 0)와 Trident(NUMA node 1)는
+이미 NUMA 노드별로 분리된다.
+\textsc{Harvest}는 이 기존 분리를 명시적 바인딩으로 공식화하고
+(단계 1), node 1의 잔여 코어에 보조 작업자를 배치한다(단계 2).
+즉, \textsc{Gate}의 구조적 부산물인 NUMA 분리가 \textsc{Harvest}의
+자연스러운 진입점이 된다.
+
+% TODO: T_gate 값의 실험적 분리.
+%       현재 156-cell 측정에서 T_gate = T(AGSD-gated)로 보고되나,
+%       NUMA 바인딩 및 branchy 보조 작업이 추가된 3-lever 설정의
+%       통합 측정 SUB 필요.

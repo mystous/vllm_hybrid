@@ -1,0 +1,41 @@
+%% figures/fig1_metronome_pipeline.tex
+%% Fig.1 — METRONOME 5-stage pipeline (단일 컬럼 fit, 컴팩트)
+
+\begin{figure}[t]
+\centering
+\resizebox{0.92\columnwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=0.35cm,
+    stage/.style={rectangle, draw, rounded corners=2pt,
+                  minimum width=4.4cm, minimum height=0.62cm,
+                  align=center, font=\small, fill=blue!10},
+    serve/.style={rectangle, draw, rounded corners=2pt,
+                  minimum width=4.4cm, minimum height=0.62cm,
+                  align=center, font=\small, fill=green!12},
+    decision/.style={diamond, draw, aspect=2.4,
+                     minimum width=1.6cm, minimum height=0.3cm,
+                     align=center, font=\footnotesize, fill=yellow!15},
+    arrow/.style={-{Stealth[length=2mm]}, thick},
+]
+\node[stage]                  (s1) {\textsc{Tempo} : probe $\tgpu$};
+\node[stage, below=of s1]     (s2) {\textsc{Chord} : cross-domain pair};
+\node[stage, below=of s2]     (s3) {\textsc{Meter} : $\tcpu = k\tgpu,\ k\!\ge\!2$};
+\node[stage, below=of s3]     (s4) {\textsc{Accent} : pattern by $\rho_{\text{pcie}}$};
+\node[serve, below=of s4]     (s5) {\textsc{Ritardando} : adaptive serve};
+\node[decision, below=of s5]  (d)  {drift $> \delta_{\max}$?};
+
+\draw[arrow] (s1) -- (s2);
+\draw[arrow] (s2) -- (s3);
+\draw[arrow] (s3) -- (s4);
+\draw[arrow] (s4) -- (s5);
+\draw[arrow] (s5) -- (d);
+
+\draw[arrow] (d.east) .. controls +(1.0,0) and +(1.0,0) ..
+    node[right=2pt, font=\scriptsize, pos=0.5] {yes} (s1.east);
+\draw[arrow] (d.west) .. controls +(-0.6,0) and +(-0.6,0) ..
+    node[left=2pt, font=\scriptsize, pos=0.5] {no} (s5.west);
+\end{tikzpicture}%
+}
+\caption{\algname 5-stage pipeline. \textsc{Tempo--Accent} 는 초기화 (Algorithm~\ref{alg:metronome-init}), \textsc{Ritardando} 는 runtime drift 적응 (Algorithm~\ref{alg:metronome-serve}).}
+\label{fig:metronome-pipeline}
+\end{figure}

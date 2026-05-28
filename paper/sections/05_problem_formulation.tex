@@ -1,0 +1,83 @@
+%% sections/05_problem_formulation.tex
+
+\section{문제 정의}
+\label{sec:problem}
+
+\subsection{문제 A: 워크로드 다양성과 방법 선택}
+
+LLM 서빙 환경에서 동일 서버에 서로 다른 워크로드가 혼재한다.
+투기적 디코딩 방법 $m \in \mathcal{M}$ (예: suffix, ngram, vanilla)의
+처리량 기여는 워크로드 $w$, 모델 $\theta$, 드래프터 구성 $c$의 함수다.
+
+\begin{definition}[방법-워크로드 이득]
+\label{def:method-gain}
+방법 $m$의 워크로드 $w$에서의 처리량 이득은
+\[
+\Delta(m, w, \theta) = \frac{T(m, w, \theta) - T(\text{vanilla}, w, \theta)}
+                            {T(\text{vanilla}, w, \theta)}
+\]
+이며, $\Delta < 0$이면 방법 $m$이 $w$에서 net-negative임을 나타낸다.
+\end{definition}
+
+\S\ref{sec:motivation}의 측정 결과로부터 다음이 성립한다.
+
+\begin{property}[방법-워크로드 비교우위]
+\label{prop:no-dominant}
+임의의 단일 방법 $m^*$이 모든 $(w, \theta)$ 조합에 대해
+$\Delta(m^*, w, \theta) \geq \Delta(m, w, \theta)$를 만족하는 $m^*$는 존재하지 않는다.
+\end{property}
+
+Property~\ref{prop:no-dominant}의 근거:
+suffix는 code(Llama-70B +18.8\%)에서 ngram보다 우월하지만
+Qwen-72B code에서 vanilla($-5\%$)보다 열등하고,
+ngram은 chat(+43.1\%)에서 유용하지만 code($-20.2\%$)에서 catastrophic이다.
+
+따라서 \textbf{문제 A}는 다음과 같이 정의된다.
+
+\smallskip
+\noindent\textbf{문제 A (최적 방법 선택).}
+주어진 요청 $r$과 모델 $\theta$에 대해
+$\Delta(m^*(r), w(r), \theta) \geq 0$을 만족하는 방법 $m^*(r)$을
+요청별로 선택하는 경량 게이팅 함수 $g: (r, \theta) \to \mathcal{M}$을 설계한다.
+
+\subsection{문제 B: 게이팅이 낳는 CPU 슬랙}
+
+문제 A를 해결하기 위해 두 vLLM 인스턴스를 병렬 운영하는 이중 백엔드를 채택하면,
+구조적으로 CPU 유휴(CPU slack)가 발생한다.
+
+\begin{definition}[CPU 슬랙]
+\label{def:cpu-slack}
+이중 백엔드 운영에서 GPU 추론 스텝 동안 어느 인스턴스에도 할당되지 않는
+CPU 코어 집합을 \emph{CPU 슬랙}이라 한다.
+CPU 이용률이 $u_{\text{cpu}} \ll 1$인 경우 슬랙의 절대량은
+$\text{slack} = (1 - u_{\text{cpu}}) \times N_{\text{cores}}$이다.
+\end{definition}
+
+측정 결과 $u_{\text{cpu}} \approx 5.3\%$(Trident)이므로
+112개 물리 코어 중 약 106개가 유휴 상태다.
+NUMA 비인지 배치에서는 이 유휴 코어가 remote socket 메모리에 접근하여
+$2.1\times$ 지연 패널티를 발생시킨다.
+
+\textbf{문제 B}는 다음과 같이 정의된다.
+
+\smallskip
+\noindent\textbf{문제 B (CPU 슬랙 수확).}
+이중 백엔드에서 발생하는 CPU 슬랙을 활용하여
+GPU 처리량에 영향을 주지 않으면서 시스템 전체 처리량을 향상시킨다.
+
+\subsection{두 문제의 인과 관계}
+
+두 문제는 독립적이지 않다.
+문제 A의 해결책(이중 백엔드)이 문제 B를 \emph{필연적으로} 생성하며,
+문제 B의 해결이 문제 A의 투자 수익률(ROI)을 높인다.
+
+\begin{equation}
+\underbrace{\text{문제 A}}_{\text{방법 선택}}
+\xrightarrow{\text{해결} \Rightarrow \text{이중 백엔드}}
+\underbrace{\text{문제 B}}_{\text{CPU 슬랙}}
+\xrightarrow{\text{해결}}
+\underbrace{T_{\text{total}} = T_{\text{gating}} + \Delta_{\text{harvest}}}_{\text{CERES}}
+\label{eq:causal-chain}
+\end{equation}
+
+\algname 은 이 인과 사슬을 하나의 통합 알고리즘으로 구현한다.
