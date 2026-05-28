@@ -24,25 +24,28 @@
     xticklabel style={font=\scriptsize},
     xmin=-12, xmax=8,
     xtick={-10,-5,0,5},
-    nodes near coords,
-    nodes near coords align=horizontal,
-    nodes near coords style={font=\tiny},
     grid=major,
     grid style={line width=0.1pt, draw=gray!25},
     extra x ticks={0},
     extra x tick style={grid=major, grid style={black, thick}},
 ]
+%% 음수 막대: 라벨을 막대 왼쪽(east anchor) 밖에 표시
 \addplot[
     fill=red!25, draw=red!60!black,
     point meta=explicit symbolic,
+    nodes near coords,
+    nodes near coords style={font=\tiny, anchor=east},
 ] coordinates {
     (-10,{Jacobi (drop-in)})   [{$-94\%$}]
     (-1.75,{task-pool burst})  [{$-1.75\%$}]
     (-0.03,{4-OS stack})       [{$-0.03\%$}]
 };
+%% 양수 막대: 라벨을 막대 오른쪽(west anchor) 밖에 표시
 \addplot[
     fill=blue!25, draw=blue!60!black,
     point meta=explicit symbolic,
+    nodes near coords,
+    nodes near coords style={font=\tiny, anchor=west},
 ] coordinates {
     (1.84,{softmax 100ms})     [{$+1.84\%$}]
     (2.83,{NUMA + softmax})    [{$+2.83\%$}]
