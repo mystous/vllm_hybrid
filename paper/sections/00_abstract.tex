@@ -16,7 +16,10 @@ with \textbf{E}xploited \textbf{S}lack)을 제안한다.
 첫째, 워크로드 유형·모델 크기·벤더 아키텍처를 기준으로
 요청별(per-request) 투기적 디코딩 방법을 자동 선택하는 \emph{워크로드 레벨 게이팅}이다.
 둘째, 게이팅이 필연적으로 생성하는 이중 백엔드(dual-backend) 구조에서
-CPU 유휴 사이클을 수확하는 \emph{CPU 슬랙 하베스팅}이다.
+유휴 CPU를 NUMA 바인딩과 작업 패턴 조정으로 활용하여
+CPU-GPU 자원 간섭을 줄이고 GPU feeding 효율을 높이는 \emph{CPU 슬랙 하베스팅}이다.
+이는 CPU에서 별도 추론을 수행하는 것이 아니라,
+이중 백엔드의 부산물인 유휴 CPU를 간접적으로 활용하는 것이다.
 
 H100 $\times$ 8 환경에서 Llama-3.3-70B 모델로 측정한 결과,
 \algname 은 baseline 대비 sonnet 워크로드에서 $+52.1\%$,
