@@ -18,6 +18,25 @@ Prompt Lookup Decoding~\cite{saxena2024prompt}(프롬프트 내 n-gram),
 SuffixDecoding~\cite{snowflake-arctic}(suffix tree 기반, NeurIPS 2025 Spotlight)이 있다.
 본 연구는 SuffixDecoding을 spec-decode engine의 드래프터로 채택한다.
 
+\textbf{프로덕션 채택과 워크로드 의존성.}
+투기적 디코딩은 2025년을 거치며 연구 기법에서 \emph{프로덕션 표준}으로 자리잡았고,
+vLLM과 SGLang은 이를 단일 설정 플래그로 노출하며 EAGLE-3는
+사실상 산업 표준 드래프터가 되었다~\cite{li2025eagle3}.
+EAGLE-3는 학술 벤치마크에서 온도 0 기준 $4.1$--$6.5\times$,
+Llama-3.3-70B에서 $4.79\times$의 가속을 보고한다~\cite{li2025eagle3}.
+
+그러나 \emph{프로덕션 보고들은 이 가속이 워크로드와 동시성에 크게 의존함을 일관되게 드러낸다}.
+Red Hat의 vLLM 기반 EAGLE-3 배포 분석~\cite{redhat2025eagle3vllm}은
+RAG·수학·대화 워크로드에서 강한 가속(Llama-3.3-70B에서 RAG/math $2.1\times$)을 보이는 반면
+번역 같은 워크로드에서는 성능이 저하되고,
+고배치 compute-bound 영역에서는 오히려 회귀할 수 있음을 보고한다.
+Amazon과 NVIDIA의 P-EAGLE~\cite{peagle2026vllm}도
+B200에서 동시성이 $1$에서 $64$로 증가함에 따라 가속이
+$1.55\times$에서 $1.05\times$로 감소함을 보인다.
+이러한 워크로드·부하 의존성은 ``언제 투기적 디코딩을 켤 것인가''라는
+운영 문제를 제기하며, 본 연구의 워크로드 레벨 게이팅(\S\ref{sec:ceres})의
+직접적 동기가 된다.
+
 \subsection{워크로드 인지 라우팅}
 
 투기적 디코딩의 워크로드 의존성 문제를 인식한 연구들이 등장하고 있다.
