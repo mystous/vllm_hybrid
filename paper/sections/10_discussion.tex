@@ -20,7 +20,7 @@ llm-d~\cite{llmd2025}는 Kubernetes 기반 LLM disaggregation으로
 \midrule
 배포 범위 & 클러스터(다중 노드) & 단일 서버 \\
 인프라 요구 & Kubernetes, etcd, & vLLM $+$ FastAPI \\
-            & 노드 간 KV 전송 & (+14줄 패치) \\
+            & 노드 간 KV 전송 & (코어 외부 라우팅) \\
 라우팅 기준 & prefill/decode 분리 & 워크로드$\times$모델 \\
 투기적 디코딩 & 별도 설계 필요 & spec-decode engine 내장 \\
 CPU 활용 & 미다룸 & NUMA pin $+$ branchy \\

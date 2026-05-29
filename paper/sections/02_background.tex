@@ -176,6 +176,5 @@ cross-socket QPI 트래픽이 제거된다.
 vLLM~\cite{kwon2023vllm}은 PagedAttention 기반 KV 캐시 가상화와
 continuous batching~\cite{yu2022orca}으로 GPU 메모리 효율과 처리량을 최적화한다.
 본 연구는 vLLM v1.6.dev0+g858b6df7a 포크를 기반으로 하며,
-vLLM 코어 변경은 하위 호환성을 완전히 유지하는 14줄에 불과하다:
-\texttt{vllm/utils/\_\_init\_\_.py} ($+5$ 줄, \texttt{FlexibleArgumentParser} re-export)와
-\texttt{vllm/engine/arg\_utils.py} ($+9$ 줄, \texttt{\_is\_v1\_supported\_oracle} stub).
+워크로드 레벨 게이팅과 CPU 슬랙 하베스팅은 vLLM 코어 외부의
+라우팅 계층과 기동 설정에서 구현되어 기존 추론 경로를 변경하지 않는다.
