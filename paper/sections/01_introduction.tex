@@ -51,7 +51,8 @@ $K > R$이면 가속, $K < R$이면 회귀가 발생한다.
   워크로드 $\times$ 모델 크기 $\times$ 벤더의 3축 분류로
   요청별 최적 투기적 디코딩 방법을 자동 선택한다
   (\S\ref{sec:ceres}).
-  156개 셀 전수 측정에서 단일 설정 대비 일관된 우위를 확인한다
+  7개 모델(0.5B--72B) $\times$ 다중 워크로드 측정에서
+  단일 설정 대비 일관된 우위를 확인한다
   (\S\ref{sec:results}).
 
 \item \textbf{Code workload에 대한 체계적 분석.}
@@ -61,10 +62,12 @@ $K > R$이면 가속, $K < R$이면 회귀가 발생한다.
   (\S\ref{sec:motivation}, \S\ref{sec:mechanism}).
 
 \item \textbf{CPU 슬랙 하베스팅.}
-  게이팅 구조에서 필연적으로 발생하는 CPU 유휴를 수확하기 위해
+  게이팅 구조에서 필연적으로 발생하는 CPU 유휴를 활용하기 위해
   NUMA 바인딩과 스텝 경계 정렬 보조 작업을 통합한다.
-  cross-domain 조합 규칙($\varepsilon_{\mathrm{cross}} \approx 0.55$\,pp)을 통해
-  추가로 최대 $+5.28\%$의 처리량을 회수한다 (\S\ref{sec:ceres}).
+  NUMA 바인딩은 cross-socket QPI 트래픽 제거로 multi-run 검증된
+  $+3.13\%$(warm-only) 이득을 주며,
+  보조 작업 lever는 cross-domain 조합 규칙($\varepsilon_{\mathrm{cross}} \approx 0.55$\,pp)
+  하에서 최대 $+5.28\%$의 예비 결과를 보인다(\S\ref{sec:ceres}).
 \end{enumerate}
 
 \subsection{논문 구성}

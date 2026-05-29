@@ -164,20 +164,34 @@ task-pool lock contention이 step 내부 critical path를 stall시킨다.
 \subsection{Gating 이득의 원천 분해}
 \label{subsec:gating-origin}
 
-\algname-gated가 단일 backend 대비 우위를 보이는 두 원천을 정량화한다.
+\algname-gated가 단일 backend 대비 우위를 보이는 원천은 두 가지로 분리된다.
+이 분리는 본 논문의 공정성 측면에서 중요하므로 명시적으로 다룬다.
 
 \begin{enumerate}
 \item \textbf{병렬 GPU 활용 ($\sim 50$--$60\%$ 기여)}:
-  두 backend가 동시에 활성화되어 이론상 $2\times$ GPU 자원이 서빙에 투입된다.
+  본 end-to-end 측정에서 baseline-only는 \emph{단일} backend(GPU 4장)로,
+  \algname-gated는 \emph{두} backend(GPU 8장)로 운영된다.
+  따라서 처리량 이득의 절반 이상은 게이팅이 아니라
+  단순히 GPU 자원을 $2\times$ 투입한 데서 비롯된다.
   Qwen-32B balanced에서 baseline-only $1{,}779$ tps $\to$ spec-only $2{,}721$ tps의
-  $+53\%$가 이미 backend 병렬화만으로 발생한다.
+  $+53\%$가 backend 병렬화만으로 발생한다.
 
 \item \textbf{Gating decision ($\sim 10$--$20\%$ 기여)}:
+  병렬화 효과를 제거한 게이팅의 \emph{순효과}는 spec-only 대비 측정해야 한다.
   per-request 방법 선택이 회귀 방지(소형 모델 chat $\to$ baseline)와
-  최대 가속 유지(code/sonnet $\to$ spec-decode)를 동시에 달성한다.
-  Qwen-7B에서 gating value가 최대($+25.3\%$ vs.\ spec-only)인 이유는
-  chat 워크로드의 baseline 선택 효과가 특히 크기 때문이다.
+  최대 가속 유지(code/sonnet $\to$ spec-decode)를 동시에 달성하여,
+  Qwen-7B에서 spec-only 대비 $+25.3\%$의 순이득을 보인다.
 \end{enumerate}
+
+\noindent\textbf{공정성 한계.}
+현재 baseline-only(GPU 4장)와 \algname-gated(GPU 8장)는 GPU 수가 달라
+표~\ref{tbl:gating-main}의 ``vs Baseline'' 수치는 게이팅 순효과를 과대평가한다.
+게이팅의 엄밀한 순효과는 ``vs Spec-only'' 컬럼이 더 정확한 지표이다.
+양 구성의 GPU 수를 동일하게 고정한 통제 측정은 후속 실험으로 예정한다.
+
+% TODO: 공정한 gating 순효과 측정 — baseline-only와 CERES-gated를 동일 GPU 수
+%       (예: 양쪽 모두 GPU 8장, baseline은 두 backend 모두 baseline config)로
+%       고정하여 병렬화 효과를 제거한 gating decision 단독 기여 측정 필요.
 
 %% -----------------------------------------------------------------------
 \subsection{소형 모델 회귀 하드웨어 독립성 검증}

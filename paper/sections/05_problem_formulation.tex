@@ -6,39 +6,49 @@
 \subsection{문제 A: 워크로드 다양성과 방법 선택}
 
 LLM 서빙 환경에서 동일 서버에 서로 다른 워크로드가 혼재한다.
-투기적 디코딩 방법 $m \in \mathcal{M}$ (예: suffix, ngram, vanilla)의
+투기적 디코딩 방법 $m \in \mathcal{M}$ (예: suffix, ngram, baseline)의
 처리량 기여는 워크로드 $w$, 모델 $\theta$, 드래프터 구성 $c$의 함수다.
+여기서 baseline은 투기적 디코딩을 적용하지 않는 표준 디코딩을 뜻한다.
 
 \begin{definition}[방법-워크로드 이득]
 \label{def:method-gain}
 방법 $m$의 워크로드 $w$에서의 처리량 이득은
 \[
-\Delta(m, w, \theta) = \frac{T(m, w, \theta) - T(\text{vanilla}, w, \theta)}
-                            {T(\text{vanilla}, w, \theta)}
+\Delta(m, w, \theta) = \frac{T(m, w, \theta) - T(\text{baseline}, w, \theta)}
+                            {T(\text{baseline}, w, \theta)}
 \]
 이며, $\Delta < 0$이면 방법 $m$이 $w$에서 net-negative임을 나타낸다.
+정의상 $\Delta(\text{baseline}, w, \theta) = 0$이다.
 \end{definition}
 
 \S\ref{sec:motivation}의 측정 결과로부터 다음이 성립한다.
 
-\begin{property}[방법-워크로드 비교우위]
+\begin{property}[지배적 가속 방법의 부재]
 \label{prop:no-dominant}
-임의의 단일 방법 $m^*$이 모든 $(w, \theta)$ 조합에 대해
-$\Delta(m^*, w, \theta) \geq \Delta(m, w, \theta)$를 만족하는 $m^*$는 존재하지 않는다.
+모든 $(w, \theta)$ 조합에 대해 $\Delta(m^*, w, \theta) > 0$을 만족하는
+단일 투기적 디코딩 방법 $m^* \in \mathcal{M} \setminus \{\text{baseline}\}$는 존재하지 않는다.
 \end{property}
 
 Property~\ref{prop:no-dominant}의 근거:
-suffix는 code(Llama-70B +18.8\%)에서 ngram보다 우월하지만
-Qwen-72B code에서 vanilla($-5\%$)보다 열등하고,
-ngram은 chat(+43.1\%)에서 유용하지만 code($-20.2\%$)에서 catastrophic이다.
+suffix는 code(Llama-70B $+18.8\%$)에서 ngram보다 우월하지만
+Qwen-72B code에서 $-5\%$로 baseline에 미달하고,
+ngram은 chat($+43.1\%$)에서 유용하지만 code($-20.2\%$)에서 catastrophic이며,
+$\leq$7B 모델에서는 두 방법 모두 일관 회귀한다(\S\ref{subsec:res-small-model}).
 
-따라서 \textbf{문제 A}는 다음과 같이 정의된다.
+\noindent\textbf{baseline의 특수 지위.}
+baseline은 정의상 $\Delta = 0$으로 \emph{회귀하지 않는} 유일한 안전한 선택이지만,
+가속 기회를 전혀 취하지 못한다.
+반대로 투기적 방법은 워크로드가 맞으면 큰 가속을 주지만($+68.9\%$까지),
+맞지 않으면 catastrophic 회귀($-94.2\%$까지)의 위험을 동반한다.
+따라서 문제의 본질은 ``최고의 단일 방법 찾기''가 아니라,
+\emph{회귀 위험을 회피하면서 워크로드별 가속 기회를 선택적으로 취하는 것}이다.
 
 \smallskip
-\noindent\textbf{문제 A (최적 방법 선택).}
-주어진 요청 $r$과 모델 $\theta$에 대해
-$\Delta(m^*(r), w(r), \theta) \geq 0$을 만족하는 방법 $m^*(r)$을
-요청별로 선택하는 경량 게이팅 함수 $g: (r, \theta) \to \mathcal{M}$을 설계한다.
+\noindent\textbf{문제 A (위험 회피적 방법 선택).}
+주어진 요청 $r$과 모델 $\theta$에 대해 $\Delta(m^*(r), w(r), \theta) \geq 0$을
+보장하면서, 가속이 가능한 경우 $\Delta > 0$인 방법을 선택하는
+경량 게이팅 함수 $g: (r, \theta) \to \mathcal{M}$을 설계한다.
+즉 게이팅은 회귀를 baseline으로 차단하고 가속만 취하는 비대칭 정책이다.
 
 \subsection{문제 B: 게이팅이 낳는 CPU 슬랙}
 
@@ -53,7 +63,7 @@ CPU 이용률이 $u_{\text{cpu}} \ll 1$인 경우 슬랙의 절대량은
 $\text{slack} = (1 - u_{\text{cpu}}) \times N_{\text{cores}}$이다.
 \end{definition}
 
-측정 결과 $u_{\text{cpu}} \approx 5.3\%$(Trident)이므로
+측정 결과 $u_{\text{cpu}} \approx 5.3\%$(spec-decode backend)이므로
 112개 물리 코어 중 약 106개가 유휴 상태다.
 NUMA 비인지 배치에서는 이 유휴 코어가 remote socket 메모리에 접근하여
 $2.1\times$ 지연 패널티를 발생시킨다.

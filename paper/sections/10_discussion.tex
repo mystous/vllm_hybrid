@@ -59,11 +59,26 @@ code agent를 동일하게 처리한다.
 \algname 의 $T_{\text{gpu}}$ 자동 측정이 부분적 일반화를 지원하지만
 multi-environment 검증은 후속 연구이다.
 
-\textbf{Multi-run binding 미완료.}
-Branchy $\times$ 100ms의 $+5.28\%$(1-run)가 multi-run에서도 유지되는지
-SUB\_194 유형의 추가 측정이 필요하다.
-현재 magnitude($+5.28\%$, noise floor $\pm 3\%$ 초과)는 의미 있는 신호로 판단하나
-production 배포 전 검증을 권장한다.
+\textbf{Branchy 보조 작업의 미검증.}
+branchy 보조 작업의 $+5.28\%$(1-run)는 multi-run binding 검증이 완료되지 않았고,
+그 메커니즘(CPU active-state 유지, \S\ref{sec:mechanism})도 직접 측정으로
+확증되지 않은 \emph{예비 관찰}이다.
+따라서 \algname 의 CPU 하베스팅에서 production-ready로 권장하는 lever는
+검증·설명이 명확한 NUMA 바인딩($+3.13\%$ warm-only)이며,
+branchy 보조 작업은 향후 검증 대상이다.
+
+\textbf{게이팅 순효과의 공정 측정.}
+\S\ref{subsec:gating-origin}에서 분석했듯 현재 end-to-end 결과는
+baseline-only(GPU 4장)와 \algname-gated(GPU 8장)의 GPU 수 차이로 인해
+병렬화 효과를 포함한다.
+게이팅 decision의 순효과를 공정하게 측정하려면
+양 구성의 GPU 수를 동일하게 고정한 통제 실험이 필요하다(후속 연구).
+
+\textbf{합성 워크로드와 짧은 디코딩 길이.}
+CPU lever 측정은 \texttt{max\_tokens}=32의 짧은 출력 환경에서 수행되어
+decode 단계가 짧다. 긴 디코딩(수천 토큰)에서 lever 효과의 일반화는 검증이 필요하다.
+또한 워크로드는 합성 분류 기반이므로 실제 서빙 트래픽(ShareGPT, LMSYS-Chat 등)에서의
+재현이 요구된다.
 
 \textbf{Gating 규칙의 확장성.}
 현재 벤더-워크로드 게이팅 규칙(Qwen-72B code $\to$ baseline)은

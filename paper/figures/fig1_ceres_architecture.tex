@@ -27,9 +27,9 @@
 
 %% ── 두 backend ──
 \node[vanilla, below left=0.7cm and 1.8cm of gate]  (van)
-    {Vanilla Backend\\GPU 0--3 / NUMA node 0};
+    {Baseline Backend\\GPU 0--3 / NUMA node 0};
 \node[trident, below right=0.7cm and 1.8cm of gate] (tri)
-    {Trident Backend\\GPU 4--7 / NUMA node 1\\SuffixDecode + PIECEWISE};
+    {Spec-decode Backend\\GPU 4--7 / NUMA node 1\\SuffixDecode + PIECEWISE};
 
 \draw[arrow] (gate.south) -- ++(0,-0.15) -| (van.north)
     node[midway, above left, font=\scriptsize] {$\leq$7B / chat(Qwen72B) / code(Qwen72B)};

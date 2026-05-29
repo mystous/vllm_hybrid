@@ -19,7 +19,7 @@ $K$개의 후보 토큰 중 평균 수락 토큰 수는
 순이익 조건이 결정된다.
 
 \begin{equation}
-\frac{T_{\text{spec}}}{T_{\text{vanilla}}} \approx \frac{R}{K}, \quad
+\frac{T_{\text{spec}}}{T_{\text{base}}} \approx \frac{R}{K}, \quad
 K > R \Rightarrow \text{gain}, \quad K < R \Rightarrow \text{regression}
 \label{eq:rk-ratio}
 \end{equation}
@@ -31,7 +31,7 @@ $R$은 모델 크기와 TP 구성에 의존하며, $K$는 드래프터 품질과
 \textbf{$R$ 산출 방법.}
 $R$은 이론값이 아니라 실측값으로, 다음과 같이 정의된다.
 \begin{equation}
-R = \frac{T_{\text{spec\_step}}}{T_{\text{vanilla\_step}}}
+R = \frac{T_{\text{spec\_step}}}{T_{\text{base\_step}}}
 \label{eq:r-measured}
 \end{equation}
 투기적 디코딩 스텝은 드래프트(draft) 생성과 타깃 모델 검증(verify)의
@@ -39,6 +39,14 @@ R = \frac{T_{\text{spec\_step}}}{T_{\text{vanilla\_step}}}
 따라서 $R > 1$이 일반적이며, 이 값은 하드웨어 구성과 TP 설정에 따라 달라진다.
 본 연구의 측정 환경(Qwen-2.5-32B + TP=4$\times$2 + H100$\times$8)에서
 $R \approx 1.3$이며, $K < 1.3$인 드래프터 설정은 net-negative가 된다.
+
+\textbf{단일 요청 모델의 한계.}
+식~\ref{eq:rk-ratio}는 \emph{단일 요청}의 디코딩 지연 모델이다.
+반면 \S\ref{sec:results}의 처리량(tps) 측정은 continuous batching~\cite{yu2022orca}
+하에서 이루어지므로, 배치 내 요청 간 자원 공유와 스케줄링 효과가 더해진다.
+따라서 R/K 모델은 ``$K > R$이면 가속, $K < R$이면 회귀''라는
+\emph{부호와 방향}에 대한 직관을 제공하는 정성적 도구로 사용하며,
+처리량 향상의 정확한 크기는 식에서 직접 도출하지 않고 실측으로 보고한다.
 
 \subsection{SuffixDecoding}
 \label{subsec:suffix-decoding}
