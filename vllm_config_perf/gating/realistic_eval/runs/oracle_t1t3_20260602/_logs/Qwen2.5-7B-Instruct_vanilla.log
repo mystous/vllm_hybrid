@@ -1,0 +1,60 @@
+/workspace/vllm_dev_prj/lib/python3.12/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.4) doesn't match a supported version!
+  warnings.warn(
+(APIServer pid=55578) INFO 06-02 02:28:52 [utils.py:299] 
+(APIServer pid=55578) INFO 06-02 02:28:52 [utils.py:299]        █     █     █▄   ▄█
+(APIServer pid=55578) INFO 06-02 02:28:52 [utils.py:299]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 1.7.dev16107+gffe20fb09.d20260601
+(APIServer pid=55578) INFO 06-02 02:28:52 [utils.py:299]   █▄█▀ █     █     █     █  model   Qwen/Qwen2.5-7B-Instruct
+(APIServer pid=55578) INFO 06-02 02:28:52 [utils.py:299]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=55578) INFO 06-02 02:28:52 [utils.py:299] 
+(APIServer pid=55578) INFO 06-02 02:28:52 [utils.py:233] non-default args: {'model_tag': 'Qwen/Qwen2.5-7B-Instruct', 'port': 8001, 'model': 'Qwen/Qwen2.5-7B-Instruct', 'max_model_len': 8192, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.85, 'compilation_config': {'mode': None, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.PIECEWISE: 1>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}}
+(APIServer pid=55578) WARNING 06-02 02:28:52 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NGRAM_DIVIDE_BY_TP
+(APIServer pid=55578) WARNING 06-02 02:28:52 [envs.py:1785] Unknown vLLM environment variable detected: VLLM_NGRAM_NUM_THREADS_CAP
+(APIServer pid=55578) INFO 06-02 02:28:54 [model.py:554] Resolved architecture: Qwen2ForCausalLM
+(APIServer pid=55578) INFO 06-02 02:28:54 [model.py:1685] Using max model len 8192
+(APIServer pid=55578) INFO 06-02 02:28:54 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=55578) Traceback (most recent call last):
+(APIServer pid=55578)   File "/workspace/vllm_dev_prj/bin/vllm", line 10, in <module>
+(APIServer pid=55578)     sys.exit(main())
+(APIServer pid=55578)              ^^^^^^
+(APIServer pid=55578)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/cli/main.py", line 75, in main
+(APIServer pid=55578)     args.dispatch_function(args)
+(APIServer pid=55578)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/cli/serve.py", line 122, in cmd
+(APIServer pid=55578)     uvloop.run(run_server(args))
+(APIServer pid=55578)   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/uvloop/__init__.py", line 96, in run
+(APIServer pid=55578)     return __asyncio.run(
+(APIServer pid=55578)            ^^^^^^^^^^^^^^
+(APIServer pid=55578)   File "/usr/lib/python3.12/asyncio/runners.py", line 195, in run
+(APIServer pid=55578)     return runner.run(main)
+(APIServer pid=55578)            ^^^^^^^^^^^^^^^^
+(APIServer pid=55578)   File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=55578)     return self._loop.run_until_complete(task)
+(APIServer pid=55578)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=55578)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=55578)   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=55578)     return await main
+(APIServer pid=55578)            ^^^^^^^^^^
+(APIServer pid=55578)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 678, in run_server
+(APIServer pid=55578)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=55578)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 692, in run_server_worker
+(APIServer pid=55578)     async with build_async_engine_client(
+(APIServer pid=55578)                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=55578)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=55578)     return await anext(self.gen)
+(APIServer pid=55578)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=55578)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 100, in build_async_engine_client
+(APIServer pid=55578)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=55578)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=55578)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=55578)     return await anext(self.gen)
+(APIServer pid=55578)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=55578)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 124, in build_async_engine_client_from_engine_args
+(APIServer pid=55578)     vllm_config = engine_args.create_engine_config(usage_context=usage_context)
+(APIServer pid=55578)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=55578)   File "/workspace/host_vllm_hybrid/vllm/engine/arg_utils.py", line 2107, in create_engine_config
+(APIServer pid=55578)     config = VllmConfig(
+(APIServer pid=55578)              ^^^^^^^^^^^
+(APIServer pid=55578)   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/pydantic/_internal/_dataclasses.py", line 121, in __init__
+(APIServer pid=55578)     s.__pydantic_validator__.validate_python(ArgsKwargs(args, kwargs), self_instance=s)
+(APIServer pid=55578) pydantic_core._pydantic_core.ValidationError: 1 validation error for VllmConfig
+(APIServer pid=55578)   Value error, Total number of attention heads (28) must be divisible by tensor parallel size (8). [type=value_error, input_value=ArgsKwargs((), {'model_co... 'shutdown_timeout': 0}), input_type=ArgsKwargs]
+(APIServer pid=55578)     For further information visit https://errors.pydantic.dev/2.12/v/value_error

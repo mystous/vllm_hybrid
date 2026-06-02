@@ -222,6 +222,9 @@ flowchart TB
     %% AGSD = Trident core + workload/model-size gating
     %% production guide: /spec_decoding/README.md
     PLN_001 --> TSK_020["TSK_020<br/>Spec decode tuning + CPU+spec 결합<br/>🏆 Trident core (SUB_093 + SUB_089 canonical)<br/>sonnet 11,677 (fair +52.1%)<br/>chat 3,830 (fair +68.9%)<br/>code 7,981 (fair +18.8%)<br/>mix-sh 10,298 / mix-bal 9,514 / mix-ch 9,457<br/>AGSD = Trident core + gating"]
+    TSK_020 --> IDE_022["IDE_022<br/>AGSD realistic-workload + decision-regret eval<br/>⚪ 활성 (계획→구현)"]
+    IDE_022 --> TSK_042["TSK_042<br/>워크로드 활용 실험<br/>실 corpus × 모델매트릭스 × method oracle<br/>+ 품질(경로A/B) + 라우팅 비교(vanilla/trident/llm-d)<br/>⚪ 활성"]
+    IDE_022 --> TSK_043["TSK_043<br/>AGSD: CPU 병렬성 최적화 + 측정<br/>C0~C3 분류기 + §8 R1~R6 + latency/throughput/regret<br/>⚪ 활성 (선행 TSK_042)"]
     TSK_020 --> SUB_044["SUB_044<br/>ngram spec=3/5/7/10 sweep<br/>🟢 첫 net-positive (10,778 tps, +130%)"]
     TSK_020 --> SUB_045["SUB_045<br/>spec=7 + CPU BG multi-workload<br/>🔵 background 측정 중"]
     SUB_044 --> SUB_047["SUB_047<br/>ngram numba thread cap 1→8<br/>🏆 canonical 3-run avg 10,956.5 (var 0.454%, +134.12%)"]

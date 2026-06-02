@@ -1,0 +1,468 @@
+[build] workload=sonnet n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8335
+=== vanilla × sonnet ===
+{
+  "scenario": "vanilla",
+  "workload": "sonnet",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 1271.6196063460084,
+  "total_input_tokens": 4174362,
+  "total_output_tokens": 3866407,
+  "output_tps": 3040.5374222799996,
+  "req_per_s": 0.3931993479062085,
+  "p50_ms": 85197.5238409359,
+  "p99_ms": 86512.00000802055,
+  "by_workload_ok": {
+    "sonnet": 500,
+    "chat": 0,
+    "code": 0
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=chat n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== vanilla × chat ===
+{
+  "scenario": "vanilla",
+  "workload": "chat",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 604.2604508330114,
+  "total_input_tokens": 4183968,
+  "total_output_tokens": 1772204,
+  "output_tps": 2932.84790946835,
+  "req_per_s": 0.8274577614846681,
+  "p50_ms": 13744.323087972589,
+  "p99_ms": 87644.07073194161,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 500,
+    "code": 0
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=code n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8399
+=== vanilla × code ===
+{
+  "scenario": "vanilla",
+  "workload": "code",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 1325.7937716169981,
+  "total_input_tokens": 4207929,
+  "total_output_tokens": 4087854,
+  "output_tps": 3083.325693266961,
+  "req_per_s": 0.3771325606622645,
+  "p50_ms": 83719.2747379886,
+  "p99_ms": 86356.42760107294,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 0,
+    "code": 500
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=balanced n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8361
+=== vanilla × balanced ===
+{
+  "scenario": "vanilla",
+  "workload": "balanced",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 1091.5417829339858,
+  "total_input_tokens": 4187986,
+  "total_output_tokens": 3180123,
+  "output_tps": 2913.423058760113,
+  "req_per_s": 0.45806766888578093,
+  "p50_ms": 87181.68644001707,
+  "p99_ms": 89577.05418101978,
+  "by_workload_ok": {
+    "sonnet": 170,
+    "chat": 165,
+    "code": 165
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=sonnet-heavy n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== vanilla × sonnet-heavy ===
+{
+  "scenario": "vanilla",
+  "workload": "sonnet-heavy",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 1212.2003612869885,
+  "total_input_tokens": 4183199,
+  "total_output_tokens": 3525252,
+  "output_tps": 2908.1430038985086,
+  "req_per_s": 0.4124730663082396,
+  "p50_ms": 87222.54495997913,
+  "p99_ms": 89176.81219591759,
+  "by_workload_ok": {
+    "sonnet": 300,
+    "chat": 100,
+    "code": 100
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=code-heavy n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8379
+=== vanilla × code-heavy ===
+{
+  "scenario": "vanilla",
+  "workload": "code-heavy",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 1173.6853148909286,
+  "total_input_tokens": 4199877,
+  "total_output_tokens": 3534327,
+  "output_tps": 3011.307166545274,
+  "req_per_s": 0.42600856776202006,
+  "p50_ms": 84451.52152504306,
+  "p99_ms": 86196.01569697261,
+  "by_workload_ok": {
+    "sonnet": 50,
+    "chat": 100,
+    "code": 350
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=sonnet n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8335
+=== trident × sonnet ===
+{
+  "scenario": "trident",
+  "workload": "sonnet",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 572.0673132749507,
+  "total_input_tokens": 4174362,
+  "total_output_tokens": 3865577,
+  "output_tps": 6757.206556463577,
+  "req_per_s": 0.8740230186157949,
+  "p50_ms": 35757.91883398779,
+  "p99_ms": 68680.13009300921,
+  "by_workload_ok": {
+    "sonnet": 500,
+    "chat": 0,
+    "code": 0
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=chat n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== trident × chat ===
+{
+  "scenario": "trident",
+  "workload": "chat",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 355.0931367420126,
+  "total_input_tokens": 4183968,
+  "total_output_tokens": 1639208,
+  "output_tps": 4616.276211474459,
+  "req_per_s": 1.4080812842160542,
+  "p50_ms": 15528.68067403324,
+  "p99_ms": 64594.75171903614,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 500,
+    "code": 0
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=code n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8399
+=== trident × code ===
+{
+  "scenario": "trident",
+  "workload": "code",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 614.0321681040805,
+  "total_input_tokens": 4207929,
+  "total_output_tokens": 4087854,
+  "output_tps": 6657.3938831606865,
+  "req_per_s": 0.8142895860714066,
+  "p50_ms": 36813.50442394614,
+  "p99_ms": 192499.3304030504,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 0,
+    "code": 500
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=balanced n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8361
+=== trident × balanced ===
+{
+  "scenario": "trident",
+  "workload": "balanced",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 500.0260854639346,
+  "total_input_tokens": 4187986,
+  "total_output_tokens": 3154734,
+  "output_tps": 6309.13884637233,
+  "req_per_s": 0.9999478317937945,
+  "p50_ms": 32681.28646200057,
+  "p99_ms": 65698.75367602799,
+  "by_workload_ok": {
+    "sonnet": 170,
+    "chat": 165,
+    "code": 165
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=sonnet-heavy n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== trident × sonnet-heavy ===
+{
+  "scenario": "trident",
+  "workload": "sonnet-heavy",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 519.5626242969884,
+  "total_input_tokens": 4183199,
+  "total_output_tokens": 3363790,
+  "output_tps": 6474.272479764088,
+  "req_per_s": 0.9623478992095357,
+  "p50_ms": 34653.13823404722,
+  "p99_ms": 69788.4238329716,
+  "by_workload_ok": {
+    "sonnet": 300,
+    "chat": 100,
+    "code": 100
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=code-heavy n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8379
+=== trident × code-heavy ===
+{
+  "scenario": "trident",
+  "workload": "code-heavy",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 552.974459190038,
+  "total_input_tokens": 4199877,
+  "total_output_tokens": 3609254,
+  "output_tps": 6526.981382262405,
+  "req_per_s": 0.9042008933511474,
+  "p50_ms": 35562.36551201437,
+  "p99_ms": 70305.93515106011,
+  "by_workload_ok": {
+    "sonnet": 50,
+    "chat": 100,
+    "code": 350
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=sonnet n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8335
+=== AGSD × sonnet ===
+{
+  "scenario": "AGSD",
+  "workload": "sonnet",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 586.9799875350436,
+  "total_input_tokens": 4174362,
+  "total_output_tokens": 3859329,
+  "output_tps": 6574.89025512917,
+  "req_per_s": 0.85181779722967,
+  "p50_ms": 36477.91655501351,
+  "p99_ms": 65679.0355220437,
+  "by_workload_ok": {
+    "sonnet": 500,
+    "chat": 0,
+    "code": 0
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=chat n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== AGSD × chat ===
+{
+  "scenario": "AGSD",
+  "workload": "chat",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 581.0832748720422,
+  "total_input_tokens": 4183968,
+  "total_output_tokens": 1492218,
+  "output_tps": 2567.9933746649217,
+  "req_per_s": 0.8604618677247298,
+  "p50_ms": 13382.260701037012,
+  "p99_ms": 98580.35387506243,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 500,
+    "code": 0
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=code n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8399
+=== AGSD × code ===
+{
+  "scenario": "AGSD",
+  "workload": "code",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 655.752484599012,
+  "total_input_tokens": 4207929,
+  "total_output_tokens": 4096000,
+  "output_tps": 6246.25921547926,
+  "req_per_s": 0.7624828143895581,
+  "p50_ms": 37716.93128498737,
+  "p99_ms": 208198.57651996426,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 0,
+    "code": 500
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=balanced n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8361
+=== AGSD × balanced ===
+{
+  "scenario": "AGSD",
+  "workload": "balanced",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 443.2386142119067,
+  "total_input_tokens": 4187986,
+  "total_output_tokens": 3071739,
+  "output_tps": 6930.215241877462,
+  "req_per_s": 1.1280605614405166,
+  "p50_ms": 28315.70797599852,
+  "p99_ms": 64298.84693399072,
+  "by_workload_ok": {
+    "sonnet": 170,
+    "chat": 165,
+    "code": 165
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=sonnet-heavy n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== AGSD × sonnet-heavy ===
+{
+  "scenario": "AGSD",
+  "workload": "sonnet-heavy",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 510.0940938409185,
+  "total_input_tokens": 4183199,
+  "total_output_tokens": 3467508,
+  "output_tps": 6797.781118950577,
+  "req_per_s": 0.9802113101037658,
+  "p50_ms": 32855.68403801881,
+  "p99_ms": 63170.03552708775,
+  "by_workload_ok": {
+    "sonnet": 300,
+    "chat": 100,
+    "code": 100
+  },
+  "n_err": 0,
+  "first_errors": []
+}
+[build] workload=code-heavy n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8379
+=== AGSD × code-heavy ===
+{
+  "scenario": "AGSD",
+  "workload": "code-heavy",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 494.1891551739536,
+  "total_input_tokens": 4199877,
+  "total_output_tokens": 3550050,
+  "output_tps": 7183.585400109376,
+  "req_per_s": 1.0117583414472155,
+  "p50_ms": 32535.279028932564,
+  "p99_ms": 57474.67485698871,
+  "by_workload_ok": {
+    "sonnet": 50,
+    "chat": 100,
+    "code": 350
+  },
+  "n_err": 0,
+  "first_errors": []
+}

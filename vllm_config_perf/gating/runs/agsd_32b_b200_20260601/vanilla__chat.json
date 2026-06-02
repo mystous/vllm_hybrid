@@ -1,0 +1,29 @@
+{
+  "summary": {
+    "scenario": "vanilla",
+    "workload": "chat",
+    "num_prompts": 500,
+    "n_ok": 483,
+    "target_input_len": 8192,
+    "max_tokens": 8192,
+    "concurrency": 32,
+    "wall_total_s": 543.5854951409856,
+    "total_input_tokens": 4040232,
+    "total_output_tokens": 1375032,
+    "output_tps": 2529.5597698819547,
+    "req_per_s": 0.8885446803077922,
+    "p50_ms": 14933.967710006982,
+    "p99_ms": 99681.3199550379,
+    "by_workload_ok": {
+      "sonnet": 0,
+      "chat": 483,
+      "code": 0
+    },
+    "n_err": 17,
+    "first_errors": [
+      "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+      "ReadError('')",
+      "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+    ]
+  }
+}

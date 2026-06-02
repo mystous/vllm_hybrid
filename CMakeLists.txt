@@ -953,8 +953,19 @@ if(VLLM_GPU_LANG STREQUAL "CUDA")
       "csrc/libtorch_stable/quantization/fp4/nvfp4_experts_quant.cu"
       "csrc/libtorch_stable/quantization/fp4/nvfp4_scaled_mm_kernels.cu"
       "csrc/libtorch_stable/quantization/fp4/nvfp4_blockwise_moe_kernel.cu"
-      "csrc/libtorch_stable/quantization/fp4/mxfp4_experts_quant.cu"
       "csrc/libtorch_stable/quantization/fp4/mxfp4_blockwise_moe_kernel.cu")
+    # mxfp4_experts_quant.cu needs PACK16 (CVT_FP4_ELTS_PER_THREAD==16), which
+    # requires CUDA >= 12.9. Gate it separately so the rest of FP4 still builds
+    # on CUDA 12.8 (B200 / sm_100a). Schema def stays in torch_bindings.cpp; the
+    # impl is self-registered in the .cu, so omitting it only disables the op
+    # (no link error) — unused by dense bf16 inference.
+    if(${CMAKE_CUDA_COMPILER_VERSION} VERSION_GREATER_EQUAL 12.9)
+      list(APPEND SRCS
+        "csrc/libtorch_stable/quantization/fp4/mxfp4_experts_quant.cu")
+    else()
+      message(STATUS "Skipping mxfp4_experts_quant.cu "
+        "(requires CUDA >= 12.9, have ${CMAKE_CUDA_COMPILER_VERSION})")
+    endif()
     set_gencode_flags_for_srcs(
       SRCS "${SRCS}"
       CUDA_ARCHS "${FP4_ARCHS}")

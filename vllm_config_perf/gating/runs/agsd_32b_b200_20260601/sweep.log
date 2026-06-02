@@ -1,0 +1,332 @@
+[build] workload=sonnet n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8335
+=== vanilla × sonnet ===
+{
+  "scenario": "vanilla",
+  "workload": "sonnet",
+  "num_prompts": 500,
+  "n_ok": 496,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 1379.4279883449199,
+  "total_input_tokens": 4140522,
+  "total_output_tokens": 3773900,
+  "output_tps": 2735.8441556112266,
+  "req_per_s": 0.3595693317743364,
+  "p50_ms": 93895.60137002263,
+  "p99_ms": 95889.39091702923,
+  "by_workload_ok": {
+    "sonnet": 496,
+    "chat": 0,
+    "code": 0
+  },
+  "n_err": 4,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=sonnet n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8335
+=== trident × sonnet ===
+{
+  "scenario": "trident",
+  "workload": "sonnet",
+  "num_prompts": 500,
+  "n_ok": 496,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 618.1017615189776,
+  "total_input_tokens": 4140522,
+  "total_output_tokens": 3846610,
+  "output_tps": 6223.263286852642,
+  "req_per_s": 0.802456862088673,
+  "p50_ms": 38185.70627900772,
+  "p99_ms": 83687.61296500452,
+  "by_workload_ok": {
+    "sonnet": 496,
+    "chat": 0,
+    "code": 0
+  },
+  "n_err": 4,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=sonnet n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8335
+=== AGSD × sonnet ===
+{
+  "scenario": "AGSD",
+  "workload": "sonnet",
+  "num_prompts": 500,
+  "n_ok": 496,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 606.8606931440299,
+  "total_input_tokens": 4140522,
+  "total_output_tokens": 3809786,
+  "output_tps": 6277.859223773784,
+  "req_per_s": 0.8173210188162265,
+  "p50_ms": 37759.63939796202,
+  "p99_ms": 62632.123110000975,
+  "by_workload_ok": {
+    "sonnet": 496,
+    "chat": 0,
+    "code": 0
+  },
+  "n_err": 4,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=chat n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== vanilla × chat ===
+{
+  "scenario": "vanilla",
+  "workload": "chat",
+  "num_prompts": 500,
+  "n_ok": 483,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 543.5854951409856,
+  "total_input_tokens": 4040232,
+  "total_output_tokens": 1375032,
+  "output_tps": 2529.5597698819547,
+  "req_per_s": 0.8885446803077922,
+  "p50_ms": 14933.967710006982,
+  "p99_ms": 99681.3199550379,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 483,
+    "code": 0
+  },
+  "n_err": 17,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "ReadError('')",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=chat n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== trident × chat ===
+{
+  "scenario": "trident",
+  "workload": "chat",
+  "num_prompts": 500,
+  "n_ok": 483,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 442.767526790034,
+  "total_input_tokens": 4040232,
+  "total_output_tokens": 1460348,
+  "output_tps": 3298.2274255458565,
+  "req_per_s": 1.090865907673136,
+  "p50_ms": 20994.32686099317,
+  "p99_ms": 78371.84428493492,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 483,
+    "code": 0
+  },
+  "n_err": 17,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "ReadError('')",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=chat n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8354
+=== AGSD × chat ===
+{
+  "scenario": "AGSD",
+  "workload": "chat",
+  "num_prompts": 500,
+  "n_ok": 483,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 589.2099996220786,
+  "total_input_tokens": 4040232,
+  "total_output_tokens": 1503026,
+  "output_tps": 2550.9173316203837,
+  "req_per_s": 0.8197416885487312,
+  "p50_ms": 14552.787769003771,
+  "p99_ms": 99168.31239196472,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 483,
+    "code": 0
+  },
+  "n_err": 17,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 500: Internal Server Error",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=code n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8399
+=== vanilla × code ===
+{
+  "scenario": "vanilla",
+  "workload": "code",
+  "num_prompts": 500,
+  "n_ok": 378,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 1099.3375748050166,
+  "total_input_tokens": 3174941,
+  "total_output_tokens": 3096576,
+  "output_tps": 2816.765360311843,
+  "req_per_s": 0.34384342777244176,
+  "p50_ms": 92329.94908397086,
+  "p99_ms": 95774.82363895979,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 0,
+    "code": 378
+  },
+  "n_err": 122,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=code n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8399
+=== trident × code ===
+{
+  "scenario": "trident",
+  "workload": "code",
+  "num_prompts": 500,
+  "n_ok": 378,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 798.392584647052,
+  "total_input_tokens": 3174949,
+  "total_output_tokens": 3088430,
+  "output_tps": 3868.309976056845,
+  "req_per_s": 0.4734512910927194,
+  "p50_ms": 59687.55005102139,
+  "p99_ms": 328945.45402296353,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 0,
+    "code": 378
+  },
+  "n_err": 122,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=code n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8399
+=== AGSD × code ===
+{
+  "scenario": "AGSD",
+  "workload": "code",
+  "num_prompts": 500,
+  "n_ok": 386,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 754.7741182619939,
+  "total_input_tokens": 3242049,
+  "total_output_tokens": 3162112,
+  "output_tps": 4189.481228213474,
+  "req_per_s": 0.5114112827409026,
+  "p50_ms": 60962.78042893391,
+  "p99_ms": 89027.27566100657,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 0,
+    "code": 386
+  },
+  "n_err": 114,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t"
+  ]
+}
+[build] workload=balanced n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8361
+=== vanilla × balanced ===
+{
+  "scenario": "vanilla",
+  "workload": "balanced",
+  "num_prompts": 500,
+  "n_ok": 454,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 982.1616286219796,
+  "total_input_tokens": 3798482,
+  "total_output_tokens": 2692679,
+  "output_tps": 2741.5844007039445,
+  "req_per_s": 0.4622457106545529,
+  "p50_ms": 91554.89473394118,
+  "p99_ms": 95611.32079700474,
+  "by_workload_ok": {
+    "sonnet": 166,
+    "chat": 161,
+    "code": 127
+  },
+  "n_err": 46,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "ReadError('')"
+  ]
+}
+[build] workload=balanced n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8361
+=== trident × balanced ===
+{
+  "scenario": "trident",
+  "workload": "balanced",
+  "num_prompts": 500,
+  "n_ok": 454,
+  "target_input_len": 8192,
+  "max_tokens": 8192,
+  "concurrency": 32,
+  "wall_total_s": 549.673441329971,
+  "total_input_tokens": 3798482,
+  "total_output_tokens": 2757170,
+  "output_tps": 5016.014587368177,
+  "req_per_s": 0.825944944513814,
+  "p50_ms": 38999.57274401095,
+  "p99_ms": 92498.23998904321,
+  "by_workload_ok": {
+    "sonnet": 166,
+    "chat": 161,
+    "code": 127
+  },
+  "n_err": 46,
+  "first_errors": [
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "HTTP 400: {\"error\":{\"message\":\"This model's maximum context length is 16640 tokens. However, you requested 8192 output tokens and your prompt contains at least 8449 input tokens, for a total of at least 16641 t",
+    "ReadError('')"
+  ]
+}
+[build] workload=balanced n=500 target_in=8192 ...
+[build] done. sample avg input tokens (first 20) = 8361

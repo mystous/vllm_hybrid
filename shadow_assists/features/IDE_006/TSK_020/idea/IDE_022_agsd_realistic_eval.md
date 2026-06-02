@@ -249,3 +249,183 @@ corpus × classifier × metric matrix:
 | P2 classifier sweep regret | — |
 | P3 production e2e | — |
 | 본 fork 최종 결정 | — |
+
+---
+
+## 8. 분류기 CPU 병렬성 · 메모리 최적화 기법 조사 (papers + OSS, 2026-06-01)
+
+> 본 절은 §2.3 candidate 분류기 (C0~C4) 의 **구현 backend** 와 **CPU 실행 효율** 을 보강하기 위한 외부 조사입니다. 분류기는 [`agsd_router.py`](../../../../vllm_config_perf/gating/agsd_router.py) 의 request critical path 위에 있어 (FastAPI + uvloop + ProcessPool), classify 가 곧 라우팅 지연의 일부가 됩니다. 따라서 "regret 을 줄이는 알고리즘" 과 "그 알고리즘을 CPU 에서 저지연·고처리량·저메모리로 돌리는 방법" 을 분리해 조사했습니다.
+> **출처 규칙**: WebSearch/WebFetch 로 실제 확인한 출처만 인용했습니다. 확인 못 한 세부 수치는 "(미확인)" 표기. 인용 URL 은 §8.7 에 모았습니다.
+
+### 8.1 조사 요약
+
+현 [`workload_classifier.py`](../../../../vllm_config_perf/gating/workload_classifier.py) 는 Python `re` 모듈로 prompt 1 건당 5 개 regex 를 순차 `findall` 하고, batch 는 `ProcessPoolExecutor` 로 prompt-level 병렬화합니다 (GIL 회피용 process fan-out). 이 구조는 (1) Python `re` 의 backtracking 엔진이 SIMD 가속이 없고 pathological pattern 에 취약하며, (2) ProcessPool 이 prompt 직렬화·IPC·프로세스 기동 비용을 매 batch 마다 지불하고, (3) C2/C3 (TF-IDF·MiniLM) 도입 시 Python 객체 오버헤드와 vocab 테이블 cache miss 가 critical path 를 누른다는 한계가 있습니다. 조사 결과 (a) **다중 패턴 매칭의 SIMD/오토마타 가속** (Hyperscan/Vectorscan, RE2, Aho-Corasick/daachorse), (b) **GIL 회피 병렬화의 현대적 대안** (free-threaded Python 3.13, ONNX Runtime intra/inter-op thread pool), (c) **경량 학습형 분류기의 CPU 추론** (fastText, feature hashing + linear, ONNX Runtime / OpenVINO 로 INT8 양자화한 MiniLM), (d) **메모리 최적화** (Apache Arrow zero-copy columnar, mimalloc arena/thread-local heap) 를 묶으면, C0 룰 분류기는 거의 비용 없이 Vectorscan + Arrow 로, C2/C3 학습형 분류기는 ONNX Runtime INT8 로 라우터 지연 budget 안에 넣을 수 있다는 결론입니다. 모든 레버는 IDE_023 의 A2 (SIMD) / A4 (memory) / A5 (SMT) 와 직접 매핑됩니다 (§8.4).
+
+### 8.2 인용 테이블
+
+| 기법 | 종류 | 출처 (제목·연도) | 라이선스 | 분류기 적용 포인트 |
+|---|---|---|---|---|
+| **Hyperscan** | OSS + 논문 | Wang et al., "Hyperscan: A Fast Multi-pattern Regex Matcher for Modern CPUs", NSDI 2019; `intel/hyperscan` | BSD-3 (≤5.4), 이후 proprietary | C0/C1 regex 다중 패턴을 한 번에 SIMD 스캔 |
+| **Vectorscan** | OSS | `VectorCamp/vectorscan` (Hyperscan 5.4 fork) | BSD-3 | Hyperscan proprietary 전환 회피 + ARM/AVX-512 |
+| **RE2** | OSS | `google/re2` (Cox, 2006~), DFA 기반 | BSD-3 | C0/C1 regex 를 선형시간·ReDoS-safe 로 |
+| **Aho-Corasick (daachorse)** | OSS + 논문 | Kanda et al., "Engineering faster double-array Aho-Corasick automata", arXiv:2207.13870 (2022); `daac-tools/daachorse` | MIT/Apache-2.0 (dual) | keyword 다중 매칭 (import/def/chat-tag) 단일 패스 |
+| **fastText** | OSS + 논문 | Joulin et al., "Bag of Tricks for Efficient Text Classification", arXiv:1607.01759 (2016, EACL'17); `facebookresearch/fastText` | BSD (MIT 계열) | C2 대체 — n-gram hashing + linear, CPU-only 초고속 |
+| **Feature hashing (hashing trick)** | 논문 | Weinberger et al., "Feature Hashing for Large Scale Multitask Learning", ICML 2009; Freksen et al., arXiv:1805.08539 (2018) | (이론) | C2 vocab 테이블 제거 → 메모리·cache 절감 |
+| **ONNX Runtime** | OSS | `microsoft/onnxruntime` (intra/inter-op thread pool, dynamic INT8) | MIT | C3 MiniLM 의 CPU 추론·양자화·스레드 풀 |
+| **OpenVINO** | OSS | Intel Distribution of OpenVINO Toolkit 2024.x (release notes) | Apache-2.0 | C3 대안 — AVX2/AVX-512/AMX native INT8 |
+| **Free-threaded CPython 3.13** | OSS/구현 | CPython 3.13 (2024-10) `--disable-gil` (PEP 703) | PSF | ProcessPool → true thread parallel classify |
+| **Apache Arrow** | OSS | `apache/arrow`, Columnar Format spec | Apache-2.0 | prompt batch zero-copy columnar, dictionary 인코딩 |
+| **mimalloc** | OSS | `microsoft/mimalloc` (thread-local heap "theap", arena) | MIT | classify worker 의 alloc 경합·fragmentation 감소 |
+| **simdjson** | OSS + 논문 | Langdale & Lemire, "Parsing Gigabytes of JSON per Second", VLDB J. 28(6), 2019; `simdjson/simdjson` | Apache-2.0 | 라우터 inbound JSON payload SIMD 파싱 |
+| **GIL 제거 HW/에너지** | 논문 | "Unlocking Python's Cores: Hardware Usage and Energy Implications of Removing the GIL", arXiv:2603.04782 (2026) | (논문) | free-threaded 채택 시 코어/에너지 trade-off 근거 |
+
+### 8.3 기법별 상세 ((a) 기법 / (b) 메커니즘 / (c) AGSD 분류기 적용 / (d) 효과·비용 / (e) 출처)
+
+#### 8.3.1 Hyperscan / Vectorscan — 다중 패턴 SIMD regex
+- **(a)** Intel Hyperscan: 수만 개 정규식을 동시에 스캔하는 고성능 multi-pattern 매처. **Vectorscan** 은 Hyperscan 5.4 의 BSD fork (Intel 이 5.4 이후 proprietary 전환했기 때문에 OSS 경로는 Vectorscan 권장).
+- **(b)** "hybrid automata" — 패턴을 NFA/DFA 컴포넌트로 분해하고 SIMD (SSSE3 이상, AVX-512 옵션) 로 문자 클래스·literal prefilter 를 벡터화. 입력을 한 번 통과하며 모든 패턴을 동시에 평가.
+- **(c)** C0/C1 의 5 개 (확장 시 수십 개) regex (`<\|system\|>`, `^\s*import`, `^\s*#`, py-keyword alternation, ```` ``` ````) 를 **하나의 컴파일된 Hyperscan DB** 로 묶어 prompt 당 단일 패스 스캔. 현재는 패턴마다 별도 `findall` 5 회. count 기반 판정이라 Hyperscan 의 match-callback 에서 패턴별 hit count 만 집계하면 동일 로직 재현.
+- **(d)** 효과: Snort 실트래픽에서 8.7× 처리량 (논문). 분류기에서는 패턴 수가 늘수록 (C1 확장 룰) 이득이 커짐. 비용: C/C++ 라이브러리 + Python 바인딩 (`python-hyperscan`) 의존성, 컴파일된 DB 워밍업, prefilter 가 약한 짧은 prompt 에선 이득 작음.
+- **(e)** NSDI 2019 (USENIX); `github.com/intel/hyperscan`; `github.com/VectorCamp/vectorscan`; Phoronix (proprietary 전환 보도).
+
+#### 8.3.2 RE2 — 선형시간 DFA regex (ReDoS-safe)
+- **(a)** Google 의 C++ regex 라이브러리. backtracking 대신 Thompson NFA→DFA.
+- **(b)** 입력 길이에 **선형** 인 매칭 보장 (`s = s->next[c]`). 메모리 budget 안에서 동작하고 untrusted input 에 안전 (catastrophic backtracking 없음).
+- **(c)** C0/C1 을 Python `re` (backtracking) 에서 RE2 (`google-re2` Python 바인딩) 로 교체. 다국어/긴 prompt (LMSYS/WildChat 30% 비영어, SWE-Bench long-context) 에서 pathological 패턴에도 worst-case 보장.
+- **(d)** 효과: p99 classify latency 의 fat-tail 제거 (라우터 SLA 보호). Hyperscan 만큼 다중패턴 빠르진 않지만 단일 패턴/안전성 우선 시 적합. 비용: Python regex 의 일부 기능 (backreference 등) 미지원 — 현 룰은 전부 RE2 호환.
+- **(e)** `github.com/google/re2`; RE2 (software) Wikipedia.
+
+#### 8.3.3 Aho-Corasick / daachorse — keyword 다중 매칭
+- **(a)** 다수의 고정 keyword/literal 을 한 패스로 찾는 오토마타. **daachorse** = double-array 압축 구현 (Rust), `aho-corasick` (BurntSushi) = SIMD prefilter 포함 Rust.
+- **(b)** trie + failure link 로 모든 keyword 를 선형시간 동시 탐색. daachorse 는 상태당 12 byte 의 double-array 로 cache-friendly (675K 패턴 사전에서 aho-corasick 대비 3.0–5.2× 빠르고 메모리 56–60% 절감).
+- **(c)** C0 의 keyword 성 피처 (`import `, `from `, `def`, `class`, chat-tag literal) 는 정규식이 아니라 **고정 문자열 집합** 이라 Aho-Corasick 가 더 적합. regex 가 정말 필요한 패턴 (`^\s*#`) 만 RE2/Hyperscan 으로 분리.
+- **(d)** 효과: cache miss 감소 (IDE_023 A4), 상수시간 상태 전이. 비용: Rust 바인딩 (`pyo3`) 또는 Python `pyahocorasick` (C 확장). regex 대비 표현력 제한.
+- **(e)** Kanda et al., arXiv:2207.13870; `github.com/daac-tools/daachorse`; `github.com/BurntSushi/aho-corasick`.
+
+#### 8.3.4 fastText + feature hashing — C2 의 고속 backend
+- **(a)** fastText: n-gram bag + 선형 분류기 (hierarchical softmax). feature hashing: vocab map 없이 hash 로 토큰→인덱스.
+- **(b)** char/word n-gram 을 hashing trick 으로 고정 크기 벡터에 매핑 (vocab 테이블 제거), 단일 행렬곱 + softmax. CPU-only 로 10 억 단어를 멀티코어 CPU 에서 10 분 내 학습 가능 (저자 주장).
+- **(c)** §2.3 의 **C2 (TF-IDF + LogReg)** 를 fastText/hashing 으로 대체. LMSYS 5–10K subset 으로 sonnet/chat/code 3-class supervised. 추론은 prompt 당 hashing + 1 matmul → 수 μs 급. ProcessPool 없이 in-process 가능.
+- **(d)** 효과: TF-IDF 의 거대한 vocab dict (cache 비우호) 제거 → 메모리·latency 절감 (IDE_023 A4). regret 측면에서 n-gram 이 regex 보다 분포 robust (§1.1 의 brittle case 완화 기대). 비용: 학습 데이터 필요, hash 충돌 (Freksen 2018 이 충돌 영향 이론 분석 — 충분한 차원에서 무시 가능).
+- **(e)** Joulin et al., arXiv:1607.01759; Weinberger et al., ICML 2009; Freksen et al., arXiv:1805.08539; `github.com/facebookresearch/fastText`.
+
+#### 8.3.5 ONNX Runtime — C3 MiniLM 의 CPU 추론·양자화·스레드 풀
+- **(a)** Microsoft 의 cross-platform 추론 엔진. dynamic INT8 양자화 + intra-op/inter-op thread pool.
+- **(b)** **intra-op** thread pool 이 단일 연산 (matmul) 내부를 코어별 병렬화 (`intra_op_num_threads`, 코어 affinitize), **inter-op** 가 `ORT_PARALLEL` 모드에서 그래프 노드 간 병렬화. dynamic INT8 양자화로 transformer CPU 추론 1.5–3× 가속 (DistilBERT 사례 p50 9 ms / p99 <50 ms, <100 MB).
+- **(c)** §2.3 의 **C3 (MiniLM all-MiniLM-L6-v2 22M + 3-class head)** 를 ONNX 로 export → dynamic INT8 → ONNX Runtime CPU. 라우터는 ProcessPool 대신 ORT 자체 thread pool 로 batch 추론. thread spinning 옵션으로 latency↔CPU 전력 trade-off 조절.
+- **(d)** 효과: MiniLM 을 라우터 지연 budget (현 regex classify ~0.26 ms/prompt, §2.1.3) 에 근접시킬 잠재력 (INT8 단일 추론 수~수십 ms → batch 화 필요). 비용: 모델 파일·warmup, batch 안 하면 per-prompt 수 ms 가 regex 대비 비쌈 → regret 이득이 이를 정당화해야 함 (§2.2 regret 으로 판정).
+- **(e)** `github.com/microsoft/onnxruntime` (Thread management 문서); Hugging Face Optimum / Sentence Transformers efficiency 문서.
+
+#### 8.3.6 OpenVINO — C3 의 Intel-native 대안 (AVX-512/AMX)
+- **(a)** Intel 추론 toolkit. 2024.x 부터 AVX2/AVX-512 에서 FC 레이어 dynamic INT8 기본 활성, AMX 1st-token 가속.
+- **(b)** Intel HW 백엔드 (AVX-512 VNNI, AMX) 에 직접 매핑되는 graph compile + INT8/INT4 weight compression.
+- **(c)** prod 타깃이 Xeon (IDE_023 의 EMR 8570) 이므로, C3 MiniLM 을 OpenVINO 로 돌리면 AMX/AVX-512 VNNI 를 분류기가 직접 사용 (IDE_023 A2 와 정확히 일치). dev (Alder Lake, AMX 없음) 에선 AVX-512 경로만, prod 에서 AMX 경로 검증.
+- **(d)** 효과: prod Xeon 에서 ONNX Runtime 보다 Intel HW 활용도↑ 가능 (벤더 주장, 본 fork 미측정→미확인). 비용: Intel HW 종속, dev/prod 경로 분기.
+- **(e)** Intel OpenVINO 2024.1–2024.5 release notes.
+
+#### 8.3.7 Free-threaded CPython 3.13 — ProcessPool 대체
+- **(a)** PEP 703 의 `--disable-gil` 빌드 (3.13, 2024-10 experimental, 이후 supported 로 격상).
+- **(b)** GIL 제거로 다중 스레드가 진짜 병렬로 Python bytecode 실행. multi-thread CPU-bound 작업에서 큰 향상 보고 (한 벤치 +81.7% — 출처 매체, 본 fork 미검증). 단, 단일 스레드는 locking 오버헤드로 약간 느려질 수 있음.
+- **(c)** [`agsd_router.py`](../../../../vllm_config_perf/gating/agsd_router.py) 의 `ProcessPoolExecutor(16)` 를 `ThreadPoolExecutor` 로 전환 → prompt 직렬화/IPC/프로세스 기동 비용 제거. classify 가 CPU-bound 라 free-threaded 빌드에서만 효과. regex/네이티브 라이브러리 (RE2/Hyperscan) 는 GIL 밖에서 도므로 free-threaded 아니어도 thread 풀로 이미 병렬 — free-threaded 는 순수 Python 피처 추출 경로에 의미.
+- **(d)** 효과: classify batch 의 fan-out 오버헤드 제거, 메모리 footprint 감소 (프로세스당 인터프리터 복제 회피). 비용: free-threaded ABI 의 C 확장 호환성, 단일스레드 회귀, 아직 성숙 중. 코어/에너지 trade-off 는 arXiv:2603.04782 참조.
+- **(e)** CPython 3.13 / PEP 703; Real Python "Free Threading and JIT"; arXiv:2603.04782 (2026).
+
+#### 8.3.8 Apache Arrow — prompt batch zero-copy
+- **(a)** 언어 독립 columnar in-memory format + zero-copy 공유.
+- **(b)** 메타데이터만으로 deserialization (데이터 복사 없음), dictionary 인코딩 (반복 문자열 → 인덱스), SIMD-friendly 연속 레이아웃.
+- **(c)** 라우터의 `batch_route` 가 받는 prompt list 를 Arrow `StringArray` 로 보관 → ProcessPool worker 로 pickle 복사 대신 shared memory / Arrow IPC 로 zero-copy 전달. tokenizer vocab 같은 반복 토큰은 dictionary 인코딩으로 메모리 절감.
+- **(d)** 효과: batch 분류 시 IPC 직렬화 세금 제거 (IDE_023 A4), columnar 가 SIMD 피처 추출에 유리. 비용: Arrow 의존성, 작은 batch 엔 오버헤드, 현 ProcessPool 구조 변경 필요.
+- **(e)** `arrow.apache.org` Columnar Format spec; `github.com/apache/arrow`.
+
+#### 8.3.9 mimalloc — alloc 경합·fragmentation 감소
+- **(a)** Microsoft 의 범용 할당자. thread-local heap ("theap") + arena.
+- **(b)** 스레드마다 독립 heap, 거의 atomic 연산만으로 경합 최소화, bounded worst-case alloc time, 낮은 internal fragmentation. 벤치에서 jemalloc/tcmalloc 보다 우수 (저자 벤치, 본 fork 미검증).
+- **(c)** classify worker (특히 fastText/MiniLM 의 임시 텐서, regex match 결과 리스트) 의 빈번한 소형 alloc 을 mimalloc 으로 `LD_PRELOAD` → 멀티 worker 환경 (ProcessPool/ThreadPool 16) 에서 malloc 경합·RSS 절감.
+- **(d)** 효과: 멀티스레드 alloc 경합 감소 (IDE_023 A4/A5 와 정합), RSS 안정. 비용: drop-in `LD_PRELOAD` 이라 코드 변경 0, 단 측정으로 이득 확인 필요 (worst-case 메모리 +25% 가능).
+- **(e)** `github.com/microsoft/mimalloc`; Microsoft Research mimalloc 블로그.
+
+#### 8.3.10 simdjson — inbound payload SIMD 파싱
+- **(a)** 초당 GB 급 fully-validating JSON 파서 (SIMD).
+- **(b)** SIMD 벡터로 구조 토큰 식별, branch misprediction·data dependency 최소화. AVX2/AVX-512/NEON 지원.
+- **(c)** 라우터의 `await req.json()` (OpenAI payload 파싱) 단계가 큰 chat payload (multi-turn, code 첨부) 에서 비용. `pysimdjson` 으로 prompt 텍스트 추출만 빠르게 → classify 이전 단계 가속.
+- **(d)** 효과: 큰 payload 에서 파싱 latency 감소 (IDE_023 A2). 비용: 분류 자체보다 payload-heavy 일 때만 의미, 의존성 추가.
+- **(e)** Langdale & Lemire, VLDB J. 28(6) 2019; `github.com/simdjson/simdjson`.
+
+### 8.4 IDE_023 레버와의 연결 (A2 SIMD / A4 memory / A5 SMT)
+
+분류기는 IDE_023 §1.3 의 HW lever 를 **request critical path 의 CPU 작업** 으로 직접 소비할 수 있는 첫 후보입니다.
+
+```mermaid
+flowchart TB
+  subgraph A2["IDE_023 A2 — Compute SIMD (AVX-512 / AMX / VNNI)"]
+    HS["Hyperscan / Vectorscan<br/>multi-pattern regex (SSSE3~AVX-512)"]
+    SJ["simdjson<br/>payload 파싱 (AVX2/512)"]
+    OV["OpenVINO MiniLM INT8<br/>AVX-512 VNNI + AMX"]
+    ORT["ONNX Runtime INT8 matmul<br/>(intra-op SIMD)"]
+  end
+  subgraph A4["IDE_023 A4 — Memory hierarchy (cache / NUMA / alloc)"]
+    DA["daachorse double-array<br/>12B/state, cache-friendly"]
+    FH["feature hashing<br/>vocab 테이블 제거"]
+    AR["Apache Arrow<br/>zero-copy columnar batch"]
+    MI["mimalloc<br/>thread-local heap, low frag"]
+  end
+  subgraph A5["IDE_023 A5 — SMT pairing"]
+    FT["free-threaded 3.13<br/>thread classify (GIL-free)"]
+    ORTT["ONNX intra/inter-op<br/>thread pool affinity"]
+  end
+  C0["C0/C1 regex 분류기"] --> HS
+  C0 --> DA
+  C2["C2 hashing+linear (fastText)"] --> FH
+  C3["C3 MiniLM head"] --> OV
+  C3 --> ORT
+  C3 --> ORTT
+  ROUTER["agsd_router batch classify"] --> AR
+  ROUTER --> MI
+  ROUTER --> FT
+  ROUTER --> SJ
+```
+
+- **A2 (SIMD)**: C0/C1 → Hyperscan/Vectorscan 의 SSSE3~AVX-512 매칭; C3 → OpenVINO 가 AVX-512 VNNI·AMX 를 직접 사용 (prod Xeon 8570 의 native ISA, IDE_023 §2.2 의 Peak_AVX512_BF16 / Peak_AMX 와 동일 HW). simdjson 의 payload 파싱도 A2.
+- **A4 (memory)**: daachorse 12 byte/state (Mattson stack distance 관점에서 working set 축소, IDE_023 §2.4.6), feature hashing 의 vocab-free (LLC 압박 완화, §2.4.4 CMT), Arrow zero-copy (IPC 직렬화 제거), mimalloc (NUMA-aware thread-local heap → §2.4.1 first-touch binding 과 결합 가능).
+- **A5 (SMT)**: free-threaded 3.13 thread classify + ONNX intra/inter-op thread pool 을 IDE_023 §2.5.2 의 hot/cold taxonomy 에 따라 SMT sibling 으로 배치 (classifier = "router 의 hot math", scheduler bookkeeping = cold sibling). ProcessPool→ThreadPool 전환이 전제.
+
+### 8.5 권고 — 현 regex 분류기 대비 채택 우선순위 (저비용·고효과 순)
+
+| 순위 | 변경 | 대상 후보 | 비용 | 기대 효과 | 근거 |
+|---|---|---|---|---|---|
+| **R1 (즉시)** | Python `re` → **RE2** (`google-re2`) | C0/C1 | 매우 낮음 (drop-in) | p99 classify fat-tail 제거, ReDoS-safe (다국어/long-context 안전) | §8.3.2 |
+| **R2 (즉시)** | classify worker 에 **mimalloc** `LD_PRELOAD` | 전 후보 | 0 (코드 변경 없음) | 멀티 worker alloc 경합·RSS 감소 | §8.3.9 |
+| **R3 (저비용)** | 다중 패턴을 **Vectorscan** 단일 DB 로 통합 | C0/C1 | 낮음 (C 바인딩) | 패턴 수 증가 (C1 확장 룰) 시 단일 패스, 처리량↑ | §8.3.1 |
+| **R4 (중)** | **C2 backend = fastText / feature hashing** | C2 | 중 (학습 데이터) | TF-IDF vocab 제거 → 메모리·latency↓, n-gram robust → regret↓ | §8.3.4 |
+| **R5 (중)** | **C3 = MiniLM INT8 on ONNX Runtime / OpenVINO** + ProcessPool→ORT thread pool | C3 | 중-높음 (모델·warmup) | regret 최저 후보, 단 batch 화 필수 | §8.3.5/8.3.6 |
+| **R6 (실험)** | **free-threaded 3.13** + ThreadPool + **Arrow** zero-copy batch | 라우터 전체 | 높음 (런타임·구조 변경) | fan-out/IPC 세금 제거, A5 SMT 활용 | §8.3.7/8.3.8 |
+
+→ C0~C3 (§2.3) 연결: **C0/C1 은 R1+R3 로 "거의 공짜로 더 빠르고 안전"**, **C2 는 R4 로 메모리·regret 동시 개선**, **C3 는 R5 로 prod Xeon 의 A2 (AVX-512/AMX) 를 분류기가 직접 소비**. R2 는 모든 후보 공통 무비용 개선이라 default 권장.
+**핵심 권고 3가지**: (1) C0/C1 regex 를 RE2 (즉시) → 패턴 확장 시 Vectorscan 으로, (2) C2 를 fastText/feature-hashing 로 (vocab 제거 + regret robust), (3) C3 MiniLM 은 ONNX Runtime/OpenVINO INT8 로 batch 추론하여 prod Xeon 의 AVX-512 VNNI·AMX (IDE_023 A2) 에 직접 매핑.
+
+### 8.6 미해결 / 추가 검증 필요 항목
+
+- **classify latency 의 절대 budget**: 현 regex ~0.26 ms/prompt (§2.1.3 인용) 대비 RE2/Vectorscan/ONNX 각각의 실측 p50/p99 미확보. dev (Alder Lake) + prod (Xeon 8570) 양쪽에서 microbench 필요 (IDE_023 §3 timing framework 재사용).
+- **MiniLM INT8 batch latency vs regret 이득**: §8.3.5 의 9 ms p50 은 외부 DistilBERT 사례 — all-MiniLM-L6-v2 + 3-class head + 본 prompt 분포에서 미확인. R5 채택은 §2.2 regret 측정으로만 정당화.
+- **fastText/hashing 의 충돌 차원**: Freksen 2018 이론은 있으나 sonnet/chat/code 3-class 에서 필요한 hash 차원·n-gram 범위 미튜닝.
+- **free-threaded 3.13 의 C 확장 호환**: RE2/Hyperscan/ONNX 바인딩이 free-threaded ABI 에서 동작/성능 회귀 없는지 미확인. "+81.7%" 등 수치는 외부 매체 주장 (본 fork 미검증).
+- **OpenVINO vs ONNX Runtime 우열**: prod Xeon 8570 의 AMX 1st-token 가속이 분류기 같은 short-sequence·small-model 에서도 유효한지 미확인 (AMX 는 GEMM-bound 에 유리, 22M MiniLM 의 short seq 는 memory-bound 가능).
+- **Hyperscan 라이선스**: 5.4 까지 BSD, 이후 Intel proprietary 전환 (Phoronix 보도) → OSS 채택 시 **Vectorscan** 으로 고정 권장.
+- **OS-level mmap / NUMA-aware 배치**: §2 조사 범위의 "mmap zero-copy prompt" 와 NUMA-aware batch 는 분류기 단독보다 라우터+IDE_023 A4 통합 SUB 에서 다룰 항목 (본 절은 라이브러리 레버까지만 확인).
+
+### 8.7 인용 URL (검증 완료, 2026-06-01)
+
+- Hyperscan NSDI 2019: https://www.usenix.org/conference/nsdi19/presentation/wang-xiang , https://www.usenix.org/system/files/nsdi19-wang-xiang.pdf
+- Hyperscan repo / 라이선스: https://github.com/intel/hyperscan ; proprietary 전환: https://www.phoronix.com/news/Intel-Hyperscan-Now-Proprietary
+- Vectorscan: https://github.com/VectorCamp/vectorscan
+- RE2: https://github.com/google/re2 ; https://en.wikipedia.org/wiki/RE2_(software)
+- daachorse / 논문: https://github.com/daac-tools/daachorse ; https://arxiv.org/pdf/2207.13870 ; aho-corasick: https://github.com/BurntSushi/aho-corasick
+- fastText: https://arxiv.org/abs/1607.01759 ; https://fasttext.cc/
+- Feature hashing: (Weinberger et al. ICML 2009) https://en.wikipedia.org/wiki/Feature_hashing ; https://arxiv.org/abs/1805.08539
+- ONNX Runtime threading: https://onnxruntime.ai/docs/performance/tune-performance/threading.html
+- ONNX/Optimum MiniLM 양자화: https://www.philschmid.de/optimize-sentence-transformers ; https://sbert.net/docs/sentence_transformer/usage/efficiency.html
+- OpenVINO 2024 release notes: https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2024-1.html (2024.1) , .../2024-5.html
+- Free-threaded Python 3.13: https://realpython.com/python313-free-threading-jit/ ; GIL HW/에너지: https://arxiv.org/pdf/2603.04782
+- Apache Arrow Columnar: https://arrow.apache.org/docs/format/Columnar.html ; https://github.com/apache/arrow
+- mimalloc: https://github.com/microsoft/mimalloc ; https://microsoft.github.io/mimalloc/bench.html
+- simdjson: https://simdjson.org/about/ ; https://github.com/simdjson/simdjson
