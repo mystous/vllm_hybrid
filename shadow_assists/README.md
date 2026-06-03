@@ -223,8 +223,9 @@ flowchart TB
     %% production guide: /spec_decoding/README.md
     PLN_001 --> TSK_020["TSK_020<br/>Spec decode tuning + CPU+spec 결합<br/>🏆 Trident core (SUB_093 + SUB_089 canonical)<br/>sonnet 11,677 (fair +52.1%)<br/>chat 3,830 (fair +68.9%)<br/>code 7,981 (fair +18.8%)<br/>mix-sh 10,298 / mix-bal 9,514 / mix-ch 9,457<br/>AGSD = Trident core + gating"]
     TSK_020 --> IDE_022["IDE_022<br/>AGSD realistic-workload + decision-regret eval<br/>⚪ 활성 (계획→구현)"]
-    IDE_022 --> TSK_042["TSK_042<br/>워크로드 활용 실험<br/>실 corpus × 모델매트릭스 × method oracle<br/>+ 품질(경로A/B) + 라우팅 비교(vanilla/trident/llm-d)<br/>⚪ 활성"]
-    IDE_022 --> TSK_043["TSK_043<br/>AGSD: CPU 병렬성 최적화 + 측정<br/>C0~C3 분류기 + §8 R1~R6 + latency/throughput/regret<br/>⚪ 활성 (선행 TSK_042)"]
+    IDE_022 --> TSK_042["TSK_042<br/>워크로드 활용 실험<br/>실 corpus × 모델매트릭스 × method oracle<br/>+ 품질(경로A/B) + 라우팅 비교(vanilla/trident/llm-d)<br/>✅ B200 173셀 측정 완료"]
+    IDE_022 --> TSK_043["TSK_043<br/>AGSD: CPU 병렬성 최적화 + 측정<br/>C0~C3 분류기 + §8 R1~R6 + latency/throughput/regret<br/>⚪ 활성 (선행 TSK_042) — 모델계열+워크로드 hybrid gate 로 재정렬"]
+    TSK_042 --> SUB_201["SUB_201<br/>spec-decode가 만든 host(CPU) 병목 재배치<br/>AGSD 전제 폐기 → CPU 병렬성 활용처 재유도<br/>명제: suffix가 GPU un-saturate(util 26–65%) → host-bound<br/>유휴 CPU/DRAM로 host-path 회수 (A1 draft/A2 KV/B detok·grammar)<br/>죽은 길 폐기: C1 매트멀오프로드/C2 branchy/C3 NEO<br/>🔵 분석완료 / go-no-go=step 분해 프로파일 대기"]
     TSK_020 --> SUB_044["SUB_044<br/>ngram spec=3/5/7/10 sweep<br/>🟢 첫 net-positive (10,778 tps, +130%)"]
     TSK_020 --> SUB_045["SUB_045<br/>spec=7 + CPU BG multi-workload<br/>🔵 background 측정 중"]
     SUB_044 --> SUB_047["SUB_047<br/>ngram numba thread cap 1→8<br/>🏆 canonical 3-run avg 10,956.5 (var 0.454%, +134.12%)"]

@@ -168,10 +168,12 @@ PLN/TST 통과 후 본 코드 베이스에 들어가는 단위 기능. CLAUDE.md
 
 단일 `TSK_###` 가 여러 가설/path/Diff 를 동시에 다루는 경우 sub-단위 로 분리해 추적. 부모 `TSK` 와 1:N 관계. parent ID 를 비고 컬럼에 명시한다. SUB 의 카운터는 prefix 전역 (parent 와 무관하게 1 부터 1 씩 증가).
 
-**다음 부여 번호**: `SUB_199`
+**다음 부여 번호**: `SUB_202`
+(참고: `SUB_199`→`TSK_042`, `SUB_200`→`TSK_043` 으로 승격 소진(재사용 금지). `SUB_201` = 본 SUB.)
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
+| `SUB_201` | 🔵 **분석 완료 / 결정적 실험(step 분해 프로파일) 대기** (2026-06-04) — spec-decode가 만든 host(CPU) 병목 재배치: CPU 병렬성 활용처 재정립 | parent `TSK_042`. **AGSD 개념 전제 폐기** 후 TSK_042 173셀에서 CPU 활용처 재유도. **핵심 명제**: spec-decode(suffix, 지배 lever +83~232%)가 GPU를 un-saturate(util 82–98%→26–65%)하며 시스템을 host-bound로 전환 → 유휴 CPU(2.5–5.6%)+DRAM(2TB)로 그 host-path 병목을 떠안아 GPU slack 회수. **분류 기준**: CPU가 GPU 흉내(매트멀 오프로드)=죽은 길(C1 IDE_018/drop-in/Jacobi, C2 branchy busywork, C3 NEO) / host 병목 인수=산 길(A1 CPU 드래프팅[IDE_019], A2 KV tiering[IDE_017], B1 detok·B2 constrained-decode·B3 스케줄러). **go/no-go = §5 step 분해 프로파일**(Qwen-7B suffix util 26% vs Llama-70B 83%, Nsight inter-kernel gap). AGSD/branchy/IDE_018 폐기, CPU harvest는 future work. **doc**: [`features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/README.md`](features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/README.md) |
 | `SUB_001` | 대기 (검증 완료 — swiftllm 와 동등 확인됨) | D1: layer-offset verification (`forward_neo_pipelined`) | parent `TSK_019`. swiftllm `swiftllm/worker/model.py:_forward_pipeline` 의 layer ping-pong (batch[1] layer i + batch[0] layer i+1) 가 vLLM `forward_neo_pipelined` 에 동등 적재. TSK_016 Step 5.1~5.5 land 의 결과로 *추가 surgery 불필요*. ID 보존 |
 | `SUB_002` | 시도 후 revert (2026-05-05 — v39 시도 → 1000p 정확도 더 악화로 단순 root 아님 입증) | D2: cdec attention seq_ids/seq_lens 처리 (token-level vs seq-level) | parent `TSK_019`. swiftllm 의 `batch.seq_lens_list[batch.num_prgds:]` (seq-level, request 의 num_computed_tokens 기반) vs vLLM 의 `attn_metadata.seq_lens[_s0:_s1]` (GPU 기준, SWAPPED_OUT 부정확). **v39 시도**: `forward_context.neo_cdec_seq_lens` 신설 + runner 가 input_batch.num_computed_tokens 로 직접 계산. **결과**: 500p tok loss 4.69% → 2.84% (개선) / 1000p tok loss 12.89% → **14.47% (악화)** + output_tps 양 size 후퇴 → revert (`git checkout HEAD -- ...`). 단순 root 아님. 다른 corruption 경로 잔존 |
 | `SUB_003` | 대기 (TSK_015 와 영역 중복 — TSK_015 가 KV exclusive ownership 정식 적재) | D3: KV exclusive ownership (request 단위 GPU/CPU 분리) | parent `TSK_019`. swiftllm `swiftllm/server/block_manager.py` 의 atomic alloc + free (source 에서 free + dest alloc 동시) vs vLLM 의 mirror 정책. **본 sub-task 는 `TSK_015` 와 영역 중복** — TSK_015 가 정식 적재. 본 sub-task 는 *swiftllm cdec divergence 분석 시점의 라벨* 보존 목적. 추가 surgery 없음. ID 보존 |
