@@ -32,7 +32,7 @@ RESULTS_MD="${RESULTS_MD:-shadow_assists/features/IDE_022_agsd_realistic_eval/TS
 export RESULTS_MD
 
 # 사용자가 설정한 옵션만 run_case.sh 로 export (미설정 시 run_case.sh 기본값 사용)
-for v in CONDITIONS CONC MAXTOK NGRAM_MAXTOK MML LIMIT PORT GMU STREAM TP GPUS SKIP_EXISTING AGG PY VBIN; do
+for v in CONDITIONS CONC MAXTOK NGRAM_MAXTOK MML LIMIT PORT GMU STREAM TP GPUS SKIP_EXISTING AGG WAIT_READY_MAX PY VBIN; do
   eval "[ -n \"\${$v+x}\" ] && export $v"
 done
 

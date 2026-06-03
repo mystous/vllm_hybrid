@@ -47,7 +47,7 @@ export ARCTIC_INFERENCE_ENABLED=0 VLLM_PLUGINS="" PYTORCH_CUDA_ALLOC_CONF=expand
 export VLLM_NGRAM_NUM_THREADS_CAP=8 VLLM_NGRAM_DIVIDE_BY_TP=0
 
 log(){ echo "[$(date '+%H:%M:%S')] $*"; }
-wait_ready(){ for i in $(seq 1 180); do curl -sf "$1/v1/models" >/dev/null 2>&1 && { log "READY $1"; return 0; }; [ -n "${2:-}" ] && ! kill -0 "$2" 2>/dev/null && { log "DEAD backend (boot 실패) $1"; return 1; }; sleep 5; done; log "TIMEOUT $1"; return 1; }
+wait_ready(){ for i in $(seq 1 ${WAIT_READY_MAX:-180}); do curl -sf "$1/v1/models" >/dev/null 2>&1 && { log "READY $1"; return 0; }; [ -n "${2:-}" ] && ! kill -0 "$2" 2>/dev/null && { log "DEAD backend (boot 실패) $1"; return 1; }; sleep 5; done; log "TIMEOUT $1"; return 1; }
 kill_pgroup(){ local pid=$1; [ -z "$pid" ] && return 0; local pg; pg=$(ps -o pgid= -p "$pid" 2>/dev/null|tr -d ' '); [ -n "$pg" ] && kill -9 -"$pg" 2>/dev/null; kill -9 "$pid" 2>/dev/null; }
 # ss/lsof/fuser 부재 환경 → /proc cmdline 스캔으로 'vllm serve --port <PORT>' 프로세스 PID 탐색
 find_engine_pid(){ local port=$1 pid cl; for pid in $(ls /proc 2>/dev/null | grep -E '^[0-9]+$'); do cl=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null); case "$cl" in *"vllm serve"*"--port $port"*|*"vllm serve"*"--port=$port"*) echo "$pid"; return 0;; esac; done; }
@@ -80,6 +80,7 @@ if [ "$BOOT" = 1 ]; then
   CUDA_VISIBLE_DEVICES=$GPUS setsid "$VBIN" serve "$MODEL" \
     --tensor-parallel-size "$TP" --port "$PORT" --gpu-memory-utilization "$GMU" \
     --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"PIECEWISE"}' \
+    --allow-deprecated-quantization \
     $SA > "$LOGD/${TAG}_${METHOD}.log" 2>&1 < /dev/null &
   PID=$!
 else
