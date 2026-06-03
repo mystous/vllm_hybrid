@@ -42,6 +42,13 @@ Table~\ref{tbl:trident-vs-vanilla}이 보여주듯, spec-decode는 6개 워크�
 code 워크로드의 이득($+18.8\%$)은 chat($+68.9\%$)의 약 $\frac{1}{4}$에 불과하다.
 이 편차의 근본 원인을 다음 절에서 분석한다.
 
+이 강력한 효과는 합성 워크로드에 국한되지 않는다.
+DGX B200$\times$8 에서 8개 모델(Qwen$\cdot$Llama$\cdot$DeepSeek 계열)을
+실제 서빙 trace 로 측정한 결과(\S\ref{subsec:res-b200}),
+이질 트래픽(mix) 조건에서 suffix 는 8개 모델 전체에서 순 양성이며
+$+83\%\sim+232\%$의 가속을 보여, 본 절의 관찰이 실 트래픽에서
+더 큰 폭으로 재현됨을 확인한다.
+
 %% -------------------------------------------------------------------------
 \subsection{Code Workload에서의 구조적 실패}
 \label{subsec:mot-code-fail}
@@ -128,6 +135,11 @@ suffix가 $-5\%$ 회귀를 보인다.
 이는 모델 아키텍처가 suffix tree의 패턴 적합성에 영향을 미침을 의미하며,
 단일 투기적 디코딩 설정으로 모든 모델·워크로드 조합을 최적화하는 것이
 원리적으로 불가능함을 보여준다.
+이 아키텍처 의존성은 B200 실 트레이스 평가에서 더 극명하다:
+\emph{추론 특화} 모델 DeepSeek-R1-Distill-Llama-70B 는 mix 를 제외한
+6개 단일 corpus 전부에서 spec-decode 가 회귀하여 vanilla 가 최적이다
+(Table~\ref{tbl:b200-oracle}). 동일 70B 급에서도 모델 계열에 따라
+최적 방법이 정반대로 갈린다.
 
 % TODO: Qwen-2.5-72B code 워크로드에서 suffix 회귀의 메커니즘 분석.
 %       tokenizer vocabulary 분포 차이, attention pattern 분포 측정 추가.
@@ -148,16 +160,19 @@ llm-d는 Kubernetes 기반의 LLM disaggregation 프레임워크로,
 prefill과 decode 단계를 분리된 노드로 분산하고
 워크로드 특성에 따라 요청을 라우팅하는 정교한 구조를 채택한다.
 
-% TODO: llm-d vs CERES 배포 복잡도 정량 비교 (컴포넌트 수, 설정 파라미터 수,
-%       배포 시간, 운영 복잡도 지표).
-%       현재 llm-d 공개 문서 기반 분석만 가능; 실제 배포 실험은 future work.
+우리는 llm-d 를 \emph{실측 베이스라인}으로 동일 환경(B200$\times$8)에서
+8개 모델에 대해 평가하였다 (\S\ref{subsec:res-b200}).
+llm-d 는 vanilla 대비 56개 셀 중 45개(80\%)에서 우위를 보이나,
+\emph{최선 단일 방법}(suffix) 을 능가하는 경우는 10개(18\%)에 그친다.
+즉 클러스터 수준 disaggregation 라우팅의 추가 이득은
+서버 내 spec-decode 최적 선택 대비 제한적이다.
 
-llm-d의 접근은 강력하지만 다음 한계가 있다.
+llm-d의 접근은 강력하지만 본 연구의 관점에서 다음 한계가 있다.
 (1) Kubernetes 클러스터 관리, 노드 간 KV 캐시 전송, 스케줄러 커스터마이징 등
 복잡한 인프라 요구사항이 수반된다.
 (2) 단일 서버 수준에서의 경량 배포에는 적합하지 않다.
 (3) 투기적 디코딩의 워크로드별 최적 방법 선택을
-핵심 설계 목표로 다루지 않는다.
+핵심 설계 목표로 다루지 않아, 위 18\% 의 제한적 이득이 그 결과로 나타난다.
 
 \algname 은 이와 달리 기존 vLLM 스택에 \emph{최소 침습적(minimally invasive)} 변경만으로
 워크로드 레벨 게이팅을 구현한다:
@@ -176,14 +191,19 @@ llm-d의 접근은 강력하지만 다음 한계가 있다.
 \item 두 인스턴스가 각자 별도 GPU 그룹을 점유하므로
   (GPU 0--3: standard backend, GPU 4--7: spec-decode backend),
   NUMA 노드도 GPU PCIe affinity에 따라 자연 분리된다.
-\item 각 인스턴스의 CPU 이용률은 spec-decode $5.3\%$, baseline $5.6\%$로
-  $94\%$ 이상의 CPU가 유휴 상태다 (config-wide 평균).
+\item B200$\times$8 의 8개 모델 $\times$ 3개 구성 측정에서
+  CPU 이용률은 \emph{전 구성에서} $2.5\text{--}5.6\%$ 로,
+  $94\%$ 이상의 CPU가 유휴 상태다 (\S\ref{subsec:res-b200},
+  Table~\ref{tbl:b200-realtrace}).
+\item 더욱이 spec-decode 는 GPU 이용률마저 vanilla 대비 낮춘다
+  (예: Qwen-2.5-7B $82.5\%\to26.5\%$). 즉 step 당 다중 토큰 출력으로
+  GPU 에도 슬랙이 생기므로, 유휴 CPU 가 GPU 를 더 빠르게 채울 여지가 커진다.
 \item 듀얼-NUMA 아키텍처에서 remote/local 접근 거리 비가 $2.1\times$이므로
   NUMA 비인지(NUMA-unaware) 배치는 지속적인 지연 패널티를 초래한다.
 \end{itemize}
 
-이 CPU 유휴는 \algname 의 두 번째 구성요소인 \emph{CPU 슬랙 하베스팅}의
-재료가 된다.
+측정으로 확인된 이 CPU 유휴(및 GPU 슬랙)는 \algname 의 두 번째 구성요소인
+\emph{CPU 슬랙 하베스팅}의 재료가 된다.
 NUMA 바인딩으로 cross-socket QPI 트래픽을 제거하고,
 스텝 경계 정렬 branchy 보조 작업으로 유휴 CPU 사이클을 수확한다
 (\S\ref{sec:ceres}).

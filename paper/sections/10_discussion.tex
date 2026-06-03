@@ -7,6 +7,11 @@
 
 llm-d~\cite{llmd2025}는 Kubernetes 기반 LLM disaggregation으로
 워크로드 인지 라우팅을 지원하는 강력한 접근이다.
+\S\ref{subsec:res-b200}에서 동일 환경(B200$\times$8, 8개 모델)으로 실측한 결과,
+llm-d 는 vanilla 대비 80\%(45/56 셀)에서 우위를 보이나
+최선 단일 방법(suffix)을 능가하는 경우는 18\%(10/56)에 그쳤다.
+즉 클러스터 라우팅의 추가 이득은 서버 내 spec-decode 최적 선택 대비 제한적이며,
+이는 경량 워크로드 게이팅이 대부분의 가치를 포착할 수 있다는 본 연구의 전제를 뒷받침한다.
 두 시스템의 설계 철학은 다음과 같이 대비된다.
 
 \begin{table}[t]
@@ -24,14 +29,13 @@ llm-d~\cite{llmd2025}는 Kubernetes 기반 LLM disaggregation으로
 라우팅 기준 & prefill/decode 분리 & 워크로드$\times$모델 \\
 투기적 디코딩 & 별도 설계 필요 & spec-decode engine 내장 \\
 CPU 활용 & 미다룸 & NUMA pin $+$ branchy \\
+실측 이득 & vanilla 대비 80\% & oracle 게이트 상한 \\
+(B200, 56셀) & 최선단일 대비 18\% & (모델$\times$조건 최적) \\
 \midrule
 목표 & 클러스터 규모 확장 & 서버 내 효율 극대화 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-% TODO: llm-d 실제 배포 대비 CERES 배포 시간, 운영 파라미터 수 정량 비교.
-%       현재 Table의 llm-d 내용은 공개 문서 기반; 동일 환경에서의 직접 비교 실험 필요.
 
 두 접근은 상호 보완적이다.
 대규모 클러스터에서 llm-d가 노드 간 prefill/decode를 분리하는 동시에,
@@ -53,9 +57,11 @@ code agent를 동일하게 처리한다.
 \subsection{한계}
 
 \textbf{하드웨어 특화.}
-본 측정은 H100$\times$8 + Xeon SPR 듀얼-NUMA 환경에 특화되어 있다.
-다른 GPU 세대(A100, H200), AMD GPU, 단일 소켓 서버에서
-하베스팅 hyperparameter($T_{\text{aux}}$, branchy 패턴)를 재조정해야 할 수 있다.
+대규모 실 트레이스 평가는 DGX B200$\times$8 + Xeon 8570 에서,
+CPU lever microstudy 는 개발 플랫폼 H100$\times$8 + Xeon SPR 에서 수행되었다.
+처리량 패턴은 두 플랫폼에서 일관되나, CPU 하베스팅
+hyperparameter($T_{\text{aux}}$, branchy 패턴)의 B200 재측정 및
+다른 GPU 세대(A100, H200), AMD GPU, 단일 소켓 서버로의 일반화는 미완이다.
 \algname 의 $T_{\text{gpu}}$ 자동 측정이 부분적 일반화를 지원하지만
 multi-environment 검증은 후속 연구이다.
 
@@ -74,11 +80,13 @@ baseline-only(GPU 4장)와 \algname-gated(GPU 8장)의 GPU 수 차이로 인해
 게이팅 decision의 순효과를 공정하게 측정하려면
 양 구성의 GPU 수를 동일하게 고정한 통제 실험이 필요하다(후속 연구).
 
-\textbf{합성 워크로드와 짧은 디코딩 길이.}
-CPU lever 측정은 \texttt{max\_tokens}=32의 짧은 출력 환경에서 수행되어
-decode 단계가 짧다. 긴 디코딩(수천 토큰)에서 lever 효과의 일반화는 검증이 필요하다.
-또한 워크로드는 합성 분류 기반이므로 실제 서빙 트래픽(ShareGPT, LMSYS-Chat 등)에서의
-재현이 요구된다.
+\textbf{짧은 디코딩 길이의 CPU lever 측정.}
+처리량 평가는 실제 서빙 trace(ShareGPT, WildChat, LMSYS-Chat, SWE-bench,
+MBPP, HumanEval) 2{,}159 prompt 와 \texttt{max\_tokens}=8{,}192 로
+대규모 재현되었으나(\S\ref{subsec:res-b200}),
+CPU lever microstudy 는 아직 \texttt{max\_tokens}=32 의 짧은 출력 환경에서
+수행되었다. 긴 디코딩(수천 토큰)에서의 lever 효과 및 실 trace 기반
+CPU 하베스팅 재측정은 후속 과제이다.
 
 \textbf{Gating 규칙의 확장성.}
 현재 벤더-워크로드 게이팅 규칙(Qwen-72B code $\to$ baseline)은

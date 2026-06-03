@@ -45,6 +45,10 @@ context 길이에 따라 short/long 풀을 분리하여 KV 캐시 효율을 개�
 llm-d~\cite{llmd2025}는 Kubernetes 기반 LLM disaggregation으로
 prefill/decode 노드 분리와 워크로드 라우팅을 지원하지만
 복잡한 인프라 요구사항을 수반한다.
+본 연구는 llm-d 를 단순 인용에 그치지 않고
+동일 하드웨어(B200$\times$8)에서 8개 모델에 대해 실측 베이스라인으로 비교하며
+(\S\ref{subsec:res-b200}), 복잡한 클러스터 라우팅의 추가 이득이
+서버 내 최선 단일 방법 대비 18\%의 셀에 그침을 보인다.
 arXiv 2505.08600~\cite{specrouting2025}과
 Nightjar~\cite{nightjar2025}는 워크로드 인지 투기적 방법 선택을 탐구한다.
 

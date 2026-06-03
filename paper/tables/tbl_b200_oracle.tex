@@ -1,0 +1,33 @@
+%% tables/tbl_b200_oracle.tex
+%% Table: condition-level oracle (model × condition → best method)
+%% source: TSK_042 routing_combined — 게이팅 상한(per-request 최적 방법 선택)
+
+\begin{table*}[t]
+\centering
+\caption{조건별 oracle 방법 (모델 $\times$ 조건 $\to$ 최적 방법).
+  요청 출처(corpus)와 모델 아키텍처에 따라 최적 방법이 달라지므로,
+  단일 고정 방법은 구조적으로 최적일 수 없다.
+  \textbf{V}=vanilla, \textbf{S}=suffix, \textbf{L}=llm-d.
+  DeepSeek-R1-Distill-Llama-70B 는 mix 를 제외한 전 단일 corpus 에서
+  spec-decode 가 회귀하여 vanilla 가 최적이다.}
+\label{tbl:b200-oracle}
+\scriptsize
+\setlength{\tabcolsep}{5pt}
+\begin{tabularx}{\textwidth}{@{}Xccccccc@{}}
+\toprule
+\textbf{Model} & \textbf{ShareGPT} & \textbf{SWE-b} & \textbf{HumanEval} &
+  \textbf{MBPP} & \textbf{WildChat} & \textbf{LMSYS} & \textbf{mix} \\
+\midrule
+DeepSeek-R1-Distill-Llama-70B & V & V & V & V & V & V & S \\
+DeepSeek-R1-Distill-Qwen-32B  & S & S & S & S & S & S & S \\
+DeepSeek-R1-Distill-Qwen-7B   & S & S & S & S & S & L & S \\
+Llama-3.1-70B-Instruct        & S & S & S & S & S & S & S \\
+Llama-3.1-8B-Instruct         & S & S & S & S & S & S & S \\
+Qwen-2.5-32B-Instruct         & L & S & S & L & L & L & S \\
+Qwen-2.5-72B-Instruct         & S & S & S & L & V & S & S \\
+Qwen-2.5-7B-Instruct          & L & L & S & S & L & L & S \\
+\bottomrule
+\multicolumn{8}{@{}l@{}}{\scriptsize
+  oracle $=$ 해당 (모델, 조건) 에서 처리량 최대 방법 $=$ 이상적 per-request 게이트의 상한.}
+\end{tabularx}
+\end{table*}

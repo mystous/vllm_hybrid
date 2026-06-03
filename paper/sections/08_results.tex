@@ -4,11 +4,64 @@
 \label{sec:results}
 
 %% -----------------------------------------------------------------------
+\subsection{대규모 실 트레이스 평가 (DGX B200)}
+\label{subsec:res-b200}
+
+\input{tables/tbl_b200_realtrace}
+\input{tables/tbl_b200_oracle}
+
+본 절은 DGX B200$\times$8 에서 8개 모델 $\times$ 4개 방법
+(vanilla / suffix / ngram / llm-d) $\times$ 7개 조건(실 trace 6 corpus $+$ mix)을
+측정한 173개 셀의 결과를 종합한다 (\S\ref{sec:methodology} 시나리오 1, 2).
+이는 합성 분류 데이터를 실제 서빙 trace(ShareGPT, WildChat, LMSYS-Chat,
+SWE-bench, MBPP, HumanEval)로 대체한 평가로,
+이전 in-distribution 편향을 제거한다.
+
+\textbf{관찰 1 --- spec-decode 는 실 트래픽에서 강력하다.}
+이질 트래픽을 모사한 mix 조건에서 suffix 는 8개 모델 \emph{전체}에서
+순 양성이며 처리량 향상이 $+83\%$(DeepSeek-Qwen-32B)에서
+$+232\%$(Llama-3.1-70B)에 달한다 (Table~\ref{tbl:b200-realtrace}).
+이는 합성 워크로드(\S\ref{subsec:res-trident})에서 관찰한 가속이
+실제 trace 에서도 재현되며, 오히려 더 큰 폭으로 나타남을 보인다.
+
+\textbf{관찰 2 --- 최적 방법은 (모델, 조건)마다 다르다.}
+그러나 단일 corpus 조건에서는 최적 방법이 균일하지 않다
+(Table~\ref{tbl:b200-oracle}).
+특히 \emph{추론 특화} 모델인 DeepSeek-R1-Distill-Llama-70B 는
+mix 를 제외한 6개 단일 corpus 전부에서 spec-decode 가 회귀하여
+vanilla 가 최적이고($-2\sim-15\%$), 일부 Qwen 모델은 chat 계열 조건에서
+llm-d 가, code 계열에서 suffix 가 최적이다.
+이 (모델 $\times$ 조건) 의존성은 단일 고정 방법이 구조적으로 최적일 수 없음을
+56개 oracle 셀로 입증하며, 요청별 게이팅의 직접적 동기가 된다.
+
+\textbf{관찰 3 --- 복잡한 라우터(llm-d)의 한계 이득.}
+Kubernetes 기반 disaggregation 라우터인 llm-d 는
+vanilla 대비 56개 셀 중 45개(80\%)에서 우위를 보이나,
+\emph{최선 단일 방법}(suffix) 을 능가하는 경우는 10개(18\%)에 불과하며
+그마저 주로 7B$\cdot$32B chat 조건에 국한된다.
+즉 복잡한 클러스터 라우팅의 추가 이득은 제한적이며,
+서버 내 경량 워크로드 게이팅이 대부분의 가치를 포착할 수 있음을 시사한다
+(\S\ref{sec:discussion}).
+
+\textbf{관찰 4 --- CPU 는 유휴, GPU 에도 슬랙이 생긴다.}
+전 구성에서 CPU 이용률은 $2.5\text{--}5.6\%$ 로 유휴 상태에 머문다
+(Table~\ref{tbl:b200-realtrace} CPU\,\%).
+한편 suffix 는 처리량을 올리면서도 GPU 이용률을 vanilla 대비 낮춘다
+(예: Qwen-2.5-7B $82.5\% \to 26.5\%$, Qwen-2.5-32B $94.3\% \to 64.8\%$).
+이는 spec-decode 가 step 당 다중 토큰을 출력하여 GPU 가 짧게 쉬어도
+총 처리량이 늘어나는 구조(\S\ref{subsec:res-trident})를 자원 수준에서 확인하며,
+\emph{CPU 유휴와 GPU 슬랙이 공존}함을 보여
+CPU 슬랙 하베스팅(\S\ref{subsec:res-harvest})의 정량적 근거가 된다.
+
+%% -----------------------------------------------------------------------
 \subsection{spec-decode engine 효과: 워크로드별 처리량}
 \label{subsec:res-trident}
 
 \input{figures/fig2_agsd_e2e}
 
+개발 플랫폼(H100$\times$8)의 합성 워크로드 측정은
+\S\ref{subsec:res-b200}의 실 트레이스 결과와 일관된 패턴을 보이며,
+워크로드별 효과 편차를 통제된 환경에서 분해한다.
 Fig.~\ref{fig:agsd-e2e}는 \algname-gated의 end-to-end 처리량 우위를 보여주며,
 Table~\ref{tbl:trident-vs-vanilla}는
 spec-decode engine (SuffixDecoding $+$ cudagraph PIECEWISE)의 워크로드별 처리량을 보여준다.
