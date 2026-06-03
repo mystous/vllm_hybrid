@@ -1,0 +1,33 @@
+%% tables/tbl_b200_accept.tex
+%% Table: B200 실 트레이스 — accept α 와 처리량 이득의 R/K 관계 + naive n-gram 붕괴
+%% source: TSK_042 routing_combined (accept α: mix; ngram: 단일 corpus)
+
+\begin{table}[t]
+\centering
+\caption{실 트레이스(mix)에서 suffix 의 accept $\alpha$ 와 처리량 이득.
+  $\alpha$ 가 높을수록 $K$ 가 커져 이득이 증가하는 R/K 관계가
+  실 트래픽에서 재현된다. 하단: naive n-gram(prompt-lookup) 드래프터는
+  Qwen-2.5-7B 에서 모든 corpus 에 걸쳐 $\sim\!-90\%$ 로 붕괴한다.}
+\label{tbl:b200-accept}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Model (suffix, mix)} & $\boldsymbol{\alpha}$ & \textbf{$\Delta$tps vs vanilla} \\
+\midrule
+Llama-3.1-8B-Instruct         & $0.933$ & $+215\%$ \\
+Llama-3.1-70B-Instruct        & $0.915$ & $+232\%$ \\
+Qwen-2.5-7B-Instruct          & $0.881$ & $+87\%$  \\
+DeepSeek-R1-Distill-Qwen-7B   & $0.876$ & $+170\%$ \\
+Qwen-2.5-32B-Instruct         & $0.857$ & $+116\%$ \\
+Qwen-2.5-72B-Instruct         & $0.852$ & $+93\%$  \\
+DeepSeek-R1-Distill-Qwen-32B  & $0.801$ & $+83\%$  \\
+DeepSeek-R1-Distill-Llama-70B & $0.786$ & $+94\%$  \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{naive n-gram (Qwen-2.5-7B, 단일 corpus):}} \\
+\quad ShareGPT  & --- & $\mathbf{-91.4\%}$ \\
+\quad SWE-bench & --- & $\mathbf{-91.2\%}$ \\
+\quad HumanEval & --- & $\mathbf{-90.1\%}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

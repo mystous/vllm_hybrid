@@ -3,32 +3,39 @@
 \section{메커니즘 분석}
 \label{sec:mechanism}
 
-\subsection{Code Workload R/K 메커니즘}
+\subsection{드래프터 품질과 R/K 메커니즘}
 
-\textbf{왜 n-gram은 code에서 실패하는가.}
-n-gram 드래프터는 입력 프롬프트 내 n-gram 패턴 일치에 의존한다.
-자연어(sonnet: $\alpha=9.5\%$, chat: $\alpha=71.2\%$)와 달리
-코드는 함수명, 변수 식별자, API 호출 등 고유한 토큰이 지배적이다.
-이러한 비반복적 분포에서 n-gram hit rate가 $\alpha=1.2\%$로 급락하고
-$K=1.09 \approx 1$이 되어 $K < R$ 조건을 만족하지 못한다.
+\textbf{왜 naive n-gram은 실 트레이스에서 붕괴하는가.}
+n-gram(prompt-lookup) 드래프터는 입력 프롬프트 내 n-gram 패턴 일치에 의존한다.
+실제 서빙 trace 는 고유 식별자, 다국어 토큰, 비반복 구문이 지배적이어서
+hit rate 가 극도로 낮고, $K \ll R$ 이 되어 검증 오버헤드만 누적된다.
+그 결과 Qwen-2.5-7B 에서 n-gram 은 corpus 종류와 무관하게
+$\sim\!-90\%$ 로 붕괴한다 (\S\ref{subsec:mot-code-fail},
+Table~\ref{tbl:b200-accept}).
 
-\textbf{왜 suffix는 code에서 작동하는가.}
+\textbf{왜 suffix는 실 트래픽에서 작동하는가.}
 SuffixDecoding은 입력 프롬프트뿐 아니라
 \emph{이전 생성 출력}을 suffix tree에 누적한다.
-코드 생성 세션에서 함수 정의, 반복 패턴, 라이브러리 호출이
-suffix tree에 축적되면서 $\alpha$가 $1.2\% \to 40.1\%$로 향상된다.
+생성 세션에서 반복 구조, 정형 구문(코드$\cdot$JSON), 라이브러리 호출이
+suffix tree에 축적되면서 수락률이 mix 기준 $\alpha = 0.79\text{--}0.93$ 에 이른다
+(Table~\ref{tbl:b200-accept}, \ref{tbl:b200-latency}).
 adaptive draft length($K_{\max}=32$)가 hit가 없는 경우 draft를 1개로 줄여
 $R$ 오버헤드도 최소화한다.
+$\alpha$ 가 높은 모델일수록 처리량 이득이 커지는 R/K 관계가
+8개 모델에서 일관되게 관찰된다.
 
-\textbf{왜 Qwen-72B code에서 suffix가 회귀하는가.}
-% TODO: Qwen-72B code 회귀의 정확한 메커니즘 분석.
-%       가설: (1) Qwen tokenizer의 code 토큰 어휘 분포가 Llama와 다름,
-%       (2) Qwen attention pattern이 suffix tree hit pattern과 불일치.
-%       tokenizer vocab 분포 분석 및 accept rate 분포 세분화 측정 필요.
-현재 측정에서 Qwen-2.5-72B code는 suffix $-5\%$를 기록한다.
-동일 크기(Llama-3.3-70B)에서 $+18.8\%$와의 차이는
-모델 아키텍처가 suffix acceptance에 미치는 영향을 시사한다.
-이 메커니즘의 정확한 분석은 후속 연구로 남긴다.
+\textbf{왜 추론 특화 모델에서 spec-decode가 회귀하는가.}
+실 트레이스 평가에서 DeepSeek-R1-Distill-Llama-70B 는
+mix 를 제외한 6개 단일 corpus 전부에서 spec-decode 가 회귀하여
+vanilla 가 최적이다 (Table~\ref{tbl:b200-oracle}).
+동일 70B 급 Llama-3.1-70B 가 전 조건 suffix 최적인 것과 정반대다.
+추론 특화 모델은 긴 사고 사슬(chain-of-thought)을 생성하며,
+이 자기-생성 추론 텍스트는 토큰 분포의 엔트로피가 높고
+이전 출력과의 표층적 반복이 적어 suffix tree hit pattern 과 정합하지 않는다.
+이로 인해 수락률이 낮아져 $K < R$ 이 되고 spec-decode 가 손해가 된다.
+모델 크기가 아니라 \emph{모델 계열$\cdot$출력 특성}이
+최적 방법을 결정함을 보이며, 이는 \algname\ 벤더-아키텍처 게이팅의 근거이다.
+정확한 토크나이저$\cdot$attention 수준 메커니즘은 후속 연구로 남긴다.
 
 \subsection{CPU 슬랙 하베스팅 메커니즘}
 

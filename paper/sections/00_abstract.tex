@@ -2,13 +2,13 @@
 
 \begin{abstract}
 투기적 디코딩(speculative decoding)은 LLM 추론 처리량을 크게 향상시키지만,
-워크로드 유형에 따라 효과가 극도로 다르게 나타난다.
-특히 코드 생성 워크로드에서는 n-gram 기반 드래프터가 catastrophic regression
-($-20.2\%$)을 일으키며, code agent와 같은 최신 응용에서는 이 문제가 더욱 심각하다.
-suffix 기반 방법이 코드 워크로드의 한계를 완화하지만,
-모델 아키텍처와 워크로드 조합에 따라 여전히 성능 손실이 발생한다.
+워크로드 유형과 모델 계열에 따라 효과가 극도로 다르게 나타난다.
+실제 서빙 trace 측정에서 naive n-gram 드래프터는 catastrophic regression
+($\sim\!-90\%$)을 일으키고, 추론 특화 모델에서는 suffix 조차 회귀하여 vanilla 가 최적이 된다.
+즉 최적 방법이 (모델 $\times$ 조건)마다 달라 단일 고정 설정이 구조적으로 최적일 수 없다.
 한편 기존의 워크로드 인지 라우팅 시스템(예: llm-d)은 이 문제를 다루지만
-disaggregation 구조의 복잡성이 배포 장벽으로 작용한다.
+disaggregation 구조의 복잡성이 배포 장벽으로 작용하며,
+실측 결과 그 추가 이득도 최선 단일 방법 대비 제한적이다.
 
 본 논문은 \algname\ (\textbf{C}ontext-aware \textbf{E}fficient \textbf{R}outing
 with \textbf{E}xploited \textbf{S}lack)을 제안한다.

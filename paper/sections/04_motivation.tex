@@ -7,50 +7,37 @@
 왜 필요한지를 측정 데이터로 정당화한다.
 
 %% -------------------------------------------------------------------------
-\subsection{투기적 디코딩의 강력한 효과}
+\subsection{투기적 디코딩의 강력하지만 불균일한 효과}
 \label{subsec:mot-spec-power}
 
-SuffixDecoding~\cite{snowflake-arctic} 기반 spec-decode engine
-(SuffixDecoding $+$ cudagraph PIECEWISE $+$ \texttt{gmu=0.80})는
-H100 $\times$ 8 환경의 Llama-3.3-70B 모델에서 다음과 같은 처리량 향상을 달성한다.
+본 절의 동기는 DGX B200$\times$8 에서 8개 모델
+(Qwen$\cdot$Llama$\cdot$DeepSeek 계열) $\times$ 4개 방법 $\times$
+7개 조건(실 서빙 trace 6 corpus $+$ mix)을 측정한 173개 셀
+(\S\ref{subsec:res-b200}, Table~\ref{tbl:b200-realtrace},
+\ref{tbl:b200-oracle})에서 도출한다.
+합성 워크로드가 아닌 실제 trace(ShareGPT, WildChat, LMSYS-Chat,
+SWE-bench, MBPP, HumanEval)를 사용함으로써
+이전 평가의 in-distribution 편향을 제거한다.
 
-\input{figures/fig2_throughput_gain}
+SuffixDecoding~\cite{snowflake-arctic} 기반 spec-decode engine 은
+이질 트래픽을 모사한 mix 조건에서 8개 모델 \emph{전체}에 대해 순 양성이며,
+처리량 향상이 $+83\%$(DeepSeek-Qwen-32B)에서 $+232\%$(Llama-3.1-70B)에 달한다
+(Table~\ref{tbl:b200-realtrace}).
+즉 실 트래픽에서도 투기적 디코딩은 강력한 가속 기법이다.
 
-\begin{table}[t]
-\centering
-\caption{spec-decode engine vs.\ baseline: Llama-3.3-70B, TP=8, H100$\times$8,
-  500 prompts $\times$ 8192 max tokens.}
-\label{tbl:trident-vs-vanilla}
-\footnotesize
-\begin{tabular}{@{}lrrl@{}}
-\toprule
-\textbf{Workload} & \textbf{Baseline (tps)} & \textbf{Spec-only (tps)} & \textbf{$\Delta$} \\
-\midrule
-sonnet  & 7,678.7  & 11,676.9 & $\mathbf{+52.1\%}$ \\
-chat    & 2,266.8  & 3,830.4  & $\mathbf{+68.9\%}$ \\
-code    & 6,717.7  & 7,981.4  & $\mathbf{+18.8\%}$ \\
-mix-sh  & 6,325.9  & 10,297.7 & $+62.8\%$ \\
-mix-bal & 6,053.9  & 9,514.3  & $+57.2\%$ \\
-mix-ch  & 6,494.9  & 9,457.3  & $+45.6\%$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Table~\ref{tbl:trident-vs-vanilla}이 보여주듯, spec-decode는 6개 워크로드
-전체에서 순 양성(net positive)이며 처리량 향상은 $+18.8\%$에서 $+68.9\%$에 달한다.
-그러나 워크로드 간 효과 편차가 3.7배에 이른다는 사실에 주목해야 한다.
-code 워크로드의 이득($+18.8\%$)은 chat($+68.9\%$)의 약 $\frac{1}{4}$에 불과하다.
-이 편차의 근본 원인을 다음 절에서 분석한다.
-
-이 강력한 효과는 합성 워크로드에 국한되지 않는다.
-DGX B200$\times$8 에서 8개 모델(Qwen$\cdot$Llama$\cdot$DeepSeek 계열)을
-실제 서빙 trace 로 측정한 결과(\S\ref{subsec:res-b200}),
-이질 트래픽(mix) 조건에서 suffix 는 8개 모델 전체에서 순 양성이며
-$+83\%\sim+232\%$의 가속을 보여, 본 절의 관찰이 실 트래픽에서
-더 큰 폭으로 재현됨을 확인한다.
+그러나 이 효과는 \emph{불균일}하다.
+단일 corpus 조건으로 내려가면 최적 방법이 (모델 $\times$ 조건)마다 달라진다
+(Table~\ref{tbl:b200-oracle}, 56개 oracle 셀).
+대부분의 모델은 suffix 가 최적이지만,
+일부 Qwen 모델은 대화 계열 조건에서 클러스터 라우터(llm-d)가,
+추론 특화 모델(DeepSeek-R1-Distill-Llama-70B)은 vanilla 가 최적이다.
+이 불균일성은 단일 고정 방법이 구조적으로 최적일 수 없음을 의미하며,
+요청별 방법 선택---\emph{워크로드 레벨 게이팅}---의 직접적 동기가 된다.
+아래에서 그 불균일성의 두 원천(naive 드래프터의 붕괴, 모델 아키텍처 의존성)을
+분석한다.
 
 %% -------------------------------------------------------------------------
-\subsection{Code Workload에서의 구조적 실패}
+\subsection{Naive 드래프터의 붕괴와 R/K 메커니즘}
 \label{subsec:mot-code-fail}
 
 투기적 디코딩의 순이익은 R/K 비율로 결정된다
@@ -62,92 +49,61 @@ $+83\%\sim+232\%$의 가속을 보여, 본 절의 관찰이 실 트래픽에서
 \label{eq:rk-condition}
 \end{equation}
 
-n-gram 드래프터의 code 워크로드에서 accept rate $\alpha$가 극도로 낮다.
+여기서 $K$ 는 드래프터의 평균 수락 토큰 수로, 수락률 $\alpha$ 가 높을수록 커진다.
 
-\begin{table}[t]
-\centering
-\caption{드래프터별 $\alpha$와 $K$ 비교 (Llama-3.3-70B).}
-\label{tbl:alpha-k}
-\footnotesize
-\begin{tabular}{@{}llrrrr@{}}
-\toprule
-\textbf{Workload} & \textbf{Method} & $\boldsymbol{\alpha}$ & $\boldsymbol{K}$ & \textbf{$\Delta$ tps} \\
-\midrule
-code & ngram   & $1.2\%$  & $1.09$ & $\mathbf{-20.2\%}$ \\
-code & suffix  & $40.1\%$ & $4.08$ & $+18.8\%$ \\
-\midrule
-sonnet & ngram  & $9.5\%$  & $1.66$ & $+40.1\%$ \\
-sonnet & suffix & $77.0\%$ & $5.11$ & $+52.1\%$ \\
-\midrule
-chat   & ngram  & $71.2\%$ & $5.98$ & $+43.1\%$ \\
-chat   & suffix & $92.7\%$ & $10.06$ & $+68.9\%$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\input{tables/tbl_b200_accept}
 
-Table~\ref{tbl:alpha-k}에서 n-gram 드래프터의 code $\alpha = 1.2\%$는
-sonnet($9.5\%$) 대비 $8\times$ 낮으며, 이로 인해 $K = 1.09 < R$이 되어
-$-20.2\%$의 catastrophic regression이 발생한다.
-n-gram 드래프터는 입력 프롬프트 내 n-gram 패턴만을 활용하기 때문에,
-자연어 텍스트와 달리 고유한 식별자와 키워드로 구성된 코드의
-비반복적 토큰 분포에서 매우 낮은 hit rate를 보인다.
+\textbf{Naive n-gram 의 붕괴.}
+프롬프트 내 n-gram 패턴만 활용하는 naive 드래프터(prompt-lookup)는
+실 트레이스에서 처참하게 실패한다.
+Table~\ref{tbl:b200-accept} 하단과 같이, Qwen-2.5-7B 에서 n-gram 은
+\emph{모든} corpus 에 걸쳐 $\sim\!-90\%$ 로 붕괴한다
+(ShareGPT $-91.4\%$, SWE-bench $-91.2\%$, HumanEval $-90.1\%$).
+n-gram 은 고유 식별자와 비반복 토큰이 지배적인 실제 입력에서
+hit rate 가 극도로 낮아 $K \ll R$ 이 되고, 검증 오버헤드만 누적된다.
+이는 단순 드래프터를 무분별하게 켜는 것이 실 서비스에서
+catastrophic regression 을 일으킴을 보인다.
 
-\textbf{Code agent에서의 심화.}
-최근 급부상하는 code agent 응용---도구 호출(tool calling),
-추론 체인(reasoning chain), 코드 디버깅 루프---에서는 이 문제가 더욱 심각하다.
-Code agent는 동일 세션 내에서 LLM을 수십~수백 회 반복 호출하며,
-각 호출마다 투기적 디코딩 스텝 오버헤드가 누적된다.
-$K < R$ 조건에서 다중 호출이 이루어지면 총 지연이 선형 이상으로 증가한다.
+\textbf{R/K 관계의 실 트레이스 재현.}
+반면 suffix 는 입력과 이전 생성 출력을 suffix tree 에 누적하여
+실 트래픽에서도 높은 수락률을 달성한다 ($\alpha = 0.79\text{--}0.93$, mix).
+Table~\ref{tbl:b200-accept} 상단에서 보듯 $\alpha$ 가 높은 모델일수록
+처리량 이득이 커지는 R/K 관계가 실 트레이스에서 재현되며
+(Llama-3.1 계열 $\alpha \ge 0.91 \Rightarrow +215\sim232\%$),
+이는 드래프터 품질이 가속의 본질적 결정요인임을 확인한다.
+
+\textbf{Code agent 에서의 심화.}
+도구 호출(tool calling), 추론 체인, 디버깅 루프로 구성된 code agent 는
+동일 세션에서 LLM 을 수십~수백 회 반복 호출하므로,
+$K < R$ 조건의 드래프터를 쓰면 스텝 오버헤드가 호출마다 누적되어
+총 지연이 선형 이상으로 증가한다.
 
 % TODO: code agent 패턴(tool calling, multi-turn) 특화 측정 실험 추가.
-%       현재 실험 setup(500 prompts × max_tokens=32)에서
-%       code agent 시뮬레이션(n_turns=10, tool_call_ratio=0.5) 별도 측정 필요.
 
 %% -------------------------------------------------------------------------
-\subsection{Suffix가 Code를 구제하지만 완전하지 않다}
+\subsection{모델·아키텍처 의존성: 단일 방법의 한계}
 \label{subsec:mot-suffix-limit}
 
-SuffixDecoding~\cite{snowflake-arctic}은 입력 프롬프트뿐 아니라
-이전 생성 출력까지 suffix tree에 누적하여 드래프팅에 활용한다.
-이를 통해 code 워크로드에서 $\alpha$를 $1.2\% \to 40.1\%$로
-($33\times$) 끌어올리고 $K = 4.08$을 달성하여 $+18.8\%$의 순 양성을 확보한다.
+suffix 가 대부분의 모델에서 강력하더라도 보편적으로 최적인 것은 아니다.
+실 트레이스 평가는 \emph{모델 계열}에 따라 최적 방법이 정반대로 갈림을 보인다
+(Table~\ref{tbl:b200-oracle}).
 
-그러나 suffix 방법도 모든 환경에서 최적이 아니다.
-
-\begin{table}[t]
-\centering
-\caption{모델 아키텍처별 code 워크로드 suffix 효과.}
-\label{tbl:suffix-code-arch}
-\footnotesize
-\begin{tabular}{@{}lrrr@{}}
-\toprule
-\textbf{Model}       & \textbf{Baseline} & \textbf{Suffix} & \textbf{$\Delta$} \\
-\midrule
-Llama-3.3-70B        & 6,717.7 & 7,981.4 & $+18.8\%$ \\
-Phi-3-medium-14B     & 3,340   & 5,085   & $+52.2\%$ \\
-\textbf{Qwen-2.5-72B}& \textbf{6,227}  & \textbf{5,941}  & $\mathbf{-5.0\%}$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Table~\ref{tbl:suffix-code-arch}에서 Qwen-2.5-72B의 code 워크로드에서
-suffix가 $-5\%$ 회귀를 보인다.
-이는 모델 아키텍처가 suffix tree의 패턴 적합성에 영향을 미침을 의미하며,
-단일 투기적 디코딩 설정으로 모든 모델·워크로드 조합을 최적화하는 것이
-원리적으로 불가능함을 보여준다.
-이 아키텍처 의존성은 B200 실 트레이스 평가에서 더 극명하다:
-\emph{추론 특화} 모델 DeepSeek-R1-Distill-Llama-70B 는 mix 를 제외한
-6개 단일 corpus 전부에서 spec-decode 가 회귀하여 vanilla 가 최적이다
-(Table~\ref{tbl:b200-oracle}). 동일 70B 급에서도 모델 계열에 따라
-최적 방법이 정반대로 갈린다.
-
-% TODO: Qwen-2.5-72B code 워크로드에서 suffix 회귀의 메커니즘 분석.
-%       tokenizer vocabulary 분포 차이, attention pattern 분포 측정 추가.
-
+가장 극명한 사례는 \emph{추론 특화} 모델
+DeepSeek-R1-Distill-Llama-70B 이다.
+이 모델은 mix 를 제외한 6개 단일 corpus 전부에서 spec-decode 가 회귀하여
+vanilla 가 최적이며 (예: SWE-bench $-15\%$, ShareGPT $-12\%$),
+동일 70B 급의 Llama-3.1-70B 가 모든 조건에서 suffix 최적인 것과 정반대다.
+추론 모델의 긴 사고 사슬(chain-of-thought) 출력이 suffix tree 패턴과
+정합하지 않아 수락률이 낮아지는 것으로 해석되며, 이 메커니즘은
+\S\ref{sec:mechanism}에서 분석한다.
+일부 Qwen 모델은 대화 계열 조건에서 두 백엔드 분할(llm-d)이 최적이 되는 등,
+최적 방법은 모델 크기만으로 결정되지 않는다.
 
 \textbf{결론.}
-같은 서버에 sonnet($+52\%$)과 code agent($K < R$ 가능)가 혼재하는 운영 환경에서
-단일 투기적 디코딩 설정은 구조적으로 최적화 불가능하다.
+실 트래픽에는 대화$\cdot$코드$\cdot$추론이 혼재하고
+서버에는 서로 다른 모델 계열이 배치된다.
+naive 드래프터는 붕괴하고($-90\%$), 최적 방법은 (모델 $\times$ 조건)마다 다르므로,
+단일 고정 투기적 디코딩 설정은 구조적으로 최적화 불가능하다.
 요청별(per-request) 방법 선택, 즉 \emph{워크로드 레벨 게이팅}이 필수적이다.
 
 %% -------------------------------------------------------------------------

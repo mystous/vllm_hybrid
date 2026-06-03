@@ -1,0 +1,26 @@
+%% tables/tbl_trident_vs_vanilla.tex
+%% Table (개발 플랫폼 보조 측정): H100×8 Llama-3.3-70B 합성 워크로드
+%% B200 실 트레이스 평가(tbl:b200-realtrace)와 일관된 패턴을 통제 환경에서 분해.
+
+\begin{table}[t]
+\centering
+\caption{개발 플랫폼 보조 측정: spec-decode engine vs.\ baseline
+  (Llama-3.3-70B, TP=8, H100$\times$8, 합성 워크로드,
+  500 prompts $\times$ 8192 max tokens).
+  실 트레이스 결과(Table~\ref{tbl:b200-realtrace})와 일관된 워크로드 의존성을
+  통제 환경에서 분해한다.}
+\label{tbl:trident-vs-vanilla}
+\footnotesize
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Workload} & \textbf{Baseline (tps)} & \textbf{Spec-only (tps)} & \textbf{$\Delta$} \\
+\midrule
+sonnet  & 7,678.7  & 11,676.9 & $\mathbf{+52.1\%}$ \\
+chat    & 2,266.8  & 3,830.4  & $\mathbf{+68.9\%}$ \\
+code    & 6,717.7  & 7,981.4  & $\mathbf{+18.8\%}$ \\
+mix-sh  & 6,325.9  & 10,297.7 & $+62.8\%$ \\
+mix-bal & 6,053.9  & 9,514.3  & $+57.2\%$ \\
+mix-ch  & 6,494.9  & 9,457.3  & $+45.6\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}

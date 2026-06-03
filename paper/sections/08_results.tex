@@ -49,23 +49,33 @@ vanilla 대비 56개 셀 중 45개(80\%)에서 우위를 보이나,
 한편 suffix 는 처리량을 올리면서도 GPU 이용률을 vanilla 대비 낮춘다
 (예: Qwen-2.5-7B $82.5\% \to 26.5\%$, Qwen-2.5-32B $94.3\% \to 64.8\%$).
 이는 spec-decode 가 step 당 다중 토큰을 출력하여 GPU 가 짧게 쉬어도
-총 처리량이 늘어나는 구조(\S\ref{subsec:res-trident})를 자원 수준에서 확인하며,
+총 처리량이 늘어나는 구조를 자원 수준에서 확인하며,
 \emph{CPU 유휴와 GPU 슬랙이 공존}함을 보여
 CPU 슬랙 하베스팅(\S\ref{subsec:res-harvest})의 정량적 근거가 된다.
 
+\textbf{관찰 5 --- 지연 구조: TTFT 소폭 증가, TPOT 대폭 단축.}
+\input{tables/tbl_b200_latency}
+처리량 향상의 지연 측면 기전은 Table~\ref{tbl:b200-latency}에 나타난다.
+suffix 는 드래프팅 비용으로 TTFT(첫 토큰 지연)가 소폭 증가하나,
+step 당 다중 토큰 수락으로 TPOT(토큰당 지연)를 크게 단축한다
+(예: DeepSeek-Qwen-7B $3.3 \to 0.9$\,ms, Llama-3.1-70B $9.2 \to 2.5$\,ms).
+높은 수락률($\alpha = 0.79\text{--}0.93$)이 이 TPOT 단축의 원천이며,
+이는 \S\ref{subsec:mot-code-fail}의 R/K 관계와 정합한다.
+
 %% -----------------------------------------------------------------------
-\subsection{spec-decode engine 효과: 워크로드별 처리량}
+\subsection{보조 측정: 개발 플랫폼(H100) 합성 워크로드 분해}
 \label{subsec:res-trident}
 
+\input{figures/fig2_throughput_gain}
+\input{tables/tbl_trident_vs_vanilla}
 \input{figures/fig2_agsd_e2e}
 
-개발 플랫폼(H100$\times$8)의 합성 워크로드 측정은
-\S\ref{subsec:res-b200}의 실 트레이스 결과와 일관된 패턴을 보이며,
-워크로드별 효과 편차를 통제된 환경에서 분해한다.
-Fig.~\ref{fig:agsd-e2e}는 \algname-gated의 end-to-end 처리량 우위를 보여주며,
-Table~\ref{tbl:trident-vs-vanilla}는
-spec-decode engine (SuffixDecoding $+$ cudagraph PIECEWISE)의 워크로드별 처리량을 보여준다.
-Llama-3.3-70B + TP=8 + H100$\times$8 환경에서
+\S\ref{subsec:res-b200}의 대규모 실 트레이스 결과를 보완하기 위해,
+개발 플랫폼(H100$\times$8)에서 단일 모델(Llama-3.3-70B)을 합성 워크로드로
+통제 측정하여 워크로드별 효과 편차를 분해한다.
+이 보조 측정은 실 트레이스 평가와 일관된 워크로드 의존성을 보인다.
+Fig.~\ref{fig:agsd-e2e}는 \algname-gated의 end-to-end 처리량 우위를,
+Table~\ref{tbl:trident-vs-vanilla}는 워크로드별 처리량을 보여준다.
 baseline 대비 처리량 향상은 다음과 같다.
 
 \begin{itemize}
@@ -163,12 +173,15 @@ Qwen-32B  & balanced   & 1,779 & 2,721 & \textbf{3,449} & $+93.8\%$ \\
 병렬 GPU 활용($\sim 50\text{--}60\%$)과 gating decision($\sim 10\text{--}20\%$)의 합이다.
 
 %% -----------------------------------------------------------------------
-\subsection{대형 모델 게이팅 및 벤더 의존성}
+\subsection{대형 모델 \algname-gated end-to-end (개발 플랫폼)}
 \label{subsec:res-large-model}
 
 \input{tables/tbl_gating_main}
 
-Table~\ref{tbl:gating-main}은 대형 모델에서의 전체 결과를 보여준다.
+\S\ref{subsec:res-b200}이 방법별 oracle 과 llm-d 라우팅을 B200 에서 측정한 반면,
+본 절은 개발 플랫폼(H100$\times$8)에서 \algname-gated 의 end-to-end 동작을
+대형 모델로 검증한다 (B200 대형 모델 \algname-gated e2e 는 후속 과제).
+Table~\ref{tbl:gating-main}은 그 결과를 보여준다.
 
 \textbf{Llama-3.3-70B}: 6개 워크로드 전체에서 suffix가 최적이므로
 \algname\ $\equiv$ Spec-only (gating이 항상 suffix를 선택).
