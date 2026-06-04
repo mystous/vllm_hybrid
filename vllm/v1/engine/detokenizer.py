@@ -39,6 +39,14 @@ _avx512_detok_b1_enabled: bool = (
 )
 _avx512_detok_b1_cache: dict[int, object] = {}
 
+# SUB_201 §5 B1 PoC next-step: incremental wrapper shadow-mode.
+# `VLLM_USE_AVX512_DETOK_INC=1` 시 매 decode_next 호출에서 AVX-512 wrapper 의
+# incremental_append(token_id) 도 함께 실행 (return 미사용 — shadow 측정 only).
+# 본 hook 은 default OFF 이므로 native flow 에 영향이 전혀 없다.
+_avx512_detok_inc_enabled: bool = (
+    os.environ.get("VLLM_USE_AVX512_DETOK_INC", "0") == "1"
+)
+
 
 def _avx512_detok_b1_get_for(hf_tok) -> object | None:
     if not _avx512_detok_b1_enabled:
@@ -59,6 +67,27 @@ def _avx512_detok_b1_get_for(hf_tok) -> object | None:
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "SUB_201 B1 PoC: AVX512Detokenizer init failed (%s)", exc
+        )
+        return None
+
+
+def _avx512_detok_inc_get_for(hf_tok) -> object | None:
+    """Per-request incremental detok wrapper (shadow mode).
+
+    Reuses the same underlying ``AVX512Detokenizer`` build path as the
+    full-batch shadow but returns a *fresh* instance per call so the
+    per-instance ``_inc_buf`` stays isolated to one request. Vocab table
+    is cached at the ctypes-wrapper level via class-level reuse paths
+    upstream (not yet here — full-batch path uses id(hf_tok) cache only).
+    """
+    if not _avx512_detok_inc_enabled:
+        return None
+    try:
+        from vllm.tokenizers.avx512_detokenizer import AVX512Detokenizer
+        return AVX512Detokenizer.from_hf_tokenizer(hf_tok)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "SUB_201 B1 PoC (inc): AVX512Detokenizer init failed (%s)", exc
         )
         return None
 
@@ -319,6 +348,16 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
             if _avx512_detok_b1_enabled else None
         )
 
+        # SUB_201 §5 B1 PoC next-step: incremental wrapper shadow.
+        # When `VLLM_USE_AVX512_DETOK_INC=1`, attach a per-request
+        # AVX512Detokenizer whose `_inc_buf` accumulates raw piece bytes as
+        # `decode_next` fires; return value is discarded (shadow only).
+        # Default OFF → zero impact on native flow.
+        self._avx512_detok_inc = (
+            _avx512_detok_inc_get_for(tokenizer)
+            if _avx512_detok_inc_enabled else None
+        )
+
         # Use native prefill to prime the decode stream with prompt tokens.
         self.stream = DecodeStream(
             ids=request.prompt_token_ids,
@@ -378,6 +417,17 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
                 _b1.batch_detokenize([[int(next_token_id)]])
             except Exception:
                 # silent — PoC level, captured by external test harness.
+                pass
+
+        # SUB_201 §5 B1 PoC next-step: shadow-mode incremental_append call.
+        # Mirrors the streaming detok path that will eventually replace
+        # native stream.step. Return value is intentionally discarded —
+        # native stream.step output remains authoritative.
+        _b1_inc = getattr(self, "_avx512_detok_inc", None)
+        if _b1_inc is not None:
+            try:
+                _b1_inc.incremental_append(int(next_token_id))
+            except Exception:
                 pass
 
         _avx_bd = getattr(self, "_avx512_bd", None)

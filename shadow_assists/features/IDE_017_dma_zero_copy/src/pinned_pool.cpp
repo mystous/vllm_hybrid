@@ -272,7 +272,7 @@ public:
         return ev;
     }
 
-    // Batched DMA push: enqueue n transfers on same stream → 1 event at end.
+    // Batched DMA push (option A): enqueue n transfers on same stream → 1 event at end.
     // Amortizes 35 μs API overhead per transfer down to ~5-10 μs/transfer.
     cudaEvent_t push_batch_async(const void* const* host_ptrs,
                                  void* const* dev_ptrs,
@@ -283,6 +283,97 @@ public:
             cudaMemcpyAsync(dev_ptrs[i], host_ptrs[i], sizes[i],
                             cudaMemcpyHostToDevice, stream);
         }
+        cudaEvent_t ev;
+        cudaEventCreateWithFlags(&ev, cudaEventDisableTiming);
+        cudaEventRecord(ev, stream);
+        return ev;
+    }
+
+    // Batched DMA push (option B): use cudaMemcpyBatchAsync (CUDA 12.4+).
+    // Single API call for all n transfers — driver may fuse / pipeline.
+    // Returns 1 event for whole batch.
+    // Note: per-CUDA-12.8 signature, attrs/attrsIdxs may be NULL to use defaults.
+    cudaEvent_t push_batch_async_native(const void* const* host_ptrs,
+                                        void* const* dev_ptrs,
+                                        const size_t* sizes,
+                                        int n,
+                                        cudaStream_t stream) {
+#if CUDART_VERSION >= 12040
+        // Build per-call non-const dst/src arrays (cudaMemcpyBatchAsync wants
+        // void** / void**, not void* const*). We do it once per call; cheap
+        // (N=80 → 640 bytes copy).
+        std::vector<void*> dsts(n);
+        std::vector<void*> srcs(n);
+        std::vector<size_t> sz(n);
+        for (int i = 0; i < n; ++i) {
+            dsts[i] = dev_ptrs[i];
+            srcs[i] = const_cast<void*>(host_ptrs[i]);
+            sz[i]   = sizes[i];
+        }
+
+        // Single attribute applied to all entries.
+        // - srcAccessOrder=Stream: standard async semantics (host pinned).
+        // - srcLocHint = Host, dstLocHint = Device 0 — driver may use this to
+        //   pick an optimized engine.
+        cudaMemcpyAttributes attr{};
+        attr.srcAccessOrder    = cudaMemcpySrcAccessOrderStream;
+        attr.srcLocHint.type   = cudaMemLocationTypeHost;
+        attr.srcLocHint.id     = 0;
+        attr.dstLocHint.type   = cudaMemLocationTypeDevice;
+        attr.dstLocHint.id     = 0;
+        attr.flags             = 0;
+
+        // attrsIdxs[k] = START index (inclusive) where attrs[k] begins to apply.
+        // attrs[k] applies to copies [attrsIdxs[k] .. attrsIdxs[k+1]-1],
+        // and attrs[numAttrs-1] applies to copies [attrsIdxs[numAttrs-1] .. count-1].
+        // With a single attr covering all n entries → attrsIdxs[0] = 0.
+        size_t attrsIdxs = 0;
+        size_t failIdx   = 0;
+
+        cudaError_t rc = cudaMemcpyBatchAsync(
+            dsts.data(), srcs.data(), sz.data(), (size_t)n,
+            &attr, &attrsIdxs, 1, &failIdx, stream);
+        if (rc != cudaSuccess) {
+            std::fprintf(stderr,
+                "[PinnedPool] cudaMemcpyBatchAsync failed (rc=%d failIdx=%zu) — "
+                "falling back to per-call loop\n", (int)rc, failIdx);
+            for (int i = 0; i < n; ++i) {
+                cudaMemcpyAsync(dev_ptrs[i], host_ptrs[i], sizes[i],
+                                cudaMemcpyHostToDevice, stream);
+            }
+        }
+#else
+        for (int i = 0; i < n; ++i) {
+            cudaMemcpyAsync(dev_ptrs[i], host_ptrs[i], sizes[i],
+                            cudaMemcpyHostToDevice, stream);
+        }
+#endif
+        cudaEvent_t ev;
+        cudaEventCreateWithFlags(&ev, cudaEventDisableTiming);
+        cudaEventRecord(ev, stream);
+        return ev;
+    }
+
+    // Batched DMA push (option C): copy N source buffers into one contiguous
+    // staging block (host-side memcpy) then issue a single cudaMemcpyAsync.
+    // staging_ptr must be a pinned-host buffer of size sum(sizes[0..n-1]).
+    // On the device side the data lands at dev_dst as a single packed block
+    // (caller is responsible for fan-out / strided unpack on GPU if needed).
+    // Returns 1 event for the single memcpy.
+    cudaEvent_t push_batch_async_staged(const void* const* host_ptrs,
+                                        void* staging_ptr,
+                                        void* dev_dst,
+                                        const size_t* sizes,
+                                        int n,
+                                        cudaStream_t stream) {
+        size_t total = 0;
+        char* sptr = (char*)staging_ptr;
+        for (int i = 0; i < n; ++i) {
+            std::memcpy(sptr + total, host_ptrs[i], sizes[i]);
+            total += sizes[i];
+        }
+        cudaMemcpyAsync(dev_dst, staging_ptr, total,
+                        cudaMemcpyHostToDevice, stream);
         cudaEvent_t ev;
         cudaEventCreateWithFlags(&ev, cudaEventDisableTiming);
         cudaEventRecord(ev, stream);
@@ -368,7 +459,7 @@ void* pinned_pool_pull_async(PinnedPool* pool, const void* dev_ptr,
                                    (cudaStream_t)stream);
 }
 
-// Batched push — arrays of n entries each.
+// Batched push (option A: for-loop cudaMemcpyAsync × n) — arrays of n entries each.
 void* pinned_pool_push_batch_async(PinnedPool* pool,
                                    const void* const* host_ptrs,
                                    void* const* dev_ptrs,
@@ -377,6 +468,32 @@ void* pinned_pool_push_batch_async(PinnedPool* pool,
                                    void* stream) {
     return (void*)pool->push_batch_async(host_ptrs, dev_ptrs, sizes, n,
                                          (cudaStream_t)stream);
+}
+
+// Batched push (option B: cudaMemcpyBatchAsync — CUDA 12.4+ native).
+void* pinned_pool_push_batch_async_native(PinnedPool* pool,
+                                          const void* const* host_ptrs,
+                                          void* const* dev_ptrs,
+                                          const size_t* sizes,
+                                          int n,
+                                          void* stream) {
+    return (void*)pool->push_batch_async_native(host_ptrs, dev_ptrs, sizes, n,
+                                                (cudaStream_t)stream);
+}
+
+// Batched push (option C: host-side pack into staging_ptr + 1 memcpy to dev_dst).
+//   staging_ptr : pinned-host buffer of size ≥ sum(sizes)
+//   dev_dst     : single contiguous device dst buffer of the same size
+void* pinned_pool_push_batch_async_staged(PinnedPool* pool,
+                                          const void* const* host_ptrs,
+                                          void* staging_ptr,
+                                          void* dev_dst,
+                                          const size_t* sizes,
+                                          int n,
+                                          void* stream) {
+    return (void*)pool->push_batch_async_staged(host_ptrs, staging_ptr,
+                                                dev_dst, sizes, n,
+                                                (cudaStream_t)stream);
 }
 
 // Event helpers (so Python doesn't need cudart bindings)

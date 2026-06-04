@@ -1,0 +1,62 @@
+{
+  "gpu": 0,
+  "iters": 300,
+  "warmup": 30,
+  "shape": {
+    "model": "Llama-70B / TP=8",
+    "N_layers": 80,
+    "per_layer_bytes": 8192,
+    "total_bytes": 655360
+  },
+  "matrix_baseline_us_per_block": 336.0,
+  "results": {
+    "baseline_loop": {
+      "mean_us": 2504.1243333333337,
+      "p50_us": 821.621,
+      "p90_us": 10598.641,
+      "p99_us": 17029.048,
+      "min_us": 743.184,
+      "max_us": 17275.682,
+      "GBps_p50": 0.7428626611296449,
+      "speedup_vs_baseline_loop": 1.0
+    },
+    "batch_loop_A": {
+      "mean_us": 697.9372133333334,
+      "p50_us": 435.34,
+      "p90_us": 2327.892,
+      "p99_us": 2579.955,
+      "min_us": 332.134,
+      "max_us": 2619.454,
+      "GBps_p50": 1.4020112153718933,
+      "speedup_vs_baseline_loop": 1.8873087701566593
+    },
+    "batch_native_B": {
+      "mean_us": 378.25139,
+      "p50_us": 197.457,
+      "p90_us": 722.758,
+      "p99_us": 2400.461,
+      "min_us": 146.241,
+      "max_us": 2403.204,
+      "GBps_p50": 3.0910606486475536,
+      "speedup_vs_baseline_loop": 4.161012271026097
+    },
+    "batch_staged_C": {
+      "mean_us": 82.56679666666666,
+      "p50_us": 80.021,
+      "p90_us": 93.734,
+      "p99_us": 101.739,
+      "min_us": 78.147,
+      "max_us": 152.053,
+      "GBps_p50": 7.627392340760551,
+      "speedup_vs_baseline_loop": 10.267567263593307
+    }
+  },
+  "verdict": {
+    "best_variant": "batch_staged_C",
+    "best_p50_us": 80.021,
+    "best_GBps": 7.627392340760551,
+    "net_positive_vs_matrix_baseline": true,
+    "headroom_us": 255.97899999999998,
+    "speedup_vs_naive_loop": 10.267567263593307
+  }
+}

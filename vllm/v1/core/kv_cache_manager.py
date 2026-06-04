@@ -11,6 +11,8 @@ from vllm.logger import init_logger
 from vllm.v1.core.kv_cache_coordinator import get_kv_cache_coordinator
 from vllm.v1.core.kv_cache_metrics import KVCacheMetricsCollector
 from vllm.v1.core.kv_cache_utils import KVCacheBlock
+from vllm.v1.core.kv_dram_tiering import _is_enabled as _kv_tier_enabled
+from vllm.v1.core.kv_dram_tiering import try_build_tier as _kv_tier_try_build
 from vllm.v1.kv_cache_interface import KVCacheConfig
 from vllm.v1.metrics.stats import PrefixCacheStats
 from vllm.v1.request import Request
@@ -143,6 +145,51 @@ class KVCacheManager:
         self.block_pool = self.coordinator.block_pool
         self.kv_cache_config = kv_cache_config
 
+        # SUB_201 A2 — Cold KV → DRAM tier. Default OFF (no-op). When the
+        # ``VLLM_KV_TIERING_DRAM`` env flag is set, build a per-rank
+        # singleton ``KVDramTier`` sized to the GPU pool. The tier is
+        # attached to ``BlockPool`` so its free/alloc/touch hot paths can
+        # branch on a single ``is not None`` check. Pointer binding
+        # (block_id → per-layer GPU ptr) is left to the worker side
+        # (``GPUModelRunner.initialize_kv_cache_tensors``) and is wired
+        # in a follow-up step — until then the tier is created but has
+        # ``has_pointer_binding() == False`` so the hooks remain no-ops
+        # at runtime even with the flag ON.
+        self._kv_dram_tier = None
+        if _kv_tier_enabled():
+            try:
+                per_block_nbytes = self._estimate_per_block_nbytes(
+                    kv_cache_config
+                )
+                # Budget DRAM at the same scale as the GPU pool by default;
+                # callers can shrink via ``VLLM_KV_TIERING_DRAM_BYTES``.
+                env_bytes = self._env_int(
+                    "VLLM_KV_TIERING_DRAM_BYTES", default=0
+                )
+                max_dram_bytes = (
+                    env_bytes
+                    if env_bytes > 0
+                    else per_block_nbytes * kv_cache_config.num_blocks
+                )
+                self._kv_dram_tier = _kv_tier_try_build(
+                    max_dram_bytes=max_dram_bytes,
+                    per_block_nbytes=per_block_nbytes,
+                )
+                if self._kv_dram_tier is not None:
+                    self.block_pool._kv_dram_tier = self._kv_dram_tier
+                    logger.info(
+                        "[KVDramTier] enabled — max_dram=%d B, "
+                        "per_block=%d B, num_blocks=%d",
+                        max_dram_bytes,
+                        per_block_nbytes,
+                        kv_cache_config.num_blocks,
+                    )
+            except Exception as e:  # pragma: no cover - smoke test path
+                logger.warning(
+                    "[KVDramTier] init failed; running without tier: %s", e
+                )
+                self._kv_dram_tier = None
+
         # Pre-constructed KVCacheBlocks with no blocks, callers should use this
         # via create_kv_cache_blocks instead of creating new ones to avoid GC
         # overhead.
@@ -151,6 +198,47 @@ class KVCacheManager:
         self.empty_kv_cache_blocks = KVCacheBlocks(
             tuple(() for _ in range(self.num_kv_cache_groups))
         )
+
+    # ──────────────────────────────────────────────────────────────
+    # SUB_201 A2 — KVDramTier helpers
+    # ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _env_int(name: str, default: int) -> int:
+        import os
+
+        raw = os.environ.get(name, "").strip()
+        if not raw:
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+
+    @staticmethod
+    def _estimate_per_block_nbytes(kv_cache_config: KVCacheConfig) -> int:
+        """Sum of per-layer per-block bytes across all attention layers
+        in the config. ``KVCacheSpec.page_size_bytes`` already accounts
+        for K+V × heads × head_dim × dtype × block_size, so we just
+        accumulate over layer groups (group.layer_names) × group spec.
+
+        Returns 0 if the config has no attention groups (e.g. pure
+        Mamba) — in that case the tier is left disabled.
+        """
+        total = 0
+        for group in kv_cache_config.kv_cache_groups:
+            spec = group.kv_cache_spec
+            page = getattr(spec, "page_size_bytes", None)
+            if page is None:
+                continue
+            n_layers = len(group.layer_names)
+            total += int(page) * n_layers
+        return total
+
+    @property
+    def kv_dram_tier(self):
+        """Public accessor — worker side binds GPU pointers via this."""
+        return self._kv_dram_tier
 
     @property
     def usage(self) -> float:
