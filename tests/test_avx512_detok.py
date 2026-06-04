@@ -75,19 +75,118 @@ def _gen_sequences(V: int, B: int, seq_len: int, seed: int = 1) -> list[list[int
     return [[rng.randint(0, V - 1) for _ in range(seq_len)] for _ in range(B)]
 
 
-def _try_hf_tokenizer():
+def _try_hf_tokenizer(name: str | None = None):
     """Best-effort load of a small HF tokenizer. None if offline / missing."""
-    name = os.environ.get(
-        "B1_HF_TOK", "sshleifer/tiny-gpt2"
-    )
+    if name is None:
+        name = os.environ.get("B1_HF_TOK", "sshleifer/tiny-gpt2")
     try:
         from transformers import AutoTokenizer
         tok = AutoTokenizer.from_pretrained(name)
         return tok
     except Exception as exc:  # noqa: BLE001
-        print(f"[info] HF tokenizer '{name}' unavailable ({exc}); "
-              f"running synthetic-only path.")
+        print(f"[info] HF tokenizer '{name}' unavailable ({exc}); skipping.")
         return None
+
+
+def _model_names() -> list[str]:
+    """Tokenizers to exercise. Override via env B1_HF_TOKS (comma-separated)."""
+    raw = os.environ.get(
+        "B1_HF_TOKS",
+        "sshleifer/tiny-gpt2,"
+        "meta-llama/Llama-3.1-8B-Instruct,"
+        "Qwen/Qwen2.5-7B-Instruct",
+    )
+    return [s.strip() for s in raw.split(",") if s.strip()]
+
+
+def _hf_realistic_ids(tok, seed: int = 13) -> list[list[int]]:
+    """Realistic id sequences via HF encode of natural-language prompts.
+
+    Uniform-random id sampling is not a valid byte-equality test for
+    ByteLevel BPE tokenizers because random ids generate UTF-8-invalid byte
+    sequences that HF replaces with U+FFFD while the AVX-512 kernel (and
+    real vLLM detok stream) emit the raw bytes. Real generated sequences
+    are always valid UTF-8 (the LM only emits sane id streams), so we test
+    that distribution instead.
+    """
+    prompts = [
+        "The quick brown fox jumps over the lazy dog. " * 4,
+        "Python list comprehensions: [x*2 for x in range(10) if x % 2 == 0]",
+        "한국어 자연어 처리는 어렵습니다. 안녕하세요! 반갑습니다. " * 3,
+        "Mixing English と日本語 and 中文 emoji ✓✗→ in one line. " * 2,
+        "Math: \\sum_{i=0}^{n} i^2 = \\frac{n(n+1)(2n+1)}{6}",
+        "Code:\n    def foo(x):\n        return x + 1\n",
+    ]
+    out: list[list[int]] = []
+    for p in prompts:
+        ids = tok.encode(p, add_special_tokens=False)
+        out.append(ids)
+    return out
+
+
+def _hf_chat_ids(tok) -> list[int]:
+    """A realistic short multilingual chat — includes BOS / special tokens."""
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Hello, world! 안녕하세요. Today is sunny."},
+        {"role": "assistant",
+         "content": "Greetings! 반갑습니다. The weather is great."},
+    ]
+    try:
+        return list(tok.apply_chat_template(messages, tokenize=True))
+    except Exception:  # noqa: BLE001
+        return list(tok.encode(
+            "Hello, world! 안녕하세요. Today is sunny.",
+            add_special_tokens=True,
+        ))
+
+
+def _run_hf_byteequal(tok, lib_path: str) -> tuple[int, int, int, int]:
+    """Returns (random_pass, random_total, chat_pass, chat_total)."""
+    det_hf = AVX512Detokenizer.from_hf_tokenizer(tok, lib_path=lib_path)
+
+    # Realistic encoded sequences (mixed languages, code, math)
+    ids_r = _hf_realistic_ids(tok)
+    B_r = len(ids_r)
+    out_r = det_hf.batch_detokenize(ids_r)
+    pass_r = 0
+    for b in range(B_r):
+        tgt = tok.decode(ids_r[b]).encode("utf-8")
+        if tgt == out_r[b]:
+            pass_r += 1
+        else:
+            for j, (a, c) in enumerate(zip(tgt, out_r[b])):
+                if a != c:
+                    print(f"[hf]   realistic seq{b} first diff byte={j} "
+                          f"hf={bytes([a])!r} avx={bytes([c])!r}")
+                    print(f"[hf]     hf ctx : "
+                          f"{tgt[max(0,j-20):j+30]!r}")
+                    print(f"[hf]     avx ctx: "
+                          f"{out_r[b][max(0,j-20):j+30]!r}")
+                    break
+            else:
+                print(f"[hf]   realistic seq{b} length-only diff "
+                      f"hf={len(tgt)} avx={len(out_r[b])}")
+    print(f"[hf]   realistic (encode→decode): pass={pass_r}/{B_r}")
+
+    # Chat sequence (includes special tokens) — note: special tokens fall in
+    # the vocab table so AVX-512 will emit their literal pieces too; HF
+    # decode() by default also keeps them, so byte equality should still hold.
+    ids_c = _hf_chat_ids(tok)
+    out_c = det_hf.batch_detokenize([ids_c])
+    tgt_c = tok.decode(ids_c).encode("utf-8")
+    eq_c = (tgt_c == out_c[0])
+    print(f"[hf]   chat (len={len(ids_c)}): byte_equal={eq_c} "
+          f"hf_bytes={len(tgt_c)} avx_bytes={len(out_c[0])}")
+    if not eq_c:
+        for j, (a, c) in enumerate(zip(tgt_c, out_c[0])):
+            if a != c:
+                print(f"[hf]   chat first diff byte={j} "
+                      f"hf={bytes([a])!r} avx={bytes([c])!r}")
+                print(f"[hf]   hf ctx : {tgt_c[max(0,j-20):j+30]!r}")
+                print(f"[hf]   avx ctx: {out_c[0][max(0,j-20):j+30]!r}")
+                break
+    return pass_r, B_r, (1 if eq_c else 0), 1
 
 
 def main() -> int:
@@ -129,39 +228,18 @@ def main() -> int:
     assert diffs_avx_scl == 0, "AVX-512 path diverged from scalar"
     assert diffs_avx_gt == 0, "AVX-512 path diverged from python ground truth"
 
-    # ---- (2) HF tokenizer path (best-effort) -------------------------
-    hf_tok = _try_hf_tokenizer()
-    if hf_tok is not None:
-        det_hf = AVX512Detokenizer.from_hf_tokenizer(hf_tok, lib_path=lib_path)
-        V_hf = len(hf_tok)
-        B_hf = 4
-        L_hf = 100
-        ids_hf = _gen_sequences(V=V_hf, B=B_hf, seq_len=L_hf, seed=13)
-        out_hf_avx = det_hf.batch_detokenize(ids_hf)
-
-        # Compare: AVX-512 path (concat of piece bytes from per-id decode)
-        # vs HF tokenizer.decode(seq).encode("utf-8") — the latter applies
-        # BPE merge / leading-space conventions that may differ from naive
-        # piece concat. So we expect equality only when sum-of-decode-bytes
-        # equals decode-of-sum bytes, which holds for byte-piece tokenizers.
-        # We report per-sequence byte-level diff stats.
-        cmp_rows = []
-        for b in range(B_hf):
-            tgt = hf_tok.decode(ids_hf[b]).encode("utf-8")
-            got = out_hf_avx[b]
-            cmp_rows.append((len(tgt), len(got), tgt == got))
-        equal_count = sum(1 for r in cmp_rows if r[2])
-        print(
-            f"[hf] tokenizer='{hf_tok.__class__.__name__}' V={V_hf} B={B_hf} "
-            f"L={L_hf} equal_to_tokdecode={equal_count}/{B_hf}"
-        )
-        for i, r in enumerate(cmp_rows):
-            print(f"[hf]   seq{i}: hf_len={r[0]} avx_len={r[1]} "
-                  f"byte_equal={r[2]}")
-        # Note: full equality with hf_tok.decode is NOT a hard gate for the
-        # PoC. The kernel reproduces "sum of per-token piece bytes"; this is
-        # what the SUB_173 integration target also uses upstream of the
-        # incremental detok stream.
+    # ---- (2) HF tokenizer path — iterate over real production models ----
+    hf_results: list[tuple[str, int, int, int, int, bool]] = []
+    for model_name in _model_names():
+        hf_tok = _try_hf_tokenizer(model_name)
+        if hf_tok is None:
+            continue
+        print(f"[hf] tokenizer='{model_name}' "
+              f"class={hf_tok.__class__.__name__} V={len(hf_tok)}")
+        pass_r, total_r, pass_c, total_c = _run_hf_byteequal(hf_tok, lib_path)
+        loaded_ok = (pass_r == total_r) and (pass_c == total_c)
+        hf_results.append((model_name, pass_r, total_r, pass_c, total_c,
+                           loaded_ok))
 
     # ---- (3) Empty / edge cases -------------------------------------
     out_empty = det_avx.batch_detokenize([[]])
@@ -173,6 +251,18 @@ def main() -> int:
         f"OOB handling broken: {out_oob[0]!r} vs {table['_piece_list'][0]!r}"
     )
     print("[edge] empty + OOB handling: OK")
+
+    # ---- (4) HF summary + gate ---------------------------------------
+    if hf_results:
+        print("[hf] === summary ===")
+        all_ok = True
+        for name, pr, tr, pc, tc, ok in hf_results:
+            print(f"[hf]   {name}: random={pr}/{tr} chat={pc}/{tc} "
+                  f"{'OK' if ok else 'FAIL'}")
+            all_ok = all_ok and ok
+        if not all_ok:
+            print("FAIL — at least one HF tokenizer byte-equal check failed")
+            return 1
 
     print("ALL PASS")
     return 0
