@@ -1,5 +1,5 @@
-%% tables/tbl_roadmap.tex  (개선 로드맵 — 개선 논리를 한곳에 가시화, 상태=TBD)
-%% 각 lever: 타깃 병목 → 개선 논리(메커니즘) → 기대 효과 → 상태.
+%% tables/tbl_roadmap.tex  (Table II) — width-safe: 전 컬럼 p{} 줄바꿈, 합 < \textwidth
+%% 개선 논리를 한곳에 가시화, 상태=TBD.
 
 \begin{table*}[t]
 \centering
@@ -9,17 +9,23 @@
   C 는 물리적으로 패배하여 폐기.}
 \label{tbl:roadmap}
 \footnotesize
-\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}p{0.40\textwidth} >{\raggedright\arraybackslash}p{0.20\textwidth} l@{}}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.13\textwidth}
+  >{\raggedright\arraybackslash}p{0.15\textwidth}
+  >{\raggedright\arraybackslash}p{0.35\textwidth}
+  >{\raggedright\arraybackslash}p{0.17\textwidth}
+  >{\raggedright\arraybackslash}p{0.05\textwidth}@{}}
 \toprule
-\textbf{Lever} & \textbf{타깃 host 병목} & \textbf{개선 논리 (메커니즘)} & \textbf{기대 효과} & \textbf{상태} \\
+\textbf{Lever} & \textbf{타깃 병목} & \textbf{개선 논리 (메커니즘)} & \textbf{기대 효과} & \textbf{상태} \\
 \midrule
-A1 CPU 드래프팅 & draft 제안(suffix tree/소형 모델) & 드래프트 생성을 유휴 CPU 코어에 병렬화해 GPU verify 뒤로 숨김 → GPU 는 verify 만 수행 & GPU util 회복, suffix 이득 확대 & \textbf{TBD} \\
-A2 KV tiering & HBM 한계로 배치/컨텍스트 제약 & 유휴 DRAM 2TB(+CXL)로 cold KV 계층화 → in-flight 시퀀스$\uparrow$ → GPU gap 을 다른 요청이 충전 & 유효 배치$\uparrow$, util 회복 & \textbf{TBD} \\
-B1 detokenize 오프로드 & 고-tps detok 직렬화 & 토큰 단위 detok 을 별도 CPU 코어로 분리·병렬화 → step 경로에서 제거 & feeding 지연 단축 & \textbf{TBD} \\
-B2 constrained-decode & 문법/JSON 마스크·FSM 계산 & step 마다 발생하는 mask 생성을 CPU 로 오프로드 (code/tool 워크로드 집중) & code 워크로드 stall 제거 & \textbf{TBD} \\
-B3 스케줄러/샘플링 파이프라인 & step 간 스케줄·샘플 직렬 비용 & host 파이프라인을 다중 코어로 분할해 GPU feeding 과 겹침 & GPU 공급률$\uparrow$ & \textbf{TBD} \\
+A1 CPU 드래프팅 & draft 제안 (suffix tree/소형 모델) & 드래프트 생성을 유휴 CPU 코어에 병렬화해 GPU verify 뒤로 숨김 $\to$ GPU 는 verify 만 & GPU util 회복, suffix 이득 확대 & \textbf{TBD} \\
+A2 KV tiering & HBM 한계로 배치/컨텍스트 제약 & 유휴 DRAM 2TB($+$CXL)로 cold KV 계층화 $\to$ in-flight 시퀀스$\uparrow$ $\to$ gap 충전 & 유효 배치$\uparrow$, util 회복 & \textbf{TBD} \\
+B1 detokenize 오프로드 & 고-tps detok 직렬화 & 토큰 단위 detok 을 별도 CPU 코어로 병렬 분리해 step 경로에서 제거 & feeding 지연 단축 & \textbf{TBD} \\
+B2 constrained-decode & 문법/JSON mask$\cdot$FSM 계산 & step 마다의 mask 생성을 CPU 로 오프로드 (code/tool 집중) & code stall 제거 & \textbf{TBD} \\
+B3 스케줄러/샘플 파이프라인 & step 간 스케줄$\cdot$샘플 직렬 비용 & host 파이프라인을 다중 코어로 분할해 GPU feeding 과 겹침 & 공급률$\uparrow$ & \textbf{TBD} \\
 \midrule
-\textit{C} GPU 매트멀 오프로드 & --- & CPU 가 GPU 연산을 대신 (H2D/D2H 동기 비용) & 음(陰) & \textbf{폐기} \\
+C GPU 매트멀 오프로드 & --- & CPU 가 GPU 연산을 대신 (H2D/D2H 동기 비용) & 음(陰) & 폐기 \\
 \bottomrule
 \end{tabular}
 \end{table*}
