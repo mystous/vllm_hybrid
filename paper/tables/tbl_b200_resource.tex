@@ -1,24 +1,19 @@
-%% tables/tbl_b200_resource.tex
-%% 자원 signature: spec-decode 성공 = GPU un-saturation, 실패 = GPU saturated. CPU 전구간 idle.
-%% source: 70 (model×condition) 쌍 GPU util(vanilla->suffix) + 140셀 CPU util
+%% tables/tbl_b200_resource.tex  (Table VI) — width-safe
+%% source: 70 (model×condition) GPU util + 140셀 CPU util
 
 \begin{table}[t]
 \centering
-\caption{자원 signature.
-  spec-decode 가 \emph{성공}하면 GPU 가 un-saturate(여유 발생)되고,
-  \emph{실패}하면 GPU 는 거부된 draft 의 낭비 연산으로 포화 상태를 유지한다.
-  CPU 는 7B부터 671B까지 전 구성에서 유휴($\le 4.9\%$).}
+\caption{자원 signature. spec-decode \emph{성공} 시 GPU 가 un-saturate(여유 발생),
+  \emph{실패} 시 거부된 draft 의 낭비 연산으로 포화 유지.
+  CPU 는 7B--671B 전 140셀에서 유휴(중앙 $4.4\%$, 범위 $2.5$--$4.9\%$).}
 \label{tbl:b200-resource}
-\footnotesize
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{@{}lrr@{}}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lcc@{}}
 \toprule
-\textbf{그룹} & \textbf{GPU\% (van$\to$suf, 중앙)} & \textbf{함의} \\
+\textbf{그룹 (셀 수)} & \textbf{GPU\% van$\to$suf (중앙)} & \textbf{$\Delta$} \\
 \midrule
-suffix net-positive (55) & $94.9 \to 78.7$ ($-16$pp) & GPU slack 발생 \\
-vanilla wins (15)        & $98.2 \to 86.8$ ($-11$pp) & 낭비 연산으로 포화 \\
-\midrule
-CPU util (전 140셀) & \multicolumn{2}{r}{중앙 $4.4\%$, 범위 $2.5\text{--}4.9\%$ (XL 포함)} \\
+suffix net-positive (55) & $94.9 \to 78.7$ & $-16$pp \\
+vanilla wins (15)        & $98.2 \to 86.8$ & $-11$pp \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}

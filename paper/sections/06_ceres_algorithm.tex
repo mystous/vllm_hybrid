@@ -19,26 +19,11 @@
 후자는 spec-decode 가 step 수를 줄이며 \emph{상대적으로 커진} host-path 작업을
 이미 유휴인 CPU(\S\ref{subsec:res-resource}, $\le4.9\%$)로 이전한다.
 
-\begin{table}[t]
-\centering
-\caption{CPU 활용처 분류. 산 길(A/B)은 GPU 가 내려놓은 host 작업을 받고,
-  죽은 길(C)은 GPU 연산을 흉내내 H2D/D2H 동기 비용에 진다.}
-\label{tbl:cpu-taxonomy}
-\footnotesize
-\begin{tabular}{@{}lll@{}}
-\toprule
- & \textbf{내용} & \textbf{근거} \\
-\midrule
-A1 & CPU 드래프팅(suffix tree/AMX) & GPU verify와 병렬, slack 직접 회수 \\
-A2 & KV tiering (유휴 DRAM 2TB) & 배치$\uparrow$ $\to$ GPU gap 충전 \\
-B1 & detokenize 오프로드 & 고-tps에서 host critical path \\
-B2 & constrained-decode(문법/JSON) & code/tool 워크로드 host-heavy \\
-B3 & 스케줄러/샘플링 파이프라인 & GPU feeding 지연 제거 \\
-\midrule
-C & GPU 매트멀 오프로드 & H2D/D2H 동기 비용에 패배(폐기) \\
-\bottomrule
-\end{tabular}
-\end{table}
+Table~\ref{tbl:roadmap} 은 본 연구가 제안하는 개선 lever 를 한곳에 모은 로드맵으로,
+각 lever 의 타깃 병목$\cdot$개선 논리$\cdot$기대 효과와 \textbf{현재 상태(TBD)}를 명시한다.
+정량 결과는 \S\ref{subsec:decisive} 의 결정적 실험으로 지배 병목을 확정한 뒤 채운다.
+
+\input{tables/tbl_roadmap}
 
 \subsection{축 A — 모델-유형 인지 방법 선택 (회귀 안전장치)}
 \label{subsec:gate}
@@ -60,6 +45,35 @@ GPU verify 와 파이프라인한다. 목표는 GPU 이용률을 다시 끌어�
 줄어든 step 수에서도 GPU 를 채우는 것이다.
 이종 모델 fleet 의 multi-tenant/long-context 에서는 유휴 DRAM 2TB 를 쓰는
 KV tiering(A2)으로 배치를 키워 GPU gap 을 다른 요청으로 채운다.
+
+\subsection{CPU 병렬성 reclamation 성능 모델}
+\label{subsec:parallel-model}
+
+reclamation 의 핵심 자원은 \emph{병렬성}이다.
+suffix 가 step 수를 줄이면 step당 host-path 작업이 상대적으로 커지는데(\S\ref{subsec:problem-b}),
+이 host-path 는 본질적으로 \emph{요청 단위로 분할 가능}하다(드래프트$\cdot$detok$\cdot$문법 마스크는
+요청마다 독립). 따라서 유휴 224 스레드에 병렬 분산하여 GPU verify 뒤로 숨길 수 있다.
+
+한 decode step 의 GPU verify 지연을 $T_{\mathrm{verify}}$, 직렬 host-path 지연을 $T_{\mathrm{host}}$,
+사용 가능한 병렬 CPU 코어 수를 $P$, 병렬 효율을 $\eta\!\le\!1$ 라 하면,
+host-path 를 verify 뒤로 \emph{완전히 숨기는} 조건은
+\begin{equation}
+\frac{T_{\mathrm{host}}}{\eta\,P} \;\le\; T_{\mathrm{verify}}.
+\label{eq:hide-condition}
+\end{equation}
+이 조건이 성립하면 GPU 이용률은 suffix 의 $u_{\mathrm{gpu}}^{\mathrm{suf}}$ 에서
+다시 포화에 가깝게 회복되고, 처리량은 회복된 이용률에 비례하여 증가한다:
+$T_{\mathrm{rcl}} / T_{\mathrm{suf}} \approx u_{\mathrm{gpu}}^{\mathrm{van}} / u_{\mathrm{gpu}}^{\mathrm{suf}}$
+(상한). B200 의 $u_{\mathrm{gpu}}^{\mathrm{suf}}\!\approx\!26\text{--}65\%$ 와
+$u_{\mathrm{gpu}}^{\mathrm{van}}\!\approx\!95\%$ 는 상당한 이론적 여유를 시사한다.
+
+\smallskip
+\noindent\textbf{[채울 부분 — 측정 기반 확정]}
+\todo{$T_{\mathrm{host}}$ 의 구성요소별 분해값(드래프트/스케줄/샘플/detok/동기)과
+지배 항 식별 (\S\ref{subsec:decisive} 결정적 실험 산출).}
+\todo{지배 항을 병렬화할 구체적 메커니즘(A1/A2/B 중 선택)과 그 $\eta$, 필요한 $P$.}
+\todo{식~\ref{eq:hide-condition} 의 실측 좌변 대 우변, 그리고 모델별 GPU 이용률 회복폭.}
+구체 방법과 수치는 결정적 실험 후 본 절과 \S\ref{subsec:res-reclaim} 에 채운다.
 
 \subsection{결정적 실험}
 \label{subsec:decisive}

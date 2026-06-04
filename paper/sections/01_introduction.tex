@@ -52,12 +52,18 @@ in-distribution 편향을 제거하였다.
   draft prefix-match 를 무너뜨려 $\alpha$ 를 낮춤을 분석한다
   (\S\ref{sec:mechanism}). 최적 방법은 크기가 아닌 \emph{모델 유형}이 결정한다.
 
-\item \textbf{자원 signature 와 방향 (Q2).}
+\item \textbf{자원 signature (Q2).}
   spec-decode 가 성공하는 곳에서 GPU 가 un-saturate($94.9\%\!\to\!78.7\%$)되고
   CPU 는 7B--671B 전 구성에서 $\le4.9\%$ 유휴하다.
-  처리량 지배 기법이 시스템을 host(CPU)-bound 로 전환함을 보이고,
-  유휴 CPU 로 그 host 병목을 떠안는 \emph{host-side slack reclamation}을
-  다음 처리량 한계로 제안한다(\S\ref{sec:direction}).
+  처리량 지배 기법이 시스템을 host(CPU)-bound 로 전환함을 보인다.
+
+\item \textbf{CPU 병렬 host-side reclamation (방법 + 성능).}
+  위 자원 여유를 회수하기 위해, suffix 가 키운 step당 host-path 작업을
+  유휴 CPU 코어에 \emph{병렬} 분산하여 GPU verify 뒤로 숨기는
+  reclamation 을 제안하고(\S\ref{sec:direction}, hiding 조건 식~\ref{eq:hide-condition}),
+  B200 에서 처리량을 회수한다.
+  \todo{회수 처리량 이득(suffix 대비, 기하평균)과 GPU 이용률 회복폭 --- 측정 후 기입
+  (\S\ref{subsec:res-reclaim}).}
 \end{enumerate}
 
 \subsection{논문 구성}

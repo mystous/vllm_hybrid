@@ -1,38 +1,59 @@
-%% figures/fig_alpha_gain.tex
-%% B200 실측: suffix accept α vs. throughput gain (vs vanilla). 70 (model×condition) 셀.
-%% break-even 은 α 단일 값이 아니라 모델 overhead 에 따라 이동(R1-671B MoE 는 α~0.5 에서도 손해).
+%% figures/fig_alpha_gain.tex  (2-panel, 2-column figure*)
+%% (a) 모델별 mix throughput 이득 — spec-decode는 지배적이나 R1-671B(MoE추론)만 음
+%% (b) α vs gain 산점 (70 model×condition 셀) — break-even은 overhead로 이동
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\resizebox{0.97\columnwidth}{!}{%
+\begin{minipage}{0.46\textwidth}
+\centering
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}
 \begin{axis}[
-  width=8.5cm, height=6.0cm,
-  xlabel={suffix accept rate $\alpha$ (mix·corpus, B200)},
-  ylabel={throughput gain vs.\ vanilla (\%)},
-  xmin=0.2, xmax=1.0, ymin=-80, ymax=240,
+  xbar, width=8.4cm, height=6.6cm,
+  xlabel={mix throughput gain vs.\ vanilla (\%)},
+  xmin=-70, xmax=260,
+  symbolic y coords={R1-671B,DS-R1-Q32B,Q7B,Q72B,DS-R1-L70B,Q32B,L405B-FP8,DS-R1-Q7B,L8B,L70B},
+  ytick=data, y dir=normal,
+  nodes near coords, nodes near coords align={horizontal},
+  every node near coord/.append style={font=\scriptsize},
+  enlarge y limits=0.06, bar width=6pt, bar shift=0pt, font=\small,
+  xmajorgrids, grid style={gray!20},
+]
+\addplot[fill=blue!55, draw=blue!55] coordinates {
+(232,L70B)(215,L8B)(170,DS-R1-Q7B)(126,L405B-FP8)(116,Q32B)(94,DS-R1-L70B)(93,Q72B)(87,Q7B)(83,DS-R1-Q32B)(-49,R1-671B)};
+\addplot[fill=red!75, draw=red!75] coordinates {(-49,R1-671B)};
+\end{axis}
+\end{tikzpicture}}
+\par\smallskip
+{\footnotesize (a) 모델별 mix 이득. 8 dense/distill 모델은 $+83\!\sim\!+232\%$,
+  MoE 추론 R1-671B 만 $-49\%$.}
+\end{minipage}\hfill
+\begin{minipage}{0.50\textwidth}
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}
+\begin{axis}[
+  width=9.0cm, height=6.6cm,
+  xlabel={suffix accept rate $\alpha$},
+  ylabel={gain vs.\ vanilla (\%)},
+  xmin=0.2, xmax=1.0, ymin=-80, ymax=245,
   grid=both, grid style={gray!20},
   legend pos=north west, legend cell align=left, font=\small,
-  scatter/use mapped color=false,
 ]
-% break-even line
 \addplot[domain=0.2:1.0, dashed, gray, thick] {0};
-% suffix-win (gain>0)
-\addplot[only marks, mark=*, mark size=1.4pt, blue!70] coordinates {
-(0.786,94)(0.551,4)(0.573,17)(0.537,9)(0.588,19)(0.487,21)(0.381,9)(0.801,83)(0.621,37)(0.609,31)(0.576,29)(0.698,75)(0.580,47)(0.548,40)(0.876,170)(0.687,69)(0.687,79)(0.673,84)(0.825,119)(0.489,88)(0.703,68)(0.766,126)(0.735,57)(0.753,66)(0.653,30)(0.814,109)(0.443,84)(0.694,39)(0.915,232)(0.851,115)(0.857,121)(0.849,119)(0.889,156)(0.790,104)(0.765,67)(0.933,215)(0.654,51)(0.619,56)(0.625,47)(0.599,73)(0.644,76)(0.683,89)(0.857,116)(0.530,20)(0.556,22)(0.382,12)(0.277,209)(0.852,93)(0.686,50)(0.684,46)(0.485,44)(0.621,39)(0.881,87)
-};
-% vanilla-win (gain<=0)
+\addplot[only marks, mark=*, mark size=1.3pt, blue!70] coordinates {
+(0.786,94)(0.551,4)(0.573,17)(0.537,9)(0.588,19)(0.487,21)(0.381,9)(0.801,83)(0.621,37)(0.609,31)(0.576,29)(0.698,75)(0.580,47)(0.548,40)(0.876,170)(0.687,69)(0.687,79)(0.673,84)(0.825,119)(0.489,88)(0.703,68)(0.766,126)(0.735,57)(0.753,66)(0.653,30)(0.814,109)(0.443,84)(0.694,39)(0.915,232)(0.851,115)(0.857,121)(0.849,119)(0.889,156)(0.790,104)(0.765,67)(0.933,215)(0.654,51)(0.619,56)(0.625,47)(0.599,73)(0.644,76)(0.683,89)(0.857,116)(0.530,20)(0.556,22)(0.382,12)(0.277,209)(0.852,93)(0.686,50)(0.684,46)(0.485,44)(0.621,39)(0.881,87)};
 \addplot[only marks, mark=triangle*, mark size=2.0pt, red!80] coordinates {
-(0.504,-46.0)(0.528,-44.8)(0.453,-47.1)(0.361,-63.5)(0.366,-52.9)(0.538,-39.6)(0.451,-49.2)(0.346,-12.3)(0.354,-15.0)(0.374,-4.8)(0.323,-15.4)(0.265,-12.6)(0.381,-2.2)(0.465,-6.5)(0.266,-4.8)
-};
-\legend{break-even, suffix net-positive (55), vanilla wins (15)}
+(0.504,-46.0)(0.528,-44.8)(0.453,-47.1)(0.361,-63.5)(0.366,-52.9)(0.538,-39.6)(0.451,-49.2)(0.346,-12.3)(0.354,-15.0)(0.374,-4.8)(0.323,-15.4)(0.265,-12.6)(0.381,-2.2)(0.465,-6.5)(0.266,-4.8)};
+\legend{break-even, suffix wins (55), vanilla wins (15)}
 \end{axis}
-\end{tikzpicture}%
-}
-\caption{B200 실측 70 (모델$\times$조건) 셀의 suffix accept rate $\alpha$ 대 vanilla 대비 처리량 이득.
-  $\alpha$ 가 클수록 이득이 커지나 break-even 은 단일 $\alpha$ 값이 아니다:
-  vanilla-win 셀(빨강)은 $\alpha\!\lesssim\!0.54$ 에 집중되며,
-  특히 \mbox{R1-671B}(MoE 추론)는 $\alpha\!\approx\!0.45\text{--}0.54$ 에서도 $-40\!\sim\!-63\%$ 로 크게 손해다
-  ($\because$ 큰 per-step overhead). 즉 부호는 $\alpha\cdot K_{\mathrm{eff}}$ 대 overhead 의 경쟁으로 결정된다.}
+\end{tikzpicture}}
+\par\smallskip
+{\footnotesize (b) $\alpha$ vs.\ 이득(70 셀). vanilla-win(빨강)은 $\alpha\!\lesssim\!0.54$ 에 집중;
+  R1-671B 는 $\alpha\!\approx\!0.5$ 에서도 큰 손해($\because$ 큰 overhead).}
+\end{minipage}
+\caption{\textbf{spec-decode 는 지배적이나 불균일하다 (B200).}
+  (a) 혼합 트래픽에서는 R1-671B(MoE 추론)만 손해.
+  (b) 단일 corpus 까지 보면 부호는 $\alpha$ 와 per-step overhead 의 경쟁으로 갈린다.}
 \label{fig:alpha-gain}
-\end{figure}
+\end{figure*}

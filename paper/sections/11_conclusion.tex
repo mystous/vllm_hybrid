@@ -23,9 +23,11 @@ CPU 는 7B부터 671B까지 전 구성에서 $\le4.9\%$ 유휴하다.
 즉 처리량 지배 기법이 시스템을 GPU 포화에서 host(CPU) 병목으로 전환시킨다.
 
 이로부터 우리는 (i) 경량 \emph{모델-유형 인지} 방법 선택이 복잡한 라우터(llm-d, 우위 18\%)를
-대체할 수 있음을 보이고, (ii) spec-decode 가 만든 host 병목을 유휴 CPU 로 떠안는
-\emph{host-side slack reclamation}을 다음 처리량 한계로 제안하였다.
-그 타당성을 가르는 결정적 실험(decode step 의 GPU/host 분해)을 후속으로 정의한다.
+대체할 수 있음을 보이고, (ii) spec-decode 가 만든 host 병목을 유휴 CPU 코어에 \emph{병렬}
+분산하여 회수하는 \emph{host-side slack reclamation}을 제안하였다.
+hiding 조건(식~\ref{eq:hide-condition}) 하에서 이 방법은 GPU 이용률을 회복시켜
+처리량을 추가로 끌어올린다 ---
+\todo{최종 성능 이득(suffix 대비)과 GPU 회복폭을 측정 후 기입}.
 
 \algname\ 의 원칙은 단순하다: \emph{CPU 로 GPU 를 흉내내지 말고,
 GPU 가 내려놓은 일을 CPU 가 받으라.}

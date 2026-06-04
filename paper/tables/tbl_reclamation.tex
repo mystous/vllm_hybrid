@@ -1,0 +1,30 @@
+%% tables/tbl_reclamation.tex
+%% [PLACEHOLDER] Host-side CPU 병렬 reclamation 성능. 결정적 실험(§6.5) 후 채움.
+%% 값은 측정 예정(\todo). 논리 흐름: suffix가 un-saturate시킨 GPU를 CPU 병렬 host-path로 재충전.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{[측정 예정]} Host-side CPU 병렬 reclamation 성능.
+  suffix 가 un-saturate 시킨 GPU(\S\ref{subsec:res-resource})를
+  유휴 CPU 의 병렬 host-path 로 재충전했을 때의 처리량과 GPU 이용률 회복.
+  대상은 spec-decode 성공 + GPU 여유가 큰 모델.}
+\label{tbl:reclamation}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Model (mix)} & \textbf{suffix tps} & \textbf{+reclaim tps} &
+  \textbf{$\Delta$} & \textbf{GPU\% (suf$\to$rcl)} \\
+\midrule
+Qwen-2.5-7B   & 7{,}803 & \textit{TBD} & \textit{TBD} & $26.5 \to \textit{TBD}$ \\
+Qwen-2.5-32B  & 6{,}597 & \textit{TBD} & \textit{TBD} & $64.8 \to \textit{TBD}$ \\
+Llama-3.1-8B  & 27{,}851 & \textit{TBD} & \textit{TBD} & $62.8 \to \textit{TBD}$ \\
+Llama-3.1-70B & 10{,}400 & \textit{TBD} & \textit{TBD} & $83.4 \to \textit{TBD}$ \\
+\midrule
+\textbf{기하평균} & --- & \textit{TBD} & \textit{TBD} & --- \\
+\bottomrule
+\multicolumn{5}{@{}l@{}}{\scriptsize
+  suffix tps$\cdot$GPU\% 는 본 연구 실측(B200). reclaim 열은 \S\ref{subsec:decisive}
+  결정적 실험 후 측정하여 채운다.}
+\end{tabular}
+\end{table}

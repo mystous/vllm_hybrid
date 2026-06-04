@@ -29,9 +29,10 @@ $2.5\!\sim\!4.9\%$ 로 유휴하다.
 (i) 무거운 클러스터 라우터(llm-d)는 vanilla 대비 80\%에서 우위이나
 최선 단일 방법을 능가하는 경우는 18\%에 그쳐, 경량 \emph{모델-유형 인지} 방법 선택이
 대부분의 가치를 포착한다.
-(ii) spec-decode 가 만든 host 병목을 유휴 CPU 로 떠안는
-\emph{host-side slack reclamation}이 다음 처리량 한계를 여는 경로이며,
-이를 위한 설계와 결정적 실험을 제시한다.
+(ii) spec-decode 가 만든 host 병목을 유휴 CPU 코어에 \emph{병렬} 분산하여
+회수하는 \emph{host-side slack reclamation}을 제안하고, 그 hiding 조건을 정식화한다.
+B200 에서 이 reclamation 은 \todo{suffix 대비 +XX\% 처리량과 GPU 이용률 YY$\to$ZZ\% 회복}
+을 달성한다(측정 후 기입).
 모든 측정 데이터와 코드는 보조 자료로 공개한다.
 
 \smallskip

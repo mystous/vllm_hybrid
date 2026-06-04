@@ -84,3 +84,28 @@ step 수가 줄며 GPU 가 더 자주 쉰다.
 즉 처리량 지배 기법이 성공할 때 GPU 여유와 CPU 유휴가 \emph{공존}하며,
 이 둘이 host-side reclamation 의 회수 대상이 된다(\S\ref{sec:direction}).
 (모델, 조건) oracle 전체는 Table~\ref{tbl:b200-oracle} 에 정리한다.
+
+%% -----------------------------------------------------------------------
+\subsection{Host-side CPU 병렬 reclamation 성능 (측정 예정)}
+\label{subsec:res-reclaim}
+
+\input{tables/tbl_reclamation}
+
+\S\ref{subsec:res-resource} 가 정량화한 자원 여유 ---
+spec-decode 성공 셀의 GPU 여유($u_{\mathrm{gpu}}^{\mathrm{suf}}\!=\!26\text{--}65\%$,
+즉 $35\text{--}73$pp 의 미사용)와 전 구성 유휴 CPU($\le4.9\%$) --- 는
+\S\ref{subsec:parallel-model} 의 CPU 병렬 reclamation 으로 처리량 회수가 가능한
+\emph{상한}을 정의한다.
+Table~\ref{tbl:reclamation} 은 이를 검증할 성능 표의 골격이다.
+
+본 절의 측정 결과는 \S\ref{subsec:decisive} 의 결정적 step 분해 실험으로
+$T_{\mathrm{host}}$ 의 지배 항을 확정한 뒤, 해당 항을 병렬화하여 채운다.
+구체적으로 다음을 보고할 예정이다:
+(i) 식~\ref{eq:hide-condition} 의 hiding 조건 충족 여부(모델별),
+(ii) GPU 이용률 회복폭($u_{\mathrm{gpu}}^{\mathrm{suf}}\!\to\!u_{\mathrm{gpu}}^{\mathrm{rcl}}$),
+(iii) suffix 대비 처리량 추가 이득.
+
+\noindent\textbf{[채울 부분]}
+\todo{Table~\ref{tbl:reclamation} 의 +reclaim / GPU 회복 / 기하평균 수치 (결정적 실험 후 측정).}
+\todo{정확도 게이트(reclamation 전후 출력 분포 동등) 결과.}
+\todo{병렬도 $P$ 스윕(코어 수 대 회복폭)과 NUMA 배치 효과.}

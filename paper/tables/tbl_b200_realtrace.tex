@@ -1,34 +1,30 @@
-%% tables/tbl_b200_realtrace.tex
-%% Table: DGX B200 대규모 실 트레이스 — mix 조건 처리량 + 자원 이용률
-%% source: TSK_042 routing_combined (8 model × 4 method × 7 condition, 실 trace)
+%% tables/tbl_b200_realtrace.tex  (Table I) — width-safe: plain tabular + \resizebox{\textwidth}
+%% source: TSK_042 routing_combined (mix 조건)
 
 \begin{table*}[t]
 \centering
-\caption{DGX B200$\times$8 실 트레이스 평가 (\textbf{mix} 조건, 이질 트래픽 셔플).
-  처리량 단위 tps. $\Delta$Suf $=$ suffix vs.\ vanilla.
-  GPU/CPU\,\% 는 vanilla$\to$suffix 의 자원 이용률.
-  suffix 는 처리량을 크게 올리면서도 \emph{GPU 이용률을 낮추고}(GPU 슬랙 생성),
-  CPU 는 전 구성에서 $\le 5.6\%$ 로 유휴 상태에 머문다.}
+\caption{DGX B200$\times$8 실 트레이스 (\textbf{mix} 조건). 처리량 tps,
+  $\Delta$Suf$=$suffix vs.\ vanilla, GPU/CPU\% 는 vanilla$\to$suffix.
+  suffix 는 처리량을 올리면서 \emph{GPU 이용률을 낮추고}(GPU slack),
+  CPU 는 전 구성 $\le5.6\%$ 유휴.
+  TP=8 (Q7B/DS-R1-Q7B 는 TP=4), conc=32, max\_tokens=8192, streaming.
+  모델 약칭: L=Llama-3.1, Q=Qwen-2.5, DS-R1=DeepSeek-R1-Distill.}
 \label{tbl:b200-realtrace}
-\scriptsize
-\setlength{\tabcolsep}{5pt}
-\begin{tabularx}{\textwidth}{@{}Xrrrcrr@{}}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lrrrcrr@{}}
 \toprule
 \textbf{Model} &
   \textbf{Vanilla} & \textbf{Suffix} & \textbf{llm-d} &
   \textbf{$\Delta$Suf} & \textbf{GPU\,\% (v$\to$s)} & \textbf{CPU\,\% (v$\to$s)} \\
 \midrule
-Llama-3.1-8B-Instruct        &  8,850 & \textbf{27,851} & 15,959 & $+215\%$ & $94.9\to62.8$ & $4.6\to4.4$ \\
-DeepSeek-R1-Distill-Qwen-7B  &  9,058 & \textbf{24,458} & 13,000 & $+170\%$ & $91.8\to63.8$ & $2.8\to2.6$ \\
-Llama-3.1-70B-Instruct       &  3,129 & \textbf{10,400} &  4,004 & $+232\%$ & $98.5\to83.4$ & $4.8\to4.4$ \\
-DeepSeek-R1-Distill-Qwen-32B &  4,938 &  \textbf{9,056} &  5,852 & $+83\%$  & $97.9\to79.9$ & $4.9\to4.4$ \\
-Qwen-2.5-7B-Instruct         &  4,169 &  \textbf{7,803} &  7,739 & $+87\%$  & $82.5\to26.5$ & $2.7\to2.5$ \\
-Qwen-2.5-32B-Instruct        &  3,056 &  \textbf{6,597} &  5,236 & $+116\%$ & $94.3\to64.8$ & $4.4\to4.3$ \\
-DeepSeek-R1-Distill-Llama-70B&  3,164 &  \textbf{6,127} &  2,864 & $+94\%$  & $98.3\to85.0$ & $4.9\to4.4$ \\
-Qwen-2.5-72B-Instruct        &  2,735 &  \textbf{5,268} &  3,265 & $+93\%$  & $97.6\to82.5$ & $4.5\to4.3$ \\
+L8B          &  8,850 & \textbf{27,851} & 15,959 & $+215\%$ & $94.9\to62.8$ & $4.6\to4.4$ \\
+DS-R1-Q7B    &  9,058 & \textbf{24,458} & 13,000 & $+170\%$ & $91.8\to63.8$ & $2.8\to2.6$ \\
+L70B         &  3,129 & \textbf{10,400} &  4,004 & $+232\%$ & $98.5\to83.4$ & $4.8\to4.4$ \\
+DS-R1-Q32B   &  4,938 &  \textbf{9,056} &  5,852 & $+83\%$  & $97.9\to79.9$ & $4.9\to4.4$ \\
+Q7B          &  4,169 &  \textbf{7,803} &  7,739 & $+87\%$  & $82.5\to26.5$ & $2.7\to2.5$ \\
+Q32B         &  3,056 &  \textbf{6,597} &  5,236 & $+116\%$ & $94.3\to64.8$ & $4.4\to4.3$ \\
+DS-R1-L70B   &  3,164 &  \textbf{6,127} &  2,864 & $+94\%$  & $98.3\to85.0$ & $4.9\to4.4$ \\
+Q72B         &  2,735 &  \textbf{5,268} &  3,265 & $+93\%$  & $97.6\to82.5$ & $4.5\to4.3$ \\
 \bottomrule
-\multicolumn{7}{@{}l@{}}{\scriptsize
-  TP=8 (Qwen-7B / DeepSeek-Qwen-7B 은 TP=4), conc=32, \texttt{max\_tokens}=8{,}192, streaming.
-  실 trace 6 corpus 셔플 (mix). llm-d: vanilla$+$suffix 2-백엔드 동일 GPU 예산 분할.}
-\end{tabularx}
+\end{tabular}}
 \end{table*}
