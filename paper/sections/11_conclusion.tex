@@ -22,7 +22,7 @@ spec-decode 가 성공하는 곳에서 GPU 가 un-saturate($94.9\!\to\!78.7\%$)�
 CPU 는 7B부터 671B까지 전 구성에서 $\le4.9\%$ 유휴하다.
 즉 처리량 지배 기법이 시스템을 GPU 포화에서 host(CPU) 병목으로 전환시킨다.
 
-이로부터 우리는 (i) 경량 \emph{모델-유형 인지} 방법 선택이 복잡한 라우터(llm-d, 우위 18\%)를
+이로부터 우리는 (i) 경량 \emph{모델-유형 인지} 방법 선택이 복잡한 라우터(llm-d, 최선단일 대비 14\%)를
 대체할 수 있음을 보이고, (ii) spec-decode 가 만든 host 병목을 유휴 CPU 코어에 \emph{병렬}
 분산하여 회수하는 \emph{host-side slack reclamation}을 제안하였다.
 hiding 조건(식~\ref{eq:hide-condition}) 하에서 이 방법은 GPU 이용률을 회복시켜

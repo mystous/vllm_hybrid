@@ -10,9 +10,10 @@
 \subsection{개요: 55 net-positive / 15 vanilla-win}
 \label{subsec:res-overview}
 
-70개 (모델$\times$조건) 쌍에서 suffix 는 55개 net-positive($+9\!\sim\!+232\%$),
+70개 (모델$\times$조건) 쌍에서 suffix 는 55개 net-positive($+4\!\sim\!+232\%$),
 15개에서 vanilla 가 더 빠르다(\S\ref{subsec:mot-heterogeneous}, Fig.~\ref{fig:alpha-gain}).
-mix 조건만 보면 8개 주력 모델 전부 net-positive 이나(Table~\ref{tbl:b200-realtrace}),
+mix 조건만 보면 8개 주력 모델 전부 net-positive 이나(Table~\ref{tbl:b200-realtrace};
+XL 중 R1-671B 은 mix 도 음, \S\ref{subsec:res-modeltype}),
 단일 corpus 로 내려가면 부호가 갈린다.
 이 절은 그 부호를 \emph{예측}하고(\S\ref{subsec:res-alpha}),
 실패 모델을 \emph{식별}하며(\S\ref{subsec:res-modeltype}),
@@ -56,13 +57,18 @@ XL 스케일이 이를 가장 선명하게 보인다(Table~\ref{tbl:b200-xl}):
 \label{subsec:res-llmd}
 
 vanilla$+$suffix 두 백엔드를 동일 GPU 예산으로 분할한 llm-d(\S\ref{sec:methodology})는
-8개 주력 모델 56개 셀에서 vanilla 대비 45개(80\%)에서 우위이나,
-\emph{최선 단일 방법}(suffix)을 능가하는 경우는 10개(18\%)에 그치며
+전 10모델 70개 셀에서 vanilla 대비 51개(73\%)에서 우위이나,
+\emph{최선 단일 방법}을 능가하는 경우는 10개(14\%)에 그치며
 주로 7B$\cdot$32B 의 대화 조건에 국한된다.
 복잡한 클러스터 라우팅의 추가 이득은 제한적이며,
 서버 내 경량 모델-유형 인지 선택이 대부분의 가치를 포착한다(\S\ref{sec:discussion}).
 특히 R1-Distill-Llama-70B 처럼 한 백엔드(suffix)가 열등하면
 라우터 평균도 vanilla 단일보다 낮아진다(전 조건 vanilla 우위).
+
+XL 스케일에서도 동일 패턴이 확인된다(mix): L405B-FP8 는 llm-d $1{,}429$ 가
+suffix $2{,}829$ 에 크게 못 미치고, R1-671B 는 llm-d $1{,}008$ 이
+suffix $781$ 은 능가하나 \emph{vanilla $1{,}538$ 에는 미달}한다.
+즉 지배 방법이 한쪽으로 분명할 때 두-백엔드 라우터는 최선 단일을 넘지 못한다.
 
 %% -----------------------------------------------------------------------
 \subsection{자원 signature: 성공이 GPU를 비우고, CPU는 늘 유휴}

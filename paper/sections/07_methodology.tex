@@ -75,7 +75,8 @@ GPU/CPU 이용률(UtilSampler 동기), GPU 메모리를 수집한다.
 \subsection{커버리지와 한계 (정직)}
 \label{subsec:coverage}
 
-주력 8모델은 4방법 $\times$ 7조건 전수, XL 2모델(405B/671B)은 vanilla/suffix $\times$ 7조건이다.
+주력 8모델은 4방법 $\times$ 7조건 전수, XL 2모델(405B/671B)은
+vanilla/suffix/llm-d $\times$ 7조건이다(XL ngram 은 제외).
 단일 corpus 조건은 해당 corpus 샘플 전수(164--500), mix 는 별도 500 샘플이므로
 mix 절대 tps 를 단일 corpus 와 직접 비교하지 않는다.
 naive ngram 은 Qwen-7B 에서만 전 corpus 측정했고(붕괴 확인),

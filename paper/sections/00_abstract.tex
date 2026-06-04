@@ -10,7 +10,7 @@
 
 세 가지 결과를 보고한다.
 \textbf{첫째}, suffix 기반 spec-decode 는 70개 (모델$\times$조건) 쌍 중 55개에서
-$+9\%\sim+232\%$ 순 양성이나, 15개에서는 vanilla 가 더 빠르다.
+$+4\%\sim+232\%$ 순 양성이나, 15개에서는 vanilla 가 더 빠르다.
 이 부호는 draft 수락률 $\alpha$ 와 per-step overhead 의 경쟁
 ($\alpha\!\cdot\!K_{\mathrm{eff}}$ vs.\ overhead)으로 \emph{예측 가능}하다:
 net-positive 셀의 $\alpha$ 중앙값은 $0.68$, vanilla-win 셀은 $0.37$ 이다.
@@ -26,8 +26,8 @@ $2.5\!\sim\!4.9\%$ 로 유휴하다.
 이 유휴 CPU 가 곧 회수 가능한 자원이다.
 
 이 특성화로부터 우리는 두 가지 운영 함의를 도출한다:
-(i) 무거운 클러스터 라우터(llm-d)는 vanilla 대비 80\%에서 우위이나
-최선 단일 방법을 능가하는 경우는 18\%에 그쳐, 경량 \emph{모델-유형 인지} 방법 선택이
+(i) 무거운 클러스터 라우터(llm-d)는 vanilla 대비 73\%(51/70)에서 우위이나
+최선 단일 방법을 능가하는 경우는 14\%(10/70)에 그쳐, 경량 \emph{모델-유형 인지} 방법 선택이
 대부분의 가치를 포착한다.
 (ii) spec-decode 가 만든 host 병목을 유휴 CPU 코어에 \emph{병렬} 분산하여
 회수하는 \emph{host-side slack reclamation}을 제안하고, 그 hiding 조건을 정식화한다.
