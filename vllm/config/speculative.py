@@ -59,6 +59,7 @@ SpeculativeMethod = Literal[
     "mlp_speculator",
     "draft_model",
     "suffix",
+    "cpu_amx_draft",
     EagleModelTypes,
     NgramGPUTypes,
 ]
@@ -408,6 +409,13 @@ class SpeculativeConfig:
                 self.model = "ngram_gpu"
             elif self.method == "suffix":
                 self.model = "suffix"
+            elif self.method == "cpu_amx_draft":
+                # PoC (A1 from SUB_201 §5): no separate model weight name;
+                # the AMX draft kernel currently owns its own (synthetic)
+                # weights. Use a sentinel string consistent with the
+                # "ngram"/"suffix" pattern so downstream validation does
+                # not complain about a missing model.
+                self.model = "cpu_amx_draft"
             elif self.method == "extract_hidden_states":
                 self.model = "extract_hidden_states"
             else:

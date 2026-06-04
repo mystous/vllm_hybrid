@@ -181,6 +181,7 @@ from vllm.v1.spec_decode.ngram_proposer_gpu import (
     update_ngram_gpu_tensors_incremental,
     update_scheduler_for_invalid_drafts,
 )
+from vllm.v1.spec_decode.cpu_amx import CpuAmxProposer
 from vllm.v1.spec_decode.suffix_decoding import SuffixDecodingProposer
 from vllm.v1.spec_decode.utils import update_num_computed_tokens_for_batch_change
 from vllm.v1.structured_output.utils import apply_grammar_bitmask
@@ -624,6 +625,7 @@ class GPUModelRunner(
                 NgramProposer  # noqa: F823
                 | NgramProposerGPU
                 | SuffixDecodingProposer
+                | CpuAmxProposer
                 | EagleProposer
                 | DFlashProposer
                 | DraftModelProposer
@@ -662,6 +664,14 @@ class GPUModelRunner(
                 self.use_aux_hidden_state_outputs = True
             elif self.speculative_config.method == "suffix":
                 self.drafter = SuffixDecodingProposer(self.vllm_config)
+            elif self.speculative_config.method == "cpu_amx_draft":
+                # PoC (A1 from SUB_201 §5): CPU/AMX-side draft proposer.
+                # Currently a toy proposer (deterministic fixed sequence) to
+                # validate the dispatch wire-up. The real AMX kernel
+                # integration (libamx_draft_qwen05b.so from SUB_187 + real
+                # Qwen 0.5B forward) is the next 2-3 week dev step
+                # (SUB_198).
+                self.drafter = CpuAmxProposer(self.vllm_config)
             elif self.speculative_config.use_eagle():
                 self.drafter = EagleProposer(self.vllm_config, self.device, self)
                 if self.speculative_config.method == "eagle3":
@@ -5220,6 +5230,14 @@ class GPUModelRunner(
         elif spec_config.method == "suffix":
             assert isinstance(sampled_token_ids, list)
             assert isinstance(self.drafter, SuffixDecodingProposer)
+            draft_token_ids = self.drafter.propose(
+                self.input_batch, sampled_token_ids, slot_mappings=slot_mappings
+            )
+        elif spec_config.method == "cpu_amx_draft":
+            # PoC dispatch — mirrors the suffix path since CpuAmxProposer
+            # shares the same propose() signature.
+            assert isinstance(sampled_token_ids, list)
+            assert isinstance(self.drafter, CpuAmxProposer)
             draft_token_ids = self.drafter.propose(
                 self.input_batch, sampled_token_ids, slot_mappings=slot_mappings
             )

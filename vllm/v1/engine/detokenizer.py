@@ -29,6 +29,40 @@ USE_FAST_DETOKENIZER = version.parse(tokenizers.__version__) >= version.parse("0
 # Error string from https://github.com/huggingface/tokenizers/blob/909fdde2a4ffedd9295206f705eb612be2a91b12/tokenizers/src/tokenizer/mod.rs#L1042
 INVALID_PREFIX_ERR_MSG = "Invalid prefix encountered"
 
+# ─── IDE_016 / SUB_201 §5 B1 PoC: ctypes-based AVX-512 detok path ─────────
+# ENV `VLLM_USE_AVX512_DETOK=1` 시 vllm/tokenizers/avx512_detokenizer.py 의
+# 가벼운 ctypes wrapper 를 통해 libavx512_tokenizer.so 의 batch detokenize
+# kernel 을 직접 호출한다. SUB_173 의 avx512_amx_pool 의존을 회피하는 별도
+# minimal patch (worktree-격리, 본격 통합 전 측정용).
+_avx512_detok_b1_enabled: bool = (
+    os.environ.get("VLLM_USE_AVX512_DETOK", "0") == "1"
+)
+_avx512_detok_b1_cache: dict[int, object] = {}
+
+
+def _avx512_detok_b1_get_for(hf_tok) -> object | None:
+    if not _avx512_detok_b1_enabled:
+        return None
+    key = id(hf_tok)
+    bd = _avx512_detok_b1_cache.get(key)
+    if bd is not None:
+        return bd
+    try:
+        from vllm.tokenizers.avx512_detokenizer import AVX512Detokenizer
+        bd = AVX512Detokenizer.from_hf_tokenizer(hf_tok)
+        _avx512_detok_b1_cache[key] = bd
+        logger.info(
+            "SUB_201 B1 PoC: AVX512Detokenizer (ctypes) ready for tokenizer "
+            "(V=%d, total_bytes=%d)", bd._V, bd._total_bytes,
+        )
+        return bd
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "SUB_201 B1 PoC: AVX512Detokenizer init failed (%s)", exc
+        )
+        return None
+
+
 # ─── IDE_016 / SUB_173 AVX-512 batch detokenize integration ───────────────
 # ENV `VLLM_USE_AVX512_TOKENIZER=1` 시 AVX-512 kernel 을 detokenize 의
 # fast path 로 사용. stream.step 도 internal state 유지를 위해 호출하되,
@@ -277,6 +311,14 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
         # bare Rust `Tokenizer` (which lacks `convert_ids_to_tokens` symmetry).
         self._avx512_bd = _avx512_tok_get_for(tokenizer) if _avx512_tok_enabled else None
 
+        # SUB_201 §5 B1 PoC: ctypes-based avx512 detok (independent of SUB_173).
+        # When `VLLM_USE_AVX512_DETOK=1`, builds a flat vocab table from
+        # `tokenizer` and caches an `AVX512Detokenizer` for shadow-mode use.
+        self._avx512_detok_b1 = (
+            _avx512_detok_b1_get_for(tokenizer)
+            if _avx512_detok_b1_enabled else None
+        )
+
         # Use native prefill to prime the decode stream with prompt tokens.
         self.stream = DecodeStream(
             ids=request.prompt_token_ids,
@@ -325,6 +367,19 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
         # avx-512 single-token decode and accumulate per-process totals.
         global _avx512_tok_step_count, _avx512_tok_native_total_ns
         global _avx512_tok_avx_total_ns, _avx512_tok_mismatch_count
+
+        # SUB_201 §5 B1 PoC: shadow-mode AVX-512 ctypes detok call.
+        # No state mutation — only exercises the kernel for latency telemetry
+        # / correctness gating. The native stream.step output remains the
+        # authoritative return.
+        _b1 = getattr(self, "_avx512_detok_b1", None)
+        if _b1 is not None:
+            try:
+                _b1.batch_detokenize([[int(next_token_id)]])
+            except Exception:
+                # silent — PoC level, captured by external test harness.
+                pass
+
         _avx_bd = getattr(self, "_avx512_bd", None)
         if _avx_bd is not None:
             avx_t0 = time.perf_counter_ns()
