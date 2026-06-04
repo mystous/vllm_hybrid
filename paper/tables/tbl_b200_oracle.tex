@@ -6,27 +6,26 @@
 \caption{조건별 oracle 방법 (10모델 $\times$ 7조건 $=$ 70셀, 처리량 최대 방법).
   요청 출처와 모델 유형에 따라 최적이 달라져 단일 고정 방법은 최적일 수 없다.
   \textbf{V}=vanilla, \textbf{S}=suffix, \textbf{L}=llm-d.
-  R1-671B(MoE 추론)은 전 조건 vanilla, DS-Distill-Llama-70B 은 mix 외 vanilla;
-  dense 표준(L$\cdot$Q$\cdot$405B)은 대부분 suffix, 중형 Qwen 대화 조건은 llm-d.
-  약칭 L=Llama-3.1, Q=Qwen-2.5, DS=DeepSeek-R1-Distill.}
+  DeepSeek-R1(MoE 추론)은 전 조건 vanilla, DeepSeek-R1-Distill-Llama-70B 은 mix 외 vanilla;
+  dense 표준은 대부분 suffix, 중형 Qwen 대화 조건은 llm-d.}
 \label{tbl:b200-oracle}
 \scriptsize
 \setlength{\tabcolsep}{5pt}
 \begin{tabularx}{\textwidth}{@{}Xccccccc@{}}
 \toprule
 \textbf{Model} & \textbf{ShareGPT} & \textbf{WildChat} & \textbf{LMSYS} &
-  \textbf{SWE-b} & \textbf{MBPP} & \textbf{HumanEval} & \textbf{mix} \\
+  \textbf{SWE-bench} & \textbf{MBPP} & \textbf{HumanEval} & \textbf{mix} \\
 \midrule
-Q7B   & L & L & L & L & S & S & S \\
-L8B   & S & S & S & S & S & S & S \\
-DS-Q7B & S & S & L & S & S & S & S \\
-Q32B  & L & L & L & S & L & S & S \\
-DS-Q32B & S & S & S & S & S & S & S \\
-Q72B  & S & V & S & S & L & S & S \\
-L70B  & S & S & S & S & S & S & S \\
-DS-L70B & V & V & V & V & V & V & S \\
-L405B & S & S & S & S & S & S & S \\
-R1-671B & V & V & V & V & V & V & V \\
+Qwen-2.5-7B-Instruct          & L & L & L & L & S & S & S \\
+Llama-3.1-8B-Instruct         & S & S & S & S & S & S & S \\
+DeepSeek-R1-Distill-Qwen-7B   & S & S & L & S & S & S & S \\
+Qwen-2.5-32B-Instruct         & L & L & L & S & L & S & S \\
+DeepSeek-R1-Distill-Qwen-32B  & S & S & S & S & S & S & S \\
+Qwen-2.5-72B-Instruct         & S & V & S & S & L & S & S \\
+Llama-3.1-70B-Instruct        & S & S & S & S & S & S & S \\
+DeepSeek-R1-Distill-Llama-70B & V & V & V & V & V & V & S \\
+Llama-3.1-405B-Instruct-FP8   & S & S & S & S & S & S & S \\
+DeepSeek-R1 (671B, MoE)       & V & V & V & V & V & V & V \\
 \bottomrule
 \end{tabularx}
 \end{table*}

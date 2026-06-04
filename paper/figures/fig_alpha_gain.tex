@@ -1,5 +1,5 @@
 %% figures/fig_alpha_gain.tex  (2-panel, 2-column figure*)
-%% (a) 모델별 mix throughput 이득 — spec-decode는 지배적이나 R1-671B(MoE추론)만 음
+%% (a) 모델별 mix throughput 이득 — spec-decode는 지배적이나 DeepSeek-R1 671B(MoE추론)만 음
 %% (b) α vs gain 산점 (70 model×condition 셀) — break-even은 overhead로 이동
 
 \begin{figure*}[t]
@@ -12,7 +12,7 @@
   xbar, width=8.4cm, height=6.6cm,
   xlabel={mix throughput gain vs.\ vanilla (\%)},
   xmin=-70, xmax=260,
-  symbolic y coords={R1-671B,DS-R1-Q32B,Q7B,Q72B,DS-R1-L70B,Q32B,L405B-FP8,DS-R1-Q7B,L8B,L70B},
+  symbolic y coords={DeepSeek-R1-671B,DeepSeek-R1-Distill-Qwen-32B,Qwen-2.5-7B,Qwen-2.5-72B,DeepSeek-R1-Distill-Llama-70B,Qwen-2.5-32B,Llama-3.1-405B-FP8,DeepSeek-R1-Distill-Qwen-7B,Llama-3.1-8B,Llama-3.1-70B},
   ytick=data, y dir=normal,
   nodes near coords, nodes near coords align={horizontal},
   every node near coord/.append style={font=\scriptsize},
@@ -20,13 +20,13 @@
   xmajorgrids, grid style={gray!20},
 ]
 \addplot[fill=blue!55, draw=blue!55] coordinates {
-(232,L70B)(215,L8B)(170,DS-R1-Q7B)(126,L405B-FP8)(116,Q32B)(94,DS-R1-L70B)(93,Q72B)(87,Q7B)(83,DS-R1-Q32B)(-49,R1-671B)};
-\addplot[fill=red!75, draw=red!75] coordinates {(-49,R1-671B)};
+(232,Llama-3.1-70B)(215,Llama-3.1-8B)(170,DeepSeek-R1-Distill-Qwen-7B)(126,Llama-3.1-405B-FP8)(116,Qwen-2.5-32B)(94,DeepSeek-R1-Distill-Llama-70B)(93,Qwen-2.5-72B)(87,Qwen-2.5-7B)(83,DeepSeek-R1-Distill-Qwen-32B)(-49,DeepSeek-R1-671B)};
+\addplot[fill=red!75, draw=red!75] coordinates {(-49,DeepSeek-R1-671B)};
 \end{axis}
 \end{tikzpicture}}
 \par\smallskip
 {\footnotesize (a) 모델별 mix 이득. 8 dense/distill 모델은 $+83\!\sim\!+232\%$,
-  MoE 추론 R1-671B 만 $-49\%$.}
+  MoE 추론 DeepSeek-R1 671B 만 $-49\%$.}
 \end{minipage}\hfill
 \begin{minipage}{0.50\textwidth}
 \centering
@@ -50,10 +50,10 @@
 \end{tikzpicture}}
 \par\smallskip
 {\footnotesize (b) $\alpha$ vs.\ 이득(70 셀). vanilla-win(빨강)은 $\alpha\!\lesssim\!0.54$ 에 집중;
-  R1-671B 는 $\alpha\!\approx\!0.5$ 에서도 큰 손해($\because$ 큰 overhead).}
+  DeepSeek-R1 671B 는 $\alpha\!\approx\!0.5$ 에서도 큰 손해($\because$ 큰 overhead).}
 \end{minipage}
 \caption{\textbf{spec-decode 는 지배적이나 불균일하다 (B200).}
-  (a) 혼합 트래픽에서는 R1-671B(MoE 추론)만 손해.
+  (a) 혼합 트래픽에서는 DeepSeek-R1 671B(MoE 추론)만 손해.
   (b) 단일 corpus 까지 보면 부호는 $\alpha$ 와 per-step overhead 의 경쟁으로 갈린다.}
 \label{fig:alpha-gain}
 \end{figure*}

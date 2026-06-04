@@ -12,6 +12,7 @@
 \caption{실험 환경 (전 측정 B200 단일 플랫폼).}
 \label{tbl:setup}
 \footnotesize
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}ll@{}}
 \toprule
 \textbf{항목} & \textbf{사양} \\
@@ -27,7 +28,7 @@ SuffixDecoding & arctic-inference (lazy import) \\
 측정 도구 & vLLM benchmark\_serving, UtilSampler \\
           & (nvidia-smi $+$ /proc/stat 동기 샘플링) \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \subsection{모델}
@@ -79,6 +80,6 @@ GPU/CPU 이용률(UtilSampler 동기), GPU 메모리를 수집한다.
 vanilla/suffix/llm-d $\times$ 7조건이다(XL ngram 은 제외).
 단일 corpus 조건은 해당 corpus 샘플 전수(164--500), mix 는 별도 500 샘플이므로
 mix 절대 tps 를 단일 corpus 와 직접 비교하지 않는다.
-naive ngram 은 Qwen-7B 에서만 전 corpus 측정했고(붕괴 확인),
+naive ngram 은 Qwen-2.5-7B 에서만 전 corpus 측정했고(붕괴 확인),
 eagle 계열은 본 연구 범위 밖이다.
 모든 raw(per-request 로그$\cdot$summ$\cdot$parquet)는 보조 자료로 공개한다.

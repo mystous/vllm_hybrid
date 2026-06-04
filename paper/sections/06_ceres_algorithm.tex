@@ -32,7 +32,7 @@ Table~\ref{tbl:roadmap} 은 본 연구가 제안하는 개선 lever 를 한곳�
 따라서 게이트의 1차 입력은 모델 프로파일이다:
 추론 특화/MoE 모델(R1 계열)은 단일 corpus 트래픽에서 vanilla,
 dense 표준 모델(Llama$\cdot$Qwen$\cdot$405B-FP8)은 suffix 를 기본으로 한다.
-워크로드 분류는 일부 중형 모델(Qwen-7B/32B 의 대화 대 코드)에서만 2차로 작동한다.
+워크로드 분류는 일부 중형 모델(Qwen-2.5-7B/32B 의 대화 대 코드)에서만 2차로 작동한다.
 naive n-gram 은 실 트레이스에서 $\sim\!-90\%$ 이므로 게이트 후보에서 영구 제외한다.
 이 게이트는 처리량 지배 lever 가 아니라 \emph{회귀 회피 안전장치}로 위치한다.
 
@@ -82,7 +82,7 @@ $u_{\mathrm{gpu}}^{\mathrm{van}}\!\approx\!95\%$ 는 상당한 이론적 여유�
 \emph{suffix ON 상태의 decode step 1개 wall-clock 을 GPU verify(커널 실행) 대
 step간 gap(드래프트$\cdot$스케줄$\cdot$샘플$\cdot$detok$\cdot$동기)으로 분해}한다
 (Nsight Systems inter-kernel gap + py-spy).
-대상은 GPU 이용률이 가장 낮은 Qwen-7B suffix(26\%)와 대조군 Llama-70B suffix(83\%)다.
+대상은 GPU 이용률이 가장 낮은 Qwen-2.5-7B suffix(26\%)와 대조군 Llama-3.1-70B suffix(83\%)다.
 gap 이 크고 host-bound 이면(a) A1/B 가 회수 가능,
 verify 내부 대역 bound 이면(b) CPU 로 불가 $\to$ A2(배치 확대)로 전환,
 배치 미충전이면(c) concurrency$\uparrow$ + A2 가 1순위가 된다.

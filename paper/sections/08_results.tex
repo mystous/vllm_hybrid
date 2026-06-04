@@ -13,7 +13,7 @@
 70개 (모델$\times$조건) 쌍에서 suffix 는 55개 net-positive($+4\!\sim\!+232\%$),
 15개에서 vanilla 가 더 빠르다(\S\ref{subsec:mot-heterogeneous}, Fig.~\ref{fig:alpha-gain}).
 mix 조건만 보면 8개 주력 모델 전부 net-positive 이나(Table~\ref{tbl:b200-realtrace};
-XL 중 R1-671B 은 mix 도 음, \S\ref{subsec:res-modeltype}),
+XL 중 DeepSeek-R1 671B 은 mix 도 음, \S\ref{subsec:res-modeltype}),
 단일 corpus 로 내려가면 부호가 갈린다.
 이 절은 그 부호를 \emph{예측}하고(\S\ref{subsec:res-alpha}),
 실패 모델을 \emph{식별}하며(\S\ref{subsec:res-modeltype}),
@@ -32,7 +32,7 @@ net-positive 셀의 wall ratio(suffix/vanilla) 중앙값은 $0.60$,
 vanilla-win 셀은 $1.18$(최대 $2.9$)로, \emph{overhead 가 큰 모델일수록 더 높은 $\alpha$ 를 요구}한다
 (식~\ref{eq:rk-condition}).
 실제로 한 저-overhead 셀은 $\alpha\!=\!0.28$ 에서도 $+209\%$ 인 반면,
-R1-671B 는 $\alpha\!\approx\!0.45\!\sim\!0.54$ 에서도 손해다.
+DeepSeek-R1 671B 는 $\alpha\!\approx\!0.45\!\sim\!0.54$ 에서도 손해다.
 즉 $\Delta(\mathrm{suffix})$ 의 부호는 $\alpha\,K_{\mathrm{eff}}$ 대 overhead 의 경쟁으로 설명된다.
 
 %% -----------------------------------------------------------------------
@@ -42,10 +42,10 @@ R1-671B 는 $\alpha\!\approx\!0.45\!\sim\!0.54$ 에서도 손해다.
 \input{tables/tbl_b200_xl}
 
 vanilla-win 15셀은 \emph{모두} 추론 특화 또는 MoE 모델이다
-(R1-671B 7/7, R1-Distill-Llama-70B 6/7, Qwen-72B 2셀; Table~\ref{tbl:b200-alpha}).
+(DeepSeek-R1 671B 7/7, DeepSeek-R1-Distill-Llama-70B 6/7, Qwen-2.5-72B 2셀; Table~\ref{tbl:b200-alpha}).
 XL 스케일이 이를 가장 선명하게 보인다(Table~\ref{tbl:b200-xl}):
-동일 $\sim\!400\!\sim\!700$B 급에서 \emph{dense 표준} Llama-405B-FP8 은 suffix 가
-전 조건 $+69\!\sim\!+126\%$ 인 반면, \emph{MoE 추론} R1-671B 는
+동일 $\sim\!400\!\sim\!700$B 급에서 \emph{dense 표준} Llama-3.1-405B-FP8 은 suffix 가
+전 조건 $+69\!\sim\!+126\%$ 인 반면, \emph{MoE 추론} DeepSeek-R1 671B 는
 전 조건 $-40\!\sim\!-64\%$ 다.
 파라미터 수가 더 큰 R1 이 더 나쁘므로, \textbf{최적 방법은 크기가 아니라 모델 유형이 결정한다}.
 이 (모델$\times$조건) 의존성은 단일 고정 방법이 구조적으로 최적일 수 없음을 입증하며
@@ -62,11 +62,11 @@ vanilla$+$suffix 두 백엔드를 동일 GPU 예산으로 분할한 llm-d(\S\ref
 주로 7B$\cdot$32B 의 대화 조건에 국한된다.
 복잡한 클러스터 라우팅의 추가 이득은 제한적이며,
 서버 내 경량 모델-유형 인지 선택이 대부분의 가치를 포착한다(\S\ref{sec:discussion}).
-특히 R1-Distill-Llama-70B 처럼 한 백엔드(suffix)가 열등하면
+특히 DeepSeek-R1-Distill-Llama-70B 처럼 한 백엔드(suffix)가 열등하면
 라우터 평균도 vanilla 단일보다 낮아진다(전 조건 vanilla 우위).
 
-XL 스케일에서도 동일 패턴이 확인된다(mix): L405B-FP8 는 llm-d $1{,}429$ 가
-suffix $2{,}829$ 에 크게 못 미치고, R1-671B 는 llm-d $1{,}008$ 이
+XL 스케일에서도 동일 패턴이 확인된다(mix): Llama-3.1-405B-FP8 는 llm-d $1{,}429$ 가
+suffix $2{,}829$ 에 크게 못 미치고, DeepSeek-R1 671B 는 llm-d $1{,}008$ 이
 suffix $781$ 은 능가하나 \emph{vanilla $1{,}538$ 에는 미달}한다.
 즉 지배 방법이 한쪽으로 분명할 때 두-백엔드 라우터는 최선 단일을 넘지 못한다.
 
@@ -84,7 +84,7 @@ step 수가 줄며 GPU 가 더 자주 쉰다.
 \textbf{실패 셀}에서는 $98.2\%\!\to\!86.8\%$ 로 높게 유지된다 ---
 거부되는 draft 의 낭비 연산으로 GPU 가 계속 바쁘다.
 지연 측면에서도 성공 셀은 TPOT(토큰당 지연)를 크게 줄인다
-(예: R1-Distill-Qwen-7B $3.3\!\to\!0.9$\,ms; Table~\ref{tbl:b200-latency}).
+(예: DeepSeek-R1-Distill-Qwen-7B $3.3\!\to\!0.9$\,ms; Table~\ref{tbl:b200-latency}).
 
 한편 \textbf{CPU 는 7B부터 671B까지 전 140셀에서 $2.5\!\sim\!4.9\%$(중앙 $4.4\%$)} 로 유휴하다.
 즉 처리량 지배 기법이 성공할 때 GPU 여유와 CPU 유휴가 \emph{공존}하며,

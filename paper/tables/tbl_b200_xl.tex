@@ -1,21 +1,21 @@
-%% tables/tbl_b200_xl.tex
-%% XL 스케일: 405B FP8(dense) vs DeepSeek-R1 671B(MoE 추론). vanilla/suffix only.
-%% source: TSK_042 XL 매트릭스 (28셀)
+%% tables/tbl_b200_xl.tex  (Table V) — XL: 405B FP8(dense) vs DeepSeek-R1 671B(MoE 추론)
+%% source: TSK_042 XL 매트릭스
 
 \begin{table}[t]
 \centering
 \caption{XL 스케일 (vanilla/suffix, tps).
-  동일 $\sim\!400\text{--}700$B 급에서 \emph{dense 표준}(L405B-FP8)은 suffix 가 전 조건 net-positive,
-  \emph{MoE 추론}(R1-671B)은 전 조건 net-negative.
+  동일 $\sim\!400\text{--}700$B 급에서 \emph{dense 표준}(Llama-3.1-405B-FP8)은 suffix 가 전 조건 net-positive,
+  \emph{MoE 추론}(DeepSeek-R1)은 전 조건 net-negative.
   최적 방법은 파라미터 수가 아니라 \emph{모델 유형}이 결정한다.
   두 모델 모두 CPU 이용률 $\le 4.8\%$.
   llm-d 도 7조건 측정했으며 그 한계는 \S\ref{subsec:res-llmd} 에서 다룬다.}
 \label{tbl:b200-xl}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-\textbf{조건} & \multicolumn{2}{c}{\textbf{L405B-FP8 (dense)}} & \multicolumn{2}{c}{\textbf{R1-671B (MoE 추론)}} \\
+\textbf{조건} & \multicolumn{2}{c}{\textbf{Llama-3.1-405B-FP8 (dense)}} & \multicolumn{2}{c}{\textbf{DeepSeek-R1 671B (MoE)}} \\
  & van$\to$suf & $\Delta$ & van$\to$suf & $\Delta$ \\
 \midrule
 sharegpt  & $1217\to2061$ & $+69\%$  & $1475\to797$ & $-46\%$ \\
@@ -28,5 +28,5 @@ mix       & $1252\to2829$ & $+126\%$ & $1538\to781$ & $-49\%$ \\
 \midrule
 $\alpha$ (mix) & \multicolumn{2}{c}{$0.766$} & \multicolumn{2}{c}{$0.451$} \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}

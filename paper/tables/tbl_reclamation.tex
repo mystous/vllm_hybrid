@@ -1,4 +1,4 @@
-%% tables/tbl_reclamation.tex  (Table IX) — width-safe: 짧은 모델명 + \resizebox + 주석 caption
+%% tables/tbl_reclamation.tex  (Table IX) — width-safe: \resizebox + 주석 caption
 %% [PLACEHOLDER] Host-side CPU 병렬 reclamation 성능. 결정적 실험(§6.5) 후 채움.
 
 \begin{table}[t]
@@ -7,8 +7,7 @@
   suffix 가 un-saturate 시킨 GPU(\S\ref{subsec:res-resource})를
   유휴 CPU 의 병렬 host-path 로 재충전했을 때의 처리량과 GPU 이용률 회복.
   suffix tps$\cdot$GPU\% 는 본 연구 실측(B200); +reclaim 열은
-  \S\ref{subsec:decisive} 결정적 실험 후 측정(\textbf{TBD}).
-  약칭 L=Llama-3.1, Q=Qwen-2.5.}
+  \S\ref{subsec:decisive} 결정적 실험 후 측정(\textbf{TBD}).}
 \label{tbl:reclamation}
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}lrccc@{}}
@@ -16,10 +15,10 @@
 \textbf{Model (mix)} & \textbf{suffix tps} & \textbf{+reclaim} &
   \textbf{$\Delta$} & \textbf{GPU\% suf$\to$rcl} \\
 \midrule
-Q7B   & 7{,}803  & \textit{TBD} & \textit{TBD} & $26.5 \to \textit{TBD}$ \\
-Q32B  & 6{,}597  & \textit{TBD} & \textit{TBD} & $64.8 \to \textit{TBD}$ \\
-L8B   & 27{,}851 & \textit{TBD} & \textit{TBD} & $62.8 \to \textit{TBD}$ \\
-L70B  & 10{,}400 & \textit{TBD} & \textit{TBD} & $83.4 \to \textit{TBD}$ \\
+Qwen-2.5-7B-Instruct   & 7{,}803  & \textit{TBD} & \textit{TBD} & $26.5 \to \textit{TBD}$ \\
+Qwen-2.5-32B-Instruct  & 6{,}597  & \textit{TBD} & \textit{TBD} & $64.8 \to \textit{TBD}$ \\
+Llama-3.1-8B-Instruct  & 27{,}851 & \textit{TBD} & \textit{TBD} & $62.8 \to \textit{TBD}$ \\
+Llama-3.1-70B-Instruct & 10{,}400 & \textit{TBD} & \textit{TBD} & $83.4 \to \textit{TBD}$ \\
 \midrule
 \textbf{기하평균} & --- & \textit{TBD} & \textit{TBD} & --- \\
 \bottomrule
