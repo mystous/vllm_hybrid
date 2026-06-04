@@ -126,7 +126,55 @@
 - **traffic burst window 가 trace 보다 짧음** (Qwen-7B 35s vs trace 60s) → 일부 metric 이 idle 시간 포함, 정밀 normalization 필요
 - ncu metric 불가 (NVGPUCTRPERM) → (b) verify 내부 occupancy 정밀 확인 미완
 
-### 4.2 R1 671B 측정 — 부분 성공 (nsys-rep 미생성, indirect evidence 만)
+### 4.2 R1 671B 측정 v2 — nsys-rep 성공 ✅ (2026-06-05 KST 06:27)
+
+**측정 셋업**: `nsys profile --wait=all --stop-on-exit=true` (v1 의 hang 문제 해결), TP=8, suffix.
+
+**R1 v2 GPU kernel summary** (90s trace, top 6):
+| % | Total | Kernel | 해석 |
+|---:|---:|---|---|
+| **42.3** | 11.60s | `at::native::elementwise_kernel` | MoE expert routing + post-processing 의 element-wise (R1 MoE 특성) |
+| 25.4 | 6.97s | `cutlass_kernel...FlashAttentionForwardSm100` | MLA attention (R1) |
+| 7.1 + 6.6 | 3.76s | `deep_gemm::sm100_fp8_gemm_1d1d_impl` | **MoE expert FP8 GEMM** |
+| 5.8 | 1.58s | `per_token_group_quant_8bit_packed` | FP8 quantization |
+| 4.5 | 1.23s | `gather_and_maybe_dequant_cache` | KV cache 처리 |
+| 3.0 (합) | — | `fmha ... HQk576HV512 (MLA)` | paged KV attention |
+
+→ **R1 GPU dominant 가 elementwise/MoE GEMM/quant** (kernel fragmentation 심함). Qwen-7B/Llama-70B (FMHA 80%+ 단일 dominant) 와 완전 다른 패턴.
+
+**R1 v2 CUDA API summary** (host overhead, 90s):
+| % | Total | API | Num Calls / 90s | rate |
+|---:|---:|---|---:|---:|
+| **34.9** | 3.52s | **cudaMemcpyAsync** | 14,529 | 162/s (개당 평균 242μs 큼) |
+| **34.8** | 3.52s | **cudaLaunchKernel** | **992,730** | **11,030/s** ⚠ |
+| 11.8 | 1.20s | cuLaunchKernelEx | 285,904 | 3,177/s |
+| 7.6 | 0.77s | cudaGraphLaunch | 38,533 | 428/s |
+| 7.4 | 0.74s | cudaLaunchKernelExC | 169,243 | 1,880/s |
+
+→ **launch + memcpy 합 70% (5.94s + 3.52s = 9.46s in 90s)**. 즉 host overhead 가 R1 step time 의 ~10% (matrix 측정 wall 의 70/wall ratio). **R1 매트릭스 ttft +200% 폭증의 근본 원인 확정**.
+
+**R1 v2 vllm spec metrics** (serve.log 마지막 측정):
+- Mean accept length 2.43 → **1.67 → 1.62** (점차 감소)
+- Avg Draft accept rate 55.9% → 35.2% → **32.2%** (decay)
+- Per-position 0.30 → 0.05 (12 step 깊은 단계)
+
+→ suffix 의 wasted compute 가 증가 추세 (시간 지날수록 cache hit ↓).
+
+### 4.3 3 모델 통합 결과
+
+| 모델 | size | GPU util pat | dominant host overhead | total host % |
+|---|---|---|---|---|
+| **Qwen-7B** | 7B (TP=4, GPU 26%) | host gap 80% 큰 신호 | **cudaLaunchKernel 36%** (18,606/s) | **38% launch + 13% memcpy = 51%** |
+| **Llama-70B** | 70B (TP=8, GPU 83%) | gap 17% 작음 | **cudaMemcpyAsync 80%** (3,236/s, 개당 336μs) | **85% memcpy dominant** |
+| **R1 671B MoE** | 37B activated | gap 작음 (94% util) | **launch + memcpy 양쪽 70%** | **70% (launch 35 + memcpy 35)** |
+
+**모델별 회수 lever 우선순위**:
+
+| 모델 | Primary lever | Rationale |
+|---|---|---|
+| Qwen-7B | **B3 scheduler/launch batching** + A1 CPU drafting | launch overhead 너무 큼 (18k calls/s), kernel batch/graph fusion 필요 |
+| Llama-70B | **A2 KV tiering (zero-copy DRAM input)** + B1 detok | memcpy 80% 가 TP=8 의 inter-GPU H2D/D2H (개당 336μs 매우 큼) |
+| R1 671B | **A1 CPU drafting + B3 kernel fusion** | MoE expert fragmentation (11k launches/s) + suffix wasted compute 40% |
 
 **측정 시도 결과** (2026-06-05 KST 05:50):
 - nsys delay=600s, duration=90s, R1 suffix TP=8
