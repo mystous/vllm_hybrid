@@ -153,11 +153,16 @@ class BlockPool:
         hash_block_size: int,
         enable_kv_cache_events: bool = False,
         metrics_collector: KVCacheMetricsCollector | None = None,
+        kv_dram_tier: Any | None = None,
     ):
         assert isinstance(num_gpu_blocks, int) and num_gpu_blocks > 0
         self.num_gpu_blocks = num_gpu_blocks
         self.enable_caching = enable_caching
         self.hash_block_size = hash_block_size
+        # SUB_201 A2 — optional cold-KV → DRAM tier. When None (default)
+        # all hot-path branches below are skipped via a single `is None`
+        # check, preserving baseline behavior bit-exactly.
+        self._kv_dram_tier = kv_dram_tier
         # All kv-cache blocks.
         self.blocks: list[KVCacheBlock] = [
             KVCacheBlock(idx) for idx in range(num_gpu_blocks)
@@ -335,6 +340,17 @@ class BlockPool:
 
         ret: list[KVCacheBlock] = self.free_block_queue.popleft_n(num_blocks)
 
+        # SUB_201 A2 — P2 hook: drop any tiered DRAM copy before the
+        # block is overwritten by the new allocation. The block was
+        # tiered with wait=True so the pull is fully resolved; we only
+        # need to release the host buffer. (When fetch-on-reuse is
+        # eventually wired this becomes a fetch_block instead.)
+        tier = self._kv_dram_tier
+        if tier is not None:
+            for block in ret:
+                if tier.is_tiered(block.block_id):
+                    tier.drop(block.block_id)
+
         # In order to only iterate the list once, we duplicated code a bit
         if self.enable_caching:
             for block in ret:
@@ -396,6 +412,7 @@ class BlockPool:
         Args:
             blocks: A list of blocks to touch.
         """
+        tier = self._kv_dram_tier
         for block in blocks:
             # ref_cnt=0 means this block is in the free list (i.e. eviction
             # candidate), so remove it.
@@ -404,6 +421,12 @@ class BlockPool:
             block.ref_cnt += 1
             if self.metrics_collector:
                 self.metrics_collector.on_block_accessed(block)
+            # SUB_201 A2 — P3 hook: prefix-cache hit on a tiered block.
+            # Restore HBM contents before the next attention read. The
+            # PoC uses wait=True; the overlap-restoring variant is
+            # tracked in DESIGN_ENGINE_WIRING.md §6.
+            if tier is not None and tier.is_tiered(block.block_id):
+                tier.fetch_block(block.block_id, wait=True)
 
     def free_blocks(self, ordered_blocks: Iterable[KVCacheBlock]) -> None:
         """Free a list of blocks. The blocks should be ordered by their
@@ -417,9 +440,23 @@ class BlockPool:
         blocks_list = list(ordered_blocks)
         for block in blocks_list:
             block.ref_cnt -= 1
-        self.free_block_queue.append_n(
-            [block for block in blocks_list if block.ref_cnt == 0 and not block.is_null]
-        )
+        newly_free = [
+            block
+            for block in blocks_list
+            if block.ref_cnt == 0 and not block.is_null
+        ]
+        self.free_block_queue.append_n(newly_free)
+
+        # SUB_201 A2 — P1 hook: spill cached free blocks into pinned DRAM.
+        # Conservative policy: only cached blocks (have a hash) are
+        # tiered; non-cached free blocks fall through to the LRU queue
+        # unchanged. ``evict_block`` is synchronous (wait=True) for PoC
+        # correctness — see DESIGN_ENGINE_WIRING.md §2.3.
+        tier = self._kv_dram_tier
+        if tier is not None and tier.has_pointer_binding():
+            for block in newly_free:
+                if block.block_hash is not None:
+                    tier.evict_block(block.block_id, wait=True)
 
     def evict_blocks(self, block_ids: set[int]) -> None:
         """evict blocks from the prefix cache by their block IDs.

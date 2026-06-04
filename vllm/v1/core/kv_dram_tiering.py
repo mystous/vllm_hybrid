@@ -78,13 +78,19 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 
+_ENABLED_VALUES = frozenset({"1", "true", "yes", "on"})
+
+
 def _is_enabled() -> bool:
     """Gate on the VLLM_KV_TIERING_DRAM env var.
 
-    Set to non-zero / "1" / "true" to enable.
+    Strict allowlist: only ``1`` / ``true`` / ``yes`` / ``on`` (case
+    insensitive) turn the tier on. Any other value — including unset,
+    empty string, ``0``, ``no``, ``maybe``, typos — disables the
+    tier, which is the safe default.
     """
-    raw = os.environ.get("VLLM_KV_TIERING_DRAM", "0").strip().lower()
-    return raw not in ("", "0", "false", "off")
+    raw = os.environ.get("VLLM_KV_TIERING_DRAM", "").strip().lower()
+    return raw in _ENABLED_VALUES
 
 
 @dataclass
@@ -269,6 +275,116 @@ class KVDramTier:
         """Public: free the DRAM copy unconditionally (synchronous)."""
         self._drop(block_id, wait=True)
 
+    # ──────────────────────────────────────────────────────────────
+    # Engine wiring (SUB_201 A2 step 2)
+    # ──────────────────────────────────────────────────────────────
+    #
+    # The hot paths above take a raw GPU pointer per block. In vLLM v1
+    # the GPU pointer lives inside ``GPUModelRunner.kv_caches`` (a list
+    # of per-layer tensors of shape ``[num_blocks, ...]``). Worker side
+    # registers the per-block per-layer device pointers once via
+    # ``bind_block_pointers`` so the engine hot path can look them up
+    # in O(num_layers) without any torch op.
+    #
+    # The batched evict/fetch entries below use option C (staged) when
+    # ``self._supports_staged_batch`` is true; otherwise they fall back
+    # to the non-batched per-layer ``pull_async``/``push_async`` path
+    # (slow but correct — the speedup is gated behind the upcoming
+    # ``pinned_pool_pull_batch_async_staged`` symbol, see
+    # ``DESIGN_ENGINE_WIRING.md §3``).
+
+    def bind_block_pointers(
+        self,
+        per_block_layer_ptrs: list[list[int]],
+        per_layer_nbytes: int,
+    ) -> None:
+        """Register the per-block per-layer device pointer table.
+
+        ``per_block_layer_ptrs[b][l]`` is the GPU address of layer ``l``'s
+        slice for block id ``b``. ``per_layer_nbytes`` is the byte size
+        of one layer slice for one block (constant across blocks).
+        """
+        # Hot-path uses index lookup so we keep the structure unchanged.
+        # (Caller MUST hold a stable reference until shutdown.)
+        with self._lock:
+            self._per_block_layer_ptrs = per_block_layer_ptrs
+            self._per_layer_nbytes = int(per_layer_nbytes)
+            self._n_layers = (
+                len(per_block_layer_ptrs[0]) if per_block_layer_ptrs else 0
+            )
+
+    def has_pointer_binding(self) -> bool:
+        return getattr(self, "_per_block_layer_ptrs", None) is not None
+
+    def evict_block(self, block_id: int, wait: bool = True) -> bool:
+        """Engine-side entry: tier the GPU block ``block_id`` whose layer
+        pointers were registered via ``bind_block_pointers``.
+
+        Falls back to per-layer ``pull_async`` (no batching) until the
+        pull-staged C symbol is added. Returns True on success / already
+        tiered, False on tier-full or unbound.
+        """
+        ptrs = getattr(self, "_per_block_layer_ptrs", None)
+        if ptrs is None or block_id >= len(ptrs):
+            return False
+        with self._lock:
+            if block_id in self._table:
+                return True
+            total = self._per_layer_nbytes * self._n_layers
+            if self._dram_in_use + total > self._max_dram_bytes:
+                self._n_evict_skipped_full += 1
+                return False
+            host_ptr = self._pool.alloc(total)
+            # Issue one pull per layer slice; the host_ptr is contiguous
+            # so per-layer offset stride == per_layer_nbytes.
+            for layer_idx in range(self._n_layers):
+                self._pool.pull_async(
+                    ptrs[block_id][layer_idx],
+                    host_ptr + layer_idx * self._per_layer_nbytes,
+                    self._per_layer_nbytes,
+                    self._stream,
+                )
+            # Reuse a sentinel event by stream-syncing on wait=True.
+            entry = _TierEntry(host_ptr=host_ptr, nbytes=total, pending_ev=0)
+            self._table[block_id] = entry
+            self._dram_in_use += total
+            self._n_evict += 1
+        if wait:
+            self._pool.stream_sync(self._stream)
+        return True
+
+    def fetch_block(
+        self,
+        block_id: int,
+        wait: bool = True,
+        drop_after_fetch: bool = True,
+    ) -> bool:
+        """Engine-side entry: push the tiered block back to HBM.
+
+        Returns True if the push was issued (block was tiered), False
+        otherwise. Same fallback semantics as ``evict_block``.
+        """
+        ptrs = getattr(self, "_per_block_layer_ptrs", None)
+        if ptrs is None:
+            return False
+        with self._lock:
+            entry = self._table.get(block_id)
+            if entry is None:
+                return False
+            for layer_idx in range(self._n_layers):
+                self._pool.push_async(
+                    entry.host_ptr + layer_idx * self._per_layer_nbytes,
+                    ptrs[block_id][layer_idx],
+                    self._per_layer_nbytes,
+                    self._stream,
+                )
+            self._n_fetch += 1
+        if wait:
+            self._pool.stream_sync(self._stream)
+        if drop_after_fetch:
+            self._drop(block_id, wait=wait)
+        return True
+
     def shutdown(self) -> None:
         with self._lock:
             block_ids = list(self._table.keys())
@@ -313,10 +429,58 @@ def shutdown_singleton() -> None:
             _SINGLETON = None
 
 
+def try_build_tier(
+    max_dram_bytes: int,
+    per_block_nbytes: int,
+    pinned_pool_lib_path: str | None = None,
+) -> KVDramTier | None:
+    """Best-effort factory used by ``KVCacheManager.__init__``.
+
+    Returns ``None`` (and logs a warning) if any of the following holds:
+      * env flag VLLM_KV_TIERING_DRAM is OFF (default)
+      * libpinned_pool.so cannot be loaded (missing / wrong arch)
+      * PinnedPool init raises (e.g. cudaMallocHost OOM)
+
+    This is the single entry point the engine should use to obtain a
+    tier — callers must treat ``None`` as the no-op path.
+    """
+    if not _is_enabled():
+        return None
+    try:
+        # Local import: the wrapper sits in shadow_assists/ and isn't on
+        # sys.path during normal vllm boot. Engine wiring should arrange
+        # for PYTHONPATH at startup; for the PoC smoke test we import
+        # via an injected path.
+        from vllm.v1.core._kv_tier_pool_loader import (  # type: ignore
+            load_pinned_pool,
+        )
+    except Exception as e:  # pragma: no cover - exercised by smoke test
+        logger.warning(
+            "[KVDramTier] disabled — pool loader import failed: %s", e
+        )
+        return None
+    try:
+        pool = load_pinned_pool(
+            total_limit_bytes=max_dram_bytes,
+            lib_path=pinned_pool_lib_path,
+        )
+    except Exception as e:  # pragma: no cover - exercised by smoke test
+        logger.warning(
+            "[KVDramTier] disabled — PinnedPool init failed: %s", e
+        )
+        return None
+    return get_or_create(
+        pool=pool,
+        max_dram_bytes=max_dram_bytes,
+        per_block_nbytes=per_block_nbytes,
+    )
+
+
 __all__ = [
     "KVDramTier",
     "get_or_create",
     "get_existing",
     "shutdown_singleton",
+    "try_build_tier",
     "_is_enabled",
 ]
