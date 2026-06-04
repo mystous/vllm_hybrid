@@ -225,6 +225,12 @@ GPU util 하락(§1.3)의 원인이 host gap(a)인지 / verify 내부(b)인지 /
 `SUB_201_cpu_host_path_bottleneck/profile/` 에 Nsight rep + 분해 표 + 결정 verdict.
 이 verdict가 §8 논문 골격·§9 TSK_043·child task의 입력.
 
+**2026-06-05 1차 measurement 진행**:
+- `profile/qwen7b_suffix_first.nsys-rep` (216MB), `.sqlite`, `.summ.json` — Qwen-7B suffix mix 60s trace
+- `profile/llama70b_suffix_first.nsys-rep` (285MB), `.sqlite`, `.summ.json` — Llama-70B suffix 60s trace
+- `profile/r1_671b_suffix_first.serve.log`, `.summ.json` — R1 671B suffix indirect (nsys-rep 미생성, vllm spec metrics 만)
+- `profile/VERDICT.md` — **1차 verdict: 두 모델 모두 (a) host-bound 확정**. dominant host overhead 가 모델 사이즈/TP 따라 launch(작은) → memcpy(큰) 로 이동. lever 분기 evidence.
+
 ### 5.6 한계·위험 (정직)
 - B200 컨테이너 내 Nsight/ncu 권한 필요 (CAP_SYS_ADMIN). 불가 시 CUDA event 수동 계측 + py-spy로 대체.
 - step 분해가 워크로드 의존적일 수 있음 → 최소 2모델(저/고 util) 비교 필수.
