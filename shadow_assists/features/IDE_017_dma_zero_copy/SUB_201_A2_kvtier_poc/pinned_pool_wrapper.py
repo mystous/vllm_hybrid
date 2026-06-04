@@ -1,0 +1,206 @@
+"""SUB_201 A2 PoC — standalone ctypes wrapper for libpinned_pool.so.
+
+Goal:
+  1. Provide a Python class ``PinnedPool`` usable from vllm core / engine
+     paths (no torch dep required for the alloc/free hot path; torch only
+     touched for DMA endpoints when the caller wants to bind a tensor).
+  2. Re-verify the SUB_166 / SUB_176 numbers (DMA BW ≈ 51 GB/s @ 64 MB,
+     alloc / free p50 ≤ 1 μs) using this wrapper, so KVDramTier can rely
+     on it.
+  3. KVCacheBlock dimensioning utility — given block_size (token count),
+     num_kv_heads, head_size, layers, dtype → bytes per block per layer.
+
+This is the *only* host-side ABI we expose to KVDramTier so the rest of
+the codebase doesn't touch ctypes directly.
+"""
+
+from __future__ import annotations
+
+import ctypes
+import os
+from dataclasses import dataclass
+
+
+_DEFAULT_LIB = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..",
+    "build",
+    "libpinned_pool.so",
+)
+
+
+def _load(lib_path: str) -> ctypes.CDLL:
+    lib = ctypes.CDLL(lib_path)
+    lib.pinned_pool_create.argtypes = [ctypes.c_size_t, ctypes.c_int]
+    lib.pinned_pool_create.restype = ctypes.c_void_p
+    lib.pinned_pool_destroy.argtypes = [ctypes.c_void_p]
+    lib.pinned_pool_destroy.restype = None
+    lib.pinned_pool_alloc.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+    lib.pinned_pool_alloc.restype = ctypes.c_void_p
+    lib.pinned_pool_free.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    lib.pinned_pool_free.restype = None
+    lib.pinned_pool_in_use.argtypes = [ctypes.c_void_p]
+    lib.pinned_pool_in_use.restype = ctypes.c_size_t
+    lib.pinned_pool_owned.argtypes = [ctypes.c_void_p]
+    lib.pinned_pool_owned.restype = ctypes.c_size_t
+
+    lib.pinned_pool_push_async.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_size_t,
+        ctypes.c_void_p,
+    ]
+    lib.pinned_pool_push_async.restype = ctypes.c_void_p
+    lib.pinned_pool_pull_async.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_size_t,
+        ctypes.c_void_p,
+    ]
+    lib.pinned_pool_pull_async.restype = ctypes.c_void_p
+
+    lib.pinned_pool_event_sync.argtypes = [ctypes.c_void_p]
+    lib.pinned_pool_event_sync.restype = ctypes.c_int
+    lib.pinned_pool_event_query.argtypes = [ctypes.c_void_p]
+    lib.pinned_pool_event_query.restype = ctypes.c_int
+    lib.pinned_pool_event_destroy.argtypes = [ctypes.c_void_p]
+    lib.pinned_pool_event_destroy.restype = ctypes.c_int
+
+    lib.pinned_pool_stream_create.argtypes = []
+    lib.pinned_pool_stream_create.restype = ctypes.c_void_p
+    lib.pinned_pool_stream_destroy.argtypes = [ctypes.c_void_p]
+    lib.pinned_pool_stream_destroy.restype = ctypes.c_int
+    lib.pinned_pool_stream_sync.argtypes = [ctypes.c_void_p]
+    lib.pinned_pool_stream_sync.restype = ctypes.c_int
+    return lib
+
+
+@dataclass(frozen=True)
+class KVBlockSpec:
+    """One KV block geometry — combined K+V across all attention layers
+    for a single page (block_size tokens)."""
+
+    block_size: int            # tokens per block (e.g. 16)
+    num_layers: int            # attention layers (e.g. 80 for Llama-70B)
+    num_kv_heads_per_rank: int # after TP shard (Llama-70B / TP=8 → 1)
+    head_size: int             # e.g. 128
+    dtype_bytes: int = 2       # bf16/fp16
+    kv_factor: int = 2         # K and V
+
+    @property
+    def per_layer_bytes(self) -> int:
+        # block_size × num_kv_heads × head_size × kv_factor × dtype_bytes
+        return (
+            self.block_size
+            * self.num_kv_heads_per_rank
+            * self.head_size
+            * self.kv_factor
+            * self.dtype_bytes
+        )
+
+    @property
+    def all_layers_bytes(self) -> int:
+        return self.per_layer_bytes * self.num_layers
+
+
+# Llama-70B reference: 80 layers, head_size=128, 8 KV heads → TP=8 ⇒ 1
+# per rank. block_size=16. Per-block (all 80 layers) ≈ 80 × 16 × 1 × 128 ×
+# 2 × 2 = 655 360 bytes ≈ 640 KiB.
+LLAMA70B_TP8_BLOCK = KVBlockSpec(
+    block_size=16,
+    num_layers=80,
+    num_kv_heads_per_rank=1,
+    head_size=128,
+)
+
+
+class PinnedPool:
+    """Thin OO wrapper over libpinned_pool.so.
+
+    All methods are safe to call from the engine main loop except `destroy`
+    which must run after every dependent stream has been synced.
+    """
+
+    def __init__(self, total_limit_bytes: int, numa_node: int = -1,
+                 lib_path: str | None = None) -> None:
+        self._lib = _load(lib_path or _DEFAULT_LIB)
+        self._pool = self._lib.pinned_pool_create(
+            ctypes.c_size_t(total_limit_bytes), ctypes.c_int(numa_node)
+        )
+        if not self._pool:
+            raise RuntimeError("pinned_pool_create failed")
+
+    def alloc(self, nbytes: int) -> int:
+        p = self._lib.pinned_pool_alloc(self._pool, ctypes.c_size_t(nbytes))
+        if not p:
+            raise MemoryError(f"pinned_pool_alloc({nbytes}) returned NULL")
+        return int(p)
+
+    def free(self, host_ptr: int) -> None:
+        if not host_ptr:
+            return
+        self._lib.pinned_pool_free(self._pool, ctypes.c_void_p(host_ptr))
+
+    def in_use_bytes(self) -> int:
+        return int(self._lib.pinned_pool_in_use(self._pool))
+
+    def owned_bytes(self) -> int:
+        return int(self._lib.pinned_pool_owned(self._pool))
+
+    # ── DMA primitives ─────────────────────────────────────────────────
+
+    def stream_create(self) -> int:
+        s = self._lib.pinned_pool_stream_create()
+        if not s:
+            raise RuntimeError("pinned_pool_stream_create failed")
+        return int(s)
+
+    def stream_destroy(self, stream: int) -> None:
+        self._lib.pinned_pool_stream_destroy(ctypes.c_void_p(stream))
+
+    def stream_sync(self, stream: int) -> None:
+        self._lib.pinned_pool_stream_sync(ctypes.c_void_p(stream))
+
+    def push_async(self, host_ptr: int, dev_ptr: int, nbytes: int,
+                   stream: int) -> int:
+        """Host-pinned → Device. Returns event handle."""
+        ev = self._lib.pinned_pool_push_async(
+            self._pool,
+            ctypes.c_void_p(host_ptr),
+            ctypes.c_void_p(dev_ptr),
+            ctypes.c_size_t(nbytes),
+            ctypes.c_void_p(stream),
+        )
+        return int(ev) if ev else 0
+
+    def pull_async(self, dev_ptr: int, host_ptr: int, nbytes: int,
+                   stream: int) -> int:
+        """Device → Host-pinned. Returns event handle."""
+        ev = self._lib.pinned_pool_pull_async(
+            self._pool,
+            ctypes.c_void_p(dev_ptr),
+            ctypes.c_void_p(host_ptr),
+            ctypes.c_size_t(nbytes),
+            ctypes.c_void_p(stream),
+        )
+        return int(ev) if ev else 0
+
+    def event_sync(self, ev: int) -> None:
+        if ev:
+            self._lib.pinned_pool_event_sync(ctypes.c_void_p(ev))
+
+    def event_query(self, ev: int) -> bool:
+        if not ev:
+            return True
+        return self._lib.pinned_pool_event_query(ctypes.c_void_p(ev)) == 1
+
+    def event_destroy(self, ev: int) -> None:
+        if ev:
+            self._lib.pinned_pool_event_destroy(ctypes.c_void_p(ev))
+
+    def destroy(self) -> None:
+        if getattr(self, "_pool", None):
+            self._lib.pinned_pool_destroy(self._pool)
+            self._pool = None
