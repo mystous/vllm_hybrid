@@ -1,170 +1,45 @@
-%% sections/02_motivation.tex
+%% sections/04_motivation.tex
 
-\section{동기: 왜 워크로드 레벨 게이팅이 필요한가}
+\section{특성화 개요: spec-decode는 지배적이나 불균일하다}
 \label{sec:motivation}
 
-본 절은 \algname 의 두 설계 결정---워크로드 레벨 게이팅과 CPU 슬랙 하베스팅---이
-왜 필요한지를 측정 데이터로 정당화한다.
+본 절은 DGX B200$\times$8 에서 10개 모델 $\times$ 4개 방법 $\times$ 7개 조건을
+실 트레이스로 측정한 특성화의 개요를 제시하고, 이후 절의 두 질문
+(언제 켜는가 / 무엇을 남기는가)으로 연결한다.
+실험 설정은 \S\ref{sec:methodology} 에 상술한다.
 
-%% -------------------------------------------------------------------------
-\subsection{투기적 디코딩의 강력하지만 불균일한 효과}
-\label{subsec:mot-spec-power}
+\input{tables/tbl_b200_realtrace}
+\input{figures/fig_alpha_gain}
 
-본 절의 동기는 DGX B200$\times$8 에서 8개 모델
-(Qwen$\cdot$Llama$\cdot$DeepSeek 계열) $\times$ 4개 방법 $\times$
-7개 조건(실 서빙 trace 6 corpus $+$ mix)을 측정한 173개 셀
-(\S\ref{subsec:res-b200}, Table~\ref{tbl:b200-realtrace},
-\ref{tbl:b200-oracle})에서 도출한다.
-합성 워크로드가 아닌 실제 trace(ShareGPT, WildChat, LMSYS-Chat,
-SWE-bench, MBPP, HumanEval)를 사용함으로써
-이전 평가의 in-distribution 편향을 제거한다.
+\subsection{spec-decode는 단일 lever 중 가장 강하다}
+\label{subsec:mot-dominant}
 
-SuffixDecoding~\cite{snowflake-arctic} 기반 spec-decode engine 은
-이질 트래픽을 모사한 mix 조건에서 8개 모델 \emph{전체}에 대해 순 양성이며,
-처리량 향상이 $+83\%$(DeepSeek-Qwen-32B)에서 $+232\%$(Llama-3.1-70B)에 달한다
+이질 트래픽을 모사한 mix 조건에서 suffix 는 8개 주력 모델 \emph{전체}에 대해 순 양성이며,
+처리량 향상이 $+83\%$(R1-Distill-Qwen-32B)에서 $+232\%$(Llama-3.1-70B)에 달한다
 (Table~\ref{tbl:b200-realtrace}).
-즉 실 트래픽에서도 투기적 디코딩은 강력한 가속 기법이다.
+이는 본 환경에서 검토한 어떤 단일 lever 보다 큰 이득으로,
+spec-decode 가 처리량의 \emph{지배적} 결정요인임을 확인한다.
 
-그러나 이 효과는 \emph{불균일}하다.
-단일 corpus 조건으로 내려가면 최적 방법이 (모델 $\times$ 조건)마다 달라진다
-(Table~\ref{tbl:b200-oracle}, 56개 oracle 셀).
-대부분의 모델은 suffix 가 최적이지만,
-일부 Qwen 모델은 대화 계열 조건에서 클러스터 라우터(llm-d)가,
-추론 특화 모델(DeepSeek-R1-Distill-Llama-70B)은 vanilla 가 최적이다.
-이 불균일성은 단일 고정 방법이 구조적으로 최적일 수 없음을 의미하며,
-요청별 방법 선택---\emph{워크로드 레벨 게이팅}---의 직접적 동기가 된다.
-아래에서 그 불균일성의 두 원천(naive 드래프터의 붕괴, 모델 아키텍처 의존성)을
-분석한다.
+\subsection{그러나 부호가 갈린다}
+\label{subsec:mot-heterogeneous}
 
-%% -------------------------------------------------------------------------
-\subsection{Naive 드래프터의 붕괴와 R/K 메커니즘}
-\label{subsec:mot-code-fail}
+단일 corpus 조건까지 내려가면 그림이 달라진다.
+70개 (모델$\times$조건) 쌍 중 \textbf{55개에서 suffix 가 net-positive,
+15개에서 vanilla 가 더 빠르다}.
+Fig.~\ref{fig:alpha-gain} 은 각 셀의 suffix 수락률 $\alpha$ 대 vanilla 대비 이득을 보인다.
+$\alpha$ 가 클수록 이득이 커지지만 break-even 은 단일 $\alpha$ 값이 아니다:
+vanilla-win 셀(빨강)은 $\alpha\!\lesssim\!0.54$ 에 몰려 있고,
+특히 추론$\cdot$MoE 모델은 중간 $\alpha$ 에서도 크게 손해다.
+이 부호를 무엇이 결정하는지(\S\ref{sec:problem}),
+왜 특정 모델에서 $\alpha$ 가 붕괴하는지(\S\ref{sec:mechanism})를 이후에 분석한다.
 
-투기적 디코딩의 순이익은 R/K 비율로 결정된다
-(\S\ref{subsec:rk-framework}).
+\subsection{성공이 자원 균형을 바꾼다}
+\label{subsec:mot-resource}
 
-\begin{equation}
-\text{net gain} \propto \frac{K}{R} - 1, \quad K > R \Rightarrow \text{gain},
-\quad K < R \Rightarrow \text{regression}
-\label{eq:rk-condition}
-\end{equation}
-
-여기서 $K$ 는 드래프터의 평균 수락 토큰 수로, 수락률 $\alpha$ 가 높을수록 커진다.
-
-\input{tables/tbl_b200_accept}
-
-\textbf{Naive n-gram 의 붕괴.}
-프롬프트 내 n-gram 패턴만 활용하는 naive 드래프터(prompt-lookup)는
-실 트레이스에서 처참하게 실패한다.
-Table~\ref{tbl:b200-accept} 하단과 같이, Qwen-2.5-7B 에서 n-gram 은
-\emph{모든} corpus 에 걸쳐 $\sim\!-90\%$ 로 붕괴한다
-(ShareGPT $-91.4\%$, SWE-bench $-91.2\%$, HumanEval $-90.1\%$).
-n-gram 은 고유 식별자와 비반복 토큰이 지배적인 실제 입력에서
-hit rate 가 극도로 낮아 $K \ll R$ 이 되고, 검증 오버헤드만 누적된다.
-이는 단순 드래프터를 무분별하게 켜는 것이 실 서비스에서
-catastrophic regression 을 일으킴을 보인다.
-
-\textbf{R/K 관계의 실 트레이스 재현.}
-반면 suffix 는 입력과 이전 생성 출력을 suffix tree 에 누적하여
-실 트래픽에서도 높은 수락률을 달성한다 ($\alpha = 0.79\text{--}0.93$, mix).
-Table~\ref{tbl:b200-accept} 상단에서 보듯 $\alpha$ 가 높은 모델일수록
-처리량 이득이 커지는 R/K 관계가 실 트레이스에서 재현되며
-(Llama-3.1 계열 $\alpha \ge 0.91 \Rightarrow +215\sim232\%$),
-이는 드래프터 품질이 가속의 본질적 결정요인임을 확인한다.
-
-\textbf{Code agent 에서의 심화.}
-도구 호출(tool calling), 추론 체인, 디버깅 루프로 구성된 code agent 는
-동일 세션에서 LLM 을 수십~수백 회 반복 호출하므로,
-$K < R$ 조건의 드래프터를 쓰면 스텝 오버헤드가 호출마다 누적되어
-총 지연이 선형 이상으로 증가한다.
-
-% TODO: code agent 패턴(tool calling, multi-turn) 특화 측정 실험 추가.
-
-%% -------------------------------------------------------------------------
-\subsection{모델·아키텍처 의존성: 단일 방법의 한계}
-\label{subsec:mot-suffix-limit}
-
-suffix 가 대부분의 모델에서 강력하더라도 보편적으로 최적인 것은 아니다.
-실 트레이스 평가는 \emph{모델 계열}에 따라 최적 방법이 정반대로 갈림을 보인다
-(Table~\ref{tbl:b200-oracle}).
-
-가장 극명한 사례는 \emph{추론 특화} 모델
-DeepSeek-R1-Distill-Llama-70B 이다.
-이 모델은 mix 를 제외한 6개 단일 corpus 전부에서 spec-decode 가 회귀하여
-vanilla 가 최적이며 (예: SWE-bench $-15\%$, ShareGPT $-12\%$),
-동일 70B 급의 Llama-3.1-70B 가 모든 조건에서 suffix 최적인 것과 정반대다.
-추론 모델의 긴 사고 사슬(chain-of-thought) 출력이 suffix tree 패턴과
-정합하지 않아 수락률이 낮아지는 것으로 해석되며, 이 메커니즘은
-\S\ref{sec:mechanism}에서 분석한다.
-일부 Qwen 모델은 대화 계열 조건에서 두 백엔드 분할(llm-d)이 최적이 되는 등,
-최적 방법은 모델 크기만으로 결정되지 않는다.
-
-\textbf{결론.}
-실 트래픽에는 대화$\cdot$코드$\cdot$추론이 혼재하고
-서버에는 서로 다른 모델 계열이 배치된다.
-naive 드래프터는 붕괴하고($-90\%$), 최적 방법은 (모델 $\times$ 조건)마다 다르므로,
-단일 고정 투기적 디코딩 설정은 구조적으로 최적화 불가능하다.
-요청별(per-request) 방법 선택, 즉 \emph{워크로드 레벨 게이팅}이 필수적이다.
-
-%% -------------------------------------------------------------------------
-\subsection{기존 접근: llm-d의 복잡성}
-\label{subsec:mot-llmd}
-
-앞서 \S\ref{sec:related}에서 소개한 llm-d~\cite{llmd2025}는
-워크로드 인지 라우팅 문제를 해결하는 대표적 접근이다.
-llm-d는 Kubernetes 기반의 LLM disaggregation 프레임워크로,
-prefill과 decode 단계를 분리된 노드로 분산하고
-워크로드 특성에 따라 요청을 라우팅하는 정교한 구조를 채택한다.
-
-우리는 llm-d 를 \emph{실측 베이스라인}으로 동일 환경(B200$\times$8)에서
-8개 모델에 대해 평가하였다 (\S\ref{subsec:res-b200}).
-llm-d 는 vanilla 대비 56개 셀 중 45개(80\%)에서 우위를 보이나,
-\emph{최선 단일 방법}(suffix) 을 능가하는 경우는 10개(18\%)에 그친다.
-즉 클러스터 수준 disaggregation 라우팅의 추가 이득은
-서버 내 spec-decode 최적 선택 대비 제한적이다.
-
-llm-d의 접근은 강력하지만 본 연구의 관점에서 다음 한계가 있다.
-(1) Kubernetes 클러스터 관리, 노드 간 KV 캐시 전송, 스케줄러 커스터마이징 등
-복잡한 인프라 요구사항이 수반된다.
-(2) 단일 서버 수준에서의 경량 배포에는 적합하지 않다.
-(3) 투기적 디코딩의 워크로드별 최적 방법 선택을
-핵심 설계 목표로 다루지 않아, 위 18\% 의 제한적 이득이 그 결과로 나타난다.
-
-\algname 은 이와 달리 기존 vLLM 스택에 \emph{최소 침습적(minimally invasive)} 변경만으로
-워크로드 레벨 게이팅을 구현한다:
-외부 분류기는 FastAPI + ProcessPool 기반 경량 프로세스,
-백엔드 라우팅은 HTTP 포워딩으로, 기존 추론 경로를 변경하지 않는다.
-
-%% -------------------------------------------------------------------------
-\subsection{게이팅이 CPU 슬랙을 낳는다}
-\label{subsec:mot-cpu-slack}
-
-워크로드 레벨 게이팅을 구현하면 두 개의 vLLM 인스턴스를 병렬 운영하는
-이중 백엔드 구조가 자연스럽게 발생한다.
-이 구조는 CPU 유휴를 \emph{필연적}으로 생성한다.
-
-\begin{itemize}
-\item 두 인스턴스가 각자 별도 GPU 그룹을 점유하므로
-  (GPU 0--3: standard backend, GPU 4--7: spec-decode backend),
-  NUMA 노드도 GPU PCIe affinity에 따라 자연 분리된다.
-\item B200$\times$8 의 8개 모델 $\times$ 3개 구성 측정에서
-  CPU 이용률은 \emph{전 구성에서} $2.5\text{--}5.6\%$ 로,
-  $94\%$ 이상의 CPU가 유휴 상태다 (\S\ref{subsec:res-b200},
-  Table~\ref{tbl:b200-realtrace}).
-\item 더욱이 spec-decode 는 GPU 이용률마저 vanilla 대비 낮춘다
-  (예: Qwen-2.5-7B $82.5\%\to26.5\%$). 즉 step 당 다중 토큰 출력으로
-  GPU 에도 슬랙이 생기므로, 유휴 CPU 가 GPU 를 더 빠르게 채울 여지가 커진다.
-\item 듀얼-NUMA 아키텍처에서 remote/local 접근 거리 비가 $2.1\times$이므로
-  NUMA 비인지(NUMA-unaware) 배치는 지속적인 지연 패널티를 초래한다.
-\end{itemize}
-
-측정으로 확인된 이 CPU 유휴(및 GPU 슬랙)는 \algname 의 두 번째 구성요소인
-\emph{CPU 슬랙 하베스팅}의 재료가 된다.
-NUMA 바인딩으로 cross-socket QPI 트래픽을 제거하고,
-스텝 경계 정렬 branchy 보조 작업으로 유휴 CPU 사이클을 수확한다
-(\S\ref{sec:ceres}).
-
-\textbf{요약.}
-투기적 디코딩은 강력하지만 워크로드 의존적이고, code workload에서 구조적 위험이 있으며,
-이를 해결하면 CPU 슬랙이 생긴다.
-\algname 은 이 두 문제를 연결된 하나의 구조로 해결한다.
+결정적 관찰은 \emph{spec-decode 가 성공하는 곳에서 GPU 이용률이 오히려 떨어진다}는 것이다
+(Table~\ref{tbl:b200-realtrace} 의 GPU\% 열: 예 Qwen-7B $82.5\!\to\!26.5\%$,
+Qwen-32B $94.3\!\to\!64.8\%$).
+step 수가 급감하면서 GPU 가 step 사이에 더 자주 쉬고, 그 gap 은 host 작업이 채운다.
+한편 CPU 는 7B부터 671B까지 전 구성에서 $2.5\!\sim\!4.9\%$ 로 유휴하다.
+즉 처리량 지배 기법이 시스템을 GPU 포화에서 host(CPU) 병목으로 전환시키며,
+이 유휴 CPU 가 다음 처리량 한계를 여는 자원이 된다(\S\ref{sec:direction}).

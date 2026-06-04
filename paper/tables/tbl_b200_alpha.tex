@@ -1,0 +1,31 @@
+%% tables/tbl_b200_alpha.tex
+%% 예측 조건: suffix-win vs vanilla-win 의 α·wall-ratio 분리 + 15 vanilla-win 셀
+%% source: TSK_042 (8 model) + XL (405B/671B) 70 (model×condition) 쌍
+
+\begin{table}[t]
+\centering
+\caption{\textbf{언제 spec-decode가 이득인가}: 70개 (모델$\times$조건) 쌍을
+  suffix net-positive(55) / vanilla-win(15)로 분리.
+  부호는 accept rate $\alpha$ 와 per-step overhead(wall ratio)의 경쟁으로 결정된다.
+  하단: vanilla-win 15셀 — 모두 추론 특화/MoE 모델 또는 저-$\alpha$ 조건.}
+\label{tbl:b200-alpha}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{그룹} & \textbf{셀 수} & $\boldsymbol{\alpha}$ \textbf{(중앙/범위)} & \textbf{wall$_s$/wall$_v$} \\
+\midrule
+suffix net-positive & 55 & $0.68$ ($0.28$--$1.41$) & $0.60$ \\
+vanilla wins         & 15 & $0.37$ ($0.27$--$0.54$) & $1.18$ ($\le 2.9$) \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{vanilla-win 15셀 (model, condition $\to$ gain\%, $\alpha$):}} \\
+\multicolumn{4}{@{}l}{\;\; R1-671B (MoE 추론): swebench $-63.5\%$($\alpha0.36$), mbpp $-52.9$($0.37$),} \\
+\multicolumn{4}{@{}l}{\;\;\quad mix $-49.2$($0.45$), lmsys $-47.1$($0.45$), sharegpt $-46.0$($0.50$),} \\
+\multicolumn{4}{@{}l}{\;\;\quad wildchat $-44.8$($0.53$), humaneval $-39.6$($0.54$) — \textbf{7/7}} \\
+\multicolumn{4}{@{}l}{\;\; R1-Distill-L70B (추론): swebench $-15.4$($0.32$), wildchat $-15.0$($0.35$),} \\
+\multicolumn{4}{@{}l}{\;\;\quad mbpp $-12.6$($0.27$), sharegpt $-12.3$($0.35$), lmsys $-4.8$($0.37$),} \\
+\multicolumn{4}{@{}l}{\;\;\quad humaneval $-2.2$($0.38$) — 6/7 (mix만 net-positive)} \\
+\multicolumn{4}{@{}l}{\;\; Q72B: wildchat $-6.5$($0.47$), mbpp $-4.8$($0.27$)} \\
+\bottomrule
+\end{tabular}
+\end{table}

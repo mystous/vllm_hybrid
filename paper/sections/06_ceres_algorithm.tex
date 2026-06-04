@@ -1,183 +1,75 @@
 %% sections/06_ceres_algorithm.tex
 
-\section{\algname\ 알고리즘}
-\label{sec:ceres}
+\section{방향: Host-Side Slack Reclamation}
+\label{sec:direction}
 
-\algname\ (로마 수확의 여신 Ceres에서 명명)은 두 구성요소로 이루어진다:
-\textsc{Gate}(워크로드 레벨 게이팅)와 \textsc{Harvest}(CPU 슬랙 하베스팅).
-게이팅이 이중 백엔드 구조를 만들고, 그 구조가 CPU 슬랙을 낳으며,
-하베스팅이 그 슬랙을 수확한다 (Eq.~\ref{eq:causal-chain}).
+특성화(\S\ref{sec:results})는 두 운영 함의를 낳는다:
+(A) 모델-유형 인지 방법 선택으로 회귀를 피하고,
+(B) spec-decode 가 만든 host 병목을 유휴 CPU 로 떠안는다.
+본 절은 (B)를 중심으로 \algname\ (host-side slack reclamation) 설계 원칙을 제시한다.
+본 절은 \emph{측정된 결과가 아니라 데이터에서 도출한 방향}이며,
+이를 판정할 결정적 실험(\S\ref{subsec:decisive})을 함께 정의한다.
 
-\input{figures/fig1_ceres_architecture}
+\subsection{설계 원칙: CPU는 GPU를 흉내내지 않는다}
+\label{subsec:principle}
 
-%% -------------------------------------------------------------------------
-\subsection{\textsc{Gate}: 워크로드 레벨 게이팅}
+핵심 분류 기준은 단 하나다:
+\emph{CPU 가 GPU 의 일(매트멀)을 대신하면 패배, GPU 가 내려놓은 host 작업을 받으면 승리.}
+전자는 H2D/D2H 동기 비용과 CPU/GPU 연산 격차(1--2 orders)로 물리적으로 진다.
+후자는 spec-decode 가 step 수를 줄이며 \emph{상대적으로 커진} host-path 작업을
+이미 유휴인 CPU(\S\ref{subsec:res-resource}, $\le4.9\%$)로 이전한다.
+
+\begin{table}[t]
+\centering
+\caption{CPU 활용처 분류. 산 길(A/B)은 GPU 가 내려놓은 host 작업을 받고,
+  죽은 길(C)은 GPU 연산을 흉내내 H2D/D2H 동기 비용에 진다.}
+\label{tbl:cpu-taxonomy}
+\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & \textbf{내용} & \textbf{근거} \\
+\midrule
+A1 & CPU 드래프팅(suffix tree/AMX) & GPU verify와 병렬, slack 직접 회수 \\
+A2 & KV tiering (유휴 DRAM 2TB) & 배치$\uparrow$ $\to$ GPU gap 충전 \\
+B1 & detokenize 오프로드 & 고-tps에서 host critical path \\
+B2 & constrained-decode(문법/JSON) & code/tool 워크로드 host-heavy \\
+B3 & 스케줄러/샘플링 파이프라인 & GPU feeding 지연 제거 \\
+\midrule
+C & GPU 매트멀 오프로드 & H2D/D2H 동기 비용에 패배(폐기) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{축 A — 모델-유형 인지 방법 선택 (회귀 안전장치)}
 \label{subsec:gate}
 
-\textsc{Gate}는 세 가지 축의 정보를 조합하여 요청별로 최적 방법을 선택한다.
+\S\ref{sec:results}는 부호의 지배 축이 \emph{모델 유형}임을 보인다.
+따라서 게이트의 1차 입력은 모델 프로파일이다:
+추론 특화/MoE 모델(R1 계열)은 단일 corpus 트래픽에서 vanilla,
+dense 표준 모델(Llama$\cdot$Qwen$\cdot$405B-FP8)은 suffix 를 기본으로 한다.
+워크로드 분류는 일부 중형 모델(Qwen-7B/32B 의 대화 대 코드)에서만 2차로 작동한다.
+naive n-gram 은 실 트레이스에서 $\sim\!-90\%$ 이므로 게이트 후보에서 영구 제외한다.
+이 게이트는 처리량 지배 lever 가 아니라 \emph{회귀 회피 안전장치}로 위치한다.
 
-\begin{algorithm}[t]
-\caption{\algname\ -- \textsc{Gate}: 요청별 방법 선택}
-\label{alg:gate}
-\begin{algorithmic}[1]
-\Function{Gate}{$r$, $\theta$}
-  \LineComment{축 1: 모델 크기 게이팅}
-  \If{$\theta.\mathit{params} \leq 7\mathrm{B}$}
-    \State \Return \textsc{Baseline}
-    \Comment{$R \gg K$ 구조적 회귀 (5-model cross-validated)}
-  \EndIf
-  \LineComment{축 2: 워크로드 분류}
-  \State $w \gets \Call{Classify}{r}$
-    \Comment{regex 기반 workload 분류기, $1.22$\,ms/req}
-  \LineComment{축 3: 벤더-워크로드 게이팅}
-  \If{$w = \texttt{code}$ \textbf{and} $\theta.\mathit{vendor} = \texttt{Qwen72B}$}
-    \State \Return \textsc{Baseline}
-    \Comment{suffix code: $-5\%$ 회귀}
-  \EndIf
-  \LineComment{기본: suffix (spec-decode engine)}
-  \State \Return \textsc{Spec-only}
-    \Comment{SuffixDecoding $+$ cudagraph PIECEWISE}
-\EndFunction
-\end{algorithmic}
-\end{algorithm}
+\subsection{축 B — host-path 회수}
+\label{subsec:reclaim}
 
-\textbf{축 1 — 모델 크기 게이팅.}
-$\leq$7B 모델에서 투기적 디코딩은 하드웨어 독립적으로 회귀한다.
-opt-125m에서 L4$\times$2($2.12\times$ 회귀)와 H100$\times$1($2.13\times$ 회귀)의
-정확한 일치를 포함해 5개 모델로 cross-validation한 결과,
-$R \gg K$ 조건이 모든 소형 모델에서 성립함을 확인한다.
-따라서 $\leq$7B 모델은 baseline을 선택한다.
+성공 셀의 GPU 여유($1-u_{\mathrm{gpu}}^{\mathrm{suf}}$)와 유휴 CPU 를 결합해
+드래프팅(A1)$\cdot$detok(B1)$\cdot$문법 마스크(B2)$\cdot$스케줄(B3)을
+GPU verify 와 파이프라인한다. 목표는 GPU 이용률을 다시 끌어올려
+줄어든 step 수에서도 GPU 를 채우는 것이다.
+이종 모델 fleet 의 multi-tenant/long-context 에서는 유휴 DRAM 2TB 를 쓰는
+KV tiering(A2)으로 배치를 키워 GPU gap 을 다른 요청으로 채운다.
 
-\textbf{축 2 — 워크로드 분류.}
-입력 프롬프트를 정규식 기반 분류기로 sonnet/chat/code 세 유형으로 분류한다.
-분류기는 ProcessPool 기반 16 worker 병렬 처리로
-요청당 평균 $1.22$\,ms의 경량 오버헤드를 갖는다.
-게이팅의 효과는 실제 서빙 trace 6종에서 산출한 (모델, 조건)별 oracle
-(최적 방법)을 상한으로 평가하며(\S\ref{subsec:res-b200}),
-실 트래픽 분류 정확도의 정밀 평가 및 학습 기반 분류기로의 교체는
-후속 연구 방향이다.
+\subsection{결정적 실험}
+\label{subsec:decisive}
 
-\textbf{축 3 — 벤더$\cdot$계열-아키텍처 게이팅.}
-동일 모델 크기에서도 모델 계열$\cdot$아키텍처에 따라 최적 방법이 정반대로 갈린다.
-B200 실 트레이스 평가에서 추론 특화 모델
-DeepSeek-R1-Distill-Llama-70B 는 단일 corpus 전반에서 spec-decode 가 회귀하여
-vanilla 가 최적인 반면, 동일 70B 급 Llama-3.1-70B 는 전 조건 suffix 최적이다
-(Table~\ref{tbl:b200-oracle}).
-개발 플랫폼에서도 Qwen-2.5-72B 의 code 워크로드에서 suffix 가 $-5\%$ 회귀한다.
-따라서 회귀하는 (모델 계열 $\times$ 조건) 조합에 대해 baseline 을 선택한다.
-
-% TODO: 벤더-워크로드 게이팅 규칙의 자동화.
-%       런타임 accept rate 모니터링으로 자동 재조정하는 adaptive gate 확장 필요.
-
-\textbf{이중 백엔드 배포.}
-\textsc{Gate}는 두 vLLM 인스턴스를 병렬 운영한다:
-standard backend(GPU 0--3, NUMA node 0)와
-spec-decode backend(GPU 4--7, NUMA node 1).
-HTTP 포워더가 \textsc{Gate} 결정에 따라 요청을 분배한다.
-
-%% -------------------------------------------------------------------------
-\subsection{\textsc{Harvest}: CPU 슬랙 하베스팅}
-\label{subsec:harvest}
-
-이중 백엔드 구조는 CPU 슬랙을 \emph{비용 없이} 생성한다.
-게이팅을 위해 이미 두 vLLM 인스턴스를 기동해야 하므로
-CPU 유휴는 아키텍처의 불가피한 부산물이다.
-따라서 CPU 슬랙 하베스팅의 한계 비용(marginal cost)은 사실상 0에 가깝고,
-어떤 처리량 향상이든 순이익이 된다.
-NUMA 바인딩은 이미 운영 중인 인스턴스의 메모리 배치만 조정하므로
-별도 하드웨어나 소프트웨어 추가 없이 적용 가능하다.
-
-이 구조가 생성하는 CPU 슬랙을 두 단계로 수확한다.
-
-\begin{algorithm}[t]
-\caption{\algname\ -- \textsc{Harvest}: CPU 슬랙 수확 (서버 시작 시 1회)}
-\label{alg:harvest}
-\begin{algorithmic}[1]
-\Function{Harvest}{$H$}
-  \LineComment{단계 1: NUMA 바인딩 (system domain)}
-  \State $n_0 \gets \Call{GetNUMANode}{\text{GPU}_{0\text{--}3}}$
-  \State $n_1 \gets \Call{GetNUMANode}{\text{GPU}_{4\text{--}7}}$
-  \State \Call{NUMABind}{\text{baseline\_instance}, $n_0$}
-  \Comment{cross-socket QPI 제거}
-  \State \Call{NUMABind}{\text{spec\_decode\_instance}, $n_1$}
-  \LineComment{단계 2: branchy 보조 작업 (work domain)}
-  \State $T_{\text{gpu}} \gets \Call{ProbeStepLatency}{}$
-    \Comment{10 step 평균}
-  \State $T_{\text{aux}} \gets \max(2 \cdot T_{\text{gpu}},\; 100\,\text{ms})$
-    \Comment{스텝 경계 정렬}
-  \State \Call{SpawnAuxWorker}{
-    \textit{pattern}=\textsc{Branchy},
-    \textit{period}=$T_{\text{aux}}$,
-    \textit{cores}=$n_1.\text{remaining}$}
-    \Comment{독립 프로세스, work domain}
-  \LineComment{cross-domain 규칙: system $\oplus$ work ($\varepsilon \approx 0.55$\,pp)}
-\EndFunction
-\end{algorithmic}
-\end{algorithm}
-
-\textbf{단계 1 — NUMA 바인딩 (system domain).}
-\texttt{numactl --membind --cpunodebind}로 각 인스턴스를
-대응하는 GPU의 PCIe affinity NUMA 노드에 바인딩한다.
-이를 통해 cross-socket QPI 트래픽을 제거하고
-$2.1\times$ remote 메모리 접근 패널티를 해소한다.
-multi-run 측정에서 warm-only $+3.13\%$, 3-run mean $+2.24\%$의
-robust 양성 효과를 확인한다.
-
-\textbf{단계 2 — Branchy 보조 작업 (work domain).}
-GPU 스텝 주기 $T_{\text{gpu}} \approx 35\text{--}44$\,ms의
-약 $2.5$배인 $T_{\text{aux}} = 100$\,ms 주기로
-독립 프로세스에서 branchy 패턴(rank/sort 등 분기 예측 불가 코드)의
-보조 작업을 발사한다.
-이 설계는 두 가지 메커니즘을 결합한다:
-
-\begin{itemize}
-\item \emph{스텝 경계 정렬}: $T_{\text{aux}} \approx 2.5 \cdot T_{\text{gpu}}$로
-  $2$--$3$ 스텝 경계마다 한 번 발사되어
-  critical path를 침범하지 않으면서 CPU를 주기적으로 active 상태로 유지한다.
-
-\item \emph{Branchy 패턴}: rank/sort 등 분기 위주 코드는 메모리/PCIe 트래픽이
-  적어 GPU feeding과 경쟁하지 않으면서 CPU active-state를 유지한다
-  (메커니즘 가설은 \S\ref{sec:mechanism}).
-\end{itemize}
-
-보조 작업의 효과는 ``CPU에서 추론을 수행''하는 것이 아니라,
-CPU를 active로 유지하여 GPU feeding 지연을 줄이는 \emph{간접} 기여로 해석된다
-(\S\ref{sec:mechanism}). 이 lever는 예비 관찰이며 multi-run 검증이 필요하다.
-
-\textbf{Cross-domain 조합 규칙.}
-NUMA 바인딩(system domain)과 branchy 보조 작업(work domain)의
-도메인 간섭 비용은 $\varepsilon_{\text{cross}} \approx 0.55$\,pp로,
-동일 도메인 stacking($\varepsilon_{\text{same}} \approx 1.18$\,pp,
-3-lever $\approx 4.56$\,pp)보다 훨씬 작다.
-따라서 \algname 은 두 lever를 cross-domain pair로 조합하되
-3개 이상의 lever stacking을 금지한다.
-
-%% -------------------------------------------------------------------------
-\subsection{\algname\ 통합 흐름}
-\label{subsec:ceres-full}
-
-\begin{property}[\algname\ 처리량 모델]
-\label{prop:ceres-throughput}
-\algname 의 총 처리량은
-\[
-T_{\algname} = T_{\text{gate}} + \Delta_{\text{NUMA}} + \Delta_{\text{branchy}}
-\]
-이며, 여기서 $T_{\text{gate}}$는 워크로드 레벨 게이팅으로 달성되는 기본 처리량,
-$\Delta_{\text{NUMA}}$와 $\Delta_{\text{branchy}}$는
-각 CPU 하베스팅 lever의 처리량 기여분이다.
-두 lever의 결합 효과는 $\Delta_{\text{NUMA}} + \Delta_{\text{branchy}} - \varepsilon_{\text{cross}}$이며,
-$\varepsilon_{\text{cross}} \approx 0.55$\,pp의 간섭 비용만이 발생한다.
-\end{property}
-
-\textbf{Gating $\to$ Harvest 인과 연결.}
-이중 백엔드 구조에서 baseline(NUMA node 0)과 spec-decode(NUMA node 1)는
-이미 NUMA 노드별로 분리된다.
-\textsc{Harvest}는 이 기존 분리를 명시적 바인딩으로 공식화하고
-(단계 1), node 1의 잔여 코어에 보조 작업자를 배치한다(단계 2).
-즉, \textsc{Gate}의 구조적 부산물인 NUMA 분리가 \textsc{Harvest}의
-자연스러운 진입점이 된다.
-
-% TODO: T_gate 값의 실험적 분리.
-%       현재 측정에서 T_gate = T(CERES-gated)로 보고되나,
-%       NUMA 바인딩 및 branchy 보조 작업이 추가된 통합 설정의
-%       end-to-end 측정 필요.
+축 B 의 타당성은 단일 측정으로 판정된다:
+\emph{suffix ON 상태의 decode step 1개 wall-clock 을 GPU verify(커널 실행) 대
+step간 gap(드래프트$\cdot$스케줄$\cdot$샘플$\cdot$detok$\cdot$동기)으로 분해}한다
+(Nsight Systems inter-kernel gap + py-spy).
+대상은 GPU 이용률이 가장 낮은 Qwen-7B suffix(26\%)와 대조군 Llama-70B suffix(83\%)다.
+gap 이 크고 host-bound 이면(a) A1/B 가 회수 가능,
+verify 내부 대역 bound 이면(b) CPU 로 불가 $\to$ A2(배치 확대)로 전환,
+배치 미충전이면(c) concurrency$\uparrow$ + A2 가 1순위가 된다.
+이 verdict 가 \algname\ 의 구현 우선순위를 확정한다(\S\ref{sec:discussion}).

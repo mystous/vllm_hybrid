@@ -5,109 +5,79 @@
 
 \subsection{하드웨어 및 소프트웨어 환경}
 
-본 연구는 두 측정 플랫폼을 사용한다.
-\emph{프로덕션 플랫폼}(DGX B200)에서 대규모 실 트레이스 평가---8개 모델 $\times$
-4개 방법 $\times$ 7개 조건의 처리량 oracle 및 llm-d 라우팅 비교---를 수행하고,
-\emph{개발 플랫폼}(H100$\times$8)에서 CPU 슬랙 하베스팅 lever 및 소형 모델 회귀
-cross-validation 등 통제된 microstudy 를 수행한다.
+모든 측정은 단일 플랫폼 DGX B200 에서 수행되었다.
 
 \begin{table}[t]
 \centering
-\caption{실험 환경. 대규모 실 트레이스 평가(\S\ref{subsec:res-b200})는 DGX B200,
-  CPU lever 및 회귀 microstudy 는 개발 플랫폼(H100$\times$8)에서 수행.}
+\caption{실험 환경 (전 측정 B200 단일 플랫폼).}
 \label{tbl:setup}
 \footnotesize
 \begin{tabular}{@{}ll@{}}
 \toprule
 \textbf{항목} & \textbf{사양} \\
 \midrule
-\multicolumn{2}{@{}l}{\textit{프로덕션 플랫폼 (대규모 실 트레이스 평가)}} \\
 GPU & NVIDIA B200 $\times$ 8 (183\,GB HBM3e, sm\_100) \\
 CPU & Intel Xeon Platinum 8570, 듀얼 NUMA \\
-    & 224 스레드 (2 소켓), DDR5 \\
-메모리 & 듀얼 NUMA, $\sim$2\,TB DRAM \\
+    & 224 스레드 (2 소켓) \\
+메모리 & 듀얼 NUMA, $\sim$2\,TB DDR5 \\
 \midrule
-\multicolumn{2}{@{}l}{\textit{개발 플랫폼 (CPU lever $\cdot$ 회귀 microstudy)}} \\
-GPU & NVIDIA H100 SXM5 $\times$ 8 (80\,GB HBM3) \\
-CPU & Intel Xeon SPR-class, 듀얼 NUMA \\
-    & 노드당 56 물리 코어, NUMA distance 2.1$\times$ \\
-\midrule
-\multicolumn{2}{@{}l}{\textit{공통 소프트웨어}} \\
-vLLM & 본 연구 포크 (B200 는 sm\_100 재빌드) \\
+vLLM & 본 연구 포크 (B200 sm\_100 재빌드) \\
 SuffixDecoding & arctic-inference (lazy import) \\
 라우팅 비교 & llm-d Gateway (Istio $+$ InferencePool $+$ EPP) \\
-분류기 & FastAPI $+$ ProcessPool 16 worker \\
 측정 도구 & vLLM benchmark\_serving, UtilSampler \\
           & (nvidia-smi $+$ /proc/stat 동기 샘플링) \\
-\midrule
-모델 & \multicolumn{1}{p{0.62\columnwidth}@{}}{\raggedright
-  Qwen-2.5-7B/32B/72B, Llama-3.1-8B/70B,
-  DeepSeek-R1-Distill-Qwen-7B/32B, \mbox{-Llama-70B}
-  (회귀 microstudy: opt-125m, starcoder2-3b, Qwen-0.5B/1.5B/7B, Phi-3-14B)} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{측정 시나리오}
+\subsection{모델}
 
-본 연구는 세 가지 측정 시나리오를 사용한다.
+7B부터 671B까지 3계열 $\times$ dense/MoE 10개 모델을 측정한다:
+Qwen-2.5 7B/32B/72B, Llama-3.1 8B/70B, Llama-3.1-405B-FP8,
+DeepSeek-R1-Distill-Qwen 7B/32B, DeepSeek-R1-Distill-Llama-70B,
+그리고 \textbf{DeepSeek-R1 671B (MoE 추론)}.
+이로써 (i) 크기(7B--671B), (ii) 계열(Qwen/Llama/DeepSeek),
+(iii) 유형(dense vs MoE, 표준 vs 추론 특화)을 분리한다.
 
-\textbf{시나리오 1 — 대규모 실 트레이스 oracle (B200).}
-8개 모델 각각을 단일 vLLM 인스턴스(TP=8, 7B 급은 TP=4)로 기동하고,
-4개 방법(vanilla / suffix / ngram / llm-d)으로 동일 prompt 집합을
-\emph{조건별}로 측정한다 (concurrency 32, \texttt{max\_tokens}=8{,}192, streaming).
-방법별 per-prompt 처리량으로부터 (모델, 조건) 단위의 \emph{oracle}
-(=최적 방법)을 산출하여 게이팅 상한과 방법 선택 효과를 정량화한다
-(\S\ref{subsec:res-b200}).
+\subsection{워크로드: 실 서빙 trace}
 
-\textbf{시나리오 2 — llm-d 라우팅 비교 (B200).}
-vanilla 와 suffix 두 백엔드를 \emph{동일 GPU 예산}으로 분할
-(8-GPU 모델 = 2$\times$TP4, 4-GPU 모델 = 2$\times$TP2)한 뒤
-llm-d Gateway(Istio $+$ InferencePool $+$ EPP)가 load/prefix-aware
-라우팅을 수행한다. kind 기반 Kubernetes 클러스터에 vLLM pod 를 배치하고
-동일 prompt 집합을 동일 부하(conc=32)로 인가하여 \emph{시스템 전체 처리량}
-관점에서 단일 백엔드(vanilla/suffix) 대비 비교한다.
-
-\textbf{시나리오 3 — End-to-end dual-backend (CPU lever, H100).}
-standard backend(GPU 0--3)와 spec-decode backend(GPU 4--7)를
-동시에 기동하고, \algname\ 분류기가 요청을 concurrency 32로 분배한다.
-CPU 슬랙 하베스팅 lever 의 ON/OFF 쌍 측정 및 게이팅 분해에 사용한다.
-
-\subsection{워크로드 정의}
-
-\textbf{실 트레이스 corpus (시나리오 1, 2).}
-합성 데이터 대신 6종의 공개 실 서빙/벤치마크 trace 를 prompt 소스로 사용한다:
-대화 계열 \textbf{ShareGPT}, \textbf{WildChat}, \textbf{LMSYS-Chat-1M}과
+합성 데이터 대신 6종의 공개 실 trace 를 prompt 소스로 사용한다:
+대화 계열 \textbf{ShareGPT}, \textbf{WildChat}, \textbf{LMSYS-Chat-1M},
 코드 계열 \textbf{SWE-bench}, \textbf{MBPP}, \textbf{HumanEval}.
-각 corpus 에서 마지막 user turn(대화) / problem statement(SWE-bench) /
-prompt(HumanEval/MBPP)를 추출하고, sha1 정규화 dedup 및 길이 필터
-($32 \le \text{tok} \le 4{,}096$)를 적용하여 총 2{,}159 prompt 를 샘플링한다
-(대화 3종 각 500, SWE-bench 297, MBPP 198, HumanEval 164).
-\textbf{mix} 조건은 6 corpus 를 교차 셔플하여 단일 서버에 이질적 트래픽이
-혼재하는 운영 상황을 모사한다.
+각 corpus 에서 마지막 user turn / problem statement / prompt 를 추출하고
+sha1 정규화 dedup 및 길이 필터($32\le\text{tok}\le4096$)를 적용한다.
+\textbf{mix} 조건은 6 corpus 를 교차 셔플한 별도 샘플로,
+단일 서버에 이질 트래픽이 혼재하는 운영 상황을 모사한다.
 
-\textbf{게이팅 라벨 분류.}
-워크로드 레벨 게이팅은 corpus 출처가 아니라 요청 내용을
-sonnet(창작)/chat(대화)/code(코드)로 분류하여 방법을 선택한다.
-즉 corpus 는 prompt \emph{소스}이고, 게이팅 라벨은 분류기가 부여한다
-(\S\ref{sec:ceres}). 이로써 합성 분류에 의존하던 이전 평가의
-in-distribution 편향을 제거하고 실제 트래픽 분포에서 게이팅을 검증한다.
+\subsection{방법과 측정 시나리오}
 
-\subsection{기준선 및 공정 비교}
+\textbf{방법(4종).} vanilla(투기 없음) / suffix(SuffixDecoding, $K=32$) /
+ngram(prompt-lookup) / llm-d(라우팅).
 
-모든 측정에서 공정 비교(fair comparison)를 위해
-baseline과 spec-decode가 동일한 \texttt{gpu\_memory\_utilization=0.80} 및
-동일한 벤치마크 래퍼(\texttt{run\_workload\_gen.py})를 사용한다.
-이전 측정의 래퍼 편향($+64.7\%$ wrapper noise)을
-제거한 fair baseline을 적용한다.
+\textbf{시나리오 1 — 처리량 oracle.}
+각 모델을 단일 인스턴스(TP=8, 7B급 TP=4; XL 405B/671B 는 8-GPU)로 기동하고
+방법별로 동일 prompt 를 조건별 측정한다
+(concurrency 32, \texttt{max\_tokens}=8{,}192, streaming).
+방법별 per-prompt 처리량으로 (모델, 조건) oracle(최적 방법)을 산출한다.
+정확도는 vanilla 와 suffix 출력 텍스트의 분포 동등(losslessness)으로 확인한다.
 
-\subsection{CPU 슬랙 하베스팅 측정 방법}
+\textbf{시나리오 2 — llm-d 라우팅.}
+vanilla 와 suffix 두 백엔드를 동일 GPU 예산으로 분할
+(8-GPU 모델 $=2\times$TP4)한 뒤 llm-d Gateway 가 load/prefix-aware 라우팅을 수행하고,
+kind 기반 Kubernetes 에 vLLM pod 를 배치해 동일 부하(conc=32)로 비교한다.
 
-lever 단독 기여 $\Delta(L)$는 \algname-gated ON/OFF 쌍 측정으로 분리한다.
-핵심 lever(NUMA pin, softmax aux)에 대해 3-run 반복으로
-multi-run mean 및 warm-only(run 2, 3 평균)를 보고한다.
-신뢰도 기준: $|\Delta| < 3\%$인 1-run 신호는 multi-run binding 없이 채택하지 않는다.
+\subsection{지표}
 
-% TODO: CERES 완전 통합 설정(NUMA pin + branchy 100ms + AGSD-gated)의
-%       end-to-end 3-run 측정 필요.
-%       현재는 각 lever를 독립 측정 후 Property 1로 결합 추정.
+셀별로 output\_tps, TTFT/TPOT(p50/p99), suffix accept rate $\alpha$,
+GPU/CPU 이용률(UtilSampler 동기), GPU 메모리를 수집한다.
+방법-이득 $\Delta$(Def.~\ref{def:method-gain})와 (모델,조건) oracle 을 파생한다.
+
+\subsection{커버리지와 한계 (정직)}
+\label{subsec:coverage}
+
+주력 8모델은 4방법 $\times$ 7조건 전수, XL 2모델(405B/671B)은 vanilla/suffix $\times$ 7조건이다.
+단일 corpus 조건은 해당 corpus 샘플 전수(164--500), mix 는 별도 500 샘플이므로
+mix 절대 tps 를 단일 corpus 와 직접 비교하지 않는다.
+naive ngram 은 Qwen-7B 에서만 전 corpus 측정했고(붕괴 확인),
+eagle 계열은 본 연구 범위 밖이다.
+모든 raw(per-request 로그$\cdot$summ$\cdot$parquet)는 보조 자료로 공개한다.

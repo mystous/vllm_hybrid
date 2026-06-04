@@ -3,40 +3,35 @@
 \section{결론}
 \label{sec:conclusion}
 
-본 논문은 LLM 투기적 서빙에서 동시에 발생하는 두 가지 비효율을 분석하고,
-이를 통합적으로 해결하는 알고리즘 \algname 을 제안하였다.
+본 논문은 DGX B200$\times$8 에서 7B--671B 10개 모델(dense 및 MoE)을
+실 서빙 trace 로 측정한 대규모 특성화로, 투기적 디코딩에 대한
+두 가지 운영 질문(언제 켜는가 / 무엇을 남기는가)에 답하였다.
 
-첫 번째 비효율은 \emph{워크로드 다양성}이다.
-투기적 디코딩의 효과는 워크로드 유형, 모델 크기, 모델 계열에 따라
-naive n-gram의 붕괴($-90\%$)에서 suffix의 강한 가속(mix $+232\%$)까지 극도로 다르며,
-최적 방법이 (모델 $\times$ 조건)마다 달라 단일 설정으로 최적화가 원리적으로 불가능하다.
-특히 code agent나 추론 특화 모델과 같은 최신 응용에서 이 문제는 더욱 심각하다.
+\textbf{언제 켜는가.}
+spec-decode 는 단일 lever 중 가장 강력하나(mix $+232\%$까지) 부호가 갈린다.
+70개 (모델$\times$조건) 쌍 중 55개는 net-positive, 15개는 vanilla 가 우세하며,
+이 부호는 수락률 $\alpha$ 와 per-step overhead 의 경쟁
+($\alpha K_{\mathrm{eff}}$ vs.\ overhead)으로 예측된다.
+vanilla 가 이기는 셀은 \emph{모두} 추론 특화/MoE 모델이다 ---
+R1-671B(MoE 추론)는 전 조건 $-40\!\sim\!-64\%$ 로, 긴 사고 사슬의 출력 다양성과
+expert routing 동적성이 draft 수락을 무너뜨린다.
+최적 방법은 파라미터 수가 아니라 \emph{모델 유형}이 결정한다.
 
-두 번째 비효율은 \emph{CPU 유휴}이다.
-첫 번째 문제를 해결하기 위해 이중 백엔드를 채택하면
-CPU 이용률이 $\le5.6\%$에 머무는 구조적 슬랙이 필연적으로 발생한다.
+\textbf{무엇을 남기는가.}
+spec-decode 가 성공하는 곳에서 GPU 가 un-saturate($94.9\!\to\!78.7\%$)되고,
+CPU 는 7B부터 671B까지 전 구성에서 $\le4.9\%$ 유휴하다.
+즉 처리량 지배 기법이 시스템을 GPU 포화에서 host(CPU) 병목으로 전환시킨다.
 
-\algname 은 이 두 문제를 인과적으로 연결된 하나의 구조로 해결한다.
-워크로드$\times$모델 크기$\times$벤더 3축 게이팅이 첫 번째 문제를 해결하고,
-그 구조가 낳은 CPU 슬랙을 NUMA 바인딩과 스텝 경계 정렬 branchy 보조 작업으로 수확한다.
+이로부터 우리는 (i) 경량 \emph{모델-유형 인지} 방법 선택이 복잡한 라우터(llm-d, 우위 18\%)를
+대체할 수 있음을 보이고, (ii) spec-decode 가 만든 host 병목을 유휴 CPU 로 떠안는
+\emph{host-side slack reclamation}을 다음 처리량 한계로 제안하였다.
+그 타당성을 가르는 결정적 실험(decode step 의 GPU/host 분해)을 후속으로 정의한다.
 
-DGX B200$\times$8 에서 8개 모델(Qwen$\cdot$Llama$\cdot$DeepSeek 계열)을
-실제 서빙 trace(ShareGPT, WildChat, LMSYS-Chat, SWE-bench, MBPP, HumanEval)로
-측정한 결과, spec-decode는 이질 트래픽에서 8개 모델 전체에 대해 순 양성
-($+83\%$--$+232\%$)을 유지하면서도 최적 방법은 (모델, 조건)마다 달랐다.
-동일 환경에서 실측한 클러스터 라우터 llm-d 가 최선 단일 방법을 능가한 경우는
-18\%(10/56)에 그쳐, 경량 워크로드 게이팅이 대부분의 가치를 포착함을 확인하였다.
-CPU 슬랙 하베스팅은 개발 플랫폼에서 NUMA 바인딩 $+3.13\%$(warm-only)의
-robust 이득과 branchy 보조 작업 최대 $+5.28\%$의 예비 이득을 회수한다.
-
-\algname 이 제시하는 핵심 원칙은 단순하다:
-\emph{게이팅이 슬랙을 낳고, 슬랙을 수확하라.}
-서버 내 유휴 자원은 고정 비용이 아니라 수확 가능한 기회이다.
+\algname\ 의 원칙은 단순하다: \emph{CPU 로 GPU 를 흉내내지 말고,
+GPU 가 내려놓은 일을 CPU 가 받으라.}
 
 \section*{감사의 글}
-
-본 논문의 작성 과정에서 Anthropic 사의 Claude
-(모델 ID: \texttt{claude-sonnet-4-6})를
+본 논문의 작성 과정에서 Anthropic 사의 Claude 를
 측정 자료 분석, 초고 작성 보조, \LaTeX\ 편집에 활용하였다.
 알고리즘 설계의 모든 결정, 실험 계획, 측정 결과 해석,
 학술적 주장의 정확성에 대한 책임은 저자에게 있다.

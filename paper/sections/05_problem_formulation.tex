@@ -1,98 +1,79 @@
 %% sections/05_problem_formulation.tex
 
-\section{문제 정의}
+\section{예측 조건: 언제 spec-decode가 이득인가}
 \label{sec:problem}
 
-\subsection{문제 A: 워크로드 다양성과 방법 선택}
+\subsection{방법-이득과 지배 방법의 부재}
 
-LLM 서빙 환경에서 동일 서버에 서로 다른 워크로드가 혼재한다.
-투기적 디코딩 방법 $m \in \mathcal{M}$ (예: suffix, ngram, baseline)의
-처리량 기여는 워크로드 $w$, 모델 $\theta$, 드래프터 구성 $c$의 함수다.
-여기서 baseline은 투기적 디코딩을 적용하지 않는 표준 디코딩을 뜻한다.
+방법 $m \in \mathcal{M}$ (vanilla, suffix, ngram, llm-d)의
+(모델 $\theta$, 워크로드 $w$)에서의 처리량 이득을 정의한다.
 
-\begin{definition}[방법-워크로드 이득]
+\begin{definition}[방법-이득]
 \label{def:method-gain}
-방법 $m$의 워크로드 $w$에서의 처리량 이득은
 \[
-\Delta(m, w, \theta) = \frac{T(m, w, \theta) - T(\text{baseline}, w, \theta)}
-                            {T(\text{baseline}, w, \theta)}
+\Delta(m, w, \theta) = \frac{T(m, w, \theta) - T(\mathrm{vanilla}, w, \theta)}
+                            {T(\mathrm{vanilla}, w, \theta)},
 \]
-이며, $\Delta < 0$이면 방법 $m$이 $w$에서 net-negative임을 나타낸다.
-정의상 $\Delta(\text{baseline}, w, \theta) = 0$이다.
+$\Delta(\mathrm{vanilla},\cdot)=0$ 이고 $\Delta<0$ 이면 $m$ 이 net-negative 다.
 \end{definition}
 
-\S\ref{sec:motivation}의 측정 결과로부터 다음이 성립한다.
-
-\begin{property}[지배적 가속 방법의 부재]
+\begin{property}[지배 방법의 부재]
 \label{prop:no-dominant}
-모든 $(w, \theta)$ 조합에 대해 $\Delta(m^*, w, \theta) > 0$을 만족하는
-단일 투기적 디코딩 방법 $m^* \in \mathcal{M} \setminus \{\text{baseline}\}$는 존재하지 않는다.
+모든 $(w,\theta)$ 에 대해 $\Delta(m^*,w,\theta)>0$ 인 단일
+$m^*\in\mathcal{M}\setminus\{\mathrm{vanilla}\}$ 는 존재하지 않는다.
 \end{property}
 
-Property~\ref{prop:no-dominant}의 근거(B200 실 트레이스 평가,
-Table~\ref{tbl:b200-oracle}):
-suffix는 대부분의 모델에서 최적이지만
-추론 특화 모델 DeepSeek-R1-Distill-Llama-70B 의 단일 corpus 에서는
-회귀하여 baseline(vanilla)에 미달하고,
-naive n-gram 은 실 트레이스 전반에서 $\sim\!-90\%$로 catastrophic이며,
-$\leq$7B 모델에서는 투기적 방법이 일관 회귀한다(\S\ref{subsec:res-small-model}).
-일부 Qwen 모델은 대화 조건에서 두 백엔드 분할(llm-d)이 최적이 되기도 한다.
+\noindent\textbf{근거(B200, \S\ref{sec:results}):}
+suffix 는 70셀 중 55셀에서 net-positive 이나 15셀에서 vanilla 에 미달하고
+(추론$\cdot$MoE 모델 전반), naive n-gram 은 실 트레이스에서 $\sim\!-90\%$ 로 붕괴하며,
+llm-d 는 최선 단일 방법을 18\%의 셀에서만 능가한다.
+어떤 단일 방법도 보편 최적이 아니다.
 
-\noindent\textbf{baseline의 특수 지위.}
-baseline은 정의상 $\Delta = 0$으로 \emph{회귀하지 않는} 유일한 안전한 선택이지만,
-가속 기회를 전혀 취하지 못한다.
-반대로 투기적 방법은 워크로드가 맞으면 큰 가속을 주지만(mix $+232\%$까지),
-맞지 않으면 catastrophic 회귀($-91\%$까지)의 위험을 동반한다.
-따라서 문제의 본질은 ``최고의 단일 방법 찾기''가 아니라,
-\emph{회귀 위험을 회피하면서 워크로드별 가속 기회를 선택적으로 취하는 것}이다.
+\subsection{부호의 예측 조건: $\alpha$ 대 overhead}
 
-\smallskip
-\noindent\textbf{문제 A (위험 회피적 방법 선택).}
-주어진 요청 $r$과 모델 $\theta$에 대해 $\Delta(m^*(r), w(r), \theta) \geq 0$을
-보장하면서, 가속이 가능한 경우 $\Delta > 0$인 방법을 선택하는
-경량 게이팅 함수 $g: (r, \theta) \to \mathcal{M}$을 설계한다.
-즉 게이팅은 회귀를 baseline으로 차단하고 가속만 취하는 비대칭 정책이다.
-
-\subsection{문제 B: 게이팅이 낳는 CPU 슬랙}
-
-문제 A를 해결하기 위해 두 vLLM 인스턴스를 병렬 운영하는 이중 백엔드를 채택하면,
-구조적으로 CPU 유휴(CPU slack)가 발생한다.
-
-\begin{definition}[CPU 슬랙]
-\label{def:cpu-slack}
-이중 백엔드 운영에서 GPU 추론 스텝 동안 어느 인스턴스에도 할당되지 않는
-CPU 코어 집합을 \emph{CPU 슬랙}이라 한다.
-CPU 이용률이 $u_{\text{cpu}} \ll 1$인 경우 슬랙의 절대량은
-$\text{slack} = (1 - u_{\text{cpu}}) \times N_{\text{cores}}$이다.
-\end{definition}
-
-B200$\times$8 측정에서 $u_{\text{cpu}} = 2.5\text{--}5.6\%$ 이므로
-(\S\ref{subsec:res-b200}) 듀얼 소켓 코어의 $94\%$ 이상이 유휴 상태다.
-NUMA 비인지 배치에서는 이 유휴 코어가 remote socket 메모리에 접근하여
-$2.1\times$ 지연 패널티를 발생시킨다.
-
-\textbf{문제 B}는 다음과 같이 정의된다.
-
-\smallskip
-\noindent\textbf{문제 B (CPU 슬랙 수확).}
-이중 백엔드에서 발생하는 CPU 슬랙을 활용하여
-GPU 처리량에 영향을 주지 않으면서 시스템 전체 처리량을 향상시킨다.
-
-\subsection{두 문제의 인과 관계}
-
-두 문제는 독립적이지 않다.
-문제 A의 해결책(이중 백엔드)이 문제 B를 \emph{필연적으로} 생성하며,
-문제 B의 해결이 문제 A의 투자 수익률(ROI)을 높인다.
+식~\ref{eq:rk-ratio}로부터 spec-decode 가 이득인 필요충분 조건은 다음이다.
 
 \begin{equation}
-\scalebox{0.82}{$\displaystyle
-\underbrace{\text{Problem A}}_{\text{method selection}}
-\xrightarrow{\;\text{dual backend}\;}
-\underbrace{\text{Problem B}}_{\text{CPU slack}}
-\xrightarrow{\;\text{harvest}\;}
-\underbrace{T = T_{\text{gate}} + \Delta_{\text{harvest}}}_{\text{CERES}}
-$}
-\label{eq:causal-chain}
+\Delta(\mathrm{suffix}) > 0 \iff \alpha\,K_{\mathrm{eff}} > \mathrm{overhead}(\theta).
+\label{eq:rk-condition}
 \end{equation}
 
-\algname 은 이 인과 사슬을 하나의 통합 알고리즘으로 구현한다.
+두 항이 부호를 가른다.
+\textbf{(i) 수락률 $\alpha$} — 드래프트 품질$\times$출력 예측 가능성.
+B200 실측에서 net-positive 셀의 $\alpha$ 중앙값은 $0.68$,
+vanilla-win 셀은 $0.37$ 이다(\S\ref{subsec:res-alpha}).
+\textbf{(ii) overhead$(\theta)$} — 모델 규모와 아키텍처(MoE expert 활성)에 비례.
+따라서 break-even $\alpha$ 는 \emph{고정값이 아니라 모델에 따라 이동}한다:
+overhead 가 작은 모델은 낮은 $\alpha$ 에서도 이기고(예: 한 셀은 $\alpha\!=\!0.28$ 에서 $+209\%$),
+overhead 가 큰 R1-671B(MoE)는 $\alpha\!\approx\!0.45\text{--}0.54$ 에서도 $-40\!\sim\!-64\%$ 손해다.
+
+\smallskip
+\noindent\textbf{문제 A (모델-유형 인지 방법 선택).}
+회귀($\Delta<0$)를 vanilla 로 차단하면서 가속 가능 시 $\Delta>0$ 방법을 택하는
+경량 게이트 $g:(\theta,w)\to\mathcal{M}$ 를 설계한다.
+\S\ref{sec:results} 는 부호의 지배 축이 워크로드가 아니라 \emph{모델 유형}
+(추론/MoE 여부)임을 보이며, 이는 $g$ 의 1차 입력이 모델 프로파일임을 함의한다.
+
+\subsection{문제 B: 성공이 만드는 host 병목}
+\label{subsec:problem-b}
+
+spec-decode 가 성공하면 step 수가 줄어 GPU 가 un-saturate 된다.
+
+\begin{definition}[host 병목 전환]
+\label{def:host-bound}
+$\Delta(\mathrm{suffix})>0$ 인 셀에서 GPU 이용률이 vanilla 대비 하락하면
+($u_{\mathrm{gpu}}^{\mathrm{suf}} < u_{\mathrm{gpu}}^{\mathrm{van}}$),
+줄어든 step 사이의 host 작업(드래프팅$\cdot$스케줄$\cdot$샘플링$\cdot$detok)이
+새로운 병목 후보가 된다. 회수 가능 slack 의 절대량은
+$u_{\mathrm{cpu}}\ll1$ 인 유휴 CPU 와 $1-u_{\mathrm{gpu}}^{\mathrm{suf}}$ 의 GPU 여유다.
+\end{definition}
+
+B200 실측에서 net-positive 셀의 GPU 이용률은 $94.9\%\!\to\!78.7\%$(중앙)로 떨어지고
+CPU 는 전 구성에서 $\le4.9\%$ 유휴다(\S\ref{subsec:res-resource}).
+
+\smallskip
+\noindent\textbf{문제 B (host-side slack reclamation).}
+spec-decode 가 만든 host-path 병목을 유휴 CPU 로 떠안아
+GPU 여유를 다시 처리량으로 환산한다.
+이는 CPU 로 GPU 연산을 흉내내는 것이 아니라(\S\ref{sec:direction}),
+GPU 가 \emph{내려놓은} host 작업을 CPU 가 받는 것이다.

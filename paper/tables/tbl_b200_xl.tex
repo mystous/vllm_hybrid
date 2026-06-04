@@ -1,0 +1,31 @@
+%% tables/tbl_b200_xl.tex
+%% XL 스케일: 405B FP8(dense) vs DeepSeek-R1 671B(MoE 추론). vanilla/suffix only.
+%% source: TSK_042 XL 매트릭스 (28셀)
+
+\begin{table}[t]
+\centering
+\caption{XL 스케일 (vanilla/suffix, tps).
+  동일 $\sim\!400\text{--}700$B 급에서 \emph{dense 표준}(L405B-FP8)은 suffix 가 전 조건 net-positive,
+  \emph{MoE 추론}(R1-671B)은 전 조건 net-negative.
+  최적 방법은 파라미터 수가 아니라 \emph{모델 유형}이 결정한다.
+  두 모델 모두 CPU 이용률 $\le 4.8\%$.}
+\label{tbl:b200-xl}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{조건} & \multicolumn{2}{c}{\textbf{L405B-FP8 (dense)}} & \multicolumn{2}{c}{\textbf{R1-671B (MoE 추론)}} \\
+ & van$\to$suf & $\Delta$ & van$\to$suf & $\Delta$ \\
+\midrule
+sharegpt  & $1217\to2061$ & $+69\%$  & $1475\to797$ & $-46\%$ \\
+wildchat  & $1280\to2290$ & $+79\%$  & $1556\to858$ & $-45\%$ \\
+lmsys     & $1220\to2243$ & $+84\%$  & $1533\to811$ & $-47\%$ \\
+swebench  & $1204\to2639$ & $+119\%$ & $1474\to538$ & $-64\%$ \\
+mbpp      & $\;916\to1725$ & $+88\%$ & $1437\to677$ & $-53\%$ \\
+humaneval & $1253\to2112$ & $+69\%$  & $1004\to606$ & $-40\%$ \\
+mix       & $1252\to2829$ & $+126\%$ & $1538\to781$ & $-49\%$ \\
+\midrule
+$\alpha$ (mix) & \multicolumn{2}{c}{$0.766$} & \multicolumn{2}{c}{$0.451$} \\
+\bottomrule
+\end{tabular}
+\end{table}

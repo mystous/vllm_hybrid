@@ -3,276 +3,84 @@
 \section{측정 결과}
 \label{sec:results}
 
-%% -----------------------------------------------------------------------
-\subsection{대규모 실 트레이스 평가 (DGX B200)}
-\label{subsec:res-b200}
+전 결과는 DGX B200$\times$8 실측이다 (\S\ref{sec:methodology}).
+주력 8모델 $\times$ 4방법 $\times$ 7조건 + XL 2모델 $\times$ 2방법 $\times$ 7조건.
 
-\input{tables/tbl_b200_realtrace}
+%% -----------------------------------------------------------------------
+\subsection{개요: 55 net-positive / 15 vanilla-win}
+\label{subsec:res-overview}
+
+70개 (모델$\times$조건) 쌍에서 suffix 는 55개 net-positive($+9\!\sim\!+232\%$),
+15개에서 vanilla 가 더 빠르다(\S\ref{subsec:mot-heterogeneous}, Fig.~\ref{fig:alpha-gain}).
+mix 조건만 보면 8개 주력 모델 전부 net-positive 이나(Table~\ref{tbl:b200-realtrace}),
+단일 corpus 로 내려가면 부호가 갈린다.
+이 절은 그 부호를 \emph{예측}하고(\S\ref{subsec:res-alpha}),
+실패 모델을 \emph{식별}하며(\S\ref{subsec:res-modeltype}),
+성공이 남기는 \emph{자원 여유}를 정량화한다(\S\ref{subsec:res-resource}).
+
+%% -----------------------------------------------------------------------
+\subsection{예측 조건: $\alpha$ 대 overhead}
+\label{subsec:res-alpha}
+
+\input{tables/tbl_b200_alpha}
+
+Table~\ref{tbl:b200-alpha} 와 같이 net-positive 셀의 수락률 $\alpha$ 중앙값은 $0.68$
+($0.28\!\sim\!1.41$), vanilla-win 셀은 $0.37$($0.27\!\sim\!0.54$)이다.
+그러나 break-even 은 단일 $\alpha$ 값이 아니다:
+net-positive 셀의 wall ratio(suffix/vanilla) 중앙값은 $0.60$,
+vanilla-win 셀은 $1.18$(최대 $2.9$)로, \emph{overhead 가 큰 모델일수록 더 높은 $\alpha$ 를 요구}한다
+(식~\ref{eq:rk-condition}).
+실제로 한 저-overhead 셀은 $\alpha\!=\!0.28$ 에서도 $+209\%$ 인 반면,
+R1-671B 는 $\alpha\!\approx\!0.45\!\sim\!0.54$ 에서도 손해다.
+즉 $\Delta(\mathrm{suffix})$ 의 부호는 $\alpha\,K_{\mathrm{eff}}$ 대 overhead 의 경쟁으로 설명된다.
+
+%% -----------------------------------------------------------------------
+\subsection{모델 유형이 부호를 결정한다}
+\label{subsec:res-modeltype}
+
+\input{tables/tbl_b200_xl}
+
+vanilla-win 15셀은 \emph{모두} 추론 특화 또는 MoE 모델이다
+(R1-671B 7/7, R1-Distill-Llama-70B 6/7, Qwen-72B 2셀; Table~\ref{tbl:b200-alpha}).
+XL 스케일이 이를 가장 선명하게 보인다(Table~\ref{tbl:b200-xl}):
+동일 $\sim\!400\!\sim\!700$B 급에서 \emph{dense 표준} Llama-405B-FP8 은 suffix 가
+전 조건 $+69\!\sim\!+126\%$ 인 반면, \emph{MoE 추론} R1-671B 는
+전 조건 $-40\!\sim\!-64\%$ 다.
+파라미터 수가 더 큰 R1 이 더 나쁘므로, \textbf{최적 방법은 크기가 아니라 모델 유형이 결정한다}.
+이 (모델$\times$조건) 의존성은 단일 고정 방법이 구조적으로 최적일 수 없음을 입증하며
+(Property~\ref{prop:no-dominant}), 게이트의 1차 입력이 모델 유형임을 함의한다.
+실패 메커니즘은 \S\ref{sec:mechanism} 에서 분석한다.
+
+%% -----------------------------------------------------------------------
+\subsection{llm-d 라우팅: 복잡성의 한계 이득}
+\label{subsec:res-llmd}
+
+vanilla$+$suffix 두 백엔드를 동일 GPU 예산으로 분할한 llm-d(\S\ref{sec:methodology})는
+8개 주력 모델 56개 셀에서 vanilla 대비 45개(80\%)에서 우위이나,
+\emph{최선 단일 방법}(suffix)을 능가하는 경우는 10개(18\%)에 그치며
+주로 7B$\cdot$32B 의 대화 조건에 국한된다.
+복잡한 클러스터 라우팅의 추가 이득은 제한적이며,
+서버 내 경량 모델-유형 인지 선택이 대부분의 가치를 포착한다(\S\ref{sec:discussion}).
+특히 R1-Distill-Llama-70B 처럼 한 백엔드(suffix)가 열등하면
+라우터 평균도 vanilla 단일보다 낮아진다(전 조건 vanilla 우위).
+
+%% -----------------------------------------------------------------------
+\subsection{자원 signature: 성공이 GPU를 비우고, CPU는 늘 유휴}
+\label{subsec:res-resource}
+
+\input{tables/tbl_b200_resource}
 \input{tables/tbl_b200_oracle}
-
-본 절은 DGX B200$\times$8 에서 8개 모델 $\times$ 4개 방법
-(vanilla / suffix / ngram / llm-d) $\times$ 7개 조건(실 trace 6 corpus $+$ mix)을
-측정한 173개 셀의 결과를 종합한다 (\S\ref{sec:methodology} 시나리오 1, 2).
-이는 합성 분류 데이터를 실제 서빙 trace(ShareGPT, WildChat, LMSYS-Chat,
-SWE-bench, MBPP, HumanEval)로 대체한 평가로,
-이전 in-distribution 편향을 제거한다.
-
-\textbf{관찰 1 --- spec-decode 는 실 트래픽에서 강력하다.}
-이질 트래픽을 모사한 mix 조건에서 suffix 는 8개 모델 \emph{전체}에서
-순 양성이며 처리량 향상이 $+83\%$(DeepSeek-Qwen-32B)에서
-$+232\%$(Llama-3.1-70B)에 달한다 (Table~\ref{tbl:b200-realtrace}).
-이는 합성 워크로드(\S\ref{subsec:res-trident})에서 관찰한 가속이
-실제 trace 에서도 재현되며, 오히려 더 큰 폭으로 나타남을 보인다.
-
-\textbf{관찰 2 --- 최적 방법은 (모델, 조건)마다 다르다.}
-그러나 단일 corpus 조건에서는 최적 방법이 균일하지 않다
-(Table~\ref{tbl:b200-oracle}).
-특히 \emph{추론 특화} 모델인 DeepSeek-R1-Distill-Llama-70B 는
-mix 를 제외한 6개 단일 corpus 전부에서 spec-decode 가 회귀하여
-vanilla 가 최적이고($-2\sim-15\%$), 일부 Qwen 모델은 chat 계열 조건에서
-llm-d 가, code 계열에서 suffix 가 최적이다.
-이 (모델 $\times$ 조건) 의존성은 단일 고정 방법이 구조적으로 최적일 수 없음을
-56개 oracle 셀로 입증하며, 요청별 게이팅의 직접적 동기가 된다.
-
-\textbf{관찰 3 --- 복잡한 라우터(llm-d)의 한계 이득.}
-Kubernetes 기반 disaggregation 라우터인 llm-d 는
-vanilla 대비 56개 셀 중 45개(80\%)에서 우위를 보이나,
-\emph{최선 단일 방법}(suffix) 을 능가하는 경우는 10개(18\%)에 불과하며
-그마저 주로 7B$\cdot$32B chat 조건에 국한된다.
-즉 복잡한 클러스터 라우팅의 추가 이득은 제한적이며,
-서버 내 경량 워크로드 게이팅이 대부분의 가치를 포착할 수 있음을 시사한다
-(\S\ref{sec:discussion}).
-
-\textbf{관찰 4 --- CPU 는 유휴, GPU 에도 슬랙이 생긴다.}
-전 구성에서 CPU 이용률은 $2.5\text{--}5.6\%$ 로 유휴 상태에 머문다
-(Table~\ref{tbl:b200-realtrace} CPU\,\%).
-한편 suffix 는 처리량을 올리면서도 GPU 이용률을 vanilla 대비 낮춘다
-(예: Qwen-2.5-7B $82.5\% \to 26.5\%$, Qwen-2.5-32B $94.3\% \to 64.8\%$).
-이는 spec-decode 가 step 당 다중 토큰을 출력하여 GPU 가 짧게 쉬어도
-총 처리량이 늘어나는 구조를 자원 수준에서 확인하며,
-\emph{CPU 유휴와 GPU 슬랙이 공존}함을 보여
-CPU 슬랙 하베스팅(\S\ref{subsec:res-harvest})의 정량적 근거가 된다.
-
-\textbf{관찰 5 --- 지연 구조: TTFT 소폭 증가, TPOT 대폭 단축.}
 \input{tables/tbl_b200_latency}
-처리량 향상의 지연 측면 기전은 Table~\ref{tbl:b200-latency}에 나타난다.
-suffix 는 드래프팅 비용으로 TTFT(첫 토큰 지연)가 소폭 증가하나,
-step 당 다중 토큰 수락으로 TPOT(토큰당 지연)를 크게 단축한다
-(예: DeepSeek-Qwen-7B $3.3 \to 0.9$\,ms, Llama-3.1-70B $9.2 \to 2.5$\,ms).
-높은 수락률($\alpha = 0.79\text{--}0.93$)이 이 TPOT 단축의 원천이며,
-이는 \S\ref{subsec:mot-code-fail}의 R/K 관계와 정합한다.
 
-%% -----------------------------------------------------------------------
-\subsection{보조 측정: 개발 플랫폼(H100) 합성 워크로드 분해}
-\label{subsec:res-trident}
+spec-decode 의 성공/실패는 자원 균형에 상반된 흔적을 남긴다(Table~\ref{tbl:b200-resource}).
+\textbf{성공 셀}에서 GPU 이용률은 $94.9\%\!\to\!78.7\%$(중앙, $-16$pp)로 떨어진다 ---
+step 수가 줄며 GPU 가 더 자주 쉰다.
+\textbf{실패 셀}에서는 $98.2\%\!\to\!86.8\%$ 로 높게 유지된다 ---
+거부되는 draft 의 낭비 연산으로 GPU 가 계속 바쁘다.
+지연 측면에서도 성공 셀은 TPOT(토큰당 지연)를 크게 줄인다
+(예: R1-Distill-Qwen-7B $3.3\!\to\!0.9$\,ms; Table~\ref{tbl:b200-latency}).
 
-\input{figures/fig2_throughput_gain}
-\input{tables/tbl_trident_vs_vanilla}
-\input{figures/fig2_agsd_e2e}
-
-\S\ref{subsec:res-b200}의 대규모 실 트레이스 결과를 보완하기 위해,
-개발 플랫폼(H100$\times$8)에서 단일 모델(Llama-3.3-70B)을 합성 워크로드로
-통제 측정하여 워크로드별 효과 편차를 분해한다.
-이 보조 측정은 실 트레이스 평가와 일관된 워크로드 의존성을 보인다.
-Fig.~\ref{fig:agsd-e2e}는 \algname-gated의 end-to-end 처리량 우위를,
-Table~\ref{tbl:trident-vs-vanilla}는 워크로드별 처리량을 보여준다.
-baseline 대비 처리량 향상은 다음과 같다.
-
-\begin{itemize}
-\item \textbf{chat}: $2{,}267 \to 3{,}830$\,tps\ ($\mathbf{+68.9\%}$) ---
-  $\alpha=92.7\%$, $K=10.06$으로 드래프터 효율이 최대.
-\item \textbf{sonnet}: $7{,}679 \to 11{,}677$\,tps\ ($\mathbf{+52.1\%}$) ---
-  $K=5.11$, 3-run 분산 $0.20\%$로 재현성 확인.
-\item \textbf{code}: $6{,}718 \to 7{,}981$\,tps\ ($\mathbf{+18.8\%}$) ---
-  suffix가 ngram의 catastrophic regression($-20.2\%$)을 완화.
-\item \textbf{mix-bal} (34:33:33): $6{,}054 \to 9{,}514$\,tps\ ($\mathbf{+57.2\%}$) ---
-  혼합 트래픽에서도 전 워크로드 양성.
-\end{itemize}
-
-wall-clock 시간은 config-wide 평균 $31\%$ 단축되었으며
-($2{,}751 \to 1{,}892$\,s),
-GPU util은 $93.8\% \to 73.3\%$로 감소했으나
-처리량은 오히려 증가했다.
-이는 spec decode가 GPU step당 여러 토큰을 출력함으로써
-GPU가 짧게 쉬어도 총 처리량이 늘어나는 구조를 확인한다.
-
-%% -----------------------------------------------------------------------
-\subsection{모델 크기 게이팅: 소형 모델 회귀 검증}
-\label{subsec:res-small-model}
-
-\input{figures/fig5_rk_boundary}
-\input{figures/fig3_small_model_regression}
-
-Fig.~\ref{fig:rk-boundary}는 드래프터별 $K$ 값을 $R$ 임계값과 비교하고,
-Fig.~\ref{fig:small-model-regression}은 모델 크기에 따른 처리량 변화를 보여준다.
-
-\textbf{소형 모델 ($\leq$7B): 일관된 회귀.}
-Qwen-0.5B/1.5B/7B에서 ngram과 suffix 모두 단일 인스턴스에서 회귀한다.
-
-\begin{table}[t]
-\centering
-\caption{소형 모델 투기적 디코딩 회귀 cross-validation (code workload).
-  opt-125m/starcoder2-3b/Qwen은 H100$\times$1, Phi-3/Llama는 H100$\times$8.}
-\label{tbl:small-model-regression}
-\footnotesize
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{@{}llrr@{}}
-\toprule
-\textbf{Model} & \textbf{Draft} & \textbf{Baseline} & \textbf{Spec $\Delta$} \\
-\midrule
-opt-125m      & ngram  & 8,008  & $-8.1\%$ \\
-starcoder2-3b & ngram  & 6,794  & $-18.7\%$ \\
-Qwen-0.5B     & ngram  & 11,220 & $-30.5\%$ \\
-Qwen-0.5B     & suffix & 11,220 & $-52.1\%$ \\
-Qwen-1.5B     & ngram  & 10,389 & $-43.6\%$ \\
-Qwen-1.5B     & suffix & 10,389 & $-60.9\%$ \\
-Qwen-7B       & ngram  & 5,556  & $-17.3\%$ \\
-Qwen-7B       & suffix & 5,556  & $-36.7\%$ \\
-\midrule
-Phi-3-14B     & suffix & 3,340  & $\mathbf{+52.2\%}$ \\
-Llama-70B     & suffix & 6,718  & $\mathbf{+18.8\%}$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Table~\ref{tbl:small-model-regression}에서 소형 모델 $\leq$7B는
-ngram/suffix 종류와 무관하게 일관된 회귀를 보인다.
-특히 opt-125m에서 H100$\times$1의 $2.13\times$ wall 회귀는
-L4$\times$2의 $2.12\times$ (vLLM Issue \#16258)와 정확히 일치하여
-\emph{하드웨어 독립적 회귀}임을 입증한다.
-14B(Phi-3)에서 $+52.2\%$로 전환되므로 R/K 경계는
-$7\text{B} < \text{threshold} \leq 14\text{B}$로 좁혀진다.
-
-\textbf{\algname\ 게이팅의 효과 (end-to-end).}
-소형 모델을 단일 spec-decode backend로 서빙하면 단일 인스턴스에서 회귀하지만,
-\algname-gated dual backend는 chat $\to$ baseline, code/sonnet $\to$ spec-decode를 선택하여
-baseline-only 대비 다음 이득을 달성한다:
-
-\begin{table}[t]
-\centering
-\caption{소형 모델 end-to-end \algname-gated vs.\ single backend (tps).}
-\label{tbl:e2e-small}
-\footnotesize
-\begin{tabular}{@{}llrrrr@{}}
-\toprule
-\textbf{Model} & \textbf{Mix} &
-  \textbf{Base.} & \textbf{Spec-only} & \textbf{\algname} & \textbf{vs Base.} \\
-\midrule
-Qwen-0.5B & balanced   & 3,672 & 4,644 & \textbf{6,252} & $+70.3\%$ \\
-           & code-heavy & 4,227 & 7,267 & \textbf{8,605} & $+103.6\%$ \\
-Qwen-7B   & balanced   & 3,753 & 4,238 & \textbf{6,073} & $+61.8\%$ \\
-           & code-heavy & 3,966 & 7,512 & \textbf{8,825} & $+122.5\%$ \\
-Qwen-32B  & balanced   & 1,779 & 2,721 & \textbf{3,449} & $+93.8\%$ \\
-           & code-heavy & 1,874 & 4,551 & \textbf{4,575} & $+144.1\%$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-12/12 셀 전체에서 \algname-gated가 baseline-only와 spec-only 양쪽 모두를 초과한다.
-이득의 원천은 \S\ref{subsec:gating-origin}에서 분해하였으며,
-병렬 GPU 활용($\sim 50\text{--}60\%$)과 gating decision($\sim 10\text{--}20\%$)의 합이다.
-
-%% -----------------------------------------------------------------------
-\subsection{대형 모델 \algname-gated end-to-end (개발 플랫폼)}
-\label{subsec:res-large-model}
-
-\input{tables/tbl_gating_main}
-
-\S\ref{subsec:res-b200}이 방법별 oracle 과 llm-d 라우팅을 B200 에서 측정한 반면,
-본 절은 개발 플랫폼(H100$\times$8)에서 \algname-gated 의 end-to-end 동작을
-대형 모델로 검증한다 (B200 대형 모델 \algname-gated e2e 는 후속 과제).
-Table~\ref{tbl:gating-main}은 그 결과를 보여준다.
-
-\textbf{Llama-3.3-70B}: 6개 워크로드 전체에서 suffix가 최적이므로
-\algname\ $\equiv$ Spec-only (gating이 항상 suffix를 선택).
-mix-sh(60:20:20): $6{,}326 \to 10{,}298$\,tps ($+62.8\%$),
-mix-ch(10:20:70): $6{,}495 \to 9{,}457$\,tps ($+45.6\%$).
-
-\textbf{Qwen-2.5-72B}: 동일 파라미터 수(70B 급)이지만 아키텍처 차이로
-code 워크로드에서 suffix가 회귀($-4.6\%$).
-\algname-gated는 code $\to$ baseline으로 이 회귀를 회피하면서
-sonnet($+54.2\%$), chat($+47.3\%$)에서는 suffix를 유지한다.
-동일 모델 크기에서 아키텍처에 따라 gating 결정이 달라짐을
-실증적으로 보인다.
-
-%% -----------------------------------------------------------------------
-\subsection{CPU 슬랙 하베스팅 결과}
-\label{subsec:res-harvest}
-
-\input{figures/fig4_harvest_lever}
-\input{tables/tbl_harvest_results}
-
-\textbf{NUMA 바인딩}: 3-run mean $+2.24\%$, warm-only $+3.13\%$.
-유일하게 multi-run binding을 통과한 lever이다.
-원인은 NUMA 거리 비대칭(local 10, remote 21 = $2.1\times$)의
-하드웨어 수준 일관 효과로, 측정마다 안정된 latency 절감이 발생한다.
-
-\textbf{Branchy $\times$ 100\,ms}: 1-run 3-mix avg $+5.28\%$,
-balanced cell 단독 $+12.04\%$.
-$+5\%$ 임계점에 도달한 유일한 단일 CPU lever이다.
-multi-run binding 검증은 미완료이나, noise floor($\pm 3\%$) 대비 충분한
-신호 크기로 유의미한 효과로 판단한다.
-
-\textbf{Cross-domain pair (NUMA $\oplus$ softmax aux)}: $+2.83\%$,
-예측값 $+3.38\%$ 대비 residual $-0.55$\,pp.
-code-heavy 단일 셀에서 $+7.73\%$.
-교차 도메인 stacking의 near-linear superposition을 실측으로 확인한다
-($\varepsilon_{\mathrm{cross}} = 0.55$\,pp $\ll$ $\varepsilon_{\mathrm{same}} = 1.18$\,pp).
-
-\textbf{실패 패턴 요약.}
-drop-in CPU kernel 7종은 microbench $1.5\text{--}5\times$ 가속에도
-e2e 변환이 $0/7$로, H2D/D2H 동기화 비용($\sim 5.5$\,ms/step)이
-kernel 이득을 상쇄한다.
-4-OS-lever stacking은 $-0.03\%$ (residual $-1.18$\,pp),
-3-lever 동일 도메인은 $-4.56$\,pp destructive이다.
-task-pool phase-burst는 spec-decode backend에서 $-14\sim-20\%$ catastrophic으로,
-task-pool lock contention이 step 내부 critical path를 stall시킨다.
-
-%% -----------------------------------------------------------------------
-\subsection{Gating 이득의 원천 분해}
-\label{subsec:gating-origin}
-
-\algname-gated가 단일 backend 대비 우위를 보이는 원천은 두 가지로 분리된다.
-이 분리는 본 논문의 공정성 측면에서 중요하므로 명시적으로 다룬다.
-
-\begin{enumerate}
-\item \textbf{병렬 GPU 활용 ($\sim 50$--$60\%$ 기여)}:
-  본 end-to-end 측정에서 baseline-only는 \emph{단일} backend(GPU 4장)로,
-  \algname-gated는 \emph{두} backend(GPU 8장)로 운영된다.
-  따라서 처리량 이득의 절반 이상은 게이팅이 아니라
-  단순히 GPU 자원을 $2\times$ 투입한 데서 비롯된다.
-  Qwen-32B balanced에서 baseline-only $1{,}779$ tps $\to$ spec-only $2{,}721$ tps의
-  $+53\%$가 backend 병렬화만으로 발생한다.
-
-\item \textbf{Gating decision ($\sim 10$--$20\%$ 기여)}:
-  병렬화 효과를 제거한 게이팅의 \emph{순효과}는 spec-only 대비 측정해야 한다.
-  per-request 방법 선택이 회귀 방지(소형 모델 chat $\to$ baseline)와
-  최대 가속 유지(code/sonnet $\to$ spec-decode)를 동시에 달성하여,
-  Qwen-7B에서 spec-only 대비 $+25.3\%$의 순이득을 보인다.
-\end{enumerate}
-
-\noindent\textbf{공정성 한계.}
-현재 baseline-only(GPU 4장)와 \algname-gated(GPU 8장)는 GPU 수가 달라
-표~\ref{tbl:gating-main}의 ``vs Baseline'' 수치는 게이팅 순효과를 과대평가한다.
-게이팅의 엄밀한 순효과는 ``vs Spec-only'' 컬럼이 더 정확한 지표이다.
-양 구성의 GPU 수를 동일하게 고정한 통제 측정은 후속 실험으로 예정한다.
-
-% TODO: 공정한 gating 순효과 측정 — baseline-only와 CERES-gated를 동일 GPU 수
-%       (예: 양쪽 모두 GPU 8장, baseline은 두 backend 모두 baseline config)로
-%       고정하여 병렬화 효과를 제거한 gating decision 단독 기여 측정 필요.
-
-%% -----------------------------------------------------------------------
-\subsection{소형 모델 회귀 하드웨어 독립성 검증}
-\label{subsec:res-hw-independent}
-
-vLLM Issue \#16258은 opt-125m + ngram이 L4$\times$2에서 $2.12\times$ wall
-regression을 보임을 보고하였다.
-본 연구는 H100$\times$1 환경에서 동일 모델로 $2.13\times$ wall을 측정하여
-정확히 재현하였으며, 추가로 4개 모델을 cross-validation하였다.
-
-회귀율은 starcoder2-3b $2.30\times$, Qwen-0.5B $2.46\times$,
-Qwen-1.5B $2.63\times$로 증가하며, Qwen-0.5B + suffix도 $2.06\times$를 기록한다.
-이 패턴은 H100과 L4 두 GPU 세대에서 일관되므로,
-소형 모델 투기적 디코딩 회귀가 GPU 아키텍처에 무관한 \emph{구조적 현상}임을
-5개 모델 cross-validation으로 확립한다.
-이는 \algname 의 모델 크기 게이팅($\leq$7B $\to$ baseline)의 정량적 근거이다.
+한편 \textbf{CPU 는 7B부터 671B까지 전 140셀에서 $2.5\!\sim\!4.9\%$(중앙 $4.4\%$)} 로 유휴하다.
+즉 처리량 지배 기법이 성공할 때 GPU 여유와 CPU 유휴가 \emph{공존}하며,
+이 둘이 host-side reclamation 의 회수 대상이 된다(\S\ref{sec:direction}).
+(모델, 조건) oracle 전체는 Table~\ref{tbl:b200-oracle} 에 정리한다.

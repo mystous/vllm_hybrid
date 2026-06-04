@@ -3,100 +3,44 @@
 \section{논의}
 \label{sec:discussion}
 
-\subsection{llm-d와의 비교}
+\subsection{운영 함의: 경량 게이트면 충분하다}
 
-llm-d~\cite{llmd2025}는 Kubernetes 기반 LLM disaggregation으로
-워크로드 인지 라우팅을 지원하는 강력한 접근이다.
-\S\ref{subsec:res-b200}에서 동일 환경(B200$\times$8, 8개 모델)으로 실측한 결과,
-llm-d 는 vanilla 대비 80\%(45/56 셀)에서 우위를 보이나
-최선 단일 방법(suffix)을 능가하는 경우는 18\%(10/56)에 그쳤다.
-즉 클러스터 라우팅의 추가 이득은 서버 내 spec-decode 최적 선택 대비 제한적이며,
-이는 경량 워크로드 게이팅이 대부분의 가치를 포착할 수 있다는 본 연구의 전제를 뒷받침한다.
-두 시스템의 설계 철학은 다음과 같이 대비된다.
+특성화는 두 가지 배포 지침을 준다.
+\textbf{(1) 모델-유형 인지 게이트.} 부호의 지배 축이 모델 유형(추론/MoE 여부)이므로,
+모델별 오프라인 프로파일(Table~\ref{tbl:b200-oracle})을 1차 기준으로 삼고
+중형 모델에서만 워크로드를 2차로 보는 경량 게이트가 oracle 에 근접한다.
+\textbf{(2) 복잡한 라우터는 불필요할 수 있다.}
+llm-d 는 vanilla 대비 80\%에서 우위이나 최선 단일 방법 대비 18\%에 그친다
+(\S\ref{subsec:res-llmd}). 클러스터 disaggregation 의 추가 이득은
+서버 내 방법 선택 대비 제한적이다.
+다만 llm-d 와 본 게이트는 상호 보완적이다 ---
+노드 간은 llm-d, 노드 내는 모델-유형 게이트 + host reclamation 으로 구성할 수 있다.
 
-\begin{table}[t]
-\centering
-\caption{\algname\ vs.\ llm-d 설계 비교.}
-\label{tbl:vs-llmd}
-\footnotesize
-\begin{tabular}{@{}lll@{}}
-\toprule
-\textbf{항목} & \textbf{llm-d} & \textbf{\algname} \\
-\midrule
-배포 범위 & 클러스터(다중 노드) & 단일 서버 \\
-인프라 요구 & Kubernetes, etcd, & vLLM $+$ FastAPI \\
-            & 노드 간 KV 전송 & (코어 외부 라우팅) \\
-라우팅 기준 & prefill/decode 분리 & 워크로드$\times$모델 \\
-투기적 디코딩 & 별도 설계 필요 & spec-decode engine 내장 \\
-CPU 활용 & 미다룸 & NUMA pin $+$ branchy \\
-실측 이득 & vanilla 대비 80\% & oracle 게이트 상한 \\
-(B200, 56셀) & 최선단일 대비 18\% & (모델$\times$조건 최적) \\
-\midrule
-목표 & 클러스터 규모 확장 & 서버 내 효율 극대화 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsection{게이트 규칙의 일반화}
 
-두 접근은 상호 보완적이다.
-대규모 클러스터에서 llm-d가 노드 간 prefill/decode를 분리하는 동시에,
-각 노드 내부에서 \algname 이 워크로드 레벨 게이팅과 CPU 슬랙 하베스팅을 수행할 수 있다.
+현재 게이트는 측정된 (모델$\times$조건) oracle 에 기반한다.
+미측정 모델$\cdot$신규 아키텍처에는 런타임 accept rate $\alpha$ 모니터링으로
+식~\ref{eq:rk-condition}을 온라인 평가하여 자동 재조정하는 adaptive gate 가 필요하다.
+$\alpha$ 가 break-even 아래로 떨어지면 vanilla 로 강등하는 정책이 자연스럽다.
 
-\subsection{Code Agent에 대한 함의}
+\subsection{한계 (정직)}
 
-\S\ref{subsec:mot-code-fail}에서 논의한 바와 같이,
-code agent의 반복 호출 패턴은 투기적 디코딩 회귀의 누적 효과를 심화시킨다.
-\algname 의 워크로드 분류기는 현재 단발성 코드 생성(code workload)과
-code agent를 동일하게 처리한다.
+\textbf{Host reclamation 은 방향이며 아직 미측정.}
+\S\ref{sec:direction} 의 A1/A2/B 와 \algname\ 는 본 연구의 특성화에서 도출한
+설계 방향으로, B200 처리량 회수 \emph{결과}는 아직 없다.
+타당성은 \S\ref{subsec:decisive} 의 step 분해 프로파일로 판정되어야 하며,
+이것이 본 연구의 직접적 후속이다.
 
-% TODO: Code agent 특화 게이팅 전략.
-%       (1) tool calling JSON 생성(반복 구조 → suffix 적합)과
-%       (2) reasoning chain(고유 토큰 → suffix 불리)을 구분하는
-%       세분화 분류기 필요.
-%       현재 regex 분류기를 code agent 세부 패턴으로 확장하는 실험 필요.
+\textbf{측정 커버리지.}
+mix 는 별도 500 샘플이라 단일 corpus 와 절대 tps 직접 비교는 피했다(\S\ref{subsec:coverage}).
+naive ngram 은 Qwen-7B 전 corpus 만 측정(붕괴 확인), XL 2모델은 vanilla/suffix 만,
+eagle 계열은 범위 밖이다. 이들 확장은 후속 과제다.
 
-\subsection{한계}
-
-\textbf{하드웨어 특화.}
-대규모 실 트레이스 평가는 DGX B200$\times$8 + Xeon 8570 에서,
-CPU lever microstudy 는 개발 플랫폼 H100$\times$8 + Xeon SPR 에서 수행되었다.
-처리량 패턴은 두 플랫폼에서 일관되나, CPU 하베스팅
-hyperparameter($T_{\text{aux}}$, branchy 패턴)의 B200 재측정 및
-다른 GPU 세대(A100, H200), AMD GPU, 단일 소켓 서버로의 일반화는 미완이다.
-\algname 의 $T_{\text{gpu}}$ 자동 측정이 부분적 일반화를 지원하지만
-multi-environment 검증은 후속 연구이다.
-
-\textbf{Branchy 보조 작업의 미검증.}
-branchy 보조 작업의 $+5.28\%$(1-run)는 multi-run binding 검증이 완료되지 않았고,
-그 메커니즘(CPU active-state 유지, \S\ref{sec:mechanism})도 직접 측정으로
-확증되지 않은 \emph{예비 관찰}이다.
-따라서 \algname 의 CPU 하베스팅에서 production-ready로 권장하는 lever는
-검증·설명이 명확한 NUMA 바인딩($+3.13\%$ warm-only)이며,
-branchy 보조 작업은 향후 검증 대상이다.
-
-\textbf{게이팅 순효과의 공정 측정.}
-\S\ref{subsec:gating-origin}에서 분석했듯 현재 end-to-end 결과는
-baseline-only(GPU 4장)와 \algname-gated(GPU 8장)의 GPU 수 차이로 인해
-병렬화 효과를 포함한다.
-게이팅 decision의 순효과를 공정하게 측정하려면
-양 구성의 GPU 수를 동일하게 고정한 통제 실험이 필요하다(후속 연구).
-
-\textbf{짧은 디코딩 길이의 CPU lever 측정.}
-처리량 평가는 실제 서빙 trace(ShareGPT, WildChat, LMSYS-Chat, SWE-bench,
-MBPP, HumanEval) 2{,}159 prompt 와 \texttt{max\_tokens}=8{,}192 로
-대규모 재현되었으나(\S\ref{subsec:res-b200}),
-CPU lever microstudy 는 아직 \texttt{max\_tokens}=32 의 짧은 출력 환경에서
-수행되었다. 긴 디코딩(수천 토큰)에서의 lever 효과 및 실 trace 기반
-CPU 하베스팅 재측정은 후속 과제이다.
-
-\textbf{Gating 규칙의 확장성.}
-현재 벤더-워크로드 게이팅 규칙(Qwen-72B code $\to$ baseline)은
-수동 측정 결과에서 도출된다.
-Llama-405B FP8, 새 아키텍처 등 미측정 모델에서
-runtime accept rate 모니터링 기반 자동 규칙 생성이 필요하다.
+\textbf{정확도.}
+vanilla 와 suffix 의 출력 분포 동등(losslessness)을 확인했으나,
+추론 모델의 장문 생성에서 분포 유사성의 정밀 검증은 별도 게이트가 필요하다.
 
 \subsection{재현성}
 
-실험 스크립트, raw benchmark JSON, \algname\ 참조 구현은
+전 측정의 raw(per-request 로그$\cdot$summ JSON$\cdot$parquet)와 분석$\cdot$서빙 스크립트를
 보조 자료\footnote{Anonymous; URL will be provided in camera-ready.}로 공개한다.
-모든 참조의 publication metadata는 DBLP, OpenReview, arXiv, Semantic Scholar의
-다중 채널 검증(2026-05-27 기준)으로 확인되었다.

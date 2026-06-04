@@ -1,42 +1,41 @@
 %% sections/00_abstract.tex
 
 \begin{abstract}
-투기적 디코딩(speculative decoding)은 LLM 추론 처리량을 크게 향상시키지만,
-워크로드 유형과 모델 계열에 따라 효과가 극도로 다르게 나타난다.
-실제 서빙 trace 측정에서 naive n-gram 드래프터는 catastrophic regression
-($\sim\!-90\%$)을 일으키고, 추론 특화 모델에서는 suffix 조차 회귀하여 vanilla 가 최적이 된다.
-즉 최적 방법이 (모델 $\times$ 조건)마다 달라 단일 고정 설정이 구조적으로 최적일 수 없다.
-한편 기존의 워크로드 인지 라우팅 시스템(예: llm-d)은 이 문제를 다루지만
-disaggregation 구조의 복잡성이 배포 장벽으로 작용하며,
-실측 결과 그 추가 이득도 최선 단일 방법 대비 제한적이다.
+투기적 디코딩(speculative decoding)은 LLM 서빙 처리량의 \emph{지배적} 가속 기법이지만,
+그 효과는 모델과 워크로드에 따라 극단적으로 갈린다.
+우리는 DGX B200$\times$8 에서 7B부터 671B까지 10개 모델
+(Qwen$\cdot$Llama$\cdot$DeepSeek 계열, dense 및 MoE)을
+6종의 실 서빙 trace 와 혼합 트래픽으로 측정한
+대규모 특성화 연구(방법 $\times$ 조건 격자)를 수행하였다.
 
-본 논문은 \algname\ (\textbf{C}ontext-aware \textbf{E}fficient \textbf{R}outing
-with \textbf{E}xploited \textbf{S}lack)을 제안한다.
-\algname 은 두 가지 설계 원리를 통합한다.
-첫째, 워크로드 유형·모델 크기·벤더 아키텍처를 기준으로
-요청별(per-request) 투기적 디코딩 방법을 자동 선택하는 \emph{워크로드 레벨 게이팅}이다.
-둘째, 게이팅이 필연적으로 생성하는 이중 백엔드(dual-backend) 구조에서
-유휴 CPU를 NUMA 바인딩과 작업 패턴 조정으로 활용하여
-CPU-GPU 자원 간섭을 줄이고 GPU feeding 효율을 높이는 \emph{CPU 슬랙 하베스팅}이다.
-이는 CPU에서 별도 추론을 수행하는 것이 아니라,
-이중 백엔드의 부산물인 유휴 CPU를 간접적으로 활용하는 것이다.
+세 가지 결과를 보고한다.
+\textbf{첫째}, suffix 기반 spec-decode 는 70개 (모델$\times$조건) 쌍 중 55개에서
+$+9\%\sim+232\%$ 순 양성이나, 15개에서는 vanilla 가 더 빠르다.
+이 부호는 draft 수락률 $\alpha$ 와 per-step overhead 의 경쟁
+($\alpha\!\cdot\!K_{\mathrm{eff}}$ vs.\ overhead)으로 \emph{예측 가능}하다:
+net-positive 셀의 $\alpha$ 중앙값은 $0.68$, vanilla-win 셀은 $0.37$ 이다.
+\textbf{둘째}, vanilla 가 이기는 셀은 모두 \emph{추론 특화} 또는 \emph{MoE} 모델이다.
+DeepSeek-R1 671B(MoE 추론)는 전 조건에서 suffix 가 $-40\!\sim\!-64\%$ 손해이며,
+긴 사고 사슬 출력의 다양성과 expert routing 의 동적성이 draft 의
+prefix-match 를 무력화($\alpha\!\approx\!0.45$)함을 보인다.
+최적 방법은 파라미터 수가 아니라 \emph{모델 유형}이 결정한다.
+\textbf{셋째}, spec-decode 가 성공하는 곳에서 GPU 이용률은 오히려 떨어지고
+($94.9\%\!\to\!78.7\%$ 중앙), CPU 는 7B부터 671B까지 전 구성에서
+$2.5\!\sim\!4.9\%$ 로 유휴하다.
+즉 처리량 지배 기법이 시스템을 GPU 포화에서 \emph{host(CPU) 병목}으로 전환시키며,
+이 유휴 CPU 가 곧 회수 가능한 자원이다.
 
-DGX B200 $\times$ 8 환경에서 8개 모델(Qwen$\cdot$Llama$\cdot$DeepSeek 계열)을
-실제 서빙 trace(ShareGPT, WildChat, LMSYS-Chat, SWE-bench, MBPP, HumanEval)로
-측정한 결과, 이질 트래픽 조건에서 spec-decode 는 8개 모델 전체에서
-순 양성($+83\%\sim+232\%$)을 유지하면서도, 최적 방법은 (모델, 조건)마다
-달라 단일 고정 설정이 구조적으로 최적일 수 없음을 56개 oracle 셀로 입증한다.
-동일 환경에서 실측한 클러스터 라우터 llm-d 는 vanilla 대비 80\%(45/56)에서
-우위를 보이나 최선 단일 방법을 능가하는 경우는 18\%(10/56)에 그쳐,
-경량 워크로드 게이팅이 대부분의 가치를 포착함을 시사한다.
-자원 측정에서 CPU 는 전 구성에서 $\le5.6\%$ 로 유휴 상태에 머문다.
-CPU 슬랙 하베스팅에서는 NUMA 바인딩이 multi-run 검증을 통과한
-$+3.13\%$(warm-only)의 robust 이득을 제공하며,
-스텝 경계 정렬 보조 작업은 최대 $+5.28\%$의 예비 결과를 보인다(추가 검증 예정).
-코드는 보조 자료로 공개된다.
+이 특성화로부터 우리는 두 가지 운영 함의를 도출한다:
+(i) 무거운 클러스터 라우터(llm-d)는 vanilla 대비 80\%에서 우위이나
+최선 단일 방법을 능가하는 경우는 18\%에 그쳐, 경량 \emph{모델-유형 인지} 방법 선택이
+대부분의 가치를 포착한다.
+(ii) spec-decode 가 만든 host 병목을 유휴 CPU 로 떠안는
+\emph{host-side slack reclamation}이 다음 처리량 한계를 여는 경로이며,
+이를 위한 설계와 결정적 실험을 제시한다.
+모든 측정 데이터와 코드는 보조 자료로 공개한다.
 
 \smallskip
 \noindent\textbf{Index Terms}---
-LLM inference, Speculative decoding, Workload-aware routing,
-CPU-GPU heterogeneous serving, NUMA-aware optimization.
+LLM inference, Speculative decoding, Mixture-of-Experts, Workload characterization,
+CPU-GPU heterogeneous serving.
 \end{abstract}

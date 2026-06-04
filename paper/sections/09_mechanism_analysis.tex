@@ -3,104 +3,56 @@
 \section{메커니즘 분석}
 \label{sec:mechanism}
 
-\subsection{드래프터 품질과 R/K 메커니즘}
+\subsection{왜 naive n-gram은 실 트레이스에서 붕괴하는가}
 
-\textbf{왜 naive n-gram은 실 트레이스에서 붕괴하는가.}
-n-gram(prompt-lookup) 드래프터는 입력 프롬프트 내 n-gram 패턴 일치에 의존한다.
-실제 서빙 trace 는 고유 식별자, 다국어 토큰, 비반복 구문이 지배적이어서
-hit rate 가 극도로 낮고, $K \ll R$ 이 되어 검증 오버헤드만 누적된다.
-그 결과 Qwen-2.5-7B 에서 n-gram 은 corpus 종류와 무관하게
-$\sim\!-90\%$ 로 붕괴한다 (\S\ref{subsec:mot-code-fail},
-Table~\ref{tbl:b200-accept}).
+prompt-lookup n-gram 은 입력 내 n-gram 일치에만 의존한다.
+실 서빙 trace 는 고유 식별자$\cdot$다국어 토큰$\cdot$비반복 구문이 지배적이어서
+hit rate 가 극히 낮고, $\alpha K_{\mathrm{eff}}\ll\mathrm{overhead}$ 가 되어
+검증 비용만 누적된다. Qwen-7B 에서 n-gram 은 corpus 무관하게 $\sim\!-90\%$ 로 붕괴한다.
+따라서 naive n-gram 은 게이트 후보에서 제외된다.
 
-\textbf{왜 suffix는 실 트래픽에서 작동하는가.}
-SuffixDecoding은 입력 프롬프트뿐 아니라
-\emph{이전 생성 출력}을 suffix tree에 누적한다.
-생성 세션에서 반복 구조, 정형 구문(코드$\cdot$JSON), 라이브러리 호출이
-suffix tree에 축적되면서 수락률이 mix 기준 $\alpha = 0.79\text{--}0.93$ 에 이른다
-(Table~\ref{tbl:b200-accept}, \ref{tbl:b200-latency}).
-adaptive draft length($K_{\max}=32$)가 hit가 없는 경우 draft를 1개로 줄여
-$R$ 오버헤드도 최소화한다.
-$\alpha$ 가 높은 모델일수록 처리량 이득이 커지는 R/K 관계가
-8개 모델에서 일관되게 관찰된다.
+\subsection{왜 suffix는 대부분의 모델에서 작동하는가}
 
-\textbf{왜 추론 특화 모델에서 spec-decode가 회귀하는가.}
-실 트레이스 평가에서 DeepSeek-R1-Distill-Llama-70B 는
-mix 를 제외한 6개 단일 corpus 전부에서 spec-decode 가 회귀하여
-vanilla 가 최적이다 (Table~\ref{tbl:b200-oracle}).
-동일 70B 급 Llama-3.1-70B 가 전 조건 suffix 최적인 것과 정반대다.
-추론 특화 모델은 긴 사고 사슬(chain-of-thought)을 생성하며,
-이 자기-생성 추론 텍스트는 토큰 분포의 엔트로피가 높고
-이전 출력과의 표층적 반복이 적어 suffix tree hit pattern 과 정합하지 않는다.
-이로 인해 수락률이 낮아져 $K < R$ 이 되고 spec-decode 가 손해가 된다.
-모델 크기가 아니라 \emph{모델 계열$\cdot$출력 특성}이
-최적 방법을 결정함을 보이며, 이는 \algname\ 벤더-아키텍처 게이팅의 근거이다.
-정확한 토크나이저$\cdot$attention 수준 메커니즘은 후속 연구로 남긴다.
+SuffixDecoding 은 입력과 이전 생성 출력을 suffix tree 에 누적하여
+반복 구조$\cdot$정형 구문(코드$\cdot$JSON)$\cdot$라이브러리 호출을 드래프트로 재사용한다.
+그 결과 dense 표준 모델에서 $\alpha=0.6\!\sim\!0.93$ 의 높은 수락률을 달성하고
+(Table~\ref{tbl:b200-latency}), $\alpha$ 가 높을수록 이득이 커지는 R/K 관계가
+10개 모델에서 일관 관찰된다(Fig.~\ref{fig:alpha-gain}).
 
-\subsection{CPU 슬랙 하베스팅 메커니즘}
+\subsection{왜 추론 특화 모델에서 $\alpha$가 무너지는가}
+\label{subsec:mech-reasoning}
 
-\textbf{스텝 경계 정렬.}
-GPU 추론 스텝 주기 $T_{\text{gpu}} \approx 35\text{--}44$\,ms에서
-$T_{\text{aux}} = 100$\,ms는 $k = T_{\text{aux}} / T_{\text{gpu}} \approx 2.5$에 해당한다.
-즉 보조 작업이 $2$--$3$ 스텝 경계마다 한 번 발사되어
-스텝 내부 critical path와 겹치지 않는다.
-이와 달리 $T_{\text{aux}} = 10$\,ms ($k=0.25$)는 스텝 내부에 개입하여
-$-0.82\%$의 net-negative를 초래하고,
-$T_{\text{aux}} = 20$\,ms는 multi-run에서 $-5.96\%$로 부호가 반전된다.
+추론 특화 모델(R1 계열)은 답 이전에 긴 사고 사슬을 생성한다.
+같은 instruction 에도 서로 다른 추론 경로를 취하므로 출력의 표층 반복성이 낮고,
+suffix tree 에 축적된 과거 출력과의 prefix-match 율이 떨어진다.
+실측에서 R1-Distill-Llama-70B 의 단일 corpus $\alpha$ 는 $0.27\!\sim\!0.38$ 로,
+$1+\alpha K_{\mathrm{eff}}\approx 1.3$ --- 즉 spec 효과가 거의 소멸한다.
+overhead 자체는 작아(wall ratio $\approx 1.1$) 손실 폭은 $-2\!\sim\!-15\%$ 로 작지만
+부호는 일관되게 음(陰)이다.
+(mix 조건만 net-positive 인 이유는 누적 cache 의 cross-corpus 부분 일치로
+$\alpha$ 가 일부 회복되기 때문이다.)
 
-\textbf{작업 패턴과 CPU active-state 유지 (가설).}
-보조 작업이 \emph{없을} 때보다 branchy 보조 작업을 \emph{돌릴} 때
-처리량이 더 높다는 관찰은 단순 간섭 회피로는 설명되지 않는다.
-우리는 이를 \emph{CPU active-state 유지} 메커니즘으로 해석한다.
-유휴 CPU는 절전을 위해 깊은 C-state로 진입하며,
-GPU에 다음 배치를 공급(feeding)해야 할 때 wake-up 지연이 발생한다.
-이 지연은 멀티-GPU 추론에서 CPU가 GPU를 충분히 빠르게 채우지 못하는
-병목으로 알려져 있다~\cite{chung2026cpuslowdowns}.
-주기적 보조 작업은 CPU 코어를 active 상태로 유지하여
-이 wake-up 지연을 줄이고, 결과적으로 GPU feeding latency를 단축한다.
+\subsection{왜 MoE 추론(R1-671B)이 최악인가}
+\label{subsec:mech-moe}
 
-작업 \emph{패턴}이 중요한 이유도 이 관점에서 설명된다.
-regular SIMD 작업(softmax, vectorized loop)은 메모리 대역폭과
-PCIe 트래픽을 추가로 유발하여, NCCL all-reduce/KV prefetch로
-이미 포화된 PCIe 버스에서 GPU feeding과 경쟁한다.
-반면 branchy 패턴(rank/sort 등 분기 예측 불가 코드)은
-순수 연산 위주로 메모리/PCIe 트래픽이 적어 CPU를 active로 유지하면서도
-GPU feeding을 방해하지 않는다.
-이것이 \emph{느리고 불규칙한} 100\,ms branchy 작업이
-\emph{빠르고 규칙적인} 10\,ms regular 작업보다 우월한 이유에 대한
-우리의 가설이다.
+R1-671B 는 \emph{두 효과}를 결합한다.
+(i) 추론 출력 다양성으로 $\alpha$ 가 낮고($\approx0.45$, \S\ref{subsec:mech-reasoning}),
+(ii) MoE 는 토큰마다 expert 라우팅이 달라 draft 토큰열의 분포 예측을 더 어렵게 하며,
+동시에 671B activated 경로의 \emph{verify forward 비용이 커서 overhead 가 크다}
+(wall ratio $1.6\!\sim\!2.9$).
+식~\ref{eq:rk-condition}의 두 항이 모두 불리한 방향이므로,
+$\alpha\approx0.5$ 에서도 $-40\!\sim\!-64\%$ 로 크게 손해다(Table~\ref{tbl:b200-xl}).
+이는 \emph{최적 방법이 크기가 아니라 모델 유형}임을 메커니즘 수준에서 설명한다.
 
-다만 이 메커니즘은 직접 측정(C-state residency, RAPL 전력, PCIe 카운터)으로
-확증되지 않았으며, branchy 보조 작업의 $+5.28\%$ 효과 자체도
-multi-run binding 검증이 완료되지 않았다(\S\ref{sec:discussion}).
-따라서 본 절의 패턴-효과 분석은 \emph{예비 관찰}이며,
-\algname 의 CPU 하베스팅에서 검증된 robust 기여는
-다음에 설명할 NUMA 바인딩이다.
+\subsection{성공/실패가 자원에 남기는 상반된 흔적}
+\label{subsec:mech-resource}
 
-\textbf{NUMA 바인딩 효과.}
-vLLM의 텐서 병렬 인스턴스는 NCCL all-reduce 트래픽이 빈번하다.
-인스턴스의 CPU/메모리 affinity를 GPU PCIe affinity와 일치시키면
-cross-socket QPI 트래픽이 제거된다.
-이는 측정마다 일관된 latency 회복을 보장하여
-multi-run binding을 유일하게 통과하는 robust 양성 신호($+3.13\%$ warm-only)가 된다.
-
-반면 OS isolation lever(cgroup, hugepages, taskset) 단독은
-$-0.39\%$에 그치고, 4개를 stacking하면 $-0.03\%$로 destructive interference가 발생한다.
-이는 동일 도메인(system) 내 자원(context-switch slot, TLB, cache)의
-경쟁 누적이 원인이다.
-
-\subsection{Gating decision 원천 분해}
-
-End-to-end \algname-gated 이득의 두 원천을 분리한다.
-
-\begin{itemize}
-\item \textbf{병렬 GPU 활용 ($\sim 50\text{--}60\%$ 기여)}: 두 backend가 동시 활성화되어
-  단일 인스턴스 대비 $\sim 2\times$ GPU 자원이 서빙에 투입된다.
-  이는 gating 자체와 무관하게 dual-backend 구조에서 발생하는 기저 이득이다.
-
-\item \textbf{Gating decision ($\sim 10\text{--}20\%$ 기여)}: per-request 방법 선택이
-  chat $\to$ baseline(회귀 방지), sonnet/code $\to$ spec-decode(가속 유지)를 선택하여
-  spec-only 대비 추가 이득을 확보한다.
-  Qwen-7B에서 gating value가 최대($+25.3\%$ vs spec-only)인 이유는
-  chat 워크로드에서 baseline 선택 효과가 특히 크기 때문이다.
-\end{itemize}
+부호는 자원 균형으로도 드러난다(\S\ref{subsec:res-resource}).
+\textbf{성공}하면 step 수가 줄어 GPU 가 un-saturate 되고($94.9\!\to\!78.7\%$),
+줄어든 step 사이의 host-path 작업이 상대적으로 커진다 ---
+시스템이 host(CPU)-bound 로 전환되며 회수 가능한 GPU 여유와 유휴 CPU 가 공존한다.
+\textbf{실패}하면 거부되는 draft 의 낭비 연산으로 GPU 가 포화를 유지하므로
+($98.2\!\to\!86.8\%$) host-bound 여유가 작다.
+따라서 host-side reclamation(\S\ref{sec:direction})의 기회는
+\emph{정확히 spec-decode 가 성공하는 모델$\cdot$조건}에 비례하여 존재한다.
+이 인과를 정량 분해하는 것이 \S\ref{subsec:decisive} 의 결정적 실험이다.
