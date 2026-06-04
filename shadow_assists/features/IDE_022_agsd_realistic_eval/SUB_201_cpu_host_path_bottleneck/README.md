@@ -1,7 +1,7 @@
 # SUB_201 — spec-decode가 만든 host(CPU) 병목 재배치: CPU 병렬성 활용처 재정립
 
 > **parent**: `TSK_042` (IDE_022). 선행 데이터: `TSK_042_realistic_workload_oracle/RESULTS.md` (**222셀, B200, 10모델 × {vanilla, suffix, llm-d, ngram} × 7조건**, XL 매트릭스 = 405B + 671B 추가 완료).
-> **status**: 🔵 분석 완료 (XL 데이터 반영, 2026-06-04 갱신) / 결정적 실험(§5) 대기 — **AGSD 개념 전제 폐기**, CPU 병렬성 활용처를 데이터에서 재유도.
+> **status**: 🔵 분석 완료 (XL 데이터 반영, 2026-06-04 갱신) / 결정적 실험(§5) 1차 완료 (2026-06-05) — **기존 AGSD 분류기 알고리즘(C0~C3) 폐기, 단 워크로드별 라우팅 개념 자체는 유지** (모델계열+워크로드 hybrid gate 로 재정렬). CPU 병렬성 활용처를 데이터에서 재유도.
 > **date**: 2026-06-04 (XL 추가 갱신)
 > **HW**: DGX B200×8 (183GB HBM3e sm_100) + Intel Xeon Platinum 8570 (224스레드 2 NUMA, 2TB DRAM)
 > **분류**: 연구/방향 재정립 (lever 탐색의 상위 thesis 결정)
@@ -12,7 +12,12 @@
 
 사용자 지시: **"AGSD 개념을 꼭 유지할 필요 없다. 지금 상황을 철저히 논리적으로 분석하고 CPU 병렬성을 활용할 곳을 찾자."**
 
-따라서 본 문서는 AGSD(워크로드 레벨 게이팅) thesis 를 전제하지 않고,
+> **명확화 (2026-06-05)**: 사용자 후속 지시 — **"워크로드별 라우팅(분배) 개념 자체는 유지, 단 기존 AGSD 분류기 알고리즘(C0 regex / C1 regex 확장 / C2 hashing-LR / C3 minilm ONNX) 만 폐기"**. 즉:
+> - ✅ 유지: 모델 × 워크로드 별로 최적 method 선택하는 *gating* 아이디어 (TSK_042 oracle 의 정합)
+> - ❌ 폐기: AGSD 의 per-request 워크로드 분류기 (C0~C3) 알고리즘 — 모델계열+워크로드 hybrid gate (oracle lookup 등 단순 구조) 로 교체
+> - 본 SUB_201 은 위 gating 아래에서 **CPU 병렬성으로 GPU slack 회수** 방향을 다룬다 (gating 과 lever 는 직교).
+
+따라서 본 문서는 AGSD 분류기 algorithm 을 전제하지 않고,
 TSK_042 의 XL 매트릭스(222셀) 실측 데이터에서만 출발해
 **프로젝트 목표(CPU 활용률 극대화 → GPU 서버/클러스터 전체 성능↑)**를
 달성할 수 있는 CPU 병렬성의 *실제* 적용 지점을 논리적으로 유도한다.
@@ -250,7 +255,7 @@ GPU util 하락(§1.3)의 원인이 host gap(a)인지 / verify 내부(b)인지 /
 
 | 폐기 대상 | 근거 |
 |---|---|
-| **AGSD per-request 워크로드 게이팅을 1번 기여로 보는 framing** | TSK_042: method 최적값의 지배 축은 워크로드가 아니라 **모델 계열**. 단일 모델 배포 시 per-request 워크로드 게이팅 이득은 Llama·DeepSeek 계열 0, Qwen 중형만 ~10–22%. |
+| **AGSD per-request 워크로드 게이팅을 1번 기여로 보는 framing + C0~C3 분류기 algorithm** | TSK_042: method 최적값의 지배 축은 워크로드가 아니라 **모델 계열**. 단일 모델 배포 시 per-request 워크로드 게이팅 이득은 Llama·DeepSeek 계열 0, Qwen 중형만 ~10–22%. ⚠ **gating 개념 자체는 유지** (모델계열+워크로드 hybrid gate, §9). 폐기 대상은 (a) 1번 기여 framing, (b) C0 regex / C1 regex-ext / C2 hashing-LR / C3 minilm ONNX 분류기 algorithm — oracle lookup 등 단순 매핑으로 교체. |
 | **IDE_018 phase-burst / task-pool** | C1 (매트멀 오프로드, H2D/D2H 패배, stub) |
 | **branchy busywork harvest (SUB_196 cellB 등)** | C2 (유용 작업 아님, 미검증, work-pattern sensitive) |
 | **IDE_023 5-axis "CPU slack harvesting"의 busywork 성격 부분** | harvest가 *유용한 host-path 작업*이 아니면 폐기. A1/A2/B로 재흡수. CPU 하베스팅은 논문에서 **future work로 강등**(사용자 결정). |
@@ -275,7 +280,7 @@ GPU util 하락(§1.3)의 원인이 host gap(a)인지 / verify 내부(b)인지 /
 
 ## 9. TSK_043 재정렬 함의
 
-- 기존 TSK_043 = AGSD 분류기(C0~C3) decision-regret. 사용자 결정 = **모델계열+워크로드 hybrid gate**.
+- 기존 TSK_043 = AGSD 분류기(C0~C3) decision-regret. 사용자 결정 = **모델계열+워크로드 hybrid gate** (워크로드 분배 개념 유지, 분류기 algorithm 만 폐기 후 oracle lookup 등 단순 매핑으로 교체).
 - SUB_201 관점에서 TSK_043의 가치: gate는 **모델별 oracle 프로파일 1차 + (Qwen 중형) 워크로드 2차**. regret = hybrid-oracle 대비.
 - 단, gate 자체는 throughput 지배 lever가 아님(§7). TSK_043은 "회귀 회피 안전장치"로 위상 축소, **본론은 §5의 host-path 회수**.
 
