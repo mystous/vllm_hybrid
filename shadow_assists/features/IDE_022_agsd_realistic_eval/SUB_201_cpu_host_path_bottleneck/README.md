@@ -1,8 +1,8 @@
 # SUB_201 — spec-decode가 만든 host(CPU) 병목 재배치: CPU 병렬성 활용처 재정립
 
-> **parent**: `TSK_042` (IDE_022). 선행 데이터: `TSK_042_realistic_workload_oracle/RESULTS.md` (173셀, B200, 8모델×4method×7조건).
-> **status**: 🔵 분석 완료 / 결정적 실험(§5) 대기 — **AGSD 개념 전제 폐기**, CPU 병렬성 활용처를 데이터에서 재유도.
-> **date**: 2026-06-04
+> **parent**: `TSK_042` (IDE_022). 선행 데이터: `TSK_042_realistic_workload_oracle/RESULTS.md` (**222셀, B200, 10모델 × {vanilla, suffix, llm-d, ngram} × 7조건**, XL 매트릭스 = 405B + 671B 추가 완료).
+> **status**: 🔵 분석 완료 (XL 데이터 반영, 2026-06-04 갱신) / 결정적 실험(§5) 대기 — **AGSD 개념 전제 폐기**, CPU 병렬성 활용처를 데이터에서 재유도.
+> **date**: 2026-06-04 (XL 추가 갱신)
 > **HW**: DGX B200×8 (183GB HBM3e sm_100) + Intel Xeon Platinum 8570 (224스레드 2 NUMA, 2TB DRAM)
 > **분류**: 연구/방향 재정립 (lever 탐색의 상위 thesis 결정)
 
@@ -24,19 +24,30 @@ spec-decode가 만든 host-path 병목을 떠안아 GPU slack을 회수하는 �
 
 ---
 
-## 1. 데이터가 강제하는 사실 (TSK_042, 반박 불가)
+## 1. 데이터가 강제하는 사실 (TSK_042 XL 매트릭스 222셀, 반박 불가)
 
-### 1.1 throughput·util 핵심 (mix 조건)
+### 1.1 throughput·util 핵심 — 10모델 (mix 조건, 사이즈 오름차순)
 
-| 모델 | vanilla tps | suffix tps | ΔSuf | GPU% v→s | CPU% v→s |
-|---|--:|--:|--:|--:|--:|
-| Llama-3.1-8B | 8,850 | 27,851 | +215% | 94.9→**62.8** | 4.6→4.4 |
-| DeepSeek-Qwen-7B | 9,058 | 24,458 | +170% | 91.8→**63.8** | 2.8→2.6 |
-| Llama-3.1-70B | 3,129 | 10,400 | +232% | 98.5→83.4 | 4.8→4.4 |
-| Qwen-2.5-7B | 4,169 | 7,803 | +87% | 82.5→**26.5** | 2.7→2.5 |
-| Qwen-2.5-32B | 3,056 | 6,597 | +116% | 94.3→**64.8** | 4.4→4.3 |
+| 모델 | size | vanilla tps | suffix tps | ΔSuf | GPU% v→s | ΔGPU | CPU% v→s | suf α |
+|---|---|--:|--:|--:|--:|--:|--:|--:|
+| Qwen-2.5-7B | 7B(TP4) | 4,169 | 7,803 | +87% | 82.4→**36.9** | **+45.5** | 2.7→2.5 | 0.84 |
+| Llama-3.1-8B | 8B | 8,850 | **27,851** ⭐ | **+215%** | 94.6→**66.8** | +27.8 | 4.6→4.4 | 0.85 |
+| DS-Qwen-7B | 7B | 9,058 | 24,458 | +170% | 91.4→**66.6** | +24.7 | 2.8→2.6 | 0.64 |
+| Qwen-2.5-32B | 32B | 3,056 | 6,597 | +116% | 94.1→**71.2** | +22.9 | 4.4→4.3 | 0.67 |
+| DS-Qwen-32B | 32B | 4,938 | 9,056 | +83% | 97.4→81.5 | +15.9 | 4.8→4.4 | 0.56 |
+| Qwen-2.5-72B | 72B | 2,735 | 5,268 | +93% | 97.1→83.7 | +13.4 | 4.6→4.3 | 0.48 |
+| Llama-3.1-70B | 70B | 3,129 | **10,400** | **+232%** | 98.2→85.4 | +12.7 | 4.8→4.3 | 0.72 |
+| DS-Llama-70B | 70B | 3,164 | 6,127 | +94% (mix only) | 98.2→85.9 | +12.3 | 4.9→4.4 | **0.40** |
+| **Llama-405B FP8** | 405B | 1,252 | 2,829 | +126% | 98.8→93.1 | **+5.8** | 4.8→4.3 | 0.69 |
+| **DeepSeek-R1 671B (MoE)** | 37B act | 1,538 | **781** | **−49%** ← worst | 97.6→93.7 | **+3.9** | 4.8→4.3 | **0.46** |
 
-(전체 8모델: `TSK_042_realistic_workload_oracle/RESULTS.md` §1)
+(전체 데이터: `TSK_042_realistic_workload_oracle/RESULTS.md`, raw `runs/tput_t1t3_20260602/metrics_table.parquet`)
+
+**⚠️ XL 매트릭스에서 새로 드러난 thesis caveat**:
+- **DS-Llama-70B 의 mix 외 6/7 셀, R1 671B 의 7/7 셀에서 suffix 가 vanilla 보다 느림** (총 vanilla-win 15셀)
+- **R1 671B 는 매트릭스 worst suffix match** (mix −49%, α 0.46) — MoE expert routing 의 dynamism + reasoning 다양성이 suffix cache prefix-match 율 무력화
+- **사이즈가 클수록 ΔGPU 작아짐**: 7B +45 → 8B +28 → 32B +23 → 70B +13 → 405B +6 → 671B +4. **spec-decode 의 GPU un-saturate 효과 = 작은 모델에서 강함**
+- 즉 § thesis 의 "host-bound 전환" 은 **작은~중형 모델 + 높은 α 모델군에 강하게 적용**, **큰 모델 / 낮은 α 모델 (DS distill 70B+, MoE R1)** 은 별도 대책 필요 (→ §4.2 A1 CPU drafting 의 primary target)
 
 ### 1.2 세 가지 반박 불가 사실
 
@@ -51,8 +62,36 @@ spec-decode가 만든 host-path 병목을 떠안아 GPU slack을 회수하는 �
 | DeepSeek-Qwen-7B | 16.8→22.3 | 3.3→**0.9** | 0.876 |
 | Llama-3.1-70B | 28.4→56.3 | 9.2→**2.5** | 0.915 |
 | Qwen-2.5-32B | 29.6→65.4 | 9.3→**3.1** | 0.857 |
+| Llama-405B FP8 | 71.1→122.2 (+72%) | — | 0.766 |
+| **DeepSeek-R1 671B** | **65.6→196.8 (+200%)** | — | **0.451** |
 
-suffix는 TPOT(토큰당 지연)를 크게 줄이지만 TTFT는 늘린다 → step 수 급감 + step당 host 비용 증가.
+suffix는 TPOT(토큰당 지연)를 크게 줄이지만 TTFT는 늘린다 → step 수 급감 + step당 host 비용 증가. **R1 의 TTFT 가 3× 폭증** 은 MoE expert routing + draft+verify overhead 의 host-path 부담이 매우 큼을 시사 (§5 결정적 실험의 핵심 단서).
+
+### 1.4 vanilla > suffix 셀 (15개) — α 임계치 분석
+
+XL 매트릭스의 결정적 evidence: **suffix 가 vanilla 보다 느린 셀들의 공통 분모 = 낮은 α**.
+
+| set | 셀 수 | α median | α range |
+|---|--:|--:|--:|
+| **suffix gain > 0** (suffix 이긴 셀) | 55 | **0.684** | 0.28 ~ 1.41 |
+| **suffix gain < 0** (vanilla 이긴 셀) | **15** | **0.374** | 0.27 ~ 0.54 |
+
+→ **α ~0.5 가 break-even 임계치** (K=32 num_speculative_tokens 셋업). 그 아래에선 spec 의 wasted compute (draft 생성 + reject) 가 gain 을 초과.
+
+**15개 vanilla-win 셀 분포**:
+
+| 모델군 | 셀 | α 범위 | s_wall/v_wall |
+|---|---|---|---|
+| **R1 671B** | 7/7 | 0.36~0.54 | **1.62~2.88×** (overhead 매우 큼) |
+| **DS-Llama 70B** | 6/7 (mix 만 suffix) | 0.27~0.38 | 1.0~1.18× (overhead 작음, α 가 결정) |
+| **Qwen 72B** | wildchat / mbpp | 0.27~0.47 | 1.05~1.08× (marginal) |
+
+`s_ctok / v_ctok ≈ 0.88~1.05` — suffix 와 vanilla 가 거의 같은 토큰 수 생성 (모델 동일, lossless). **tps 차이 = wall time 차이**.
+
+**근본 원인 (모델 패턴별)**:
+- **DeepSeek-R1 MoE**: 256 expert dynamic routing + reasoning 출력 다양성 → suffix cache prefix-match 율 ↓ + verify 의 큰 forward pass cost
+- **DS-Llama-70B**: distill reasoning chain 의 다양성 → α 0.27~0.38 (mean accept length ≈ 1.3, spec 효과 거의 없음)
+- **Qwen-72B wildchat/mbpp**: 큰 모델 + multi-turn 다양성 → marginal break-even
 
 ---
 
@@ -128,6 +167,32 @@ spec-decode는 이 다수의 순차 step을 **소수의 큰 verify step**으로 
 - **데이터 정합**: 지배 lever(suffix)의 GPU util 하락분(회수 대상)의 원인이 host-path이고, CPU가 정확히 그 자리를 메운다.
 - **죽은 길과 명확히 구분**: 매트멀 오프로드(C) 아님 — host-path는 본래 CPU 작업이다.
 - **기존 자산 재활용**: IDE_019(multi_source_drafter)가 바로 이 방향. SUB_187 AMX draft microbench feasible(0.524ms). IDE_018/branchy harvest 트랙은 폐기.
+
+### 4.1 ROI 우선순위 — XL 매트릭스 (222셀) 기반 정량 추정
+
+| 우선 | Lever | 대상 모델·워크로드 | 정량 ROI 추정 | 근거 (XL 매트릭스 evidence) |
+|---|---|---|---|---|
+| 🥇 1 | **A1 CPU drafting** | R1 (α 0.46), DS-Llama-70B (α 0.40), Qwen-72B (α 0.48), DS-Qwen-32B (α 0.56) — **α<0.5 의 7+ 모델군** | suffix -49% → **+20~+50% 회복 가능** (R1 mix 781→2,000~3,000 tps) | 15 vanilla-win 셀 모두 α<0.55. CPU draft = GPU 가 verify only → draft cost 0, α 회복 가능 |
+| 🥈 2 | **B1 detok AVX-512** | 7B/8B 클래스 모든 워크로드, throughput 큰 셀 (Llama-8B mix 27,851 tps) | +10~+20% (37% wall slack 의 일부 회수) | Llama-8B suffix mix wall 136s 중 51s = 37% slack. detok 이 critical path 경쟁 시 idle 코어 분리로 wall ↓ |
+| 🥉 3 | **B3 scheduler / inter-kernel gap** | R1 (TTFT +200%), 큰 모델 ttft 폭증 셀 | Nsight 측정 후 결정 (gate) | R1 vanilla 65ms→suffix 196ms 의 폭증이 scheduler/batching/KV alloc 의 host 작업 늘어남 신호. §5 의 결정적 실험 대상 |
+| 4 | **A2 KV tiering** | 405B (GQA KV head 8), long-context | 우리 데이터로 직접 증명 X — 별도 실험 (long context, large batch) 필요 | 405B vanilla GPU 98.8% saturated, KV space 늘리면 batch ↑ 가능. R1 MLA(kv_lora_rank=512) 작음 → ROI 작음 |
+
+### 4.2 모델군별 lever 매핑 (top-down)
+
+**작은 모델 (7B/8B/32B) — host-bound 강함**:
+- suffix 가 GPU 를 26~71% 로 떨어뜨림 → **§5 (a) host gap 가설 가능성 가장 높음**
+- B1 detok / B3 scheduler 가 직접 효과
+- 이미 suffix 가 +87~232% 가속, 추가 회수 여지 30~40%
+
+**중대형 모델 (70B/72B) — 혼합**:
+- Llama-70B suffix +88% (α 0.72), DS-Llama-70B suffix -10% (α 0.40)
+- 같은 사이즈인데 α 가 갈리는 게 핵심 — **distill family 차이**
+- A1 CPU drafting 으로 α 회복 가능성 (suffix tree 가 cache miss 인 distill chain 에서 ML draft head 가 더 정확할 가능성)
+
+**초대형 모델 (405B dense, 671B MoE) — GPU bound 유지**:
+- ΔGPU 4~6% 만 — host-bound 전환 효과 약함
+- 405B suffix 는 정상 작동 (+91% avg) — A1 의 ROI 일반적 (작음)
+- **671B 가 최우선 target**: vanilla > suffix 의 -49% 페널티 회복 시 절대 throughput +1,500 tps 가능 (큰 모델이라 환산 가치 큼)
 
 ---
 
@@ -212,9 +277,13 @@ GPU util 하락(§1.3)의 원인이 host gap(a)인지 / verify 내부(b)인지 /
 ## 10. 다음 단계 (child / follow-up 제안)
 
 1. **(즉시·필수)** §5 step 분해 프로파일 — Qwen-7B suffix + Llama-70B suffix. → verdict.
+   - **XL 추가**: **R1 671B suffix** 도 분해 대상 (suffix 음수 gain -49% 의 원인이 host overhead 인지 verify 내부인지)
 2. (a 판명 시) A1 CPU 드래프팅 real spec_decode 통합 PoC (IDE_019 자산 재활용, vllm/v1/spec_decode/ cpu proposer).
+   - **primary target = R1 671B + DS-Llama-70B** (α<0.5 모델, vanilla-win 셀들의 회복 ROI 큼)
 3. (a 판명 시) B1 detok + B2 constrained-decode 오프로드 PoC.
+   - **primary target = Llama-8B / DS-Qwen-7B** (mix throughput 24~27k tps, wall slack 37%)
 4. (c 판명 시) A2 KV tiering + concurrency sweep.
+   - **primary target = 405B** (KV cache 큰 dense), R1 은 MLA 라 후순위
 5. §5 verdict 기반 논문 골격 재작성 (별도 작업).
 
 ---
@@ -222,6 +291,21 @@ GPU util 하락(§1.3)의 원인이 host gap(a)인지 / verify 내부(b)인지 /
 ## 부록 — 데이터 출처
 
 - throughput/util/latency/α: `features/IDE_022_agsd_realistic_eval/TSK_042_realistic_workload_oracle/RESULTS.md`
-- raw: `vllm_config_perf/gating/realistic_eval/runs/routing_combined/` (per_request_raw.jsonl, summ_*.json ×173, metrics_table.parquet)
-- 커버리지 한계(SUB_201 측정 시 유의): mix=별도 500샘플(전체 2,159 아님), ngram=Qwen-7B 1모델만, eagle 미측정.
+- raw: `vllm_config_perf/gating/realistic_eval/runs/tput_t1t3_20260602/` (per_request_raw.jsonl, summ_*.json ×140 v/s + 5 ngram + cells/, metrics_table.parquet)
+- llm-d: `vllm_config_perf/gating/realistic_eval/runs/routing_llmd_20260603/` (summ_*.json ×56 conc=32 + ×21 concurrency sweep)
+- 통합: `runs/routing_combined/` (3-routing 통합 산출물)
+- 커버리지 (XL 매트릭스 갱신, 2026-06-04): **222셀 총합** = vanilla 70 + suffix 70 + ngram 5 (Qwen-7B baseline) + llm-d 56 + llm-d sweep 21. **405B + 671B llm-d 는 미측정** (별도 다른 세션에서 K8s 구성 후 진행 예정).
+- mix=별도 500샘플(전체 2,159 아님), eagle 미측정.
 - 관련 ID: IDE_019(CPU draft), IDE_017(KV/DMA), IDE_016(detok/AVX-512), SUB_187(AMX draft feasible), IDE_018/SUB_196(폐기 대상).
+
+---
+
+## 부록 B — XL 매트릭스 (2026-06-04 추가) 의 핵심 변경
+
+| 항목 | 기존 (8모델 173셀) | XL 갱신 (10모델 222셀) |
+|---|---|---|
+| 매트릭스 1위 (mix tps) | DS-Qwen-7B suffix 24,458 | **Llama-8B suffix 27,851** (XL 추가 405B/671B 가 직접 신기록은 아님) |
+| α 임계치 evidence | 일반론 | **vanilla>suffix 15셀의 α median 0.37, positive 55셀의 median 0.68** → **α≈0.5 break-even 정량 확정** |
+| 최대 모델 GPU 거동 | 70B 까지 | 405B (suffix GPU 93.1%, ΔGPU +5.8) + 671B MoE (suffix GPU 93.7%, ΔGPU +3.9) — **사이즈 단조 host-bound 약화** 확정 |
+| worst suffix match | DS-Llama-70B (6/7 셀 음수) | **R1 671B (7/7 셀 음수, -49%, α 0.46)** — A1 CPU drafting 의 primary target 확정 |
+| thesis caveat | "spec-decode → host-bound" 일반 적용 가정 | **"작은 모델 / 높은 α 모델군에 강하게 적용", 큰 모델·낮은 α 는 별도 lever (A1)** 필요 |

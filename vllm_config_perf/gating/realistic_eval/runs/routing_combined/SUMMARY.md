@@ -1,15 +1,17 @@
 # TSK_042 (B) 측정 결과 — 실 trace, conc=32, max_tokens=8192, stream, TP=8(7B Qwen만 4)
 
-모델 8 × method 4 × 조건 7. 셀 173개.
+모델 10 × method 4 × 조건 7. 셀 215개.
 
 ## 처리량 (output_tps) — 조건별 model×method
 
 ### sharegpt
 | model | llm-d | ngram | suffix | vanilla | best | suffix vs van |
 |---|---|---|---|---|---|---|
+| DeepSeek-R1 | 997 | — | 797 | 1,475 | vanilla | -46% |
 | DeepSeek-R1-Distill-Llama-70B | 2,450 | — | 2,660 | 3,033 | vanilla | -12% |
 | DeepSeek-R1-Distill-Qwen-32B | 4,825 | — | 4,996 | 4,803 | suffix | +4% |
 | DeepSeek-R1-Distill-Qwen-7B | 11,192 | — | 11,961 | 8,724 | suffix | +37% |
+| Llama-3.1-405B-Instruct-FP8 | 1,267 | — | 2,061 | 1,217 | suffix | +69% |
 | Llama-3.1-70B-Instruct | 3,319 | — | 4,864 | 3,091 | suffix | +57% |
 | Llama-3.1-8B-Instruct | 13,907 | — | 19,054 | 8,868 | suffix | +115% |
 | Qwen2.5-32B-Instruct | 5,150 | — | 4,662 | 3,079 | llm-d | +51% |
@@ -19,9 +21,11 @@
 ### swebench
 | model | llm-d | ngram | suffix | vanilla | best | suffix vs van |
 |---|---|---|---|---|---|---|
+| DeepSeek-R1 | 877 | — | 538 | 1,474 | vanilla | -64% |
 | DeepSeek-R1-Distill-Llama-70B | 2,858 | — | 2,739 | 3,236 | vanilla | -15% |
 | DeepSeek-R1-Distill-Qwen-32B | 4,955 | — | 5,241 | 4,409 | suffix | +19% |
 | DeepSeek-R1-Distill-Qwen-7B | 12,072 | — | 15,422 | 8,835 | suffix | +75% |
+| Llama-3.1-405B-Instruct-FP8 | 1,397 | — | 2,639 | 1,204 | suffix | +119% |
 | Llama-3.1-70B-Instruct | 3,436 | — | 6,026 | 2,878 | suffix | +109% |
 | Llama-3.1-8B-Instruct | 14,526 | — | 21,353 | 8,348 | suffix | +156% |
 | Qwen2.5-32B-Instruct | 3,734 | — | 5,002 | 2,892 | suffix | +73% |
@@ -31,9 +35,11 @@
 ### humaneval
 | model | llm-d | ngram | suffix | vanilla | best | suffix vs van |
 |---|---|---|---|---|---|---|
+| DeepSeek-R1 | 862 | — | 606 | 1,004 | vanilla | -40% |
 | DeepSeek-R1-Distill-Llama-70B | 2,379 | — | 2,788 | 2,852 | vanilla | -2% |
 | DeepSeek-R1-Distill-Qwen-32B | 3,288 | — | 3,771 | 3,462 | suffix | +9% |
 | DeepSeek-R1-Distill-Qwen-7B | 9,613 | — | 11,459 | 8,159 | suffix | +40% |
+| Llama-3.1-405B-Instruct-FP8 | 1,415 | — | 2,112 | 1,253 | suffix | +68% |
 | Llama-3.1-70B-Instruct | 3,540 | — | 4,728 | 3,391 | suffix | +39% |
 | Llama-3.1-8B-Instruct | 12,665 | — | 15,126 | 9,048 | suffix | +67% |
 | Qwen2.5-32B-Instruct | 4,574 | — | 4,859 | 2,571 | suffix | +89% |
@@ -43,9 +49,11 @@
 ### mbpp
 | model | llm-d | ngram | suffix | vanilla | best | suffix vs van |
 |---|---|---|---|---|---|---|
+| DeepSeek-R1 | 918 | — | 677 | 1,437 | vanilla | -53% |
 | DeepSeek-R1-Distill-Llama-70B | 2,305 | — | 2,426 | 2,777 | vanilla | -13% |
 | DeepSeek-R1-Distill-Qwen-32B | 4,947 | — | 5,690 | 4,690 | suffix | +21% |
 | DeepSeek-R1-Distill-Qwen-7B | 11,985 | — | 12,398 | 8,440 | suffix | +47% |
+| Llama-3.1-405B-Instruct-FP8 | 743 | — | 1,725 | 916 | suffix | +88% |
 | Llama-3.1-70B-Instruct | 1,405 | — | 3,266 | 1,773 | suffix | +84% |
 | Llama-3.1-8B-Instruct | 13,474 | — | 17,825 | 8,730 | suffix | +104% |
 | Qwen2.5-32B-Instruct | 5,554 | — | 5,138 | 2,915 | llm-d | +76% |
@@ -55,9 +63,11 @@
 ### wildchat
 | model | llm-d | ngram | suffix | vanilla | best | suffix vs van |
 |---|---|---|---|---|---|---|
+| DeepSeek-R1 | 1,131 | — | 858 | 1,556 | vanilla | -45% |
 | DeepSeek-R1-Distill-Llama-70B | 2,731 | — | 2,658 | 3,127 | vanilla | -15% |
 | DeepSeek-R1-Distill-Qwen-32B | 5,469 | — | 5,729 | 4,891 | suffix | +17% |
 | DeepSeek-R1-Distill-Qwen-7B | 11,029 | — | 11,717 | 8,925 | suffix | +31% |
+| Llama-3.1-405B-Instruct-FP8 | 1,497 | — | 2,290 | 1,280 | suffix | +79% |
 | Llama-3.1-70B-Instruct | 3,898 | — | 5,261 | 3,172 | suffix | +66% |
 | Llama-3.1-8B-Instruct | 14,790 | — | 19,856 | 9,002 | suffix | +121% |
 | Qwen2.5-32B-Instruct | 5,242 | — | 4,884 | 3,128 | llm-d | +56% |
@@ -67,9 +77,11 @@
 ### lmsys
 | model | llm-d | ngram | suffix | vanilla | best | suffix vs van |
 |---|---|---|---|---|---|---|
+| DeepSeek-R1 | 1,168 | — | 811 | 1,533 | vanilla | -47% |
 | DeepSeek-R1-Distill-Llama-70B | 2,651 | — | 2,848 | 2,992 | vanilla | -5% |
 | DeepSeek-R1-Distill-Qwen-32B | 5,042 | — | 5,356 | 4,898 | suffix | +9% |
 | DeepSeek-R1-Distill-Qwen-7B | 14,768 | — | 11,360 | 8,811 | llm-d | +29% |
+| Llama-3.1-405B-Instruct-FP8 | 1,514 | — | 2,243 | 1,220 | suffix | +84% |
 | Llama-3.1-70B-Instruct | 3,897 | — | 3,958 | 3,040 | suffix | +30% |
 | Llama-3.1-8B-Instruct | 15,233 | — | 19,862 | 9,074 | suffix | +119% |
 | Qwen2.5-32B-Instruct | 4,988 | — | 4,478 | 3,053 | llm-d | +47% |
@@ -79,9 +91,11 @@
 ### mix
 | model | llm-d | ngram | suffix | vanilla | best | suffix vs van |
 |---|---|---|---|---|---|---|
+| DeepSeek-R1 | 1,008 | — | 781 | 1,538 | vanilla | -49% |
 | DeepSeek-R1-Distill-Llama-70B | 2,864 | — | 6,127 | 3,164 | suffix | +94% |
 | DeepSeek-R1-Distill-Qwen-32B | 5,852 | — | 9,056 | 4,938 | suffix | +83% |
 | DeepSeek-R1-Distill-Qwen-7B | 13,000 | — | 24,458 | 9,058 | suffix | +170% |
+| Llama-3.1-405B-Instruct-FP8 | 1,429 | — | 2,829 | 1,252 | suffix | +126% |
 | Llama-3.1-70B-Instruct | 4,004 | — | 10,400 | 3,129 | suffix | +232% |
 | Llama-3.1-8B-Instruct | 15,959 | — | 27,851 | 8,850 | suffix | +215% |
 | Qwen2.5-32B-Instruct | 5,236 | — | 6,597 | 3,056 | suffix | +116% |
@@ -91,9 +105,11 @@
 ## condition-level oracle (model × condition → best method) — regret 입력
 | model | sharegpt | swebench | humaneval | mbpp | wildchat | lmsys | mix |
 |---|---|---|---|---|---|---|---|
+| DeepSeek-R1 | vanilla | vanilla | vanilla | vanilla | vanilla | vanilla | vanilla |
 | DeepSeek-R1-Distill-Llama-70B | vanilla | vanilla | vanilla | vanilla | vanilla | vanilla | suffix |
 | DeepSeek-R1-Distill-Qwen-32B | suffix | suffix | suffix | suffix | suffix | suffix | suffix |
 | DeepSeek-R1-Distill-Qwen-7B | suffix | suffix | suffix | suffix | suffix | llm-d | suffix |
+| Llama-3.1-405B-Instruct-FP8 | suffix | suffix | suffix | suffix | suffix | suffix | suffix |
 | Llama-3.1-70B-Instruct | suffix | suffix | suffix | suffix | suffix | suffix | suffix |
 | Llama-3.1-8B-Instruct | suffix | suffix | suffix | suffix | suffix | suffix | suffix |
 | Qwen2.5-32B-Instruct | llm-d | suffix | suffix | llm-d | llm-d | llm-d | suffix |
@@ -103,9 +119,11 @@
 ## 지연 TTFT (mix, p50/p99 ms)
 | model | llm-d | ngram | suffix | vanilla |
 |---|---|---|---|---|
+| DeepSeek-R1 | 93.2/255.5 | — | 196.8/303.3 | 65.6/259.2 |
 | DeepSeek-R1-Distill-Llama-70B | 40.3/124.6 | — | 50.1/130.6 | 28.4/128.0 |
 | DeepSeek-R1-Distill-Qwen-32B | 29.8/78.9 | — | 37.0/98.8 | 24.1/119.4 |
 | DeepSeek-R1-Distill-Qwen-7B | 21.6/56.2 | — | 22.3/56.3 | 16.8/46.4 |
+| Llama-3.1-405B-Instruct-FP8 | 97.0/458.7 | — | 122.2/442.2 | 71.1/436.3 |
 | Llama-3.1-70B-Instruct | 43.8/148.4 | — | 56.3/118.6 | 28.4/114.0 |
 | Llama-3.1-8B-Instruct | 22.4/76.3 | — | 24.7/65.4 | 22.8/59.9 |
 | Qwen2.5-32B-Instruct | 32.2/93.4 | — | 65.4/96.8 | 29.6/76.2 |
@@ -115,9 +133,11 @@
 ## 지연 TPOT (mix, p50/p99 ms)
 | model | llm-d | ngram | suffix | vanilla |
 |---|---|---|---|---|
+| DeepSeek-R1 | 21.3/80.2 | — | 51.4/83.0 | 19.7/20.4 |
 | DeepSeek-R1-Distill-Llama-70B | 10.2/15.7 | — | 2.1/16.0 | 9.0/9.2 |
 | DeepSeek-R1-Distill-Qwen-32B | 6.5/11.0 | — | 1.6/12.6 | 5.9/6.1 |
 | DeepSeek-R1-Distill-Qwen-7B | 3.2/5.9 | — | 0.9/7.2 | 3.3/3.3 |
+| Llama-3.1-405B-Instruct-FP8 | 27.5/47.2 | — | 17.3/49.0 | 23.4/24.4 |
 | Llama-3.1-70B-Instruct | 9.5/16.7 | — | 2.5/16.8 | 9.2/9.6 |
 | Llama-3.1-8B-Instruct | 1.1/4.0 | — | 1.0/4.4 | 3.5/3.5 |
 | Qwen2.5-32B-Instruct | 6.1/11.7 | — | 3.1/22.6 | 9.3/10.4 |
@@ -127,9 +147,11 @@
 ## accept α (mix, accepted/draft) — spec method
 | model | llm-d | ngram | suffix |
 |---|---|---|---|
+| DeepSeek-R1 | 0.464 | — | 0.451 |
 | DeepSeek-R1-Distill-Llama-70B | 0.393 | — | 0.786 |
 | DeepSeek-R1-Distill-Qwen-32B | 0.670 | — | 0.801 |
 | DeepSeek-R1-Distill-Qwen-7B | 0.711 | — | 0.876 |
+| Llama-3.1-405B-Instruct-FP8 | 0.746 | — | 0.766 |
 | Llama-3.1-70B-Instruct | 0.825 | — | 0.915 |
 | Llama-3.1-8B-Instruct | 0.885 | — | 0.933 |
 | Qwen2.5-32B-Instruct | 0.769 | — | 0.857 |
@@ -139,9 +161,11 @@
 ## util (mix, gpu%/cpu%, gpu_mem GiB)
 | model | llm-d | ngram | suffix | vanilla |
 |---|---|---|---|---|
+| DeepSeek-R1 | 92.2/5.1 (1386G) | — | 94.1/4.3 (1244G) | 98.6/4.8 (1248G) |
 | DeepSeek-R1-Distill-Llama-70B | 90.5/5.6 (1202G) | — | 85.0/4.4 (1239G) | 98.3/4.9 (1239G) |
 | DeepSeek-R1-Distill-Qwen-32B | 87.3/5.6 (1202G) | — | 79.9/4.4 (1238G) | 97.9/4.9 (1238G) |
 | DeepSeek-R1-Distill-Qwen-7B | 81.0/3.9 (600G) | — | 63.8/2.6 (618G) | 91.8/2.8 (618G) |
+| Llama-3.1-405B-Instruct-FP8 | 86.2/4.9 (1205G) | — | 93.0/4.3 (1243G) | 98.9/4.8 (1243G) |
 | Llama-3.1-70B-Instruct | 83.7/5.3 (1202G) | — | 83.4/4.4 (1239G) | 98.5/4.8 (1239G) |
 | Llama-3.1-8B-Instruct | 79.5/5.2 (1200G) | — | 62.8/4.4 (1236G) | 94.9/4.6 (1236G) |
 | Qwen2.5-32B-Instruct | 79.7/4.9 (1202G) | — | 64.8/4.3 (1238G) | 94.3/4.4 (1238G) |
@@ -219,6 +243,48 @@
 | DeepSeek-R1-Distill-Qwen-7B | vanilla | sharegpt | 8,724 | [상세](cells/cell_DeepSeek-R1-Distill-Qwen-7B__vanilla__sharegpt.md) | [json](summ_DeepSeek-R1-Distill-Qwen-7B_vanilla_sharegpt.json) |
 | DeepSeek-R1-Distill-Qwen-7B | vanilla | swebench | 8,835 | [상세](cells/cell_DeepSeek-R1-Distill-Qwen-7B__vanilla__swebench.md) | [json](summ_DeepSeek-R1-Distill-Qwen-7B_vanilla_swebench.json) |
 | DeepSeek-R1-Distill-Qwen-7B | vanilla | wildchat | 8,925 | [상세](cells/cell_DeepSeek-R1-Distill-Qwen-7B__vanilla__wildchat.md) | [json](summ_DeepSeek-R1-Distill-Qwen-7B_vanilla_wildchat.json) |
+| DeepSeek-R1 | llm-d | humaneval | 862 | [상세](cells/cell_DeepSeek-R1__llm-d__humaneval.md) | [json](summ_DeepSeek-R1_llm-d_humaneval.json) |
+| DeepSeek-R1 | llm-d | lmsys | 1,168 | [상세](cells/cell_DeepSeek-R1__llm-d__lmsys.md) | [json](summ_DeepSeek-R1_llm-d_lmsys.json) |
+| DeepSeek-R1 | llm-d | mbpp | 918 | [상세](cells/cell_DeepSeek-R1__llm-d__mbpp.md) | [json](summ_DeepSeek-R1_llm-d_mbpp.json) |
+| DeepSeek-R1 | llm-d | mix | 1,008 | [상세](cells/cell_DeepSeek-R1__llm-d__mix.md) | [json](summ_DeepSeek-R1_llm-d_mix.json) |
+| DeepSeek-R1 | llm-d | sharegpt | 997 | [상세](cells/cell_DeepSeek-R1__llm-d__sharegpt.md) | [json](summ_DeepSeek-R1_llm-d_sharegpt.json) |
+| DeepSeek-R1 | llm-d | swebench | 877 | [상세](cells/cell_DeepSeek-R1__llm-d__swebench.md) | [json](summ_DeepSeek-R1_llm-d_swebench.json) |
+| DeepSeek-R1 | llm-d | wildchat | 1,131 | [상세](cells/cell_DeepSeek-R1__llm-d__wildchat.md) | [json](summ_DeepSeek-R1_llm-d_wildchat.json) |
+| DeepSeek-R1 | suffix | humaneval | 606 | [상세](cells/cell_DeepSeek-R1__suffix__humaneval.md) | [json](summ_DeepSeek-R1_suffix_humaneval.json) |
+| DeepSeek-R1 | suffix | lmsys | 811 | [상세](cells/cell_DeepSeek-R1__suffix__lmsys.md) | [json](summ_DeepSeek-R1_suffix_lmsys.json) |
+| DeepSeek-R1 | suffix | mbpp | 677 | [상세](cells/cell_DeepSeek-R1__suffix__mbpp.md) | [json](summ_DeepSeek-R1_suffix_mbpp.json) |
+| DeepSeek-R1 | suffix | mix | 781 | [상세](cells/cell_DeepSeek-R1__suffix__mix.md) | [json](summ_DeepSeek-R1_suffix_mix.json) |
+| DeepSeek-R1 | suffix | sharegpt | 797 | [상세](cells/cell_DeepSeek-R1__suffix__sharegpt.md) | [json](summ_DeepSeek-R1_suffix_sharegpt.json) |
+| DeepSeek-R1 | suffix | swebench | 538 | [상세](cells/cell_DeepSeek-R1__suffix__swebench.md) | [json](summ_DeepSeek-R1_suffix_swebench.json) |
+| DeepSeek-R1 | suffix | wildchat | 858 | [상세](cells/cell_DeepSeek-R1__suffix__wildchat.md) | [json](summ_DeepSeek-R1_suffix_wildchat.json) |
+| DeepSeek-R1 | vanilla | humaneval | 1,004 | [상세](cells/cell_DeepSeek-R1__vanilla__humaneval.md) | [json](summ_DeepSeek-R1_vanilla_humaneval.json) |
+| DeepSeek-R1 | vanilla | lmsys | 1,533 | [상세](cells/cell_DeepSeek-R1__vanilla__lmsys.md) | [json](summ_DeepSeek-R1_vanilla_lmsys.json) |
+| DeepSeek-R1 | vanilla | mbpp | 1,437 | [상세](cells/cell_DeepSeek-R1__vanilla__mbpp.md) | [json](summ_DeepSeek-R1_vanilla_mbpp.json) |
+| DeepSeek-R1 | vanilla | mix | 1,538 | [상세](cells/cell_DeepSeek-R1__vanilla__mix.md) | [json](summ_DeepSeek-R1_vanilla_mix.json) |
+| DeepSeek-R1 | vanilla | sharegpt | 1,475 | [상세](cells/cell_DeepSeek-R1__vanilla__sharegpt.md) | [json](summ_DeepSeek-R1_vanilla_sharegpt.json) |
+| DeepSeek-R1 | vanilla | swebench | 1,474 | [상세](cells/cell_DeepSeek-R1__vanilla__swebench.md) | [json](summ_DeepSeek-R1_vanilla_swebench.json) |
+| DeepSeek-R1 | vanilla | wildchat | 1,556 | [상세](cells/cell_DeepSeek-R1__vanilla__wildchat.md) | [json](summ_DeepSeek-R1_vanilla_wildchat.json) |
+| Llama-3.1-405B-Instruct-FP8 | llm-d | humaneval | 1,415 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__llm-d__humaneval.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_llm-d_humaneval.json) |
+| Llama-3.1-405B-Instruct-FP8 | llm-d | lmsys | 1,514 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__llm-d__lmsys.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_llm-d_lmsys.json) |
+| Llama-3.1-405B-Instruct-FP8 | llm-d | mbpp | 743 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__llm-d__mbpp.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_llm-d_mbpp.json) |
+| Llama-3.1-405B-Instruct-FP8 | llm-d | mix | 1,429 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__llm-d__mix.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_llm-d_mix.json) |
+| Llama-3.1-405B-Instruct-FP8 | llm-d | sharegpt | 1,267 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__llm-d__sharegpt.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_llm-d_sharegpt.json) |
+| Llama-3.1-405B-Instruct-FP8 | llm-d | swebench | 1,397 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__llm-d__swebench.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_llm-d_swebench.json) |
+| Llama-3.1-405B-Instruct-FP8 | llm-d | wildchat | 1,497 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__llm-d__wildchat.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_llm-d_wildchat.json) |
+| Llama-3.1-405B-Instruct-FP8 | suffix | humaneval | 2,112 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__suffix__humaneval.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_suffix_humaneval.json) |
+| Llama-3.1-405B-Instruct-FP8 | suffix | lmsys | 2,243 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__suffix__lmsys.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_suffix_lmsys.json) |
+| Llama-3.1-405B-Instruct-FP8 | suffix | mbpp | 1,725 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__suffix__mbpp.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_suffix_mbpp.json) |
+| Llama-3.1-405B-Instruct-FP8 | suffix | mix | 2,829 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__suffix__mix.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_suffix_mix.json) |
+| Llama-3.1-405B-Instruct-FP8 | suffix | sharegpt | 2,061 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__suffix__sharegpt.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_suffix_sharegpt.json) |
+| Llama-3.1-405B-Instruct-FP8 | suffix | swebench | 2,639 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__suffix__swebench.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_suffix_swebench.json) |
+| Llama-3.1-405B-Instruct-FP8 | suffix | wildchat | 2,290 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__suffix__wildchat.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_suffix_wildchat.json) |
+| Llama-3.1-405B-Instruct-FP8 | vanilla | humaneval | 1,253 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__vanilla__humaneval.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_vanilla_humaneval.json) |
+| Llama-3.1-405B-Instruct-FP8 | vanilla | lmsys | 1,220 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__vanilla__lmsys.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_vanilla_lmsys.json) |
+| Llama-3.1-405B-Instruct-FP8 | vanilla | mbpp | 916 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__vanilla__mbpp.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_vanilla_mbpp.json) |
+| Llama-3.1-405B-Instruct-FP8 | vanilla | mix | 1,252 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__vanilla__mix.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_vanilla_mix.json) |
+| Llama-3.1-405B-Instruct-FP8 | vanilla | sharegpt | 1,217 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__vanilla__sharegpt.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_vanilla_sharegpt.json) |
+| Llama-3.1-405B-Instruct-FP8 | vanilla | swebench | 1,204 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__vanilla__swebench.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_vanilla_swebench.json) |
+| Llama-3.1-405B-Instruct-FP8 | vanilla | wildchat | 1,280 | [상세](cells/cell_Llama-3.1-405B-Instruct-FP8__vanilla__wildchat.md) | [json](summ_Llama-3.1-405B-Instruct-FP8_vanilla_wildchat.json) |
 | Llama-3.1-70B-Instruct | llm-d | humaneval | 3,540 | [상세](cells/cell_Llama-3.1-70B-Instruct__llm-d__humaneval.md) | [json](summ_Llama-3.1-70B-Instruct_llm-d_humaneval.json) |
 | Llama-3.1-70B-Instruct | llm-d | lmsys | 3,897 | [상세](cells/cell_Llama-3.1-70B-Instruct__llm-d__lmsys.md) | [json](summ_Llama-3.1-70B-Instruct_llm-d_lmsys.json) |
 | Llama-3.1-70B-Instruct | llm-d | mbpp | 1,405 | [상세](cells/cell_Llama-3.1-70B-Instruct__llm-d__mbpp.md) | [json](summ_Llama-3.1-70B-Instruct_llm-d_mbpp.json) |
