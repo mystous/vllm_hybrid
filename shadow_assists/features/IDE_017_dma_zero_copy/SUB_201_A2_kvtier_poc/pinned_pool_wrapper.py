@@ -61,6 +61,38 @@ def _load(lib_path: str) -> ctypes.CDLL:
     ]
     lib.pinned_pool_pull_async.restype = ctypes.c_void_p
 
+    # Batched DMA — 3 variants (A: for-loop, B: native cudaMemcpyBatchAsync, C: staging).
+    # Common arg shape: pool, host_ptrs[], dev_ptrs[], sizes[], n, stream
+    lib.pinned_pool_push_batch_async.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.c_int,
+        ctypes.c_void_p,
+    ]
+    lib.pinned_pool_push_batch_async.restype = ctypes.c_void_p
+    lib.pinned_pool_push_batch_async_native.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.c_int,
+        ctypes.c_void_p,
+    ]
+    lib.pinned_pool_push_batch_async_native.restype = ctypes.c_void_p
+    # Staged: host_ptrs[], staging_ptr (single), dev_dst (single), sizes[], n, stream
+    lib.pinned_pool_push_batch_async_staged.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_void_p),
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_size_t),
+        ctypes.c_int,
+        ctypes.c_void_p,
+    ]
+    lib.pinned_pool_push_batch_async_staged.restype = ctypes.c_void_p
+
     lib.pinned_pool_event_sync.argtypes = [ctypes.c_void_p]
     lib.pinned_pool_event_sync.restype = ctypes.c_int
     lib.pinned_pool_event_query.argtypes = [ctypes.c_void_p]
@@ -173,6 +205,65 @@ class PinnedPool:
             ctypes.c_size_t(nbytes),
             ctypes.c_void_p(stream),
         )
+        return int(ev) if ev else 0
+
+    # ── Batched DMA primitives (3 variants) ───────────────────────────
+    #
+    # All three return a single event handle (cudaEvent_t) covering the
+    # whole batch. Caller must event_sync + event_destroy.
+
+    @staticmethod
+    def _pack_ptr_array(values):
+        arr = (ctypes.c_void_p * len(values))()
+        for i, v in enumerate(values):
+            arr[i] = ctypes.c_void_p(int(v))
+        return arr
+
+    @staticmethod
+    def _pack_size_array(values):
+        arr = (ctypes.c_size_t * len(values))()
+        for i, v in enumerate(values):
+            arr[i] = ctypes.c_size_t(int(v))
+        return arr
+
+    def push_batch_async(self, host_ptrs, dev_ptrs, sizes, stream: int,
+                         mode: str = "loop", staging_ptr: int = 0,
+                         dev_dst: int = 0) -> int:
+        """Submit N pinned-host → device transfers as one batch.
+
+        mode = "loop"   → option A: for-loop cudaMemcpyAsync × N
+        mode = "native" → option B: cudaMemcpyBatchAsync (CUDA 12.4+)
+        mode = "staged" → option C: host-side pack into staging_ptr +
+                          1 cudaMemcpyAsync(staging→dev_dst, sum(sizes))
+                          (dev_ptrs argument is ignored)
+        """
+        n = len(sizes)
+        assert n > 0, "batch must be non-empty"
+        sizes_arr = self._pack_size_array(sizes)
+        hosts_arr = self._pack_ptr_array(host_ptrs)
+        if mode == "loop":
+            devs_arr = self._pack_ptr_array(dev_ptrs)
+            ev = self._lib.pinned_pool_push_batch_async(
+                self._pool, hosts_arr, devs_arr, sizes_arr,
+                ctypes.c_int(n), ctypes.c_void_p(stream),
+            )
+        elif mode == "native":
+            devs_arr = self._pack_ptr_array(dev_ptrs)
+            ev = self._lib.pinned_pool_push_batch_async_native(
+                self._pool, hosts_arr, devs_arr, sizes_arr,
+                ctypes.c_int(n), ctypes.c_void_p(stream),
+            )
+        elif mode == "staged":
+            if not staging_ptr or not dev_dst:
+                raise ValueError("staged mode requires staging_ptr and dev_dst")
+            ev = self._lib.pinned_pool_push_batch_async_staged(
+                self._pool, hosts_arr,
+                ctypes.c_void_p(staging_ptr),
+                ctypes.c_void_p(dev_dst),
+                sizes_arr, ctypes.c_int(n), ctypes.c_void_p(stream),
+            )
+        else:
+            raise ValueError(f"unknown batch mode: {mode!r}")
         return int(ev) if ev else 0
 
     def pull_async(self, dev_ptr: int, host_ptr: int, nbytes: int,
