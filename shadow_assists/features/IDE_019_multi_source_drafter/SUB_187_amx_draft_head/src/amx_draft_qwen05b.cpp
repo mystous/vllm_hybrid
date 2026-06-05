@@ -356,3 +356,101 @@ extern "C" double amx_draft_qwen05b_mlp_ms(int B_in) {
 
 // Hardware-detect helper
 extern "C" int amx_draft_qwen05b_hw_amx(void) { return amx_available(); }
+
+// ─────────────────────────────────────────────────────────────────────
+// Phase A3 (SUB_198) — forward ABI extension
+//
+//   void amx_draft_qwen05b_forward(
+//       const uint16_t* input_bf16,   // [B, HIDDEN(896)] BF16
+//       int             B,            // 1..B_MAX(16)
+//       uint16_t*       logits_out,   // [B, K, VOCAB(152064)] BF16
+//       int32_t*        ids_out,      // [B, K] int32 argmax id (vocab range)
+//       int             K)            // K steps
+//
+// Semantics:
+//   For each k in 0..K-1, run the LM-head matmul
+//     C[B,VOCAB] = act_in[B,HIDDEN] · W_lm_head_packed
+//   then  (a) BF16-cast the FP32 logits row into logits_out at offset
+//             (b*K + k) * VOCAB,
+//         (b) argmax over the VOCAB_CONFIG (151,936) prefix (the padded
+//             trailing 128 ids are NOT valid vocab tokens — they would
+//             argmax-poison the result on randomly initialised weights)
+//             into ids_out[b*K + k].
+//   `act_in` is the SAME init-time random buffer used by step_ms (real
+//   weight load is SUB_198 §3 (a-d); this entry validates ABI / shape /
+//   dtype / argmax range only).
+//
+//   Inputs:
+//     * input_bf16 MAY be NULL — if so we leave the kernel-internal
+//       `g_state.act_in` untouched (microbench mode).
+//     * input_bf16 != NULL → copy [B,HIDDEN] BF16 into `g_state.act_in`
+//       before the first matmul. Subsequent k=1..K-1 reuse the same
+//       activation (Jacobi K-step proxy).
+//
+//   Outputs:
+//     * logits_out → BF16 down-cast of the FP32 accumulator
+//       (g_state.logits_out). Layout row-major [B,K,VOCAB].
+//     * ids_out    → argmax over [0, VOCAB_CONFIG) for each (b,k).
+//
+//   Constraints: B clamped to [1, B_MAX]; effective AMX M rounded up
+//   to 16. ids_out / logits_out must be sized for the *requested* B
+//   and K (caller buffers).
+// ─────────────────────────────────────────────────────────────────────
+
+static constexpr int VOCAB_CONFIG_QWEN05B = 151936;
+
+static inline float bf16_to_fp32(uint16_t b) {
+    uint32_t u = static_cast<uint32_t>(b) << 16;
+    float f;
+    std::memcpy(&f, &u, sizeof(float));
+    return f;
+}
+
+extern "C" void amx_draft_qwen05b_forward(const uint16_t* input_bf16,
+                                          int B_in,
+                                          uint16_t* logits_out,
+                                          int32_t* ids_out,
+                                          int K) {
+    if (!g_state.W_lm_head_packed || !logits_out || !ids_out) return;
+    int B = std::max(1, std::min(B_in, DraftState::B_MAX));
+    int B_amx = ((B + 15) / 16) * 16;
+    if (B_amx > DraftState::B_MAX) B_amx = DraftState::B_MAX;
+    if (K < 1) return;
+
+    // (a) Optionally overwrite the act_in buffer with caller hidden.
+    if (input_bf16) {
+        const size_t bytes = static_cast<size_t>(B)
+                             * DraftState::HIDDEN * sizeof(uint16_t);
+        std::memcpy(g_state.act_in, input_bf16, bytes);
+    }
+
+    const int V = DraftState::VOCAB;
+    const int Vc = VOCAB_CONFIG_QWEN05B;
+
+    for (int k = 0; k < K; ++k) {
+        // (b) LM-head matmul: act_in × W_lm_head → g_state.logits_out FP32
+        amx_matmul_bf16_omp_n(g_state.act_in, g_state.W_lm_head_packed,
+                              g_state.logits_out,
+                              B_amx, DraftState::HIDDEN, V);
+
+        // (c) Down-cast FP32 → BF16 into caller buffer + argmax over Vc.
+        #pragma omp parallel for schedule(static)
+        for (int b = 0; b < B; ++b) {
+            const float* row_fp32 = g_state.logits_out
+                                    + static_cast<size_t>(b) * V;
+            uint16_t* row_bf16 = logits_out
+                                 + (static_cast<size_t>(b) * K + k) * V;
+
+            int best_id = 0;
+            float best_v = row_fp32[0];
+            for (int n = 0; n < V; ++n) {
+                row_bf16[n] = fp32_to_bf16(row_fp32[n]);
+                if (n < Vc && row_fp32[n] > best_v) {
+                    best_v = row_fp32[n];
+                    best_id = n;
+                }
+            }
+            ids_out[static_cast<size_t>(b) * K + k] = best_id;
+        }
+    }
+}

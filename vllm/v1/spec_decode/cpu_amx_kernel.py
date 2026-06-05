@@ -10,6 +10,9 @@ Wraps the C ABI exposed by `libamx_draft_qwen05b.so`:
   double amx_draft_qwen05b_single_ms(int B);
   double amx_draft_qwen05b_mlp_ms(int B);
   int    amx_draft_qwen05b_hw_amx(void);
+  void   amx_draft_qwen05b_forward(const uint16_t* input_bf16, int B,
+                                   uint16_t* logits_out, int32_t* ids_out,
+                                   int K);  # Phase A3 (SUB_198)
 
 See `shadow_assists/features/IDE_019_multi_source_drafter/
 SUB_198_amx_real_integration/AMX_INTEGRATION_DESIGN.md` for full design,
@@ -167,6 +170,16 @@ class AmxDraftKernel:
 
             lib.amx_draft_qwen05b_hw_amx.restype = ctypes.c_int
             lib.amx_draft_qwen05b_hw_amx.argtypes = []
+
+            # Phase A3 (SUB_198) — real-forward ABI
+            lib.amx_draft_qwen05b_forward.restype = None
+            lib.amx_draft_qwen05b_forward.argtypes = [
+                ctypes.POINTER(ctypes.c_uint16),  # input_bf16 (may be NULL)
+                ctypes.c_int,                     # B
+                ctypes.POINTER(ctypes.c_uint16),  # logits_out [B,K,VOCAB]
+                ctypes.POINTER(ctypes.c_int32),   # ids_out    [B,K]
+                ctypes.c_int,                     # K
+            ]
         except AttributeError as e:
             self._load_error = f"missing symbol: {e}"
             _warn_once(
@@ -284,6 +297,78 @@ class AmxDraftKernel:
             raise RuntimeError("AMX kernel not available")
         assert self._lib is not None
         return float(self._lib.amx_draft_qwen05b_mlp_ms(int(B)))
+
+    # ─── Phase A3 (SUB_198) — real forward (shape/dtype only) ─────
+    def forward(self, input_bf16, B: int, K: int):
+        """Run K LM-head matmuls and return (logits_bf16, ids_int32).
+
+        Args:
+          input_bf16: numpy ndarray of shape (B, KERNEL_HIDDEN), dtype
+            uint16 (BF16 bit-pattern) OR None to reuse the kernel's
+            internal init-time random activation buffer.
+          B: batch (1..KERNEL_B_MAX).
+          K: number of draft steps (>=1).
+
+        Returns:
+          logits: numpy uint16 (BF16) ndarray of shape (B, K,
+            KERNEL_VOCAB). Padded vocab columns ≥ CONFIG_VOCAB_QWEN_05B
+            are filled with BF16 of the FP32 accumulator output (they
+            are NOT valid Qwen tokens — see AMX_INTEGRATION_DESIGN
+            §4 on padding).
+          ids: numpy int32 ndarray of shape (B, K) — argmax restricted
+            to [0, CONFIG_VOCAB_QWEN_05B). Caller can therefore trust
+            that each id is a valid Qwen 0.5B vocab token.
+
+        NOTE: real LM-head weights are NOT loaded in this PoC — the
+        kernel still holds random BF16 init from `init`. The returned
+        ids are therefore NOT semantically meaningful. This entry
+        validates SHAPE / DTYPE / ARGMAX-RANGE only.
+        """
+        import numpy as np
+        if not self.is_available():
+            raise RuntimeError(
+                "AMX kernel not available — refusing to call forward.")
+        if self._init_rc != 0:
+            self.ensure_init()
+        if self._init_rc != 0:
+            raise RuntimeError(
+                f"AMX kernel init returned {self._init_rc}; forward "
+                "not callable.")
+        if B < 1 or B > KERNEL_B_MAX:
+            raise ValueError(
+                f"B must be 1..{KERNEL_B_MAX}, got {B}")
+        if K < 1:
+            raise ValueError(f"K must be >=1, got {K}")
+
+        # Output buffers (caller-owned, C-contiguous, aligned by numpy).
+        logits = np.empty((B, K, KERNEL_VOCAB), dtype=np.uint16)
+        ids = np.empty((B, K), dtype=np.int32)
+
+        # Input pointer — None ⇒ pass nullptr ⇒ kernel reuses act_in.
+        if input_bf16 is None:
+            in_ptr = ctypes.cast(0, ctypes.POINTER(ctypes.c_uint16))
+        else:
+            if input_bf16.dtype != np.uint16:
+                raise TypeError(
+                    "input_bf16 must be numpy uint16 (BF16 bit-pattern),"
+                    f" got dtype={input_bf16.dtype}")
+            if input_bf16.shape != (B, KERNEL_HIDDEN):
+                raise ValueError(
+                    f"input_bf16 shape must be ({B},{KERNEL_HIDDEN}), "
+                    f"got {tuple(input_bf16.shape)}")
+            if not input_bf16.flags["C_CONTIGUOUS"]:
+                input_bf16 = np.ascontiguousarray(input_bf16)
+            in_ptr = input_bf16.ctypes.data_as(
+                ctypes.POINTER(ctypes.c_uint16))
+
+        logits_ptr = logits.ctypes.data_as(
+            ctypes.POINTER(ctypes.c_uint16))
+        ids_ptr = ids.ctypes.data_as(ctypes.POINTER(ctypes.c_int32))
+
+        assert self._lib is not None
+        self._lib.amx_draft_qwen05b_forward(
+            in_ptr, int(B), logits_ptr, ids_ptr, int(K))
+        return logits, ids
 
 
 # ─────────────────────────────────────────────────────────────────────
