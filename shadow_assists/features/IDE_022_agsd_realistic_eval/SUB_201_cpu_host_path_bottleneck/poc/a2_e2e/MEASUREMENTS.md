@@ -1032,3 +1032,64 @@ TestRpcProxyTierB10::test_b10_rpc_failure_degrades_gracefully                   
   - `vllm/v1/engine/core.py` (+50/-0 lines, RPC proxy attach)
 - Test patch: `tests/v1/spec_decode/test_kv_dram_tiering.py` (+108/-0 lines, `TestRpcProxyTierB10` 3 testcase)
 
+
+---
+
+## 12. Phase B11 — Multi-turn workload (prefix hit ↑) — 2026-06-05 KST 09:00
+
+> B11 multi-turn workload (Qwen2.5-7B TP=1 UniProc, GPU 0, 1000 turn × shared 4k system prompt, conc=64, max-tok 8192). 합성 multi-turn parquet `multiturn_200x5` 으로 prefix hit rate 강제 ↑.
+
+### 12.1 결과 표
+
+| metric | native | tier+async | Δ |
+|---|---:|---:|---:|
+| output_tps | **11,042.1** | **9,255.3** | **-16.2%** |
+| n_ok | 1000/1000 | 1000/1000 | 0 err |
+| wall_total_s | 46.3 | 55.2 | +19.2% |
+| TTFT p50 / p99 (ms) | 230.7 / 742.6 | 296.1 / 1602.8 | +28% / +116% |
+| TPOT p50 / p99 (ms) | 5.3 / 5.6 | 5.6 / 9.4 | +5.7% / +67.9% |
+| GPU util | 92.6% | 90.2% | -2.4pp |
+| boot_sec | 47 | 120 | +156% (DRAM 154GB alloc) |
+| **prefix hit rate** | **97.9%** | **97.9%** | 동일 |
+
+### 12.2 Telemetry (tier_dump)
+
+```
+n_evict=44,258  n_fetch=6,739
+evict_bytes=40.6 GB  fetch_bytes=6.18 GB
+tiered_blocks=37,519
+dram_in_use=34.4 GB (max 32 GB cap → 일부 over-cap)
+skipped_full=0  n_binds=1
+n_evict_async=44,258 (모든 evict 가 async)
+n_evict_wait_resolved=6,739 (== n_fetch — 모든 fetch 가 evict 완료 대기)
+```
+
+### 12.3 핵심 finding
+
+- **fetch path 본격 발화 확인** (n_fetch=6,739 > 100 목표 ≫ 달성)
+- **prefix hit rate 97.9%** (multi-turn 워크로드 의도대로)
+- **단 모든 fetch 가 evict-complete wait** → fetch-evict race 가 critical path 가 됨
+  - n_evict_wait_resolved=6,739 = n_fetch (1:1)
+  - fetch latency = evict (D2H) 완료 대기 시간 + H2D 시간
+- async evict 가 background overlap 으로 forward 비용 hide 했지만, **그 block 을 다시 fetch 하는 시점에 D2H 미완료 → fetch 가 sync block**
+
+### 12.4 task 결론
+
+**NEGATIVE -16.2%** — multi-turn workload (prefix hit 97.9%) 에서도 net positive 미도달.
+
+근본 원인: **fetch-evict race**. fetch 가 도착할 block 을 미리 evict 하는 정책 (LRU cold-block 선택) 이 잘못된 block 을 골라 evict → 그 block 이 곧 fetch 됨 → wait → sync block. async overlap 의 이득이 fetch wait 으로 전가.
+
+### 12.5 다음 step 후보 (참고)
+
+- **fetch-aware eviction**: 다음 N step 의 likely fetch block 을 evict 대상에서 제외 (또는 lazy evict)
+- **prefetch**: fetch 직전 block 의 evict 를 skip 하고 즉시 fetch 가능 상태로 유지
+- **selective eviction**: cold-block 만 evict (현재는 LRU 단순 정책)
+- **larger DRAM cache + smaller eviction batch**: tiered_blocks 가 max 도달 시 더 큰 cache 필요
+
+### 12.6 GPU 0 최종 free 검증
+
+```
+0, 0 MiB
+```
+
+GPU 1-7 미접촉.
