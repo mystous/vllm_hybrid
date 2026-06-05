@@ -1159,6 +1159,78 @@ class Worker(WorkerBase):
     def elastic_ep_execute(self, execute_method: str, *args, **kwargs):
         return self.elastic_ep_executor.execute(execute_method, *args, **kwargs)
 
+    # ──────────────────────────────────────────────────────────────
+    # SUB_201 A2 Phase B10 — KVDramTier RPC handlers.
+    # Invoked by the engine-side ``RpcProxyTier`` via collective_rpc.
+    # Each handler is a thin wrapper that fetches the worker-process
+    # tier singleton and delegates. Returns a serializable default when
+    # the tier is absent (e.g. RPC flag flipped on but
+    # VLLM_KV_TIERING_DRAM=0 in the worker env).
+    # See vllm/v1/core/_kv_tier_rpc_proxy.py for the engine-side design.
+    # ──────────────────────────────────────────────────────────────
+
+    def _kv_tier_get(self):
+        from vllm.v1.core.kv_dram_tiering import get_existing
+        return get_existing()
+
+    def kv_tier_has_pointer_binding(self) -> bool:
+        tier = self._kv_tier_get()
+        if tier is None:
+            return False
+        return bool(tier.has_pointer_binding())
+
+    def kv_tier_evict_block(
+        self, block_id: int, wait: bool = True
+    ) -> bool:
+        tier = self._kv_tier_get()
+        if tier is None or not tier.has_pointer_binding():
+            return False
+        try:
+            return bool(tier.evict_block(int(block_id), wait=bool(wait)))
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("[KVDramTier RPC] evict_block(%d) raised: %s",
+                           block_id, e)
+            return False
+
+    def kv_tier_fetch_block(
+        self,
+        block_id: int,
+        wait: bool = True,
+        drop_after_fetch: bool = True,
+    ) -> bool:
+        tier = self._kv_tier_get()
+        if tier is None or not tier.has_pointer_binding():
+            return False
+        try:
+            return bool(tier.fetch_block(
+                int(block_id),
+                wait=bool(wait),
+                drop_after_fetch=bool(drop_after_fetch),
+            ))
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("[KVDramTier RPC] fetch_block(%d) raised: %s",
+                           block_id, e)
+            return False
+
+    def kv_tier_drop(self, block_id: int) -> None:
+        tier = self._kv_tier_get()
+        if tier is None:
+            return
+        try:
+            tier.drop(int(block_id))
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("[KVDramTier RPC] drop(%d) raised: %s",
+                           block_id, e)
+
+    def kv_tier_stats(self) -> dict:
+        tier = self._kv_tier_get()
+        if tier is None:
+            return {}
+        try:
+            return dict(tier.stats())
+        except Exception:  # pragma: no cover - defensive
+            return {}
+
 
 def init_worker_distributed_environment(
     vllm_config: VllmConfig,

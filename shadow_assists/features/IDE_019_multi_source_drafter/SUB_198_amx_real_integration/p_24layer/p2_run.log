@@ -1,0 +1,26 @@
+────────────────────────────────────────────────────────────────────────
+LIB: /workspace/poc_worktrees/wt_a1_cpudraft/shadow_assists/features/IDE_019_multi_source_drafter/SUB_187_amx_draft_head/build/libamx_draft_qwen05b.so
+OMP_NUM_THREADS=16
+────────────────────────────────────────────────────────────────────────
+[load] safetensors=/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775/model.safetensors
+[load] read 290 tensors in 0.00s
+[init] amx_draft_qwen05b_init rc=0
+[init] amx_draft_qwen05b_init_model rc=0
+[load] embed_tokens rc=0
+[load] lm_head (tied) rc=0
+[load] final_norm rc=0
+[load] 24 layers loaded in 0.28s
+========================================================================
+P2 — Single-layer forward vs HF transformers reference (layer[0])
+========================================================================
+  config: layers=24 hidden=896 q_heads=14 kv_heads=2 intermediate=4864 rope_theta=1000000.0
+  layer[0] output shape: amx=(1, 896), ref=(1, 896)
+  max-abs-diff: 0.00781
+  mean-abs-diff: 0.00070
+  cosine sim (mean over S rows): 0.999990
+  ref output magnitude (L2): 6.902
+  amx output magnitude (L2): 6.901
+  [P2 verdict] cosine sim 1.0000 → PASS
+========================================================================
+P3 — Full 24-layer forward + lm_head + next-token vs HF
+========================================================================

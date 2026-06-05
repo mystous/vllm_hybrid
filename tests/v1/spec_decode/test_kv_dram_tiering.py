@@ -308,6 +308,205 @@ class TestKVDramTierHotPath(unittest.TestCase):
         self.assertEqual(s2["n_evict"], 2)
 
 
+class TestKVDramTierAsyncEvictB10(unittest.TestCase):
+    """SUB_201 A2 Phase B10 — async evict (wait=False) correctness.
+
+    The async path leaves the D2H pull in flight on the dedicated tier
+    stream. The tier MUST sync the pending event before reusing the
+    GPU block (via ``wait_evict``) and before freeing the host pinned
+    buffer (via ``_drop`` — which now event_syncs unconditionally).
+    """
+
+    def setUp(self):
+        from vllm.v1.core.kv_dram_tiering import KVDramTier, shutdown_singleton
+
+        shutdown_singleton()
+        self.pool = _FakePinnedPool(total_limit_bytes=16 << 20)
+        self.tier = KVDramTier(
+            pool=self.pool,
+            max_dram_bytes=16 << 20,
+            per_block_nbytes=4096,
+        )
+        # 4 blocks × 2 layers, contiguous-per-block stride to exercise the
+        # staged-batch path when libpinned_pool has the symbol; fake pool
+        # exposes neither so the fallback path is used (still records
+        # pending_ev on the last per-layer pull).
+        self.per_layer_bytes = 1024
+        per_block_ptrs = [
+            [0xA000 + b * 0x10000 + l * 0x1000 for l in range(2)]
+            for b in range(4)
+        ]
+        self.tier.bind_block_pointers(
+            per_block_layer_ptrs=per_block_ptrs,
+            per_layer_nbytes=self.per_layer_bytes,
+        )
+
+    def tearDown(self):
+        from vllm.v1.core.kv_dram_tiering import shutdown_singleton
+
+        self.tier.shutdown()
+        shutdown_singleton()
+
+    def test_async_evict_keeps_pending_event_then_wait_resolves(self):
+        """wait=False MUST NOT call stream_sync, MUST park the last
+        per-layer event in pending_ev, AND wait_evict MUST event_sync +
+        event_destroy + clear pending_ev."""
+        self.assertTrue(self.tier.evict_block(0, wait=False))
+        # async path: NO stream_sync should have been recorded
+        kinds = [e[0] for e in self.pool.log]
+        self.assertNotIn(
+            "stream_sync", kinds,
+            msg=f"async path leaked a stream_sync: {self.pool.log}",
+        )
+        # the entry must carry a non-zero pending_ev (last per-layer pull)
+        entry = self.tier._table[0]
+        self.assertNotEqual(
+            entry.pending_ev, 0,
+            msg="async evict_block must park the in-flight pull event",
+        )
+        # async telemetry tick
+        s = self.tier.stats()
+        self.assertEqual(s["n_evict_async"], 1)
+        self.assertEqual(s["n_evict_wait_resolved"], 0)
+
+        # wait_evict resolves the in-flight pull
+        self.tier.wait_evict(0)
+        self.assertEqual(self.tier._table[0].pending_ev, 0)
+        kinds = [e[0] for e in self.pool.log]
+        self.assertIn("event_sync", kinds)
+        self.assertIn("event_destroy", kinds)
+        s = self.tier.stats()
+        self.assertEqual(s["n_evict_wait_resolved"], 1)
+
+    def test_async_evict_drop_sync_before_host_free(self):
+        """_drop MUST event_sync the pending pull BEFORE pool.free(host_ptr)
+        even when the caller passes wait=False. Order matters: a free
+        before the D2H completes would corrupt the host buffer."""
+        self.assertTrue(self.tier.evict_block(1, wait=False))
+        # Direct _drop (mirrors BlockPool.get_new_blocks reuse path).
+        self.tier._drop(1, wait=False)
+        # Even though caller asked wait=False, _drop must still sync
+        # the pending evict event for correctness.
+        log = self.pool.log
+        # Find the indices of the last event_sync and the host free.
+        free_idx = next(
+            i for i, e in reversed(list(enumerate(log))) if e[0] == "free"
+        )
+        sync_idx = next(
+            i for i, e in reversed(list(enumerate(log))) if e[0] == "event_sync"
+        )
+        self.assertLess(
+            sync_idx, free_idx,
+            msg=f"event_sync must precede free; log={log}",
+        )
+        # Entry gone, dram released
+        self.assertEqual(self.tier.num_tiered_blocks(), 0)
+        self.assertEqual(self.tier.dram_bytes_in_use(), 0)
+
+
+class TestBlockPoolAsyncEvictB10(unittest.TestCase):
+    """SUB_201 A2 Phase B10 — BlockPool wiring with VLLM_KV_TIER_ASYNC=1.
+
+    When the env flag is set BlockPool MUST call evict_block(wait=False)
+    on the free path AND wait_evict the block on get_new_blocks reuse
+    so the GPU block is recycled only after the D2H pull resolves.
+    """
+
+    def setUp(self):
+        # Re-import block_pool with the env flag set so the ctor picks
+        # it up; KVDramTier import is cached so we just toggle the env
+        # var inside the test method and call _async_evict_enabled
+        # directly from the fresh BlockPool ctor.
+        from vllm.v1.core.kv_dram_tiering import KVDramTier, shutdown_singleton
+
+        shutdown_singleton()
+        self.fake_pool = _FakePinnedPool(total_limit_bytes=1 << 20)
+        self.tier = KVDramTier(
+            pool=self.fake_pool,
+            max_dram_bytes=1 << 20,
+            per_block_nbytes=1024,
+        )
+        self.tier.bind_block_pointers(
+            per_block_layer_ptrs=[[0xBA000 + b * 0x1000] for b in range(8)],
+            per_layer_nbytes=1024,
+        )
+
+    def tearDown(self):
+        from vllm.v1.core.kv_dram_tiering import shutdown_singleton
+
+        self.tier.shutdown()
+        shutdown_singleton()
+
+    @staticmethod
+    def _stamp_cached(block, group_id: int = 0) -> None:
+        block.block_hash = b"dummy_hash_xxxxxx" + group_id.to_bytes(
+            4, "big", signed=False
+        )
+
+    def test_blockpool_async_evict_path_no_stream_sync_on_free(self):
+        """With VLLM_KV_TIER_ASYNC=1 the free path MUST NOT block on
+        stream_sync; the pending event is parked and consumed lazily."""
+        from vllm.v1.core.block_pool import BlockPool
+
+        with mock.patch.dict(
+            os.environ, {"VLLM_KV_TIER_ASYNC": "1"}, clear=False
+        ):
+            pool = BlockPool(
+                num_gpu_blocks=8,
+                enable_caching=True,
+                hash_block_size=16,
+                kv_dram_tier=self.tier,
+            )
+            self.assertTrue(pool._async_evict)
+            blks = pool.get_new_blocks(2)
+            for b in blks:
+                self._stamp_cached(b)
+            pool.free_blocks(blks)
+            # async path: no stream_sync in fake-pool log
+            kinds = [e[0] for e in self.fake_pool.log]
+            self.assertNotIn(
+                "stream_sync", kinds,
+                msg=f"async free_blocks leaked stream_sync: {self.fake_pool.log[-12:]}",
+            )
+            self.assertEqual(self.tier.num_tiered_blocks(), 2)
+            s = self.tier.stats()
+            self.assertEqual(s["n_evict_async"], 2)
+            self.assertEqual(s["n_evict_wait_resolved"], 0)
+
+    def test_blockpool_async_get_new_blocks_waits_then_drops(self):
+        """get_new_blocks MUST wait_evict + drop the tiered block before
+        handing it back to the allocator, even on the async path."""
+        from vllm.v1.core.block_pool import BlockPool
+
+        with mock.patch.dict(
+            os.environ, {"VLLM_KV_TIER_ASYNC": "1"}, clear=False
+        ):
+            pool = BlockPool(
+                num_gpu_blocks=8,
+                enable_caching=True,
+                hash_block_size=16,
+                kv_dram_tier=self.tier,
+            )
+            # Drain to leave exactly one block in the LRU queue (block
+            # 0 is reserved as null by BlockPool ctor → 7 user blocks).
+            reserved = pool.get_new_blocks(7)
+            target = reserved[0]
+            self._stamp_cached(target)
+            pool.free_blocks([target])
+            self.assertEqual(self.tier.num_tiered_blocks(), 1)
+
+            # Now reuse — get_new_blocks must drain the in-flight evict
+            # before reuse to satisfy the D2H ↔ next-write ordering.
+            reused = pool.get_new_blocks(1)
+            self.assertIs(reused[0], target)
+            self.assertEqual(self.tier.num_tiered_blocks(), 0)
+            s = self.tier.stats()
+            # n_evict_wait_resolved >= 1 (wait_evict call + _drop's
+            # defensive sync; both bump the counter unless the first
+            # already cleared the event).
+            self.assertGreaterEqual(s["n_evict_wait_resolved"], 1)
+
+
 class TestBlockPoolNoOpWhenTierNone(unittest.TestCase):
     """3) Default BlockPool path: tier ref is None → all hooks no-op."""
 
@@ -423,6 +622,107 @@ class TestBlockPoolHooksWithFakeTier(unittest.TestCase):
         self.assertGreater(after_push, before_push)
         # touch also drops by default; tier should be empty
         self.assertEqual(self.tier.num_tiered_blocks(), 0)
+
+
+class TestRpcProxyTierB10(unittest.TestCase):
+    """SUB_201 A2 Phase B10 — engine-side RpcProxyTier forwards
+    has_pointer_binding / evict_block / fetch_block / drop calls to
+    workers via a mock executor's collective_rpc.
+
+    Background (MEASUREMENTS.md §7.5 + §8.1): under TP > 1 multiproc
+    executor the engine BlockPool and the worker pointer binding live
+    in disjoint processes; the engine-side tier never sees a binding.
+    The B10 proxy lets BlockPool's evict path dispatch the actual
+    cudaMemcpyAsync into the worker process via collective_rpc.
+    """
+
+    class _MockExecutor:
+        """Stand-in for MultiprocExecutor with a captured RPC log."""
+
+        def __init__(self):
+            self.calls: list[tuple] = []
+            self._handlers: dict = {}
+            # Default: pretend a worker tier is bound and ready.
+            self._handlers["kv_tier_has_pointer_binding"] = (
+                lambda *a, **k: True
+            )
+            self._handlers["kv_tier_evict_block"] = lambda *a, **k: True
+            self._handlers["kv_tier_fetch_block"] = lambda *a, **k: True
+            self._handlers["kv_tier_drop"] = lambda *a, **k: None
+
+        def collective_rpc(
+            self, method, args=(), kwargs=None, unique_reply_rank=None,
+        ):
+            self.calls.append((method, args, unique_reply_rank))
+            handler = self._handlers.get(method)
+            if handler is None:
+                raise RuntimeError(f"no handler: {method}")
+            return handler(*args, **(kwargs or {}))
+
+    def setUp(self):
+        from vllm.v1.core._kv_tier_rpc_proxy import RpcProxyTier
+        self.executor = self._MockExecutor()
+        self.proxy = RpcProxyTier(self.executor)
+
+    def test_b10_evict_forwards_and_mirrors_tiered_set(self):
+        # Initially nothing is tiered.
+        self.assertFalse(self.proxy.is_tiered(7))
+        # has_pointer_binding probes the workers and caches True.
+        self.assertTrue(self.proxy.has_pointer_binding())
+        self.assertTrue(self.proxy.has_pointer_binding())  # cached now
+        n_probe = sum(
+            1 for c in self.executor.calls
+            if c[0] == "kv_tier_has_pointer_binding"
+        )
+        self.assertEqual(n_probe, 1)
+        # Evict updates the mirror.
+        self.assertTrue(self.proxy.evict_block(7, wait=True))
+        self.assertTrue(self.proxy.is_tiered(7))
+        evict_calls = [c for c in self.executor.calls
+                       if c[0] == "kv_tier_evict_block"]
+        self.assertEqual(len(evict_calls), 1)
+        self.assertEqual(evict_calls[0][1], (7, True))
+        # Drop removes from the mirror.
+        self.proxy.drop(7)
+        self.assertFalse(self.proxy.is_tiered(7))
+        s = self.proxy.stats()
+        self.assertEqual(s["n_evict"], 1)
+        self.assertEqual(s["n_drop"], 1)
+        self.assertEqual(s["n_evict_failed"], 0)
+        self.assertEqual(s["n_rpc_errors"], 0)
+
+    def test_b10_rpc_failure_degrades_gracefully(self):
+        # Worker returns False for evict (e.g. tier-full).
+        self.executor._handlers["kv_tier_evict_block"] = (
+            lambda *a, **k: False
+        )
+        self.assertFalse(self.proxy.evict_block(3))
+        self.assertFalse(self.proxy.is_tiered(3))
+
+        # Raising an exception in collective_rpc must not propagate.
+        def _boom(*a, **k):
+            raise RuntimeError("ZMQ peer died")
+
+        self.executor._handlers["kv_tier_evict_block"] = _boom
+        self.assertFalse(self.proxy.evict_block(4))
+        s = self.proxy.stats()
+        self.assertGreaterEqual(s["n_evict_failed"], 2)
+        self.assertGreaterEqual(s["n_rpc_errors"], 1)
+        self.assertEqual(s["n_evict"], 0)
+
+    def test_b10_fetch_drops_mirror_when_drop_after_fetch(self):
+        # Tier a block first.
+        self.assertTrue(self.proxy.evict_block(5))
+        self.assertTrue(self.proxy.is_tiered(5))
+        # Fetch with drop_after_fetch=True should clear the mirror.
+        self.assertTrue(self.proxy.fetch_block(5, drop_after_fetch=True))
+        self.assertFalse(self.proxy.is_tiered(5))
+        # Tier again, then fetch without drop — mirror stays.
+        self.assertTrue(self.proxy.evict_block(6))
+        self.assertTrue(
+            self.proxy.fetch_block(6, drop_after_fetch=False)
+        )
+        self.assertTrue(self.proxy.is_tiered(6))
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -160,9 +160,17 @@ class BlockPool:
         self.enable_caching = enable_caching
         self.hash_block_size = hash_block_size
         # SUB_201 A2 — optional cold-KV → DRAM tier. When None (default)
-        # all hot-path branches below are skipped via a single `is None`
+        # all hot-path branches below are skipped via a single `is none`
         # check, preserving baseline behavior bit-exactly.
         self._kv_dram_tier = kv_dram_tier
+        # SUB_201 A2 Phase B10 — async-evict flag (VLLM_KV_TIER_ASYNC).
+        # Captured at ctor time so the hot path doesn't re-read env on
+        # every free_blocks call.
+        if kv_dram_tier is not None:
+            from vllm.v1.core.kv_dram_tiering import _async_evict_enabled
+            self._async_evict = _async_evict_enabled()
+        else:
+            self._async_evict = False
         # All kv-cache blocks.
         self.blocks: list[KVCacheBlock] = [
             KVCacheBlock(idx) for idx in range(num_gpu_blocks)
@@ -341,14 +349,20 @@ class BlockPool:
         ret: list[KVCacheBlock] = self.free_block_queue.popleft_n(num_blocks)
 
         # SUB_201 A2 — P2 hook: drop any tiered DRAM copy before the
-        # block is overwritten by the new allocation. The block was
-        # tiered with wait=True so the pull is fully resolved; we only
-        # need to release the host buffer. (When fetch-on-reuse is
-        # eventually wired this becomes a fetch_block instead.)
+        # block is overwritten by the new allocation. The block may
+        # have been tiered async (wait=False, B10) so we must first
+        # wait_evict to drain the in-flight D2H pull before the GPU
+        # block is recycled — otherwise the pull could race with the
+        # next attention write. ``drop`` itself event_syncs the pending
+        # event before freeing the host buffer (defense-in-depth), so
+        # the explicit ``wait_evict`` call is redundant for correctness
+        # but kept for telemetry clarity (n_evict_wait_resolved counter
+        # records the resolve here).
         tier = self._kv_dram_tier
         if tier is not None:
             for block in ret:
                 if tier.is_tiered(block.block_id):
+                    tier.wait_evict(block.block_id)
                     tier.drop(block.block_id)
 
         # In order to only iterate the list once, we duplicated code a bit
@@ -450,13 +464,20 @@ class BlockPool:
         # SUB_201 A2 — P1 hook: spill cached free blocks into pinned DRAM.
         # Conservative policy: only cached blocks (have a hash) are
         # tiered; non-cached free blocks fall through to the LRU queue
-        # unchanged. ``evict_block`` is synchronous (wait=True) for PoC
-        # correctness — see DESIGN_ENGINE_WIRING.md §2.3.
+        # unchanged.
+        #
+        # SUB_201 A2 Phase B10 — wait gating is now controlled by the
+        # VLLM_KV_TIER_ASYNC env flag. When async is on we issue
+        # evict_block(wait=False) so the D2H pull overlaps the next
+        # forward; the pending event is sync'd lazily in
+        # ``get_new_blocks`` / ``fetch_block`` / ``_drop``. B9 default
+        # (wait=True) is preserved when the flag is off / unset.
         tier = self._kv_dram_tier
         if tier is not None and tier.has_pointer_binding():
+            wait_flag = not self._async_evict
             for block in newly_free:
                 if block.block_hash is not None:
-                    tier.evict_block(block.block_id, wait=True)
+                    tier.evict_block(block.block_id, wait=wait_flag)
 
     def evict_blocks(self, block_ids: set[int]) -> None:
         """evict blocks from the prefix cache by their block IDs.

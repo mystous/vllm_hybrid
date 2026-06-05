@@ -93,6 +93,24 @@ def _is_enabled() -> bool:
     return raw in _ENABLED_VALUES
 
 
+def _async_evict_enabled() -> bool:
+    """Gate on VLLM_KV_TIER_ASYNC for the async-evict path (SUB_201 A2
+    Phase B10).
+
+    When enabled the engine wires evict_block(wait=False) so the D2H
+    pull on the dedicated tier stream overlaps with the next forward
+    step rather than blocking inside ``BlockPool.free_blocks``. The
+    in-flight pull event is parked in the per-block ``_TierEntry`` and
+    consumed lazily by ``wait_evict`` / ``BlockPool.get_new_blocks`` /
+    ``fetch_block`` to preserve correctness.
+
+    Off by default — must be flipped explicitly to opt into the
+    correctness-sensitive overlap path.
+    """
+    raw = os.environ.get("VLLM_KV_TIER_ASYNC", "").strip().lower()
+    return raw in _ENABLED_VALUES
+
+
 @dataclass
 class _TierEntry:
     host_ptr: int
@@ -169,6 +187,15 @@ class KVDramTier:
                 # bind code now skips the profiling call, so the
                 # boot-time value should be 1 after the B9 fix.
                 "n_binds": int(getattr(self, "_n_binds", 0)),
+                # SUB_201 A2 Phase B10 — async-evict telemetry. n_evict_async
+                # counts evict_block calls that left the D2H pull in
+                # flight; n_evict_wait_resolved counts how many of those
+                # were later sync'd by wait_evict / get_new_blocks. The
+                # delta (in-flight) is recovered by atexit drain.
+                "n_evict_async": int(getattr(self, "_n_evict_async", 0)),
+                "n_evict_wait_resolved": int(
+                    getattr(self, "_n_evict_wait_resolved", 0)
+                ),
             }
 
     def dump_telemetry(self, prefix: str = "[KVDramTier]") -> str:
@@ -186,7 +213,9 @@ class KVDramTier:
             f"tiered_blocks={s['tiered_blocks']} "
             f"dram_in_use={s['dram_bytes']} "
             f"skipped_full={s['n_evict_skipped_full']} "
-            f"n_binds={s['n_binds']}"
+            f"n_binds={s['n_binds']} "
+            f"n_evict_async={s['n_evict_async']} "
+            f"n_evict_wait_resolved={s['n_evict_wait_resolved']}"
         )
         raw = os.environ.get("VLLM_KV_TIER_TELEMETRY", "").strip().lower()
         if raw in _ENABLED_VALUES:
@@ -244,7 +273,14 @@ class KVDramTier:
 
     def wait_evict(self, block_id: int) -> None:
         """Block until the in-flight pull for `block_id` resolves so
-        the GPU block can be reused safely."""
+        the GPU block can be reused safely.
+
+        SUB_201 A2 Phase B10 — invoked from
+        ``BlockPool.get_new_blocks`` on the async path BEFORE the GPU
+        block is handed back to the allocator. Also called by
+        ``fetch_block`` / ``_drop`` defensively so the host buffer is
+        not freed while the D2H pull is still in flight.
+        """
         with self._lock:
             entry = self._table.get(block_id)
             if entry is None or entry.pending_ev == 0:
@@ -254,6 +290,9 @@ class KVDramTier:
         self._pool.event_destroy(ev)
         with self._lock:
             entry.pending_ev = 0
+            self._n_evict_wait_resolved = int(
+                getattr(self, "_n_evict_wait_resolved", 0)
+            ) + 1
 
     def fetch_to_gpu(
         self,
@@ -298,6 +337,13 @@ class KVDramTier:
         return True
 
     def _drop(self, block_id: int, wait: bool = True) -> None:
+        # SUB_201 A2 Phase B10 — _drop is the catch-all release path
+        # (BlockPool.get_new_blocks → reuse; fetch_block → done; explicit
+        # drop). When the entry still has an in-flight evict pull
+        # event (wait=False async path), we MUST event_sync it before
+        # freeing the host pinned buffer AND before the caller reuses
+        # the GPU block, regardless of the `wait` argument. The `wait`
+        # arg now only gates whether the *host free* is sync vs lazy.
         with self._lock:
             entry = self._table.pop(block_id, None)
             if entry is None:
@@ -305,9 +351,14 @@ class KVDramTier:
             self._dram_in_use -= entry.nbytes
             host_ptr = entry.host_ptr
             ev = entry.pending_ev
-        if wait and ev:
+        # Always sync the in-flight pull — correctness contract.
+        if ev:
             self._pool.event_sync(ev)
             self._pool.event_destroy(ev)
+            with self._lock:
+                self._n_evict_wait_resolved = int(
+                    getattr(self, "_n_evict_wait_resolved", 0)
+                ) + 1
         self._pool.free(host_ptr)
 
     def drop(self, block_id: int) -> None:
@@ -403,6 +454,14 @@ class KVDramTier:
         Slow fallback (kept as graceful path): per-layer ``pull_async``
         when the symbol is absent OR per-layer pointers are non-contiguous.
 
+        SUB_201 A2 Phase B10 — when ``wait=False`` the D2H pull is left
+        in-flight on the dedicated tier stream (``self._stream``). The
+        pending CUDA event is parked in ``_TierEntry.pending_ev`` and
+        must be consumed via ``wait_evict`` before the source GPU block
+        is reused (BlockPool.get_new_blocks handles this on its hot
+        path). This unlocks forward / evict overlap so the PCIe D2H
+        cost can be hidden by the next attention step.
+
         Returns True on success / already tiered, False on tier-full or
         unbound.
         """
@@ -460,14 +519,23 @@ class KVDramTier:
             else:
                 # Fallback: one pull per layer slice. host_ptr is contiguous
                 # so per-layer offset stride == per_layer_nbytes.
+                last_ev = 0
                 for layer_idx in range(self._n_layers):
-                    self._pool.pull_async(
+                    last_ev = self._pool.pull_async(
                         block_ptrs[layer_idx],
                         host_ptr + layer_idx * stride,
                         stride,
                         self._stream,
                     )
-                entry = _TierEntry(host_ptr=host_ptr, nbytes=total, pending_ev=0)
+                # SUB_201 A2 Phase B10 — keep the *last* per-layer event
+                # so wait_evict can serialize the fallback path too.
+                # CUDA stream ordering means waiting on the last issued
+                # event implies all earlier ops on the same stream have
+                # completed; intermediate events are dropped here to
+                # avoid leaking handles.
+                entry = _TierEntry(
+                    host_ptr=host_ptr, nbytes=total, pending_ev=last_ev
+                )
                 self._table[block_id] = entry
                 self._dram_in_use += total
                 self._n_evict += 1
@@ -482,6 +550,11 @@ class KVDramTier:
                 if ent is not None and ent.pending_ev:
                     self._pool.event_destroy(ent.pending_ev)
                     ent.pending_ev = 0
+        else:
+            # SUB_201 A2 Phase B10 — async path. Bump telemetry counter
+            # so ``stats()`` can prove the async path actually fired
+            # (vs the sync default path) in e2e logs.
+            self._n_evict_async = int(getattr(self, "_n_evict_async", 0)) + 1
         return True
 
     def fetch_block(
@@ -627,4 +700,5 @@ __all__ = [
     "shutdown_singleton",
     "try_build_tier",
     "_is_enabled",
+    "_async_evict_enabled",
 ]

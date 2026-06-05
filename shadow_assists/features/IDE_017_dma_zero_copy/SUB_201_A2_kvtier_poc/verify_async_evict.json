@@ -1,0 +1,72 @@
+{
+  "gpu": 0,
+  "iters": 30,
+  "warmup": 3,
+  "n_blocks": 80,
+  "block_total_bytes": 655360,
+  "shape": {
+    "model": "Llama-70B / TP=8",
+    "N_layers": 80,
+    "per_layer_bytes": 8192,
+    "block_total_bytes": 655360
+  },
+  "fake_fwd_K": 2048,
+  "results": {
+    "fwd_only": {
+      "mean_us": 34.774433333333334,
+      "p50_us": 34.716,
+      "p90_us": 35.166,
+      "p99_us": 35.591,
+      "min_us": 34.329,
+      "max_us": 35.591,
+      "GBps_p50": 0.0
+    },
+    "sync_80": {
+      "mean_us": 12373.669033333334,
+      "p50_us": 11453.349,
+      "p90_us": 17743.421,
+      "p99_us": 17876.674,
+      "min_us": 10597.673,
+      "max_us": 17876.674,
+      "GBps_p50": 4.263218120743549
+    },
+    "async_80_then_wait_all": {
+      "mean_us": 8104.279133333333,
+      "p50_us": 8020.88,
+      "p90_us": 8466.624,
+      "p99_us": 9254.005,
+      "min_us": 7959.889,
+      "max_us": 9254.005,
+      "GBps_p50": 6.0876269187420835
+    },
+    "sync_80_then_fwd": {
+      "mean_us": 9745.098566666666,
+      "p50_us": 9607.395,
+      "p90_us": 9755.343,
+      "p99_us": 12527.858,
+      "min_us": 9536.209,
+      "max_us": 12527.858,
+      "GBps_p50": 5.082348024620617
+    },
+    "async_80_with_forward_overlap": {
+      "mean_us": 8554.172433333333,
+      "p50_us": 8186.324,
+      "p90_us": 9745.709,
+      "p99_us": 11079.893,
+      "min_us": 8108.407,
+      "max_us": 11079.893,
+      "GBps_p50": 5.9645971745071416
+    }
+  },
+  "verdict": {
+    "fwd_only_us": 34.716,
+    "sync_evict_us": 11453.349,
+    "async_drain_us": 8020.88,
+    "sync_plus_fwd_us": 9607.395,
+    "async_overlap_us": 8186.324,
+    "critical_path_evict_us_sync": 9572.679,
+    "critical_path_evict_us_async": 8151.607999999999,
+    "evict_cost_hidden_pct": 14.845071061089596,
+    "wall_savings_us_vs_sync": 1421.0710000000008
+  }
+}

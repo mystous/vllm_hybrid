@@ -1,0 +1,42 @@
+loading HF model...
+  HF loaded in 2.0s
+HF ['Hello'                            ] S=1 top1=271('\n\n') hf_ms=47.7
+HF ['The capital of France is'         ] S=5 top1=12095(' Paris') hf_ms=39.6
+HF ['def fibonacci(n):'                ] S=4 top1=715(' \n') hf_ms=37.6
+HF ['2 + 2 ='                          ] S=5 top1=220(' ') hf_ms=34.7
+HF ['Once upon a time,'                ] S=5 top1=1052(' there') hf_ms=34.1
+HF ['import numpy as np\n'             ] S=5 top1=474('import') hf_ms=33.0
+HF ['The quick brown fox'              ] S=4 top1=34208(' jumps') hf_ms=32.3
+HF ['My name is'                       ] S=3 top1=3757(' John') hf_ms=34.9
+HF done. freeing model and starting AMX phase.
+[load] safetensors=/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775/model.safetensors
+[load] read 290 tensors in 0.00s
+[init] amx_draft_qwen05b_init rc=0
+[init] amx_draft_qwen05b_init_model rc=0
+[load] embed_tokens rc=0
+[load] lm_head (tied) rc=0
+[load] final_norm rc=0
+[load] 24 layers loaded in 0.30s
+AMX ['Hello'                            ] S=1 amx_id=271 ms=97.7
+AMX ['The capital of France is'         ] S=5 amx_id=12095 ms=30.4
+AMX ['def fibonacci(n):'                ] S=4 amx_id=715 ms=27.1
+AMX ['2 + 2 ='                          ] S=5 amx_id=220 ms=23.7
+AMX ['Once upon a time,'                ] S=5 amx_id=1052 ms=22.6
+AMX ['import numpy as np\n'             ] S=5 amx_id=474 ms=22.6
+AMX ['The quick brown fox'              ] S=4 amx_id=34208 ms=21.5
+AMX ['My name is'                       ] S=3 amx_id=3757 ms=20.7
+
+COMPARE:
+[✓] 'Hello'                             AMX=271('\n\n') REF=271('\n\n') top3=[271, 198, 11] lp_mad=0.4416
+[✓] 'The capital of France is'          AMX=12095(' Paris') REF=12095(' Paris') top3=[12095, 32671, 510] lp_mad=0.3349
+[✓] 'def fibonacci(n):'                 AMX=715(' \n') REF=715(' \n') top3=[715, 671, 220] lp_mad=0.3343
+[✓] '2 + 2 ='                           AMX=220(' ') REF=220(' ') top3=[220, 1124, 481] lp_mad=0.1746
+[✓] 'Once upon a time,'                 AMX=1052(' there') REF=1052(' there') top3=[1052, 264, 304] lp_mad=0.1606
+[✓] 'import numpy as np\n'              AMX=474('import') REF=474('import') top3=[474, 1499, 2] lp_mad=0.2176
+[✓] 'The quick brown fox'               AMX=34208(' jumps') REF=34208(' jumps') top3=[34208, 26005, 11] lp_mad=0.5358
+[✓] 'My name is'                        AMX=3757(' John') REF=3757(' John') top3=[3757, 10244, 32671] lp_mad=0.2183
+
+AGGREGATE over 8 prompts:
+  top-1 match: 100.0% (threshold 90%)
+  top-3 match: 100.0% (threshold 95%)
+  lp_mad mean: 0.3022  max: 0.5358  (threshold <0.1)

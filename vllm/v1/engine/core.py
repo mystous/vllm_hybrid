@@ -154,6 +154,55 @@ class EngineCore:
         if self.scheduler.connector is not None:  # type: ignore
             self.model_executor.init_kv_output_aggregator(self.scheduler.connector)  # type: ignore
 
+        # SUB_201 A2 Phase B10 — Cross-process KVDramTier bind via RPC.
+        # When TP > 1 (multiproc executor), the engine-side BlockPool and
+        # the worker-side pointer binding live in disjoint processes, so
+        # the in-process KVDramTier on the engine never sees a binding
+        # and BlockPool skips every evict. Replace the engine-side tier
+        # with a thin RpcProxyTier that forwards each evict/fetch/drop
+        # call to all workers via collective_rpc. The real KVDramTier
+        # (with the binding) lives in each worker process and performs
+        # the cudaMemcpyAsync against its TP shard.
+        #
+        # Gated on VLLM_KV_TIER_RPC_BIND=1 (OFF by default). When OFF the
+        # original engine-side in-process tier is retained — the lever
+        # only activates under TP=1 (uniproc) as before.
+        try:
+            from vllm.v1.core._kv_tier_rpc_proxy import (
+                RpcProxyTier as _RpcProxyTier,
+                _is_rpc_bind_enabled as _kv_tier_rpc_enabled,
+            )
+            from vllm.v1.core.kv_dram_tiering import (
+                _is_enabled as _kv_tier_enabled,
+            )
+            if _kv_tier_enabled() and _kv_tier_rpc_enabled():
+                _kv_mgr = getattr(self.scheduler, "kv_cache_manager", None)
+                if _kv_mgr is not None and getattr(
+                    _kv_mgr, "block_pool", None
+                ) is not None:
+                    _proxy = _RpcProxyTier(self.model_executor)
+                    _kv_mgr._kv_dram_tier = _proxy
+                    _kv_mgr.block_pool._kv_dram_tier = _proxy
+                    logger.info(
+                        "[KVDramTier RPC] proxy attached to engine "
+                        "BlockPool (executor=%s)",
+                        type(self.model_executor).__name__,
+                    )
+                    # Best-effort atexit dump on engine shutdown.
+                    try:
+                        import atexit
+                        atexit.register(
+                            lambda: _proxy.dump_telemetry(
+                                "[KVDramTier RPC atexit]"
+                            )
+                        )
+                    except Exception:  # pragma: no cover - defensive
+                        pass
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "[KVDramTier RPC] proxy wire-up failed: %s", e
+            )
+
         mm_registry = MULTIMODAL_REGISTRY
         self.mm_receiver_cache = mm_registry.engine_receiver_cache_from_config(
             vllm_config
