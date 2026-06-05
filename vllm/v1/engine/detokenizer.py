@@ -55,6 +55,27 @@ _avx512_detok_inc_enabled: bool = (
 _avx512_detok_native_enabled: bool = (
     os.environ.get("VLLM_USE_AVX512_DETOK_NATIVE", "0") == "1"
 )
+# Phase A4-exclusive: NATIVE_EXCLUSIVE wire-in.
+# `VLLM_USE_AVX512_DETOK_EXCLUSIVE=1` → native `DecodeStream.step` 호출 자체를
+# **skip** 하고 AVX-512 incremental path **단독** 으로 token 을 produce.
+# Phase A4-prod 의 결정적 single-blocker (AVX + native 가 동시에 돌아가는
+# "double work") 를 제거하여, CPU 가속이 만들어내는 host time saving 을 진짜
+# net e2e throughput 으로 전환하는 것이 목표.
+#
+# correctness fallback: AVX path 가 exception 을 던지거나 sanity check 가
+# 실패하면 그 step 부터 native stream 으로 자동 전환한다. 단, native stream 의
+# internal state (prefix_offset/buffered bytes) 가 그동안 update 되지 않았으므로
+# 그 자리에서 그동안 emit 한 token id 전체를 사용해 native ``DecodeStream(ids=
+# ...)`` 을 **lazy reconstruct** (cold path, 발생률 극히 낮음을 가정) 한 뒤
+# 이번 token 부터 native step 으로 fallback 한다. 그 다음 step 들도 모두
+# native 로 동작 → exclusive flag 가 켜져있어도 그 sequence 만 native 로
+# downgrade. 그 외 sequence (다른 request) 는 그대로 exclusive 유지.
+#
+# default OFF. NATIVE_EXCLUSIVE 와 NATIVE (double-work, prior 비교 baseline)
+# 는 mutually exclusive; EXCLUSIVE 가 우선이며 둘 다 켜도 EXCLUSIVE 가 적용.
+_avx512_detok_exclusive_enabled: bool = (
+    os.environ.get("VLLM_USE_AVX512_DETOK_EXCLUSIVE", "0") == "1"
+)
 # `VLLM_AVX512_DETOK_VERIFY=1` → 매 step 마다 byte-equal verify (opt-in).
 # Production 측정엔 OFF — overhead 가 크기 때문 (debug/CI 용).
 _avx512_detok_verify_enabled: bool = (
@@ -66,6 +87,12 @@ _avx512_detok_native_fallback_logged: set[int] = set()
 _avx512_detok_native_step_count: int = 0
 _avx512_detok_native_fallback_count: int = 0
 _avx512_detok_native_verify_mismatch: int = 0
+# Phase A4-exclusive telemetry counters.
+_avx512_detok_exclusive_step_count: int = 0
+_avx512_detok_exclusive_fallback_count: int = 0
+_avx512_detok_exclusive_reconstruct_count: int = 0
+# Track first-fallback warn per (tokenizer, reason) to avoid spamming.
+_avx512_detok_exclusive_fallback_logged: set[tuple[int, str]] = set()
 # Phase A4-fix P1: per-process singleton cache for the heavy vocab table.
 # `from_hf_tokenizer` walks the entire 128k vocab (Llama-3) and applies the
 # GPT-2 byte_decoder per token — measured at ~+95 ms TTFT in the v1
@@ -115,7 +142,8 @@ def _avx512_detok_inc_get_for(hf_tok) -> object | None:
     in that case the wrapper output is **adopted** as the production return
     of ``_protected_step`` (see caller).
     """
-    if not (_avx512_detok_inc_enabled or _avx512_detok_native_enabled):
+    if not (_avx512_detok_inc_enabled or _avx512_detok_native_enabled
+            or _avx512_detok_exclusive_enabled):
         return None
     try:
         from vllm.tokenizers.avx512_detokenizer import AVX512Detokenizer
@@ -243,6 +271,16 @@ def avx512_detok_native_snapshot() -> dict:
         "step_count": _avx512_detok_native_step_count,
         "fallback_count": _avx512_detok_native_fallback_count,
         "verify_mismatch": _avx512_detok_native_verify_mismatch,
+    }
+
+
+def avx512_detok_exclusive_snapshot() -> dict:
+    """Snapshot per-process Phase A4-exclusive wire-in telemetry."""
+    return {
+        "enabled": bool(_avx512_detok_exclusive_enabled),
+        "step_count": _avx512_detok_exclusive_step_count,
+        "fallback_count": _avx512_detok_exclusive_fallback_count,
+        "reconstruct_count": _avx512_detok_exclusive_reconstruct_count,
     }
 # ────────────────────────────────────────────────────────────────────────
 
@@ -420,12 +458,26 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
         # in place of `stream.step(...)` (see `_protected_step`). Shadow flag
         # is implicitly enabled when NATIVE is on, but only one wrapper is
         # actually instantiated (kept on `_avx512_detok_inc`).
-        if _avx512_detok_inc_enabled or _avx512_detok_native_enabled:
+        #
+        # Phase A4-exclusive (`VLLM_USE_AVX512_DETOK_EXCLUSIVE=1`) — AVX path
+        # 만 단독 호출 (native stream.step skip). exception/sanity fail 시
+        # ``_native_downgrade`` 로 전환 후 그 sequence 만 native 사용.
+        if (_avx512_detok_inc_enabled or _avx512_detok_native_enabled
+                or _avx512_detok_exclusive_enabled):
             self._avx512_detok_inc = _avx512_detok_inc_get_for(tokenizer)
         else:
             self._avx512_detok_inc = None
+        # EXCLUSIVE-mode per-request state:
+        # ``_emitted_token_ids`` tracks every token id processed by the AVX
+        # path so we can lazy-reconstruct the native DecodeStream on first
+        # failure. ``_native_downgrade`` is set to True once we've fallen
+        # back; from then on this sequence uses native exclusively.
+        self._emitted_token_ids: list[int] = []
+        self._native_downgrade: bool = False
 
         # Use native prefill to prime the decode stream with prompt tokens.
+        # Stash prompt ids (used for Phase A4-exclusive lazy reconstruct).
+        self.stream_prompt_ids = list(request.prompt_token_ids or [])
         self.stream = DecodeStream(
             ids=request.prompt_token_ids,
             skip_special_tokens=self.skip_special_tokens,
@@ -466,6 +518,55 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
 
         return token or ""
 
+    def _lazy_reconstruct_native_stream(
+        self, reason: str, exc: BaseException
+    ) -> None:
+        """Phase A4-exclusive: rebuild native DecodeStream from emitted ids.
+
+        Called the first time the AVX-only fast path fails. Replays all
+        token ids that have so far been emitted by AVX into a fresh
+        ``DecodeStream(ids=...)`` so internal prefix_offset / byte-buffer
+        state is consistent with what the consumer already received. After
+        this call ``self._native_downgrade = True`` and subsequent
+        ``_protected_step`` calls will run native stream.step exclusively.
+
+        We do NOT replay output back (consumer already has those chars).
+        """
+        global _avx512_detok_exclusive_fallback_count
+        global _avx512_detok_exclusive_reconstruct_count
+        _avx512_detok_exclusive_fallback_count += 1
+        _avx512_detok_exclusive_reconstruct_count += 1
+        try:
+            # Prime native stream with the full history (prompt + emitted)
+            # so its internal state matches the byte-stream consumer has.
+            replay_ids = list(self.stream_prompt_ids) + list(
+                self._emitted_token_ids
+            )
+            self.stream = DecodeStream(
+                ids=replay_ids,
+                skip_special_tokens=self.skip_special_tokens,
+            )
+        except Exception as exc2:  # noqa: BLE001
+            # Last-ditch: bare stream (loses prefix offset). This is the
+            # same recovery vLLM uses for INVALID_PREFIX_ERR_MSG already.
+            logger.warning(
+                "SUB_201 B1 exclusive: lazy-reconstruct DecodeStream(ids=...) "
+                "raised (%s); falling back to bare DecodeStream.", exc2,
+            )
+            self.stream = DecodeStream(
+                skip_special_tokens=self.skip_special_tokens,
+            )
+        self._native_downgrade = True
+        # One-shot warn per (tokenizer, reason).
+        key = (id(self.tokenizer), reason)
+        if key not in _avx512_detok_exclusive_fallback_logged:
+            _avx512_detok_exclusive_fallback_logged.add(key)
+            logger.warning(
+                "SUB_201 B1 exclusive: AVX-only path %s (%s) — sequence "
+                "downgraded to native DecodeStream (further occurrences "
+                "for this tokenizer/reason suppressed).", reason, exc,
+            )
+
     def _protected_step(self, next_token_id: int) -> str | None:
         # SUB_173: AVX-512 fast-path telemetry + cross-check.
         # we always call stream.step (DecodeStream is the source of truth for
@@ -476,6 +577,42 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
         global _avx512_detok_native_step_count
         global _avx512_detok_native_fallback_count
         global _avx512_detok_native_verify_mismatch
+        global _avx512_detok_exclusive_step_count
+        global _avx512_detok_exclusive_fallback_count
+        global _avx512_detok_exclusive_reconstruct_count
+
+        # ──────────────────────────────────────────────────────────────────
+        # Phase A4-exclusive — AVX-only fast path (no native stream.step call)
+        # ──────────────────────────────────────────────────────────────────
+        # When EXCLUSIVE is on AND we haven't downgraded yet AND the wrapper
+        # exists, run AVX path solo. native stream.step is NOT called → net
+        # work reduction (target of this phase). On failure we lazy-reconstruct
+        # the native stream from accumulated token ids and downgrade this
+        # sequence to native for the remainder of its lifetime.
+        if (_avx512_detok_exclusive_enabled
+                and not self._native_downgrade
+                and getattr(self, "_avx512_detok_inc", None) is not None):
+            _avx512_detok_exclusive_step_count += 1
+            try:
+                avx_str = self._avx512_detok_inc.incremental_append(
+                    int(next_token_id)
+                )
+            except Exception as exc:  # noqa: BLE001
+                # Lazy-reconstruct + downgrade this sequence to native.
+                self._lazy_reconstruct_native_stream("exception", exc)
+                # Fall through to the native code path below for this token.
+            else:
+                # Sanity check: wrapper must return str (may be "" for held-
+                # back incomplete codepoint — that is valid).
+                if isinstance(avx_str, str):
+                    self._emitted_token_ids.append(int(next_token_id))
+                    return avx_str
+                # sanity fail → downgrade.
+                self._lazy_reconstruct_native_stream(
+                    "sanity",
+                    TypeError(f"avx_str type={type(avx_str).__name__!r}"),
+                )
+                # fall through to native call below.
 
         # SUB_201 §5 B1 PoC: shadow-mode AVX-512 ctypes detok call.
         # No state mutation — only exercises the kernel for latency telemetry
@@ -497,7 +634,10 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
         _b1_inc = getattr(self, "_avx512_detok_inc", None)
         avx_native_str: str | None = None
         avx_native_ok: bool = False
-        if _b1_inc is not None:
+        # EXCLUSIVE-downgraded sequences must NOT also run the shadow/native
+        # incremental_append (it's been disowned for this seq and may even
+        # have raised already). Native stream alone is the source of truth.
+        if _b1_inc is not None and not self._native_downgrade:
             try:
                 avx_native_str = _b1_inc.incremental_append(int(next_token_id))
                 avx_native_ok = True
@@ -558,8 +698,20 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
             self.stream = DecodeStream(skip_special_tokens=self.skip_special_tokens)
             token = self.stream.step(self.tokenizer, next_token_id)
 
+        # Phase A4-exclusive downgrade: keep _emitted_token_ids in sync so
+        # any further (unlikely) downgrade/reconstruct would still see a
+        # consistent token-id history. Skip the NATIVE-mode adopt block —
+        # those modes are mutually exclusive at the per-step semantics level
+        # (and EXCLUSIVE has already disowned the wrapper for this seq).
+        if self._native_downgrade:
+            self._emitted_token_ids.append(int(next_token_id))
+            return token
+
         # Phase A4-prod: production wire-in — adopt AVX-512 output if enabled.
-        if _avx512_detok_native_enabled and _b1_inc is not None:
+        # Skipped when EXCLUSIVE is on (EXCLUSIVE already returned above on
+        # success; if we reached here the seq has been downgraded).
+        if (_avx512_detok_native_enabled and not _avx512_detok_exclusive_enabled
+                and _b1_inc is not None):
             _avx512_detok_native_step_count += 1
             adopt = False
             if avx_native_ok and avx_native_str is not None:
