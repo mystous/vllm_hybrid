@@ -1,0 +1,13 @@
+[03:56:10] pre-check OK — GPU 4,5 free (used=0 MiB)
+[03:56:10] === B1+B3 cum D_b1b3 boot (port=8002, gpus=4,5, CG=FULL_AND_PIECEWISE, EXCLUSIVE=1) ===
+[03:56:10] PID=940468  log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b1b3_cumulative/_logs/boot_D_b1b3.log
+[03:56:56] READY in 46s
+[03:56:56] === bench: sharegpt 200p × conc=16 × vanilla (stream) ===
+[tput] Llama-3.1-8B-Instruct × vanilla × sharegpt: 4423.0 tps (200/200 ok, 337s, gpu 98.6% cpu 2.2% ttft_p50 20.5ms α None)
+[04:02:33] === bench done → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b1b3_cumulative/llama8b_D_b1b3.json ===
+[04:02:33] === kill backend pid=940468 ===
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b1b3_cumulative/run.sh: line 122: 940468 Killed                  CUDA_VISIBLE_DEVICES=$GPUS VLLM_USE_AVX512_DETOK_INC=0 VLLM_USE_AVX512_DETOK_NATIVE=0 VLLM_USE_AVX512_DETOK_EXCLUSIVE=$EXC_FLAG VLLM_AVX512_DETOK_VERIFY=0 ARCTIC_INFERENCE_ENABLED=0 VLLM_PLUGINS="" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True setsid "$VBIN" serve "$MODEL" --tensor-parallel-size 2 --port "$PORT" --gpu-memory-utilization 0.85 --max-model-len 16384 --compilation-config "{\"cudagraph_mode\":\"$CG_MODE\"}" --allow-deprecated-quantization > "$BOOT_LOG" 2>&1 < /dev/null
+[04:02:37] GPU 4,5 freed (used=0 MiB)
+4, 0, 182632
+5, 0, 182632
+[04:02:37] === DONE D_b1b3 ===

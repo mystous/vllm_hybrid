@@ -1,0 +1,18 @@
+[02:17:58] === pre-check: GPU 0-3 free (< 4000 MiB) ===
+[02:17:58] GPU 0-3 used = 0 MiB
+[02:17:58] === B3 cudagraph A_piecewise boot (port=8003, gpus=0,1,2,3, cg=PIECEWISE) ===
+[02:17:58] PID=932224  log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_llama70b/_logs/boot_A_piecewise.log
+[02:19:49] READY in 111s
+[02:19:49] === bench: sharegpt 200p × conc=32 × vanilla (stream) ===
+[tput] Llama-3.1-70B-Instruct × vanilla × sharegpt: 1891.5 tps (200/200 ok, 182s, gpu 98.0% cpu 5.0% ttft_p50 35.8ms α None)
+[02:22:52] === bench done → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_llama70b/llama70b_A_piecewise.json ===
+[02:22:52] === kill backend pid=932224 (SIGTERM first) ===
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_llama70b/run.sh: line 127: 932224 Killed                  CUDA_VISIBLE_DEVICES=$GPUS VLLM_KV_TIERING_DRAM=0 VLLM_KV_TIER_TELEMETRY=0 VLLM_KV_TIERING_POOL_LIB="$LIB_SO" ARCTIC_INFERENCE_ENABLED=0 VLLM_PLUGINS="" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True setsid "$VBIN" serve "$MODEL" --tensor-parallel-size 4 --port "$PORT" --gpu-memory-utilization 0.85 --max-model-len 16384 --compilation-config "{\"cudagraph_mode\":\"$CG_MODE\"}" --allow-deprecated-quantization > "$BOOT_LOG" 2>&1 < /dev/null
+[02:22:58] orphan candidate 931988: VLLM::Worker_TP0                                                                                                                                      
+[02:22:58] orphan candidate 931989: VLLM::Worker_TP1                                                                                                                                      
+[02:22:58] GPU 0-3 freed (used=0 MiB)
+0, 0, 182632
+1, 0, 182632
+2, 0, 182632
+3, 0, 182632
+[02:22:58] === DONE A_piecewise ===

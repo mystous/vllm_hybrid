@@ -1,0 +1,15 @@
+[02:23:19] === pre-check: GPU 0-3 free (< 4000 MiB) ===
+[02:23:19] GPU 0-3 used = 0 MiB
+[02:23:19] === B3 cudagraph B_fap boot (port=8003, gpus=0,1,2,3, cg=FULL_AND_PIECEWISE) ===
+[02:23:19] PID=935077  log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_llama70b/_logs/boot_B_fap.log
+[02:24:35] READY in 76s
+[02:24:35] === bench: sharegpt 200p × conc=32 × vanilla (stream) ===
+[tput] Llama-3.1-70B-Instruct × vanilla × sharegpt: 1926.0 tps (200/200 ok, 180s, gpu 99.3% cpu 3.0% ttft_p50 35.4ms α None)
+[02:27:36] === bench done → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_llama70b/llama70b_B_fap.json ===
+[02:27:36] === kill backend pid=935077 (SIGTERM first) ===
+[02:27:42] GPU 0-3 freed (used=0 MiB)
+0, 0, 182632
+1, 0, 182632
+2, 0, 182632
+3, 0, 182632
+[02:27:42] === DONE B_fap ===
