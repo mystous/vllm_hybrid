@@ -71,6 +71,22 @@ suffix $781$ 은 능가하나 \emph{vanilla $1{,}538$ 에는 미달}한다.
 즉 지배 방법이 한쪽으로 분명할 때 두-백엔드 라우터는 최선 단일을 넘지 못한다.
 
 %% -----------------------------------------------------------------------
+\subsection{llm-d 대체: 모델-유형 게이트 (측정 예정)}
+\label{subsec:res-gate}
+
+llm-d 의 한계 이득(14\%)은 무거운 disaggregation 대신 경량 게이트로 대체 가능함을 시사한다
+(\S\ref{subsec:gate}).
+제안 게이트의 처리량 \emph{상한}(oracle$=$best-single, 본 연구 실측)은
+이미 전 모델에서 llm-d 를 능가한다 (Table~\ref{tbl:gate}):
+mix 기준 Llama-3.1-70B $+160\%$, DeepSeek-R1-Distill-Llama-70B $+114\%$,
+DeepSeek-R1 671B $+53\%$, Qwen-2.5-32B $+26\%$ 로,
+지배 방법이 분명한 모델일수록 격차가 크다.
+실분류기를 적용한 \emph{실현} 게이트 처리량과 oracle 대비 decision-regret 은
+후속 측정으로 채운다:
+\todo{Table~\ref{tbl:gate} 의 실현 게이트 tps·decision-regret (분류기 적용 후 측정).}
+\todo{게이트 vs.\ llm-d e2e 동일부하 비교 + 분류 오버헤드(ms/req).}
+
+%% -----------------------------------------------------------------------
 \subsection{자원 signature: 성공이 GPU를 비우고, CPU는 늘 유휴}
 \label{subsec:res-resource}
 

@@ -1,0 +1,27 @@
+%% tables/tbl_gate.tex  (llm-d 대체: 모델-유형 게이트, TBD)
+%% 상한(oracle=best-single)·llm-d 는 실측(B200, mix). 실현 게이트 tps·decision-regret 은 측정 예정.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{[측정 예정]} llm-d 를 대체하는 경량 \emph{모델-유형 게이트}.
+  게이트는 (모델, 워크로드)별 오프라인 oracle 프로파일로 method 를 선택한다
+  (K8s$\cdot$disaggregation 불필요).
+  상한(oracle$=$best-single)과 llm-d 는 B200 실측(mix);
+  실현 게이트 처리량과 oracle 대비 decision-regret 은 분류기 적용 후 측정(\textbf{TBD}).
+  상한이 이미 전 모델에서 llm-d 를 능가($\ge$동등)함에 주목.}
+\label{tbl:gate}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{Model (mix)} & \textbf{llm-d} & \textbf{게이트 상한} &
+  \textbf{상한 vs llm-d} & \textbf{실현 게이트} & \textbf{regret} \\
+ & (meas) & (oracle, meas) & & (TBD) & (TBD) \\
+\midrule
+Qwen-2.5-7B-Instruct          & 7{,}739 & 7{,}803  & $+0.8\%$  & \textit{TBD} & \textit{TBD} \\
+Qwen-2.5-32B-Instruct         & 5{,}236 & 6{,}597  & $+26\%$   & \textit{TBD} & \textit{TBD} \\
+Llama-3.1-70B-Instruct        & 4{,}004 & 10{,}400 & $+160\%$  & \textit{TBD} & \textit{TBD} \\
+DeepSeek-R1-Distill-Llama-70B & 2{,}864 & 6{,}127  & $+114\%$  & \textit{TBD} & \textit{TBD} \\
+DeepSeek-R1 671B (MoE)        & 1{,}008 & 1{,}538  & $+53\%$   & \textit{TBD} & \textit{TBD} \\
+\bottomrule
+\end{tabular}}
+\end{table}

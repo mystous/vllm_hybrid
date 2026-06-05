@@ -25,22 +25,34 @@ Table~\ref{tbl:roadmap} 은 본 연구가 제안하는 개선 lever 를 한곳�
 
 \input{tables/tbl_roadmap}
 
-\subsection{축 A — 모델-유형 인지 방법 선택 (회귀 안전장치)}
+\subsection{축 A — 모델-유형 게이트 (llm-d 대체 솔루션)}
 \label{subsec:gate}
 
-\S\ref{sec:results}는 부호의 지배 축이 \emph{모델 유형}임을 보인다.
-따라서 게이트의 1차 입력은 모델 프로파일이다:
-추론 특화/MoE 모델(R1 계열)은 단일 corpus 트래픽에서 vanilla,
-dense 표준 모델(Llama$\cdot$Qwen$\cdot$405B-FP8)은 suffix 를 기본으로 한다.
-워크로드 분류는 일부 중형 모델(Qwen-2.5-7B/32B 의 대화 대 코드)에서만 2차로 작동한다.
+\input{tables/tbl_gate}
+
+llm-d 는 vanilla$\cdot$suffix 백엔드를 분리 운영하는 무거운 Kubernetes disaggregation
+라우터이나, 최선 단일 방법을 능가하는 경우가 14\%(10/70)에 그친다(\S\ref{subsec:res-llmd}).
+우리는 이를 대체하는 경량 \emph{모델-유형 게이트}를 제안한다.
+\S\ref{sec:results}가 보인 대로 부호의 지배 축이 \emph{모델 유형}이므로,
+게이트는 (모델, 워크로드)별 \emph{오프라인 oracle 프로파일}로 method 를 선택한다 ---
+추론 특화/MoE 모델(DeepSeek-R1 계열)은 단일 corpus 에서 vanilla,
+dense 표준 모델(Llama$\cdot$Qwen$\cdot$405B-FP8)은 suffix 를 기본으로 하고,
+중형 Qwen 의 대화 대 코드만 워크로드를 2차로 본다.
 naive n-gram 은 실 트레이스에서 $\sim\!-90\%$ 이므로 게이트 후보에서 영구 제외한다.
-이 게이트는 처리량 지배 lever 가 아니라 \emph{회귀 회피 안전장치}로 위치한다.
+이 게이트는 K8s$\cdot$노드 간 KV 전송 없이 서버 내 HTTP 포워딩만으로 동작한다.
+
+게이트의 처리량 \emph{상한}(oracle$=$best-single)은 이미 전 모델에서 llm-d 를 능가하며
+(Table~\ref{tbl:gate}, 예: Llama-3.1-70B $+160\%$, DeepSeek-R1 671B $+53\%$),
+이는 무거운 라우터 없이도 더 높은 처리량을 얻을 수 있음을 시사한다.
+실분류기를 적용한 \emph{실현} 게이트 처리량과 oracle 대비 decision-regret 은
+측정 예정이다(\textbf{TBD}, \S\ref{subsec:res-gate}).
+\todo{실현 게이트 throughput·decision-regret 측정치 (분류기 적용 후) 기입.}
 
 \subsection{축 B — host-path 회수}
 \label{subsec:reclaim}
 
 성공 셀의 GPU 여유($1-u_{\mathrm{gpu}}^{\mathrm{suf}}$)와 유휴 CPU 를 결합해
-드래프팅(A1)$\cdot$detok(B1)$\cdot$문법 마스크(B2)$\cdot$스케줄(B3)을
+드래프팅(A1)$\cdot$detok(B1)$\cdot$스케줄(B3)을
 GPU verify 와 파이프라인한다. 목표는 GPU 이용률을 다시 끌어올려
 줄어든 step 수에서도 GPU 를 채우는 것이다.
 이종 모델 fleet 의 multi-tenant/long-context 에서는 유휴 DRAM 2TB 를 쓰는
@@ -51,7 +63,7 @@ KV tiering(A2)으로 배치를 키워 GPU gap 을 다른 요청으로 채운다.
 
 reclamation 의 핵심 자원은 \emph{병렬성}이다.
 suffix 가 step 수를 줄이면 step당 host-path 작업이 상대적으로 커지는데(\S\ref{subsec:problem-b}),
-이 host-path 는 본질적으로 \emph{요청 단위로 분할 가능}하다(드래프트$\cdot$detok$\cdot$문법 마스크는
+이 host-path 는 본질적으로 \emph{요청 단위로 분할 가능}하다(드래프트$\cdot$detok 는
 요청마다 독립). 따라서 유휴 224 스레드에 병렬 분산하여 GPU verify 뒤로 숨길 수 있다.
 
 한 decode step 의 GPU verify 지연을 $T_{\mathrm{verify}}$, 직렬 host-path 지연을 $T_{\mathrm{host}}$,
