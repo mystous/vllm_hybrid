@@ -17,6 +17,14 @@ from vllm.v1.structured_output.backend_types import (
     StructuredOutputGrammar,
     StructuredOutputOptions,
 )
+
+# SUB_201 / B2(jump_forward) — module-scope tokenizer cache for jump-forward
+# decoding. The XgrammarGrammar instance only holds a GrammarMatcher and a
+# CompiledGrammar; to encode a jump-forward *string* into token ids we need the
+# HF tokenizer. The XgrammarBackend constructs from VllmConfig+tokenizer, so we
+# cache the tokenizer reference per backend instance via a weak module dict
+# keyed on id(self.compiler) (compiler is unique per backend).
+_JF_TOKENIZER_BY_COMPILER: dict[int, Any] = {}
 from vllm.v1.structured_output.utils import (
     choice_as_grammar,
     convert_lark_to_ebnf,
@@ -67,6 +75,9 @@ class XgrammarBackend(StructuredOutputBackend):
             cache_enabled=True,
             cache_limit_bytes=vllm.envs.VLLM_XGRAMMAR_CACHE_MB * 1024 * 1024,
         )
+        # SUB_201 / B2(jump_forward) — register tokenizer for jump-forward
+        # token encoding. Only used when VLLM_USE_XGRAMMAR_JUMP_FORWARD=1.
+        _JF_TOKENIZER_BY_COMPILER[id(self.compiler)] = self.tokenizer
 
         self.num_speculative_tokens = 0
         if self.vllm_config.speculative_config is not None:
@@ -119,12 +130,14 @@ class XgrammarBackend(StructuredOutputBackend):
             ),
             vocab_size=self.vocab_size,
             ctx=ctx,
+            _compiler_id=id(self.compiler),
         )
 
     def allocate_token_bitmask(self, max_num_seqs: int):
         return xgr.allocate_token_bitmask(max_num_seqs, self.vocab_size)
 
     def destroy(self):
+        _JF_TOKENIZER_BY_COMPILER.pop(id(self.compiler), None)
         del self.compiler
 
 
@@ -144,6 +157,14 @@ class XgrammarGrammar(StructuredOutputGrammar):
         default_factory=lambda: 0, repr=False, hash=False, init=False
     )
     _is_terminated: bool = field(default=False, repr=False, hash=False)
+    # SUB_201 / B2(jump_forward) — id() of the owning backend's compiler,
+    # used to look up the cached HF tokenizer for jump-forward token encoding.
+    _compiler_id: int = field(default=0, repr=False, hash=False)
+    # Buffer of leftover bytes from the previous try_jump_forward call. We
+    # accumulate bytes that did not yet round-trip cleanly through the
+    # tokenizer (rare: partial multi-byte UTF-8 at a JFS boundary). Empty by
+    # default — typical JFS spans are pure ASCII for JSON workloads.
+    _jf_pending: bytes = field(default=b"", repr=False, hash=False)
 
     def accept_tokens(self, request_id: str, tokens: list[int]) -> bool:
         """Accepts a list of tokens and advances the FSM.
@@ -196,7 +217,73 @@ class XgrammarGrammar(StructuredOutputGrammar):
 
     def reset(self):
         self.num_processed_tokens = 0
+        self._jf_pending = b""
         self.matcher.reset()
+
+    # SUB_201 / B2(jump_forward) ---------------------------------------------
+    # xgrammar's GrammarMatcher.find_jump_forward_string() returns the longest
+    # string that is deterministically forced by the current grammar state
+    # (e.g. immediately after generating a value, the grammar may require
+    # `, "next_key": "` verbatim before any further free-form token). vLLM
+    # historically never called this API — see the bare comment ~L137 in this
+    # file. This method wraps the xgrammar call, encodes the JFS into token
+    # ids via the cached HF tokenizer, advances the matcher state, and
+    # returns the new token ids so the scheduler can append them to the
+    # request's output token list (saving N decode steps where N = #JFS
+    # tokens).
+    #
+    # Returns an empty list when (a) there is no jump-forward string for the
+    # current state, (b) tokenization round-trip would not be byte-equivalent
+    # (we conservatively skip — never emit tokens whose decoded form differs
+    # from the JFS), or (c) the tokenizer cache is missing (defensive).
+    def try_jump_forward(self) -> list[int]:
+        if self._is_terminated:
+            return []
+        try:
+            jf_str = self.matcher.find_jump_forward_string()
+        except Exception:
+            return []
+        if not jf_str:
+            return []
+
+        tokenizer = _JF_TOKENIZER_BY_COMPILER.get(self._compiler_id)
+        if tokenizer is None:
+            return []
+
+        # Combine any leftover bytes from a previous partial JFS span. JSON
+        # grammars almost never trigger this path (the JFS spans we see are
+        # `{"name": "`, `, "age": ` etc. — pure ASCII), but it keeps the API
+        # robust for grammars that mix byte boundaries.
+        full_bytes = self._jf_pending + jf_str.encode("utf-8")
+
+        try:
+            ids = tokenizer.encode(
+                full_bytes.decode("utf-8", "strict"),
+                add_special_tokens=False,
+            )
+        except Exception:
+            return []
+        if not ids:
+            return []
+
+        # Verify byte-equivalent round trip — abort jump-forward if not.
+        try:
+            decoded = tokenizer.decode(ids, skip_special_tokens=False)
+        except Exception:
+            return []
+        if decoded.encode("utf-8") != full_bytes:
+            # Tokenization is lossy at this boundary (e.g. leading space
+            # merged differently). Conservatively skip rather than risk
+            # producing a different output than the LLM would have decoded.
+            return []
+
+        # Advance the grammar matcher by the JFS bytes (one step in rollback).
+        if not self.matcher.accept_string(jf_str):
+            return []
+        self.num_processed_tokens += len(ids)
+        self._is_terminated = self.matcher.is_terminated()
+        self._jf_pending = b""
+        return list(ids)
 
 
 # cf https://github.com/mlc-ai/xgrammar/blob/a32ac892676d2eedc0327416105b9b06edfb94b2/cpp/json_schema_converter.cc

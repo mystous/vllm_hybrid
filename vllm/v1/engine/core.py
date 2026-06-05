@@ -739,6 +739,40 @@ class EngineCore:
             scheduler_output, model_output
         )
 
+        # SUB_201 / B2(jump_forward) — opt-in xgrammar jump-forward decoding.
+        # After update_from_output has appended freshly sampled tokens and
+        # advanced grammar state, query xgrammar for any deterministic
+        # jump-forward spans and append them in place. Gated by
+        # VLLM_USE_XGRAMMAR_JUMP_FORWARD=1 (default off). The appended tokens
+        # are treated as a normal prefill chunk on the next schedule cycle.
+        som = getattr(self.scheduler, "structured_output_manager", None)
+        if som is not None and envs.VLLM_USE_XGRAMMAR_JUMP_FORWARD:
+            jf_added = som.process_jump_forwards(self.scheduler.requests)
+            if jf_added:
+                total = sum(jf_added.values())
+                self._jf_total_tokens = getattr(self, "_jf_total_tokens", 0) + total
+                self._jf_total_events = getattr(self, "_jf_total_events", 0) + len(
+                    jf_added
+                )
+                # First fire log + every 100 events for visibility without
+                # spamming the hot path.
+                if not getattr(self, "_jf_logged_once", False):
+                    logger.info(
+                        "xgrammar jump-forward active — first fire: "
+                        "%d reqs, %d tokens added (total %d tokens / %d events)",
+                        len(jf_added),
+                        total,
+                        self._jf_total_tokens,
+                        self._jf_total_events,
+                    )
+                    self._jf_logged_once = True
+                elif self._jf_total_events % 100 == 0:
+                    logger.debug(
+                        "xgrammar jump-forward cumulative: %d tokens / %d events",
+                        self._jf_total_tokens,
+                        self._jf_total_events,
+                    )
+
         return engine_core_outputs, scheduler_output.total_num_scheduled_tokens > 0
 
     def post_step(self, model_executed: bool) -> None:
@@ -876,6 +910,27 @@ class EngineCore:
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, model_output
         )
+
+        # SUB_201 / B2(jump_forward) — same opt-in jump-forward dispatch as
+        # in ``step()``; mirrored here for the batch-queue execution path so
+        # the lever is active under both code paths.
+        som = getattr(self.scheduler, "structured_output_manager", None)
+        if som is not None and envs.VLLM_USE_XGRAMMAR_JUMP_FORWARD:
+            jf_added = som.process_jump_forwards(self.scheduler.requests)
+            if jf_added:
+                total = sum(jf_added.values())
+                self._jf_total_tokens = getattr(self, "_jf_total_tokens", 0) + total
+                self._jf_total_events = getattr(self, "_jf_total_events", 0) + len(
+                    jf_added
+                )
+                if not getattr(self, "_jf_logged_once", False):
+                    logger.info(
+                        "xgrammar jump-forward active (batch-queue path) — "
+                        "first fire: %d reqs, %d tokens added",
+                        len(jf_added),
+                        total,
+                    )
+                    self._jf_logged_once = True
 
         # NOTE(nick): We can either handle the deferred tasks here or save
         # in a field and do it immediately once step_with_batch_queue is

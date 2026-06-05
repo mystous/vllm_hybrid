@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
+import vllm.envs as envs
 from vllm.config import VllmConfig
 from vllm.logger import init_logger
 from vllm.reasoning import ReasoningParserManager
@@ -16,7 +17,10 @@ from vllm.v1.structured_output.backend_types import (
     StructuredOutputBackend,
     StructuredOutputGrammar,
 )
-from vllm.v1.structured_output.backend_xgrammar import XgrammarBackend
+from vllm.v1.structured_output.backend_xgrammar import (
+    XgrammarBackend,
+    XgrammarGrammar,
+)
 
 if TYPE_CHECKING:
     import numpy as np
@@ -340,3 +344,76 @@ class StructuredOutputManager:
     def clear_backend(self) -> None:
         if self.backend is not None:
             self.backend.destroy()
+
+    # SUB_201 / B2(jump_forward) ---------------------------------------------
+    # Called by EngineCore.step() after update_from_output(), gated by
+    # VLLM_USE_XGRAMMAR_JUMP_FORWARD=1. For each request that uses xgrammar
+    # structured output and is still running, query the grammar matcher for
+    # a deterministic jump-forward string (find_jump_forward_string); when
+    # present, encode it to token ids, append those tokens to the request's
+    # output, and advance the grammar state. The appended tokens become a
+    # prefill chunk on the next schedule cycle, so the GPU still computes
+    # KV cache for them — but no sampler step is spent producing them.
+    #
+    # Returns a {req_id: num_jf_tokens_added} dict for telemetry. Empty when
+    # the flag is off, no active structured-output requests have JFS, or the
+    # backend is not xgrammar.
+    def process_jump_forwards(
+        self,
+        requests: dict[str, "Request"],
+    ) -> dict[str, int]:
+        if not envs.VLLM_USE_XGRAMMAR_JUMP_FORWARD:
+            return {}
+        # When the backend is not yet initialized (first prefill of the
+        # first structured-output request), skip silently and try again
+        # next step. Same when the active backend is not xgrammar.
+        if self.backend is None or not isinstance(self.backend, XgrammarBackend):
+            return {}
+
+        result: dict[str, int] = {}
+        from vllm.v1.request import RequestStatus
+
+        for req_id, request in requests.items():
+            if not request.use_structured_output:
+                continue
+            if request.status not in (
+                RequestStatus.RUNNING,
+                RequestStatus.WAITING,
+            ):
+                continue
+            sor = request.structured_output_request
+            if sor is None:
+                continue
+            grammar = sor.grammar
+            if grammar is None or not isinstance(grammar, XgrammarGrammar):
+                continue
+            if grammar.is_terminated():
+                continue
+            # Only attempt jump-forward when the model has actually emitted
+            # at least one token — at the very start the request is still
+            # in prefill and the scheduler has not yet built the KV cache
+            # for prompt tokens; appending here would extend the prefill
+            # but not break anything. We still gate on >0 output tokens to
+            # be conservative and to capture the meaningful boundary-of-key
+            # JFS spans that occur during decode.
+            if request.num_output_tokens == 0:
+                continue
+            # Respect max_tokens — do not overshoot the request's budget.
+            if request.max_tokens is not None:
+                remaining = request.max_tokens - request.num_output_tokens
+                if remaining <= 0:
+                    continue
+            else:
+                remaining = None
+
+            jf_ids = grammar.try_jump_forward()
+            if not jf_ids:
+                continue
+            if remaining is not None and len(jf_ids) > remaining:
+                # Trim — but trimming would desync grammar state vs token
+                # append. Conservatively skip rather than rollback.
+                continue
+            request.append_output_token_ids(jf_ids)
+            result[req_id] = len(jf_ids)
+
+        return result

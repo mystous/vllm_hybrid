@@ -1,0 +1,24 @@
+[11:52:56] boot JF=1
+[11:53:40] READY in 45s
+[11:53:40] bench constrained_jf
+[b2:json_schema] 4196.9 tps (200/200 ok, 24s, gpu 85.6% cpu 1.8% ttft_p50 35.7ms tpot_p50 3.6ms n_err=0)
+[11:54:05] correctness JF on
+[on] 0: parse=False conform=False (parse failed)
+[on] 1: parse=False conform=False (parse failed)
+[on] 2: parse=False conform=False (parse failed)
+[on] 3: parse=False conform=False (parse failed)
+[on] 4: parse=False conform=False (parse failed)
+[on] 5: parse=False conform=False (parse failed)
+[on] 6: parse=False conform=False (parse failed)
+[on] 7: parse=False conform=False (parse failed)
+[on] 8: parse=False conform=False (parse failed)
+[on] 9: parse=False conform=False (parse failed)
+[on] summary: parse_ok=0/10 conform_ok=0/10
+[11:54:14] JF lines captured:
+0 /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b2_jump_forward/_logs/redo_jf_telemetry.txt
+[11:54:14] kill engine pid=28412
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b2_jump_forward/run_jfon_redo.sh: line 61: 28412 Killed                  CUDA_VISIBLE_DEVICES=$GPUS VLLM_USE_XGRAMMAR_JUMP_FORWARD=1 ARCTIC_INFERENCE_ENABLED=0 VLLM_PLUGINS="" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True setsid "$VBIN" serve "$MODEL" --tensor-parallel-size 2 --port "$PORT" --gpu-memory-utilization 0.85 --max-model-len 16384 --compilation-config '{"cudagraph_mode":"PIECEWISE"}' --allow-deprecated-quantization > "$LOGD/redo_boot_jfon.log" 2>&1 < /dev/null
+[11:54:18] GPU freed
+6, 0
+7, 0
+[11:54:18] DONE

@@ -1,0 +1,20 @@
+[12:07:20] boot JF=0 for correctness
+[12:08:05] READY in 46s
+[12:08:05] correctness JF off
+[off] 82: parse=True conform=False (score not number)
+[off] 58: parse=True conform=True (ok)
+[off] 58: parse=True conform=True (ok)
+[off] 122: parse=True conform=True (ok)
+[off] 88: parse=True conform=True (ok)
+[off] 79: parse=True conform=True (ok)
+[off] 75: parse=True conform=False (age not int)
+[off] 88: parse=True conform=True (ok)
+[off] 102: parse=True conform=True (ok)
+[off] 58: parse=True conform=True (ok)
+[off] summary: parse_ok=10/10 conform_ok=8/10
+[12:08:14] kill engine pid=36661
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b2_jump_forward/run_correctness_off.sh: line 44: 36661 Killed                  CUDA_VISIBLE_DEVICES=$GPUS VLLM_USE_XGRAMMAR_JUMP_FORWARD=0 ARCTIC_INFERENCE_ENABLED=0 VLLM_PLUGINS="" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True setsid "$VBIN" serve "$MODEL" --tensor-parallel-size 2 --port "$PORT" --gpu-memory-utilization 0.85 --max-model-len 16384 --compilation-config '{"cudagraph_mode":"PIECEWISE"}' --allow-deprecated-quantization > "$LOGD/coff_boot.log" 2>&1 < /dev/null
+[12:08:17] GPU freed
+6, 0
+7, 0
+[12:08:17] correctness OFF DONE

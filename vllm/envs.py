@@ -179,6 +179,7 @@ if TYPE_CHECKING:
     VLLM_FLASHINFER_ALLREDUCE_BACKEND: Literal["auto", "trtllm", "mnnvl"] = "auto"
     VLLM_FLASHINFER_WORKSPACE_BUFFER_SIZE: int = 394 * 1024 * 1024
     VLLM_XGRAMMAR_CACHE_MB: int = 0
+    VLLM_USE_XGRAMMAR_JUMP_FORWARD: bool = False
     VLLM_MSGPACK_ZERO_COPY_THRESHOLD: int = 256
     VLLM_ALLOW_INSECURE_SERIALIZATION: bool = False
     VLLM_DISABLE_REQUEST_ID_RANDOMIZATION: bool = False
@@ -1298,6 +1299,16 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # of 512 MB should be enough for roughly 1000 JSON schemas.
     # It can be changed with this variable if needed for some reason.
     "VLLM_XGRAMMAR_CACHE_MB": lambda: int(os.getenv("VLLM_XGRAMMAR_CACHE_MB", "512")),
+    # SUB_201 / B2(jump_forward) — opt-in env flag to enable xgrammar
+    # jump-forward decoding integration. When set, after each scheduler step
+    # the structured-output manager queries xgrammar's
+    # GrammarMatcher.find_jump_forward_string() for every active
+    # structured-output request; deterministic JFS spans are tokenized and
+    # appended to the request output, advancing the grammar matcher and
+    # skipping N sampler steps. Default off — regression-safe.
+    "VLLM_USE_XGRAMMAR_JUMP_FORWARD": lambda: bool(
+        int(os.getenv("VLLM_USE_XGRAMMAR_JUMP_FORWARD", "0"))
+    ),
     # Control the threshold for msgspec to use 'zero copy' for
     # serialization/deserialization of tensors. Tensors below
     # this limit will be encoded into the msgpack buffer, and
