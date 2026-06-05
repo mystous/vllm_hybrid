@@ -3,7 +3,7 @@
 #
 # SUB_094 (2026-05-25) 의 구조 재구성:
 #   GPU 1 : vLLM serve  Qwen 7B (vanilla, port 8001)
-#   GPU 2 : vLLM serve  Qwen 7B (suffix+PIECEWISE, port 8002)
+#   GPU 2 : vLLM serve  Qwen 7B (suffix+FULL_AND_PIECEWISE, port 8002)  # B200 default (b3_sched DECISION)
 #   CPU   : agsd_router            (FastAPI, port 8000)
 #
 # 환경 변수:
@@ -25,7 +25,7 @@ VLLM_BIN="${AGSD_VLLM_BIN:-.venv/bin/vllm}"
 LOG_DIR="${AGSD_LOG_DIR:-/tmp/agsd_logs}"
 mkdir -p "$LOG_DIR"
 
-# Trident core env (suffix + PIECEWISE)
+# Trident core env (suffix + FULL_AND_PIECEWISE on B200; b3_sched DECISION)
 export ARCTIC_INFERENCE_ENABLED=0
 export VLLM_PLUGINS=""
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
@@ -41,7 +41,7 @@ start_vanilla() {
     --port 8001 \
     --gpu-memory-utilization "$GMU_VANILLA" \
     --max-model-len 16384 \
-    --compilation-config '{"cudagraph_mode":"PIECEWISE"}' \
+    --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' \
     > "$LOG_DIR/vanilla.log" 2>&1 &
   echo $! > "$LOG_DIR/.pid_vanilla"
 }
@@ -53,7 +53,7 @@ start_trident() {
     --port 8002 \
     --gpu-memory-utilization "$GMU_TRIDENT" \
     --max-model-len 16384 \
-    --compilation-config '{"cudagraph_mode":"PIECEWISE"}' \
+    --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' \
     --speculative-config '{"method":"suffix","num_speculative_tokens":32}' \
     > "$LOG_DIR/trident.log" 2>&1 &
   echo $! > "$LOG_DIR/.pid_trident"

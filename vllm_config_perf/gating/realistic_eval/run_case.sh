@@ -79,7 +79,7 @@ PID=""
 if [ "$BOOT" = 1 ]; then
   CUDA_VISIBLE_DEVICES=$GPUS setsid "$VBIN" serve "$MODEL" \
     --tensor-parallel-size "$TP" --port "$PORT" --gpu-memory-utilization "$GMU" \
-    --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"PIECEWISE"}' \
+    --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' \
     --allow-deprecated-quantization \
     $SA > "$LOGD/${TAG}_${METHOD}.log" 2>&1 < /dev/null &
   PID=$!

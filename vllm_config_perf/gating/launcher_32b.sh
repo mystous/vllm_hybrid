@@ -2,7 +2,7 @@
 # AGSD end-to-end launcher (Qwen 32B / TP=4×2 / DGX B200) — SUB run.
 #
 #   GPU 0-3 : vLLM serve  Qwen 32B (vanilla, port 8001, gmu=0.85)
-#   GPU 4-7 : vLLM serve  Qwen 32B (suffix+PIECEWISE, port 8002, gmu=0.80)
+#   GPU 4-7 : vLLM serve  Qwen 32B (suffix+FULL_AND_PIECEWISE, port 8002, gmu=0.80)  # B200 default (b3_sched DECISION)
 #   CPU     : agsd_router          (FastAPI, port 8000)
 #
 # Adapted from vllm_config_perf/gating/launcher.sh:
@@ -24,7 +24,7 @@ PYBIN="${AGSD_PYBIN:-/workspace/vllm_dev_prj/bin/python}"
 LOG_DIR="${AGSD_LOG_DIR:-/tmp/agsd_32b_logs}"
 mkdir -p "$LOG_DIR"
 
-# Trident core env (suffix + PIECEWISE)
+# Trident core env (suffix + FULL_AND_PIECEWISE on B200; b3_sched DECISION)
 export ARCTIC_INFERENCE_ENABLED=0
 export VLLM_PLUGINS=""
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
@@ -40,7 +40,7 @@ start_vanilla() {
     --gpu-memory-utilization "$GMU_VANILLA" \
     --max-model-len "$MAX_MODEL_LEN" \
     --disable-log-requests \
-    --compilation-config '{"cudagraph_mode":"PIECEWISE"}' \
+    --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' \
     > "$LOG_DIR/vanilla.log" 2>&1 &
   echo $! > "$LOG_DIR/.pid_vanilla"
 }
@@ -53,7 +53,7 @@ start_trident() {
     --gpu-memory-utilization "$GMU_TRIDENT" \
     --max-model-len "$MAX_MODEL_LEN" \
     --disable-log-requests \
-    --compilation-config '{"cudagraph_mode":"PIECEWISE"}' \
+    --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' \
     --speculative-config '{"method":"suffix","num_speculative_tokens":32}' \
     > "$LOG_DIR/trident.log" 2>&1 &
   echo $! > "$LOG_DIR/.pid_trident"

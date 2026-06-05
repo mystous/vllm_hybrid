@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 수정 재실험 (모든 config 가 8 GPU 사용):
 #   Phase 1 vanilla-only : TP=8 단일 (GPU0-7, :8001, spec OFF)
-#   Phase 2 trident-only : TP=8 단일 (GPU0-7, :8002, suffix K=32 + PIECEWISE)
+#   Phase 2 trident-only : TP=8 단일 (GPU0-7, :8002, suffix K=32 + FULL_AND_PIECEWISE)  # B200 default (b3_sched DECISION)
 #   Phase 3 AGSD         : TP=4×2 (vanilla GPU0-3 :8001 + trident GPU4-7 :8002) + router :8000
 # 공통: 500p × 8192in × 8192out × 1-run, max-model-len 20480 (400 에러 회피)
 set -uo pipefail
@@ -66,7 +66,7 @@ start_one(){ # $1=port $2=gpus $3=gmu $4=extra-args  → echo pid
   CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$MODEL" \
     --tensor-parallel-size $(echo "$gpus"|tr ',' '\n'|wc -l) --port "$port" \
     --gpu-memory-utilization "$gmu" --max-model-len "$MML" \
-    --compilation-config '{"cudagraph_mode":"PIECEWISE"}' "$@" \
+    --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' "$@" \
     > "$LOGD/p${port}.log" 2>&1 < /dev/null &
   echo $!
 }

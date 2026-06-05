@@ -99,3 +99,55 @@
 - DESIGN: `poc/b3_sched/DESIGN.md`
 - LEVER_AUDIT: `poc/b3_sched/LEVER_AUDIT.md`
 - SUB_201 §5: `shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/README.md` §5
+
+---
+
+## 6. script 반영 (Phase A2 — 2026-06-05)
+
+본 DECISION 의 §3.1 단기 권고 ("B200 default cudagraph_mode 를 FULL_AND_PIECEWISE 로 전환") 를 vllm_config_perf 측 entry script 에 반영하였습니다.
+
+### 6.1 변경 대상 script (6 파일, vanilla/suffix 측정 path)
+
+| 파일 | 변경 라인 | 비고 |
+|---|---|---|
+| `vllm_config_perf/gating/realistic_eval/run_oracle_8gpu.sh` | L48 | TSK_042 oracle 측정 (TP=8, conc=1) |
+| `vllm_config_perf/gating/realistic_eval/run_throughput_8gpu.sh` | L47 | TSK_042 canonical throughput (TP=auto, conc=32) |
+| `vllm_config_perf/gating/realistic_eval/run_case.sh` | L82 | 단일 (MODEL, METHOD) 케이스 entry |
+| `vllm_config_perf/gating/launcher.sh` | L44, L56 | AGSD 7B (vanilla + trident) launcher |
+| `vllm_config_perf/gating/launcher_32b.sh` | L43, L56 | AGSD 32B (vanilla + trident) launcher |
+| `vllm_config_perf/gating/run_full_8gpu.sh` | L69 | 32B 3-phase sweep (Phase1/2/3 공통 boot) |
+
+모두 `--compilation-config '{"cudagraph_mode":"PIECEWISE"}'` → `'{"cudagraph_mode":"FULL_AND_PIECEWISE"}'` 로 단순 치환. header 코멘트의 "PIECEWISE" 문구도 일관성 차원에서 "FULL_AND_PIECEWISE (b3_sched DECISION)" 로 갱신.
+
+### 6.2 변경 제외 (의도적)
+
+- **`vllm_config_perf/gating/recommendations.py`**: SUB_093 (Llama-70B × H100×8) 기반 prod 권장표. B200 의 FaP 권고는 §3.2 의 prod H100 sweep 결과 확정 이후 별도 패치로 반영 예정. 현재 단계에서 표를 바꾸면 prod 권장 출처가 흐려짐.
+- **`shadow_assists/features/IDE_015~021/**/launcher.sh`**: 기 종료된 PoC (SUB_177, 181, 184, 186, 188-198, 19x 계열) 의 보관 자산. 과거 측정의 reproducibility 보존이 우선. 변경 영향권 아님.
+- **ngram method path**: vllm 내부에서 attention backend 의 `_cudagraph_support` 가 ALWAYS 가 아니면 자동 `FULL_AND_PIECEWISE`/`FULL_DECODE_ONLY` 로 다운그레이드되며 (`vllm/config/compilation.py:1286-1310`), B200 에서는 FaP 요청을 그대로 받는 동일 path 가 됩니다. 즉 본 변경이 ngram boot 에 추가 다운그레이드를 발생시키지 않음 — 그대로 두어도 안전.
+
+### 6.3 dry-run 검증
+
+```bash
+$ bash -n <6 modified scripts>     # 모두 OK
+$ # Qwen-7B × suffix boot command echo (run_case.sh):
+CUDA_VISIBLE_DEVICES=0,1,2,3 setsid /workspace/vllm_dev_prj/bin/vllm serve Qwen/Qwen2.5-7B-Instruct \
+  --tensor-parallel-size 4 --port 8001 --gpu-memory-utilization 0.85 \
+  --max-model-len 16384 --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' \
+  --allow-deprecated-quantization \
+  --speculative-config {"method":"suffix","num_speculative_tokens":32}
+```
+
+→ `cudagraph_mode=FULL_AND_PIECEWISE` 가 boot CLI 에 정상 인입됨 확인.
+
+### 6.4 reproducibility 보호
+
+- 본 변경 commit 이전의 모든 TSK_042 측정 (`vllm_config_perf/gating/realistic_eval/runs/*`) 은 PIECEWISE base. b3_sched/runs_fa3 의 R2_FA 와 net win 비교 시 그 시점의 boot mode 를 명시 인용할 것 (commit hash 기준).
+- 이후 동일 script 로 재측정하는 cell 은 base 가 FaP 이므로 직접 비교 시 cudagraph_mode 변수를 통제해야 함 (필요 시 env override 로 PIECEWISE 강제 측정 lane 추가 권장).
+
+### 6.5 후속 (prod H100 검증 후)
+
+- §3.2 의 H100 sweep 통과 시:
+  - `recommendations.py` 의 (large, suffix) 항목 cudagraph_mode 를 FULL_AND_PIECEWISE (또는 H100 에서 활성화 가능하면 FULL 단독) 로 갱신.
+  - prod launcher (예: AGSD_TP=8, H100×8) 도 동일하게 갱신.
+- 미통과 시 본 §6 변경을 prod 에 transfer 하지 않고 B200 한정으로 유지.
+

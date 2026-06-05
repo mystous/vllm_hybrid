@@ -45,7 +45,7 @@ for MODEL in $MODELS; do
     SA=$(spec_args "$M")
     CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 setsid "$VBIN" serve "$MODEL" \
       --tensor-parallel-size 8 --port 8001 --gpu-memory-utilization 0.85 \
-      --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"PIECEWISE"}' \
+      --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' \
       $SA > "$LOGD/${TAG}_${M}.log" 2>&1 < /dev/null &
     PID=$!
     if wait_ready http://127.0.0.1:8001; then
