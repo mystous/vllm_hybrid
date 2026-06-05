@@ -93,6 +93,30 @@ def _load(lib_path: str) -> ctypes.CDLL:
     ]
     lib.pinned_pool_push_batch_async_staged.restype = ctypes.c_void_p
 
+    # Staged pull (mirror of staged push): D2H 1 cudaMemcpyAsync + host
+    # fan-out via pull_batch_unpack_staged after event_sync.
+    # Arg order: pool, dev_src, staging_ptr, host_ptrs[], sizes[], n, stream
+    if hasattr(lib, "pinned_pool_pull_batch_async_staged"):
+        lib.pinned_pool_pull_batch_async_staged.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_void_p),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_int,
+            ctypes.c_void_p,
+        ]
+        lib.pinned_pool_pull_batch_async_staged.restype = ctypes.c_void_p
+    if hasattr(lib, "pinned_pool_pull_batch_unpack_staged"):
+        lib.pinned_pool_pull_batch_unpack_staged.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_void_p),
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.c_int,
+        ]
+        lib.pinned_pool_pull_batch_unpack_staged.restype = None
+
     lib.pinned_pool_event_sync.argtypes = [ctypes.c_void_p]
     lib.pinned_pool_event_sync.restype = ctypes.c_int
     lib.pinned_pool_event_query.argtypes = [ctypes.c_void_p]
@@ -163,6 +187,9 @@ class PinnedPool:
         )
         if not self._pool:
             raise RuntimeError("pinned_pool_create failed")
+        # ctypes-array GC anchor for in-flight pull_batch_async_staged
+        # calls (keyed by event handle). Cleared by pull_batch_unpack_staged.
+        self._inflight_pull_batches: dict[int, tuple] = {}
 
     def alloc(self, nbytes: int) -> int:
         p = self._lib.pinned_pool_alloc(self._pool, ctypes.c_size_t(nbytes))
@@ -277,6 +304,75 @@ class PinnedPool:
             ctypes.c_void_p(stream),
         )
         return int(ev) if ev else 0
+
+    # ── Batched DMA pull (option C: D2H staged) ────────────────────────
+    #
+    # Mirror of push_batch_async(mode="staged"). The KVDramTier evict path
+    # uses this to collapse N per-layer pull_async calls into 1 single
+    # cudaMemcpyAsync. The fan-out from staging buffer to per-layer host
+    # destinations runs on the CPU AFTER event_sync; call
+    # pull_batch_unpack_staged once the event has resolved.
+
+    def has_pull_batch_staged(self) -> bool:
+        """True if the loaded libpinned_pool.so exports the staged-pull
+        symbol pair. Older builds fall back to per-layer pull_async."""
+        return hasattr(self._lib, "pinned_pool_pull_batch_async_staged") and \
+            hasattr(self._lib, "pinned_pool_pull_batch_unpack_staged")
+
+    def pull_batch_async_staged(self, dev_src: int, staging_ptr: int,
+                                host_ptrs, sizes, stream: int) -> int:
+        """Issue 1 cudaMemcpyAsync (dev_src → staging_ptr, sum(sizes)).
+        Returns an event handle; the fan-out is NOT done yet — call
+        pull_batch_unpack_staged after event_sync to scatter staging to
+        host_ptrs[i]."""
+        if not self.has_pull_batch_staged():
+            raise RuntimeError(
+                "libpinned_pool.so missing pinned_pool_pull_batch_async_staged"
+            )
+        n = len(sizes)
+        assert n > 0, "batch must be non-empty"
+        sizes_arr = self._pack_size_array(sizes)
+        hosts_arr = self._pack_ptr_array(host_ptrs)
+        ev = self._lib.pinned_pool_pull_batch_async_staged(
+            self._pool,
+            ctypes.c_void_p(dev_src),
+            ctypes.c_void_p(staging_ptr),
+            hosts_arr,
+            sizes_arr,
+            ctypes.c_int(n),
+            ctypes.c_void_p(stream),
+        )
+        # Keep the ctypes arrays alive until the caller syncs — Python
+        # GC could otherwise reclaim them while the DMA / unpack still
+        # needs the address table. We park them on a per-call dict
+        # keyed by the event handle.
+        self._inflight_pull_batches[int(ev) if ev else id(hosts_arr)] = (
+            hosts_arr, sizes_arr,
+        )
+        return int(ev) if ev else 0
+
+    def pull_batch_unpack_staged(self, staging_ptr: int, host_ptrs,
+                                 sizes, event: int = 0) -> None:
+        """CPU-side scatter from staging buffer into host_ptrs[i].
+        Caller MUST have event_sync'd the event from
+        pull_batch_async_staged. Optionally pass the event so the
+        wrapper can release the cached ctypes arrays."""
+        if not self.has_pull_batch_staged():
+            raise RuntimeError(
+                "libpinned_pool.so missing pinned_pool_pull_batch_unpack_staged"
+            )
+        n = len(sizes)
+        sizes_arr = self._pack_size_array(sizes)
+        hosts_arr = self._pack_ptr_array(host_ptrs)
+        self._lib.pinned_pool_pull_batch_unpack_staged(
+            self._pool,
+            ctypes.c_void_p(staging_ptr),
+            hosts_arr,
+            sizes_arr,
+            ctypes.c_int(n),
+        )
+        if event:
+            self._inflight_pull_batches.pop(int(event), None)
 
     def event_sync(self, ev: int) -> None:
         if ev:

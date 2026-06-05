@@ -320,9 +320,20 @@ class KVDramTier:
         """Engine-side entry: tier the GPU block ``block_id`` whose layer
         pointers were registered via ``bind_block_pointers``.
 
-        Falls back to per-layer ``pull_async`` (no batching) until the
-        pull-staged C symbol is added. Returns True on success / already
-        tiered, False on tier-full or unbound.
+        Fast path: when libpinned_pool.so exports
+        ``pinned_pool_pull_batch_async_staged`` AND the per-layer GPU
+        slabs for this block are *contiguous* (stride == per_layer_nbytes),
+        we collapse the 80 per-layer ``cudaMemcpyAsync`` calls into a
+        single D2H copy of size ``N × per_layer_nbytes`` → host_ptr (the
+        host destination is already one contiguous pinned buffer, so the
+        fan-out memcpy is a no-op — we point the staging buffer directly
+        at host_ptr).
+
+        Slow fallback (kept as graceful path): per-layer ``pull_async``
+        when the symbol is absent OR per-layer pointers are non-contiguous.
+
+        Returns True on success / already tiered, False on tier-full or
+        unbound.
         """
         ptrs = getattr(self, "_per_block_layer_ptrs", None)
         if ptrs is None or block_id >= len(ptrs):
@@ -335,22 +346,69 @@ class KVDramTier:
                 self._n_evict_skipped_full += 1
                 return False
             host_ptr = self._pool.alloc(total)
-            # Issue one pull per layer slice; the host_ptr is contiguous
-            # so per-layer offset stride == per_layer_nbytes.
-            for layer_idx in range(self._n_layers):
-                self._pool.pull_async(
-                    ptrs[block_id][layer_idx],
-                    host_ptr + layer_idx * self._per_layer_nbytes,
-                    self._per_layer_nbytes,
-                    self._stream,
+            block_ptrs = ptrs[block_id]
+            # Detect whether the per-layer GPU slabs for THIS block are
+            # contiguous; if so the staged batch becomes a single D2H copy.
+            stride = self._per_layer_nbytes
+            contiguous = (self._n_layers > 0) and all(
+                block_ptrs[i] == block_ptrs[0] + i * stride
+                for i in range(self._n_layers)
+            )
+            use_staged = (
+                contiguous
+                and hasattr(self._pool, "has_pull_batch_staged")
+                and self._pool.has_pull_batch_staged()
+                and hasattr(
+                    self._pool._lib,
+                    "pinned_pool_pull_batch_async_staged",
                 )
-            # Reuse a sentinel event by stream-syncing on wait=True.
-            entry = _TierEntry(host_ptr=host_ptr, nbytes=total, pending_ev=0)
-            self._table[block_id] = entry
-            self._dram_in_use += total
-            self._n_evict += 1
+            )
+            if use_staged:
+                # Single cudaMemcpyAsync DeviceToHost of `total` bytes.
+                # host_ptr IS the contiguous destination, so we point the
+                # staging buffer at it directly (no extra fan-out memcpy).
+                host_slices = [
+                    host_ptr + i * stride for i in range(self._n_layers)
+                ]
+                sizes = [stride] * self._n_layers
+                ev = self._pool.pull_batch_async_staged(
+                    dev_src=block_ptrs[0],
+                    staging_ptr=host_ptr,
+                    host_ptrs=host_slices,
+                    sizes=sizes,
+                    stream=self._stream,
+                )
+                # Reuse pending_ev so wait_evict / drop can serialize.
+                entry = _TierEntry(
+                    host_ptr=host_ptr, nbytes=total, pending_ev=ev
+                )
+                self._table[block_id] = entry
+                self._dram_in_use += total
+                self._n_evict += 1
+            else:
+                # Fallback: one pull per layer slice. host_ptr is contiguous
+                # so per-layer offset stride == per_layer_nbytes.
+                for layer_idx in range(self._n_layers):
+                    self._pool.pull_async(
+                        block_ptrs[layer_idx],
+                        host_ptr + layer_idx * stride,
+                        stride,
+                        self._stream,
+                    )
+                entry = _TierEntry(host_ptr=host_ptr, nbytes=total, pending_ev=0)
+                self._table[block_id] = entry
+                self._dram_in_use += total
+                self._n_evict += 1
         if wait:
             self._pool.stream_sync(self._stream)
+            # For the staged fast path the unpack is a no-op (staging IS
+            # the destination), but we still consume + destroy the event
+            # so wait_evict doesn't see a stale handle.
+            with self._lock:
+                ent = self._table.get(block_id)
+                if ent is not None and ent.pending_ev:
+                    self._pool.event_destroy(ent.pending_ev)
+                    ent.pending_ev = 0
         return True
 
     def fetch_block(

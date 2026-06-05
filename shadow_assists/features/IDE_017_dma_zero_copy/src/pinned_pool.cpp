@@ -380,6 +380,69 @@ public:
         return ev;
     }
 
+    // Batched DMA pull (option C, mirror of push_batch_async_staged):
+    //   1. Single cudaMemcpyAsync DeviceToHost: dev_src → staging_ptr (total bytes)
+    //   2. Host-side memcpy fan-out: staging[i] → host_ptrs[i]  (per slice)
+    //
+    // This is the *evict* path mirror used by KVDramTier.evict_block —
+    // per-layer 80 GPU slabs collapse into 1 DMA + N cheap host memcpy
+    // (≪ 35 μs API overhead per per-layer pull_async).
+    //
+    // staging_ptr must be a pinned-host buffer of size sum(sizes[0..n-1]).
+    // dev_src is a single contiguous device buffer (the packed source).
+    // host_ptrs[i] receives sizes[i] bytes (may be unpinned host memory —
+    // the memcpy is plain CPU memcpy, not cudaMemcpy).
+    //
+    // Returns 1 event recorded *after* the cudaMemcpyAsync. Caller must
+    // event_sync (or stream_sync) before reading host_ptrs[i] — that is,
+    // before the host-side fan-out memcpy completes the per-slice copy.
+    //
+    // NOTE: the host-side fan-out is executed *synchronously after* the
+    // event_sync inside the same C call, because we need staging_ptr
+    // populated before we can scatter to host_ptrs. To keep the C symbol
+    // simple and self-contained the implementation does:
+    //     cudaMemcpyAsync(...)  → record event → (caller event_syncs) →
+    //     unpack(staging → host_ptrs[i])
+    // We split the unpack into a separate symbol pull_batch_unpack_staged
+    // so the caller controls when fan-out runs (e.g. after event_sync).
+    cudaEvent_t pull_batch_async_staged(const void* dev_src,
+                                        void* staging_ptr,
+                                        void* const* host_ptrs,
+                                        const size_t* sizes,
+                                        int n,
+                                        cudaStream_t stream) {
+        // Suppress unused warnings: we don't touch host_ptrs / sizes here;
+        // they are consumed by pull_batch_unpack_staged after event_sync.
+        (void)host_ptrs;
+        (void)sizes;
+        (void)n;
+        size_t total = 0;
+        for (int i = 0; i < n; ++i) {
+            total += sizes[i];
+        }
+        cudaMemcpyAsync(staging_ptr, dev_src, total,
+                        cudaMemcpyDeviceToHost, stream);
+        cudaEvent_t ev;
+        cudaEventCreateWithFlags(&ev, cudaEventDisableTiming);
+        cudaEventRecord(ev, stream);
+        return ev;
+    }
+
+    // Host-side fan-out after pull_batch_async_staged completes.
+    // Caller MUST event_sync the event returned from pull_batch_async_staged
+    // before invoking this — otherwise staging_ptr contents are undefined.
+    void pull_batch_unpack_staged(const void* staging_ptr,
+                                  void* const* host_ptrs,
+                                  const size_t* sizes,
+                                  int n) {
+        const char* sptr = (const char*)staging_ptr;
+        size_t total = 0;
+        for (int i = 0; i < n; ++i) {
+            std::memcpy(host_ptrs[i], sptr + total, sizes[i]);
+            total += sizes[i];
+        }
+    }
+
     // ── Introspection ────────────────────────────────────────────────
 
     size_t in_use_bytes() const { return in_use_bytes_.load(std::memory_order_relaxed); }
@@ -494,6 +557,35 @@ void* pinned_pool_push_batch_async_staged(PinnedPool* pool,
     return (void*)pool->push_batch_async_staged(host_ptrs, staging_ptr,
                                                 dev_dst, sizes, n,
                                                 (cudaStream_t)stream);
+}
+
+// Batched pull (option C mirror: dev_src → staging_ptr in 1 cudaMemcpyAsync,
+// fan-out staging → host_ptrs[i] must be requested via
+// pinned_pool_pull_batch_unpack_staged AFTER event_sync of the returned event).
+//   dev_src     : single contiguous device source buffer (size = sum(sizes))
+//   staging_ptr : pinned-host buffer of size ≥ sum(sizes)
+//   host_ptrs   : N destination host buffers (may be unpinned)
+void* pinned_pool_pull_batch_async_staged(PinnedPool* pool,
+                                          const void* dev_src,
+                                          void* staging_ptr,
+                                          void* const* host_ptrs,
+                                          const size_t* sizes,
+                                          int n,
+                                          void* stream) {
+    return (void*)pool->pull_batch_async_staged(dev_src, staging_ptr,
+                                                host_ptrs, sizes, n,
+                                                (cudaStream_t)stream);
+}
+
+// Fan-out helper: copy from staging buffer into N host destinations.
+// MUST be called AFTER event_sync on the event returned by
+// pinned_pool_pull_batch_async_staged.
+void pinned_pool_pull_batch_unpack_staged(PinnedPool* pool,
+                                          const void* staging_ptr,
+                                          void* const* host_ptrs,
+                                          const size_t* sizes,
+                                          int n) {
+    pool->pull_batch_unpack_staged(staging_ptr, host_ptrs, sizes, n);
 }
 
 // Event helpers (so Python doesn't need cudart bindings)

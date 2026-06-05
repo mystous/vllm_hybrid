@@ -1,0 +1,63 @@
+{
+  "gpu": 0,
+  "iters": 200,
+  "warmup": 20,
+  "shape": {
+    "model": "Llama-70B / TP=8",
+    "N_layers": 80,
+    "per_layer_bytes": 8192,
+    "total_bytes": 655360
+  },
+  "matrix_baseline_us_per_block": 336.0,
+  "results": {
+    "fallback_per_layer": {
+      "mean_us": 286.48596999999995,
+      "p50_us": 285.488,
+      "p90_us": 287.741,
+      "p99_us": 354.14,
+      "min_us": 282.581,
+      "max_us": 381.222,
+      "GBps_p50": 2.137923704323825,
+      "speedup_vs_fallback_per_layer": 1.0
+    },
+    "fallback_per_layer_event_sync": {
+      "mean_us": 945.018405,
+      "p50_us": 946.895,
+      "p90_us": 958.587,
+      "p99_us": 964.742,
+      "min_us": 899.753,
+      "max_us": 966.162,
+      "GBps_p50": 0.6445820946356249,
+      "speedup_vs_fallback_per_layer": 0.3014991102498165
+    },
+    "staged_pull": {
+      "mean_us": 40.048559999999995,
+      "p50_us": 39.058,
+      "p90_us": 41.099,
+      "p99_us": 45.232,
+      "min_us": 37.674,
+      "max_us": 150.423,
+      "GBps_p50": 15.62680020738389,
+      "speedup_vs_fallback_per_layer": 7.309334835373035
+    },
+    "staged_pull_with_unpack": {
+      "mean_us": 95.38353500000001,
+      "p50_us": 95.014,
+      "p90_us": 96.474,
+      "p99_us": 103.622,
+      "min_us": 94.055,
+      "max_us": 110.509,
+      "GBps_p50": 6.423806623234471,
+      "speedup_vs_fallback_per_layer": 3.0046940450880926
+    }
+  },
+  "verdict": {
+    "best_variant": "staged_pull",
+    "best_p50_us": 39.058,
+    "best_GBps": 15.62680020738389,
+    "net_positive_vs_matrix_baseline": true,
+    "headroom_us": 296.942,
+    "speedup_vs_fallback_per_layer": 7.309334835373035,
+    "gate_4x_speedup_passed": true
+  }
+}
