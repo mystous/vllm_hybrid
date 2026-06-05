@@ -624,6 +624,183 @@ class TestBlockPoolHooksWithFakeTier(unittest.TestCase):
         self.assertEqual(self.tier.num_tiered_blocks(), 0)
 
 
+class TestKVDramTierFetchAwareB12(unittest.TestCase):
+    """SUB_201 A2 Phase B12 — fetch-aware eviction (recent-fetch
+    protection window).
+
+    Covers:
+      1. env flag parsing (default OFF, strict allowlist).
+      2. fetch_block populates the recent-fetch window only when the
+         env flag is on; is_fetch_aware_protected reflects membership.
+      3. BlockPool.free_blocks skips evict_block dispatch for a block
+         that is currently inside the window and bumps the
+         n_evict_skipped_fetch_aware telemetry counter.
+    """
+
+    def test_flag_default_off_and_truthy_allowlist(self):
+        from vllm.v1.core.kv_dram_tiering import _fetch_aware_enabled
+
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("VLLM_KV_TIER_FETCH_AWARE", None)
+            self.assertFalse(_fetch_aware_enabled())
+        for v in ("1", "true", "TRUE", "yes", "on"):
+            with mock.patch.dict(
+                os.environ, {"VLLM_KV_TIER_FETCH_AWARE": v}, clear=False
+            ):
+                self.assertTrue(_fetch_aware_enabled(), f"{v!r} should enable")
+        for v in ("0", "false", "no", "off", "", "maybe"):
+            with mock.patch.dict(
+                os.environ, {"VLLM_KV_TIER_FETCH_AWARE": v}, clear=False
+            ):
+                self.assertFalse(_fetch_aware_enabled(), f"{v!r} should disable")
+
+    def test_fetch_records_into_window_when_enabled(self):
+        from vllm.v1.core.kv_dram_tiering import KVDramTier, shutdown_singleton
+
+        shutdown_singleton()
+        with mock.patch.dict(
+            os.environ,
+            {"VLLM_KV_TIER_FETCH_AWARE": "1", "VLLM_KV_TIER_FETCH_WINDOW": "3"},
+            clear=False,
+        ):
+            pool = _FakePinnedPool(total_limit_bytes=1 << 20)
+            tier = KVDramTier(
+                pool=pool, max_dram_bytes=1 << 20, per_block_nbytes=1024
+            )
+            tier.bind_block_pointers(
+                per_block_layer_ptrs=[[0xC000 + b * 0x1000] for b in range(8)],
+                per_layer_nbytes=1024,
+            )
+            try:
+                # Nothing fetched yet → not protected.
+                for b in range(8):
+                    self.assertFalse(tier.is_fetch_aware_protected(b))
+                # Evict + fetch 4 distinct blocks; window cap=3, so the
+                # oldest must slide out.
+                for b in range(4):
+                    self.assertTrue(tier.evict_block(b, wait=True))
+                    self.assertTrue(
+                        tier.fetch_block(b, wait=True, drop_after_fetch=True)
+                    )
+                # Block 0 was first in → evicted from window when block 3 in.
+                self.assertFalse(tier.is_fetch_aware_protected(0))
+                # Blocks 1,2,3 remain protected (MRU=3).
+                self.assertTrue(tier.is_fetch_aware_protected(1))
+                self.assertTrue(tier.is_fetch_aware_protected(2))
+                self.assertTrue(tier.is_fetch_aware_protected(3))
+                s = tier.stats()
+                self.assertEqual(s["fetch_window_max"], 3)
+                self.assertEqual(s["fetch_window_len"], 3)
+                self.assertEqual(s["fetch_aware_enabled"], 1)
+            finally:
+                tier.shutdown()
+                shutdown_singleton()
+
+    def test_fetch_window_inert_when_flag_off(self):
+        from vllm.v1.core.kv_dram_tiering import KVDramTier, shutdown_singleton
+
+        shutdown_singleton()
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("VLLM_KV_TIER_FETCH_AWARE", None)
+            pool = _FakePinnedPool(total_limit_bytes=1 << 20)
+            tier = KVDramTier(
+                pool=pool, max_dram_bytes=1 << 20, per_block_nbytes=1024
+            )
+            tier.bind_block_pointers(
+                per_block_layer_ptrs=[[0xC000 + b * 0x1000] for b in range(4)],
+                per_layer_nbytes=1024,
+            )
+            try:
+                self.assertTrue(tier.evict_block(0, wait=True))
+                self.assertTrue(
+                    tier.fetch_block(0, wait=True, drop_after_fetch=True)
+                )
+                # Flag off → never protected, window length stays 0
+                self.assertFalse(tier.is_fetch_aware_protected(0))
+                s = tier.stats()
+                self.assertEqual(s["fetch_window_len"], 0)
+                self.assertEqual(s["fetch_aware_enabled"], 0)
+            finally:
+                tier.shutdown()
+                shutdown_singleton()
+
+    def test_block_pool_skips_evict_for_protected_block(self):
+        from vllm.v1.core.block_pool import BlockPool
+        from vllm.v1.core.kv_dram_tiering import KVDramTier, shutdown_singleton
+
+        shutdown_singleton()
+        with mock.patch.dict(
+            os.environ,
+            {"VLLM_KV_TIER_FETCH_AWARE": "1", "VLLM_KV_TIER_FETCH_WINDOW": "8"},
+            clear=False,
+        ):
+            fake_pool = _FakePinnedPool(total_limit_bytes=1 << 20)
+            tier = KVDramTier(
+                pool=fake_pool, max_dram_bytes=1 << 20, per_block_nbytes=1024
+            )
+            tier.bind_block_pointers(
+                per_block_layer_ptrs=[[0xD000 + b * 0x1000] for b in range(8)],
+                per_layer_nbytes=1024,
+            )
+            try:
+                pool = BlockPool(
+                    num_gpu_blocks=8,
+                    enable_caching=True,
+                    hash_block_size=16,
+                    kv_dram_tier=tier,
+                )
+                # Allocate, stamp, free → evict fires (block is NOT in
+                # window yet, no prior fetch).
+                blks = pool.get_new_blocks(2)
+                for b in blks:
+                    b.block_hash = b"hash_v1__" + b.block_id.to_bytes(
+                        4, "big", signed=False
+                    )
+                pool.free_blocks(blks)
+                self.assertEqual(tier.num_tiered_blocks(), 2)
+                # Fetch one (this loads it into HBM and into the
+                # recent-fetch window).
+                self.assertTrue(
+                    tier.fetch_block(
+                        blks[0].block_id, wait=True, drop_after_fetch=True
+                    )
+                )
+                self.assertEqual(tier.num_tiered_blocks(), 1)
+                self.assertTrue(
+                    tier.is_fetch_aware_protected(blks[0].block_id)
+                )
+                # Re-acquire and re-stamp blks[0], then free again. The
+                # B12 guard MUST short-circuit evict_block for the
+                # protected id; tiered_blocks must stay at 1 (blks[1]
+                # only) and skipped counter must bump.
+                # Reclaim from LRU (drain so reuse is deterministic).
+                drained = pool.get_new_blocks(pool.get_num_free_blocks())
+                target = next(b for b in drained if b.block_id == blks[0].block_id)
+                # get_new_blocks evicted the cached hash → block_hash is
+                # now None; restamp with a fresh v2 hash to exercise the
+                # free-evict path again.
+                if target.block_hash is not None:
+                    target.reset_hash()
+                target.block_hash = b"hash_v2__" + target.block_id.to_bytes(
+                    4, "big", signed=False
+                )
+                tiered_before = tier.num_tiered_blocks()
+                pool.free_blocks([target])
+                tiered_after = tier.num_tiered_blocks()
+                self.assertEqual(
+                    tiered_after, tiered_before,
+                    msg=(
+                        "protected block must NOT be re-tiered — "
+                        f"before={tiered_before} after={tiered_after}"
+                    ),
+                )
+                s = tier.stats()
+                self.assertGreaterEqual(s["n_evict_skipped_fetch_aware"], 1)
+            finally:
+                tier.shutdown()
+                shutdown_singleton()
+
+
 class TestRpcProxyTierB10(unittest.TestCase):
     """SUB_201 A2 Phase B10 — engine-side RpcProxyTier forwards
     has_pointer_binding / evict_block / fetch_block / drop calls to

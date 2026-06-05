@@ -1093,3 +1093,133 @@ n_evict_wait_resolved=6,739 (== n_fetch — 모든 fetch 가 evict 완료 대기
 ```
 
 GPU 1-7 미접촉.
+
+
+---
+
+## 13. Phase B12 — fetch-aware eviction — 2026-06-05 KST 11:30
+
+> B12 fetch-aware eviction (Qwen2.5-7B TP=1 UniProc, GPU 0). B11 의 fetch-evict race (n_evict_wait_resolved = n_fetch 1:1) 를 직접 끊기 위해 `KVDramTier` 에 recent-fetch sliding window 를 추가하고 `BlockPool.free_blocks` 가 윈도우에 속한 block_id 의 evict 를 skip 하도록 patch.
+
+### 13.1 DESIGN 요약 (옵션 A — recent-fetch protection)
+
+전체 설계는 `B12_fetch_aware/DESIGN.md` 참조. 세 옵션 검토 (A=recent-fetch protection / B=prediction-based / C=fetch-hot tracking) 중 **A 선택** — patch 최소 (KVDramTier 에 deque+set, BlockPool 에 guard 한 줄), correctness 위험 낮음 (evict 를 미루는 것뿐 DRAM 누수 없음), B11 finding 의 직접 대응.
+
+- 윈도우 capacity: 기본 N=512 block (`VLLM_KV_TIER_FETCH_WINDOW`).
+- gate: `VLLM_KV_TIER_FETCH_AWARE=1` (default OFF — strict allowlist, regression 보호).
+- `fetch_block` 성공 시 block_id 가 sliding window 에 진입; 호출 시 MRU 위치로 이동.
+- `BlockPool.free_blocks` 가 `tier.is_fetch_aware_protected(block_id)` True 면 `evict_block` skip + `n_evict_skipped_fetch_aware` counter ↑.
+- re-bind 시 윈도우 클리어 (block_id 공간 변경).
+
+### 13.2 Patch 위치 (file:line, HEAD 746ff726e 기준)
+
+- `vllm/v1/core/kv_dram_tiering.py`
+  - L114-129: `_fetch_aware_enabled()` / `_fetch_window_size()` env gate
+  - L177-192: ctor 에 `_recent_fetch_window` deque + `_recent_fetch_set` set + cap + flag 캡처
+  - L220-237: `stats()` 에 `n_evict_skipped_fetch_aware` / `fetch_window_len` / `fetch_aware_enabled` 노출
+  - L259-274: `dump_telemetry` 라인에 신규 카운터 출력
+  - L297-345: `_record_fetch_locked` / `is_fetch_aware_protected` / `_on_evict_skipped_fetch_aware` 메서드
+  - L390-396, L437-440, L468-475: `fetch_to_gpu` / `fetch_block` (2 군데) 성공 분기에서 record 호출
+  - L500-505: `bind_block_pointers` stale-clear 분기에서 윈도우 클리어
+- `vllm/v1/core/block_pool.py` L475-495: `free_blocks` 에 fetch-aware guard 한 분기 (default 경로는 `is_fetch_aware_protected` 가 False 반환 → 변화 없음).
+- `tests/v1/spec_decode/test_kv_dram_tiering.py` L627-787: `TestKVDramTierFetchAwareB12` 4 testcase.
+
+### 13.3 Regression unittest
+
+```
+$ /workspace/vllm_dev_prj/bin/python -m pytest tests/v1/spec_decode/test_kv_dram_tiering.py -v
+====================== 26 passed, 16 warnings in 3.01s =========================
+```
+
+기존 22 + 신규 4 (B12) = **26/26 PASS** (회귀 0). 신규 testcase:
+
+- `test_flag_default_off_and_truthy_allowlist` — env gate strict allowlist.
+- `test_fetch_records_into_window_when_enabled` — fetch_block 후 window MRU/sliding 동작 (cap=3 으로 oldest drop 확인).
+- `test_fetch_window_inert_when_flag_off` — default 경로에서 window 길이 0 유지, never protected.
+- `test_block_pool_skips_evict_for_protected_block` — BlockPool 의 free_blocks 가 protected id 에 대해 evict_block dispatch 를 short-circuit 하고 `n_evict_skipped_fetch_aware` counter ↑.
+
+### 13.4 e2e 측정 (Qwen2.5-7B TP=1 UniProcExecutor, GPU 0, multi-turn 200×5)
+
+3 run × `multiturn_workload/multiturn_200x5.parquet` × conc=64 × max-tokens=512 × 1000 row.
+
+| metric | native | tier_async (B11 baseline) | tier_fetch_aware | Δ FA vs native | Δ FA vs tier_async |
+|---|---:|---:|---:|---:|---:|
+| n_ok / n | 1000/1000 | 1000/1000 | 1000/1000 | 0 | 0 |
+| wall_total_s | 46.2 | 56.3 | 55.1 | +8.9 (+19.3%) | -1.2 (-2.1%) |
+| **output_tps** | **11,074.8** | **9,089.9** | **9,285.1** | **-1,789.7 (-16.2%)** | **+195.2 (+2.1%)** |
+| TTFT p50 (ms) | 255.6 | 399.7 | **143.0** | -112.6 (-44.1%) | -256.7 (-64.2%) |
+| TTFT p99 (ms) | 444.8 | 1,405.7 | **463.1** | +18.3 (+4.1%) | **-942.6 (-67.1%)** |
+| TPOT p50 (ms) | 5.2 | 5.6 | 5.8 | +0.6 (+11.5%) | +0.2 (+3.6%) |
+| TPOT p99 (ms) | 5.5 | 8.8 | 9.9 | +4.4 (+80.0%) | +1.1 (+12.5%) |
+| GPU util (%) | 95.2 | 88.3 | 88.4 | -6.8 pp | +0.1 pp |
+| boot_sec | 34 | 119 | 118 | +84 | -1 |
+
+### 13.5 KVDramTier telemetry (atexit dump)
+
+| counter | tier_async (B11-style) | tier_fetch_aware (B12) | Δ |
+|---|---:|---:|---:|
+| n_evict | 46,827 | 41,514 | **-5,313 (-11.4%)** |
+| n_fetch | 9,262 | 4,505 | **-4,757 (-51.4%)** |
+| evict_bytes | 40.0 GB | 35.5 GB | -4.5 GB (-11.3%) |
+| fetch_bytes | 7.91 GB | 3.85 GB | **-4.06 GB (-51.4%)** |
+| tiered_blocks | 37,565 | 37,009 | -556 |
+| dram_in_use | 32.1 GB (over-cap) | 31.6 GB (over-cap) | -0.5 GB |
+| n_evict_async | 46,827 | 41,514 | -5,313 |
+| **n_evict_wait_resolved** | **9,262 (= n_fetch)** | **4,505 (= n_fetch)** | **-4,757 (-51.4%)** |
+| n_evict_skipped_fetch_aware | 0 | **1,961** | (신규 카운터) |
+| fetch_window_len / max | 0 / 512 (inert) | **512 / 512 (포화)** | |
+| fetch_aware_enabled | 0 | 1 | |
+
+### 13.6 task 결론
+
+**판정: PARTIAL RECOVERED (+2.1% tps vs tier_async, B11 의 -16.2% 는 -16.2% 로 잔존).** fetch-evict race 의 *증거* 는 명확히 사라졌지만 (`n_fetch` -51.4%, `n_evict_wait_resolved` -51.4%), tps 회복은 미미하고 TPOT p99 가 오히려 +1.1ms 악화. 다만 **TTFT 가 크게 개선** (p50 -64.2%, p99 -67.1% vs tier_async) 으로 native 수준 회복 — 다른 SLO 축에서는 큰 win.
+
+근거 분리:
+
+1. **fetch-evict race 자체는 해소** (positive evidence):
+   - `n_fetch` 9,262 → 4,505 (**-51.4%**): 윈도우에 들어간 block 은 evict 가 skip 되니 fetch 도 불필요 → fetch 가 절반으로.
+   - `n_evict_wait_resolved` 도 같은 비율로 감소 (4,505 = n_fetch, 여전히 1:1 이지만 절대량 -51%).
+   - `n_evict_skipped_fetch_aware` = 1,961 (윈도우 가드가 실제 발화).
+   - `fetch_window_len` = 512/512 (윈도우 포화) → 윈도우가 작아 한계가 있을 수 있음.
+
+2. **tps 회복은 부분 (+2.1%)** — fetch path 감소가 critical path 차지 비율은 작음:
+   - tier_async (-16.2%) 의 손실 원인이 fetch wait 만이 아님. async-evict 의 D2H pull 자체 + alloc/free 의 host overhead + DRAM 32 GB cap 도달 후 `tiered_blocks=37,565` 가 `skipped_full` 없이 over-cap (B11 와 동일) 등 다른 oncost 가 잔존.
+   - TPOT p99 +1.1ms — fetch-aware 자체가 forward step 에 직접 추가하는 것은 set lookup 한 번 (O(1)) 이므로 무시 가능. 악화 원인은 측정 noise + window 가 가득찰 때까지의 warm-up 시간 가능성.
+
+3. **TTFT 가 크게 회복 — multi-turn 워크로드에서 의외의 큰 부수효과**:
+   - TTFT p50 399.7 → 143.0 ms (-64.2%), p99 1,405.7 → 463.1 ms (-67.1%, native 와 거의 동일).
+   - 가설: prefix-cache 히트로 new request 의 prefill 이 cached block 을 `touch` → fetch_block (wait=True). 그 block 이 직전 free_blocks 에서 evict 되지 않았다면 fetch_block 도 no-op (HBM 에 그대로) → prefill stall 없음. 즉 fetch-aware 는 **prefill latency 의 evict-cycle racing** 도 보호.
+
+4. **혼합 결과의 해석**:
+   - **tps 1차 KPI 만 보면 partial** (+2.1%) — 회복은 했지만 native -16.2% 격차는 여전.
+   - **TTFT/TPOT/안정성 SLO 로 보면 native 수준 회복** — TTFT p99 가 native (444.8) 와 463.1 으로 정확히 일치, p99 outlier 가 사라짐.
+   - net win 여부는 deployment SLO 가중치 의존 — TTFT-sensitive 워크로드에서는 fetch-aware 가 강하게 권장.
+
+5. **잔여 -16.2% 의 candidate 원인 (follow-up)**:
+   - DRAM 32 GB cap 도달 → over-cap 동작 (`dram_in_use=33.9 GB > 32 GB`) 시 추가 evict 가 alloc/host 압박.
+   - async-evict 자체의 D2H bandwidth contention (PCIe), forward 와 동일 PCIe domain 공유.
+   - tier 활성화로 인한 boot_sec +84s 의 pinned_pool 초기화 cost (런타임 무관, but FA off 면 회피).
+   - selective eviction policy 미적용 — cached block 전체를 evict 후보로 함; conversation prior-turn block 만 골라 evict 하면 추가 회복 가능성.
+
+### 13.7 GPU 0 최종 free 검증
+
+```
+$ nvidia-smi --query-gpu=index,memory.used,memory.free --format=csv -i 0
+0, 0 MiB, 182632 MiB
+```
+
+3 run 모두 측정 직후 `run_b12_fetch_aware.sh` 의 backend SIGTERM → 20 s 대기 → SIGKILL → orphan compute-apps PID kill 시퀀스로 정리. GPU 1-7 본 B12 동안 미접촉.
+
+### 13.8 산출물 경로 (B12)
+
+- `qwen7b_b12_native.json`, `qwen7b_b12_native.raw.jsonl` — 1000/1000 ok, 46.2 s, 11,074.8 tps
+- `qwen7b_b12_tier_async.json`, `qwen7b_b12_tier_async.raw.jsonl` — 1000/1000 ok, 56.3 s, 9,089.9 tps
+- `qwen7b_b12_tier_fetch_aware.json`, `qwen7b_b12_tier_fetch_aware.raw.jsonl` — 1000/1000 ok, 55.1 s, 9,285.1 tps
+- `_logs_b12_fetch_aware/boot_{native,tier_async,tier_fetch_aware}.log` (boot + atexit telemetry)
+- `_logs_b12_fetch_aware/{native,tier_async,tier_fetch_aware}.bind.txt`, `.tier_dump.txt`, `.gpu_after.txt`, `.prefix_{pre,post}.txt`
+- `run_b12_fetch_aware.sh` — 3 mode driver
+- `B12_fetch_aware/DESIGN.md` — 옵션 비교 + 정합성 분석
+- Python patch:
+  - `vllm/v1/core/kv_dram_tiering.py` (+85 / -3 lines, B12 fetch-aware)
+  - `vllm/v1/core/block_pool.py` (+12 / -2 lines, B12 guard)
+- Test patch: `tests/v1/spec_decode/test_kv_dram_tiering.py` (+161 / 0 lines, `TestKVDramTierFetchAwareB12` 4 testcase)

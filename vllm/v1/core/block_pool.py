@@ -475,9 +475,20 @@ class BlockPool:
         tier = self._kv_dram_tier
         if tier is not None and tier.has_pointer_binding():
             wait_flag = not self._async_evict
+            # SUB_201 A2 Phase B12 — fetch-aware guard. When the
+            # KVDramTier was constructed with VLLM_KV_TIER_FETCH_AWARE=1
+            # the tier maintains a sliding window of recently fetched
+            # block_ids; skipping the evict for those breaks the
+            # fetch-evict race documented in B11 (n_evict_wait_resolved
+            # == n_fetch). is_fetch_aware_protected returns False when
+            # the env flag is off, so the default path is unchanged.
             for block in newly_free:
-                if block.block_hash is not None:
-                    tier.evict_block(block.block_id, wait=wait_flag)
+                if block.block_hash is None:
+                    continue
+                if tier.is_fetch_aware_protected(block.block_id):
+                    tier._on_evict_skipped_fetch_aware()
+                    continue
+                tier.evict_block(block.block_id, wait=wait_flag)
 
     def evict_blocks(self, block_ids: set[int]) -> None:
         """evict blocks from the prefix cache by their block IDs.

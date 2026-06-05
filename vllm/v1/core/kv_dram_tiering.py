@@ -73,6 +73,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+from collections import deque
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,41 @@ def _async_evict_enabled() -> bool:
     """
     raw = os.environ.get("VLLM_KV_TIER_ASYNC", "").strip().lower()
     return raw in _ENABLED_VALUES
+
+
+def _fetch_aware_enabled() -> bool:
+    """Gate on VLLM_KV_TIER_FETCH_AWARE for the fetch-aware eviction
+    policy (SUB_201 A2 Phase B12).
+
+    When enabled the tier keeps a sliding window of recently fetched
+    block_ids; ``BlockPool.free_blocks`` consults
+    ``is_fetch_aware_protected`` BEFORE dispatching ``evict_block`` and
+    skips the evict for any block id still in the window. This breaks
+    the fetch-evict race documented in B11 (every fetch was paying the
+    full D2H wait, n_evict_wait_resolved == n_fetch 1:1) without
+    changing correctness — the protected block stays in HBM and the
+    next fetch is a no-op (cache hit), which is the win path.
+
+    Off by default — opt-in.
+    """
+    raw = os.environ.get("VLLM_KV_TIER_FETCH_AWARE", "").strip().lower()
+    return raw in _ENABLED_VALUES
+
+
+def _fetch_window_size() -> int:
+    """Tunable for the recent-fetch protection window length (blocks).
+
+    Default 512 (≈ a few multi-turn continuations worth of blocks at
+    16-token block size; the right value is workload-dependent and
+    should be revisited per deployment). Reads VLLM_KV_TIER_FETCH_WINDOW
+    with a non-negative-int guard; on parse failure falls back to 512.
+    """
+    raw = os.environ.get("VLLM_KV_TIER_FETCH_WINDOW", "512").strip()
+    try:
+        n = int(raw)
+        return n if n >= 0 else 512
+    except ValueError:
+        return 512
 
 
 @dataclass
@@ -154,6 +190,20 @@ class KVDramTier:
         # assert them without flipping the flag.
         self._evict_bytes = 0
         self._fetch_bytes = 0
+        # SUB_201 A2 Phase B12 — fetch-aware eviction.
+        # Sliding window of recently fetched block_ids. evict_block
+        # caller (BlockPool.free_blocks) consults this set BEFORE
+        # dispatching the evict and SKIPs the evict when the id is
+        # protected. Captured at ctor time so the hot path doesn't
+        # re-read the env var on every check.
+        self._fetch_aware = _fetch_aware_enabled()
+        self._fetch_window_max = _fetch_window_size()
+        # The window deque tracks insertion order (oldest at left);
+        # the set is the O(1) membership accelerator. Both are mutated
+        # only under self._lock — the same lock that guards _table.
+        self._recent_fetch_window: deque[int] = deque()
+        self._recent_fetch_set: set[int] = set()
+        self._n_evict_skipped_fetch_aware = 0
 
     # ──────────────────────────────────────────────────────────────
     # State accessors
@@ -196,7 +246,68 @@ class KVDramTier:
                 "n_evict_wait_resolved": int(
                     getattr(self, "_n_evict_wait_resolved", 0)
                 ),
+                # SUB_201 A2 Phase B12 — fetch-aware eviction. Tracks
+                # how many evict_block dispatches were skipped because
+                # the block was inside the recent-fetch window, plus
+                # the current window length for visibility.
+                "n_evict_skipped_fetch_aware": int(
+                    getattr(self, "_n_evict_skipped_fetch_aware", 0)
+                ),
+                "fetch_window_len": len(self._recent_fetch_window),
+                "fetch_window_max": self._fetch_window_max,
+                "fetch_aware_enabled": int(self._fetch_aware),
             }
+
+    # ──────────────────────────────────────────────────────────────
+    # SUB_201 A2 Phase B12 — fetch-aware eviction window
+    # ──────────────────────────────────────────────────────────────
+
+    def _record_fetch_locked(self, block_id: int) -> None:
+        """Append ``block_id`` to the recent-fetch window, sliding old
+        entries out. Caller MUST hold ``self._lock``.
+
+        No-op when fetch-aware is disabled — keeps the hot path free of
+        any deque churn on the default (B11) path. When enabled the
+        block id is moved to MRU position (re-fetched blocks stay
+        protected for the full window length again).
+        """
+        if not self._fetch_aware or self._fetch_window_max <= 0:
+            return
+        if block_id in self._recent_fetch_set:
+            # MRU: bump to the right. deque.remove is O(N) but N is
+            # bounded by _fetch_window_max (default 512) and re-fetches
+            # of an id already in-window should be rare relative to the
+            # forward-path step rate, so this is acceptable for the PoC.
+            try:
+                self._recent_fetch_window.remove(block_id)
+            except ValueError:  # pragma: no cover - defensive
+                pass
+        else:
+            self._recent_fetch_set.add(block_id)
+        self._recent_fetch_window.append(block_id)
+        while len(self._recent_fetch_window) > self._fetch_window_max:
+            old = self._recent_fetch_window.popleft()
+            self._recent_fetch_set.discard(old)
+
+    def is_fetch_aware_protected(self, block_id: int) -> bool:
+        """Return True if ``block_id`` is inside the recent-fetch
+        sliding window (i.e. it was fetched recently and is likely to
+        be re-fetched soon, so the caller should skip the evict).
+
+        Always False when fetch-aware is disabled.
+        """
+        if not self._fetch_aware:
+            return False
+        with self._lock:
+            return block_id in self._recent_fetch_set
+
+    def _on_evict_skipped_fetch_aware(self) -> None:
+        """Telemetry tick used by ``BlockPool.free_blocks`` whenever
+        the fetch-aware guard intercepts an evict dispatch."""
+        with self._lock:
+            self._n_evict_skipped_fetch_aware = int(
+                getattr(self, "_n_evict_skipped_fetch_aware", 0)
+            ) + 1
 
     def dump_telemetry(self, prefix: str = "[KVDramTier]") -> str:
         """Phase B6 — emit a one-line telemetry summary.
@@ -215,7 +326,11 @@ class KVDramTier:
             f"skipped_full={s['n_evict_skipped_full']} "
             f"n_binds={s['n_binds']} "
             f"n_evict_async={s['n_evict_async']} "
-            f"n_evict_wait_resolved={s['n_evict_wait_resolved']}"
+            f"n_evict_wait_resolved={s['n_evict_wait_resolved']} "
+            f"n_evict_skipped_fetch_aware={s['n_evict_skipped_fetch_aware']} "
+            f"fetch_window_len={s['fetch_window_len']}/"
+            f"{s['fetch_window_max']} "
+            f"fetch_aware={s['fetch_aware_enabled']}"
         )
         raw = os.environ.get("VLLM_KV_TIER_TELEMETRY", "").strip().lower()
         if raw in _ENABLED_VALUES:
@@ -327,6 +442,9 @@ class KVDramTier:
             entry.pending_ev = ev
             self._n_fetch += 1
             self._fetch_bytes += entry.nbytes
+            # SUB_201 A2 Phase B12 — mark this block as recently
+            # fetched so the next free_blocks pass skips re-evicting it.
+            self._record_fetch_locked(block_id)
         if wait and ev:
             self._pool.event_sync(ev)
             self._pool.event_destroy(ev)
@@ -420,6 +538,12 @@ class KVDramTier:
             if had_prior_binding:
                 self._table.clear()
                 self._dram_in_use = 0
+                # SUB_201 A2 Phase B12 — re-bind invalidates the old
+                # block_id space. Clear the recent-fetch window so we
+                # don't accidentally protect a block id that, in the
+                # new binding, refers to unrelated KV.
+                self._recent_fetch_window.clear()
+                self._recent_fetch_set.clear()
             self._per_block_layer_ptrs = per_block_layer_ptrs
             self._per_layer_nbytes = int(per_layer_nbytes)
             self._n_layers = (
@@ -584,6 +708,9 @@ class KVDramTier:
                 )
             self._n_fetch += 1
             self._fetch_bytes += entry.nbytes
+            # SUB_201 A2 Phase B12 — mark recently fetched so the
+            # subsequent free_blocks pass can short-circuit the evict.
+            self._record_fetch_locked(block_id)
         if wait:
             self._pool.stream_sync(self._stream)
         if drop_after_fetch:
@@ -701,4 +828,6 @@ __all__ = [
     "try_build_tier",
     "_is_enabled",
     "_async_evict_enabled",
+    "_fetch_aware_enabled",
+    "_fetch_window_size",
 ]
