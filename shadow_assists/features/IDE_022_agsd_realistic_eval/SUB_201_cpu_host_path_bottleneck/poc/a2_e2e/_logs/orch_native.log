@@ -1,0 +1,14 @@
+[00:08:47] === A2 e2e native boot (port=8003, gpus=0,1,2,3, flag=0) ===
+[00:08:47] PID=886377  log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/a2_e2e/_logs/boot_native.log
+[00:10:39] READY in 112s
+[00:10:39] === bench: sharegpt 200p × conc=16 × vanilla (stream) ===
+[tput] Llama-3.1-70B-Instruct × vanilla × sharegpt: 1251.9 tps (200/200 ok, 246s, gpu 98.4% cpu 4.9% ttft_p50 32.2ms α None)
+[00:14:45] === bench done → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/a2_e2e/llama70b_native.json ===
+[00:14:45] === kill backend pid=886377 ===
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/a2_e2e/run.sh: line 116: 886377 Killed                  CUDA_VISIBLE_DEVICES=$GPUS VLLM_KV_TIERING_DRAM=$FLAG_VAL VLLM_KV_TIERING_POOL_LIB="$LIB_SO" ARCTIC_INFERENCE_ENABLED=0 VLLM_PLUGINS="" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True setsid "$VBIN" serve "$MODEL" --tensor-parallel-size 4 --port "$PORT" --gpu-memory-utilization 0.85 --max-model-len 16384 --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --allow-deprecated-quantization > "$BOOT_LOG" 2>&1 < /dev/null
+[00:14:49] GPU 0-3 freed (used=0 MiB)
+0, 0, 182632
+1, 0, 182632
+2, 0, 182632
+3, 0, 182632
+[00:14:49] === DONE native ===
