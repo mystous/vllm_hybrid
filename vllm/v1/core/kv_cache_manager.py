@@ -177,12 +177,24 @@ class KVCacheManager:
                 )
                 if self._kv_dram_tier is not None:
                     self.block_pool._kv_dram_tier = self._kv_dram_tier
+                    # SUB_201 A2 Phase B10 — BlockPool ctor captured
+                    # _async_evict=False because the tier was attached
+                    # AFTER ctor. Re-evaluate the env flag here so the
+                    # async-evict path (VLLM_KV_TIER_ASYNC) actually
+                    # fires on the hot path; otherwise free_blocks would
+                    # always call evict_block(wait=True) regardless of
+                    # the flag.
+                    from vllm.v1.core.kv_dram_tiering import (
+                        _async_evict_enabled,
+                    )
+                    self.block_pool._async_evict = _async_evict_enabled()
                     logger.info(
                         "[KVDramTier] enabled — max_dram=%d B, "
-                        "per_block=%d B, num_blocks=%d",
+                        "per_block=%d B, num_blocks=%d, async_evict=%s",
                         max_dram_bytes,
                         per_block_nbytes,
                         kv_cache_config.num_blocks,
+                        self.block_pool._async_evict,
                     )
             except Exception as e:  # pragma: no cover - smoke test path
                 logger.warning(

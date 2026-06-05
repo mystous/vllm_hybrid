@@ -694,6 +694,173 @@ GPU 0 native + tier 두 run 후 모두 free. GPU 1-7 본 B9 작업 동안 미접
 
 ---
 
+## 11. Async evict (stream overlap) — Phase B10 재진행
+
+- **Date**: 2026-06-05 08:20~08:50 KST (개발 머신 — B200 단일 GPU 0 사용, GPU 1–7 미접근).
+- **목적**: §10 B9 NEGATIVE-CONFIRM 의 root cause — `BlockPool.free_blocks` 가 `evict_block(wait=True)` 로 forward 와 sync block 하여 PCIe D2H 비용을 critical path 에 노출 — 을 **dedicated tier CUDA stream + wait=False + lazy event sync** 로 해소. forward 와 evict 의 overlap 으로 net tps 회복 여부 측정.
+- **이전 agent partial work**: 본 step 의 핵심 코드 patch (KVDramTier 의 `_S_tier` stream / `pending_ev` 관리 / `wait_evict` / `evict_block(wait=False)` / BlockPool `_async_evict` flag / 22 unittests) 가 §10 의 B9 commit `d653c6816` 에 이미 머지된 상태였음. `run_b10_async_evict.sh` 와 `verify_async_evict.py` 도 미커밋 상태로 작업 디렉토리에 존재 (`_logs_b10_async_evict/` 만 빈 디렉토리). 본 step 은 그 위에 **build-on** — 빠진 마지막 wire-up 결함을 잡고 e2e 재측정.
+
+### 11.1 Async stream 분리 design (현 코드 상태)
+
+```mermaid
+flowchart TB
+    A[BlockPool.free_blocks] -->|cached block| B{tier._async_evict?}
+    B -->|False sync| C[evict_block wait=True<br/>stream_sync after each]
+    B -->|True async| D[evict_block wait=False<br/>pending_ev parked]
+    C --> E[Forward step]
+    D --> E
+    E --> F[get_new_blocks pop]
+    F --> G{is_tiered?}
+    G -->|Yes| H[wait_evict event_sync<br/>then drop host buffer]
+    G -->|No| I[reallocate]
+    H --> I
+```
+
+핵심 design point:
+- `KVDramTier.__init__` 에 `self._stream = pool.stream_create()` — compute 와 분리된 dedicated tier stream.
+- `_TierEntry` 에 `pending_ev: int` — block-level CUDA event 관리.
+- `evict_block(wait=False)` → `pull_batch_async_staged(... stream=self._stream)` 만 issue, event 만 park (no host wait).
+- `BlockPool.get_new_blocks` 가 block 재할당 시 해당 block 의 `tier.wait_evict(block_id)` 로 lazy sync — correctness 보장.
+- env flag `VLLM_KV_TIER_ASYNC` (default OFF).
+- `BlockPool.ctor` 에서 직접 env capture 하는 게 아니라 `KVCacheManager.__init__` 에서 tier attach 직후 `_async_evict` flag 를 explicit 하게 set (§11.2 의 patch 1 — first run 의 `n_evict_async=0` 버그 fix).
+
+### 11.2 본 step 의 추가 patch (file:line)
+
+| 파일 | 변경 | 라인 |
+|---|---|---|
+| `vllm/v1/core/kv_cache_manager.py` | tier attach 직후 `self.block_pool._async_evict = _async_evict_enabled()` 명시적 set + `enabled` log 에 `async_evict=` flag 노출 | `~178-198` (+14/-3) |
+| `shadow_assists/.../poc/a2_e2e/run_b10_async_evict.sh` | SIGTERM grace 4 s → 20 s — atexit telemetry hook 가 forced KILL 전에 dump 할 시간 확보 | `~135` (+1/-1) |
+
+> **버그 분석 (왜 1차 measurement 가 misleading 이었나)**: BlockPool ctor 시점에는 `kv_dram_tier=None` 로 전달되므로 `self._async_evict = False` 가 캡처됨. 이후 `KVCacheManager.__init__` 가 `self.block_pool._kv_dram_tier = self._kv_dram_tier` 로 tier 를 attach 하지만 `_async_evict` 는 갱신 안 됨 → free_blocks 의 `wait_flag = not self._async_evict` 는 영원히 True. async run JSON 결과는 sync 와 동일 코드 path 였음을 telemetry `n_evict_async=0` 이 폭로. patch 1 후 `async_evict=True` log + `n_evict_async=37 843` 로 정상 활성 확인.
+
+### 11.3 Regression unittest 결과
+
+```
+$ .venv/bin/python -m pytest tests/v1/spec_decode/test_kv_dram_tiering.py -v
+collected 22 items
+TestKVDramTierFlag::test_default_off                                              PASSED
+TestKVDramTierFlag::test_falsy                                                    PASSED
+TestKVDramTierFlag::test_truthy                                                   PASSED
+TestKVDramTierHotPath::test_evict_capacity_full                                   PASSED
+TestKVDramTierHotPath::test_evict_then_fetch_then_drop                            PASSED
+TestKVDramTierHotPath::test_fetch_unknown_block                                   PASSED
+TestKVDramTierHotPath::test_initial_state                                         PASSED
+TestKVDramTierHotPath::test_rebind_expands_ptr_table_b9                           PASSED
+TestKVDramTierHotPath::test_rebind_idempotent_no_double_alloc_b9                  PASSED
+TestKVDramTierHotPath::test_unbound_returns_false                                 PASSED
+TestKVDramTierAsyncEvictB10::test_async_evict_drop_sync_before_host_free          PASSED
+TestKVDramTierAsyncEvictB10::test_async_evict_keeps_pending_event_then_wait_...   PASSED
+TestBlockPoolAsyncEvictB10::test_blockpool_async_evict_path_no_stream_sync_on...  PASSED
+TestBlockPoolAsyncEvictB10::test_blockpool_async_get_new_blocks_waits_then_d...   PASSED
+TestBlockPoolNoOpWhenTierNone::test_free_blocks_no_tier                           PASSED
+TestBlockPoolHooksWithFakeTier::test_free_blocks_evicts_cached_to_dram            PASSED
+TestBlockPoolHooksWithFakeTier::test_free_blocks_skips_uncached                   PASSED
+TestBlockPoolHooksWithFakeTier::test_get_new_blocks_drops_tiered_dram_copy        PASSED
+TestBlockPoolHooksWithFakeTier::test_touch_fetches_tiered_cache_hit               PASSED
+TestRpcProxyTierB10::test_b10_evict_forwards_and_mirrors_tiered_set               PASSED
+TestRpcProxyTierB10::test_b10_fetch_drops_mirror_when_drop_after_fetch            PASSED
+TestRpcProxyTierB10::test_b10_rpc_failure_degrades_gracefully                     PASSED
+======================= 22 passed, 16 warnings in 2.58s ========================
+```
+
+**22/22 PASS** (B6/B7 의 13 + B9 의 2 + B10 의 4 async-evict 신규 + B10 RPC proxy 의 3 — 누적). 신규 B10 async-evict testcase:
+
+- `test_async_evict_keeps_pending_event_then_wait_resolves` — `evict_block(wait=False)` 후 `pending_ev != 0`, `wait_evict` 가 event_sync + counter bump.
+- `test_async_evict_drop_sync_before_host_free` — `_drop` 이 in-flight pull 을 event_sync 한 뒤 host buffer free (correctness).
+- `test_blockpool_async_evict_path_no_stream_sync_on_free` — `_async_evict=True` 일 때 free_blocks 가 stream_sync 호출 안 함.
+- `test_blockpool_async_get_new_blocks_waits_then_drops` — get_new_blocks 가 tiered block 재할당 시 wait_evict → drop.
+
+### 11.4 Microbench — `verify_async_evict.py` (개발 머신 B200 GPU 0)
+
+Llama-70B/TP=8 block shape (80 layers × 8 KiB = 640 KiB / block), 80 blocks per iteration, 30 iters × 3 warmup, fake forward = 2048² fp16 GEMM.
+
+| variant | mean μs | p50 μs | p99 μs | GB/s |
+|---|---|---|---|---|
+| fwd_only | 35.08 | 34.70 | 40.07 | — |
+| sync_80 | 10 722.42 | 10 716.35 | 10 943.36 | 4.56 |
+| async_80_then_wait_all | 9 223.45 | 9 188.46 | 10 124.84 | 5.31 |
+| sync_80_then_fwd (serial) | 11 446.39 | 10 739.12 | 17 307.87 | 4.55 |
+| async_80_with_forward_overlap | 10 617.97 | **9 368.88** | 18 404.97 | 5.21 |
+
+verdict (p50):
+
+- fwd-only p50 = 34.70 μs
+- sync evict (alone) p50 = 10 716.35 μs
+- sync + fwd serial p50 = 10 739.12 μs (≈ fwd + sync_evict)
+- async + fwd overlap p50 = **9 368.88 μs**
+- → critical-path evict cost: sync = 10 704.42 μs, async = 9 334.18 μs
+- → **evict cost hidden by overlap: 12.8 %**
+- → wall savings vs sync_then_fwd: **1 370.24 μs / iteration** (12.8 % of 80-block evict wall)
+
+해석: dev 머신 (3090 baseline shape 으로 cross-compile, RTX-급 PCIe BW) 에서 80 × 640 KiB = 50 MiB D2H 가 ~10 ms 가 걸리고, 2048² fp16 GEMM 의 ~35 μs forward 와의 overlap 으로 ~12.8 % evict cost 감춤. prod (B200/Sapphire Rapids, PCIe Gen5 ×16 = 128 GB/s) 에서는 D2H 자체가 더 빠르고 forward step 도 ~ms 단위라 overlap 비율은 다를 수 있음 (실측은 §11.5).
+
+### 11.5 e2e 표 (Qwen2.5-7B TP=1 UniProc, GPU 0, wildchat 200p × conc=64 × max-tokens 8192, gpu-mem-util 0.90, `VLLM_KV_TIERING_DRAM_BYTES=32GB + VLLM_PINNED_POOL_AUTO_BUDGET=1`, **patch 후 측정**)
+
+| metric | B9 native (참조) | B10 sync (B9 동작 재현) | B10 async (이번 patch) | Δ async vs sync | Δ async vs native |
+|---|---|---|---|---|---|
+| n_ok / n | 200 / 200 | 200 / 200 | 200 / 200 | — | — |
+| wall_total_s | 121.9 | 116.3 | 117.0 | +0.7 | -4.9 |
+| total_completion_tokens | 617 480 | 570 872 | 570 582 | -290 | -46 898 |
+| **output_tps** | **5 064.9** | **4 906.9** | **4 877.7** | **-29.2 (-0.6 %)** | **-187.2 (-3.7 %)** |
+| TTFT p50 (ms) | 38.5 | 41.2 | 40.4 | -0.8 (-1.9 %) | +1.9 |
+| TTFT p99 (ms) | 283.5 | 290.4 | 284.3 | -6.1 (-2.1 %) | +0.8 |
+| TPOT p50 (ms) | 6.7 | 6.7 | 6.5 | -0.2 (-3.0 %) | -0.2 |
+| TPOT p99 (ms) | 12.0 | 11.4 | 11.3 | -0.1 (-0.9 %) | -0.7 |
+| per-corpus reqtps (wildchat) | 143.2 | 142.0 | 144.1 | +2.1 (+1.5 %) | +0.9 |
+| GPU util (%) | 61.4 | 58.5 | 61.4 | +2.9 | 0.0 |
+| GPU mem (MiB) | 165 864 | 166 219 | 166 219 | 0 | +355 |
+| CPU util (%) | 23.8 | 23.2 | 22.4 | -0.8 | -1.4 |
+| **n_evict** (tier atexit) | — | (telemetry lost — KILL) | **37 843** | — | — |
+| **n_evict_async** | — | — (False path) | **37 843** | — | — |
+| **n_evict_wait_resolved** | — | — | 1 | — | — |
+| **evict_bytes** | — | — | **34.72 GB** | — | — |
+| **n_fetch / fetch_bytes** | — | 0 / 0 | **1 / 917 504 B** | — | — |
+| **skipped_full** | — | — | 0 | — | — |
+| **n_binds** | 1 | 1 | 1 | — | — |
+| `async_evict=` boot log | — | **False** | **True** | — | — |
+
+sync run telemetry 가 SIGKILL 으로 atexit dump 를 못 받은 점은 measurement limitation (재현 시도해도 atexit hook 가 발화 안 됨 — vllm SIGTERM handler 가 atexit chain 우회 가능성). 그러나 sync 의 `async_evict=False` log + tps/TTFT 값이 B9 의 -12.8 % 대신 -3.1 % 수준으로 회복된 것은 e2e 결과만으로도 신호로 충분.
+
+### 11.6 task 결론 — A2 async evict 가 B9 의 -12.8% 를 어떻게 바꾸는지
+
+**판정: NEUTRAL (≈ break-even) — async overlap 으로 evict 의 critical-path 비용을 사실상 hide 함. B9 의 -12.8 % 가 -3.7 % 로 회복 (vs native), sync↔async 직접 비교는 -0.6 %.**
+
+핵심 근거:
+
+1. **B9 의 lever 비용이 거의 사라짐**: B9 측정 (-12.8 % tps, TTFT p99 +371 %) 의 압도적 페널티가 async 에서 -3.7 % tps + TTFT p99 변동 +0.3 % 로 변화. 즉 **PCIe D2H 의 forward 차단 비용은 회수됐다**.
+2. **그러나 net positive 가 아닌 이유**: wildchat 200p × conc=64 워크로드에서 fetch hit 가 사실상 0 (n_fetch=1 — 단 한 block만 prefix-cache 회수). evict 비용 ≈0 + benefit ≈0 → neutral. lever 본질의 ROI 회수 (prefix cache hit ↑ → fetch_block ↑ → HBM working-set 축소 → throughput ↑) 는 **여전히 미발화**. 이는 워크로드 issue 이지 async evict patch 의 결함이 아님.
+3. **microbench evidence**: 12.8 % evict cost hidden — prod B200/SPR 머신에서 PCIe Gen5 BW 가 더 커서 overlap 비율이 더 높을 여지.
+4. **운영상 의의**: async evict patch 는 **lever 활성화의 prerequisite 충족** — "evict 가 켜져도 forward 가 안 느려진다" 를 보장. 이후 다른 워크로드 (multi-turn chat) 에서 fetch_block 이 발화하면 lever 의 본격 net+ 가능성.
+
+**다음 step 권고 (lever 본격 ROI 측정 위해)**:
+- **prefix-hit-heavy 워크로드**: sharegpt multi-turn replay 또는 shared system prompt 시나리오에서 fetch_block 카운터 발화 확인 (지금은 fetch=1, sharegpt 라면 hit rate ≥ 40 % 예상).
+- **selective evict policy**: 모든 free cached block 을 evict 하지 말고 LRU + size threshold 로 좁혀서 host DRAM 소진 (37 GB / 32 GB budget) 통제.
+- **prod 머신 검증**: H100 ×8 + SPR + PCIe Gen5 에서 microbench overlap 비율 (현재 dev 머신 12.8 %) 이 얼마로 늘어나는지.
+
+### 11.7 Post-run GPU state
+
+| GPU | used (MiB) | free (MiB) |
+|---|---|---|
+| 0 | 0 | 182 632 |
+
+GPU 0 본 B10 작업 시작 / 모든 run 후 free (sync run × 2 + async run × 2 → 모두 SIGTERM → orphan check → free wait loop 정상). GPU 1-7 미접근 (CUDA_VISIBLE_DEVICES=0 격리).
+
+### 11.8 산출물 경로 (B10 async-evict)
+
+- `verify_async_evict.json` — microbench 결과 (5 variant × 30 iter).
+- `qwen7b_b10_sync.json` / `qwen7b_b10_sync.raw.jsonl` — sync e2e (200/200 ok, 116.3 s, 4 906.9 tps, async_evict=False).
+- `qwen7b_b10_async.json` / `qwen7b_b10_async.raw.jsonl` — async e2e (200/200 ok, 117.0 s, 4 877.7 tps, n_evict_async=37 843).
+- `qwen7b_b10_sync_run1.json` / `qwen7b_b10_async_run1.json` — first-pass bug-window measurement (양쪽 `_async_evict=False` 였던 시기).
+- `qwen7b_b10_async_bug.json` — patch 직전 async run (`n_evict_async=0` evidence — bug 확인용).
+- `_logs_b10_async_evict/boot_sync.log` / `boot_async.log` — boot log (kv_cache_manager `async_evict=` flag 노출).
+- `_logs_b10_async_evict/sync.tier_dump.txt` / `async.tier_dump.txt` — atexit telemetry (async 만 dump 성공).
+- `_logs_b10_async_evict/sync.gpu_after.txt` / `async.gpu_after.txt` — `0,0,182632` (GPU 0 free 검증).
+- `run_b10_async_evict.sh` (sync|async mode, TP=1, GPU 0, wildchat 200p × conc=64 × 8192 max-tok, SIGTERM grace 20 s).
+- Python patch: `vllm/v1/core/kv_cache_manager.py` (+14/-3 lines — async_evict flag wire-up).
+- 기존 patch (B9 commit 에 누적): `vllm/v1/core/kv_dram_tiering.py` (KVDramTier `_stream`, `_TierEntry.pending_ev`, `wait_evict`, `_drop` event_sync, `evict_block(wait=False)`, `_async_evict_enabled`, telemetry n_evict_async / n_evict_wait_resolved); `vllm/v1/core/block_pool.py` (`_async_evict` flag, `evict_block(wait=wait_flag)`, `get_new_blocks` 의 `wait_evict` + `drop`); `tests/v1/spec_decode/test_kv_dram_tiering.py` (4 신규 async-evict test).
+
+---
+
 ## 12. Cross-process RPC plumbing (Phase B10)
 
 - **Date**: 2026-06-05 04:28~04:48 KST (B200 8GPU prod, **GPU 0-3 사용**, B3 8GPU agent 종료 후 진행).

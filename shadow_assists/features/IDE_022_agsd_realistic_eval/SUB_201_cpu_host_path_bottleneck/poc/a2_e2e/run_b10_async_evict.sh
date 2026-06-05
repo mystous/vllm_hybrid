@@ -132,7 +132,7 @@ log "=== kill backend pid=$PID ==="
 PGID=$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ')
 if [ -n "$PGID" ]; then
   kill -TERM -"$PGID" 2>/dev/null
-  sleep 4
+  sleep 20
   kill -9 -"$PGID" 2>/dev/null
 fi
 kill -9 "$PID" 2>/dev/null
