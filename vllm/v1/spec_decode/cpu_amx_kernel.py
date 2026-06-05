@@ -13,6 +13,10 @@ Wraps the C ABI exposed by `libamx_draft_qwen05b.so`:
   void   amx_draft_qwen05b_forward(const uint16_t* input_bf16, int B,
                                    uint16_t* logits_out, int32_t* ids_out,
                                    int K);  # Phase A3 (SUB_198)
+  int    amx_draft_qwen05b_load_lm_head(const uint16_t* weight_bf16,
+                                         int rows_valid, int hidden,
+                                         int padded_vocab);
+                                                # Phase A3-real (SUB_198)
 
 See `shadow_assists/features/IDE_019_multi_source_drafter/
 SUB_198_amx_real_integration/AMX_INTEGRATION_DESIGN.md` for full design,
@@ -129,6 +133,9 @@ class AmxDraftKernel:
         self._initialized: bool = False
         self._init_rc: Optional[int] = None
         self._hw_amx: Optional[int] = None
+        # Phase A3-real (SUB_198) — Qwen-0.5B real lm_head weight load
+        self._has_load_lm_head: bool = False
+        self._lm_head_loaded: bool = False
         self._dlopen()
 
     # ─── dlopen + signature bind ──────────────────────────────────
@@ -180,6 +187,22 @@ class AmxDraftKernel:
                 ctypes.POINTER(ctypes.c_int32),   # ids_out    [B,K]
                 ctypes.c_int,                     # K
             ]
+
+            # Phase A3-real (SUB_198) — real Qwen-0.5B lm_head loader.
+            # Optional symbol: older .so builds don't have it; treat
+            # missing as a soft-fail so callers can still use the
+            # random-weight forward path.
+            try:
+                lib.amx_draft_qwen05b_load_lm_head.restype = ctypes.c_int
+                lib.amx_draft_qwen05b_load_lm_head.argtypes = [
+                    ctypes.POINTER(ctypes.c_uint16),  # weight_bf16 [V,H]
+                    ctypes.c_int,                     # rows_valid
+                    ctypes.c_int,                     # hidden
+                    ctypes.c_int,                     # padded_vocab
+                ]
+                self._has_load_lm_head = True
+            except AttributeError:
+                self._has_load_lm_head = False
         except AttributeError as e:
             self._load_error = f"missing symbol: {e}"
             _warn_once(
@@ -369,6 +392,70 @@ class AmxDraftKernel:
         self._lib.amx_draft_qwen05b_forward(
             in_ptr, int(B), logits_ptr, ids_ptr, int(K))
         return logits, ids
+
+    # ─── Phase A3-real (SUB_198) — load real Qwen-0.5B lm_head weight ─
+    def load_lm_head(self, weight) -> int:
+        """Replace the random-init kernel lm_head weight with a real one.
+
+        Args:
+          weight: numpy ndarray of shape (rows_valid, KERNEL_HIDDEN),
+            dtype uint16 (BF16 bit-pattern). Typical:
+              * Qwen-0.5B `model.embed_tokens.weight` (tied lm_head) of
+                shape (151_936, 896) BF16.
+            rows_valid <= KERNEL_VOCAB (152_064). Rows [rows_valid,
+            KERNEL_VOCAB) are zero-padded inside the kernel so the
+            padded vocab columns yield logits ≈ 0 and never argmax-win
+            (extra safety on top of the argmax-over-Vc gate in forward).
+
+        Returns:
+          C-side rc (0 = OK). Raises on transport / shape / dtype error.
+
+        Notes:
+          * MUST call ensure_init() first — load_lm_head replaces the
+            buffer allocated by init.
+          * Caller-supplied weight is row-major [V_valid, H]; kernel
+            internally builds the transposed AMX-packed [H/2, V, 2]
+            BF16 buffer. Caller does NOT need to transpose.
+        """
+        import numpy as np
+        if not self.loaded:
+            raise RuntimeError(
+                f"AmxDraftKernel not loaded: {self._load_error}")
+        if not self._has_load_lm_head:
+            raise RuntimeError(
+                "amx_draft_qwen05b_load_lm_head symbol missing — "
+                "rebuild the .so with SUB_198 Phase A3-real source.")
+        if not self._initialized:
+            raise RuntimeError(
+                "Call ensure_init() before load_lm_head — kernel "
+                "buffer is allocated by init.")
+        if weight.dtype != np.uint16:
+            raise TypeError(
+                "weight must be numpy uint16 (BF16 bit-pattern), got "
+                f"dtype={weight.dtype}")
+        if weight.ndim != 2 or weight.shape[1] != KERNEL_HIDDEN:
+            raise ValueError(
+                f"weight shape must be (V_valid, {KERNEL_HIDDEN}), got "
+                f"{tuple(weight.shape)}")
+        rows_valid = int(weight.shape[0])
+        if rows_valid <= 0 or rows_valid > KERNEL_VOCAB:
+            raise ValueError(
+                f"rows_valid must be in (0, {KERNEL_VOCAB}], got "
+                f"{rows_valid}")
+        if not weight.flags["C_CONTIGUOUS"]:
+            weight = np.ascontiguousarray(weight)
+
+        assert self._lib is not None
+        w_ptr = weight.ctypes.data_as(ctypes.POINTER(ctypes.c_uint16))
+        rc = int(self._lib.amx_draft_qwen05b_load_lm_head(
+            w_ptr, rows_valid, int(KERNEL_HIDDEN), int(KERNEL_VOCAB)))
+        if rc != 0:
+            raise RuntimeError(
+                f"amx_draft_qwen05b_load_lm_head returned rc={rc} "
+                "(-1 init missing, -2 hidden mismatch, -3 padded_vocab "
+                "mismatch, -4 rows_valid out of range, -5 null weight)")
+        self._lm_head_loaded = True
+        return rc
 
 
 # ─────────────────────────────────────────────────────────────────────

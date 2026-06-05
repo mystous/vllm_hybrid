@@ -358,6 +358,68 @@ extern "C" double amx_draft_qwen05b_mlp_ms(int B_in) {
 extern "C" int amx_draft_qwen05b_hw_amx(void) { return amx_available(); }
 
 // ─────────────────────────────────────────────────────────────────────
+// Phase A3-real (SUB_198) — load real Qwen-0.5B lm_head weight
+//
+//   int amx_draft_qwen05b_load_lm_head(
+//       const uint16_t* weight_bf16,  // [rows_valid, hidden] row-major BF16
+//       int rows_valid,               // typically 151,936 (Qwen 0.5B vocab)
+//       int hidden,                   // must == HIDDEN (896)
+//       int padded_vocab)             // typically 152,064 (kernel VOCAB)
+//
+// Semantics:
+//   Replace the random-init `W_lm_head_packed` buffer with the caller's
+//   real lm_head weight. The caller supplies the [rows_valid, hidden]
+//   slice (e.g. tied embed_tokens.weight of Qwen-0.5B which is
+//   151,936×896 BF16). We zero-pad rows [rows_valid, padded_vocab) and
+//   transpose to AMX-packed B layout: [hidden/2, padded_vocab, 2] BF16.
+//
+//   Mathematically: lm_head matmul is `logits = act @ W^T` where W is
+//   [vocab, hidden]. We feed AMX as `act @ B` with B = W^T, so
+//   B[hidden, vocab] = W[vocab, hidden] transposed. The packed layout
+//   then is [hidden/2, vocab, 2] (K-pair major).
+//
+// Returns:
+//   0  success
+//  -1  not initialized (call amx_draft_qwen05b_init first)
+//  -2  hidden mismatch (must equal HIDDEN=896)
+//  -3  padded_vocab mismatch (must equal VOCAB=152064)
+//  -4  rows_valid > padded_vocab
+//  -5  null weight pointer
+// ─────────────────────────────────────────────────────────────────────
+
+extern "C" int amx_draft_qwen05b_load_lm_head(const uint16_t* weight_bf16,
+                                              int rows_valid,
+                                              int hidden,
+                                              int padded_vocab) {
+    if (!g_state.W_lm_head_packed) return -1;
+    if (hidden != DraftState::HIDDEN) return -2;
+    if (padded_vocab != DraftState::VOCAB) return -3;
+    if (rows_valid < 0 || rows_valid > padded_vocab) return -4;
+    if (!weight_bf16) return -5;
+
+    const int H = DraftState::HIDDEN;
+    const int V = DraftState::VOCAB;
+
+    // Build the transposed B[hidden, vocab] row-major buffer with
+    // zero-padding for the [rows_valid, V) tail.
+    std::vector<uint16_t> B_rowmajor(static_cast<size_t>(H) * V, 0);
+    // weight_bf16[v, h]  →  B_rowmajor[h, v]
+    #pragma omp parallel for schedule(static)
+    for (int v = 0; v < rows_valid; ++v) {
+        const uint16_t* w_row = weight_bf16
+                                + static_cast<size_t>(v) * H;
+        for (int h = 0; h < H; ++h) {
+            B_rowmajor[static_cast<size_t>(h) * V + v] = w_row[h];
+        }
+    }
+    // rows [rows_valid, V) already zero from vector init.
+
+    // Repack [H, V] → [H/2, V, 2] BF16 into the existing packed buffer.
+    amx_repack_b_bf16(B_rowmajor.data(), g_state.W_lm_head_packed, H, V);
+    return 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Phase A3 (SUB_198) — forward ABI extension
 //
 //   void amx_draft_qwen05b_forward(
