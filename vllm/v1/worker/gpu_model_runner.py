@@ -8334,7 +8334,169 @@ class GPUModelRunner(
             self.kv_caches,
             num_attn_module,
         )
+        # SUB_201 A2 Phase B6 — KVDramTier worker-side wire-up.
+        # Engine BlockPool already holds a tier instance (built in
+        # KVCacheManager.__init__) but cannot see GPU pointers — those
+        # live only in this worker process. We build a per-worker tier
+        # singleton here and register the per-block per-layer device
+        # pointer table so ``BlockPool.free_blocks`` (when running in the
+        # same process as the worker, e.g. TP=1 / uniproc executor) can
+        # fire ``evict_block`` for real. Failure (e.g. cross-process
+        # executor: engine BlockPool and worker run in disjoint
+        # processes, so the binding here doesn't reach the engine
+        # tier) is logged but not fatal — the no-op path is the safe
+        # default.
+        try:
+            self._maybe_bind_kv_dram_tier(kv_cache_config)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("[KVDramTier] bind wire-up failed: %s", e)
         return kv_caches
+
+    def _maybe_bind_kv_dram_tier(self, kv_cache_config) -> None:
+        """SUB_201 A2 Phase B6 — register GPU pointer table with KVDramTier.
+
+        Walks ``self.kv_caches`` (layer-indexed list of per-layer KV
+        tensors) and builds a ``per_block_layer_ptrs[b][l]`` table of
+        raw GPU addresses. Calls ``KVDramTier.bind_block_pointers`` so
+        the engine evict/fetch path no longer short-circuits on
+        ``has_pointer_binding() == False``.
+
+        Requires:
+          * ``VLLM_KV_TIERING_DRAM`` is on (otherwise no tier exists).
+          * All layer tensors share the same per-block byte stride
+            (homogeneous attention layers — the common case).
+        """
+        from vllm.v1.core.kv_dram_tiering import (
+            _is_enabled as _kv_tier_enabled,
+            get_existing as _kv_tier_get_existing,
+            try_build_tier as _kv_tier_try_build,
+        )
+
+        if not _kv_tier_enabled():
+            return
+        kv_caches = getattr(self, "kv_caches", None)
+        if not kv_caches:
+            logger.info(
+                "[KVDramTier] bind skipped — runner has no kv_caches"
+            )
+            return
+
+        # Per-layer per-block byte size: tensor[0].numel() * dtype_bytes
+        # divided by num_blocks. Each layer tensor's first dim is
+        # num_blocks (after bind_kv_cache reshape). Use the first
+        # contiguous layer as the reference; refuse if non-uniform.
+        first = kv_caches[0]
+        if not isinstance(first, torch.Tensor):
+            logger.info(
+                "[KVDramTier] bind skipped — first layer is not a Tensor "
+                "(likely Mamba state list)"
+            )
+            return
+        # Backends use either (num_blocks, 2, ...) or (2, num_blocks, ...)
+        # for K/V. ``num_blocks`` is whichever dim equals
+        # ``kv_cache_config.num_blocks * (block_size/kernel_block_size)``.
+        # PoC: assume the largest leading dim is num_blocks-related and
+        # use ``element_size() * numel()`` / num_blocks as per-block bytes.
+        num_blocks_total = first.shape[0] if first.shape[0] > first.shape[1] \
+            else first.shape[1]
+        per_block_layer_nbytes = (
+            first.element_size() * first.numel() // num_blocks_total
+        )
+
+        # Build per-block per-layer pointer table.
+        per_block_layer_ptrs: list[list[int]] = []
+        n_layers = len(kv_caches)
+        # Per-layer base ptr + per-layer per-block stride (in bytes).
+        layer_base_ptrs: list[int] = []
+        layer_block_strides: list[int] = []
+        for li, t in enumerate(kv_caches):
+            if not isinstance(t, torch.Tensor):
+                logger.info(
+                    "[KVDramTier] bind aborted — layer %d not a Tensor "
+                    "(hybrid Mamba?)", li
+                )
+                return
+            # `data_ptr()` already includes storage_offset bytes.
+            layer_base_ptrs.append(t.data_ptr())
+            # Stride of the num_blocks dim in elements × element_size.
+            # When shape is (num_blocks, 2, ...) stride[0] is the
+            # per-block element step. When shape is (2, num_blocks, ...)
+            # stride[1] is. Detect by which dim equals num_blocks_total.
+            if t.shape[0] == num_blocks_total:
+                stride_elems = t.stride(0)
+            elif t.shape[1] == num_blocks_total:
+                stride_elems = t.stride(1)
+            else:
+                logger.info(
+                    "[KVDramTier] bind aborted — layer %d shape %s has "
+                    "no num_blocks dim", li, list(t.shape)
+                )
+                return
+            layer_block_strides.append(stride_elems * t.element_size())
+        # Materialize the per-block list. Cost: O(num_blocks × n_layers)
+        # of int additions, done once at boot.
+        for b in range(num_blocks_total):
+            row: list[int] = [
+                layer_base_ptrs[li] + b * layer_block_strides[li]
+                for li in range(n_layers)
+            ]
+            per_block_layer_ptrs.append(row)
+
+        # Per-layer slice nbytes = per_block_layer_nbytes / 2 if shape
+        # has K+V dim, else per_block_layer_nbytes itself. KVDramTier's
+        # bind takes per_layer_nbytes (one layer slice for one block) —
+        # we pass the full per-block per-layer bytes (K+V together) so
+        # one evict call moves both K and V for that layer. This keeps
+        # the byte accounting in stats() honest and matches what the
+        # GPU side actually owns per (block, layer) pair.
+        per_layer_nbytes = per_block_layer_nbytes
+
+        # Obtain (or build) the worker-process tier singleton. When the
+        # engine and worker share the same Python process (TP=1 with
+        # uniproc executor) get_existing() picks up the engine-built
+        # tier and adds a binding. Otherwise we build a worker-local
+        # tier so the at-least the local accounting is in place — even
+        # though the engine BlockPool evict path in a sibling process
+        # won't see it (architectural limitation, recorded as a B6
+        # finding).
+        tier = _kv_tier_get_existing()
+        if tier is None:
+            try:
+                # Worker-local tier sized to its share of the GPU pool.
+                total = per_block_layer_nbytes * n_layers * num_blocks_total
+                tier = _kv_tier_try_build(
+                    max_dram_bytes=total,
+                    per_block_nbytes=per_block_layer_nbytes * n_layers,
+                )
+            except Exception as e:  # pragma: no cover - defensive
+                logger.warning(
+                    "[KVDramTier] worker-side build failed: %s", e
+                )
+                return
+        if tier is None:
+            logger.info(
+                "[KVDramTier] bind skipped — no tier singleton available"
+            )
+            return
+
+        tier.bind_block_pointers(
+            per_block_layer_ptrs=per_block_layer_ptrs,
+            per_layer_nbytes=per_layer_nbytes,
+        )
+        # Also attach to the local BlockPool reference if present (same
+        # process). Worker has no BlockPool, so this is a no-op for
+        # multiproc executor — kept for uniproc paths.
+        msg = (
+            f"[KVDramTier] bound — {num_blocks_total} blocks × "
+            f"{n_layers} layers, per_layer_nbytes={per_layer_nbytes} "
+            f"(process={os.getpid()})"
+        )
+        logger.info(msg)
+        # Multiproc worker stderr is captured; emit there too so the
+        # telemetry harness can scrape boot log without relying on
+        # logger config.
+        import sys as _sys
+        print(msg, file=_sys.stderr, flush=True)
 
     def maybe_add_kv_sharing_layers_to_kv_cache_groups(
         self, kv_cache_config: KVCacheConfig

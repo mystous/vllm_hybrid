@@ -130,6 +130,12 @@ class KVDramTier:
         self._n_evict = 0
         self._n_fetch = 0
         self._n_evict_skipped_full = 0
+        # Phase B6 — telemetry counters (bytes-level). Gated on
+        # ``VLLM_KV_TIER_TELEMETRY`` so the default path stays free of
+        # extra adds. ``stats()`` always returns them so unit-tests can
+        # assert them without flipping the flag.
+        self._evict_bytes = 0
+        self._fetch_bytes = 0
 
     # ──────────────────────────────────────────────────────────────
     # State accessors
@@ -155,7 +161,31 @@ class KVDramTier:
                 "n_evict_skipped_full": self._n_evict_skipped_full,
                 "tiered_blocks": len(self._table),
                 "dram_bytes": self._dram_in_use,
+                "evict_bytes": self._evict_bytes,
+                "fetch_bytes": self._fetch_bytes,
             }
+
+    def dump_telemetry(self, prefix: str = "[KVDramTier]") -> str:
+        """Phase B6 — emit a one-line telemetry summary.
+
+        Returns the message and writes it to stderr when
+        ``VLLM_KV_TIER_TELEMETRY`` is set (truthy). Idempotent.
+        """
+        s = self.stats()
+        msg = (
+            f"{prefix} telemetry — n_evict={s['n_evict']} "
+            f"n_fetch={s['n_fetch']} "
+            f"evict_bytes={s['evict_bytes']} "
+            f"fetch_bytes={s['fetch_bytes']} "
+            f"tiered_blocks={s['tiered_blocks']} "
+            f"dram_in_use={s['dram_bytes']} "
+            f"skipped_full={s['n_evict_skipped_full']}"
+        )
+        raw = os.environ.get("VLLM_KV_TIER_TELEMETRY", "").strip().lower()
+        if raw in _ENABLED_VALUES:
+            import sys as _sys
+            print(msg, file=_sys.stderr, flush=True)
+        return msg
 
     # ──────────────────────────────────────────────────────────────
     # Evict / fetch (PoC — caller passes GPU pointer; engine wiring
@@ -197,6 +227,7 @@ class KVDramTier:
             self._table[block_id] = entry
             self._dram_in_use += nbytes
             self._n_evict += 1
+            self._evict_bytes += nbytes
         if wait and ev:
             self._pool.event_sync(ev)
             self._pool.event_destroy(ev)
@@ -249,6 +280,7 @@ class KVDramTier:
             )
             entry.pending_ev = ev
             self._n_fetch += 1
+            self._fetch_bytes += entry.nbytes
         if wait and ev:
             self._pool.event_sync(ev)
             self._pool.event_destroy(ev)
@@ -385,6 +417,7 @@ class KVDramTier:
                 self._table[block_id] = entry
                 self._dram_in_use += total
                 self._n_evict += 1
+                self._evict_bytes += total
             else:
                 # Fallback: one pull per layer slice. host_ptr is contiguous
                 # so per-layer offset stride == per_layer_nbytes.
@@ -399,6 +432,7 @@ class KVDramTier:
                 self._table[block_id] = entry
                 self._dram_in_use += total
                 self._n_evict += 1
+                self._evict_bytes += total
         if wait:
             self._pool.stream_sync(self._stream)
             # For the staged fast path the unpack is a no-op (staging IS
@@ -437,6 +471,7 @@ class KVDramTier:
                     self._stream,
                 )
             self._n_fetch += 1
+            self._fetch_bytes += entry.nbytes
         if wait:
             self._pool.stream_sync(self._stream)
         if drop_after_fetch:
@@ -472,6 +507,18 @@ def get_or_create(
                 max_dram_bytes=max_dram_bytes,
                 per_block_nbytes=per_block_nbytes,
             )
+            # Phase B6 — register atexit hook so the process dumps the
+            # final telemetry to stderr on backend kill / clean exit
+            # (gated on the same VLLM_KV_TIER_TELEMETRY env flag inside
+            # ``dump_telemetry``). Idempotent on re-import.
+            try:
+                import atexit
+                atexit.register(
+                    lambda: _SINGLETON is not None
+                    and _SINGLETON.dump_telemetry("[KVDramTier atexit]")
+                )
+            except Exception:  # pragma: no cover - defensive
+                pass
         return _SINGLETON
 
 
