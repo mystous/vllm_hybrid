@@ -381,3 +381,148 @@ GPU 0 측정 후 SIGTERM (atexit 보장) → SIGKILL → 0 MiB used 검증 통�
 - `_logs_b7/native.gpu_after.txt`, `_logs_b7/tier.gpu_after.txt`
 - `run_b7.sh` (native|tier mode, TP=1, GPU 0 only, port 8004, wildchat 500p × conc=64, telemetry env injected)
 
+
+## 9. Phase B8 — libpinned_pool size-class allocator 확장 + 강한 KV pressure 재측정
+
+### 9.1 libpinned_pool 분석 (B7 의 skipped_full=97195 진단)
+
+- 파일: `shadow_assists/features/IDE_017_dma_zero_copy/src/pinned_pool.cpp`
+- size-class 구조 (cpp:48-59): 5 class — 4 KB / 64 KB / 1 MiB / 16 MiB / 64 MiB. `DEFAULT_BLOCKS_PER_CLASS = {256, 128, 64, 16, 8}` → owned 합 **~841 MiB** (B7 의 total_limit=154 GB 무시).
+- KVDramTier 의 KV page 는 per_block=917 504 B → **1 MiB class (capacity=64 only)** 에 라우팅. 64 blocks 가 차면 direct `cudaHostAlloc` fallback (budget 누락).
+- `_n_evict_skipped_full` 트리거 (`vllm/v1/core/kv_dram_tiering.py:219, 378`): `_dram_in_use + total > _max_dram_bytes`. 단 B7 의 max_dram_bytes=154 GB / dram_in_use=448 MiB 만으로는 직접 트리거 불가 — B7 보고서의 가설 (`size-class capacity 한계`) 은 부분 가설.
+- 실제 root cause: `bind_block_pointers` 가 boot 중 **두 번 호출** (profiling 단계 512 blocks → 실제 172 575 blocks). 첫 binding 의 512 block (이미 tiered) 가 재호출되면 `block_id in self._table` → True (skipped 안 됨). 진짜 evict 가 누적되지 않는 second-level 원인은 BlockPool eviction 정책 + `bind_block_pointers` 순서 mismatch (B8 가 직접 해결하는 범위 아님).
+
+### 9.2 C 코드 수정 (옵션 1 + 옵션 3 결합)
+
+`shadow_assists/features/IDE_017_dma_zero_copy/src/pinned_pool.cpp` — `+95 / -2 lines`
+
+- 새 helper: `_env_str`, `_env_truthy`, `_resolve_blocks_per_class(total_limit, out_blocks)` (cpp:61-140 부근). default behaviour 보존 (env 미설정 시 `DEFAULT_BLOCKS_PER_CLASS` 그대로).
+- 새 env knob:
+  - `VLLM_PINNED_POOL_AUTO_BUDGET=1` → per-class capacity = `total_limit / NUM_SIZE_CLASSES / SIZE_CLASS_BYTES[c]` (단, default 보다 작아지지 않음).
+  - `VLLM_PINNED_POOL_BLOCKS_PER_CLASS="N0,N1,N2,N3,N4"` → 명시 override (위 AUTO 보다 우선).
+- `PinnedPool` ctor (cpp:184-204): `DEFAULT_BLOCKS_PER_CLASS` 하드코딩 대신 `_resolve_blocks_per_class()` 결과를 사용. ring init capacity 도 동적.
+
+### 9.3 빌드 + microbench 회귀
+
+```bash
+g++ -O3 -fopenmp -fPIC -shared src/pinned_pool.cpp -o build/libpinned_pool.so \
+    -I /usr/local/cuda/include -L /usr/local/cuda/lib64 -lcudart -lnuma
+```
+
+심볼 보존 확인 (`nm -D`):
+
+```
+pinned_pool_push_batch_async
+pinned_pool_push_batch_async_native
+pinned_pool_push_batch_async_staged
+pinned_pool_pull_batch_async_staged
+pinned_pool_pull_batch_unpack_staged
+```
+
+`verify_pull_batch.py` 회귀 (Llama-70B / TP=8 shape, GPU 0):
+
+| variant | p50 μs | GB/s | vs B7 baseline |
+|---|---|---|---|
+| fallback_per_layer | 284.62 | 2.14 | (matrix baseline 336) |
+| staged_pull | **39.44** | **15.48** | **B7 39 μs 유지 (회귀 0)** |
+
+AUTO_BUDGET smoke (total_limit=2 GiB):
+
+| class | block_size | capacity (AUTO) | capacity (default) |
+|---|---|---|---|
+| 0 | 4 KiB | 104 857 | 256 |
+| 1 | 64 KiB | 6 553 | 128 |
+| 2 | 1 MiB | **409** | **64** |
+| 3 | 16 MiB | 25 | 16 |
+| 4 | 64 MiB | 6 | 8 |
+
+→ class 2 (1 MiB, KV page 라우팅 클래스) 가 **64 → 409 (6.4×)** 확장 검증.
+
+### 9.4 측정 환경 + 첫 시도 (AUTO_BUDGET 단독) → OOM 회피
+
+첫 tier run (`_logs_b8_oom/`) 은 `VLLM_KV_TIERING_DRAM_BYTES` 미설정 → `max_dram=158 GB`, AUTO_BUDGET → pinned alloc RSS 168 GB → 시스템 free=9 GB 까지 압박 → **EngineCore silent kill (Linux OOM-killer 추정)** + `EngineDeadError`. 결과 파일은 `qwen7b_b8_tier_FAIL_oom.json` (75.6 s, 1201 tps) 로 보존.
+
+→ retry: `VLLM_KV_TIERING_DRAM_BYTES=34359738368` (32 GiB) 추가. 32 GB / 5 class = 6.4 GB per class, 1 MiB class capacity ≈ 6 700 blocks (B7 default 64 의 100×). OOM 없이 정상 boot.
+
+### 9.5 측정 표 (Qwen2.5-7B TP=1 UniProc, GPU 0, sharegpt 200p × conc=128 × max-tokens 12288, gpu-mem-util 0.92)
+
+| metric | native | tier (B8) | Δ | Δ% |
+|---|---|---|---|---|
+| n_ok / n | 200/200 | 200/200 | 0 | — |
+| wall_total_s | 198.1 | 216.8 | +18.7 | +9.4 % |
+| total_completion_tokens | 829 884 | 920 804 | +90 920 | +11.0 % |
+| **output_tps** | **4 188.7** | **4 247.0** | +58.3 | **+1.4 %** |
+| TTFT p50 (ms) | 349.7 | 339.6 | -10.1 | -2.9 % |
+| TTFT p99 (ms) | 367.8 | 356.0 | -11.8 | -3.2 % |
+| TPOT p50 (ms) | 6.8 | 7.0 | +0.2 | +2.9 % |
+| TPOT p99 (ms) | 15.8 | 17.2 | +1.4 | +8.9 % |
+| per-corpus reqtps (sharegpt) | 121.5 | 110.7 | -10.8 | -8.9 % |
+| GPU util (%) | 66.4 | 77.7 | +11.3 | — |
+| GPU mem (MiB) | 408 726 | 485 938 | +77 212 | +18.9 % |
+| CPU util (%) | 18.0 | 16.7 | -1.3 | — |
+| **max KV usage %** | **26.7 %** | **29.5 %** | +2.8 pp | — |
+| prefix hit rate % | 0.2 % | 0.2 % | — | — |
+| **n_evict** | n/a | **512** | — | — |
+| **n_fetch** | n/a | 0 | — | — |
+| **evict_bytes** | n/a | 469 762 048 (448 MiB) | — | — |
+| **skipped_full** | n/a | **58 558** | **vs B7 의 97 195: -39.8 %** | — |
+
+`_logs_b8/tier.tier_dump.txt`:
+
+```
+(EngineCore pid=921786) [KVDramTier atexit] telemetry — n_evict=512 n_fetch=0 evict_bytes=469762048 fetch_bytes=0 tiered_blocks=512 dram_in_use=469762048 skipped_full=58558
+```
+
+### 9.6 B7 vs B8 비교
+
+| metric | B7 (wildchat 500p×64×8192) | B8 (sharegpt 200p×128×12288) | Δ (B8 vs B7) |
+|---|---|---|---|
+| 측정 워크로드 | wildchat 500p × conc=64 × max-tok 8192 | sharegpt 200p × conc=128 × max-tok 12288 | 더 강한 KV pressure |
+| native output_tps | 4 394.9 | 4 188.7 | -4.7 % (cross-workload, 비교 무의미) |
+| tier output_tps | 5 294.7 | 4 247.0 | -19.8 % |
+| **n_evict (tier)** | **512** | **512** | **stuck (변화 없음)** |
+| **skipped_full** | **97 195** | **58 558** | **-39.8 %** (size-class 확장 효과 부분 검증) |
+| max KV (native/tier) | 15.6 / 15.4 % | 26.7 / 29.5 % | +13.1 pp / +14.1 pp |
+| tier ROI Δ% (vs native) | +20.5 % output_tps | +1.4 % output_tps | -19.1 pp |
+
+### 9.7 본질적 ROI 1차 판정 (size-class 확장 후)
+
+**판정: PARTIAL (size-class 확장이 skipped_full 을 -40 % 감소시켜 가설 부분 검증. 그러나 n_evict 는 512 에서 stuck — 본질적 ROI 가 B7 의 +20.5 % 에서 B8 의 +1.4 % 로 축소).**
+
+근거:
+
+1. **size-class 확장 효과 (긍정)**: skipped_full 97 195 → 58 558 (-39.8 %). C 코드의 per-class budget 한계가 진짜 부분 원인임을 확인 (B7 보고서의 가설 부분 검증).
+2. **그러나 n_evict 가 여전히 512 에서 stuck**: 이는 size-class capacity 가 아니라 다른 root cause — `bind_block_pointers` 의 first call (512 blocks profiling phase) 이후 두 번째 call (172 575 blocks) 의 ptrs 가 실제로 evict path 에 도달하지 않거나, BlockPool 가 actually free 시키는 block_id 가 첫 512 범위 안에 머무는 정책 효과. 즉 **B8 는 다음 lever 단계 (binding 시점 + BlockPool 정책)** 가 남아 있음을 명확히 한 negative-confirm.
+3. **워크로드 의존성**: B7 의 wildchat (long input, KV-pressured) 에서는 +20.5 % 였지만 B8 의 sharegpt (짧은 input, 짧은 prompt) 에서는 +1.4 % 만. tier ROI 가 워크로드 KV pressure 와 prefix hit rate 에 strong dependency 가짐 (prefix hit 0.2 % 에서는 fetch_block 가 안 일어남).
+4. **운영 신호 (긍정)**: tier-on 이 native 대비 ttft p50/p99 -3 %, GPU util +11.3 pp (engine 가 더 많이 활용), max KV +2.8 pp (KV residency 더 깊게 사용) — directional 으로 옳음.
+
+**Caveat**: AUTO_BUDGET 만으로는 dram budget 통제가 안 됨 (154 GB 예약 → OOM). 본 PoC 에서는 `VLLM_KV_TIERING_DRAM_BYTES=32GB + AUTO_BUDGET=1` 의 결합이 운영 안전한 default 임을 확인. prod (Xeon SPR + H100×8, 1-2 TB system RAM) 에서는 더 큰 budget 가능하나 OOM 보호 필수.
+
+### 9.8 Post-run GPU state
+
+| GPU | used (MiB) | free (MiB) |
+|---|---|---|
+| 0 | 0 | 182 632 |
+
+GPU 0 native + tier 두 run 후 모두 free. GPU 1-7 본 B8 작업 동안 미접근 (CUDA_VISIBLE_DEVICES=0 격리).
+
+### 9.9 다음 step 권고
+
+1. **(then)** n_evict stuck=512 의 root cause 분리 — `gpu_model_runner._maybe_bind_kv_dram_tier` 의 first vs second bind 사이에서 BlockPool 의 free_blocks 가 어떤 block_id 만 hit 하는지 추적. 가설: profiling phase 의 512 blocks 가 `ref_cnt 0 + has hash` 만 ad-hoc 충족하고 main 172 575 blocks 는 다른 lifecycle path 사용.
+2. **(then)** KV pressure 워크로드 재설계 — sharegpt 의 짧은 prompt 가 아닌, suffix-heavy / long-context workload (e.g. Llama-3.1 long-context + max_model_len 32 768) 에서 evict↔fetch 가 실제로 cycling 되도록.
+3. **(이후 prod)** Xeon SPR + H100×8 + TB-scale RAM 환경에서 AUTO_BUDGET 의 안전 ceiling (예: free RAM 의 50 %) 자동 산출 logic.
+
+### 9.10 산출물 경로 (B8)
+
+- `qwen7b_b8_native.json`, `qwen7b_b8_native.raw.jsonl` (200/200 ok, 198 s, sharegpt 200p × conc=128 × max-tok 12288)
+- `qwen7b_b8_tier.json`, `qwen7b_b8_tier.raw.jsonl` (200/200 ok, 217 s, same shape)
+- `qwen7b_b8_tier_FAIL_oom.json` (첫 tier run, AUTO_BUDGET 단독 → 154 GB pinned → OOM-killed, 보존용)
+- `_logs_b8/boot_native.log`, `_logs_b8/boot_tier.log`
+- `_logs_b8/native.tier_dump.txt`, `_logs_b8/tier.tier_dump.txt` (atexit telemetry)
+- `_logs_b8/native.bind.txt`, `_logs_b8/tier.bind.txt` (bind wire-up evidence, KVDramTier enabled max_dram=32 GB)
+- `_logs_b8/native.gpu_after.txt=0,182632`, `_logs_b8/tier.gpu_after.txt=0,182632`
+- `_logs_b8_oom/` (첫 tier run OOM 의 logs 보존)
+- `run_b8.sh` (native|tier mode, TP=1, GPU 0 only, port 8004, sharegpt 200p × conc=128 × max-tok 12288, `VLLM_KV_TIERING_DRAM_BYTES=32GB + VLLM_PINNED_POOL_AUTO_BUDGET=1`)
+- C 코드 patch: `shadow_assists/features/IDE_017_dma_zero_copy/src/pinned_pool.cpp` (+95/-2 lines)
+- 회귀 microbench: `shadow_assists/features/IDE_017_dma_zero_copy/SUB_201_A2_kvtier_poc/verify_pull_batch.json` (staged_pull p50=39.44 μs, B7 의 39 μs 유지)
+

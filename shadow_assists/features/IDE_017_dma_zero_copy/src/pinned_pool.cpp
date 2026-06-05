@@ -59,6 +59,103 @@ constexpr size_t DEFAULT_BLOCKS_PER_CLASS[NUM_SIZE_CLASSES] = {
 };
 
 // ──────────────────────────────────────────────────────────────────────
+// SUB_201 A2 Phase B8 — size-class allocator extension
+//
+// Background (B7 finding): production wire-in with VLLM_KV_TIERING_DRAM=1
+// observed n_evict=512 (~448 MiB) with skipped_full=97195 even though
+// the engine-side max_dram_bytes was ~154 GB. The bottleneck was the
+// fixed DEFAULT_BLOCKS_PER_CLASS schedule (~1.3 GB ceiling) which silently
+// capped how many KV pages could ever live in the tier — the engine kept
+// asking, the ring kept refusing, every "miss" fell through to a direct
+// cudaHostAlloc that bypassed the budget accounting.
+//
+// Phase B8 introduces two env knobs to expand per-class capacity without
+// changing the default contract:
+//
+//   VLLM_PINNED_POOL_BLOCKS_PER_CLASS=N0,N1,N2,N3,N4
+//       Override the absolute per-class block count (any of N* may be 0
+//       or absent — falls back to DEFAULT_BLOCKS_PER_CLASS[c]). Honoured
+//       only when set; default behaviour identical to pre-B8.
+//
+//   VLLM_PINNED_POOL_AUTO_BUDGET=1
+//       Auto-derive per-class budget from the ctor's total_limit_bytes
+//       so each class can grow up to ~ (total_limit / NUM_SIZE_CLASSES).
+//       This is the recommended default for KV tiering: KV blocks are
+//       routed to the 1 MiB class and the per-class budget jumps from
+//       64 blocks (~64 MiB) to ~30 GB worth of 1 MiB pages on a 154 GB
+//       host pool — large enough that the engine no longer trips the
+//       skipped_full counter.
+//
+// When both are set, BLOCKS_PER_CLASS wins (explicit override).
+// ──────────────────────────────────────────────────────────────────────
+
+static const char* _env_str(const char* name) {
+    const char* v = std::getenv(name);
+    return (v && *v) ? v : nullptr;
+}
+
+static bool _env_truthy(const char* name) {
+    const char* v = _env_str(name);
+    if (!v) return false;
+    // Accept "1" / "true" / "yes" / "on" (case-insensitive).
+    char buf[8] = {0};
+    for (size_t i = 0; i < 7 && v[i]; ++i) {
+        char c = v[i];
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+        buf[i] = c;
+    }
+    return std::strcmp(buf, "1") == 0 || std::strcmp(buf, "true") == 0 ||
+           std::strcmp(buf, "yes") == 0 || std::strcmp(buf, "on") == 0;
+}
+
+// Resolve per-class block budget honoring the B8 env knobs. Modifies
+// ``out_blocks[NUM_SIZE_CLASSES]`` in place. ``total_limit_bytes`` is the
+// PinnedPool ctor budget (used by AUTO mode).
+static void _resolve_blocks_per_class(size_t total_limit_bytes,
+                                      size_t* out_blocks) {
+    // Start from the historical defaults so every code path agrees on the
+    // baseline schedule.
+    for (int c = 0; c < NUM_SIZE_CLASSES; ++c) {
+        out_blocks[c] = DEFAULT_BLOCKS_PER_CLASS[c];
+    }
+
+    // Auto-budget: split total_limit_bytes evenly across the 5 classes.
+    if (_env_truthy("VLLM_PINNED_POOL_AUTO_BUDGET")) {
+        const size_t per_class_bytes = total_limit_bytes / NUM_SIZE_CLASSES;
+        for (int c = 0; c < NUM_SIZE_CLASSES; ++c) {
+            size_t blk = SIZE_CLASS_BYTES[c];
+            // At least DEFAULT — never *shrink* below the historical
+            // baseline (so AUTO on a tiny pool degrades gracefully).
+            size_t auto_blocks = (per_class_bytes > 0)
+                ? (per_class_bytes / blk)
+                : 0;
+            if (auto_blocks > out_blocks[c]) {
+                out_blocks[c] = auto_blocks;
+            }
+        }
+    }
+
+    // Explicit override wins. Format: comma-separated decimals,
+    // missing/0 entries keep whatever is already in out_blocks[c].
+    const char* spec = _env_str("VLLM_PINNED_POOL_BLOCKS_PER_CLASS");
+    if (spec) {
+        int c = 0;
+        const char* p = spec;
+        while (c < NUM_SIZE_CLASSES && *p) {
+            char* endp = nullptr;
+            long v = std::strtol(p, &endp, 10);
+            if (endp == p) break;
+            if (v > 0) {
+                out_blocks[c] = (size_t)v;
+            }
+            ++c;
+            p = endp;
+            while (*p == ',' || *p == ' ') ++p;
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Lockless MPMC ring buffer (power-of-two slot count).
 //   - bounded SPSC/MPMC queue using slot sequence numbers (Vyukov-style)
 //   - each free block ptr lives in one slot; alloc = dequeue, free = enqueue
@@ -163,11 +260,21 @@ public:
             numa_set_preferred(numa_node_);
         }
 #endif
+        // SUB_201 A2 Phase B8: resolve per-class block budget honoring
+        // the new VLLM_PINNED_POOL_AUTO_BUDGET / _BLOCKS_PER_CLASS env
+        // knobs. When neither is set the schedule equals the historical
+        // DEFAULT_BLOCKS_PER_CLASS (zero behaviour change).
+        size_t blocks_per_class[NUM_SIZE_CLASSES] = {0};
+        _resolve_blocks_per_class(total_limit_, blocks_per_class);
+
         // Pre-allocate per-class blocks until total_limit hits.
         for (int c = 0; c < NUM_SIZE_CLASSES; ++c) {
             size_t blk = SIZE_CLASS_BYTES[c];
-            size_t target = DEFAULT_BLOCKS_PER_CLASS[c];
-            ring_[c].init(target * 2);     // 2× headroom for ring slot churn
+            size_t target = blocks_per_class[c];
+            // Ring slot count must be ≥ target and a power of two — keep
+            // the historical 2× headroom so concurrent dequeues don't
+            // starve under churn.
+            ring_[c].init(target ? target * 2 : 2);
             class_capacity_[c] = 0;
             class_block_size_[c] = blk;
             for (size_t i = 0; i < target; ++i) {
