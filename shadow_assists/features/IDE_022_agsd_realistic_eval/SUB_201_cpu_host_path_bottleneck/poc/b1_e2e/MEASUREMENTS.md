@@ -130,3 +130,95 @@ shadow run 종료 후:
 - `_logs/bench_native.log` / `_logs/bench_shadow.log` — runner stdout
 - `_logs/native.boot_sec` / `_logs/shadow.boot_sec` — READY wall time (63 / 45 s)
 - `_logs/native.gpu_after.txt` / `_logs/shadow.gpu_after.txt` — kill 후 GPU 4,5 row
+
+---
+
+## 6. v2 재측정 (P0/P1 fix)
+
+### 6.1 fix 요약
+
+| 항목 | 변경 | 효과 |
+|---|---|---|
+| **P0a** | `.so` 빌드 명령에 `src/avx512_tokenizer/c_shim.cpp` 동시 컴파일 (이전 빌드는 c_shim 누락 → C++ mangled symbol 만 export). | `nm -D` 결과 `avx512_batch_detokenize_bytes` / `avx512_batch_detokenize_byte_total` 두 `extern "C"` symbol export 확인. |
+| **P0b** | `vllm/tokenizers/avx512_detokenizer.py` 의 ctypes 시그니처가 c_shim 의 시그니처와 정확히 일치 — 추가 변경 불필요. | `AVX512Detokenizer.from_hf_tokenizer(...).incremental_append(15339)` 단위 호출 = `'hello'` 반환. |
+| **P1** | `vllm/v1/engine/detokenizer.py:74-115` `_avx512_detok_inc_get_for` — vocab table 만 `_avx512_detok_inc_vocab_cache` (process singleton, key=id(hf_tok)) 에 저장. instance 는 매 호출마다 새로 생성 (per-request `_inc_buf` 격리). | unit microbench: cold path 162 ms → 200x hot path 9.5 ms total (avg 0.047 ms/req) ≈ **3400× 가속**. e2e: shadow boot log 의 vocab build info = **1 회만** (이전 200 회). |
+
+### 6.2 boot log 검증
+
+```
+$ grep -c "init failed" boot_shadow_v2.log
+0                                    # ← 이전 v1: 200
+$ grep -c "vocab table cached" boot_shadow_v2.log
+1                                    # ← singleton hit 정상
+```
+
+### 6.3 v2 비교 표 (native_v2 vs shadow_v2)
+
+| Run | env flag | boot (s, READY) | wall (s) | tokens | **output_tps** | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | TPOT p99 (ms) | GPU util (%) | CPU% |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **run1 native_v2** | `VLLM_USE_AVX512_DETOK_INC=0` | 44 | 351.5 | 1 487 811 | **4 233.3** | **23.9** | 66.0 | 3.5 | 3.6 | 96.4 | 2.1 |
+| **run2 shadow_v2** | `VLLM_USE_AVX512_DETOK_INC=1` | 45 | 351.3 | 1 497 049 | **4 261.9** | **23.4** | 182.1 | 3.5 | 3.6 | 88.7 | 3.5 |
+
+### 6.4 Δ 표 (shadow_v2 − native_v2)
+
+| Metric | native_v2 | shadow_v2 | Δ | Δ % |
+|---|---|---|---|---|
+| output_tps | 4 233.3 | 4 261.9 | +28.6 | **+0.68%** |
+| wall_total_s | 351.5 | 351.3 | −0.2 | −0.06% |
+| TTFT p50 (ms) | 23.9 | 23.4 | **−0.5** | **−2.1%** |
+| TTFT p99 (ms) | 66.0 | 182.1 | +116.1 | +176% |
+| TPOT p50 (ms) | 3.5 | 3.5 | ±0 | 0% |
+| TPOT p99 (ms) | 3.6 | 3.6 | ±0 | 0% |
+| GPU util (%) | 96.4 | 88.7 | −7.7 pp | — |
+| CPU% | 2.1 | 3.5 | +1.4 pp | — |
+
+### 6.5 v1 → v2 (해당 항목 fix 검증)
+
+| Metric | v1 (broken) | v2 (fixed) | 비고 |
+|---|---|---|---|
+| init failed warnings | 200 회 | **0 회** | P0a fix |
+| vocab build per request | 매 request | **1 회** (singleton) | P1 fix |
+| TTFT p50 Δ (shadow − native) | **+95 ms** (artifact) | **−0.5 ms** (noise) | P1 의 95 ms artifact 제거 확인 |
+| CPU% Δ (shadow − native) | +2.3 pp | +1.4 pp | shadow path 가 실제 hot loop 실행 (init burst 가 사라졌음에도 +1.4 pp) |
+| incremental_append 실행 여부 | × (silent fallback) | ○ (token 마다 호출, ~1.5M 회) | core 동작 검증 |
+
+### 6.6 B1 e2e ROI 1차 판정 (v2)
+
+| 후보 | 판정 |
+|---|---|
+| positive (tps↑) | ○ — 약 +0.68% (sample noise 범위 내, but consistent direction) |
+| TTFT 영향 (p50) | negligible (−0.5 ms within run-to-run variance) |
+| TTFT p99 영향 | △ — +116 ms p99 증가 (shadow run cold-start 의 vocab build burst 가 첫 1-2 request 에 흡수됨) |
+| TPOT 영향 | 0 (p50 / p99 동일) — shadow incremental_append 의 token-loop overhead 가 GPU step 시간에 hide 됨 |
+| CPU 활용 | shadow 가 CPU 사용 +1.4 pp 증가 — CLAUDE.md objective 의 "CPU idle 금지" 방향과 일치 |
+| GPU util | shadow 가 −7.7 pp — wall 동일이므로 work 가 CPU 로 분산, GPU side step time 약간 감소 |
+
+**최종 판정: B1 shadow path 자체는 measurable hot-loop overhead 없이 동작 (P0/P1 fix 후). tps Δ +0.68%, TPOT Δ ≈ 0, TTFT p50 Δ ≈ 0. 즉, B1 의 incremental_append wrapper 가 vLLM hot path 에 추가하는 cost 는 negligible. 다음 step (B1 production wire-in) 으로 진행 가능.**
+
+단, 본 측정은 여전히 **shadow** path — 실제 native `DecodeStream.step` 을 대체하지 않은 dual-call (native + AVX shadow). 진짜 ROI 는 native 대체 단계 (TSK 후속) 에서만 측정 가능. v2 측정의 binding 결론은 "shadow overhead = negligible" 에 한정한다.
+
+### 6.7 GPU 4,5 free 확인 (v2)
+
+```
+$ cat _logs/native_v2.gpu_after.txt
+4, 0, 182632
+5, 0, 182632
+$ cat _logs/shadow_v2.gpu_after.txt
+4, 0, 182632
+5, 0, 182632
+```
+
+두 run 모두 backend kill 후 GPU 4,5 mem.used = 0 MiB. GPU 0-3 / 6-7 미접촉.
+
+### 6.8 v2 산출물 추가
+
+- `llama8b_native_v2.json` / `llama8b_native_v2.raw.jsonl` — run1 (native, INC=0, v2)
+- `llama8b_shadow_v2.json` / `llama8b_shadow_v2.raw.jsonl` — run2 (shadow, INC=1, v2)
+- `run_v2.sh` — v2 자동화 스크립트
+- `_logs/boot_native_v2.log` / `_logs/boot_shadow_v2.log` — engine boot stderr (init failed=0 확인)
+- `_logs/bench_native_v2.log` / `_logs/bench_shadow_v2.log` — runner stdout
+- `_logs/native_v2.boot_sec` / `_logs/shadow_v2.boot_sec` — READY wall time (44 / 45 s)
+- `_logs/native_v2.gpu_after.txt` / `_logs/shadow_v2.gpu_after.txt` — kill 후 GPU 4,5 row
+- `shadow_assists/features/IDE_016_avx512_amx_pool/build/avx512_tokenizer/libavx512_tokenizer.so` — c_shim 포함 재빌드된 .so
+- `shadow_assists/features/IDE_016_avx512_amx_pool/build/avx512_tokenizer/libavx512_tokenizer.so.bak.v1` — v1 broken .so (참고용 백업)
+

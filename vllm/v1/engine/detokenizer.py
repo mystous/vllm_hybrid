@@ -46,6 +46,16 @@ _avx512_detok_b1_cache: dict[int, object] = {}
 _avx512_detok_inc_enabled: bool = (
     os.environ.get("VLLM_USE_AVX512_DETOK_INC", "0") == "1"
 )
+# Phase A4-fix P1: per-process singleton cache for the heavy vocab table.
+# `from_hf_tokenizer` walks the entire 128k vocab (Llama-3) and applies the
+# GPT-2 byte_decoder per token — measured at ~+95 ms TTFT in the v1
+# measurement. We cache the built ``vocab_table`` (dict of ndarrays + bytes)
+# keyed by ``id(hf_tok)`` so subsequent per-request instantiations only pay
+# the cheap ``AVX512Detokenizer.__init__`` (np.frombuffer views + ctypes
+# signature wiring) — no vocab rebuild.
+_avx512_detok_inc_vocab_cache: dict[int, dict] = {}
+# Track first-init log to avoid spamming on every request.
+_avx512_detok_inc_init_logged: set[int] = set()
 
 
 def _avx512_detok_b1_get_for(hf_tok) -> object | None:
@@ -74,17 +84,33 @@ def _avx512_detok_b1_get_for(hf_tok) -> object | None:
 def _avx512_detok_inc_get_for(hf_tok) -> object | None:
     """Per-request incremental detok wrapper (shadow mode).
 
-    Reuses the same underlying ``AVX512Detokenizer`` build path as the
-    full-batch shadow but returns a *fresh* instance per call so the
-    per-instance ``_inc_buf`` stays isolated to one request. Vocab table
-    is cached at the ctypes-wrapper level via class-level reuse paths
-    upstream (not yet here — full-batch path uses id(hf_tok) cache only).
+    Phase A4-fix P1: hot path uses a process-singleton vocab table cache
+    (keyed by ``id(hf_tok)``). Cold path (first request per tokenizer)
+    builds the table once; subsequent requests pay only the
+    ``AVX512Detokenizer.__init__`` cost (ctypes signature wiring + numpy
+    view) — no 128k-entry vocab rebuild. The returned instance is fresh so
+    each request has an isolated ``_inc_buf``.
     """
     if not _avx512_detok_inc_enabled:
         return None
     try:
         from vllm.tokenizers.avx512_detokenizer import AVX512Detokenizer
-        return AVX512Detokenizer.from_hf_tokenizer(hf_tok)
+        key = id(hf_tok)
+        table = _avx512_detok_inc_vocab_cache.get(key)
+        if table is None:
+            table = AVX512Detokenizer.build_vocab_table(hf_tok)
+            _avx512_detok_inc_vocab_cache[key] = table
+            if key not in _avx512_detok_inc_init_logged:
+                _avx512_detok_inc_init_logged.add(key)
+                logger.info(
+                    "SUB_201 B1 PoC (inc): vocab table cached for tokenizer "
+                    "(V=%d, total_bytes=%d) — singleton hot path active",
+                    int(table["sizes"].shape[0]),
+                    int(len(table["pieces"])),
+                )
+        return AVX512Detokenizer(
+            lib_path=None, vocab_table=table, use_avx512=True
+        )
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "SUB_201 B1 PoC (inc): AVX512Detokenizer init failed (%s)", exc
