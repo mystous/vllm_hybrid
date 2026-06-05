@@ -1,3 +1,62 @@
-==== B3 8GPU FULL sweep start at 2026-06-05T04:27:46Z ====
+==== B3 8GPU FULL sweep start at 2026-06-05T04:48:54Z ====
 [gpu] all 0-7 free
-[boot] tag=R0_FI_P attn= cgmode=PIECEWISE at 2026-06-05T04:27:46Z
+[boot] tag=R0_FI_P attn= cgmode=PIECEWISE at 2026-06-05T04:48:54Z
+[ready] port 8005 up after 54*2s
+[bench] R0_FI_P → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_8gpu_full/runs/R0_FI_P.json at 2026-06-05T04:50:40Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × b3_8gpu × mix: 8568.8 tps (200/200 ok, 178s, gpu 94.0% cpu 4.6% ttft_p50 48.5ms α None)
+[stop] tag=R0_FI_P pid=954118 at 2026-06-05T04:53:39Z
+[gpu] all 0-7 free
+[boot] tag=R2_FI_FaP attn= cgmode=FULL_AND_PIECEWISE at 2026-06-05T04:53:48Z
+[ready] port 8005 up after 48*2s
+[bench] R2_FI_FaP → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_8gpu_full/runs/R2_FI_FaP.json at 2026-06-05T04:55:22Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × b3_8gpu × mix: 12078.9 tps (200/200 ok, 126s, gpu 98.1% cpu 5.2% ttft_p50 62.9ms α None)
+[stop] tag=R2_FI_FaP pid=956850 at 2026-06-05T04:57:29Z
+[gpu] all 0-7 free
+[boot] tag=R1_FI_F attn= cgmode=FULL at 2026-06-05T04:57:38Z
+[ready] port 8005 up after 45*2s
+[stop] tag=R1_FI_F pid=959200 at 2026-06-05T04:59:07Z
+[gpu] all 0-7 free
+[boot] tag=R5_FA_FaP attn={"backend":"FLASH_ATTN"} cgmode=FULL_AND_PIECEWISE at 2026-06-05T04:59:15Z
+[ready] port 8005 up after 51*2s
+[bench] R5_FA_FaP → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_8gpu_full/runs/R5_FA_FaP.json at 2026-06-05T05:00:55Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × b3_8gpu × mix: 9901.7 tps (200/200 ok, 153s, gpu 90.5% cpu 5.0% ttft_p50 47.0ms α None)
+[stop] tag=R5_FA_FaP pid=961029 at 2026-06-05T05:03:28Z
+[gpu] all 0-7 free
+[boot] tag=R4_FA_F attn={"backend":"FLASH_ATTN"} cgmode=FULL at 2026-06-05T05:03:38Z
+[ready] port 8005 up after 50*2s
+[stop] tag=R4_FA_F pid=964207 at 2026-06-05T05:05:16Z
+[gpu] all 0-7 free
+[boot] tag=R6_TR_P attn={"backend":"TRITON_ATTN"} cgmode=PIECEWISE at 2026-06-05T05:05:25Z
+[ready] port 8005 up after 43*2s
+[bench] R6_TR_P → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_8gpu_full/runs/R6_TR_P.json at 2026-06-05T05:06:50Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × b3_8gpu × mix: 4983.0 tps (200/200 ok, 294s, gpu 92.1% cpu 4.5% ttft_p50 72.5ms α None)
+[stop] tag=R6_TR_P pid=966631 at 2026-06-05T05:11:44Z
+[gpu] all 0-7 free
+[boot] tag=R7_TR_F attn={"backend":"TRITON_ATTN"} cgmode=FULL at 2026-06-05T05:11:54Z
+[ready] port 8005 up after 44*2s
+[bench] R7_TR_F → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_8gpu_full/runs/R7_TR_F.json at 2026-06-05T05:13:20Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × b3_8gpu × mix: 2574.9 tps (200/200 ok, 582s, gpu 99.8% cpu 4.8% ttft_p50 77.6ms α None)
+[stop] tag=R7_TR_F pid=969384 at 2026-06-05T05:23:03Z
+[gpu] all 0-7 free
+[boot] tag=R8_TR_FaP attn={"backend":"TRITON_ATTN"} cgmode=FULL_AND_PIECEWISE at 2026-06-05T05:23:12Z
+[ready] port 8005 up after 46*2s
+[bench] R8_TR_FaP → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_8gpu_full/runs/R8_TR_FaP.json at 2026-06-05T05:24:43Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × b3_8gpu × mix: 8826.7 tps (200/200 ok, 170s, gpu 97.7% cpu 5.0% ttft_p50 70.5ms α None)
+[stop] tag=R8_TR_FaP pid=972576 at 2026-06-05T05:27:33Z
+[gpu] all 0-7 free
+[boot] tag=R10_FX_F attn={"backend":"FLEX_ATTENTION"} cgmode=FULL at 2026-06-05T05:27:41Z
+[ready] port 8005 up after 47*2s
+[bench] R10_FX_F → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_8gpu_full/runs/R10_FX_F.json at 2026-06-05T05:29:13Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × b3_8gpu × mix: 0.0 tps (32/200 ok, 1s, gpu 0.0% cpu 2.1% ttft_p50 Nonems α None)
+[stop] tag=R10_FX_F pid=975110 at 2026-06-05T05:29:14Z
+[gpu] all 0-7 free
+==== sweep complete at 2026-06-05T05:29:22Z ====
+[gpu] all 0-7 free
+0, 0 MiB
+1, 0 MiB
+2, 0 MiB
+3, 0 MiB
+4, 0 MiB
+5, 0 MiB
+6, 0 MiB
+7, 0 MiB

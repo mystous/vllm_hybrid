@@ -27,10 +27,10 @@ set -u
 
 ROOT=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/b3_8gpu_full
 RUNS=$ROOT/runs
-MODEL="Qwen/Qwen2.5-7B-Instruct"
+MODEL="meta-llama/Llama-3.1-8B-Instruct"  # 32 heads → TP=8 정합 (Qwen-7B는 28 head → TP=8 불가)
 PORT=8005
 TP=8
-MAX_MODEL_LEN=16384
+MAX_MODEL_LEN=20480  # CLAUDE.md: 8k input + 8k output 안전 마진
 CONC=32
 NPROMPT=200
 MAX_TOKENS=8192
