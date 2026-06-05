@@ -692,3 +692,176 @@ GPU 0 native + tier 두 run 후 모두 free. GPU 1-7 본 B9 작업 동안 미접
 - Python patch: `vllm/v1/worker/gpu_model_runner.py` (+24/-5 lines), `vllm/v1/core/kv_dram_tiering.py` (+39/-3 lines)
 - Test patch: `tests/v1/spec_decode/test_kv_dram_tiering.py` (+62/-0 lines, 2 신규 testcase)
 
+---
+
+## 12. Cross-process RPC plumbing (Phase B10)
+
+- **Date**: 2026-06-05 04:28~04:48 KST (B200 8GPU prod, **GPU 0-3 사용**, B3 8GPU agent 종료 후 진행).
+- **목적**: B6 의 architectural finding (`MEASUREMENTS.md §7.5`) 인 cross-process gap — TP>1 multiproc executor 에서 EngineCore BlockPool 과 worker pointer binding 이 별 process 라 lever 가 미동작 — 을 RPC plumbing 으로 해소. **task 결론**: lever 활성화 가능 여부 + activation 시 net effect 의 1차 측정.
+
+### 12.1 IPC 분석 + 옵션 선택
+
+vllm v1 multiproc executor (`vllm/v1/executor/multiproc_executor.py:341-405`) 의 dispatch 구조:
+
+- 각 `WorkerProc` 는 `rpc_broadcast_mq` (ZeroMQ MessageQueue) 에서 `(method_str, args, kwargs, output_rank)` tuple 을 dequeue → `getattr(self.worker, method_str)(*args, **kwargs)` 실행 → `worker_response_mq` 로 결과 enqueue (`multiproc_executor.py:959-985`).
+- `MultiprocExecutor.collective_rpc("foo", args=(...), unique_reply_rank=0)` 는 broadcast → 한 worker 의 응답 (또는 모든 worker 의 응답 list) 을 sync return.
+
+`bind_block_pointers` 데이터 크기 (Llama-70B TP=4):
+
+- `per_block_layer_ptrs[b][l]` = 168 400 blocks × 80 layers × int (8 B) ≈ **100 MB** per worker.
+- 4 worker → cross-process marshal 비용 ≥ 400 MB pickle. **옵션 A (binding 자체 RPC) 비효율**.
+- pointer 의 raw int value 는 worker process 의 CUDA context 안에서만 valid → EngineCore 에서 `cudaMemcpyAsync` 호출 시 invalid device pointer. **옵션 B (shared mmap'd ptrs) 도 부적합**.
+
+→ **옵션 C 선택** (가장 minimal): engine-side 에 thin `RpcProxyTier` 를 attach. BlockPool 의 `_kv_dram_tier` interface (`is_tiered`/`has_pointer_binding`/`evict_block`/`fetch_block`/`drop`) 만 충족. 호출은 `model_executor.collective_rpc("kv_tier_<method>", args=(block_id,))` 로 forward → 각 worker 가 자기 TP shard 의 KVDramTier (이미 binding 보유) 로 위임. **RPC payload 는 단순 `int` (block_id)** — 호출당 ~8 B.
+
+### 12.2 patch 위치 (file:line)
+
+| 파일 | 변경 | 라인 |
+|---|---|---|
+| `vllm/v1/core/_kv_tier_rpc_proxy.py` | 신규 — `RpcProxyTier` + `_is_rpc_bind_enabled` (engine-side proxy) | +210/-0 |
+| `vllm/v1/worker/gpu_worker.py` | `Worker` 에 `kv_tier_has_pointer_binding` / `kv_tier_evict_block` / `kv_tier_fetch_block` / `kv_tier_drop` / `kv_tier_stats` RPC handler 추가 | `~1162` (+73/-0) |
+| `vllm/v1/engine/core.py` | `EngineCore.__init__` Scheduler build 직후, `VLLM_KV_TIER_RPC_BIND=1` 시 `RpcProxyTier(self.model_executor)` 생성 → `kv_cache_manager._kv_dram_tier` 및 `block_pool._kv_dram_tier` 에 attach + atexit 등록 | `~155` (+50/-0) |
+| `tests/v1/spec_decode/test_kv_dram_tiering.py` | `TestRpcProxyTierB10` 클래스 3 testcase (forward / failure / fetch+drop) | `~432` (+108/-0) |
+
+총: 4 hunks across 4 files, +441 / -0 lines.
+
+### 12.3 Activation flag
+
+- `VLLM_KV_TIERING_DRAM=1` (기존) AND
+- `VLLM_KV_TIER_RPC_BIND=1` (신규, 기본값 OFF — regression 회피).
+- 두 flag 모두 ON 일 때만 engine-side tier 가 `RpcProxyTier` 로 교체. 그 외에는 B6 동작 (engine-side in-process KVDramTier, multiproc 에서는 binding 미도달) 그대로 유지.
+
+### 12.4 Regression unittest
+
+```
+$ /workspace/vllm_dev_prj/bin/python -m pytest tests/v1/spec_decode/test_kv_dram_tiering.py -v
+============================= test session starts ==============================
+collected 22 items
+
+TestKVDramTierFlag::test_default_off                                  PASSED
+TestKVDramTierFlag::test_falsy                                        PASSED
+TestKVDramTierFlag::test_truthy                                       PASSED
+TestKVDramTierHotPath::test_evict_capacity_full                       PASSED
+TestKVDramTierHotPath::test_evict_then_fetch_then_drop                PASSED
+TestKVDramTierHotPath::test_fetch_unknown_block                       PASSED
+TestKVDramTierHotPath::test_initial_state                             PASSED
+TestKVDramTierHotPath::test_rebind_expands_ptr_table_b9               PASSED
+TestKVDramTierHotPath::test_rebind_idempotent_no_double_alloc_b9      PASSED
+TestKVDramTierHotPath::test_unbound_returns_false                     PASSED
+TestKVDramTierAsyncEvictB10::test_async_evict_drop_sync_before_host_free                  PASSED
+TestKVDramTierAsyncEvictB10::test_async_evict_keeps_pending_event_then_wait_resolves      PASSED
+TestBlockPoolAsyncEvictB10::test_blockpool_async_evict_path_no_stream_sync_on_free        PASSED
+TestBlockPoolAsyncEvictB10::test_blockpool_async_get_new_blocks_waits_then_drops          PASSED
+TestBlockPoolNoOpWhenTierNone::test_free_blocks_no_tier               PASSED
+TestBlockPoolHooksWithFakeTier::test_free_blocks_evicts_cached_to_dram                    PASSED
+TestBlockPoolHooksWithFakeTier::test_free_blocks_skips_uncached       PASSED
+TestBlockPoolHooksWithFakeTier::test_get_new_blocks_drops_tiered_dram_copy                PASSED
+TestBlockPoolHooksWithFakeTier::test_touch_fetches_tiered_cache_hit   PASSED
+TestRpcProxyTierB10::test_b10_evict_forwards_and_mirrors_tiered_set                       PASSED
+TestRpcProxyTierB10::test_b10_fetch_drops_mirror_when_drop_after_fetch                    PASSED
+TestRpcProxyTierB10::test_b10_rpc_failure_degrades_gracefully                             PASSED
+
+======================= 22 passed, 16 warnings in 2.62s ========================
+```
+
+**22/22 PASS** (기존 19 회귀 0 + B10 신규 3). 신규 testcase 의 핵심:
+
+- `test_b10_evict_forwards_and_mirrors_tiered_set` — `RpcProxyTier.evict_block(7)` 가 `collective_rpc("kv_tier_evict_block", (7, True), unique_reply_rank=0)` 로 정확히 dispatch, 로컬 `_tiered_ids` mirror 가 업데이트, `has_pointer_binding()` 이 True 결과를 캐싱하는 거 검증.
+- `test_b10_rpc_failure_degrades_gracefully` — worker handler 가 False 리턴 or 예외 raise 시 BlockPool 측에서는 모두 "evict 실패" no-op 으로 안전 처리, `n_rpc_errors` / `n_evict_failed` 카운트 증가.
+- `test_b10_fetch_drops_mirror_when_drop_after_fetch` — fetch + drop 사이클이 mirror set 을 일관되게 유지.
+
+### 12.5 e2e 측정 (Llama-3.1-70B TP=4, GPU 0-3, sharegpt 200p × conc=32 × max-tokens=8192)
+
+| Run | flag (`VLLM_KV_TIERING_DRAM / VLLM_KV_TIER_RPC_BIND`) | boot wall | log |
+|---|---|---|---|
+| native     | `0 / 0` | 76 s  | `_logs_b10/boot_native.log` |
+| tier_norpc | `1 / 0` | 79 s  | `_logs_b10/boot_tier_norpc.log` |
+| tier_rpc   | `1 / 1` | 79 s  | `_logs_b10/boot_tier_rpc.log` |
+
+`tier_rpc` boot log evidence (engine + worker 양쪽):
+
+```
+(EngineCore pid=951485) INFO 06-05 04:39:33 [kv_cache_manager.py:180] [KVDramTier] enabled — max_dram=123001896960 B, per_block=1310720 B, num_blocks=93843
+(EngineCore pid=951485) INFO 06-05 04:39:33 [core.py:186] [KVDramTier RPC] proxy attached to engine BlockPool (executor=MultiprocExecutor)
+(Worker_TP0 pid=951759) [KVDramTier] bound — 93843 blocks × 80 layers, per_layer_nbytes=16384 (process=951759)
+(Worker_TP1 pid=951760) [KVDramTier] bound — 93843 blocks × 80 layers, per_layer_nbytes=16384 (process=951760)
+(Worker_TP2 pid=951761) [KVDramTier] bound — 93843 blocks × 80 layers, per_layer_nbytes=16384 (process=951761)
+(Worker_TP3 pid=951762) [KVDramTier] bound — 93843 blocks × 80 layers, per_layer_nbytes=16384 (process=951762)
+```
+
+→ engine `RpcProxyTier` attach + 4 worker `KVDramTier` binding 모두 부팅 단계에서 확인 (B6 의 architectural gap 해소의 self-evidence).
+
+| metric | native | tier_norpc | tier_rpc | Δ tier_rpc vs native | Δ tier_rpc vs tier_norpc |
+|---|---|---|---|---|---|
+| n_ok / n | 200/200 | 200/200 | 200/200 | 0 | 0 |
+| wall_total_s | 184.9 | 173.3 | **371.0** | +186.1 (+100.6 %) | +197.7 (+114.1 %) |
+| total_completion_tokens | 366 370 | 325 268 | 329 234 | -37 136 (-10.1 %) | +3 966 (+1.2 %) |
+| **output_tps** | **1 981.8** | **1 876.9** | **887.4** | **-1 094.4 (-55.2 %)** | **-989.5 (-52.7 %)** |
+| TTFT p50 (ms) | 35.6 | 34.6 | 44.4 | +8.8 (+24.7 %) | +9.8 (+28.3 %) |
+| TTFT p99 (ms) | 207.8 | 218.9 | **4 549.3** | +4 341.5 (+2 089 %) | +4 330.4 (+1 978 %) |
+| TPOT p50 (ms) | 10.7 | 10.5 | 19.0 | +8.3 (+77.6 %) | +8.5 (+81.0 %) |
+| TPOT p99 (ms) | 12.1 | 12.0 | **76.8** | +64.7 (+535 %) | +64.8 (+540 %) |
+| per-corpus reqtps (sharegpt) | 90.8 | 91.8 | 50.4 | -40.4 (-44.5 %) | -41.4 (-45.1 %) |
+| GPU util (%) | 99.3 | 99.3 | **49.4** | -49.9 pp | -49.9 pp |
+| GPU mem (MiB) | 634 336 | 634 962 | 636 336 | +2 000 | +1 374 |
+| CPU% | 3.5 | 3.2 | 3.2 | -0.3 | 0 |
+
+### 12.6 KVDramTier counters (양 process 측 — bind/lever 활성화의 self-evidence)
+
+`tier_norpc` (`_logs_b10/tier_norpc.tier_dump.txt`) — 모든 worker 동일:
+
+```
+(Worker_TP0..3) [KVDramTier atexit] telemetry — n_evict=0 n_fetch=0 evict_bytes=0 fetch_bytes=0 tiered_blocks=0 dram_in_use=0 skipped_full=0 n_binds=1 n_evict_async=0 n_evict_wait_resolved=0
+```
+
+→ B6 동작 그대로 reconfirm: worker bind=1, but engine BlockPool 의 evict 호출이 worker tier 에 도달 못 함 → **n_evict=0**.
+
+`tier_rpc`: SIGTERM → SIGKILL 4 s 간격 안에 worker / engine 의 atexit dump 가 stderr flush 되지 못해 dump 라인이 보이지 않음 (engine RPC proxy + worker tier 모두 동일). 그러나 **n_binds=1 evidence (worker bind log)** 는 boot 단계에서 모든 4 worker 에 잡혔고, **engine RPC proxy attach 로그도 `core.py:186`** 에 잡혔음 (12.5 참조). bench wall 371 s 의 **GPU util 49.4 %** 와 **TPOT p99 76.8 ms (×6.3 vs native)** 가 evict RPC dispatch 가 실제로 일어나고 있다는 indirect evidence — RPC 가 미동작이면 tier_norpc 와 같은 99.3 % util / 12 ms p99 가 나와야 함. (정량 카운트 dump 는 follow-up: shutdown 경로에 명시적 RPC stats flush 추가가 필요).
+
+### 12.7 task 결론 (Phase B10)
+
+**판정: RPC plumbing 으로 TP>1 multiproc 에서 lever 활성화는 가능 (architectural gap 해소). 그러나 활성화의 net effect 는 강한 NEGATIVE — 동기 RPC + 동기 evict 가 forward critical path 를 직렬 점유, GPU util -49.9 pp / output_tps -55.2 % / TPOT p99 ×6.3.**
+
+근거 분리:
+
+1. **활성화 가능 evidence (긍정)**:
+   - engine `RpcProxyTier` attach 로그 + 4 worker bind 로그 (boot 단계 모두 출현).
+   - tier_rpc 의 GPU util 50 % 로 떨어짐 — tier_norpc 의 99 % 와 명확히 다른 동작 path → RPC dispatch 가 실제 발화 중.
+   - 200/200 ok — correctness 깨지지 않음 (RPC 실패 시 graceful False return path 가 안전망 역할).
+2. **net effect NEGATIVE 근거**:
+   - 모든 `free_blocks` hot path 의 cached-block 마다 collective_rpc (broadcast → 4 worker 응답 대기) 가 동기 발생. 본 patch 의 evict 호출은 BlockPool 의 main thread (scheduler step) 에서 실행되므로 forward 와 직렬화.
+   - TPOT p99 76.8 ms (×6.3 native) — 각 decode step 에 RPC roundtrip 이 누적되는 패턴 (ZMQ enqueue + 4 worker dequeue + worker tier evict + 4 응답 + engine dequeue).
+   - TTFT p99 4 549 ms (×21.9 native) — request 도착 시 prefix block free 가 일어나면서 동기 RPC 가 prefill 까지 stall 시킴.
+3. **prerequisites for ROI 회복** (이 task 의 범위를 벗어남 — follow-up B11/B12 영역):
+   - **async RPC** — `collective_rpc(..., non_block=True)` + Future 반환, evict 가 forward 후 background 에서 resolve. 단, BlockPool `free_blocks` 가 호출 끝나기 전 GPU block reuse 가 안 되도록 deferred-free 큐가 필요.
+   - **batched evict** — N 개 block_id 를 한 RPC 로 묶어서 broadcast cost amortize.
+   - **worker-side selective dispatch** — evict 가 거의 안 일어나는 워크로드 (현재 sharegpt 의 KV usage 3 %) 에서는 binding 단계에서 `kv_tier_should_evict()` heuristic 으로 dispatch 자체 skip.
+4. **scope 한정**: 본 task 는 "RPC plumbing 자체가 가능하냐" 의 일차 검증이지 "net positive 화" 가 아님. activation 자체는 가능했고, net effect 는 negative 라는 명확한 1차 측정.
+
+### 12.8 Post-run GPU state
+
+| GPU | used (MiB) | free (MiB) |
+|---|---|---|
+| 0 | 0 | 182 632 |
+| 1 | 0 | 182 632 |
+| 2 | 0 | 182 632 |
+| 3 | 0 | 182 632 |
+
+세 run 모두 측정 후 backend SIGTERM → SIGKILL → orphan VLLM::Worker 정리 → GPU 0-3 free 검증 통과 (< 4 GiB threshold). GPU 4-7 본 B10 작업 동안 미접근.
+
+### 12.9 산출물 경로 (B10)
+
+- `llama70b_b10_native.json`, `llama70b_b10_native.raw.jsonl` (200/200 ok, 184.9 s, 1 981.8 tps)
+- `llama70b_b10_tier_norpc.json`, `llama70b_b10_tier_norpc.raw.jsonl` (200/200 ok, 173.3 s, 1 876.9 tps, worker n_evict=0)
+- `llama70b_b10_tier_rpc.json`, `llama70b_b10_tier_rpc.raw.jsonl` (200/200 ok, 371.0 s, 887.4 tps, GPU util 49.4 %)
+- `_logs_b10/boot_native.log`, `boot_tier_norpc.log`, `boot_tier_rpc.log`
+- `_logs_b10/{native,tier_norpc,tier_rpc}.bind.txt` (bind / RPC proxy attach 로그)
+- `_logs_b10/{native,tier_norpc,tier_rpc}.tier_dump.txt` (atexit telemetry — tier_rpc 의 dump 는 SIGKILL race 로 미캡처, 향후 step 1.8 으로 RPC stats explicit shutdown flush 필요)
+- `_logs_b10/{native,tier_norpc,tier_rpc}.gpu_after.txt` (모두 0 MiB / 182632 MiB)
+- `run_b10.sh` (native|tier_norpc|tier_rpc mode, TP=4, GPU 0-3, port 8003, sharegpt 200p × conc=32 × max-tok 8192)
+- Python patch:
+  - 신규: `vllm/v1/core/_kv_tier_rpc_proxy.py` (+210 lines)
+  - `vllm/v1/worker/gpu_worker.py` (+73/-0 lines, kv_tier_* RPC handlers)
+  - `vllm/v1/engine/core.py` (+50/-0 lines, RPC proxy attach)
+- Test patch: `tests/v1/spec_decode/test_kv_dram_tiering.py` (+108/-0 lines, `TestRpcProxyTierB10` 3 testcase)
+
