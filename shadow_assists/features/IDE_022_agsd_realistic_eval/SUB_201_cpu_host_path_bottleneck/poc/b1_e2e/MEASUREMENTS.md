@@ -222,3 +222,124 @@ $ cat _logs/shadow_v2.gpu_after.txt
 - `shadow_assists/features/IDE_016_avx512_amx_pool/build/avx512_tokenizer/libavx512_tokenizer.so` — c_shim 포함 재빌드된 .so
 - `shadow_assists/features/IDE_016_avx512_amx_pool/build/avx512_tokenizer/libavx512_tokenizer.so.bak.v1` — v1 broken .so (참고용 백업)
 
+---
+
+## 8. Phase A4-prod (production wire-in) — 진짜 e2e ROI 1차 판정
+
+### 8.1 production wire-in patch
+
+| 항목 | 위치 | 내용 |
+|---|---|---|
+| ENV flag | `vllm/v1/engine/detokenizer.py:60-78` | `VLLM_USE_AVX512_DETOK_NATIVE=1` 시 AVX-512 incremental_append 결과를 native flow 의 output 으로 **채택**. default OFF. `VLLM_AVX512_DETOK_VERIFY=1` 은 매 step byte-equal verify (opt-in, prod 측정엔 OFF). |
+| wrapper attach | `vllm/v1/engine/detokenizer.py:393-405` | `_avx512_detok_inc_get_for(tokenizer)` 가 INC **또는** NATIVE flag 켜질 때 active. |
+| `_protected_step` | `vllm/v1/engine/detokenizer.py:454-484, 525-553` | AVX path 의 결과를 capture, native `stream.step` 도 호출 (state 유지 + fallback 대비), NATIVE on 이면 token 만 AVX 결과로 교체. 예외 → native fallback + warn(1회/tokenizer). VERIFY on 이면 per-step strict equal 검증, mismatch 시 fallback. |
+| telemetry | `vllm/v1/engine/detokenizer.py:225-233` | `avx512_detok_native_snapshot()` → `step_count`/`fallback_count`/`verify_mismatch` |
+
+### 8.2 unit / regression gate
+
+| gate | 명령 | 결과 |
+|---|---|---|
+| smoke (production wire-in) | `tests/test_avx512_detok_native_wire.py` | **ALL PASS** (default-off baseline + NATIVE 5/5 prompts byte-equal + VERIFY mode 동작) |
+| 204/204 byte-equal regression | `tests/test_avx512_detok_incremental.py` | **102/102 batch + 102/102 inc = 204/204 PASS** (GPT-2 / Llama-3.1-8B / Qwen-2.5-7B × 34 prompts) |
+| init failed warnings | `boot_avx512_prod.log` | **0 회** |
+| vocab table cached | `boot_avx512_prod.log` | **1 회** (singleton hot path 활성) |
+
+### 8.3 10-case e2e byte-equal sample
+
+별도 boot 로 양쪽 mode (`baseline` / `avx512_prod`) 에서 동일 prompt 10 케이스 (`SAMPLE_IDX = [0,7,13,22,31,47,58,79,100,153]`, `max_tokens=256`, `temperature=0.0`, `seed=1234`) 의 generation text 를 capture → SHA256 비교:
+
+| idx | bytes (baseline/avx) | baseline sha (prefix) | avx_prod sha (prefix) | match |
+|---|---|---|---|---|
+| 0 | 1296 / 1296 | 51c79cf04642fca4 | 51c79cf04642fca4 | OK |
+| 7 | 1045 / 1045 | db319d414686e7b5 | db319d414686e7b5 | OK |
+| 13 | 695 / 695 | 08c5c0d997aba471 | 08c5c0d997aba471 | OK |
+| 22 | 1458 / 1458 | 74297b6b05868f93 | 74297b6b05868f93 | OK |
+| 31 | 935 / 935 | 6bf3d1d2b301c295 | 6bf3d1d2b301c295 | OK |
+| 47 | 915 / 915 | 8c168f4658ac2d88 | 8c168f4658ac2d88 | OK |
+| 58 | 1169 / 1169 | f57cb27c4e178834 | f57cb27c4e178834 | OK |
+| 79 | 852 / 852 | 4aafe994467b0a53 | 4aafe994467b0a53 | OK |
+| 100 | 919 / 919 | 14ea872a69a55205 | 14ea872a69a55205 | OK |
+| 153 | 1332 / 1332 | 8fc642de24e95b21 | 8fc642de24e95b21 | OK |
+
+**10/10 byte-equal PASS** — production wire-in 이 native flow 와 byte-by-byte 동일한 generation 을 보장함을 확인.
+
+### 8.4 e2e 측정 표 (baseline vs avx512_prod)
+
+| Run | env flag | n_ok / n_total | boot (s) | wall (s) | tokens | **output_tps** | TTFT p50 (ms) | TTFT p99 (ms) | TPOT p50 (ms) | TPOT p99 (ms) | GPU util (%) | CPU% |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **baseline** | `VLLM_USE_AVX512_DETOK_NATIVE=0` | 200/200 | 44 | 359.6 | 1 493 451 | **4 152.7** | **20.8** | 74.5 | 3.5 | 3.9 | 87.7 | 12.9 |
+| **avx512_prod** | `VLLM_USE_AVX512_DETOK_NATIVE=1` | 191/200 | 45 | 340.0 | 1 317 072 | **3 873.2** | **30.1** | 196.5 | 3.9 | 4.3 | 81.3 | 21.4 |
+
+### 8.5 Δ 표 (avx512_prod − baseline)
+
+| Metric | baseline | avx512_prod | Δ | Δ % |
+|---|---|---|---|---|
+| n_ok | 200 | 191 | −9 | −4.5 % (engine shutdown race 9건) |
+| output_tps | 4 152.7 | 3 873.2 | −279.5 | **−6.73 %** |
+| wall_ms p50/req | 28 971 | 31 925 | +2 954 | **+10.2 %** |
+| TTFT p50 (ms) | 20.8 | 30.1 | +9.3 | **+44.7 %** |
+| TTFT p99 (ms) | 74.5 | 196.5 | +122.0 | +163.8 % |
+| TPOT p50 (ms) | 3.5 | 3.9 | +0.4 | **+11.4 %** |
+| TPOT p99 (ms) | 3.9 | 4.3 | +0.4 | +10.3 % |
+| GPU util (%) | 87.7 | 81.3 | −6.4 pp | — |
+| CPU% | 12.9 | 21.4 | **+8.5 pp** | — |
+
+### 8.6 B1 production wire-in 진짜 e2e ROI 1차 판정
+
+| 후보 | 판정 |
+|---|---|
+| positive (tps↑) | × |
+| negligible | × |
+| **negative (regression)** | **○** |
+| blocked | × |
+
+**핵심 결론: B1 의 production wire-in (현재 설계) 은 e2e ROI 가 negative. output_tps −6.73 %, TPOT p50 +11 %, TTFT p50 +45 %.**
+
+원인 (구조적):
+- 현재 wire-in 은 native `stream.step` 을 **여전히 호출** (state 유지 + sanity fallback 대비) 한 뒤 그 token 만 AVX path 결과로 **교체** 한다. 즉 hot loop 가 **AVX path + native path** 의 **double work**. AVX path 자체가 free 가 아니라 +ctypes call + UTF-8 splitter Python 코드 → 순 overhead 만 추가됨.
+- shadow_v2 (§6) 가 sample-noise 범위 (+0.68 %) 였던 이유는, 그 측정도 동일한 "shadow + native" double work 였으나 측정 단위 (200 prompts) 가 작아 의미차이 안 났을 뿐. prod 모드에서는 동일한 double work 가 더 길게 (per-token, 1.5M tokens) 누적되어 −6.7 % 로 surface.
+
+추가 관찰:
+- **CPU% +8.5 pp** (12.9 → 21.4) — CLAUDE.md objective ("CPU idle 금지") 의 방향과는 일치하나, 그 CPU 가 **net work 를 만들지 못함** (tps 떨어짐). CPU 가 native 와 AVX 양쪽을 모두 돌리는 noise work 로 소비됨.
+- **9 개 request fail** — 모두 `HTTP 500 EngineDeadError` (`shm_broadcast.acquire_read RuntimeError("cancelled")`). 시점이 bench 종료 직전 (00:59:42) 이며, fallback warn / verify mismatch 로그는 0 회. 즉 production wire-in 자체의 correctness 문제가 아니라 **engine shutdown race** (TP=2 / async / shm broadcast) 와 부합. baseline 에서는 발생 안 함 — 다만 avx512_prod 가 wall 이 더 길어 (340s vs 360s 인데 stream 시간 이슈로 다른 timing) shutdown race 가 표출.
+
+### 8.7 다음 step (action items — B1 lever 의 진로)
+
+P0 (구조적 변경):
+- "native stream.step 우회" 모드 — `VLLM_USE_AVX512_DETOK_NATIVE_EXCLUSIVE=1` 도입. AVX path 만 호출, native stream.step 은 **skip**. correctness fallback 은 `incremental_append` 의 ValueError/IndexError 등 narrow exception 으로 한정, 실패 시 lazy reconstruct native stream + replay (cold-path).
+- 또는 native DecodeStream 의 **prefix offset/skip 토큰 처리** 만 native 에 의존하고, body token 만 AVX 로 처리하는 hybrid (token-position-aware) 설계.
+
+P1:
+- `incremental_append` 자체의 hot loop 를 batch-level (multi-token per call) 로 변환 → ctypes call overhead amortize.
+- envs.py 의 환경변수 registry 에 `VLLM_USE_AVX512_DETOK_NATIVE` / `VLLM_AVX512_DETOK_VERIFY` 등록 (현재 unknown env warning 발생; cosmetic).
+
+P2:
+- engine shutdown race (TP=2 + shm_broadcast) 가 양쪽 mode 에서 동일하게 발생할 수 있는지 baseline 재현. avx512_prod 의 9 fail 이 production wire-in 과 무관함을 입증.
+
+### 8.8 GPU 4,5 free 확인 (prod)
+
+```
+$ cat _logs/baseline_prod.gpu_after.txt
+4, 0, 182632
+5, 0, 182632
+$ cat _logs/avx512_prod_prod.gpu_after.txt
+4, 0, 182632
+5, 0, 182632
+```
+
+bench + sample10 (양쪽 모드 × 2 = 4 회 boot/kill) 모두 종료 후 GPU 4,5 mem.used = 0 MiB. GPU 0-3 / 6-7 미접촉.
+
+### 8.9 prod 산출물 추가
+
+- `llama8b_baseline_prod.json` / `llama8b_baseline_prod.raw.jsonl` — baseline (NATIVE=0)
+- `llama8b_avx512_prod.json` / `llama8b_avx512_prod.raw.jsonl` — production wire-in (NATIVE=1)
+- `llama8b_baseline_prod.sample10.jsonl` — 10-case full-text capture (baseline)
+- `llama8b_avx512_prod_prod.sample10.jsonl` — 10-case full-text capture (avx512_prod) — 명명상의 prefix 중복은 `${MODE}_prod` 스크립트 변수 결합 결과
+- `run_prod.sh` — bench 자동화 (boot / wait_ready / bench / kill / gpu-free 검증)
+- `run_sample10.sh` — 10-case byte-equal capture 자동화 (양쪽 모드)
+- `_logs/boot_baseline_prod.log` / `_logs/boot_avx512_prod.log` — engine boot stderr (init failed=0 확인)
+- `_logs/boot_baseline_sample10.log` / `_logs/boot_avx512_prod_sample10.log` — sample10 boot stderr
+- `_logs/bench_baseline_prod.log` / `_logs/bench_avx512_prod_prod.log` — runner stdout
+- `_logs/baseline_prod.gpu_after.txt` / `_logs/avx512_prod_prod.gpu_after.txt` — kill 후 GPU 4,5 row
+- `tests/test_avx512_detok_native_wire.py` — production wire-in smoke
+

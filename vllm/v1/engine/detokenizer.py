@@ -46,6 +46,26 @@ _avx512_detok_b1_cache: dict[int, object] = {}
 _avx512_detok_inc_enabled: bool = (
     os.environ.get("VLLM_USE_AVX512_DETOK_INC", "0") == "1"
 )
+# Phase A4-prod: production wire-in.
+# `VLLM_USE_AVX512_DETOK_NATIVE=1` → AVX-512 incremental path 결과를
+# native DecodeStream.step 의 출력으로 **채택**. native stream.step 은 여전히
+# 호출 (internal state 유지 + sanity fallback 대비) 하되 token 반환만 AVX path
+# 결과로 교체한다. AVX path 가 예외를 던지거나 sanity check 가 실패하면
+# native 결과로 자동 fallback (+ warn 1 회). default OFF → regression-free.
+_avx512_detok_native_enabled: bool = (
+    os.environ.get("VLLM_USE_AVX512_DETOK_NATIVE", "0") == "1"
+)
+# `VLLM_AVX512_DETOK_VERIFY=1` → 매 step 마다 byte-equal verify (opt-in).
+# Production 측정엔 OFF — overhead 가 크기 때문 (debug/CI 용).
+_avx512_detok_verify_enabled: bool = (
+    os.environ.get("VLLM_AVX512_DETOK_VERIFY", "0") == "1"
+)
+# Track first-fallback log per tokenizer to avoid spamming.
+_avx512_detok_native_fallback_logged: set[int] = set()
+# Per-process counters for telemetry (queried from boot log).
+_avx512_detok_native_step_count: int = 0
+_avx512_detok_native_fallback_count: int = 0
+_avx512_detok_native_verify_mismatch: int = 0
 # Phase A4-fix P1: per-process singleton cache for the heavy vocab table.
 # `from_hf_tokenizer` walks the entire 128k vocab (Llama-3) and applies the
 # GPT-2 byte_decoder per token — measured at ~+95 ms TTFT in the v1
@@ -82,7 +102,7 @@ def _avx512_detok_b1_get_for(hf_tok) -> object | None:
 
 
 def _avx512_detok_inc_get_for(hf_tok) -> object | None:
-    """Per-request incremental detok wrapper (shadow mode).
+    """Per-request incremental detok wrapper (shadow or production-wired).
 
     Phase A4-fix P1: hot path uses a process-singleton vocab table cache
     (keyed by ``id(hf_tok)``). Cold path (first request per tokenizer)
@@ -90,8 +110,12 @@ def _avx512_detok_inc_get_for(hf_tok) -> object | None:
     ``AVX512Detokenizer.__init__`` cost (ctypes signature wiring + numpy
     view) — no 128k-entry vocab rebuild. The returned instance is fresh so
     each request has an isolated ``_inc_buf``.
+
+    Phase A4-prod: also enabled when ``VLLM_USE_AVX512_DETOK_NATIVE=1`` —
+    in that case the wrapper output is **adopted** as the production return
+    of ``_protected_step`` (see caller).
     """
-    if not _avx512_detok_inc_enabled:
+    if not (_avx512_detok_inc_enabled or _avx512_detok_native_enabled):
         return None
     try:
         from vllm.tokenizers.avx512_detokenizer import AVX512Detokenizer
@@ -208,6 +232,17 @@ def avx512_tok_snapshot() -> dict:
         "native_total_ns": _avx512_tok_native_total_ns,
         "avx_total_ns": _avx512_tok_avx_total_ns,
         "mismatch_count": _avx512_tok_mismatch_count,
+    }
+
+
+def avx512_detok_native_snapshot() -> dict:
+    """Snapshot per-process Phase A4-prod wire-in telemetry."""
+    return {
+        "enabled": bool(_avx512_detok_native_enabled),
+        "verify_enabled": bool(_avx512_detok_verify_enabled),
+        "step_count": _avx512_detok_native_step_count,
+        "fallback_count": _avx512_detok_native_fallback_count,
+        "verify_mismatch": _avx512_detok_native_verify_mismatch,
     }
 # ────────────────────────────────────────────────────────────────────────
 
@@ -379,10 +414,16 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
         # AVX512Detokenizer whose `_inc_buf` accumulates raw piece bytes as
         # `decode_next` fires; return value is discarded (shadow only).
         # Default OFF → zero impact on native flow.
-        self._avx512_detok_inc = (
-            _avx512_detok_inc_get_for(tokenizer)
-            if _avx512_detok_inc_enabled else None
-        )
+        #
+        # Phase A4-prod (`VLLM_USE_AVX512_DETOK_NATIVE=1`) — production wire-in.
+        # When enabled, also attach the wrapper and its output is **adopted**
+        # in place of `stream.step(...)` (see `_protected_step`). Shadow flag
+        # is implicitly enabled when NATIVE is on, but only one wrapper is
+        # actually instantiated (kept on `_avx512_detok_inc`).
+        if _avx512_detok_inc_enabled or _avx512_detok_native_enabled:
+            self._avx512_detok_inc = _avx512_detok_inc_get_for(tokenizer)
+        else:
+            self._avx512_detok_inc = None
 
         # Use native prefill to prime the decode stream with prompt tokens.
         self.stream = DecodeStream(
@@ -432,6 +473,9 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
         # avx-512 single-token decode and accumulate per-process totals.
         global _avx512_tok_step_count, _avx512_tok_native_total_ns
         global _avx512_tok_avx_total_ns, _avx512_tok_mismatch_count
+        global _avx512_detok_native_step_count
+        global _avx512_detok_native_fallback_count
+        global _avx512_detok_native_verify_mismatch
 
         # SUB_201 §5 B1 PoC: shadow-mode AVX-512 ctypes detok call.
         # No state mutation — only exercises the kernel for latency telemetry
@@ -445,16 +489,31 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
                 # silent — PoC level, captured by external test harness.
                 pass
 
-        # SUB_201 §5 B1 PoC next-step: shadow-mode incremental_append call.
-        # Mirrors the streaming detok path that will eventually replace
-        # native stream.step. Return value is intentionally discarded —
-        # native stream.step output remains authoritative.
+        # SUB_201 §5 B1 PoC next-step: AVX-512 incremental_append call.
+        # When `VLLM_USE_AVX512_DETOK_NATIVE=1`, capture the AVX path output
+        # as a candidate to **replace** the native stream.step output below.
+        # When only `VLLM_USE_AVX512_DETOK_INC=1`, the return is discarded
+        # (shadow-mode only — native output remains authoritative).
         _b1_inc = getattr(self, "_avx512_detok_inc", None)
+        avx_native_str: str | None = None
+        avx_native_ok: bool = False
         if _b1_inc is not None:
             try:
-                _b1_inc.incremental_append(int(next_token_id))
-            except Exception:
-                pass
+                avx_native_str = _b1_inc.incremental_append(int(next_token_id))
+                avx_native_ok = True
+            except Exception as exc:  # noqa: BLE001
+                avx_native_str = None
+                avx_native_ok = False
+                if _avx512_detok_native_enabled:
+                    key = id(self.tokenizer)
+                    if key not in _avx512_detok_native_fallback_logged:
+                        _avx512_detok_native_fallback_logged.add(key)
+                        logger.warning(
+                            "SUB_201 B1 prod: AVX-512 incremental_append "
+                            "raised (%s) — falling back to native stream.step "
+                            "(further occurrences suppressed for this "
+                            "tokenizer).", exc,
+                        )
 
         _avx_bd = getattr(self, "_avx512_bd", None)
         if _avx_bd is not None:
@@ -498,6 +557,37 @@ class FastIncrementalDetokenizer(BaseIncrementalDetokenizer):
             )
             self.stream = DecodeStream(skip_special_tokens=self.skip_special_tokens)
             token = self.stream.step(self.tokenizer, next_token_id)
+
+        # Phase A4-prod: production wire-in — adopt AVX-512 output if enabled.
+        if _avx512_detok_native_enabled and _b1_inc is not None:
+            _avx512_detok_native_step_count += 1
+            adopt = False
+            if avx_native_ok and avx_native_str is not None:
+                # Sanity check 1: must be str. The wrapper returns "" for
+                # held-back (incomplete codepoint) tokens — that's valid.
+                if isinstance(avx_native_str, str):
+                    adopt = True
+            if adopt and _avx512_detok_verify_enabled:
+                # Opt-in: per-step byte-equal verify. Off by default (perf).
+                native_str = token if isinstance(token, str) else ""
+                avx_check = avx_native_str if avx_native_str is not None else ""
+                if native_str != avx_check:
+                    _avx512_detok_native_verify_mismatch += 1
+                    adopt = False
+                    key = id(self.tokenizer)
+                    log_key = -key - 1  # distinct from exception-fallback key
+                    if log_key not in _avx512_detok_native_fallback_logged:
+                        _avx512_detok_native_fallback_logged.add(log_key)
+                        logger.warning(
+                            "SUB_201 B1 prod: verify mismatch on tid=%d "
+                            "(native=%r avx=%r) — falling back to native; "
+                            "further verify mismatches suppressed.",
+                            int(next_token_id), token, avx_native_str,
+                        )
+            if adopt:
+                token = avx_native_str
+            else:
+                _avx512_detok_native_fallback_count += 1
         return token
 
 
