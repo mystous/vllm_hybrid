@@ -228,7 +228,7 @@ GPU util 하락(§1.3)의 원인이 host gap(a)인지 / verify 내부(b)인지 /
 
 ### 5.5 산출물
 `SUB_201_cpu_host_path_bottleneck/profile/` 에 Nsight rep + 분해 표 + 결정 verdict.
-이 verdict가 §8 논문 골격·§9 TSK_043·child task의 입력.
+이 verdict가 §8 논문 골격·§9 TSK_044·child task의 입력.
 
 **2026-06-05 1차 measurement 진행**:
 - `profile/qwen7b_suffix_first.nsys-rep` (216MB), `.sqlite`, `.summ.json` — Qwen-7B suffix mix 60s trace
@@ -278,11 +278,11 @@ GPU util 하락(§1.3)의 원인이 host gap(a)인지 / verify 내부(b)인지 /
 
 ---
 
-## 9. TSK_043 재정렬 함의
+## 9. TSK_044 재정렬 함의
 
-- 기존 TSK_043 = AGSD 분류기(C0~C3) decision-regret. 사용자 결정 = **모델계열+워크로드 hybrid gate** (워크로드 분배 개념 유지, 분류기 algorithm 만 폐기 후 oracle lookup 등 단순 매핑으로 교체).
-- SUB_201 관점에서 TSK_043의 가치: gate는 **모델별 oracle 프로파일 1차 + (Qwen 중형) 워크로드 2차**. regret = hybrid-oracle 대비.
-- 단, gate 자체는 throughput 지배 lever가 아님(§7). TSK_043은 "회귀 회피 안전장치"로 위상 축소, **본론은 §5의 host-path 회수**.
+- 기존 TSK_044 = AGSD 분류기(C0~C3) decision-regret. 사용자 결정 = **모델계열+워크로드 hybrid gate** (워크로드 분배 개념 유지, 분류기 algorithm 만 폐기 후 oracle lookup 등 단순 매핑으로 교체).
+- SUB_201 관점에서 TSK_044의 가치: gate는 **모델별 oracle 프로파일 1차 + (Qwen 중형) 워크로드 2차**. regret = hybrid-oracle 대비.
+- 단, gate 자체는 throughput 지배 lever가 아님(§7). TSK_044은 "회귀 회피 안전장치"로 위상 축소, **본론은 §5의 host-path 회수**.
 
 ---
 

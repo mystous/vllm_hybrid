@@ -22,4 +22,4 @@
 - `workload_classifier.py`: C0 regex(재사용·래핑, 재구현 금지). `agsd_router.py`: `classify` import, ProcessPool — ABI 무변경.
 
 ## ID 규칙
-SUB는 연구/lever 탐색에만 부여. TSK_042/TSK_043 등록됨, 다음 TSK_044. id_registry 단일 출처 + README Trace tree.
+SUB는 연구/lever 탐색에만 부여. TSK_042/TSK_043/TSK_044 등록됨, 다음 TSK_045. (TSK_043=Host-Side Slack Reclamation, TSK_044=AGSD CPU 분류기; 2026-06-05 기존 043↔신규 재번호). id_registry 단일 출처 + README Trace tree.

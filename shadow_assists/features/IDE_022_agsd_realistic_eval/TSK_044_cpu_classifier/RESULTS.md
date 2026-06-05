@@ -1,7 +1,7 @@
-# TSK_043 — AGSD: CPU 병렬성 최적화 + 측정 RESULTS
+# TSK_044 — AGSD: CPU 병렬성 최적화 + 측정 RESULTS
 
 > **status**: ⚪ 대기 (구현 전) — 측정 후 채움
-> **plan**: [`../../IDE_006/TSK_020/planning/TSK_043_cpu_classifier.md`](../../IDE_006/TSK_020/planning/TSK_043_cpu_classifier.md)
+> **plan**: [`../../IDE_006/TSK_020/planning/TSK_044_cpu_classifier.md`](../../IDE_006/TSK_020/planning/TSK_044_cpu_classifier.md)
 
 ## 산출 예정
 - 분류기 C0~C3 구현 + self-test 통과

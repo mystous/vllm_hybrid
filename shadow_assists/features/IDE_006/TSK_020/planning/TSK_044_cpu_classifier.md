@@ -1,8 +1,8 @@
-# TSK_043 — AGSD: CPU 병렬성 최적화 + 측정 (상세 plan)
+# TSK_044 — AGSD: CPU 병렬성 최적화 + 측정 (상세 plan)
 
-> **parent**: `IDE_022` (TSK_020). 선행: `TSK_042`(oracle_table), `PRE_TSK042_TSK043_prerequisites.md`.
+> **parent**: `IDE_022` (TSK_020). 선행: `TSK_042`(oracle_table), `PRE_TSK042_TSK044_prerequisites.md`.
 > **status**: 활성 (구현 대기). 승인 plan: `/root/.claude/plans/playful-stargazing-fog.md`
-> **코드**: `vllm_config_perf/gating/classifiers/` + `features/IDE_022_agsd_realistic_eval/TSK_043_cpu_classifier/src/`
+> **코드**: `vllm_config_perf/gating/classifiers/` + `features/IDE_022_agsd_realistic_eval/TSK_044_cpu_classifier/src/`
 > **불변식**: 라우터 ABI(`classify(str)->str`, ProcessPool pickle) **무변경 호환**.
 
 ## 1. 목표
@@ -21,7 +21,7 @@
 - `_re_backend.py` — R1: `import re2` try/except → `re` fallback. R3: vectorscan.
 - 각 모듈 module-level `classify(str)->str`(worker별 lazy singleton) export → 라우터 `AGSD_CLASSIFIER` env 선택. **1차 라우터 코드 변경 0**.
 
-### 2.2 학습·평가 (`TSK_043_cpu_classifier/src/`)
+### 2.2 학습·평가 (`TSK_044_cpu_classifier/src/`)
 - `labels.py` — oracle_table → best-method label, workload↔method 매핑(라우터 `BACKEND_FOR_WORKLOAD` 정합).
 - `train_c2.py`/`train_c3.py`/`export_onnx.py` — auto-label = oracle best. C3 ONNX export + dynamic INT8.
 - `regret_eval.py` — **핵심**: oracle_table + 분류기 → regret(mean/p99/CDF/zero·catastrophic율). pyarrow/numpy만 의존 → oracle 전 toy fixture 로 완성.

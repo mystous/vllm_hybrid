@@ -9,7 +9,7 @@
 - **V5 full**: 8모델 × corpus(gated 포함). 품질 경로A(token match·logprob) + 경로B(LiveCodeBench pass@1 + Arena-Hard-Auto judge) smoke→full.
 - **V6 T4 XL**: Llama-405B·DeepSeek-671B 순차 다운로드→측정→정리.
 
-## TSK_043 검증 단계
+## TSK_044 검증 단계
 - **분류기 self-test**: 각 모듈 (prompt,expected) + brittle 케이스. C0 회귀 가드(`c0.predict == workload_classifier.classify`). C1 brittle 개선.
 - **pickle smoke**: `ProcessPoolExecutor(2)`로 각 `classify` 호출 가능.
 - **regret toy fixture**: 10 prompt×4 method toy parquet → C4 regret==0, regret_abs≥0, is_catastrophic 정의 일치 assert.

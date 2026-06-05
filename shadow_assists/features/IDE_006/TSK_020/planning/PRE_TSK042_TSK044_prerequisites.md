@@ -1,6 +1,6 @@
-# PRE-TSK042/TSK043 — 사용자 선행조건 (Claude 불가 항목만)
+# PRE-TSK042/TSK044 — 사용자 선행조건 (Claude 불가 항목만)
 
-> **대상**: IDE_022 의 TSK_042(워크로드 실험 + llm-d 라우팅) / TSK_043(AGSD CPU 병렬성 최적화).
+> **대상**: IDE_022 의 TSK_042(워크로드 실험 + llm-d 라우팅) / TSK_044(AGSD CPU 병렬성 최적화).
 > **원칙**: 본 문서에는 **Claude 가 스스로 할 수 없는 것**(외부 계정·웹 동의·인프라 권한)만 둔다. 그 외(의존 설치·모델 다운로드·빌드 검증·하니스)는 Claude 가 자동 처리.
 > **형식**: CLI 에서 그대로 복사·붙여넣기. 변수 없음(리터럴 경로).
 
@@ -59,4 +59,4 @@ $HF download deepseek-ai/DeepSeek-R1                     # 671B fp8 ~671GB (405B
 
 ## 진입 게이트
 - **TSK_042 시작**: 위 §1·§2 결정 불필요 — open corpus + Claude 자동셋업으로 oracle/품질 즉시 가능. gated(§1)·llm-d(§2)는 결정되는 대로 합류.
-- **TSK_043 분류기·latency**: 즉시 독립. regret 측정만 TSK_042 의 `oracle_table.parquet` 합류.
+- **TSK_044 분류기·latency**: 즉시 독립. regret 측정만 TSK_042 의 `oracle_table.parquet` 합류.

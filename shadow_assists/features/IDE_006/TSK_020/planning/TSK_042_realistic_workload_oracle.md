@@ -1,6 +1,6 @@
 # TSK_042 — 워크로드 활용 실험 (상세 plan)
 
-> **parent**: `IDE_022` (TSK_020). 선행: `SUB_076`(classifier PoC), `PRE_TSK042_TSK043_prerequisites.md`.
+> **parent**: `IDE_022` (TSK_020). 선행: `SUB_076`(classifier PoC), `PRE_TSK042_TSK044_prerequisites.md`.
 > **status**: 활성 — 데이터·oracle 코어 구현·검증(V1/V2) 완료, full 매트릭스·품질·라우팅 대기.
 > **코드**: `vllm_config_perf/gating/realistic_eval/`. 산출: `features/IDE_022_agsd_realistic_eval/TSK_042_realistic_workload_oracle/`
 > **핵심 산출물**: `oracle_table.parquet`(throughput) + 품질 표(경로 A/B) + 라우팅 비교 표(llm-d).
@@ -9,11 +9,11 @@
 
 ## 1. 목표 & 산출물
 실 trace 를 **모델 × method** 로 돌려:
-- (a) **per-prompt oracle throughput** → `oracle_table.parquet` (TSK_043 의 decision-regret ground-truth).
+- (a) **per-prompt oracle throughput** → `oracle_table.parquet` (TSK_044 의 decision-regret ground-truth).
 - (b) **출력 품질** — 경로 A(losslessness: spec vs vanilla 동등성) + 경로 B(품질 벤치: pass@k / judge).
-- (c) **라우팅 전략 비교** — smart router = **llm-d** vs vanilla-only/trident-only. (AGSD 는 TSK_043.)
+- (c) **라우팅 전략 비교** — smart router = **llm-d** vs vanilla-only/trident-only. (AGSD 는 TSK_044.)
 
-핵심 개념: oracle 은 **per-prompt** 측정(workload 라벨 무관). corpus 는 prompt **소스**일 뿐, sonnet/chat/code 라벨은 TSK_043 분류기가 부여 → regret 계산.
+핵심 개념: oracle 은 **per-prompt** 측정(workload 라벨 무관). corpus 는 prompt **소스**일 뿐, sonnet/chat/code 라벨은 TSK_044 분류기가 부여 → regret 계산.
 
 ## 2. 진행 현황 (2026-06-02)
 | 컴포넌트 | 파일 | 상태 |
@@ -73,15 +73,15 @@ vanilla / suffix(K=32) / ngram(cap=8) / **eagle**. eagle 은 **모델별 EAGLE h
 - 출처: Arena-Hard(2406.11939), AlpacaEval LC(2404.04475), LLM-as-judge(2306.05685).
 
 ## 6. 라우팅 전략 비교 (`run_routing_compare.sh`)
-같은 2-백엔드(vanilla+suffix) 위 **vanilla-only / trident-only / llm-d** 비교(AGSD 는 TSK_043).
+같은 2-백엔드(vanilla+suffix) 위 **vanilla-only / trident-only / llm-d** 비교(AGSD 는 TSK_044).
 - llm-d = K8s-native(Inference Gateway+EPP, KV/prefix-cache-aware + predicted-latency).
 - 지표: throughput, TTFT·TPOT p50/p99, KV/prefix cache hit, routing overhead. 6 workload × 3 strategy.
 - **인프라 제약**: 이 컨테이너 docker/k8s 없음 → Minikube 는 호스트/별도노드(사용자). **미충족 시 fallback** = llm-d 보류, vanilla/trident 단일백엔드 비교 + oracle/품질만 진행.
-- TSK_043(AGSD CPU-optimized) 결과와 cross-reference.
+- TSK_044(AGSD CPU-optimized) 결과와 cross-reference.
 
 ## 7. accept / kill gate
 - **kill (TSK_042 단계)**: model×corpus prompt-level method spread `(max−min)/max` < 5% 면 → method 우열 없음 = AGSD/분류기 가치 약함 → 해당 영역 조기종료. (V2: 16.8% → 통과.)
-- TSK_043 의 regret/accept 는 oracle_table 을 입력으로 별도 판정.
+- TSK_044 의 regret/accept 는 oracle_table 을 입력으로 별도 판정.
 
 ## 8. SUB 분해 (제안 — ID 부여 시 SUB_199 부터)
 | 제안 SUB | 범위 | 상태 |
