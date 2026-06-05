@@ -461,6 +461,15 @@ class SpeculativeConfig:
             self.draft_parallel_config = self.target_parallel_config
         elif self.method == "suffix":
             self._validate_suffix_decoding()
+        elif self.method == "cpu_amx_draft":
+            # PoC (A1 from SUB_201 §5): CPU/AMX-side draft proposer with no
+            # vLLM-loaded draft model — the CpuAmxProposer owns a CPU-side
+            # Qwen-0.5B via transformers (and optionally an AMX kernel). We
+            # therefore reuse the target model's draft_model_config so the
+            # downstream ModelConfig(model="cpu_amx_draft", ...) HF lookup
+            # is skipped (mirrors the "ngram"/"suffix" pattern).
+            self.draft_model_config = self.target_model_config
+            self.draft_parallel_config = self.target_parallel_config
         elif self.method == "extract_hidden_states":
             from vllm.transformers_utils.configs.extract_hidden_states import (
                 ExtractHiddenStatesConfig,
