@@ -223,4 +223,5 @@ $ nvidia-smi --query-compute-apps=pid,process_name --format=csv,noheader
 
 ## Commit
 
-(commit hash 갱신 — 본 task patch + harness)
+`f97cd07de` — `poc(sub_201/a1): cpu_amx_draft vLLM 통합 + e2e 측정 (TP=8, 8 GPU)`
+branch `feat/spec-decode-tuning`, push 미진행.
