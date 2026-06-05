@@ -163,6 +163,12 @@ class KVDramTier:
                 "dram_bytes": self._dram_in_use,
                 "evict_bytes": self._evict_bytes,
                 "fetch_bytes": self._fetch_bytes,
+                # SUB_201 A2 Phase B9 — record how many distinct ptr-table
+                # bindings this tier has gone through. >1 means re-bind
+                # (profiling KV → real KV) actually happened; the worker
+                # bind code now skips the profiling call, so the
+                # boot-time value should be 1 after the B9 fix.
+                "n_binds": int(getattr(self, "_n_binds", 0)),
             }
 
     def dump_telemetry(self, prefix: str = "[KVDramTier]") -> str:
@@ -179,7 +185,8 @@ class KVDramTier:
             f"fetch_bytes={s['fetch_bytes']} "
             f"tiered_blocks={s['tiered_blocks']} "
             f"dram_in_use={s['dram_bytes']} "
-            f"skipped_full={s['n_evict_skipped_full']}"
+            f"skipped_full={s['n_evict_skipped_full']} "
+            f"n_binds={s['n_binds']}"
         )
         raw = os.environ.get("VLLM_KV_TIER_TELEMETRY", "").strip().lower()
         if raw in _ENABLED_VALUES:
@@ -335,15 +342,47 @@ class KVDramTier:
         ``per_block_layer_ptrs[b][l]`` is the GPU address of layer ``l``'s
         slice for block id ``b``. ``per_layer_nbytes`` is the byte size
         of one layer slice for one block (constant across blocks).
+
+        SUB_201 A2 Phase B9 — **re-bindable**: a second bind (real-KV
+        after the profiling-phase tiny pool) overwrites the ptr table and
+        drops any previously tiered entries whose pointers now reference
+        the freed profiling KV. Callers that re-bind with a *new* GPU
+        pointer space MUST do so before any evict is in-flight (caller
+        holds the BlockPool lock, which the profiling cleanup → real-KV
+        init path satisfies by construction — both run on the
+        single-threaded worker init sequence). The previous evict/fetch
+        accounting counters are **kept** (they record per-process
+        lifetime totals, not per-binding ones).
         """
-        # Hot-path uses index lookup so we keep the structure unchanged.
-        # (Caller MUST hold a stable reference until shutdown.)
+        # Defensive bookkeeping: any block tiered against the old ptr
+        # table is now stale (its host_ptr points to a buffer whose
+        # twin GPU page was freed when the profiling KV cleared). Drop
+        # the host buffers to recover DRAM; don't try to event_sync the
+        # old pulls (they targeted GPU memory that no longer exists, but
+        # the host side is fine to free immediately — the CUDA driver
+        # has already torn down the source page).
         with self._lock:
+            had_prior_binding = (
+                getattr(self, "_per_block_layer_ptrs", None) is not None
+            )
+            stale_entries = list(self._table.values()) if had_prior_binding else []
+            if had_prior_binding:
+                self._table.clear()
+                self._dram_in_use = 0
             self._per_block_layer_ptrs = per_block_layer_ptrs
             self._per_layer_nbytes = int(per_layer_nbytes)
             self._n_layers = (
                 len(per_block_layer_ptrs[0]) if per_block_layer_ptrs else 0
             )
+            # Phase B9 — track how many times we've re-bound so the
+            # boot-time log is self-documenting.
+            self._n_binds = int(getattr(self, "_n_binds", 0)) + 1
+        # Free stale host buffers outside the lock (free can block).
+        for entry in stale_entries:
+            try:
+                self._pool.free(entry.host_ptr)
+            except Exception:  # pragma: no cover - defensive
+                pass
 
     def has_pointer_binding(self) -> bool:
         return getattr(self, "_per_block_layer_ptrs", None) is not None

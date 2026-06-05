@@ -236,6 +236,77 @@ class TestKVDramTierHotPath(unittest.TestCase):
         self.assertFalse(unbound.fetch_block(0))
         unbound.shutdown()
 
+    def test_rebind_expands_ptr_table_b9(self):
+        """SUB_201 A2 Phase B9 — re-bind with a *larger* ptr table (e.g.
+        profiling-KV 4 blocks → real-KV 32 blocks) must
+
+          1. expand the addressable block_id range, and
+          2. drop any host buffers tiered against the previous binding
+             (their twin GPU page no longer exists), resetting
+             ``dram_bytes_in_use`` and ``num_tiered_blocks``,
+          3. NOT reset the lifetime evict/fetch counters
+             (``n_evict`` / ``n_fetch``), and
+          4. increment ``n_binds``.
+        """
+        # Step 1 — evict 1 block against the initial 4-block binding.
+        self.assertTrue(self.tier.evict_block(2, wait=True))
+        s1 = self.tier.stats()
+        self.assertEqual(s1["n_evict"], 1)
+        self.assertEqual(s1["tiered_blocks"], 1)
+        self.assertEqual(s1["n_binds"], 1)
+        bytes_before = s1["dram_bytes"]
+        self.assertGreater(bytes_before, 0)
+
+        # Step 2 — re-bind with a 32-block table (simulates real-KV
+        # init after the profiling KV is torn down).
+        per_block_ptrs_2 = [
+            [0xB000 + b * 0x10000 + l * 0x1000 for l in range(2)]
+            for b in range(32)
+        ]
+        self.tier.bind_block_pointers(
+            per_block_layer_ptrs=per_block_ptrs_2,
+            per_layer_nbytes=self.per_layer_bytes,
+        )
+        s2 = self.tier.stats()
+        # bind counter ticked + stale entries dropped + accounting reset
+        self.assertEqual(s2["n_binds"], 2)
+        self.assertEqual(s2["tiered_blocks"], 0)
+        self.assertEqual(s2["dram_bytes"], 0)
+        # lifetime n_evict preserved (it's a counter, not a gauge)
+        self.assertEqual(s2["n_evict"], 1)
+
+        # Step 3 — block_id beyond the *old* 4-block range now evicts.
+        self.assertTrue(self.tier.evict_block(17, wait=True))
+        s3 = self.tier.stats()
+        self.assertEqual(s3["n_evict"], 2)
+        self.assertEqual(s3["tiered_blocks"], 1)
+
+    def test_rebind_idempotent_no_double_alloc_b9(self):
+        """SUB_201 A2 Phase B9 — re-binding the *same* ptr table (no
+        topology change) must not double-count evict bytes or fail."""
+        self.assertTrue(self.tier.evict_block(0, wait=True))
+        self.assertTrue(self.tier.evict_block(1, wait=True))
+        s1 = self.tier.stats()
+        self.assertEqual(s1["tiered_blocks"], 2)
+
+        # Re-bind with the same shape — entries are still dropped
+        # (defensive; the worker code never re-binds without a topology
+        # change, but the bookkeeping must remain self-consistent).
+        per_block_ptrs_again = [
+            [0xA000 + b * 0x10000 + l * 0x1000 for l in range(2)]
+            for b in range(4)
+        ]
+        self.tier.bind_block_pointers(
+            per_block_layer_ptrs=per_block_ptrs_again,
+            per_layer_nbytes=self.per_layer_bytes,
+        )
+        s2 = self.tier.stats()
+        self.assertEqual(s2["n_binds"], 2)
+        self.assertEqual(s2["tiered_blocks"], 0)
+        self.assertEqual(s2["dram_bytes"], 0)
+        # n_evict counter is the lifetime total, NOT reset by re-bind.
+        self.assertEqual(s2["n_evict"], 2)
+
 
 class TestBlockPoolNoOpWhenTierNone(unittest.TestCase):
     """3) Default BlockPool path: tier ref is None → all hooks no-op."""

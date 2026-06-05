@@ -8282,7 +8282,10 @@ class GPUModelRunner(
                 )
 
     def initialize_kv_cache_tensors(
-        self, kv_cache_config: KVCacheConfig, kernel_block_sizes: list[int]
+        self,
+        kv_cache_config: KVCacheConfig,
+        kernel_block_sizes: list[int],
+        is_profiling: bool = False,
     ) -> dict[str, torch.Tensor]:
         """
         Initialize the memory buffer for KV cache.
@@ -8290,10 +8293,17 @@ class GPUModelRunner(
         Args:
             kv_cache_config: The KV cache config
             kernel_block_sizes: The kernel block sizes for each KV cache group.
-
-        Returns:
-            Dict[str, torch.Tensor]: A map between layer names to their
-            corresponding memory buffer for KV cache.
+            is_profiling: True when called from the profiling phase
+                (``_init_minimal_kv_cache_for_profiling``). SUB_201 A2 Phase
+                B9 — the KVDramTier worker-side bind must be skipped during
+                profiling: the profiling KV uses a tiny override block count
+                (``min_blocks = max_cudagraph_capture_size``, e.g. 512) that
+                doesn't match the real ``num_blocks`` (e.g. 168 400) the
+                engine BlockPool will allocate moments later. Binding twice
+                with mismatched ptr-table sizes leaks stale 0..512 pointers
+                into the tier so the engine evict path short-circuits on
+                ``block_id >= len(ptrs)`` for the bulk (512..168 400) range.
+                See ``MEASUREMENTS.md §10`` (B9 bind-mismatch fix).
         """
 
         # Try creating KV caches optimized for kv-connector transfers
@@ -8346,10 +8356,21 @@ class GPUModelRunner(
         # processes, so the binding here doesn't reach the engine
         # tier) is logged but not fatal — the no-op path is the safe
         # default.
-        try:
-            self._maybe_bind_kv_dram_tier(kv_cache_config)
-        except Exception as e:  # pragma: no cover - defensive
-            logger.warning("[KVDramTier] bind wire-up failed: %s", e)
+        #
+        # SUB_201 A2 Phase B9 — skip the bind during the profiling phase.
+        # The minimal-blocks profile KV (512 blocks) would otherwise leak
+        # a stale ptr table into the tier, and the engine evict path
+        # short-circuits on ``block_id >= len(ptrs)`` for the 512..N range
+        # of the *real* pool that gets allocated next. See B9 finding.
+        if not is_profiling:
+            try:
+                self._maybe_bind_kv_dram_tier(kv_cache_config)
+            except Exception as e:  # pragma: no cover - defensive
+                logger.warning("[KVDramTier] bind wire-up failed: %s", e)
+        else:
+            logger.debug(
+                "[KVDramTier] bind skipped — profiling phase (B9 fix)"
+            )
         return kv_caches
 
     def _maybe_bind_kv_dram_tier(self, kv_cache_config) -> None:
@@ -8562,7 +8583,7 @@ class GPUModelRunner(
         # Reinitialize need to after initialize_attn_backend
         self.may_reinitialize_input_batch(kv_cache_config, kernel_block_sizes)
         kv_caches = self.initialize_kv_cache_tensors(
-            kv_cache_config, kernel_block_sizes
+            kv_cache_config, kernel_block_sizes, is_profiling=is_profiling
         )
 
         if (

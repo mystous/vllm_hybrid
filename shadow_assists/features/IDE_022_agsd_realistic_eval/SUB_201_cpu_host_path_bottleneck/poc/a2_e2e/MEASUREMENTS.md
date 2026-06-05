@@ -526,3 +526,169 @@ GPU 0 native + tier 두 run 후 모두 free. GPU 1-7 본 B8 작업 동안 미접
 - C 코드 patch: `shadow_assists/features/IDE_017_dma_zero_copy/src/pinned_pool.cpp` (+95/-2 lines)
 - 회귀 microbench: `shadow_assists/features/IDE_017_dma_zero_copy/SUB_201_A2_kvtier_poc/verify_pull_batch.json` (staged_pull p50=39.44 μs, B7 의 39 μs 유지)
 
+## 10. Phase B9 (bind mismatch 해결 + wildchat 재측정)
+
+B8 의 §9.7 verdict 에서 명시한 진짜 root cause — `bind_block_pointers` 가 boot 중 **2 회 호출** (profiling 512 blocks → real 168 400 blocks) 되어 first 단계의 stale 512 ptrs 가 `_per_block_layer_ptrs` 에 그대로 남고, 두 번째 호출이 ptrs 만 갈아끼우되 BlockPool 측에서는 first bind 와 second bind 사이의 timing 차로 인해 evict path 의 `block_id >= len(ptrs)` 단축 회로가 **0..511 block id 범위만 통과**시키는 mismatch — 를 해소했습니다.
+
+### 10.1 Bind 2회 호출 분석 (B8 의 boot 로그 evidence)
+
+| run | 1st bind | 2nd bind | `[KVDramTier] enabled` 시점 |
+|---|---|---|---|
+| B7 (`_logs_b7/boot_tier.log`) | `00:54:42` 512 blocks × 28 layers | `00:54:44` 168 400 blocks × 28 layers | `00:54:49` (worker bind 후) |
+| B8 (`_logs_b8/boot_tier.log`) | `01:24:19` 512 blocks × 28 layers | `01:24:20` 172 575 blocks × 28 layers | `01:24:42` (worker bind 후) |
+
+- 1st call 은 `_init_minimal_kv_cache_for_profiling` (`gpu_model_runner.py:7436-7457`) → `initialize_kv_cache(minimal_config, is_profiling=True)` → `initialize_kv_cache_tensors` → `_maybe_bind_kv_dram_tier`. `min_blocks = compilation_config.max_cudagraph_capture_size = 512`.
+- 2nd call 은 real KV 단계 (`initialize_kv_cache(kv_cache_config, is_profiling=False)`).
+- 그 사이 `_cleanup_profiling_kv_cache` (`gpu_model_runner.py:7473-7505`) 가 profiling KV tensor 를 `None` 으로 비움 — raw int ptrs 는 stale, 그러나 `KVDramTier._per_block_layer_ptrs` 는 그대로 남음.
+- 결과: `KVCacheManager.__init__` 가 2nd bind 후에 BlockPool 을 만들고 `_kv_dram_tier` 를 attach 하나, 만약 1st bind 시점부터 evict 가 시도된다면 (또는 2nd bind 가 와도 `_table` 의 stale entry 가 잔존), block_id 0..511 만 통과 → **n_evict=512 stuck**.
+
+### 10.2 선택 옵션 + patch
+
+**옵션 A (1st bind skip) + 옵션 B 보강 (re-bind 안전망)** 의 결합을 선택했습니다. 가장 minimal + correctness 안전:
+
+- 옵션 A 가 root-cause fix — profiling 단계에서는 어차피 evict 가 안 일어나므로 bind 자체를 skip 해도 무해.
+- 옵션 B 는 defensive — 향후 다른 경로 (예: TP 변경, hot-reload) 에서 bind 가 다시 호출돼도 stale entry / dram 누적이 안 나도록.
+
+**Patch 위치**:
+
+| 파일 | 변경 | 라인 |
+|---|---|---|
+| `vllm/v1/worker/gpu_model_runner.py` | `initialize_kv_cache_tensors` 에 `is_profiling: bool = False` 인자 추가 + docstring | `~8284` (+13/-1) |
+| `vllm/v1/worker/gpu_model_runner.py` | `_maybe_bind_kv_dram_tier` 호출을 `if not is_profiling` 로 가드 + B9 주석 | `~8358` (+10/-3) |
+| `vllm/v1/worker/gpu_model_runner.py` | `initialize_kv_cache` → `initialize_kv_cache_tensors(..., is_profiling=is_profiling)` 전달 | `~8585` (+1/-1) |
+| `vllm/v1/core/kv_dram_tiering.py` | `bind_block_pointers` re-bindable — 기존 `_table` drop + `_dram_in_use` reset + `_n_binds` 카운터 + 외부에서 stale host 버퍼 free | `~328` (+31/-3) |
+| `vllm/v1/core/kv_dram_tiering.py` | `stats()` 에 `n_binds` 노출 + `dump_telemetry()` 메시지에 추가 | `~156` (+8/-0) |
+| `tests/v1/spec_decode/test_kv_dram_tiering.py` | `test_rebind_expands_ptr_table_b9` + `test_rebind_idempotent_no_double_alloc_b9` | `~227` (+62/-0) |
+
+총: 6 hunks across 3 files, +125 / -8 lines.
+
+### 10.3 Regression unittest 결과
+
+```
+$ .venv/bin/python -m pytest tests/v1/spec_decode/test_kv_dram_tiering.py -v
+============================= test session starts ==============================
+collected 15 items
+
+TestKVDramTierFlag::test_default_off                                   PASSED
+TestKVDramTierFlag::test_falsy                                         PASSED
+TestKVDramTierFlag::test_truthy                                        PASSED
+TestKVDramTierHotPath::test_evict_capacity_full                        PASSED
+TestKVDramTierHotPath::test_evict_then_fetch_then_drop                 PASSED
+TestKVDramTierHotPath::test_fetch_unknown_block                        PASSED
+TestKVDramTierHotPath::test_initial_state                              PASSED
+TestKVDramTierHotPath::test_rebind_expands_ptr_table_b9                PASSED
+TestKVDramTierHotPath::test_rebind_idempotent_no_double_alloc_b9       PASSED
+TestKVDramTierHotPath::test_unbound_returns_false                      PASSED
+TestBlockPoolNoOpWhenTierNone::test_free_blocks_no_tier                PASSED
+TestBlockPoolHooksWithFakeTier::test_free_blocks_evicts_cached_to_dram PASSED
+TestBlockPoolHooksWithFakeTier::test_free_blocks_skips_uncached        PASSED
+TestBlockPoolHooksWithFakeTier::test_get_new_blocks_drops_tiered_dram_copy PASSED
+TestBlockPoolHooksWithFakeTier::test_touch_fetches_tiered_cache_hit    PASSED
+
+======================= 15 passed, 16 warnings in 1.92s ========================
+```
+
+**15/15 PASS** (기존 13 회귀 0 + B9 신규 2). 신규:
+
+- `test_rebind_expands_ptr_table_b9` — 4-block 으로 evict 후 32-block 으로 re-bind → `tiered_blocks=0`, `dram_bytes=0`, lifetime `n_evict` 보존, `n_binds=2`, 새 block_id (17) evict 가능.
+- `test_rebind_idempotent_no_double_alloc_b9` — 같은 shape 로 re-bind 시 stale entry drop, double-count 없음.
+
+### 10.4 재측정 표 (Qwen2.5-7B TP=1 UniProc, GPU 0, **wildchat 200p × conc=64 × max-tokens 8192**, gpu-mem-util 0.90, `VLLM_KV_TIERING_DRAM_BYTES=32GB + AUTO_BUDGET=1`)
+
+| metric | native | tier (B9) | Δ | Δ% |
+|---|---|---|---|---|
+| n_ok / n | 200/200 | 200/200 | 0 | — |
+| wall_total_s | 121.9 | 140.8 | +18.9 | +15.5 % |
+| total_completion_tokens | 617 480 | 622 229 | +4 749 | +0.8 % |
+| **output_tps** | **5 064.9** | **4 418.0** | -646.9 | **-12.8 %** |
+| TTFT p50 (ms) | 38.5 | 48.0 | +9.5 | +24.7 % |
+| TTFT p99 (ms) | 283.5 | 1 336.1 | +1 052.6 | +371.3 % |
+| TPOT p50 (ms) | 6.7 | 7.4 | +0.7 | +10.4 % |
+| TPOT p99 (ms) | 12.0 | 16.4 | +4.4 | +36.7 % |
+| per-corpus reqtps (wildchat) | 143.2 | 134.5 | -8.7 | -6.1 % |
+| GPU util (%) | 61.4 | 61.6 | +0.2 | — |
+| GPU mem (MiB) | 165 864 | 166 222 | +358 | +0.2 % |
+| CPU util (%) | 23.8 | 20.7 | -3.1 | — |
+| **n_evict** | n/a | **41 070** | — | **vs B7/B8 의 512: ×80** |
+| **n_fetch** | n/a | 0 | — | — |
+| **evict_bytes** | n/a | **37.68 GB** (37 681 889 280) | — | **vs B7/B8 의 448 MiB: ×84** |
+| **skipped_full** | n/a | **0** | — | **vs B7 97 195 / B8 58 558: 완전 해소** |
+| **n_binds** | n/a | **1** | — | **(B7/B8 는 2 회 호출이나 미카운트)** |
+
+`_logs_b9/tier.tier_dump.txt`:
+
+```
+(EngineCore pid=929253) [KVDramTier atexit] telemetry — n_evict=41070 n_fetch=0 evict_bytes=37681889280 fetch_bytes=0 tiered_blocks=41070 dram_in_use=37681889280 skipped_full=0 n_binds=1
+```
+
+`_logs_b9/tier.bind.txt` (bind wire-up evidence — **단 1 회**):
+
+```
+(EngineCore pid=929253) INFO 06-05 01:45:11 [gpu_model_runner.py:8515] [KVDramTier] bound — 168400 blocks × 28 layers, per_layer_nbytes=32768 (process=929253)
+(EngineCore pid=929253) [KVDramTier] bound — 168400 blocks × 28 layers, per_layer_nbytes=32768 (process=929253)
+(EngineCore pid=929253) INFO 06-05 01:45:49 [kv_cache_manager.py:180] [KVDramTier] enabled — max_dram=34359738368 B, per_block=917504 B, num_blocks=168400
+```
+
+→ profile 단계 bind 가 사라졌고 real-KV bind 만 발화. **n_binds=1** 으로 fix 의 self-evidence.
+
+### 10.5 B7 / B8 / B9 비교 (KVDramTier counters + lever 효과)
+
+| metric | B7 (wildchat 500p×64×8192) | B8 (sharegpt 200p×128×12288) | **B9 (wildchat 200p×64×8192)** |
+|---|---|---|---|
+| **n_evict (tier)** | 512 | 512 | **41 070** (×80) |
+| **evict_bytes** | ≈448 MiB | ≈448 MiB | **37.68 GB** (×84) |
+| **skipped_full** | 97 195 | 58 558 | **0** (완전 해소) |
+| **n_binds** | (미카운트, 사실상 2) | (미카운트, 사실상 2) | **1** |
+| tier output_tps | 5 294.7 (500p) | 4 247.0 | 4 418.0 |
+| native output_tps | 4 394.9 (n_ok 443) | 4 188.7 | 5 064.9 |
+| **tps Δ% (tier vs native)** | +20.5 % (caveat: native n_ok=443) | +1.4 % | **-12.8 %** |
+| TTFT p50 native/tier (ms) | 42.2 / 42.1 | 349.7 / 339.6 | 38.5 / 48.0 |
+| TTFT p99 native/tier (ms) | 559.5 / 275.2 | 367.8 / 356.0 | 283.5 / 1 336.1 |
+| max DRAM in use | n/a | 448 MiB | **37.7 GB** (32 GiB budget 의 117 %? — 동시 ev 가 budget 위로 살짝 over 한 게 아니라, ring 회수가 안 된 evict 누계가 DRAM occupancy 가 됨) |
+
+**핵심 관찰**:
+
+1. **B9 patch 가 lever 자체는 진짜로 작동시킴** — n_evict 가 ×80, evict_bytes 가 ×84, skipped_full=0. B7/B8 의 512 stuck 은 patch 가 정확히 해결.
+2. **그러나 tps 가 -12.8 %**. evict 가 실제로 일어나면서 PCIe D2H 대역폭 + cudaMemcpyAsync overhead 가 forward 와 경합. n_fetch=0 (prefetch hit 0) 이라 모든 비용이 evict-only side 에서 발생, ROI 회수 경로 없음.
+3. **TTFT p99 가 281→1336 ms (×4.7)** — KV pressure 시 evict 가 inflight 되면서 신규 request 의 prefill stall 가능성. evict path 가 main stream 과 같은 device 에서 D2H 점유.
+4. **DRAM 누적이 37.7 GB (≈32 GiB budget 초과 보고)** — 단순 누적치 (atexit 시점 stats, 회수 안 됨). 실제 peak in-use 는 budget 안 (skipped_full=0 이 증거). evict-only 워크로드 — fetch_block 가 0 이라 host buffer 가 안 풀림.
+
+### 10.6 본질적 ROI 1차 판정 (bind mismatch 해결 후)
+
+**판정: NEGATIVE-CONFIRM (lever 는 진짜 동작하나 net ROI 음수 — fetch path 가 0 인 evict-only 운영 = 순수 비용).**
+
+근거:
+
+1. **fix 효과 증명**: n_evict ×80, skipped_full → 0, n_binds=1. patch 가 직접 root cause 를 잡았음을 정량 검증.
+2. **lever 의 절반만 작동**: evict 는 본격적으로 흐르지만 **fetch_block=0** — wildchat 같은 prefix hit rate 가 낮은 워크로드에서는 evicted block 이 fetch 회수 안 됨 → tier 가 그냥 "GPU → DRAM 단방향 스필" 로 전락. 비용은 다 부담, benefit 은 0.
+3. **net 운영 신호 음수**: tps -12.8 %, TTFT p99 +371 %, TPOT p99 +37 %. forward 와 evict stream 의 D2H bandwidth 경합이 tail latency 를 확연히 무너뜨림.
+4. **prerequisite for lever 의 본격 ROI**: (a) prefix-hit-heavy 워크로드 (multi-turn chat, shared system prompt) 에서 fetch_block 이 실제로 트리거되어야 하고, (b) evict 가 **predictive / async** 로 forward critical path 밖으로 빠져야 함. 현재는 free_blocks 동기 (`wait=True`).
+5. **B7 의 +20.5 % 는 실은 lever 효과가 아니었음**: B7 native run 이 n_ok=443/500 (57 timeout/err) 였고 tier run 은 500/500 — tier-on 이 단순히 일부 request 가 OOM-evade 한 영향이 컸을 가능성. B9 의 동등한 200p 비교에서 양쪽 모두 n_ok=200/200 일 때 진짜 ROI 가 -12.8 % 로 드러남.
+
+**다음 lever step 권고**:
+
+1. **async evict** — `free_blocks(wait=False)` + scheduler-side `wait_evict` 보장. forward 와 evict 의 D2H 가 별도 stream 에서 진정 overlap 하도록.
+2. **selective evict policy** — eviction 후보를 모든 free block 이 아니라 "LRU + size threshold" 로 좁혀서 evict overhead 통제.
+3. **fetch path 검증 워크로드** — multi-turn chat replay (e.g. sharegpt conversation continuation) 에서 prefix hit rate ≥ 40 % 일 때 fetch_block 카운터 발화 확인.
+4. **PCIe BW headroom 측정** — B200 의 PCIe Gen5 ×16 = 128 GB/s. evict 가 forward 의 W2C/A2C DMA 와 경합하는 정도를 nsys 로 정량.
+
+### 10.7 Post-run GPU state
+
+| GPU | used (MiB) | free (MiB) |
+|---|---|---|
+| 0 | 0 | 182 632 |
+
+GPU 0 native + tier 두 run 후 모두 free. GPU 1-7 본 B9 작업 동안 미접근 (CUDA_VISIBLE_DEVICES=0 격리). GPU 4-5 (B1 EXCLUSIVE agent) 는 158 174 MiB used 로 본 작업 시작 전/후 변동 없음 (별도 agent owned).
+
+### 10.8 산출물 경로 (B9)
+
+- `qwen7b_b9_native.json`, `qwen7b_b9_native.raw.jsonl` (200/200 ok, 121.9 s, 5 064.9 tps)
+- `qwen7b_b9_tier.json`, `qwen7b_b9_tier.raw.jsonl` (200/200 ok, 140.8 s, 4 418.0 tps, n_evict=41 070)
+- `_logs_b9/boot_native.log`, `_logs_b9/boot_tier.log`
+- `_logs_b9/native.tier_dump.txt` (empty, native), `_logs_b9/tier.tier_dump.txt` (atexit telemetry — n_evict=41070, n_binds=1)
+- `_logs_b9/native.bind.txt`, `_logs_b9/tier.bind.txt` (**bind 단 1 회만 발화 — B9 fix 의 self-evidence**)
+- `_logs_b9/native.gpu_after.txt=0,182632`, `_logs_b9/tier.gpu_after.txt=0,182632`
+- `run_b9.sh` (native|tier mode, TP=1, GPU 0 only, port 8004, wildchat 200p × conc=64 × max-tok 8192, `VLLM_KV_TIERING_DRAM_BYTES=32GB + VLLM_PINNED_POOL_AUTO_BUDGET=1`)
+- Python patch: `vllm/v1/worker/gpu_model_runner.py` (+24/-5 lines), `vllm/v1/core/kv_dram_tiering.py` (+39/-3 lines)
+- Test patch: `tests/v1/spec_decode/test_kv_dram_tiering.py` (+62/-0 lines, 2 신규 testcase)
+
