@@ -294,6 +294,13 @@ GPU util 하락(§1.3)의 원인이 host gap(a)인지 / verify 내부(b)인지 /
    - **primary target = R1 671B + DS-Llama-70B** (α<0.5 모델, vanilla-win 셀들의 회복 ROI 큼)
 3. (a 판명 시) B1 detok + B2 constrained-decode 오프로드 PoC.
    - **primary target = Llama-8B / DS-Qwen-7B** (mix throughput 24~27k tps, wall slack 37%)
+   - **B2 status (2026-06-05)**: `poc/b2_constrained/MEASUREMENTS.md` — Llama-3.1-8B TP=2 B200,
+     200p/conc=16 및 500p/conc=64 양쪽에서 unconstrained vs JSON-schema vs EBNF grammar 의
+     **TPOT/tps Δ < 노이즈 (±1 %)**, **CPU% Δ ≤ 0.1 pp**. 원인: vLLM 이 이미
+     `get_grammar_bitmask` 를 GPU forward 와 overlap 시키고 mask apply 는 GPU Triton
+     kernel 로 수행. **AVX-512 offload lever 부적격 → B2 기각.** 향후 constrained 워크로드의
+     wall-time 회수를 노리려면 SIMD 가 아니라 **jump-forward decoding 통합**
+     (xgrammar `find_jump_forward_string` 은 존재하나 vLLM 미사용) 이 회수 lever.
 4. (c 판명 시) A2 KV tiering + concurrency sweep.
    - **primary target = 405B** (KV cache 큰 dense), R1 은 MLA 라 후순위
 5. §5 verdict 기반 논문 골격 재작성 (별도 작업).
