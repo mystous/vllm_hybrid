@@ -131,3 +131,12 @@ $T_{\mathrm{host}}$ 의 지배 항을 확정한 뒤, 해당 항을 병렬화하�
 \todo{Table~\ref{tbl:reclamation} 의 +reclaim / GPU 회복 / 기하평균 수치 (결정적 실험 후 측정).}
 \todo{정확도 게이트(reclamation 전후 출력 분포 동등) 결과.}
 \todo{병렬도 $P$ 스윕(코어 수 대 회복폭)과 NUMA 배치 효과.}
+
+\noindent\textbf{vLLM-native 향상(직교, 가산).}
+\S\ref{subsec:res-resource}의 launch-overhead 병목(Qwen-2.5-7B \texttt{cudaLaunchKernel} 36\%)은
+\emph{CPU 작업이 아니라} vLLM 기본 cudagraph 설정
+\texttt{cudagraph\_mode=FULL\_AND\_PIECEWISE}(FaP; decode 배치를 단일 graph 로 캡처)로 해소된다.
+본 환경 실측에서 FaP 는 PIECEWISE 대비 suffix decoding 위에 \textbf{$+30\%$}(100p burst)까지
+가산되는 \emph{vLLM-native} GPU-side 향상으로, 본 연구의 CPU host-path reclamation(A1/A2/B1)과
+\emph{직교}하며 합산된다. 즉 spec-decode $\to$ FaP $\to$ CPU reclamation 은 서로 다른 층의
+독립 lever 다.
