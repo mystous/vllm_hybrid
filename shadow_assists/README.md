@@ -226,6 +226,7 @@ flowchart TB
     IDE_022 --> TSK_042["TSK_042<br/>워크로드 활용 실험<br/>실 corpus × 모델매트릭스 × method oracle<br/>+ 라우팅 비교(vanilla/suffix/llm-d)<br/>✅ 완료 — B200 XL 222셀(10모델) 측정"]
     IDE_022 --> TSK_043["TSK_043<br/>Host-Side Slack Reclamation<br/>spec-decode가 만든 host 병목을 유휴 CPU 병렬로 회수<br/>✅ §5 verdict + lever PoC 10건 / reclamation 통합 대기"]
     IDE_022 --> TSK_044["TSK_044<br/>AGSD: CPU 병렬성 최적화 + 측정 (구 TSK_043)<br/>C0~C3 분류기 + §8 R1~R6 + latency/throughput/regret<br/>❌ 기각 (2026-06-06, 워크로드 분류기 무가치)"]
+    IDE_022 --> TSK_045["TSK_045<br/>MoE expert CPU(AMX) offload — cluster capacity<br/>1단계 SHORT(Qwen3-30B-A3B) B200+kt-kernel BF16<br/>✅ B/A=1.18(per-model), tps-per-GPU +136.8%<br/>2단계 R1-671B 대기"]
     TSK_043 --> SUB_201["SUB_201<br/>spec-decode가 만든 host(CPU) 병목 재배치<br/>AGSD 전제 폐기 → CPU 병렬성 활용처 재유도<br/>명제: suffix가 GPU un-saturate → host-bound<br/>✅ §5 verdict: 3모델 모두 host-bound 확정 (GO)<br/>CPU reclaim lever=A1/A2/B1; B3 FaP=vLLM-native(직교·가산)"]
     SUB_201 --> SUB_202["SUB_202<br/>A1 CPU-AMX draft vLLM 통합 e2e<br/>✅ 측정 (분포동등 게이트 조건부)"]
     SUB_201 --> SUB_203["SUB_203<br/>A2 KV DRAM tiering e2e<br/>✅ NEGLIGIBLE / multi-turn −16.2%"]

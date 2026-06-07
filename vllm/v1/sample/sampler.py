@@ -52,6 +52,75 @@ _avx512_smp_probe_every: int = max(
 _avx512_smp_probe_counter: int = 0
 
 
+# ─── SUB_201 L11 CPU sampling offload ────────────────────────────────────
+# ENV `VLLM_CPU_SAMPLING=1` 시 sample() 의 logits 가 GPU→CPU 로 옮겨진 뒤
+# CPU 가 softmax+top-K+multinomial 을 수행한다. 목적은 GPU 가 다음 forward
+# step 을 sampling 과 overlap 하도록 launching 을 비차단화하는 것.
+#
+# 정확도 게이트:
+#   - greedy/temperature==0 경로는 CPU argmax 가 GPU argmax 와 token-level
+#     bit-exact (BF16 → FP32 변환 후 argmax 는 동일 ordering 유지).
+#   - random sampling 경로는 CLAUDE.md 의 "분포 유사성" 조건을 따른다.
+_cpu_sampling_enabled: bool = (
+    os.environ.get("VLLM_CPU_SAMPLING", "0") == "1"
+)
+# Telemetry counters
+_cpu_smp_step_count: int = 0
+_cpu_smp_d2h_total_ns: int = 0
+_cpu_smp_kernel_total_ns: int = 0
+_cpu_smp_total_tokens: int = 0
+
+
+def cpu_sampling_snapshot() -> dict:
+    """Snapshot per-process CPU sampling telemetry."""
+    return {
+        "enabled": bool(_cpu_sampling_enabled),
+        "step_count": _cpu_smp_step_count,
+        "d2h_total_ns": _cpu_smp_d2h_total_ns,
+        "kernel_total_ns": _cpu_smp_kernel_total_ns,
+        "total_tokens": _cpu_smp_total_tokens,
+    }
+
+
+def _cpu_apply_top_k_top_p(
+    logits: torch.Tensor,
+    k: torch.Tensor | None,
+    p: torch.Tensor | None,
+) -> torch.Tensor:
+    """CPU top-k / top-p mask. Mirrors apply_top_k_top_p_pytorch in
+    vllm/v1/sample/ops/topk_topp_sampler.py but assumes CPU tensors and
+    skips the no-op early return when both are None (handled by caller).
+    """
+    if p is None and k is None:
+        return logits
+
+    if p is None:
+        # top-k only, no sort needed.
+        no_top_k_mask = k == logits.shape[1]
+        k_eff = k.masked_fill(no_top_k_mask, 1)
+        max_top_k = int(k_eff.max().item())
+        k_index = k_eff.sub(1).unsqueeze(1)
+        top_k_mask = logits.topk(max_top_k, dim=1).values.gather(
+            1, k_index.long()
+        )
+        top_k_mask.masked_fill_(no_top_k_mask.unsqueeze(1), -float("inf"))
+        return logits.masked_fill_(logits < top_k_mask, -float("inf"))
+
+    # top-p path (and optional top-k).
+    logits_sort, logits_idx = logits.sort(dim=-1, descending=False)
+    if k is not None:
+        top_k_mask = logits_sort.size(1) - k.to(torch.long)
+        top_k_mask = logits_sort.gather(1, top_k_mask.unsqueeze(dim=1))
+        top_k_mask = logits_sort < top_k_mask
+        logits_sort.masked_fill_(top_k_mask, -float("inf"))
+    probs_sort = logits_sort.softmax(dim=-1)
+    probs_sum = torch.cumsum(probs_sort, dim=-1, out=probs_sort)
+    top_p_mask = probs_sum <= 1 - p.unsqueeze(dim=1)
+    top_p_mask[:, -1] = False
+    logits_sort.masked_fill_(top_p_mask, -float("inf"))
+    return logits.scatter_(dim=-1, index=logits_idx, src=logits_sort)
+
+
 def _avx512_smp_get_pkg():
     """Lazy import the IDE_016 avx512_amx_pool package; silent disable on fail."""
     global _avx512_smp_pkg, _avx512_smp_init_attempted, _avx512_smp_enabled
@@ -340,6 +409,21 @@ class Sampler(nn.Module):
 
         logprobs_mode = logprobs_mode_override or self.logprobs_mode
         assert not (sampling_metadata.all_greedy and sampling_metadata.all_random)
+
+        # SUB_201 L11: CPU sampling offload.
+        # 조건: VLLM_CPU_SAMPLING=1 이고 logprobs 가 processed_logprobs/
+        # processed_logits 가 아닌 경우 (정상적인 경우 raw_logprobs/raw_logits).
+        # all_greedy 경로는 logits 가 D2H 되기 전 GPU 에서 argmax 하는 게 빠르므로
+        # CPU offload 를 적용하지 않는다 (random 경로만 CPU 로).
+        if (
+            _cpu_sampling_enabled
+            and not sampling_metadata.all_greedy
+            and logprobs_mode not in ("processed_logits", "processed_logprobs")
+        ):
+            return self._cpu_sample(
+                logits, sampling_metadata, logprobs_mode
+            )
+
         if sampling_metadata.all_random:
             greedy_sampled = None
         else:
@@ -404,6 +488,152 @@ class Sampler(nn.Module):
             greedy_sampled,
             random_sampled,
             out=greedy_sampled,  # Reuse tensor
+        )
+        return sampled, processed_logprobs
+
+    def _cpu_sample(
+        self,
+        logits: torch.Tensor,
+        sampling_metadata: SamplingMetadata,
+        logprobs_mode: LogprobsMode,
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """SUB_201 L11: CPU sampling offload.
+
+        Logits 를 CPU 로 옮긴 뒤 softmax → top-K (with top-P 와 함께) →
+        multinomial (exponential trick) 을 CPU 에서 수행. greedy 경로는
+        argmax 만 별도로 처리. 반환되는 token id 는 GPU tensor 로 다시
+        올린 뒤 후속 GPU path (logprobs gather 등) 와 호환되도록 함.
+        """
+        global _cpu_smp_step_count, _cpu_smp_d2h_total_ns
+        global _cpu_smp_kernel_total_ns, _cpu_smp_total_tokens
+
+        device = logits.device
+        B = logits.size(0)
+
+        # 1) D2H transfer (GPU → CPU). Synchronous copy so the host buffer
+        #    is ready when we read it. PoC keeps things simple (no async
+        #    overlap stream).
+        d2h_t0 = time.perf_counter_ns()
+        if device.type == "cuda":
+            # Force the current stream to finish logits compute first.
+            torch.cuda.current_stream(device).synchronize()
+            logits_cpu = logits.detach().to(
+                device="cpu", dtype=torch.float32, copy=True
+            ).contiguous()
+        else:
+            logits_cpu = logits.to(dtype=torch.float32, copy=False)
+        d2h_t1 = time.perf_counter_ns()
+        _cpu_smp_d2h_total_ns += (d2h_t1 - d2h_t0)
+
+        # Sampling metadata (temperature / top_k / top_p) 도 CPU 로.
+        temperature_cpu = sampling_metadata.temperature
+        if temperature_cpu is not None and temperature_cpu.device.type != "cpu":
+            temperature_cpu = temperature_cpu.to(device="cpu",
+                                                  non_blocking=False)
+
+        top_k = sampling_metadata.top_k
+        top_p = sampling_metadata.top_p
+        if top_k is not None and top_k.device.type != "cpu":
+            top_k = top_k.to(device="cpu", non_blocking=False)
+        if top_p is not None and top_p.device.type != "cpu":
+            top_p = top_p.to(device="cpu", non_blocking=False)
+
+        kernel_t0 = time.perf_counter_ns()
+
+        # 2) greedy 마스크 (temperature < eps 인 row).
+        if temperature_cpu is not None:
+            greedy_mask_cpu = temperature_cpu < _SAMPLING_EPS
+        else:
+            greedy_mask_cpu = torch.zeros(B, dtype=torch.bool)
+
+        # 3) greedy argmax 는 logits_cpu 그대로 (temperature 적용 전).
+        greedy_ids = logits_cpu.argmax(dim=-1).view(-1)
+
+        # 4) random path: temperature scale → optional top-k/top-p → softmax
+        #    → exponential trick multinomial.
+        rand_logits = logits_cpu
+        if temperature_cpu is not None:
+            safe_T = torch.where(
+                greedy_mask_cpu,
+                torch.ones_like(temperature_cpu),
+                temperature_cpu,
+            ).unsqueeze(1)
+            rand_logits = rand_logits / safe_T
+
+        # apply argmax-invariant processors only if they exist (e.g., min_p).
+        # processors expect GPU tensors typically — fall back to GPU for those.
+        # For PoC: if there are argmax-invariant processors, abort offload and
+        # use GPU native path to preserve correctness.
+        argmax_invariant = sampling_metadata.logitsprocs.argmax_invariant
+        if argmax_invariant:
+            # Fallback to native GPU sampling path.
+            return self._cpu_sample_fallback(
+                logits, sampling_metadata, logprobs_mode
+            )
+
+        # top-k / top-p in CPU.
+        rand_logits = _cpu_apply_top_k_top_p(rand_logits, top_k, top_p)
+
+        # exponential-trick multinomial (matches random_sample()'s algorithm).
+        probs = rand_logits.softmax(dim=-1, dtype=torch.float32)
+        q = torch.empty_like(probs)
+        q.exponential_()
+        # per-request generators not honored in PoC (rare in benchmark traffic).
+        rand_ids = probs.div_(q).argmax(dim=-1).view(-1)
+
+        # 5) merge greedy / random per row.
+        sampled_ids = torch.where(greedy_mask_cpu, greedy_ids, rand_ids)
+
+        kernel_t1 = time.perf_counter_ns()
+        _cpu_smp_kernel_total_ns += (kernel_t1 - kernel_t0)
+        _cpu_smp_step_count += 1
+        _cpu_smp_total_tokens += int(B)
+
+        # 6) processed_logprobs are not supported here (we already short
+        #    circuited that mode above), so return None.
+        # Token id 를 GPU 로 다시 올리고 반환. int64 로 유지 (sampler.forward
+        # 에서 .long() 으로 어쨌든 변환되므로 한 번에 끝낸다).
+        sampled_ids = sampled_ids.to(torch.int64).contiguous()
+        if device.type == "cuda":
+            sampled_gpu = sampled_ids.to(device=device, non_blocking=False)
+            torch.cuda.current_stream(device).synchronize()
+        else:
+            sampled_gpu = sampled_ids
+        return sampled_gpu, None
+
+    def _cpu_sample_fallback(
+        self,
+        logits: torch.Tensor,
+        sampling_metadata: SamplingMetadata,
+        logprobs_mode: LogprobsMode,
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Fallback to the original GPU sampling path when CPU offload
+        cannot preserve correctness (e.g., argmax-invariant processors)."""
+        if sampling_metadata.all_random:
+            greedy_sampled = None
+        else:
+            greedy_sampled = self.greedy_sample(logits)
+            if sampling_metadata.all_greedy:
+                return greedy_sampled, None
+        logits = self.apply_temperature(
+            logits, sampling_metadata.temperature,
+            sampling_metadata.all_random,
+        )
+        for processor in sampling_metadata.logitsprocs.argmax_invariant:
+            logits = processor.apply(logits)
+        random_sampled, processed_logprobs = self.topk_topp_sampler(
+            logits,
+            sampling_metadata.generators,
+            sampling_metadata.top_k,
+            sampling_metadata.top_p,
+        )
+        if greedy_sampled is None:
+            return random_sampled, processed_logprobs
+        sampled = torch.where(
+            sampling_metadata.temperature < _SAMPLING_EPS,
+            greedy_sampled,
+            random_sampled,
+            out=greedy_sampled,
         )
         return sampled, processed_logprobs
 

@@ -1,0 +1,16 @@
+[03:55:09] === SUB_201 Optimal vs MWOR sweep start → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/runs ===
+[03:55:09] common env: VLLM_PREFETCH_TOKENIZE=1 WORKERS=2 BURST=1
+[03:55:09] common args: FaP cudagraph_mode (always on)
+[03:55:09] 
+[03:55:09] ############## Qwen2.5-7B-Instruct (tp=1 gpus=0 optm=vanilla mwor=suffix) ##############
+[03:55:09] ==== boot Qwen2.5-7B-Instruct conf=optimal method=vanilla tp=1 gpus=0 ====
+[03:55:09]   PID=242554 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-7B-Instruct_optimal_vanilla_boot.log timeout=900s)
+[03:55:59] READY http://127.0.0.1:8001
+[03:55:59]   bench mix 500p × conc=32 × max=8192
+[04:01:22]   → tps 4315.6 n_ok 500 wall 322.4
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 242554 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[04:01:25] GPU freed
+[04:01:25] ==== boot Qwen2.5-7B-Instruct conf=mwor method=suffix tp=1 gpus=0 ====
+[04:01:25]   PID=244498 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-7B-Instruct_mwor_suffix_boot.log timeout=900s)
+[04:02:15] READY http://127.0.0.1:8001
+[04:02:15]   bench mix 500p × conc=32 × max=8192

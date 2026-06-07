@@ -1,0 +1,33 @@
+==== L1 KV quant sweep start at 2026-06-06T16:18:52Z ====
+[env] LD_LIBRARY_PATH=/workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/lib:/workspace/vllm_dev_prj/lib/python3.12/site-packages/nvidia/nccl/lib:/usr/local/cuda/lib64
+0, 0 MiB
+1, 0 MiB
+2, 16742 MiB
+3, 0 MiB
+4, 0 MiB
+5, 0 MiB
+6, 0 MiB
+7, 156672 MiB
+[gpu] all 0,1 free
+[boot] tag=M1_qwen7b_auto model=Qwen/Qwen2.5-7B-Instruct TP=2 gpus=0,1 kv=auto at 2026-06-06T16:18:52Z
+[ready] port 8013 up after 32*2s
+[bench] M1_qwen7b_auto → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l1_kv_quant/runs/M1_qwen7b_auto.json at 2026-06-06T16:20:00Z
+[tput] Qwen/Qwen2.5-7B-Instruct × l1_kv_quant × mix: 3314.2 tps (100/100 ok, 14s, gpu 60.3% cpu 41.4% ttft_p50 22.3ms α None)
+[stop] tag=M1_qwen7b_auto pid=126253 at 2026-06-06T16:20:14Z
+[gpu] all 0,1 free
+[gpu] all 0,1 free
+[boot] tag=M1_qwen7b_fp8 model=Qwen/Qwen2.5-7B-Instruct TP=2 gpus=0,1 kv=fp8 at 2026-06-06T16:20:21Z
+[ready] port 8013 up after 32*2s
+[bench] M1_qwen7b_fp8 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l1_kv_quant/runs/M1_qwen7b_fp8.json at 2026-06-06T16:21:28Z
+[tput] Qwen/Qwen2.5-7B-Instruct × l1_kv_quant × mix: 2773.2 tps (74/100 ok, 9s, gpu 38.5% cpu 6.0% ttft_p50 38.4ms α None)
+[stop] tag=M1_qwen7b_fp8 pid=131372 at 2026-06-06T16:21:38Z
+[gpu] all 0,1 free
+==== sweep complete at 2026-06-06T16:21:41Z ====
+0, 0 MiB
+1, 0 MiB
+2, 0 MiB
+3, 4 MiB
+4, 0 MiB
+5, 0 MiB
+6, 0 MiB
+7, 0 MiB

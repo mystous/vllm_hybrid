@@ -1,0 +1,72 @@
+==== L12 sweep start at 2026-06-06T16:31:54Z ====
+[boot] tag=V0_vanilla_r1 VLLM_CUDAGRAPH_PREDICTIVE_WARMUP=0 at 2026-06-06T16:31:55Z
+[ready] port 8112 up after 19*2s
+[bench] V0_vanilla_r1 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l12_cudagraph_warmup/runs/V0_vanilla_r1.json at 2026-06-06T16:32:31Z
+[bench] timeline: 200 reqs over 34.3s (warm=15s@2.0rps, burst=12s ramp→18.0rps, steady=25s@18.0rps, cool=8s@2.0rps)
+[bench] all 200 requests dispatched; awaiting completion…
+[bench] wall=35.7s ok=200/200 tps=1937.3
+    warm: n=  30  TTFT p50=  16.1  p90=  27.4  p99=   44.7  max=   44.7
+   burst: n= 120  TTFT p50=  16.8  p90=  19.6  p99=   32.3  max=   57.5
+  steady: n=  50  TTFT p50=  18.6  p90=  20.7  p99=   61.5  max=   61.5
+[stop] tag=V0_vanilla_r1 pid=179661 at 2026-06-06T16:33:07Z
+[boot] tag=V0_vanilla_r2 VLLM_CUDAGRAPH_PREDICTIVE_WARMUP=0 at 2026-06-06T16:33:13Z
+[ready] port 8112 up after 19*2s
+[bench] V0_vanilla_r2 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l12_cudagraph_warmup/runs/V0_vanilla_r2.json at 2026-06-06T16:33:49Z
+[bench] timeline: 200 reqs over 34.3s (warm=15s@2.0rps, burst=12s ramp→18.0rps, steady=25s@18.0rps, cool=8s@2.0rps)
+[bench] all 200 requests dispatched; awaiting completion…
+[bench] wall=34.3s ok=17/200 tps=121.9
+    warm: n=  15  TTFT p50=  16.0  p90=  40.5  p99=  110.1  max=  110.1
+[stop] tag=V0_vanilla_r2 pid=184884 at 2026-06-06T16:34:24Z
+[boot] tag=V0_vanilla_r3 VLLM_CUDAGRAPH_PREDICTIVE_WARMUP=0 at 2026-06-06T16:34:28Z
+[ready] port 8112 up after 21*2s
+[bench] V0_vanilla_r3 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l12_cudagraph_warmup/runs/V0_vanilla_r3.json at 2026-06-06T16:35:08Z
+[bench] timeline: 200 reqs over 34.3s (warm=15s@2.0rps, burst=12s ramp→18.0rps, steady=25s@18.0rps, cool=8s@2.0rps)
+[bench] all 200 requests dispatched; awaiting completion…
+[bench] wall=35.7s ok=200/200 tps=1932.4
+    warm: n=  30  TTFT p50=  15.5  p90=  18.5  p99=   44.0  max=   44.0
+   burst: n= 120  TTFT p50=  17.4  p90=  20.3  p99=   34.5  max=   61.0
+  steady: n=  50  TTFT p50=  19.0  p90=  22.3  p99=   60.9  max=   60.9
+[stop] tag=V0_vanilla_r3 pid=188896 at 2026-06-06T16:35:44Z
+[boot] tag=V1_observe_r1 VLLM_CUDAGRAPH_PREDICTIVE_WARMUP=1 at 2026-06-06T16:35:50Z
+[ready] port 8112 up after 18*2s
+[bench] V1_observe_r1 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l12_cudagraph_warmup/runs/V1_observe_r1.json at 2026-06-06T16:36:24Z
+[bench] timeline: 200 reqs over 34.3s (warm=15s@2.0rps, burst=12s ramp→18.0rps, steady=25s@18.0rps, cool=8s@2.0rps)
+[bench] all 200 requests dispatched; awaiting completion…
+[bench] wall=35.7s ok=200/200 tps=1938.2
+    warm: n=  30  TTFT p50=  15.8  p90=  18.5  p99=  102.0  max=  102.0
+   burst: n= 120  TTFT p50=  16.7  p90=  19.9  p99=   31.0  max=   65.0
+  steady: n=  50  TTFT p50=  18.2  p90=  21.2  p99=   64.9  max=   64.9
+[stop] tag=V1_observe_r1 pid=195724 at 2026-06-06T16:37:00Z
+[boot] tag=V1_observe_r2 VLLM_CUDAGRAPH_PREDICTIVE_WARMUP=1 at 2026-06-06T16:37:07Z
+[ready] FAIL — serve pid 200076 is gone after 13*2s
+[case] V1_observe_r2 boot attempt 1 FAIL — wait+retry
+[stop] tag=V1_observe_r2 pid=200076 at 2026-06-06T16:37:35Z
+[boot] tag=V1_observe_r2 VLLM_CUDAGRAPH_PREDICTIVE_WARMUP=1 at 2026-06-06T16:37:49Z
+[ready] port 8112 up after 17*2s
+[bench] V1_observe_r2 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l12_cudagraph_warmup/runs/V1_observe_r2.json at 2026-06-06T16:38:21Z
+[bench] timeline: 200 reqs over 34.3s (warm=15s@2.0rps, burst=12s ramp→18.0rps, steady=25s@18.0rps, cool=8s@2.0rps)
+[bench] all 200 requests dispatched; awaiting completion…
+[bench] wall=35.7s ok=200/200 tps=1916.0
+    warm: n=  30  TTFT p50=  16.3  p90=  20.7  p99=  104.3  max=  104.3
+   burst: n= 120  TTFT p50=  17.2  p90=  19.3  p99=   34.0  max=   58.5
+  steady: n=  50  TTFT p50=  18.5  p90=  22.3  p99=   60.8  max=   60.8
+[stop] tag=V1_observe_r2 pid=201732 at 2026-06-06T16:38:57Z
+[boot] tag=V1_observe_r3 VLLM_CUDAGRAPH_PREDICTIVE_WARMUP=1 at 2026-06-06T16:39:03Z
+[ready] port 8112 up after 17*2s
+[bench] V1_observe_r3 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l12_cudagraph_warmup/runs/V1_observe_r3.json at 2026-06-06T16:39:35Z
+[bench] timeline: 200 reqs over 34.3s (warm=15s@2.0rps, burst=12s ramp→18.0rps, steady=25s@18.0rps, cool=8s@2.0rps)
+[bench] all 200 requests dispatched; awaiting completion…
+[bench] wall=35.7s ok=200/200 tps=1941.3
+    warm: n=  30  TTFT p50=  15.5  p90=  19.5  p99=  100.6  max=  100.6
+   burst: n= 120  TTFT p50=  16.6  p90=  18.9  p99=   33.0  max=   55.3
+  steady: n=  50  TTFT p50=  18.1  p90=  20.5  p99=   59.7  max=   59.7
+[stop] tag=V1_observe_r3 pid=204466 at 2026-06-06T16:40:11Z
+==== L12 sweep complete at 2026-06-06T16:40:17Z ====
+0, 0 MiB
+1, 0 MiB
+2, 0 MiB
+3, 157448 MiB
+4, 0 MiB
+5, 0 MiB
+6, 0 MiB
+7, 0 MiB

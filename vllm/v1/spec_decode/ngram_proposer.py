@@ -112,6 +112,38 @@ class NgramProposer:
         else:
             self.num_numba_thread_available = 1
 
+        # SUB_201 / L4 — process-wide global n-gram dict.
+        #   env: VLLM_NGRAM_GLOBAL_DICT=1 → propose() 가 local longest match 가 비어있을
+        #   때 global dict 에서 suffix lookup 으로 보완. 매 propose() 끝마다
+        #   request 별 sliding-window n-gram (max_n..min_n) 을 dict 에 insert (next-k tokens).
+        #   key = bytes(ngram_tokens), value = list[int] (next k tokens, len ≤ k).
+        #   LRU cap = VLLM_NGRAM_GLOBAL_DICT_MAX (default 200000).
+        #   spec-decode 정확도 보존: rejection_sampler 가 어차피 verify 하므로 잘못된 draft
+        #   는 αcc rate 만 떨어뜨리지 정확도는 보존됨. 동일 모델·동일 prompt domain 에서
+        #   prior request 의 generation 패턴을 재사용해 hit-rate 를 올리는 게 목표.
+        self.global_dict_enabled = (
+            int(os.environ.get("VLLM_NGRAM_GLOBAL_DICT", "0")) == 1
+        )
+        if self.global_dict_enabled:
+            from collections import OrderedDict
+            self.global_ngram_dict: "OrderedDict[bytes, np.ndarray]" = OrderedDict()
+            self.global_dict_max = int(
+                os.environ.get("VLLM_NGRAM_GLOBAL_DICT_MAX", "200000")
+            )
+            # Per-request: last token-count we ingested to dict (only ingest new tail).
+            self.global_dict_last_n: dict[int, int] = {}
+            # Telemetry
+            self.global_dict_hits = 0
+            self.global_dict_local_hits = 0
+            self.global_dict_lookups = 0
+            self.global_dict_ingests = 0
+            import warnings
+            warnings.warn(
+                f"SUB_201/L4: VLLM_NGRAM_GLOBAL_DICT=1 enabled "
+                f"(cap={self.global_dict_max}, min_n={self.min_n}, max_n={self.max_n}, k={self.k})",
+                stacklevel=2,
+            )
+
         # Trigger Numba JIT compilation for N-gram proposer.
         # This usually takes less than 1 second.
         self.propose(
@@ -414,7 +446,113 @@ class NgramProposer:
             token_ids_cpu,
         )
 
+        # SUB_201/L4 — global dict fill + lookup fallback.
+        # 적용 조건: flag on + top_m==1 (top-M 경로는 미지원, fallthrough)
+        if (
+            self.global_dict_enabled
+            and self.ngram_top_m == 1
+            and valid_ngram_requests
+        ):
+            self._global_dict_fill_and_fallback(
+                valid_ngram_requests,
+                num_tokens_no_spec,
+                token_ids_cpu,
+                draft_token_ids,
+            )
+
         return draft_token_ids
+
+    def _global_dict_fill_and_fallback(
+        self,
+        valid_ngram_requests: list,
+        num_tokens_no_spec: np.ndarray,
+        token_ids_cpu: np.ndarray,
+        draft_token_ids: list[list[int]],
+    ) -> None:
+        """SUB_201/L4 — Phase A: lookup fallback (local miss → global dict).
+                       Phase B: ingest new tail tokens to global dict.
+
+        ingest: for the last (num_tokens - last_seen_n) tokens, slide a window of
+        size n in [min_n..max_n], key = bytes(window), value = next k tokens (right-
+        anchored). LRU touch on update.
+        lookup: for requests with empty/short draft, try suffix lookup max_n..min_n.
+        """
+        global_dict = self.global_ngram_dict
+        max_n = self.max_n
+        min_n = self.min_n
+        k = self.k
+        cap = self.global_dict_max
+
+        # --- Phase A: fallback lookup for requests with empty local draft ---
+        for i, idx in enumerate(valid_ngram_requests):
+            if self.valid_ngram_num_drafts[idx] > 0:
+                # local hit — count + skip fallback
+                self.global_dict_local_hits += 1
+                continue
+            n = int(num_tokens_no_spec[idx])
+            if n < min_n:
+                continue
+            self.global_dict_lookups += 1
+            # try longest suffix first
+            tokens = token_ids_cpu[idx, :n]
+            hit_tokens = None
+            for ngsz in range(min(max_n, n), min_n - 1, -1):
+                key = tokens[n - ngsz : n].tobytes()
+                if key in global_dict:
+                    hit_tokens = global_dict[key]
+                    # LRU touch
+                    global_dict.move_to_end(key)
+                    break
+            if hit_tokens is not None and len(hit_tokens) > 0:
+                k_avail = min(k, len(hit_tokens), self.max_model_len - n)
+                if k_avail > 0:
+                    draft_token_ids[idx] = hit_tokens[:k_avail].tolist()
+                    self.valid_ngram_draft[idx, :k_avail] = hit_tokens[:k_avail]
+                    self.valid_ngram_num_drafts[idx] = k_avail
+                    self.global_dict_hits += 1
+
+        # --- Phase B: ingest new tail tokens ---
+        # Sliding window keys = ngram of length n_size ∈ [min_n..max_n],
+        # value = up to k tokens immediately after.
+        for idx in valid_ngram_requests:
+            n = int(num_tokens_no_spec[idx])
+            last_n = self.global_dict_last_n.get(idx, 0)
+            # We can only emit (key, value) where the full key + k value tokens
+            # exist within [:n]. The newest such position is window_end_pos =
+            # j + n_size where j + n_size + k ≤ n. So window key end ≤ n - k.
+            # We ingest for j where the key END position is in
+            # (last_n - max_n, n - k]. (overlap to keep history when buffer slides
+            # — but to keep work bounded we just iterate the new positions.)
+            ingest_end_max = n - k  # last position the value tail fits fully
+            ingest_end_min = max(min_n, last_n - max_n + 1)
+            if ingest_end_max < min_n:
+                # not enough context yet
+                self.global_dict_last_n[idx] = n
+                continue
+            # Iterate over key end positions
+            tokens_row = token_ids_cpu[idx]
+            for end_pos in range(max(min_n, ingest_end_min), ingest_end_max + 1):
+                # For each n-size, emit (key, value).
+                for n_size in range(min_n, max_n + 1):
+                    if end_pos < n_size:
+                        continue
+                    start_pos = end_pos - n_size
+                    key = tokens_row[start_pos:end_pos].tobytes()
+                    val_end = min(end_pos + k, n)
+                    val = tokens_row[end_pos:val_end].copy()
+                    if len(val) == 0:
+                        continue
+                    # insert / overwrite + LRU touch
+                    if key in global_dict:
+                        global_dict.move_to_end(key)
+                        # Keep existing value (first-write-wins for stability);
+                        # alternative: overwrite — chose first-write to reduce thrash.
+                    else:
+                        global_dict[key] = val
+                        self.global_dict_ingests += 1
+                        if len(global_dict) > cap:
+                            global_dict.popitem(last=False)  # evict oldest
+            self.global_dict_last_n[idx] = n
 
     def load_model(self, *args, **kwargs):
         # No model to load.

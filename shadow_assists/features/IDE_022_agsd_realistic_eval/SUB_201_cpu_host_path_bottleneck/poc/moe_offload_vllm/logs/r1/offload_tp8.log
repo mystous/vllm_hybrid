@@ -1,0 +1,1519 @@
+(APIServer pid=107738) INFO 06-06 15:36:01 [utils.py:299] 
+(APIServer pid=107738) INFO 06-06 15:36:01 [utils.py:299]        █     █     █▄   ▄█
+(APIServer pid=107738) INFO 06-06 15:36:01 [utils.py:299]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 1.7.dev16107+gffe20fb09.d20260601
+(APIServer pid=107738) INFO 06-06 15:36:01 [utils.py:299]   █▄█▀ █     █     █     █  model   /root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+(APIServer pid=107738) INFO 06-06 15:36:01 [utils.py:299]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=107738) INFO 06-06 15:36:01 [utils.py:299] 
+(APIServer pid=107738) INFO 06-06 15:36:01 [utils.py:233] non-default args: {'model_tag': '/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad', 'host': '0.0.0.0', 'port': 8019, 'model': '/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad', 'trust_remote_code': True, 'max_model_len': 4096, 'enforce_eager': True, 'served_model_name': ['r1-offload-test'], 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.92, 'attention_config': AttentionConfig(backend=<AttentionBackendEnum.TRITON_MLA: 'vllm.v1.attention.backends.mla.triton_mla.TritonMLABackend'>, flash_attn_version=3, use_prefill_decode_attention=False, flash_attn_max_num_splits_for_cuda_graph=32, tq_max_kv_splits_for_cuda_graph=32, use_cudnn_prefill=False, use_trtllm_ragged_deepseek_prefill=False, use_trtllm_attention=None, disable_flashinfer_prefill=True, disable_flashinfer_q_quantization=False, use_prefill_query_quantization=False), 'kernel_config': KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=[]), enable_flashinfer_autotune=False, moe_backend='triton')}
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_MOE_KT_METHOD
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_MOE_CPUINFER_THREADS
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_MOE_KT_WEIGHT_PATH
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_MOE_NUM_GPU_EXPERTS
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_MOE_NO_CPU_STREAM
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_MOE_CPU_OFFLOAD
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_MOE_KT_SITE_PACKAGES
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_MOE_THREADPOOL_COUNT
+(APIServer pid=107738) WARNING 06-06 15:36:01 [envs.py:1796] Unknown vLLM environment variable detected: VLLM_USE_V1
+(APIServer pid=107738) INFO 06-06 15:36:01 [config.py:448] Replacing legacy 'type' key with 'rope_type'
+(APIServer pid=107738) INFO 06-06 15:36:01 [model.py:554] Resolved architecture: DeepseekV3ForCausalLM
+(APIServer pid=107738) INFO 06-06 15:36:01 [model.py:1685] Using max model len 4096
+(APIServer pid=107738) ERROR 06-06 15:36:02 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(APIServer pid=107738) INFO 06-06 15:36:02 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=107738) INFO 06-06 15:36:02 [vllm.py:834] Asynchronous scheduling is enabled.
+(APIServer pid=107738) WARNING 06-06 15:36:02 [vllm.py:892] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+(APIServer pid=107738) WARNING 06-06 15:36:02 [vllm.py:903] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+(APIServer pid=107738) INFO 06-06 15:36:02 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'])
+(APIServer pid=107738) INFO 06-06 15:36:02 [vllm.py:1081] Cudagraph is disabled under eager mode
+(APIServer pid=107738) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(APIServer pid=107738) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(APIServer pid=107738) INFO 06-06 15:36:02 [compilation.py:294] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+(APIServer pid=107738) INFO 06-06 15:36:02 [config.py:448] Replacing legacy 'type' key with 'rope_type'
+ERROR 06-06 15:36:08 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(EngineCore pid=108025) INFO 06-06 15:36:08 [core.py:107] Initializing a V1 LLM engine (v1.7.dev16107+gffe20fb09.d20260601) with config: model='/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=4096, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=True, quantization=fp8, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=r1-offload-test, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['+quant_fp8', 'all', '+quant_fp8'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [73, 8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=False, moe_backend='triton')
+(EngineCore pid=108025) WARNING 06-06 15:36:08 [multiproc_executor.py:1044] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=108025) INFO 06-06 15:36:08 [multiproc_executor.py:141] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=172.18.162.61 (local), world_size=8, local_world_size=8
+ERROR 06-06 15:36:20 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-06 15:36:20 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(Worker pid=108293) WARNING 06-06 15:36:20 [batch_invariant.py:1023] You are using a non-decode-invariant form of batch invariance. This will not be invariant between prefill and decode.
+(Worker pid=108293) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/library.py:363: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+(Worker pid=108293)   Overriding a previously registered kernel for the same operator and the same dispatch key
+(Worker pid=108293)   operator: aten::mm(Tensor self, Tensor mat2) -> Tensor
+(Worker pid=108293)     registered at /pytorch/build/aten/src/ATen/RegisterSchema.cpp:6
+(Worker pid=108293)   dispatch key: CUDA
+(Worker pid=108293)   previous kernel: registered at /pytorch/aten/src/ATen/LegacyBatchingRegistrations.cpp:1076
+(Worker pid=108293)        new kernel: registered at /workspace/host_vllm_hybrid/vllm/model_executor/layers/batch_invariant.py:934 (Triggered internally at /pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+(Worker pid=108293)   self.m.impl(
+[W606 15:36:20.761135485 Context.cpp:541] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+(Worker pid=108293) INFO 06-06 15:36:20 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:57337 backend=nccl
+ERROR 06-06 15:36:20 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-06 15:36:20 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(Worker pid=108295) WARNING 06-06 15:36:20 [batch_invariant.py:1023] You are using a non-decode-invariant form of batch invariance. This will not be invariant between prefill and decode.
+(Worker pid=108295) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/library.py:363: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+(Worker pid=108295)   Overriding a previously registered kernel for the same operator and the same dispatch key
+(Worker pid=108295)   operator: aten::mm(Tensor self, Tensor mat2) -> Tensor
+(Worker pid=108295)     registered at /pytorch/build/aten/src/ATen/RegisterSchema.cpp:6
+(Worker pid=108295)   dispatch key: CUDA
+(Worker pid=108295)   previous kernel: registered at /pytorch/aten/src/ATen/LegacyBatchingRegistrations.cpp:1076
+(Worker pid=108295)        new kernel: registered at /workspace/host_vllm_hybrid/vllm/model_executor/layers/batch_invariant.py:934 (Triggered internally at /pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+(Worker pid=108295)   self.m.impl(
+[W606 15:36:20.930443432 Context.cpp:541] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+(Worker pid=108295) INFO 06-06 15:36:20 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:57337 backend=nccl
+ERROR 06-06 15:36:20 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-06 15:36:20 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-06 15:36:20 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-06 15:36:20 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(Worker pid=108299) WARNING 06-06 15:36:21 [batch_invariant.py:1023] You are using a non-decode-invariant form of batch invariance. This will not be invariant between prefill and decode.
+(Worker pid=108299) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/library.py:363: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+(Worker pid=108299)   Overriding a previously registered kernel for the same operator and the same dispatch key
+(Worker pid=108299)   operator: aten::mm(Tensor self, Tensor mat2) -> Tensor
+(Worker pid=108299)     registered at /pytorch/build/aten/src/ATen/RegisterSchema.cpp:6
+(Worker pid=108299)   dispatch key: CUDA
+(Worker pid=108299)   previous kernel: registered at /pytorch/aten/src/ATen/LegacyBatchingRegistrations.cpp:1076
+(Worker pid=108299)        new kernel: registered at /workspace/host_vllm_hybrid/vllm/model_executor/layers/batch_invariant.py:934 (Triggered internally at /pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+(Worker pid=108299)   self.m.impl(
+[W606 15:36:21.730585397 Context.cpp:541] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+(Worker pid=108299) INFO 06-06 15:36:21 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:57337 backend=nccl
+(Worker pid=108297) WARNING 06-06 15:36:21 [batch_invariant.py:1023] You are using a non-decode-invariant form of batch invariance. This will not be invariant between prefill and decode.
+(Worker pid=108297) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/library.py:363: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+(Worker pid=108297)   Overriding a previously registered kernel for the same operator and the same dispatch key
+(Worker pid=108297)   operator: aten::mm(Tensor self, Tensor mat2) -> Tensor
+(Worker pid=108297)     registered at /pytorch/build/aten/src/ATen/RegisterSchema.cpp:6
+(Worker pid=108297)   dispatch key: CUDA
+(Worker pid=108297)   previous kernel: registered at /pytorch/aten/src/ATen/LegacyBatchingRegistrations.cpp:1076
+(Worker pid=108297)        new kernel: registered at /workspace/host_vllm_hybrid/vllm/model_executor/layers/batch_invariant.py:934 (Triggered internally at /pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+(Worker pid=108297)   self.m.impl(
+[W606 15:36:21.786857066 Context.cpp:541] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+(Worker pid=108297) INFO 06-06 15:36:21 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:57337 backend=nccl
+(Worker pid=108296) WARNING 06-06 15:36:21 [batch_invariant.py:1023] You are using a non-decode-invariant form of batch invariance. This will not be invariant between prefill and decode.
+(Worker pid=108296) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/library.py:363: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+(Worker pid=108296)   Overriding a previously registered kernel for the same operator and the same dispatch key
+(Worker pid=108296)   operator: aten::mm(Tensor self, Tensor mat2) -> Tensor
+(Worker pid=108296)     registered at /pytorch/build/aten/src/ATen/RegisterSchema.cpp:6
+(Worker pid=108296)   dispatch key: CUDA
+(Worker pid=108296)   previous kernel: registered at /pytorch/aten/src/ATen/LegacyBatchingRegistrations.cpp:1076
+(Worker pid=108296)        new kernel: registered at /workspace/host_vllm_hybrid/vllm/model_executor/layers/batch_invariant.py:934 (Triggered internally at /pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+(Worker pid=108296)   self.m.impl(
+[W606 15:36:21.996158395 Context.cpp:541] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+(Worker pid=108296) INFO 06-06 15:36:21 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:57337 backend=nccl
+(Worker pid=108300) WARNING 06-06 15:36:21 [batch_invariant.py:1023] You are using a non-decode-invariant form of batch invariance. This will not be invariant between prefill and decode.
+(Worker pid=108300) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/library.py:363: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+(Worker pid=108300)   Overriding a previously registered kernel for the same operator and the same dispatch key
+(Worker pid=108300)   operator: aten::mm(Tensor self, Tensor mat2) -> Tensor
+(Worker pid=108300)     registered at /pytorch/build/aten/src/ATen/RegisterSchema.cpp:6
+(Worker pid=108300)   dispatch key: CUDA
+(Worker pid=108300)   previous kernel: registered at /pytorch/aten/src/ATen/LegacyBatchingRegistrations.cpp:1076
+(Worker pid=108300)        new kernel: registered at /workspace/host_vllm_hybrid/vllm/model_executor/layers/batch_invariant.py:934 (Triggered internally at /pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+(Worker pid=108300)   self.m.impl(
+[W606 15:36:21.012655734 Context.cpp:541] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+(Worker pid=108300) INFO 06-06 15:36:21 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:57337 backend=nccl
+(Worker pid=108294) WARNING 06-06 15:36:21 [batch_invariant.py:1023] You are using a non-decode-invariant form of batch invariance. This will not be invariant between prefill and decode.
+(Worker pid=108294) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/library.py:363: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+(Worker pid=108294)   Overriding a previously registered kernel for the same operator and the same dispatch key
+(Worker pid=108294)   operator: aten::mm(Tensor self, Tensor mat2) -> Tensor
+(Worker pid=108294)     registered at /pytorch/build/aten/src/ATen/RegisterSchema.cpp:6
+(Worker pid=108294)   dispatch key: CUDA
+(Worker pid=108294)   previous kernel: registered at /pytorch/aten/src/ATen/LegacyBatchingRegistrations.cpp:1076
+(Worker pid=108294)        new kernel: registered at /workspace/host_vllm_hybrid/vllm/model_executor/layers/batch_invariant.py:934 (Triggered internally at /pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+(Worker pid=108294)   self.m.impl(
+[W606 15:36:21.023265313 Context.cpp:541] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+(Worker pid=108298) WARNING 06-06 15:36:21 [batch_invariant.py:1023] You are using a non-decode-invariant form of batch invariance. This will not be invariant between prefill and decode.
+(Worker pid=108294) INFO 06-06 15:36:21 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:57337 backend=nccl
+(Worker pid=108298) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/library.py:363: UserWarning: Warning only once for all operators,  other operators may also be overridden.
+(Worker pid=108298)   Overriding a previously registered kernel for the same operator and the same dispatch key
+(Worker pid=108298)   operator: aten::mm(Tensor self, Tensor mat2) -> Tensor
+(Worker pid=108298)     registered at /pytorch/build/aten/src/ATen/RegisterSchema.cpp:6
+(Worker pid=108298)   dispatch key: CUDA
+(Worker pid=108298)   previous kernel: registered at /pytorch/aten/src/ATen/LegacyBatchingRegistrations.cpp:1076
+(Worker pid=108298)        new kernel: registered at /workspace/host_vllm_hybrid/vllm/model_executor/layers/batch_invariant.py:934 (Triggered internally at /pytorch/aten/src/ATen/core/dispatch/OperatorEntry.cpp:208.)
+(Worker pid=108298)   self.m.impl(
+[W606 15:36:21.023886535 Context.cpp:541] Warning: torch.backends.cuda.preferred_blas_library is an experimental feature. If you see any error or unexpected behavior when this flag is set please file an issue on GitHub. (function operator())
+(Worker pid=108298) INFO 06-06 15:36:21 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:57337 backend=nccl
+(Worker pid=108293) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=108293) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=108293) INFO 06-06 15:36:21 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=108294) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=108294) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=108299) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=108299) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=108295) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=108295) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=108298) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=108298) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=108300) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=108300) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=108296) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=108296) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=108297) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=108297) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=108293) INFO 06-06 15:36:25 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(Worker_TP0 pid=108293) INFO 06-06 15:36:25 [gpu_model_runner.py:5436] Starting to load model /root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad...
+(Worker_TP5 pid=108298) INFO 06-06 15:36:25 [cuda.py:308] Using AttentionBackendEnum.TRITON_MLA backend.
+(Worker_TP7 pid=108300) INFO 06-06 15:36:25 [cuda.py:308] Using AttentionBackendEnum.TRITON_MLA backend.
+(Worker_TP0 pid=108293) INFO 06-06 15:36:25 [__init__.py:389] Selected CutlassFp8BlockScaledMMKernel for Fp8LinearMethod
+(Worker_TP4 pid=108297) INFO 06-06 15:36:26 [cuda.py:308] Using AttentionBackendEnum.TRITON_MLA backend.
+(Worker_TP6 pid=108299) INFO 06-06 15:36:26 [cuda.py:308] Using AttentionBackendEnum.TRITON_MLA backend.
+(Worker_TP2 pid=108295) INFO 06-06 15:36:26 [cuda.py:308] Using AttentionBackendEnum.TRITON_MLA backend.
+(Worker_TP1 pid=108294) INFO 06-06 15:36:26 [cuda.py:308] Using AttentionBackendEnum.TRITON_MLA backend.
+(Worker_TP3 pid=108296) INFO 06-06 15:36:26 [cuda.py:308] Using AttentionBackendEnum.TRITON_MLA backend.
+(Worker_TP0 pid=108293) INFO 06-06 15:36:26 [cuda.py:308] Using AttentionBackendEnum.TRITON_MLA backend.
+(Worker_TP0 pid=108293) WARNING 06-06 15:36:26 [mla_attention.py:384] Disabling prefix caching for TRITON_MLA / FLASHINFER with batch invariance, as it is not yet supported.
+(Worker_TP0 pid=108293) INFO 06-06 15:36:26 [mla_attention.py:2160] Using FlashAttention prefill for MLA
+(Worker_TP0 pid=108293) WARNING 06-06 15:36:26 [fa_utils.py:97] Cannot use FA version 3 on Blackwell platform, defaulting to FA version 4 if supported, otherwise FA2.
+(Worker_TP0 pid=108293) WARNING 06-06 15:36:26 [fa_utils.py:118] Cannot use FA version 4 with batch invariance, defaulting to FA version 2.
+(Worker_TP0 pid=108293) INFO 06-06 15:36:26 [fp8.py:269] Using TRITON Fp8 MoE backend out of potential backends: ['AITER', 'FLASHINFER_TRTLLM', 'FLASHINFER_CUTLASS', 'DEEPGEMM', 'VLLM_CUTLASS', 'TRITON', 'MARLIN', 'BATCHED_DEEPGEMM', 'BATCHED_VLLM_CUTLASS', 'BATCHED_TRITON', 'XPU'].
+(Worker_TP0 pid=108293) INFO 06-06 15:36:26 [weight_utils.py:904] Filesystem type for checkpoints: EXT4. Checkpoint size: 641.30 GiB. Available RAM: 1922.55 GiB.
+(Worker_TP0 pid=108293) INFO 06-06 15:36:26 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   0% Completed | 0/163 [00:00<?, ?it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   1% Completed | 1/163 [00:00<00:38,  4.19it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   1% Completed | 2/163 [00:00<00:47,  3.41it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   2% Completed | 3/163 [00:00<00:47,  3.39it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   2% Completed | 4/163 [00:01<00:47,  3.32it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   3% Completed | 5/163 [00:01<00:48,  3.24it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   4% Completed | 6/163 [00:01<00:49,  3.19it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   4% Completed | 7/163 [00:02<00:49,  3.18it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   5% Completed | 8/163 [00:02<00:49,  3.11it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   6% Completed | 9/163 [00:02<00:50,  3.04it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   6% Completed | 10/163 [00:03<00:51,  3.00it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   7% Completed | 11/163 [00:03<00:50,  3.00it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   7% Completed | 12/163 [00:03<00:41,  3.68it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   8% Completed | 13/163 [00:03<00:42,  3.55it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   9% Completed | 14/163 [00:04<00:42,  3.51it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:   9% Completed | 15/163 [00:04<00:41,  3.56it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  10% Completed | 16/163 [00:04<00:39,  3.68it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  10% Completed | 17/163 [00:04<00:38,  3.81it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  11% Completed | 18/163 [00:05<00:39,  3.70it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  12% Completed | 19/163 [00:05<00:39,  3.69it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  12% Completed | 20/163 [00:05<00:39,  3.60it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  13% Completed | 21/163 [00:06<00:39,  3.60it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  13% Completed | 22/163 [00:06<00:41,  3.42it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  14% Completed | 23/163 [00:06<00:42,  3.31it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  15% Completed | 24/163 [00:07<00:42,  3.30it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  15% Completed | 25/163 [00:07<00:43,  3.21it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  16% Completed | 26/163 [00:07<00:43,  3.15it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  17% Completed | 27/163 [00:08<00:43,  3.16it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  17% Completed | 28/163 [00:08<00:42,  3.16it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  18% Completed | 29/163 [00:08<00:40,  3.28it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  18% Completed | 30/163 [00:08<00:40,  3.25it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  19% Completed | 31/163 [00:09<00:41,  3.17it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  20% Completed | 32/163 [00:09<00:40,  3.24it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  20% Completed | 33/163 [00:09<00:39,  3.33it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  21% Completed | 34/163 [00:10<00:32,  3.94it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  21% Completed | 35/163 [00:10<00:33,  3.77it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  22% Completed | 36/163 [00:10<00:35,  3.57it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  23% Completed | 37/163 [00:10<00:37,  3.39it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  23% Completed | 38/163 [00:11<00:37,  3.34it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  24% Completed | 39/163 [00:11<00:36,  3.39it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  25% Completed | 40/163 [00:11<00:37,  3.32it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  25% Completed | 41/163 [00:12<00:37,  3.24it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  26% Completed | 42/163 [00:12<00:37,  3.19it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  26% Completed | 43/163 [00:12<00:38,  3.14it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  27% Completed | 44/163 [00:13<00:39,  3.04it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  28% Completed | 45/163 [00:13<00:39,  2.97it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  28% Completed | 46/163 [00:13<00:39,  2.96it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  29% Completed | 47/163 [00:14<00:39,  2.90it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  29% Completed | 48/163 [00:14<00:39,  2.90it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  30% Completed | 49/163 [00:14<00:39,  2.92it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  31% Completed | 50/163 [00:15<00:39,  2.89it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  31% Completed | 51/163 [00:15<00:38,  2.90it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  32% Completed | 52/163 [00:15<00:38,  2.90it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  33% Completed | 53/163 [00:16<00:38,  2.87it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  33% Completed | 54/163 [00:16<00:37,  2.88it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  34% Completed | 55/163 [00:17<00:37,  2.85it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  34% Completed | 56/163 [00:17<00:31,  3.41it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  35% Completed | 57/163 [00:17<00:32,  3.27it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  36% Completed | 58/163 [00:17<00:33,  3.13it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  36% Completed | 59/163 [00:18<00:34,  3.03it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  37% Completed | 60/163 [00:18<00:34,  2.98it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  37% Completed | 61/163 [00:18<00:34,  2.93it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  38% Completed | 62/163 [00:19<00:34,  2.89it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  39% Completed | 63/163 [00:19<00:34,  2.89it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  39% Completed | 64/163 [00:20<00:34,  2.85it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  40% Completed | 65/163 [00:20<00:33,  2.89it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  40% Completed | 66/163 [00:20<00:33,  2.88it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  41% Completed | 67/163 [00:21<00:33,  2.86it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  42% Completed | 68/163 [00:21<00:32,  2.89it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  42% Completed | 69/163 [00:21<00:32,  2.86it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  43% Completed | 70/163 [00:22<00:32,  2.86it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  44% Completed | 71/163 [00:22<00:31,  2.88it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  44% Completed | 72/163 [00:22<00:31,  2.86it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  45% Completed | 73/163 [00:23<00:31,  2.89it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  45% Completed | 74/163 [00:23<00:30,  2.89it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  46% Completed | 75/163 [00:23<00:30,  2.88it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  47% Completed | 76/163 [00:24<00:29,  2.90it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  47% Completed | 77/163 [00:24<00:29,  2.87it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  48% Completed | 78/163 [00:24<00:24,  3.44it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  48% Completed | 79/163 [00:25<00:25,  3.30it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  49% Completed | 80/163 [00:25<00:26,  3.16it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  50% Completed | 81/163 [00:25<00:26,  3.06it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  50% Completed | 82/163 [00:26<00:26,  3.05it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  51% Completed | 83/163 [00:26<00:25,  3.10it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  52% Completed | 84/163 [00:26<00:25,  3.13it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  52% Completed | 85/163 [00:26<00:24,  3.18it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  53% Completed | 86/163 [00:27<00:24,  3.20it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  53% Completed | 87/163 [00:27<00:23,  3.26it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  54% Completed | 88/163 [00:27<00:23,  3.13it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  55% Completed | 89/163 [00:28<00:24,  3.06it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  55% Completed | 90/163 [00:28<00:23,  3.16it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  56% Completed | 91/163 [00:28<00:22,  3.19it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  56% Completed | 92/163 [00:29<00:22,  3.13it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  57% Completed | 93/163 [00:29<00:21,  3.19it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  58% Completed | 94/163 [00:29<00:21,  3.20it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  58% Completed | 95/163 [00:30<00:21,  3.24it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  59% Completed | 96/163 [00:30<00:21,  3.14it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  60% Completed | 97/163 [00:30<00:21,  3.08it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  60% Completed | 98/163 [00:31<00:20,  3.11it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  61% Completed | 99/163 [00:31<00:21,  3.02it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  61% Completed | 100/163 [00:31<00:17,  3.59it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  62% Completed | 101/163 [00:31<00:18,  3.41it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  63% Completed | 102/163 [00:32<00:18,  3.34it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  63% Completed | 103/163 [00:32<00:17,  3.33it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  64% Completed | 104/163 [00:32<00:18,  3.20it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  64% Completed | 105/163 [00:33<00:18,  3.08it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  65% Completed | 106/163 [00:33<00:18,  3.07it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  66% Completed | 107/163 [00:33<00:17,  3.13it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  66% Completed | 108/163 [00:34<00:17,  3.16it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  67% Completed | 109/163 [00:34<00:16,  3.23it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  67% Completed | 110/163 [00:34<00:17,  3.10it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  68% Completed | 111/163 [00:35<00:17,  3.06it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  69% Completed | 112/163 [00:35<00:16,  3.08it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  69% Completed | 113/163 [00:35<00:16,  3.01it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  70% Completed | 114/163 [00:36<00:16,  2.97it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  71% Completed | 115/163 [00:36<00:16,  2.96it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  71% Completed | 116/163 [00:36<00:16,  2.93it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  72% Completed | 117/163 [00:37<00:15,  2.96it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  72% Completed | 118/163 [00:37<00:15,  2.94it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  73% Completed | 119/163 [00:37<00:15,  2.90it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  74% Completed | 120/163 [00:38<00:14,  2.93it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  74% Completed | 121/163 [00:38<00:14,  2.90it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  75% Completed | 122/163 [00:38<00:11,  3.48it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  75% Completed | 123/163 [00:39<00:12,  3.32it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  76% Completed | 124/163 [00:39<00:12,  3.17it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  77% Completed | 125/163 [00:39<00:12,  3.06it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  77% Completed | 126/163 [00:40<00:12,  3.01it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  78% Completed | 127/163 [00:40<00:11,  3.06it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  79% Completed | 128/163 [00:40<00:11,  3.11it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  79% Completed | 129/163 [00:41<00:10,  3.17it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  80% Completed | 130/163 [00:41<00:10,  3.19it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  80% Completed | 131/163 [00:41<00:09,  3.26it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  81% Completed | 132/163 [00:41<00:09,  3.28it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  82% Completed | 133/163 [00:42<00:09,  3.29it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  82% Completed | 134/163 [00:42<00:08,  3.28it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  83% Completed | 135/163 [00:42<00:08,  3.30it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  83% Completed | 136/163 [00:43<00:08,  3.31it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  84% Completed | 137/163 [00:43<00:07,  3.36it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  85% Completed | 138/163 [00:43<00:07,  3.34it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  85% Completed | 139/163 [00:44<00:07,  3.36it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  86% Completed | 140/163 [00:44<00:06,  3.39it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  87% Completed | 141/163 [00:44<00:06,  3.66it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  87% Completed | 142/163 [00:44<00:05,  3.62it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  88% Completed | 143/163 [00:45<00:05,  3.55it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  88% Completed | 144/163 [00:45<00:05,  3.53it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  89% Completed | 145/163 [00:45<00:05,  3.44it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  90% Completed | 146/163 [00:46<00:04,  3.42it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  90% Completed | 147/163 [00:46<00:04,  3.40it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  91% Completed | 148/163 [00:46<00:04,  3.40it/s]
+(Worker_TP1 pid=108294) INFO 06-06 15:37:13 [deepseek_v2.py:1750] [deepseek_v2] attaching kt-kernel wrappers: 58 MoE layers, num_gpu_experts=64 / 256, method=BF16, weight_path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+(Worker_TP1 pid=108294) WARNING 06-06 15:37:13 [kt_kernel_binding.py:127] [kt-binding] appended sys.path (low priority): /workspace/sglang_kt_prj/lib/python3.12/site-packages
+(Worker_TP1 pid=108294) INFO 06-06 15:37:13 [kt_kernel_binding.py:384] [kt-binding] init layer 3: num_experts=256 top_k=8 num_gpu_experts=64 hidden=7168 inter=2048 method=BF16 threads=112 pools=2
+set_mempolicy: Operation not permitted
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  91% Completed | 149/163 [00:46<00:04,  3.37it/s]
+set_mempolicy: Operation not permitted
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  92% Completed | 150/163 [00:47<00:05,  2.18it/s]
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  93% Completed | 151/163 [00:48<00:05,  2.28it/s]
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  93% Completed | 152/163 [00:48<00:04,  2.51it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  94% Completed | 153/163 [00:48<00:03,  2.69it/s]
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  94% Completed | 154/163 [00:49<00:03,  2.80it/s]
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  95% Completed | 155/163 [00:49<00:02,  2.97it/s]
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+(Worker_TP1 pid=108294) [BF16SafeTensorLoader] Detected format: deepseek
+(Worker_TP1 pid=108294) INFO 06-06 15:37:16 [kt_kernel_binding.py:218] [kt-binding] SharedStagingBuffer: 112.0 MiB (max_tokens=8192 hidden=7168 dtype=torch.bfloat16)
+(Worker_TP1 pid=108294) INFO 06-06 15:37:16 [kt_kernel_binding.py:437] [kt-binding] loading weights for layer 3 (path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad)
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  96% Completed | 156/163 [00:49<00:02,  2.79it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  96% Completed | 157/163 [00:50<00:02,  2.57it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  97% Completed | 158/163 [00:50<00:01,  2.80it/s]
+(Worker_TP4 pid=108297) INFO 06-06 15:37:17 [deepseek_v2.py:1750] [deepseek_v2] attaching kt-kernel wrappers: 58 MoE layers, num_gpu_experts=64 / 256, method=BF16, weight_path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+(Worker_TP4 pid=108297) WARNING 06-06 15:37:17 [kt_kernel_binding.py:127] [kt-binding] appended sys.path (low priority): /workspace/sglang_kt_prj/lib/python3.12/site-packages
+(Worker_TP4 pid=108297) INFO 06-06 15:37:17 [kt_kernel_binding.py:384] [kt-binding] init layer 3: num_experts=256 top_k=8 num_gpu_experts=64 hidden=7168 inter=2048 method=BF16 threads=112 pools=2
+(Worker_TP6 pid=108299) INFO 06-06 15:37:17 [deepseek_v2.py:1750] [deepseek_v2] attaching kt-kernel wrappers: 58 MoE layers, num_gpu_experts=64 / 256, method=BF16, weight_path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+set_mempolicy: Operation not permitted
+(Worker_TP6 pid=108299) WARNING 06-06 15:37:17 [kt_kernel_binding.py:127] [kt-binding] appended sys.path (low priority): /workspace/sglang_kt_prj/lib/python3.12/site-packages
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  98% Completed | 159/163 [00:50<00:01,  2.98it/s]
+(Worker_TP6 pid=108299) INFO 06-06 15:37:17 [kt_kernel_binding.py:384] [kt-binding] init layer 3: num_experts=256 top_k=8 num_gpu_experts=64 hidden=7168 inter=2048 method=BF16 threads=112 pools=2
+set_mempolicy: Operation not permitted
+(Worker_TP3 pid=108296) INFO 06-06 15:37:17 [deepseek_v2.py:1750] [deepseek_v2] attaching kt-kernel wrappers: 58 MoE layers, num_gpu_experts=64 / 256, method=BF16, weight_path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+(Worker_TP2 pid=108295) INFO 06-06 15:37:17 [deepseek_v2.py:1750] [deepseek_v2] attaching kt-kernel wrappers: 58 MoE layers, num_gpu_experts=64 / 256, method=BF16, weight_path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+(Worker_TP3 pid=108296) WARNING 06-06 15:37:17 [kt_kernel_binding.py:127] [kt-binding] appended sys.path (low priority): /workspace/sglang_kt_prj/lib/python3.12/site-packages
+(Worker_TP2 pid=108295) WARNING 06-06 15:37:17 [kt_kernel_binding.py:127] [kt-binding] appended sys.path (low priority): /workspace/sglang_kt_prj/lib/python3.12/site-packages
+(Worker_TP2 pid=108295) INFO 06-06 15:37:17 [kt_kernel_binding.py:384] [kt-binding] init layer 3: num_experts=256 top_k=8 num_gpu_experts=64 hidden=7168 inter=2048 method=BF16 threads=112 pools=2
+(Worker_TP3 pid=108296) INFO 06-06 15:37:17 [kt_kernel_binding.py:384] [kt-binding] init layer 3: num_experts=256 top_k=8 num_gpu_experts=64 hidden=7168 inter=2048 method=BF16 threads=112 pools=2
+set_mempolicy: Operation not permitted
+set_mempolicy: Operation not permitted
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards:  98% Completed | 160/163 [00:51<00:00,  3.20it/s]
+(Worker_TP0 pid=108293) Loading safetensors checkpoint shards: 100% Completed | 163/163 [00:51<00:00,  3.19it/s]
+(Worker_TP0 pid=108293) 
+(Worker_TP0 pid=108293) INFO 06-06 15:37:17 [deepseek_v2.py:1750] [deepseek_v2] attaching kt-kernel wrappers: 58 MoE layers, num_gpu_experts=64 / 256, method=BF16, weight_path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+(Worker_TP0 pid=108293) WARNING 06-06 15:37:17 [kt_kernel_binding.py:127] [kt-binding] appended sys.path (low priority): /workspace/sglang_kt_prj/lib/python3.12/site-packages
+CPUInfer[0x55efaa20]: Hello
+WorkerPool[0x5607b740] 2 subpools, [numa:threads][0:56] [1:56] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 56 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 56 threads
+TP MOE layer 3, pool: 0x5607b740, expert num: 256, num_experts_per_tok: 8
+Created AMX_BF16_MOE_TP 1 at numa 1
+Created AMX_BF16_MOE_TP 0 at numa 0
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in __clone
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+(Worker_TP7 pid=108300) INFO 06-06 15:37:17 [deepseek_v2.py:1750] [deepseek_v2] attaching kt-kernel wrappers: 58 MoE layers, num_gpu_experts=64 / 256, method=BF16, weight_path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+(Worker_TP7 pid=108300) WARNING 06-06 15:37:17 [kt_kernel_binding.py:127] [kt-binding] appended sys.path (low priority): /workspace/sglang_kt_prj/lib/python3.12/site-packages
+(Worker_TP0 pid=108293) INFO 06-06 15:37:17 [kt_kernel_binding.py:384] [kt-binding] init layer 3: num_experts=256 top_k=8 num_gpu_experts=64 hidden=7168 inter=2048 method=BF16 threads=112 pools=2
+set_mempolicy: Operation not permitted
+(Worker_TP7 pid=108300) INFO 06-06 15:37:17 [kt_kernel_binding.py:384] [kt-binding] init layer 3: num_experts=256 top_k=8 num_gpu_experts=64 hidden=7168 inter=2048 method=BF16 threads=112 pools=2
+set_mempolicy: Operation not permitted
+(Worker_TP5 pid=108298) INFO 06-06 15:37:17 [deepseek_v2.py:1750] [deepseek_v2] attaching kt-kernel wrappers: 58 MoE layers, num_gpu_experts=64 / 256, method=BF16, weight_path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad
+(Worker_TP5 pid=108298) WARNING 06-06 15:37:17 [kt_kernel_binding.py:127] [kt-binding] appended sys.path (low priority): /workspace/sglang_kt_prj/lib/python3.12/site-packages
+(Worker_TP5 pid=108298) INFO 06-06 15:37:17 [kt_kernel_binding.py:384] [kt-binding] init layer 3: num_experts=256 top_k=8 num_gpu_experts=64 hidden=7168 inter=2048 method=BF16 threads=112 pools=2
+set_mempolicy: Operation not permitted
+set_mempolicy: Operation not permitted
+set_mempolicy: Operation not permitted
+set_mempolicy: Operation not permitted
+set_mempolicy: Operation not permitted
+set_mempolicy: Operation not permitted
+set_mempolicy: Operation not permitted
+set_mempolicy: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+(Worker_TP4 pid=108297) [BF16SafeTensorLoader] Detected format: deepseek
+(Worker_TP4 pid=108297) INFO 06-06 15:37:28 [kt_kernel_binding.py:218] [kt-binding] SharedStagingBuffer: 112.0 MiB (max_tokens=8192 hidden=7168 dtype=torch.bfloat16)
+(Worker_TP4 pid=108297) INFO 06-06 15:37:28 [kt_kernel_binding.py:437] [kt-binding] loading weights for layer 3 (path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad)
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+(Worker_TP6 pid=108299) [BF16SafeTensorLoader] Detected format: deepseek
+(Worker_TP6 pid=108299) INFO 06-06 15:37:29 [kt_kernel_binding.py:218] [kt-binding] SharedStagingBuffer: 112.0 MiB (max_tokens=8192 hidden=7168 dtype=torch.bfloat16)
+(Worker_TP6 pid=108299) INFO 06-06 15:37:29 [kt_kernel_binding.py:437] [kt-binding] loading weights for layer 3 (path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad)
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+hwloc_set_membind_nodeset: Operation not permitted
+(Worker_TP3 pid=108296) [BF16SafeTensorLoader] Detected format: deepseek
+(Worker_TP3 pid=108296) INFO 06-06 15:37:29 [kt_kernel_binding.py:218] [kt-binding] SharedStagingBuffer: 112.0 MiB (max_tokens=8192 hidden=7168 dtype=torch.bfloat16)
+(Worker_TP3 pid=108296) INFO 06-06 15:37:29 [kt_kernel_binding.py:437] [kt-binding] loading weights for layer 3 (path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad)
+(Worker_TP2 pid=108295) [BF16SafeTensorLoader] Detected format: deepseek
+(Worker_TP2 pid=108295) INFO 06-06 15:37:29 [kt_kernel_binding.py:218] [kt-binding] SharedStagingBuffer: 112.0 MiB (max_tokens=8192 hidden=7168 dtype=torch.bfloat16)
+(Worker_TP2 pid=108295) INFO 06-06 15:37:29 [kt_kernel_binding.py:437] [kt-binding] loading weights for layer 3 (path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad)
+(Worker_TP7 pid=108300) [BF16SafeTensorLoader] Detected format: deepseek
+(Worker_TP7 pid=108300) INFO 06-06 15:37:29 [kt_kernel_binding.py:218] [kt-binding] SharedStagingBuffer: 112.0 MiB (max_tokens=8192 hidden=7168 dtype=torch.bfloat16)
+(Worker_TP7 pid=108300) INFO 06-06 15:37:29 [kt_kernel_binding.py:437] [kt-binding] loading weights for layer 3 (path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad)
+(Worker_TP0 pid=108293) [BF16SafeTensorLoader] Detected format: deepseek
+(Worker_TP0 pid=108293) INFO 06-06 15:37:29 [kt_kernel_binding.py:218] [kt-binding] SharedStagingBuffer: 112.0 MiB (max_tokens=8192 hidden=7168 dtype=torch.bfloat16)
+(Worker_TP0 pid=108293) INFO 06-06 15:37:29 [kt_kernel_binding.py:437] [kt-binding] loading weights for layer 3 (path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad)
+(Worker_TP5 pid=108298) [BF16SafeTensorLoader] Detected format: deepseek
+(Worker_TP5 pid=108298) INFO 06-06 15:37:29 [kt_kernel_binding.py:218] [kt-binding] SharedStagingBuffer: 112.0 MiB (max_tokens=8192 hidden=7168 dtype=torch.bfloat16)
+(Worker_TP5 pid=108298) INFO 06-06 15:37:29 [kt_kernel_binding.py:437] [kt-binding] loading weights for layer 3 (path=/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1/snapshots/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad)
+CPUInfer[0x2ef51000]: Hello
+WorkerPool[0x2ef4d8c0] 2 subpools, [numa:threads][0:56] [1:56] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 56 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 56 threads
+TP MOE layer 3, pool: 0x2ef4d8c0, expert num: 256, num_experts_per_tok: 8
+Created AMX_BF16_MOE_TP 0 at numa 0
+Created AMX_BF16_MOE_TP 1 at numa 1
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in __clone
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+CPUInfer[0x52688260]: Hello
+WorkerPool[0x52693030] 2 subpools, [numa:threads][0:56] [1:56] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 56 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 56 threads
+TP MOE layer 3, pool: 0x52693030, expert num: 256, num_experts_per_tok: 8
+Created AMX_BF16_MOE_TP 1 at numa 1
+Created AMX_BF16_MOE_TP 0 at numa 0
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in __clone
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+CPUInfer[0x5b7e7ee0]: Hello
+WorkerPool[0x5b7d2710] 2 subpools, [numa:threads][0:56] [1:56] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 56 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 56 threads
+TP MOE layer 3, pool: 0x5b7d2710, expert num: 256, num_experts_per_tok: 8
+Created AMX_BF16_MOE_TP 1 at numa 1
+Created AMX_BF16_MOE_TP 0 at numa 0
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in __clone
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+CPUInfer[0x51ecc0d0]: Hello
+WorkerPool[0x51ec86a0] 2 subpools, [numa:threads][0:56] [1:56] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 56 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 56 threads
+TP MOE layer 3, pool: 0x51ec86a0, expert num: 256, num_experts_per_tok: 8
+Created AMX_BF16_MOE_TP 1 at numa 1
+Created AMX_BF16_MOE_TP 0 at numa 0
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in __clone
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+CPUInfer[0x332c6bb0]: Hello
+WorkerPool[0x332cce60] 2 subpools, [numa:threads][0:56] [1:56] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 56 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 56 threads
+TP MOE layer 3, pool: 0x332cce60, expert num: 256, num_experts_per_tok: 8
+Created AMX_BF16_MOE_TP 1 at numa 1
+Created AMX_BF16_MOE_TP 0 at numa 0
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in __clone
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+CPUInfer[0x29896550]: Hello
+WorkerPool[0x29880da0] 2 subpools, [numa:threads][0:56] [1:56] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 56 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 56 threads
+TP MOE layer 3, pool: 0x29880da0, expert num: 256, num_experts_per_tok: 8
+Created AMX_BF16_MOE_TP 1 at numa 1
+Created AMX_BF16_MOE_TP 0 at numa 0
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in __clone
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+CPUInfer[0x3c0b93a0]: Hello
+WorkerPool[0x3be96a40] 2 subpools, [numa:threads][0:56] [1:56] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 56 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 56 threads
+TP MOE layer 3, pool: 0x3be96a40, expert num: 256, num_experts_per_tok: 8
+Created AMX_BF16_MOE_TP 1 at numa 1
+Created AMX_BF16_MOE_TP 0 at numa 0
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in __clone
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530] EngineCore failed to start.
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530] Traceback (most recent call last):
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1504, in run_engine_core
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     return func(*args, **kwargs)
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1270, in __init__
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     super().__init__(
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 116, in __init__
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     self.model_executor = executor_class(vllm_config)
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 109, in __init__
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     super().__init__(vllm_config)
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     return func(*args, **kwargs)
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/v1/executor/abstract.py", line 109, in __init__
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     self._init_executor()
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 202, in _init_executor
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     self.workers = WorkerProc.wait_for_ready(unready_workers)
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]   File "/workspace/host_vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 756, in wait_for_ready
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530]     raise e from None
+(EngineCore pid=108025) ERROR 06-06 15:38:09 [core.py:1530] Exception: WorkerProc initialization failed due to an exception in a background process. See stack trace for root cause.
+(EngineCore pid=108025) Process EngineCore:
+(EngineCore pid=108025) Traceback (most recent call last):
+(EngineCore pid=108025)   File "/usr/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+(EngineCore pid=108025)     self.run()
+(EngineCore pid=108025)   File "/usr/lib/python3.12/multiprocessing/process.py", line 108, in run
+(EngineCore pid=108025)     self._target(*self._args, **self._kwargs)
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1534, in run_engine_core
+(EngineCore pid=108025)     raise e
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1504, in run_engine_core
+(EngineCore pid=108025)     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=108025)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=108025)     return func(*args, **kwargs)
+(EngineCore pid=108025)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1270, in __init__
+(EngineCore pid=108025)     super().__init__(
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 116, in __init__
+(EngineCore pid=108025)     self.model_executor = executor_class(vllm_config)
+(EngineCore pid=108025)                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 109, in __init__
+(EngineCore pid=108025)     super().__init__(vllm_config)
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=108025)     return func(*args, **kwargs)
+(EngineCore pid=108025)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/v1/executor/abstract.py", line 109, in __init__
+(EngineCore pid=108025)     self._init_executor()
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 202, in _init_executor
+(EngineCore pid=108025)     self.workers = WorkerProc.wait_for_ready(unready_workers)
+(EngineCore pid=108025)                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=108025)   File "/workspace/host_vllm_hybrid/vllm/v1/executor/multiproc_executor.py", line 756, in wait_for_ready
+(EngineCore pid=108025)     raise e from None
+(EngineCore pid=108025) Exception: WorkerProc initialization failed due to an exception in a background process. See stack trace for root cause.
+(APIServer pid=107738) Traceback (most recent call last):
+(APIServer pid=107738)   File "/workspace/vllm_dev_prj/bin/vllm", line 10, in <module>
+(APIServer pid=107738)     sys.exit(main())
+(APIServer pid=107738)              ^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/cli/main.py", line 75, in main
+(APIServer pid=107738)     args.dispatch_function(args)
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/cli/serve.py", line 122, in cmd
+(APIServer pid=107738)     uvloop.run(run_server(args))
+(APIServer pid=107738)   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/uvloop/__init__.py", line 96, in run
+(APIServer pid=107738)     return __asyncio.run(
+(APIServer pid=107738)            ^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/usr/lib/python3.12/asyncio/runners.py", line 195, in run
+(APIServer pid=107738)     return runner.run(main)
+(APIServer pid=107738)            ^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=107738)     return self._loop.run_until_complete(task)
+(APIServer pid=107738)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=107738)   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=107738)     return await main
+(APIServer pid=107738)            ^^^^^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 678, in run_server
+(APIServer pid=107738)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 692, in run_server_worker
+(APIServer pid=107738)     async with build_async_engine_client(
+(APIServer pid=107738)                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=107738)     return await anext(self.gen)
+(APIServer pid=107738)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 100, in build_async_engine_client
+(APIServer pid=107738)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=107738)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=107738)     return await anext(self.gen)
+(APIServer pid=107738)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 136, in build_async_engine_client_from_engine_args
+(APIServer pid=107738)     async_llm = AsyncLLM.from_vllm_config(
+(APIServer pid=107738)                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/async_llm.py", line 219, in from_vllm_config
+(APIServer pid=107738)     return cls(
+(APIServer pid=107738)            ^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/async_llm.py", line 148, in __init__
+(APIServer pid=107738)     self.engine_core = EngineCoreClient.make_async_mp_client(
+(APIServer pid=107738)                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(APIServer pid=107738)     return func(*args, **kwargs)
+(APIServer pid=107738)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core_client.py", line 130, in make_async_mp_client
+(APIServer pid=107738)     return AsyncMPClient(*client_args)
+(APIServer pid=107738)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(APIServer pid=107738)     return func(*args, **kwargs)
+(APIServer pid=107738)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core_client.py", line 900, in __init__
+(APIServer pid=107738)     super().__init__(
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core_client.py", line 535, in __init__
+(APIServer pid=107738)     with launch_core_engines(
+(APIServer pid=107738)          ^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=107738)   File "/usr/lib/python3.12/contextlib.py", line 144, in __exit__
+(APIServer pid=107738)     next(self.gen)
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/utils.py", line 1094, in launch_core_engines
+(APIServer pid=107738)     wait_for_engine_startup(
+(APIServer pid=107738)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/utils.py", line 1153, in wait_for_engine_startup
+(APIServer pid=107738)     raise RuntimeError(
+(APIServer pid=107738) RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {}
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 8 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 1 leaked shared_memory objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

@@ -779,7 +779,137 @@ class Qwen3MoeForCausalLM(
 
     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
         loader = AutoWeightsLoader(self)
-        return loader.load_weights(weights)
+        result = loader.load_weights(weights)
+
+        # PoC (SUB_201): MoE expert CPU offload via kt_kernel.
+        # After weight load, attach a per-layer KtKernelLayerWrapper to each
+        # FusedMoE's quant_method so that forward_cuda will route a subset of
+        # experts through CPU AMX. Activated by VLLM_MOE_CPU_OFFLOAD=1.
+        try:
+            self._maybe_attach_kt_wrappers()
+        except Exception:  # pragma: no cover
+            import logging
+            logging.getLogger(__name__).exception(
+                "[qwen3_moe] _maybe_attach_kt_wrappers failed; falling back to "
+                "vanilla MoE path"
+            )
+        return result
+
+    def _maybe_attach_kt_wrappers(self) -> None:
+        """Attach a KtKernelLayerWrapper to each MoE layer if env flag is on."""
+        import os
+        from vllm.model_executor.layers.fused_moe.kt_kernel_binding import (
+            KtKernelLayerWrapper,
+            cpu_offload_config,
+            is_cpu_offload_enabled,
+            register_kt_capture_batch_sizes,
+        )
+
+        if not is_cpu_offload_enabled():
+            return
+
+        import logging
+        log = logging.getLogger(__name__)
+
+        cfg = cpu_offload_config()
+        weight_path = cfg["weight_path"]
+        if not weight_path:
+            # Fall back to model config path
+            try:
+                weight_path = self.config._name_or_path  # type: ignore[attr-defined]
+            except AttributeError:
+                weight_path = ""
+        if not weight_path:
+            log.warning(
+                "[qwen3_moe] VLLM_MOE_CPU_OFFLOAD set but weight_path empty; "
+                "set VLLM_MOE_KT_WEIGHT_PATH to the HF model dir."
+            )
+            return
+
+        config = self.config
+        hidden_size = config.hidden_size
+        moe_intermediate_size = config.moe_intermediate_size
+        num_experts = config.num_experts
+        top_k = config.num_experts_per_tok
+
+        # Pick the device from the first MoE layer's first weight
+        device = None
+        for layer in self.moe_layers:
+            try:
+                device = next(layer.parameters()).device
+                break
+            except StopIteration:
+                continue
+        if device is None or device.type != "cuda":
+            log.warning("[qwen3_moe] kt offload requires CUDA device; got %s", device)
+            return
+
+        log.info(
+            "[qwen3_moe] attaching kt-kernel wrappers: %d layers, "
+            "num_gpu_experts=%d / %d, method=%s, weight_path=%s",
+            len(self.moe_layers), cfg["num_gpu_experts"], num_experts,
+            cfg["kt_method"], weight_path,
+        )
+
+        for layer_idx, fused_moe in enumerate(self.moe_layers):
+            qm = fused_moe.quant_method
+            wrapper = KtKernelLayerWrapper(
+                layer_idx=layer_idx,
+                num_experts=num_experts,
+                num_experts_per_tok=top_k,
+                hidden_size=hidden_size,
+                moe_intermediate_size=moe_intermediate_size,
+                device=device,
+                weight_path=weight_path,
+                num_gpu_experts=cfg["num_gpu_experts"],
+                cpuinfer_threads=cfg["cpuinfer_threads"],
+                threadpool_count=cfg["threadpool_count"],
+                method=cfg["kt_method"],
+                max_deferred=cfg["max_deferred"],
+                chunked_prefill=cfg["chunked_prefill"],
+            )
+            wrapper.load_weights()  # loads from disk via kt-kernel
+            qm._kt_layer_wrapper = wrapper
+
+        # SGLang's cuda_graph_runner.py:497 calls
+        # ``KTMoEWrapper.set_capture_batch_sizes(self.capture_bs)`` before
+        # cuda graph capture so KExpertsCPUBuffer's per-batch CPU buffer tuples
+        # are promoted to the process-lifetime ``capture_buffers`` dict. vLLM
+        # enforce-eager mode has no equivalent point; instead we pre-register a
+        # superset of the batch sizes vLLM will feed (profile_run's
+        # max_num_tokens + a power-of-two ladder for decode steps).
+        try:
+            from vllm.config import get_current_vllm_config
+            vcfg = get_current_vllm_config()
+            scheduler_cfg = getattr(vcfg, "scheduler_config", None)
+            max_num_tokens = (
+                int(getattr(scheduler_cfg, "max_num_batched_tokens", 0) or 0)
+                or int(cfg["chunked_prefill"])
+                or 8192
+            )
+        except Exception:
+            max_num_tokens = int(cfg["chunked_prefill"]) or 8192
+
+        capture_bs_set: set[int] = set()
+        # Decode-step ladder (powers of two up to a small bound).
+        for bs in (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024):
+            if bs <= max_num_tokens:
+                capture_bs_set.add(bs)
+        # Profile_run uses exactly max_num_tokens.
+        capture_bs_set.add(max_num_tokens)
+        # User override:
+        user_extra = os.environ.get("VLLM_MOE_KT_CAPTURE_BS", "").strip()
+        if user_extra:
+            for tok in user_extra.split(","):
+                tok = tok.strip()
+                if tok.isdigit():
+                    capture_bs_set.add(int(tok))
+        register_kt_capture_batch_sizes(sorted(capture_bs_set))
+
+        log.info("[qwen3_moe] kt-kernel attach complete (%d layers), "
+                 "max_num_tokens=%d capture_bs=%s",
+                 len(self.moe_layers), max_num_tokens,
+                 sorted(capture_bs_set))
 
     def get_expert_mapping(self) -> list[tuple[str, str, int, str]]:
         return self.model.get_expert_mapping()

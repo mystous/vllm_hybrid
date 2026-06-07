@@ -1,0 +1,88 @@
+==== L10 seed99 sweep start at 2026-06-06T16:31:01Z ====
+[boot] BASELINE burst=0 at 2026-06-06T16:31:01Z
+[bench] BASELINE seed=99 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l10_admission/runs/BASELINE_s99.json
+{
+  "tag": "BASELINE_s99",
+  "n_requested": 400,
+  "n_ok": 0,
+  "n_err": 400,
+  "wall_total_s": 10.1,
+  "burst_max": 32,
+  "burst_dur_s": 0.05,
+  "idle_mean_s": 0.6,
+  "short_max_tok": 64,
+  "long_max_tok": 2048,
+  "long_ratio": 0.3,
+  "overall": {
+    "label": "overall",
+    "n": 0,
+    "ttft_ms_p50": null,
+    "ttft_ms_p90": null,
+    "ttft_ms_p99": null,
+    "tpot_ms_p50": null,
+    "tpot_ms_p99": null
+  },
+  "short": {
+    "label": "short",
+    "n": 0,
+    "ttft_ms_p50": null,
+    "ttft_ms_p90": null,
+    "ttft_ms_p99": null,
+    "tpot_ms_p50": null,
+    "tpot_ms_p99": null
+  },
+  "long": {
+    "label": "long",
+    "n": 0,
+    "ttft_ms_p50": null,
+    "ttft_ms_p90": null,
+    "ttft_ms_p99": null,
+    "tpot_ms_p50": null,
+    "tpot_ms_p99": null
+  },
+  "first_err": "ConnectError('All connection attempts failed')"
+}
+[boot] BURSTAWARE burst=1 at 2026-06-06T16:31:50Z
+[bench] BURSTAWARE seed=99 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/l10_admission/runs/BURSTAWARE_s99.json
+{
+  "tag": "BURSTAWARE_s99",
+  "n_requested": 400,
+  "n_ok": 400,
+  "n_err": 0,
+  "wall_total_s": 19.9,
+  "burst_max": 32,
+  "burst_dur_s": 0.05,
+  "idle_mean_s": 0.6,
+  "short_max_tok": 64,
+  "long_max_tok": 2048,
+  "long_ratio": 0.3,
+  "overall": {
+    "label": "overall",
+    "n": 400,
+    "ttft_ms_p50": 64.9,
+    "ttft_ms_p90": 950.0,
+    "ttft_ms_p99": 1425.3,
+    "tpot_ms_p50": 4.9,
+    "tpot_ms_p99": 6.9
+  },
+  "short": {
+    "label": "short",
+    "n": 272,
+    "ttft_ms_p50": 63.7,
+    "ttft_ms_p90": 948.1,
+    "ttft_ms_p99": 1412.9,
+    "tpot_ms_p50": 5.0,
+    "tpot_ms_p99": 6.9
+  },
+  "long": {
+    "label": "long",
+    "n": 128,
+    "ttft_ms_p50": 67.5,
+    "ttft_ms_p90": 954.3,
+    "ttft_ms_p99": 1458.2,
+    "tpot_ms_p50": 4.7,
+    "tpot_ms_p99": 5.9
+  },
+  "first_err": null
+}
+==== L10 seed99 sweep complete at 2026-06-06T16:32:51Z ====

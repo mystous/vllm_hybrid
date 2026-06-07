@@ -1684,7 +1684,131 @@ class DeepseekV2ForCausalLM(
             if name is not None and not is_fusion_moe_shared_experts_layer:
                 loaded_params.add(name)
 
+        # PoC (SUB_201 #35 step4): MoE expert CPU offload via kt_kernel — R1.
+        # Mirrors qwen3_moe._maybe_attach_kt_wrappers. Activated only when
+        # VLLM_MOE_CPU_OFFLOAD=1; otherwise no-op (regression-safe).
+        try:
+            self._maybe_attach_kt_wrappers()
+        except Exception:  # pragma: no cover
+            import logging
+            logging.getLogger(__name__).exception(
+                "[deepseek_v2] _maybe_attach_kt_wrappers failed; falling back to "
+                "vanilla MoE path"
+            )
+
         return loaded_params
+
+    def _maybe_attach_kt_wrappers(self) -> None:
+        """Attach KtKernelLayerWrapper to each MoE expert if env flag is set."""
+        import os
+        from vllm.model_executor.layers.fused_moe.kt_kernel_binding import (
+            KtKernelLayerWrapper,
+            cpu_offload_config,
+            is_cpu_offload_enabled,
+            register_kt_capture_batch_sizes,
+        )
+
+        if not is_cpu_offload_enabled():
+            return
+
+        import logging
+        log = logging.getLogger(__name__)
+
+        cfg = cpu_offload_config()
+        weight_path = cfg["weight_path"]
+        if not weight_path:
+            try:
+                weight_path = self.config._name_or_path  # type: ignore[attr-defined]
+            except AttributeError:
+                weight_path = ""
+        if not weight_path:
+            log.warning(
+                "[deepseek_v2] VLLM_MOE_CPU_OFFLOAD set but weight_path empty; "
+                "set VLLM_MOE_KT_WEIGHT_PATH to the HF model dir."
+            )
+            return
+
+        config = self.config
+        hidden_size = config.hidden_size
+        moe_intermediate_size = config.moe_intermediate_size
+        num_experts = config.n_routed_experts
+        top_k = config.num_experts_per_tok
+
+        device = None
+        for layer in self.moe_layers:
+            try:
+                device = next(layer.parameters()).device
+                break
+            except StopIteration:
+                continue
+        if device is None or device.type != "cuda":
+            log.warning("[deepseek_v2] kt offload requires CUDA device; got %s", device)
+            return
+
+        # Index moe_layers: skip first_k_dense (these are dense MLP, no MoE).
+        # self.moe_layers from set_moe_parameters already filters DeepseekV2MoE.
+        log.info(
+            "[deepseek_v2] attaching kt-kernel wrappers: %d MoE layers, "
+            "num_gpu_experts=%d / %d, method=%s, weight_path=%s",
+            len(self.moe_layers), cfg["num_gpu_experts"], num_experts,
+            cfg["kt_method"], weight_path,
+        )
+
+        # first_k_dense_replace is the offset between physical layer_idx and
+        # MoE-only ordering. kt-kernel expects the *physical* layer index for
+        # safetensor lookup (e.g. "model.layers.3.mlp.experts.*").
+        first_k = getattr(config, "first_k_dense_replace", 0)
+
+        for moe_idx, fused_moe in enumerate(self.moe_layers):
+            qm = fused_moe.quant_method
+            phys_layer = moe_idx + first_k
+            wrapper = KtKernelLayerWrapper(
+                layer_idx=phys_layer,
+                num_experts=num_experts,
+                num_experts_per_tok=top_k,
+                hidden_size=hidden_size,
+                moe_intermediate_size=moe_intermediate_size,
+                device=device,
+                weight_path=weight_path,
+                num_gpu_experts=cfg["num_gpu_experts"],
+                cpuinfer_threads=cfg["cpuinfer_threads"],
+                threadpool_count=cfg["threadpool_count"],
+                method=cfg["kt_method"],
+                max_deferred=cfg["max_deferred"],
+                chunked_prefill=cfg["chunked_prefill"],
+            )
+            wrapper.load_weights()
+            qm._kt_layer_wrapper = wrapper
+
+        try:
+            from vllm.config import get_current_vllm_config
+            vcfg = get_current_vllm_config()
+            scheduler_cfg = getattr(vcfg, "scheduler_config", None)
+            max_num_tokens = (
+                int(getattr(scheduler_cfg, "max_num_batched_tokens", 0) or 0)
+                or int(cfg["chunked_prefill"])
+                or 8192
+            )
+        except Exception:
+            max_num_tokens = int(cfg["chunked_prefill"]) or 8192
+
+        capture_bs_set: set[int] = set()
+        for bs in (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024):
+            if bs <= max_num_tokens:
+                capture_bs_set.add(bs)
+        capture_bs_set.add(max_num_tokens)
+        user_extra = os.environ.get("VLLM_MOE_KT_CAPTURE_BS", "").strip()
+        if user_extra:
+            for tok in user_extra.split(","):
+                tok = tok.strip()
+                if tok.isdigit():
+                    capture_bs_set.add(int(tok))
+        register_kt_capture_batch_sizes(sorted(capture_bs_set))
+
+        log.info("[deepseek_v2] kt-kernel attach complete (%d layers), "
+                 "max_num_tokens=%d capture_bs=%s",
+                 len(self.moe_layers), max_num_tokens,
+                 sorted(capture_bs_set))
 
 
 class DeepseekForCausalLM(DeepseekV2ForCausalLM):

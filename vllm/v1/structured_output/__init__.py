@@ -68,6 +68,12 @@ class StructuredOutputManager:
             max_workers = max(1, min(multiprocessing.cpu_count() // 2, 8))
             self.executor_for_fillmask = ThreadPoolExecutor(max_workers=max_workers)
 
+        # SUB_201 L5 — multi-thread grammar state advance pool.
+        # Lazily created on first use so that we never spin up worker threads
+        # when the flag is off. Sized at max(1, min(cpu_count()//2, 8)) by
+        # default or via VLLM_GRAMMAR_MT_MAX_WORKERS.
+        self._grammar_advance_executor: ThreadPoolExecutor | None = None
+
         if not self.vllm_config.model_config.skip_tokenizer_init:
             # The default max_workers if not specified is the number of
             # CPUs * 5, which is way too high since these tasks are CPU-bound,
@@ -341,9 +347,63 @@ class StructuredOutputManager:
 
         return False
 
+    # SUB_201 L5 ---------------------------------------------------------------
+    # Multi-thread grammar advance. Given a list of
+    # (req_id, grammar, tokens) to advance, run each grammar.accept_tokens()
+    # call on a ThreadPoolExecutor and return the per-req {req_id: accepted}
+    # result. xgrammar's GrammarMatcher.accept_token releases the GIL during
+    # its C++ FSM update, so CPython threads can actually run in parallel.
+    def _ensure_grammar_advance_executor(self) -> ThreadPoolExecutor:
+        if self._grammar_advance_executor is None:
+            override = envs.VLLM_GRAMMAR_MT_MAX_WORKERS
+            if override and override > 0:
+                workers = override
+            else:
+                workers = max(1, min(multiprocessing.cpu_count() // 2, 8))
+            self._grammar_advance_executor = ThreadPoolExecutor(
+                max_workers=workers,
+                thread_name_prefix="grammar-advance",
+            )
+        return self._grammar_advance_executor
+
+    def batch_accept_tokens(
+        self,
+        batch: list[tuple[str, "StructuredOutputGrammar", list[int]]],
+    ) -> dict[str, bool]:
+        """Advance multiple grammars in parallel.
+
+        Returns a {req_id: accepted_ok} mapping. If the multi-thread flag is
+        off, or the batch is smaller than VLLM_GRAMMAR_MT_MIN_BATCH, falls
+        back to serial inline execution.
+        """
+        result: dict[str, bool] = {}
+        if not batch:
+            return result
+
+        use_mt = envs.VLLM_GRAMMAR_MULTITHREAD
+        min_batch = max(1, envs.VLLM_GRAMMAR_MT_MIN_BATCH)
+        if not use_mt or len(batch) < min_batch:
+            for req_id, grammar, tokens in batch:
+                result[req_id] = grammar.accept_tokens(req_id, tokens)
+            return result
+
+        executor = self._ensure_grammar_advance_executor()
+        # Submit all advance tasks. xgrammar releases the GIL inside the C++
+        # matcher.accept_token call so the threads run concurrently.
+        futures = []
+        for req_id, grammar, tokens in batch:
+            fut = executor.submit(grammar.accept_tokens, req_id, tokens)
+            futures.append((req_id, fut))
+        for req_id, fut in futures:
+            result[req_id] = fut.result()
+        return result
+
     def clear_backend(self) -> None:
         if self.backend is not None:
             self.backend.destroy()
+        if self._grammar_advance_executor is not None:
+            self._grammar_advance_executor.shutdown(wait=False)
+            self._grammar_advance_executor = None
 
     # SUB_201 / B2(jump_forward) ---------------------------------------------
     # Called by EngineCore.step() after update_from_output(), gated by

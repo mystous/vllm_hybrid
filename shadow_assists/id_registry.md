@@ -75,7 +75,7 @@ IDE 의 진입·정확도·throughput 가정을 풀기 위한 PoC / microbench �
 
 FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디렉토리 내 `task.md` 항목과 매핑된다.
 
-**다음 부여 번호**: `TSK_045`
+**다음 부여 번호**: `TSK_046`
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
@@ -123,6 +123,7 @@ FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디�
 | `TSK_042` | **완료** (2026-06-01 신설→측정 완료; XL 222셀 = 10모델 × {vanilla/suffix/llm-d/ngram} × 7조건, RESULTS.md; 기존 SUB_199 승격) | IDE_022: 워크로드 활용 실험 — 실 trace corpus × 모델 매트릭스(Qwen/Llama/DeepSeek 7B~671B) × method(vanilla/suffix/ngram/eagle) oracle(throughput) + 출력 품질(losslessness 경로A / 품질벤치 경로B) + **라우팅 전략 비교 = vanilla/trident/llm-d** (smart router = llm-d) | parent: `IDE_022`. 자식 SUB: TBD. 선행 `SUB_076`, `PRE_TSK042_TSK044_prerequisites.md`. 핵심 산출물 `oracle_table.parquet`. 코드 `vllm_config_perf/gating/realistic_eval/`. plan: [`features/IDE_006/TSK_020/planning/TSK_042_realistic_workload_oracle.md`](features/IDE_006/TSK_020/planning/TSK_042_realistic_workload_oracle.md) |
 | `TSK_043` | **활성 — §5 verdict(host-bound 확정) + lever PoC 10건 완료(SUB_201~211); reclamation 통합 대기** (2026-06-05 신설) | IDE_022: **Host-Side Slack Reclamation** — spec-decode 가 만든 host(CPU) 병목을 유휴 CPU 병렬로 회수해 GPU slack 환수 (CPU 흉내 아님). 분석·결정적 실험 = `SUB_201`, lever PoC = `SUB_202~211`. **CPU reclamation lever = A1(draft)/A2(KV tier)/B1(detok)** (B1 negligible / A1·A2 조건부). **B2 기각**. **B3=FaP(cudagraph FULL_AND_PIECEWISE)는 CPU 가 아니라 vLLM-native GPU-side 향상**(+30.1%, spec-decode 가산·직교) → reclamation 기여에서 분리. parent: `IDE_022`. 자식 SUB: `SUB_201`(+`SUB_202`~`SUB_211`). 코드 `vllm/v1/spec_decode/cpu_amx*.py`,`vllm/v1/core/kv_dram_tiering.py`. doc: [`features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/`](features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/) |
 | `TSK_044` | **기각** (2026-06-06 — TSK_042 oracle 분석 결과 per-request 워크로드 분류기 무가치) | IDE_022: AGSD CPU 병렬성 최적화 + 측정 — AGSD(분류기 C0~C3 + 라우터) §8 CPU 병렬성 최적화(R1 RE2/R2 mimalloc/R4 hashing/R5 ONNX INT8/R3 vectorscan/R6 free-threaded) + 측정(classify latency · AGSD routing e2e throughput · `oracle_table` 기반 decision-regret) | parent: `IDE_022`. 자식 SUB: TBD. 선행 `TSK_042`(oracle_table), `PRE_TSK042_TSK044_prerequisites.md`. 라우터 ABI 무변경. 코드 `vllm_config_perf/gating/classifiers/`. plan: [`features/IDE_006/TSK_020/planning/TSK_044_cpu_classifier.md`](features/IDE_006/TSK_020/planning/TSK_044_cpu_classifier.md) |
+| `TSK_045` | **활성 — 1단계 SHORT 측정 완료, 2단계(R1-671B) 대기** (2026-06-06 신설) | IDE_022 후속: **MoE expert CPU(AMX) offload — cluster capacity 효율 검증**. 1단계 PoC: Qwen3-30B-A3B (128 experts × top-k 8) × 20p × max_tokens=256 × conc=8, A=full-GPU TP=2 vs B=SGLang+kt-kernel(BF16) hot32/CPU96 TP=1 → decode tps A 157.94 / B 186.99 (B/A=**1.18 per-model ↑**), **tps-per-GPU 78.97 → 186.99 (+136.8%)**. 가설 A(per-model 손해) 기각, 가설 B(cluster ↑) 유망. parent: `IDE_022`(`TSK_043` 후속, abundant-HBM CPU-throughput 길 단일 후보). 자식 SUB: TBD. 코드/측정: [`features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/moe_offload/MEASUREMENTS.md`](features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/moe_offload/MEASUREMENTS.md). 환경: sglang-kt 0.6.2.post3 + kt_kernel 0.6.2.post4 (별도 venv `/workspace/sglang_kt_prj`, AMX native Xeon 8570 + B200). 다음: 2단계 R1-671B (HANDOFF §3.2) — N-GPU(2/4)+CPU-AMX vs 8-GPU vanilla, tps-per-GPU + 동시 2nd 모델 capacity 측정 |
 
 ---
 

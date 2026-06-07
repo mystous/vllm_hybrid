@@ -46,6 +46,7 @@ from vllm.v1.core.sched.output import (
     SchedulerOutput,
 )
 from vllm.v1.core.sched.request_queue import (
+    FCFSRequestQueue,
     RequestQueue,
     SchedulingPolicy,
     create_request_queue,
@@ -90,6 +91,84 @@ def _neo_chain_skip_enabled() -> bool:
                 "(vanilla preempt 등가)."
             )
     return _NEO_CHAIN_SKIP_ENABLED_CACHED
+
+
+# ----------------------------------------------------------------------
+# [SUB_201 / L10] CPU burst-aware admission control (poc)
+#
+# Env flag:  VLLM_BURST_AWARE_ADMISSION=1
+#   When the waiting queue depth >= BURST_TRIGGER_DEPTH and FCFS policy
+#   is in use, the scheduler re-orders the head of the deque so that the
+#   request with the smallest expected generation cost (proxy =
+#   `request.max_tokens`) is admitted first. This is "shortest-job-
+#   first" admission, designed to recover TTFT p99 tail under bursty
+#   traffic patterns where short requests get blocked behind long ones.
+#
+# Optional tuning (read once, cached at module load):
+#   VLLM_BURST_TRIGGER_DEPTH (int, default 4)
+#       Minimum waiting-queue size before reordering kicks in.
+#   VLLM_BURST_HEAD_WINDOW   (int, default 16)
+#       How many head-of-queue candidates to inspect per scheduling step.
+#   VLLM_BURST_AGE_CAP_S     (float, default 2.0)
+#       Per-request starvation guard: if any request in the head window
+#       has waited longer than this many seconds, fall back to strict
+#       FCFS for this step.
+# ----------------------------------------------------------------------
+_BURST_AWARE_ENABLED_CACHED: bool | None = None
+_BURST_TRIGGER_DEPTH_CACHED: int | None = None
+_BURST_HEAD_WINDOW_CACHED: int | None = None
+_BURST_AGE_CAP_S_CACHED: float | None = None
+
+
+def _burst_aware_enabled() -> bool:
+    global _BURST_AWARE_ENABLED_CACHED  # noqa: PLW0603
+    if _BURST_AWARE_ENABLED_CACHED is None:
+        _BURST_AWARE_ENABLED_CACHED = (
+            _os_neo_chain.environ.get("VLLM_BURST_AWARE_ADMISSION") == "1"
+        )
+        if _BURST_AWARE_ENABLED_CACHED:
+            logger.warning(
+                "[SUB_201/L10] VLLM_BURST_AWARE_ADMISSION=1 — "
+                "CPU burst-aware admission control 활성 "
+                "(shortest-job-first head reorder, FCFS only)."
+            )
+    return _BURST_AWARE_ENABLED_CACHED
+
+
+def _burst_trigger_depth() -> int:
+    global _BURST_TRIGGER_DEPTH_CACHED  # noqa: PLW0603
+    if _BURST_TRIGGER_DEPTH_CACHED is None:
+        try:
+            _BURST_TRIGGER_DEPTH_CACHED = max(
+                2, int(_os_neo_chain.environ.get("VLLM_BURST_TRIGGER_DEPTH", "4"))
+            )
+        except ValueError:
+            _BURST_TRIGGER_DEPTH_CACHED = 4
+    return _BURST_TRIGGER_DEPTH_CACHED
+
+
+def _burst_head_window() -> int:
+    global _BURST_HEAD_WINDOW_CACHED  # noqa: PLW0603
+    if _BURST_HEAD_WINDOW_CACHED is None:
+        try:
+            _BURST_HEAD_WINDOW_CACHED = max(
+                2, int(_os_neo_chain.environ.get("VLLM_BURST_HEAD_WINDOW", "16"))
+            )
+        except ValueError:
+            _BURST_HEAD_WINDOW_CACHED = 16
+    return _BURST_HEAD_WINDOW_CACHED
+
+
+def _burst_age_cap_s() -> float:
+    global _BURST_AGE_CAP_S_CACHED  # noqa: PLW0603
+    if _BURST_AGE_CAP_S_CACHED is None:
+        try:
+            _BURST_AGE_CAP_S_CACHED = float(
+                _os_neo_chain.environ.get("VLLM_BURST_AGE_CAP_S", "2.0")
+            )
+        except ValueError:
+            _BURST_AGE_CAP_S_CACHED = 2.0
+    return _BURST_AGE_CAP_S_CACHED
 
 
 class Scheduler(SchedulerInterface):
@@ -1630,6 +1709,44 @@ class Scheduler(SchedulerInterface):
                 num_scheduled_tokens,
             )
 
+        # SUB_201 L5 — multi-thread grammar advance pre-pass.
+        # When VLLM_GRAMMAR_MULTITHREAD=1, we gather every (req_id, grammar,
+        # new_token_ids) tuple that needs an FSM advance and batch them onto
+        # the StructuredOutputManager's ThreadPoolExecutor, parallelising the
+        # xgrammar matcher.accept_token C++ work across requests. The result
+        # is consumed inside the main per-request loop below in place of the
+        # serial grammar.accept_tokens() call.
+        grammar_advance_results: dict[str, bool] = {}
+        if envs.VLLM_GRAMMAR_MULTITHREAD and sampled_token_ids:
+            advance_batch: list[tuple[str, Any, list[int]]] = []
+            for _pre_req_id in num_scheduled_tokens.keys():
+                if (
+                    failed_kv_load_req_ids
+                    and _pre_req_id in failed_kv_load_req_ids
+                ):
+                    continue
+                _pre_request = self.requests.get(_pre_req_id)
+                if _pre_request is None or _pre_request.is_finished():
+                    continue
+                if not self.structured_output_manager.should_advance(_pre_request):
+                    continue
+                _pre_idx = model_runner_output.req_id_to_index.get(_pre_req_id)
+                if _pre_idx is None:
+                    continue
+                _pre_gen = sampled_token_ids[_pre_idx] if sampled_token_ids else []
+                if not _pre_gen:
+                    continue
+                _pre_sor = _pre_request.structured_output_request
+                if _pre_sor is None or _pre_sor.grammar is None:
+                    continue
+                advance_batch.append(
+                    (_pre_req_id, _pre_sor.grammar, list(_pre_gen))
+                )
+            if advance_batch:
+                grammar_advance_results = (
+                    self.structured_output_manager.batch_accept_tokens(advance_batch)
+                )
+
         # NOTE(woosuk): As len(num_scheduled_tokens) can be up to 1K or more,
         # the below loop can be a performance bottleneck. We should do our best
         # to avoid expensive operations inside the loop.
@@ -1707,9 +1824,19 @@ class Scheduler(SchedulerInterface):
                 struct_output_request = request.structured_output_request
                 assert struct_output_request is not None
                 assert struct_output_request.grammar is not None
-                if not struct_output_request.grammar.accept_tokens(  # type: ignore[union-attr]
-                    req_id, new_token_ids
-                ):
+                # SUB_201 L5 — if the multi-thread pre-pass already advanced
+                # this request's grammar, reuse the cached result. Otherwise
+                # fall back to inline advance (multi-thread flag off, or the
+                # batch was smaller than VLLM_GRAMMAR_MT_MIN_BATCH so the
+                # helper itself ran inline — in that case the result dict
+                # still holds the outcome).
+                if req_id in grammar_advance_results:
+                    _accepted_ok = grammar_advance_results[req_id]
+                else:
+                    _accepted_ok = struct_output_request.grammar.accept_tokens(  # type: ignore[union-attr]
+                        req_id, new_token_ids
+                    )
+                if not _accepted_ok:
                     logger.error(
                         "Unexpected: grammar rejected tokens %s for request %s. "
                         "Terminating request.",
@@ -1871,6 +1998,10 @@ class Scheduler(SchedulerInterface):
 
     def _select_waiting_queue_for_scheduling(self) -> RequestQueue | None:
         if self.policy == SchedulingPolicy.FCFS:
+            # [SUB_201/L10] burst-aware shortest-job-first reorder.
+            # Only touch self.waiting (skipped_waiting keeps strict order).
+            if _burst_aware_enabled():
+                self._burst_aware_reorder_waiting()
             return self.skipped_waiting or self.waiting or None
 
         # PRIORITY mode: compare queue heads when both queues are non-empty.
@@ -1880,6 +2011,51 @@ class Scheduler(SchedulerInterface):
             return self.waiting if waiting_req < skipped_req else self.skipped_waiting
 
         return self.waiting or self.skipped_waiting or None
+
+    def _burst_aware_reorder_waiting(self) -> None:
+        """[SUB_201/L10] Shortest-job-first head reorder for FCFS waiting.
+
+        Triggers only when the FCFS waiting deque has reached the burst
+        depth. Inspects the front-of-queue window, picks the candidate
+        with the smallest ``max_tokens`` (cost proxy), and rotates it to
+        the front. A simple starvation guard bypasses the reorder when
+        any candidate in the inspection window has been waiting longer
+        than the configured age cap.
+        """
+        wq = self.waiting
+        if not isinstance(wq, FCFSRequestQueue):
+            return
+        n = len(wq)
+        if n < _burst_trigger_depth():
+            return
+        window = min(n, _burst_head_window())
+        # Inspect the first `window` requests. Using direct indexing on
+        # the deque is O(window) which is cheap for small windows.
+        age_cap = _burst_age_cap_s()
+        now = time.time()
+        best_idx = 0
+        best_cost = None
+        for i in range(window):
+            req = wq[i]
+            # Starvation guard: if any request in the window is older
+            # than the cap, fall back to strict FCFS for this step.
+            if (now - req.arrival_time) > age_cap:
+                return
+            # Cost proxy: max_tokens (output budget). Smaller = shorter
+            # job. Tie-break by num_prompt_tokens so a small-prompt
+            # short-output request still wins over a long-prompt one.
+            cost = (req.max_tokens, req.num_prompt_tokens)
+            if best_cost is None or cost < best_cost:
+                best_cost = cost
+                best_idx = i
+        if best_idx == 0:
+            return
+        # Rotate so element at best_idx becomes the front. Preserve
+        # relative order of the others by removing best_idx and
+        # appendleft-ing it.
+        chosen = wq[best_idx]
+        del wq[best_idx]
+        wq.appendleft(chosen)
 
     def _handle_stopped_request(self, request: Request) -> bool:
         """Return True if finished (can be False for resumable requests)."""

@@ -102,6 +102,8 @@ if TYPE_CHECKING:
     VLLM_FORCE_AOT_LOAD: bool = False
     VLLM_USE_MEGA_AOT_ARTIFACT: bool = False
     VLLM_USE_TRITON_AWQ: bool = False
+    VLLM_PREFETCH_TOKENIZE: bool = False
+    VLLM_PREFETCH_TOKENIZE_WORKERS: int = 2
     VLLM_ALLOW_RUNTIME_LORA_UPDATING: bool = False
     VLLM_SKIP_P2P_CHECK: bool = False
     VLLM_DISABLED_KERNELS: list[str] = []
@@ -180,6 +182,9 @@ if TYPE_CHECKING:
     VLLM_FLASHINFER_WORKSPACE_BUFFER_SIZE: int = 394 * 1024 * 1024
     VLLM_XGRAMMAR_CACHE_MB: int = 0
     VLLM_USE_XGRAMMAR_JUMP_FORWARD: bool = False
+    VLLM_GRAMMAR_MULTITHREAD: bool = False
+    VLLM_GRAMMAR_MT_MIN_BATCH: int = 8
+    VLLM_GRAMMAR_MT_MAX_WORKERS: int = 0
     VLLM_MSGPACK_ZERO_COPY_THRESHOLD: int = 256
     VLLM_ALLOW_INSECURE_SERIALIZATION: bool = False
     VLLM_DISABLE_REQUEST_ID_RANDOMIZATION: bool = False
@@ -938,6 +943,19 @@ environment_variables: dict[str, Callable[[], Any]] = {
     ),
     # If set, vLLM will use Triton implementations of AWQ.
     "VLLM_USE_TRITON_AWQ": lambda: bool(int(os.getenv("VLLM_USE_TRITON_AWQ", "0"))),
+    # If set, AsyncMicrobatchTokenizer uses a dedicated multi-thread
+    # ThreadPoolExecutor for BPE tokenization, decoupling it from the
+    # renderer shared pool.  This lets BPE encoding of newly arrived
+    # requests overlap with the GPU forward of in-flight requests.
+    # (SUB_201 L2 — CPU prefetch + tokenization overlap)
+    "VLLM_PREFETCH_TOKENIZE": lambda: bool(
+        int(os.getenv("VLLM_PREFETCH_TOKENIZE", "0"))
+    ),
+    # Worker thread count for the prefetch-tokenize executor.  Only used
+    # when VLLM_PREFETCH_TOKENIZE=1.  Default 2.
+    "VLLM_PREFETCH_TOKENIZE_WORKERS": lambda: int(
+        os.getenv("VLLM_PREFETCH_TOKENIZE_WORKERS", "2")
+    ),
     # If set, allow loading or unloading lora adapters in runtime,
     "VLLM_ALLOW_RUNTIME_LORA_UPDATING": lambda: (
         os.environ.get("VLLM_ALLOW_RUNTIME_LORA_UPDATING", "0").strip().lower()
@@ -1308,6 +1326,26 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # skipping N sampler steps. Default off — regression-safe.
     "VLLM_USE_XGRAMMAR_JUMP_FORWARD": lambda: bool(
         int(os.getenv("VLLM_USE_XGRAMMAR_JUMP_FORWARD", "0"))
+    ),
+    # SUB_201 L5 — CPU multi-thread grammar state advance.
+    # When set to 1, structured-output requests in update_from_output() will
+    # batch their grammar.accept_tokens() calls onto a ThreadPoolExecutor so
+    # that xgrammar's per-request FSM advance runs in parallel across the
+    # batch. Helps when batches are large enough that the serial per-request
+    # cost becomes visible on the engine critical path. Default off.
+    "VLLM_GRAMMAR_MULTITHREAD": lambda: bool(
+        int(os.getenv("VLLM_GRAMMAR_MULTITHREAD", "0"))
+    ),
+    # Minimum batch size of structured-output advances before the pool is
+    # used. Below this, fall back to serial inline advance to avoid pool
+    # submit overhead. Default 8.
+    "VLLM_GRAMMAR_MT_MIN_BATCH": lambda: int(
+        os.getenv("VLLM_GRAMMAR_MT_MIN_BATCH", "8")
+    ),
+    # Max worker threads for the grammar advance pool. 0 means auto =
+    # max(1, min(cpu_count()//2, 8)).
+    "VLLM_GRAMMAR_MT_MAX_WORKERS": lambda: int(
+        os.getenv("VLLM_GRAMMAR_MT_MAX_WORKERS", "0")
     ),
     # Control the threshold for msgspec to use 'zero copy' for
     # serialization/deserialization of tensors. Tensors below

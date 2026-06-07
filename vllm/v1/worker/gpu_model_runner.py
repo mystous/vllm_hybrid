@@ -890,6 +890,39 @@ class GPUModelRunner(
         # Cudagraph dispatcher for runtime cudagraph dispatching.
         self.cudagraph_dispatcher = CudagraphDispatcher(self.vllm_config)
 
+        # ─── L12 CPU-side cudagraph batch-size predictor (SUB_201) ────────
+        # Env-gated; no-op when VLLM_CUDAGRAPH_PREDICTIVE_WARMUP is unset.
+        self.l12_hook = None
+        if os.environ.get("VLLM_CUDAGRAPH_PREDICTIVE_WARMUP", "0") not in (
+            "0",
+            "",
+        ):
+            try:
+                import sys as _l12_sys
+
+                _l12_path = os.environ.get(
+                    "VLLM_CUDAGRAPH_PREDICTIVE_PATH",
+                    "/workspace/host_vllm_hybrid/shadow_assists/features/"
+                    "IDE_022_agsd_realistic_eval/"
+                    "SUB_201_cpu_host_path_bottleneck/poc/l12_cudagraph_warmup",
+                )
+                if _l12_path not in _l12_sys.path:
+                    _l12_sys.path.insert(0, _l12_path)
+                from patch import make_hook as _l12_make_hook  # noqa: E402
+
+                self.l12_hook = _l12_make_hook(self)
+                if self.l12_hook is not None:
+                    logger.info(
+                        "L12 predictive warmup hook attached (mode=%s, "
+                        "captured_sizes=%d)",
+                        os.environ.get("VLLM_CUDAGRAPH_PREDICTIVE_WARMUP"),
+                        len(self.cudagraph_batch_sizes),
+                    )
+            except Exception as _l12_exc:  # noqa: BLE001
+                logger.warning("L12 hook attach failed: %s", _l12_exc)
+                self.l12_hook = None
+        # ─────────────────────────────────────────────────────────────────
+
         self.mm_budget = (
             MultiModalBudget(self.vllm_config, self.mm_registry)
             if self.supports_mm_inputs
@@ -4050,6 +4083,15 @@ class GPUModelRunner(
                 num_paddings=batch_descriptor.num_tokens - num_tokens,
                 runtime_mode=str(cudagraph_mode),
             )
+
+        # ─── L12 hook (env-gated, no-op when self.l12_hook is None) ───────
+        l12_hook = getattr(self, "l12_hook", None)
+        if l12_hook is not None:
+            l12_hook.observe_and_predict(
+                int(batch_descriptor.num_tokens),
+                cudagraph_dispatcher=self.cudagraph_dispatcher,
+            )
+        # ─────────────────────────────────────────────────────────────────
 
         return (
             cudagraph_mode,

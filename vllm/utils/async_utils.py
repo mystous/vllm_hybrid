@@ -8,6 +8,7 @@ This is similar in concept to the `asyncio` module.
 
 import asyncio
 import contextlib
+import os
 from asyncio import FIRST_COMPLETED, AbstractEventLoop, Future, Task
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from concurrent.futures import Executor, ThreadPoolExecutor
@@ -47,9 +48,30 @@ class AsyncMicrobatchTokenizer:
         ] = {}
         self._batcher_tasks: list[Task] = []
 
-        # Single-thread executor for blocking tokenizer calls.
-        # Accept an external executor to serialize with other tokenizer users.
-        self._executor = executor or ThreadPoolExecutor(max_workers=1)
+        # SUB_201 L2: optional prefetch path.  When VLLM_PREFETCH_TOKENIZE=1,
+        # we replace the shared single-thread renderer pool with a dedicated
+        # multi-thread executor so that BPE tokenization of newly arrived
+        # requests can run on a separate CPU thread in parallel with the GPU
+        # forward of in-flight requests.  We also shorten the batch-wait
+        # window so the first request does not stall waiting for siblings.
+        self._prefetch_enabled = bool(
+            int(os.getenv("VLLM_PREFETCH_TOKENIZE", "0") or "0")
+        )
+        if self._prefetch_enabled:
+            n_workers = int(os.getenv("VLLM_PREFETCH_TOKENIZE_WORKERS", "2") or "2")
+            n_workers = max(1, n_workers)
+            self._executor = ThreadPoolExecutor(
+                max_workers=n_workers,
+                thread_name_prefix="vllm-prefetch-tok",
+            )
+            # Cut HOL batching latency: keep batching opportunistic but do
+            # not block the first arrival on the 2 ms wait.
+            self.batch_wait_timeout_s = min(self.batch_wait_timeout_s, 0.0005)
+        else:
+            # Single-thread executor for blocking tokenizer calls.
+            # Accept an external executor to serialize with other tokenizer
+            # users.
+            self._executor = executor or ThreadPoolExecutor(max_workers=1)
 
     # === Public async API ===
     async def __call__(self, prompt, **kwargs) -> BatchEncoding:
