@@ -1,0 +1,38 @@
+%% tables/tbl_lever_summary.tex
+%% 100+ host-path lever cumulative verdict (B200×8 + Llama-3.1-8B TP=8 baseline).
+%% 출처: poc/{ide023_levers, hw_custom_round_{1,2,3}, cpu_heavy_{baseline,C1-C4}, cpu_continuous,
+%%           amx_cpu_draft, eagle3_suffix_final, six_workload_sweep}.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Host-path reclamation lever 100+ 측정 누적 verdict.}
+  Baseline = vanilla + B3-FaP cudagraph + L2 prefetch-tokenize + L10 burst-aware admission
+  (sharegpt 500 prompts $\times$ conc=64 $\times$ max\_tok=2048, B200$\times$8, Llama-3.1-8B-Instruct TP=8,
+  22,008 $\pm$ 143 tps, GPU 96.2\%, CPU 5.4\%).
+  $\Delta$\% 는 정밀 5-sweep 또는 1-sweep 측정 (accept gate $\ge\!+3.0\%$, noise floor $\pm1\%$).}
+\label{tbl:lever-summary}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+\textbf{Lever category} & \textbf{\# tried} & \textbf{$\Delta$\% range} & \textbf{Verdict} \\
+\midrule
+Env-flag (PYTORCH\_*, malloc, jemalloc, FA3, FI sampler) & 22 & $-2.71\!\sim\!+0.78$ & noise / negative \\
+NUMA bind / SMT pinning / cap\_sys\_nice                  &  4 & boot\_fail            & blocked (container권한) \\
+KV layout (SoA, huge pages, prefetch tile)                &  5 & $-1.69\!\sim\!-1.05$ & negative \\
+AVX-512 BPE / simdjson / base64 host helper               &  4 & $-1.69\!\sim\!-0.43$ & negative (CPU $\le5.4\%$) \\
+Scheduler (lock-free queue, LogGP admission, CMT)         &  3 & $-1.44\!\sim\!-1.04$ & noise \\
+Cudagraph mode 변형 (FULL\_DECODE\_ONLY, batched-tokens)  &  4 & $-2.18\!\sim\!+1.76$ & noise / crash \\
+Async / chunked prefill (max-batched-tokens, max-seqs)    &  4 & $-0.09\!\sim\!+3.16$ & crash @ sweep 2--3 \\
+Stream priority / fuse\_gemm\_comms / enable\_sp (vLLM)   &  6 & $-2.46\!\sim\!+0.22$ & noise (fp8 위에) \\
+CPU sampling (VLLM\_CPU\_SAMPLING, FI sampler)            &  2 & $-0.17\!\sim\!+0.21$ & noise (D2H 종속) \\
+N-gram K=3 spec-decode (host draft)                      &  1 & $-22.4\%$            & batched 환경 collapse \\
+Eagle3 spec-decode (online conc=64)                      &  6 & $-26.4\!\sim\!-32.1$ & 6/6 negative (\S\ref{subsec:res-eagle3}) \\
+Suffix tree spec-decode (\textbf{net-positive lever})    &  6 & $-24.6\!\sim\!+27.2$ & 5/6 positive (\S\ref{subsec:res-overview}) \\
+CPU AMX BF16 draft (Llama-3.2-1B + KV + rank0)           &  5 & $-98.0\!\sim\!-99.8$ & 4500$\times$ hw gap (\S\ref{subsec:res-amx-draft}) \\
+KV tiering / MoE offload (DRAM)                           &  2 & boot\_fail / noise   & negative \\
+\textbf{FP8 KV cache (GPU-side, orthogonal)}              &  \textbf{6} & $\mathbf{+3.93\!\sim\!+7.32}$ & \textbf{positive (5-sweep accept)} \\
+\midrule
+\textbf{Total (host-path reclamation candidates)}        & \textbf{$\ge75$} & --- & \textbf{0 net-positive} \\
+\bottomrule
+\end{tabular}}
+\end{table}

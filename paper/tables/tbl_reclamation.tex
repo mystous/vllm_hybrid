@@ -1,26 +1,40 @@
-%% tables/tbl_reclamation.tex  (Table IX) — width-safe: \resizebox + 주석 caption
-%% [PLACEHOLDER] Host-side CPU 병렬 reclamation 성능. 결정적 실험(§6.5) 후 채움.
+%% tables/tbl_reclamation.tex  (Table IX) — measured-negative result, not placeholder.
+%% 출처: poc/{cpu_heavy_FINAL.md, cpu_continuous/MEASUREMENTS.md, ide023_levers/SUMMARY.md,
+%%           hw_custom_FINAL_REPORT.md, amx_cpu_draft/MEASUREMENTS.md, eagle3_suffix_final/MEASUREMENTS.md}
 
 \begin{table}[t]
 \centering
-\caption{\textbf{[측정 예정]} Host-side CPU 병렬 reclamation 성능.
-  suffix 가 un-saturate 시킨 GPU(\S\ref{subsec:res-resource})를
-  유휴 CPU 의 병렬 host-path 로 재충전했을 때의 처리량과 GPU 이용률 회복.
-  suffix tps$\cdot$GPU\% 는 본 연구 실측(B200); +reclaim 열은
-  \S\ref{subsec:decisive} 결정적 실험 후 측정(\textbf{TBD}).}
+\caption{\textbf{Host-side CPU reclamation 75+ lever 측정 결과 (정직 보고: 모두 noise / negative).}
+  Baseline = vanilla + B3-FaP + L2 + L10 (Llama-3.1-8B-Instruct, TP=8, B200$\times$8,
+  sharegpt 500p $\times$ conc=64 $\times$ max\_tok=2048, $22{,}008\!\pm\!143$ tps, GPU 96.2\%, CPU 5.4\%).
+  GPU 가 96\% saturated 인 regime 에서 CPU 가 직접 GPU 일을 가져가지 않는 한 host-path lever 의
+  throughput 영향은 noise band 이하다 (\S\ref{subsec:hw-gap-analysis}).}
 \label{tbl:reclamation}
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{@{}lrccc@{}}
+\begin{tabular}{@{}lrrl@{}}
 \toprule
-\textbf{Model (mix)} & \textbf{suffix tps} & \textbf{+reclaim} &
-  \textbf{$\Delta$} & \textbf{GPU\% suf$\to$rcl} \\
+\textbf{Lever (대표)} & \textbf{tps mean $\pm$ std} & \textbf{$\Delta$\%} & \textbf{CPU\%} \\
 \midrule
-Qwen-2.5-7B-Instruct   & 7{,}803  & \textit{TBD} & \textit{TBD} & $26.5 \to \textit{TBD}$ \\
-Qwen-2.5-32B-Instruct  & 6{,}597  & \textit{TBD} & \textit{TBD} & $64.8 \to \textit{TBD}$ \\
-Llama-3.1-8B-Instruct  & 27{,}851 & \textit{TBD} & \textit{TBD} & $62.8 \to \textit{TBD}$ \\
-Llama-3.1-70B-Instruct & 10{,}400 & \textit{TBD} & \textit{TBD} & $83.4 \to \textit{TBD}$ \\
+Baseline (B3 FaP + L2 + L10)               & $22{,}008\!\pm\!143$ & ref     & $5.44$ \\
+H6 jemalloc LD\_PRELOAD                    & $21{,}746$           & $-1.50$ & $5.4$  \\
+H7 MALLOC\_ARENA\_MAX + MMAP\_THRESHOLD    & $21{,}814$           & $-1.19$ & $5.4$  \\
+H10 assume\_32\_bit\_indexing              & $21{,}775$           & $-1.37$ & $5.4$  \\
+N1 AVX-512 BPE encode (tiktoken 0.12)      & $6{,}768$            & $-0.43$ & $5.2$  \\
+N8 NUMA-local draft state                  & $6{,}799$            & $+0.02$ & $5.3$  \\
+N10 simdjson 요청 파싱                     & $6{,}709$            & $-1.30$ & $5.3$  \\
+N11 AVX-512 base64 출력 streaming          & $6{,}683$            & $-1.69$ & $4.9$  \\
+C-1 N-gram K=3 spec-decode (host draft)    & $17{,}084$           & $-22.4$ & $4.6$  \\
+C-3 \texttt{VLLM\_CPU\_SAMPLING=1}         & $21{,}970\!\pm\!333$ & $-0.17$ & $5.4$  \\
+C-7g \texttt{--stream-interval 8}          & $22{,}180\!\pm\!154$ & $+0.78$ & $4.9$  \\
+C-8a detok ThreadPool(4) pre-pass          & $21{,}932$ (3/5 ok)  & $-0.35$ & $5.4$  \\
+C-10a Eagle3 spec($k\!=\!3$, $\alpha\!=\!0.7\%$) & $15{,}341\!\pm\!452$ & $-30.3$ & $5.1$ \\
+B (CPU AMX 1B draft, K=5)                  & $32$--$33$           & $-99.6$ & $9.0$  \\
 \midrule
-\textbf{기하평균} & --- & \textit{TBD} & \textit{TBD} & --- \\
+\textbf{직교 GPU lever (참고용)} &  &  &  \\
+\quad C-2 \texttt{--kv-cache-dtype fp8} (5-sweep) & $\mathbf{22{,}874\!\pm\!378}$ & $\mathbf{+3.93}$ & $5.5$ \\
+\quad C-7l fp8 + FA3 + FI sampler + stream-interval 4 & $22{,}736\!\pm\!186$ & $+3.31$ & $5.0$ \\
+\midrule
+\textbf{Host-path net-positive lever 발굴 수} & \multicolumn{3}{l}{\textbf{0 / $\ge75$ candidates}} \\
 \bottomrule
 \end{tabular}}
 \end{table}

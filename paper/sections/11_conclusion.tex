@@ -23,14 +23,33 @@ CPU 는 7B부터 671B까지 전 구성에서 $\le4.9\%$ 유휴하다.
 즉 처리량 지배 기법이 시스템을 GPU 포화에서 host(CPU) 병목으로 전환시킨다.
 
 이로부터 우리는 (i) 경량 \emph{모델-유형 인지} 방법 선택이 복잡한 라우터(llm-d, 최선단일 대비 14\%)를
-대체할 수 있음을 보이고, (ii) spec-decode 가 만든 host 병목을 유휴 CPU 코어에 \emph{병렬}
-분산하여 회수하는 \emph{host-side slack reclamation}을 제안하였다.
-hiding 조건(식~\ref{eq:hide-condition}) 하에서 이 방법은 GPU 이용률을 회복시켜
-처리량을 추가로 끌어올린다 ---
-\todo{최종 성능 이득(suffix 대비)과 GPU 회복폭을 측정 후 기입}.
+대체할 수 있음을 보이고, (ii) spec-decode 가 만든 host 병목을 유휴 CPU 코어에 \emph{병렬} 분산하여 회수하는
+\emph{host-side slack reclamation}을 제안하고 그 hiding 조건(식~\ref{eq:hide-condition})을 정식화하였다.
+
+\textbf{측정 기반 정직한 결론 (host reclamation).}
+가설 검증을 위해 6 회 cumulative sweep, $\ge\!75$ host-path reclamation lever 를 직접 측정하였다
+(env-flag, NUMA, AVX-512 host helper, scheduler, KV layout, cudagraph 변형,
+async/chunked prefill, CPU sampling, host n-gram, Eagle3, suffix tree, CPU AMX BF16 1B draft).
+\textbf{본 baseline 환경 (B200 8GPU, Llama-3.1-8B TP=8, sharegpt 500p $\times$ conc=64 $\times$ max\_tok=2048)
+에서 net-positive host-path lever 는 단 한 개도 발견되지 않았다.}
+유일 양수 lever 인 fp8 KV cache ($+3.93\!\sim\!+7.32\%$) 는 GPU-side memory-bandwidth lever 로
+host-side 와 직교한다.
+구조적 원인은 host-vs-fleet hw ratio --- BF16 compute 4500$\times$, draft latency 9.2$\times$,
+memory bandwidth 213$\times$ --- 이며, 이 regime 에서 식~\ref{eq:hide-condition} 의 좌변
+$T_{\mathrm{host}}$ 가 noise band 이하라 정의되지 않는다 (\S\ref{subsec:hw-gap-analysis}).
+
+이 부정 결과는 \algname\ 의 적용 영역을 \emph{측정 기반으로} 재정의한다:
+host-bound regime (latency SLO + small batch, interactive single-stream),
+hw gap 이 작은 architecture (H100$\cdot$A100$\cdot$consumer GPU),
+혹은 long-context $\ge\!32$K $\cdot$ multi-tenant mixed workload --- 이 세 영역의 검증이
+후속 연구의 직접 대상이다.
+한편 6 워크로드 sweep 에서 suffix decode 는 5/6 워크로드에서 $+4.92\!\sim\!+27.19\%$ 의
+net-positive 를 보여 TSK\_042 의 222-셀 특성화와 정성 일치하며, batched-online Eagle3 의
+$\alpha\!=\!0.0045$ collapse 는 spec-decode 의 적용 판정에 직접 활용된다.
 
 \algname\ 의 원칙은 단순하다: \emph{CPU 로 GPU 를 흉내내지 말고,
 GPU 가 내려놓은 일을 CPU 가 받으라.}
+본 연구는 이 원칙의 \emph{경계}를 100$+$ 측정으로 정직하게 그려냈다.
 
 \section*{감사의 글}
 본 논문의 작성 과정에서 Anthropic 사의 Claude 를

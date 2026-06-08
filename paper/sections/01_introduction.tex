@@ -57,13 +57,19 @@ in-distribution 편향을 제거하였다.
   CPU 는 7B--671B 전 구성에서 $\le4.9\%$ 유휴하다.
   처리량 지배 기법이 시스템을 host(CPU)-bound 로 전환함을 보인다.
 
-\item \textbf{CPU 병렬 host-side reclamation (방법 + 성능).}
+\item \textbf{CPU 병렬 host-side reclamation: 가설 + 75+ lever 측정 (정직한 부정 결론).}
   위 자원 여유를 회수하기 위해, suffix 가 키운 step당 host-path 작업을
   유휴 CPU 코어에 \emph{병렬} 분산하여 GPU verify 뒤로 숨기는
   reclamation 을 제안하고(\S\ref{sec:direction}, hiding 조건 식~\ref{eq:hide-condition}),
-  B200 에서 처리량을 회수한다.
-  \todo{회수 처리량 이득(suffix 대비, 기하평균)과 GPU 이용률 회복폭 --- 측정 후 기입
-  (\S\ref{subsec:res-reclaim}).}
+  6 회 cumulative sweep 으로 $\ge\!75$ host-path lever 를 측정하였다.
+  \textbf{본 baseline (B200 8GPU, Llama-3.1-8B TP=8, sharegpt 500p $\times$ conc=64 $\times$ max\_tok=2048,
+  $22{,}008\!\pm\!143$ tps) 환경에서 net-positive host-path lever 는 단 한 개도 발견되지 않았다}
+  (\S\ref{subsec:res-reclaim}, \S\ref{subsec:res-100lever}).
+  유일한 양수 lever 는 GPU-side fp8 KV cache ($+3.93\!\sim\!+7.32\%$, host-side 와 직교) 다.
+  구조적 원인은 BF16 compute 4500$\times$, draft latency 9.2$\times$, memory bandwidth 213$\times$ 의
+  host-vs-fleet hw gap 이며 (\S\ref{subsec:hw-gap-analysis}), 이 부정 결과가
+  \algname\ 의 적용 영역을 host-bound regime / hw-gap-smaller architecture / multi-tier KV long-context
+  로 재정의함을 측정 기반으로 보인다.
 \end{enumerate}
 
 \subsection{논문 구성}

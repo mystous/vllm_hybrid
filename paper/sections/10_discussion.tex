@@ -23,22 +23,73 @@ llm-d 는 vanilla 대비 73\%(51/70)에서 우위이나 최선 단일 방법 대
 식~\ref{eq:rk-condition}을 온라인 평가하여 자동 재조정하는 adaptive gate 가 필요하다.
 $\alpha$ 가 break-even 아래로 떨어지면 vanilla 로 강등하는 정책이 자연스럽다.
 
-\subsection{한계 (정직)}
+\subsection{한계 (정직, 측정 기반)}
 
-\textbf{Host reclamation 은 방향이며 아직 미측정.}
-\S\ref{sec:direction} 의 A1/A2/B 와 \algname\ 는 본 연구의 특성화에서 도출한
-설계 방향으로, B200 처리량 회수 \emph{결과}는 아직 없다.
-타당성은 \S\ref{subsec:decisive} 의 step 분해 프로파일로 판정되어야 하며,
-이것이 본 연구의 직접적 후속이다.
+\textbf{Host reclamation: 75+ lever 측정 결과 모두 net-negative.}
+\S\ref{sec:direction} 의 A1/A2/B 와 \algname\ 의 host-side 가설은 본 baseline 환경 ---
+B200 8GPU, Llama-3.1-8B-Instruct TP=8, sharegpt 500p $\times$ conc=64 $\times$ max\_tok=2048,
+$22{,}008\!\pm\!143$ tps, GPU 96.2\%, CPU 5.4\% --- 에서
+\emph{직접 구현$\cdot$측정 결과 $\ge\!75$ lever 모두 noise band 이하 또는 negative} 다
+(Table~\ref{tbl:reclamation}, Table~\ref{tbl:lever-summary}, \S\ref{subsec:res-reclaim}).
+대표적으로 env-flag$\cdot$malloc 4 종, NUMA bind (container \texttt{cap\_sys\_nice} 부재로 boot\_fail),
+AVX-512 host helper 4 종 (BPE encode, simdjson 파싱, base64 streaming, SSE writer),
+KV layout $\cdot$ scheduler $\cdot$ cudagraph 변형 12 종, host n-gram spec-decode ($-22.4\%$),
+CPU sampling ($-0.17\%$), detok ThreadPool ($-0.35\%$, IPC race crash),
+Eagle3 batched-online ($-30.3\%$, $\alpha\!=\!0.7\%$), CPU AMX BF16 1B draft (W1--W5 $-98\!\sim\!-99.8\%$)
+가 측정되었다.
+유일 양수 lever 인 fp8 KV cache ($+3.93\!\sim\!+7.32\%$) 는 GPU-side memory-bandwidth lever 로 host-side 와 직교한다.
+구조적 원인은 \S\ref{subsec:hw-gap-analysis} 에서 정식화한다.
 
 \textbf{측정 커버리지.}
 mix 는 별도 500 샘플이라 단일 corpus 와 절대 tps 직접 비교는 피했다(\S\ref{subsec:coverage}).
 naive ngram 은 Qwen-2.5-7B 전 corpus 만 측정(붕괴 확인), XL 2모델은 vanilla/suffix/llm-d,
-eagle 계열은 범위 밖이다. 이들 확장은 후속 과제다.
+eagle 계열은 범위 밖이다.
+6 워크로드 sweep (\S\ref{subsec:res-eagle3}, Table~\ref{tbl:six-workload}) 은 Llama-3.1-8B 단일 모델에 한정된다 ---
+다른 dense$\cdot$MoE 스케일의 batched-online Eagle3 거동은 후속 과제다.
 
 \textbf{정확도.}
-vanilla 와 suffix 의 출력 분포 동등(losslessness)을 확인했으나,
+vanilla 와 suffix 의 출력 분포 동등(losslessness)을 확인했고,
+fp8 KV 의 logprob 비교 게이트 스크립트는 구현 완료 (production swap 전 검증 필요).
 추론 모델의 장문 생성에서 분포 유사성의 정밀 검증은 별도 게이트가 필요하다.
+
+\subsection{Hw gap 분석: 4500$\times$ compute, 9.2$\times$ latency, 200$\times$ bandwidth}
+\label{subsec:hw-gap-analysis}
+
+본 baseline 환경에서 host-path reclamation 이 구조적으로 net-negative 인 이유는
+세 가지 측정 가능한 hardware ratio 로 정식화된다:
+
+\textit{(i) BF16 compute throughput ratio.}
+Xeon Platinum 8570 AMX BF16 per-core = $\sim\!1$\,TFLOPS, B200 BF16 per-GPU $\approx\!2.25$\,PFLOPS
+$\to$ 8GPU 합산 $4.5$\,PFLOPS. host-vs-fleet ratio
+$\approx\!4500\!\times$. 즉 host 가 GPU 의 \emph{같은 종류} 일 (BF16 matmul) 을 가져가면
+즉시 4500$\times$ slowdown.
+
+\textit{(ii) Per-token decode latency ratio.}
+Llama-3.2-1B BF16 CPU forward (56 threads, AMX) = $23$\,ms/token.
+Llama-3.1-8B TP=8 B200 forward = $\sim\!2.5$\,ms/token.
+실측 ratio = $9.2\!\times$ (\S\ref{subsec:res-amx-draft}, Table~\ref{tbl:cpu-amx-draft}).
+이 ratio 에서 spec-decode 의 step-latency = $\max(T_{\mathrm{draft}}^{\mathrm{CPU}}, T_{\mathrm{verify}}^{\mathrm{GPU}})$
+가 K=1 에서도 이미 vanilla 의 5$\times$ 손해다.
+
+\textit{(iii) Memory bandwidth ratio.}
+Xeon 8570 socket peak $\approx\!300$\,GB/s, B200 8GPU aggregate $\approx\!64$\,TB/s.
+ratio $\approx\!213\!\times$. KV tiering / DRAM offload 가 host 측 BW 에 bound 되면
+즉시 200$\times$ 손해 → fp8 KV 같은 \emph{GPU 내부} BW 절감만 의미를 가진다.
+
+이 세 ratio 가 합쳐져, 본 baseline regime 에서 CPU 가 GPU 작업을 가져가는 어떤 lever 도
+critical path 진입 시 throughput 폭락을 초래한다.
+\textbf{식~\ref{eq:hide-condition} 의 hiding 조건은 $T_{\mathrm{host}}$ 자체가 측정 가능 수준 이상이어야
+성립}하나, B3-FaP $+$ L2-prefetch-tokenize $+$ L10-burst-admission 으로 이미 흡수된 baseline 에서
+$T_{\mathrm{host}}$ 의 잔여항이 $\eta P \cdot T_{\mathrm{verify}}$ 보다 작아 \emph{좌변 자체가 negligible} 다.
+
+\textbf{적용 영역 재정의.}
+이 hw gap 분석은 \algname\ 의 host-side reclamation 가설이 \emph{본 baseline} 에서 부정되었음을 인정하면서,
+그 의미 있는 적용 영역을 명확히 한다:
+(a) GPU 가 not-saturated 인 host-bound regime (latency SLO + small batch, c=1 interactive),
+(b) hw gap 이 작은 architecture (H100/A100 의 batched-online 또는 consumer-grade GPU),
+(c) GPU $+$ CPU AMX $+$ DRAM 의 multi-tier KV 가 의미를 갖는 long-context $\ge\!32$K $\cdot$ multi-tenant
+mixed workload.
+이 세 영역에서의 검증은 후속 연구의 직접 대상이다.
 
 \subsection{재현성}
 

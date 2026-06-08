@@ -29,11 +29,19 @@ $2.5\!\sim\!4.9\%$ 로 유휴하다.
 (i) 무거운 클러스터 라우터(llm-d)는 vanilla 대비 73\%(51/70)에서 우위이나
 최선 단일 방법을 능가하는 경우는 14\%(10/70)에 그쳐, 경량 \emph{모델-유형 인지} 방법 선택이
 대부분의 가치를 포착한다.
-(ii) spec-decode 가 만든 host 병목을 유휴 CPU 코어에 \emph{병렬} 분산하여
-회수하는 \emph{host-side slack reclamation}을 제안하고, 그 hiding 조건을 정식화한다.
-B200 에서 이 reclamation 은 \todo{suffix 대비 +XX\% 처리량과 GPU 이용률 YY$\to$ZZ\% 회복}
-을 달성한다(측정 후 기입).
-모든 측정 데이터와 코드는 보조 자료로 공개한다.
+(ii) \textbf{Host reclamation 의 직접 측정 결과 — 정직한 부정 결론}.
+B200 8GPU $+$ Llama-3.1-8B TP=8 baseline 환경에서 host-path reclamation 후보
+$\ge\!75$ lever (env-flag, NUMA, AVX-512 host helper, cudagraph 변형, async scheduler,
+CPU sampling, host n-gram, Eagle3, suffix tree, CPU AMX BF16 draft 등)를
+6 회 누적 sweep 으로 측정한 결과, \emph{net-positive 인 host-path lever 는 단 하나도 발견되지 않았다}.
+유일한 양수 lever 는 GPU-side 의 fp8 KV cache ($+3.93\!\sim\!+7.32\%$, 5-sweep accept-gate 통과)
+이며, 이는 본 연구의 host-side reclamation 가설과 \emph{직교}하는 메모리 대역 lever 다.
+구조적 원인은 BF16 \emph{compute} 4500$\times$, draft \emph{latency} 9$\times$, memory \emph{bandwidth} 200$\times$ 의
+host-vs-accelerator hw gap 이며, 이를 \S\ref{subsec:hw-gap-analysis}에서 정식화한다.
+한편 6 워크로드 $\times$ 4 메서드 sweep 에서 suffix decode 는 5/6 워크로드에서
+$+4.92\!\sim\!+27.19\%$ (Llama-8B, B200) 의 net-positive 를 보여 \S\ref{sec:results} 의
+TSK\_042 패턴과 정성 일치한다 (Table~\ref{tbl:six-workload}).
+모든 측정 데이터(precision sweep raw $\cdot$ summary JSON $\cdot$ lever patch)와 코드는 보조 자료로 공개한다.
 
 \smallskip
 \noindent\textbf{Index Terms}---

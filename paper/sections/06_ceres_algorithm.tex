@@ -45,8 +45,9 @@ naive n-gram 은 실 트레이스에서 $\sim\!-90\%$ 이므로 게이트 후보
 (Table~\ref{tbl:gate}, 예: Llama-3.1-70B $+160\%$, DeepSeek-R1 671B $+53\%$),
 이는 무거운 라우터 없이도 더 높은 처리량을 얻을 수 있음을 시사한다.
 실분류기를 적용한 \emph{실현} 게이트 처리량과 oracle 대비 decision-regret 은
-측정 예정이다(\textbf{TBD}, \S\ref{subsec:res-gate}).
-\todo{실현 게이트 throughput·decision-regret 측정치 (분류기 적용 후) 기입.}
+SUB\_200 (TSK\_044 CPU 분류기 구현) 의 후속 측정으로 채워진다 (\S\ref{subsec:res-gate}).
+현 단계의 oracle 상한은 TSK\_042 의 222 셀 측정 (\S\ref{sec:results}, Table~\ref{tbl:gate})
+으로 확정되어 분류기 학습 데이터로 활용된다.
 
 \subsection{축 B — host-path 회수}
 \label{subsec:reclaim}
@@ -80,12 +81,18 @@ $T_{\mathrm{rcl}} / T_{\mathrm{suf}} \approx u_{\mathrm{gpu}}^{\mathrm{van}} / u
 $u_{\mathrm{gpu}}^{\mathrm{van}}\!\approx\!95\%$ 는 상당한 이론적 여유를 시사한다.
 
 \smallskip
-\noindent\textbf{[채울 부분 — 측정 기반 확정]}
-\todo{$T_{\mathrm{host}}$ 의 구성요소별 분해값(드래프트/스케줄/샘플/detok/동기)과
-지배 항 식별 (\S\ref{subsec:decisive} 결정적 실험 산출).}
-\todo{지배 항을 병렬화할 구체적 메커니즘(A1/A2/B 중 선택)과 그 $\eta$, 필요한 $P$.}
-\todo{식~\ref{eq:hide-condition} 의 실측 좌변 대 우변, 그리고 모델별 GPU 이용률 회복폭.}
-구체 방법과 수치는 결정적 실험 후 본 절과 \S\ref{subsec:res-reclaim} 에 채운다.
+\noindent\textbf{[측정 기반 결과 — 본 baseline 부정].}
+$\ge\!75$ host-path lever 의 직접 측정 (\S\ref{subsec:res-reclaim}, Table~\ref{tbl:reclamation},
+Table~\ref{tbl:lever-summary}) 결과,
+본 baseline 환경의 $T_{\mathrm{host}}$ 잔여항은 \emph{이미} B3-FaP $+$ L2-prefetch-tokenize $+$ L10-burst-admission
+으로 흡수되어 측정 가능 noise band 이하다.
+지배 항을 병렬화하려는 모든 시도 (env-flag, NUMA, AVX-512 helper, scheduler, host n-gram, Eagle3,
+CPU sampling, 그리고 CPU AMX BF16 1B draft 까지 포함; \S\ref{subsec:res-amx-draft}) 가
+0/$\ge75$ net-positive 다.
+즉 본 baseline 에서는 식~\ref{eq:hide-condition} 의 좌변 자체가 정의되지 못한다
+($T_{\mathrm{host}}\!\le\!\epsilon$).
+적용 영역은 (a) host-bound regime, (b) hw-gap-smaller architecture (H100/A100/consumer GPU),
+(c) long-context $\ge\!32$K multi-tier KV 로 재정의한다 (\S\ref{subsec:hw-gap-analysis}).
 
 \subsection{결정적 실험}
 \label{subsec:decisive}

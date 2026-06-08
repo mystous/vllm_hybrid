@@ -1,0 +1,32 @@
+%% tables/tbl_six_workload.tex
+%% 6 workload × 4 method (Llama-3.1-8B, B200×8 TP=8, 500p × conc=64 × max-tok=2048)
+%% suffix/fp8_kv/vanilla: 5-sweep mean ± std (seeds 42..46, precision).
+%% eagle3: 1-sweep (전 6 workload net-negative 가 명확하여 추가 precision sweep 불요).
+%% chat: 1-sweep (양수 cell 만 5-sweep precision 적용 — 음수 cell 은 1-sweep 그대로).
+
+\begin{table*}[t]
+\centering
+\caption{\textbf{6 워크로드 $\times$ 4 메서드 sweep (B200$\times$8, Llama-3.1-8B-Instruct, TP=8, 500 prompts $\times$ conc=64 $\times$ max\_tokens=2048).}
+  Vanilla / Suffix / FP8-KV 는 양수 cell 에서 5-sweep (seeds 42--46) mean $\pm$ std,
+  음수 / Eagle3 는 1-sweep. $\Delta$\% 는 동일 워크로드의 vanilla 대비.
+  $^\dagger$chat 워크로드는 1-sweep 결과(짧은 입출력으로 spec-decode$\cdot$KV 양자화의 ROI 가 흡수되지 못함).}
+\label{tbl:six-workload}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+\textbf{Workload} & \textbf{Vanilla tps} & \textbf{Eagle3 tps} & \textbf{$\Delta$\% (Eagle3)} &
+  \textbf{Suffix tps} & \textbf{$\Delta$\% (Suffix)} &
+  \textbf{FP8-KV tps} & \textbf{$\Delta$\% (FP8-KV)} \\
+\midrule
+sonnet        & $21{,}012\!\pm\!88$  & $14{,}269$ & $-32.10\%$ & $\mathbf{24{,}955\!\pm\!606}$ & $\mathbf{+18.77\%}$ & $\mathbf{22{,}332\!\pm\!38}$  & $\mathbf{+6.28\%}$ \\
+chat$^\dagger$ & $16{,}406$           & $12{,}069$ & $-26.43\%$ & $12{,}374$                  & $-24.57\%$           & $15{,}686$                  & $-4.39\%$ \\
+code          & $20{,}576\!\pm\!21$  & $14{,}629$ & $-29.22\%$ & $\mathbf{26{,}171\!\pm\!574}$ & $\mathbf{+27.19\%}$ & $\mathbf{22{,}044\!\pm\!25}$  & $\mathbf{+7.13\%}$ \\
+balanced      & $19{,}018\!\pm\!89$  & $13{,}919$ & $-27.50\%$ & $\mathbf{21{,}499\!\pm\!333}$ & $\mathbf{+13.05\%}$ & $\mathbf{20{,}186\!\pm\!65}$  & $\mathbf{+6.14\%}$ \\
+sonnet-heavy  & $19{,}680\!\pm\!105$ & $14{,}144$ & $-28.81\%$ & $\mathbf{21{,}360\!\pm\!152}$ & $\mathbf{+8.54\%}$  & $\mathbf{21{,}001\!\pm\!77}$  & $\mathbf{+6.71\%}$ \\
+code-heavy    & $19{,}431\!\pm\!64$  & $14{,}051$ & $-27.67\%$ & $\mathbf{20{,}387\!\pm\!294}$ & $\mathbf{+4.92\%}$  & $\mathbf{20{,}853\!\pm\!175}$ & $\mathbf{+7.32\%}$ \\
+\midrule
+\textbf{net-positive 셀} & --- & $0/6$ & --- & $5/6$ & --- & $5/6$ & --- \\
+\textbf{rel.\ std (CV)} & $\le0.53\%$ & --- & --- & $\le2.43\%$ & --- & $\le0.84\%$ & --- \\
+\bottomrule
+\end{tabular}}
+\end{table*}

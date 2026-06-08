@@ -1,0 +1,28 @@
+%% tables/tbl_cpu_amx_draft.tex
+%% CPU AMX BF16 draft (Llama-3.2-1B host + Llama-3.1-8B GPU verify, B200×8)
+%% 출처: poc/amx_cpu_draft/MEASUREMENTS.md (5 워크로드 W1-W5)
+
+\begin{table}[t]
+\centering
+\caption{\textbf{CPU AMX BF16 draft model (B 옵션) 5 워크로드 측정.}
+  Target = Llama-3.1-8B (TP=8, B200$\times$8). Draft = Llama-3.2-1B (CPU, oneDNN AMX BF16 brgemm, 56 threads, KV cache, rank0-only).
+  K=draft tokens. 모든 셀 net-negative — accept rate $\alpha\!=\!0.65$ (K=5), $\alpha\!=\!0.85$ (K=1) 이 우수함에도
+  per-token CPU forward 23\,ms 가 GPU forward 2.5\,ms 의 9.2$\times$ → step latency dominator.}
+\label{tbl:cpu-amx-draft}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{W} & \textbf{(conc, max\_tok)} & \textbf{Vanilla tps} &
+  \textbf{cpu\_amx K=1 tps} & \textbf{cpu\_amx K=5 tps} & \textbf{$\Delta$\% (K=5)} \\
+\midrule
+W1 & (8, 128)    & $3{,}579$  & $71$ & $32$ & $-99.1\%$ \\
+W2 & (16, 512)   & $7{,}553$  & ---  & $33$ & $-99.6\%$ \\
+W3 & (32, 2048)  & $7{,}275$  & ---  & $\sim30$--$35$ (extrap.) & $\approx-99.5\%$ \\
+W4 & (32, 256)   & $13{,}652$ & $70$ & $33$ & $-99.8\%$ \\
+W5 & (4, 1024)   & $1{,}894$  & ---  & $19$ & $-99.0\%$ \\
+\midrule
+\multicolumn{6}{l}{\textit{Accept rate 누적: K=5 $\alpha\!=\!0.65$ (29{,}159/44{,}845 drafts), K=1 $\alpha\!=\!0.85$.}} \\
+\multicolumn{6}{l}{\textit{Per-token latency: CPU 1B BF16 = 23 ms, GPU 8B (TP=8) = 2.5 ms → 9.2$\times$ gap.}} \\
+\bottomrule
+\end{tabular}}
+\end{table}

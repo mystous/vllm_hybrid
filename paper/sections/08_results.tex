@@ -82,9 +82,11 @@ mix 기준 Llama-3.1-70B $+160\%$, DeepSeek-R1-Distill-Llama-70B $+114\%$,
 DeepSeek-R1 671B $+53\%$, Qwen-2.5-32B $+26\%$ 로,
 지배 방법이 분명한 모델일수록 격차가 크다.
 실분류기를 적용한 \emph{실현} 게이트 처리량과 oracle 대비 decision-regret 은
-후속 측정으로 채운다:
-\todo{Table~\ref{tbl:gate} 의 실현 게이트 tps·decision-regret (분류기 적용 후 측정).}
-\todo{게이트 vs.\ llm-d e2e 동일부하 비교 + 분류 오버헤드(ms/req).}
+SUB\_200 (TSK\_044 CPU 분류기) 후속 측정 대상이며, 본 연구는 222 셀 oracle
+(Table~\ref{tbl:gate}) 을 분류기 학습 데이터로 확정한다.
+분류 오버헤드는 라우터 host 측에서 ms/req 단위로 측정 예정이며, 본 oracle 의
+\emph{상한}만으로도 llm-d 대비 Llama-3.1-70B $+160\%$, DeepSeek-R1 671B $+53\%$
+의 격차가 분명하다.
 
 %% -----------------------------------------------------------------------
 \subsection{자원 signature: 성공이 GPU를 비우고, CPU는 늘 유휴}
@@ -108,35 +110,126 @@ step 수가 줄며 GPU 가 더 자주 쉰다.
 (모델, 조건) oracle 전체는 Table~\ref{tbl:b200-oracle} 에 정리한다.
 
 %% -----------------------------------------------------------------------
-\subsection{Host-side CPU 병렬 reclamation 성능 (측정 예정)}
+\subsection{Host-side CPU reclamation: 75+ lever 측정 (모두 measured-negative)}
 \label{subsec:res-reclaim}
 
 \input{tables/tbl_reclamation}
 
 \S\ref{subsec:res-resource} 가 정량화한 자원 여유 ---
-spec-decode 성공 셀의 GPU 여유($u_{\mathrm{gpu}}^{\mathrm{suf}}\!=\!26\text{--}65\%$,
-즉 $35\text{--}73$pp 의 미사용)와 전 구성 유휴 CPU($\le4.9\%$) --- 는
-\S\ref{subsec:parallel-model} 의 CPU 병렬 reclamation 으로 처리량 회수가 가능한
-\emph{상한}을 정의한다.
-Table~\ref{tbl:reclamation} 은 이를 검증할 성능 표의 골격이다.
+spec-decode 성공 셀의 GPU 여유($u_{\mathrm{gpu}}^{\mathrm{suf}}\!=\!26\text{--}65\%$)와
+전 구성 유휴 CPU($\le4.9\%$) --- 는
+\S\ref{subsec:parallel-model} 의 CPU 병렬 reclamation 으로 처리량을 회수할 \emph{상한}을 정의한다.
+본 연구는 이 상한을 실측하기 위해 6 회 누적 sweep 으로
+$\ge\!75$ host-path reclamation lever 를 측정하였다 (Table~\ref{tbl:reclamation}).
+범위는 env-flag (jemalloc, MALLOC\_ARENA, PYTORCH\_CUDA\_ALLOC\_CONF, FA3, FlashInfer sampler),
+NUMA bind / SMT pinning, AVX-512 host helper (BPE encode, simdjson 요청 파싱, base64 출력 streaming),
+KV layout (SoA paged, huge pages, prefetch tile), scheduler (lock-free queue, LogGP admission,
+CMT-driven priority), cudagraph 변형, async / chunked prefill, CPU sampling, host n-gram spec-decode,
+그리고 CPU AMX BF16 1B draft model 까지 포함한다.
 
-본 절의 측정 결과는 \S\ref{subsec:decisive} 의 결정적 step 분해 실험으로
-$T_{\mathrm{host}}$ 의 지배 항을 확정한 뒤, 해당 항을 병렬화하여 채운다.
-구체적으로 다음을 보고할 예정이다:
-(i) 식~\ref{eq:hide-condition} 의 hiding 조건 충족 여부(모델별),
-(ii) GPU 이용률 회복폭($u_{\mathrm{gpu}}^{\mathrm{suf}}\!\to\!u_{\mathrm{gpu}}^{\mathrm{rcl}}$),
-(iii) suffix 대비 처리량 추가 이득.
+\textbf{결과: net-positive host-path lever 0/$\ge75$.}
+모든 시도 lever 의 $\Delta$\% 는 baseline 의 noise band ($\pm1\%$, rel.\ std 0.69\%) 이하 또는 음수다.
+대표 lever 만 발췌하면: H6 jemalloc $-1.50\%$, H7 MALLOC\_ARENA $-1.19\%$,
+N1 AVX-512 BPE $-0.43\%$, N10 simdjson $-1.30\%$, N11 AVX-512 base64 $-1.69\%$,
+C-1 host n-gram $-22.4\%$ (batched 환경 collapse), C-3 CPU sampling $-0.17\%$,
+C-8a detok ThreadPool $-0.35\%$ (sweep 4 에서 EngineCore IPC race crash), 그리고
+C-10a Eagle3 $-30.3\%$ ($\alpha\!=\!0.7\%$ at conc=64).
+유일한 양수 lever 는 \emph{GPU-side} fp8 KV cache 다 (\S\ref{subsec:res-fp8}).
 
-\noindent\textbf{[채울 부분]}
-\todo{Table~\ref{tbl:reclamation} 의 +reclaim / GPU 회복 / 기하평균 수치 (결정적 실험 후 측정).}
-\todo{정확도 게이트(reclamation 전후 출력 분포 동등) 결과.}
-\todo{병렬도 $P$ 스윕(코어 수 대 회복폭)과 NUMA 배치 효과.}
+식~\ref{eq:hide-condition} 의 hiding 조건은 \emph{측정 가능한 host-path 항} 이 noise band 이하라
+좌변($T_{\mathrm{host}}/(\eta P)$) 자체가 정의되지 못한다.
+즉 본 baseline 환경에서는 CPU reclamation 의 \emph{대상이 될 만한 host 잉여 작업} 자체가
+B3-FaP $+$ L2-prefetch-tokenize $+$ L10-burst-admission 으로 이미 흡수되었다.
+구조적 원인은 \S\ref{subsec:hw-gap-analysis} 에서 분석한다.
+
+\noindent\textbf{정확도 게이트.}
+양수 lever 가 단 하나(fp8 KV) 이므로 reclamation 전후 분포 동등 게이트는 fp8 KV 단독에 적용된다.
+fp8 KV 의 logprob 비교 스크립트(\texttt{scripts/run\_accuracy\_gate.sh})는 구현 완료되었으며
+production swap 전 별도 검증이 진행된다 (B200 hw\_custom round 1 verdict 와 일치).
 
 \noindent\textbf{vLLM-native 향상(직교, 가산).}
 \S\ref{subsec:res-resource}의 launch-overhead 병목(Qwen-2.5-7B \texttt{cudaLaunchKernel} 36\%)은
 \emph{CPU 작업이 아니라} vLLM 기본 cudagraph 설정
 \texttt{cudagraph\_mode=FULL\_AND\_PIECEWISE}(FaP; decode 배치를 단일 graph 로 캡처)로 해소된다.
 본 환경 실측에서 FaP 는 PIECEWISE 대비 suffix decoding 위에 \textbf{$+30\%$}(100p burst)까지
-가산되는 \emph{vLLM-native} GPU-side 향상으로, 본 연구의 CPU host-path reclamation(A1/A2/B1)과
-\emph{직교}하며 합산된다. 즉 spec-decode $\to$ FaP $\to$ CPU reclamation 은 서로 다른 층의
-독립 lever 다.
+가산되는 \emph{vLLM-native} GPU-side 향상으로, 본 연구의 CPU host-path 회수 가설과 \emph{직교}한다.
+
+%% -----------------------------------------------------------------------
+\subsection{Eagle3 6 워크로드 sweep: 6/6 net-negative}
+\label{subsec:res-eagle3}
+
+\input{tables/tbl_six_workload}
+
+TSK\_042 가 spec-decode 의 모델$\times$조건 부호를 222 셀 (10 모델 $\times$ 4 메서드 $\times$ 7 corpus)
+로 특성화한 결과를 검증$\cdot$확장하기 위해, 본 연구는 Llama-3.1-8B-Instruct (TP=8, B200$\times$8)
+를 대상으로 6 워크로드 (sonnet / chat / code / balanced / sonnet-heavy / code-heavy)
+$\times$ 4 메서드 (vanilla / Eagle3 / suffix / fp8-KV) sweep 을 수행하였다
+(500 prompts $\times$ conc=64 $\times$ max\_tokens=2048, seeds=42--46 의 5-sweep precision; Table~\ref{tbl:six-workload}).
+
+Eagle3 (\texttt{yuhuili/EAGLE3-LLaMA3.1-Instruct-8B}, $K\!=\!3$) 는 6 워크로드 \emph{전부}에서
+$-26.4\!\sim\!-32.1\%$ net-negative 다.
+원인은 accept rate $\alpha$ 의 \emph{batched-online collapse} 다:
+$\alpha$ 는 conc=8 에서 $0.16\!\sim\!0.18$, conc=16 에서 $0.18$, conc=32 에서 $0.14$ 인 반면
+conc=64 (본 sweep) 에서는 $\alpha\!=\!0.0045$ 로 무너진다 (\texttt{eagle3\_suffix\_final/MEASUREMENTS.md} P1\_E1--E4).
+즉 정상 Eagle3 의 $\alpha\!\approx\!0.6\!\sim\!0.7$ 은 \emph{c=1 interactive single-stream} 가정이며,
+batched serving (conc$\ge\!8$, sharegpt natural prompts) 의 verify hit rate 가
+batch 내 다른 sequence 의 KV 진행과 직교하지 않아 무력화된다.
+이는 TSK\_042 가 다루지 않은 \emph{batched-online regime 에서의 Eagle3 항}을 정량화한 신규 finding 이며,
+spec-decode 의 batched-online 적용 여부 판정에 직접 활용 가능하다.
+
+%% -----------------------------------------------------------------------
+\subsection{FP8 KV cache: production candidate}
+\label{subsec:res-fp8}
+
+본 baseline 환경에서 \emph{유일하게 accept-gate ($\ge\!+3.0\%$) 를 통과한 lever 는
+\texttt{--kv-cache-dtype fp8} 단독 사용이다}.
+6 워크로드 sweep (Table~\ref{tbl:six-workload}) 에서 fp8 KV 는 chat workload 1 개 ($-4.39\%$, 짧은 입출력의 ROI 흡수)
+를 제외한 5/6 워크로드에서 $+6.14\!\sim\!+7.32\%$ (5-sweep mean, CV $\le0.84\%$) 의 안정적 양수다.
+sharegpt 단일 baseline 에서도 hw\_custom round 1 의 H8 ($+4.02\%$, 5-sweep)
+$\to$ cpu\_heavy C-2 ($+3.93\%$) $\to$ cpu\_continuous C-7a ($+3.01\%$) 로
+3 회 독립 측정에서 재현된다.
+
+\textbf{이 lever 가 본 연구의 host-side reclamation 가설과 직교함을 명확히 한다}:
+fp8 KV 는 \emph{GPU 측 HBM 대역폭}을 절감해 step latency 를 직접 단축하지만 CPU 작업량은 변하지 않는다
+(cpu\_util $5.44\!\to\!5.47\%$, $\Delta\!\approx\!0$pp).
+따라서 본 연구의 host-side 보고에서 fp8 KV 는 \emph{비교군 (orthogonal GPU lever)} 으로 보고하고,
+\algname\ 의 host-path 효과는 별도 dimension 에서 평가되어야 함을 명시한다.
+
+%% -----------------------------------------------------------------------
+\subsection{CPU AMX BF16 draft: hw gap 4500$\times$ 의 정직한 측정}
+\label{subsec:res-amx-draft}
+
+\input{tables/tbl_cpu_amx_draft}
+
+축 B 의 가장 공격적 구현 — Llama-3.2-1B (BF16) CPU draft model + Llama-3.1-8B GPU verify — 를
+직접 측정하였다 (\texttt{poc/amx\_cpu\_draft/MEASUREMENTS.md}).
+oneDNN verbose log 가 \texttt{brg\_matmul:avx10\_1\_512\_amx} dispatch 를 확인하여
+AMX BF16 brgemm 경로가 정상 동작함을 검증하였다.
+3 가지 정밀화 (vocab-aligned draft, per-request DynamicCache, rank0-only worker dispatch) 로
+accept rate $\alpha\!=\!0.005 \to 0.65$ (130$\times$), TPOT $1{,}096 \to 111$\,ms (4.5$\!\sim\!$10$\times$) 로 개선됨에도,
+5 워크로드 (W1--W5) 전부 $-98\!\sim\!-99.8\%$ net collapse 다 (Table~\ref{tbl:cpu-amx-draft}).
+
+구조적 원인은 단일 수치로 환원된다:
+\textbf{per-token decode latency 가 CPU 1B = 23\,ms, GPU 8B (TP=8 B200) = 2.5\,ms 로 9.2$\times$ 차이}다
+(56 threads, single-socket local NUMA, optimum 측정).
+spec-decode 의 step latency = $\max(K\!\cdot\!T_{\mathrm{draft}}^{\mathrm{CPU}},\, T_{\mathrm{verify}}^{\mathrm{GPU}})$
+이므로 K=1 에서도 이미 effective TPOT = $\max(23, 2.5) / (1\!+\!0.85) = 12.4$\,ms 로
+vanilla 의 2.5\,ms 대비 5$\times$ 손해다.
+B=32 batched (이론, 본 PoC 미구현) 에서도 $-57\%$ 가 한계로, batched draft 도 net positive 가 어렵다.
+
+%% -----------------------------------------------------------------------
+\subsection{100+ lever 누적 verdict}
+\label{subsec:res-100lever}
+
+\input{tables/tbl_lever_summary}
+
+본 연구의 6 회 cumulative sweep 누적 host-path lever 후보 ($\ge\!75$, fp8 등 GPU lever 포함 시 $\ge\!100$)
+를 카테고리별로 요약하면 Table~\ref{tbl:lever-summary} 와 같다.
+\textbf{B200 $+$ Llama-3.1-8B TP=8 baseline 환경에서 host-path reclamation 의 net-positive lever 발굴 수 = 0.}
+유일 양수는 fp8 KV ($+3.93\!\sim\!+7.32\%$) 로 GPU-side memory-bandwidth lever 이며 host-side 와 직교한다.
+이 verdict 는 본 연구의 \emph{직접적 메시지 갱신}을 강제한다:
+\algname\ 의 host-side reclamation 가설은 \emph{본 baseline 환경 (B200 8GPU, Llama-8B TP=8, conc=64, sharegpt)
+에서 구조적으로 적용 불가}이며, 그 적용 영역은 (i) host-bound regime (latency SLO + small batch,
+c=1 interactive single-stream) 또는 (ii) hw gap 이 다른 architecture (예: H100$\cdot$A100 의 비-saturated GPU)
+또는 (iii) GPU $+$ CPU $+$ DRAM 의 multi-tier KV 가 의미를 갖는 long-context $\ge\!32$K $\cdot$ multi-tenant
+mixed workload 로 재정의되어야 한다 (\S\ref{sec:discussion}).
