@@ -1,0 +1,52 @@
+[11:18:55] === verify_dsa start ===
+[11:18:55]   gpu freed
+[11:18:55] ########## C1 = B: current vllm + LHC REMOVED ##########
+[11:18:55]   moved /workspace/host_vllm_hybrid/vllm/v1/lhc -> /tmp/lhc_dir_bak_595494
+[11:18:55]   boot vllm (C1_curvllm_noLHC)
+[11:20:10]   READY
+[11:20:10]   bench C1_curvllm_noLHC (mix corpus)
+lhc_phase4/optimal_dsa/verify_dsa.sh: line 77: 595508 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' > "$boot_log" 2>&1 < /dev/null
+[11:25:34]   gpu freed
+[11:25:34]   C1_curvllm_noLHC tps=12121.1
+[11:25:34]   restored LHC dir
+[11:25:34] ########## C2 = A: old vllm (a203ecd5e) + LHC INTACT ##########
+[11:25:34]   current HEAD=9939e81f89c021afaee47c7b630577b96e33e1aa
+Saved working directory and index state On spec-decode-tuning: verify_dsa_temp
+	vllm_config_perf/gating/benchmark_workloads.py
+Please commit your changes or stash them before you switch branches.
+Aborting
+[11:25:34]   boot vllm (C2_oldvllm_withLHC)
+[11:27:19]   READY
+[11:27:19]   bench C2_oldvllm_withLHC (mix corpus)
+lhc_phase4/optimal_dsa/verify_dsa.sh: line 77: 597738 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' > "$boot_log" 2>&1 < /dev/null
+[11:32:43]   gpu freed
+[11:32:43]   C2_oldvllm_withLHC tps=12172.8
+D	shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/runs/per_request_raw.jsonl
+D	shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/runs/summ_Qwen2.5-7B-Instruct_optimal_vanilla_mix.json
+M	vllm_config_perf/gating/benchmark_workloads.py
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Dropped refs/stash@{0} (4602287488f922ce66beb650044f6da70e297d9d)
+[11:32:43] ########## C3 = A+B: old vllm + LHC REMOVED ##########
+Saved working directory and index state On (no branch): verify_dsa_temp
+	vllm_config_perf/gating/benchmark_workloads.py
+Please commit your changes or stash them before you switch branches.
+Aborting
+[11:32:44]   boot vllm (C3_oldvllm_noLHC)
+[11:33:59]   READY
+[11:33:59]   bench C3_oldvllm_noLHC (mix corpus)
+lhc_phase4/optimal_dsa/verify_dsa.sh: line 77: 600547 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' > "$boot_log" 2>&1 < /dev/null
+[11:39:22]   gpu freed
+[11:39:22]   C3_oldvllm_noLHC tps=12114.2
+D	shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/runs/per_request_raw.jsonl
+D	shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/runs/summ_Qwen2.5-7B-Instruct_optimal_vanilla_mix.json
+M	vllm_config_perf/gating/benchmark_workloads.py
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Dropped refs/stash@{0} (6c2f30b2713065959cc28b7d4fadcd397a1d271f)
+[11:39:22] === verify_dsa complete ===
+RESULTS:
+  C1_curvllm_noLHC: tps=12121.1 gpu=98.6 ttft=36.4
+  C2_oldvllm_withLHC: tps=12172.8 gpu=98.5 ttft=34.2
+  C3_oldvllm_noLHC: tps=12114.2 gpu=98.5 ttft=29.5
+  C0 baseline (current vllm + LHC) = 12,089 (already measured)

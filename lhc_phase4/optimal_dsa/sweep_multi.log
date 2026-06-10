@@ -1,0 +1,202 @@
+[04:26:01] === Optimal+DSA multi-model sweep start ===
+[04:26:01] models=8 configs=4 corpora=7 (n=1)
+[04:26:01] GPU freed
+[04:26:01] ########## model=Qwen2.5-7B-Instruct (TP=4, 0/14 done) ##########
+[04:26:01]   ### config=dsa (0/7 done) ###
+[04:26:01]   boot pid=531033 for Qwen2.5-7B-Instruct/dsa
+[04:27:21] READY http://127.0.0.1:8001
+[04:27:21]     bench Qwen2.5-7B-Instruct/dsa/sharegpt
+[04:31:54]     bench Qwen2.5-7B-Instruct/dsa/swebench
+[04:33:29]     bench Qwen2.5-7B-Instruct/dsa/humaneval
+[04:34:14]     bench Qwen2.5-7B-Instruct/dsa/mbpp
+[04:34:56]     bench Qwen2.5-7B-Instruct/dsa/wildchat
+[04:39:26]     bench Qwen2.5-7B-Instruct/dsa/lmsys
+[04:44:28]     bench Qwen2.5-7B-Instruct/dsa/mix
+[04:48:32]   done Qwen2.5-7B-Instruct/dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 531033 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[04:48:38] GPU freed
+[04:48:38]   ### config=suffix_dsa (0/7 done) ###
+[04:48:38]   boot pid=535113 for Qwen2.5-7B-Instruct/suffix_dsa
+[04:49:58] READY http://127.0.0.1:8001
+[04:49:58]     bench Qwen2.5-7B-Instruct/suffix_dsa/sharegpt
+[04:54:22]     bench Qwen2.5-7B-Instruct/suffix_dsa/swebench
+[04:56:09]     bench Qwen2.5-7B-Instruct/suffix_dsa/humaneval
+[04:57:02]     bench Qwen2.5-7B-Instruct/suffix_dsa/mbpp
+[04:57:48]     bench Qwen2.5-7B-Instruct/suffix_dsa/wildchat
+[05:01:40]     bench Qwen2.5-7B-Instruct/suffix_dsa/lmsys
+[05:06:15]     bench Qwen2.5-7B-Instruct/suffix_dsa/mix
+[05:09:24]   done Qwen2.5-7B-Instruct/suffix_dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 535113 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[05:09:30] GPU freed
+[05:09:30] ########## done Qwen2.5-7B-Instruct ##########
+[05:09:30] ########## model=DeepSeek-R1-Distill-Qwen-7B (TP=4, 0/14 done) ##########
+[05:09:30]   ### config=dsa (0/7 done) ###
+[05:09:30]   boot pid=539125 for DeepSeek-R1-Distill-Qwen-7B/dsa
+[05:10:50] READY http://127.0.0.1:8001
+[05:10:50]     bench DeepSeek-R1-Distill-Qwen-7B/dsa/sharegpt
+[05:13:02]     bench DeepSeek-R1-Distill-Qwen-7B/dsa/swebench
+[05:15:05]     bench DeepSeek-R1-Distill-Qwen-7B/dsa/humaneval
+[05:16:20]     bench DeepSeek-R1-Distill-Qwen-7B/dsa/mbpp
+[05:17:42]     bench DeepSeek-R1-Distill-Qwen-7B/dsa/wildchat
+[05:20:13]     bench DeepSeek-R1-Distill-Qwen-7B/dsa/lmsys
+[05:22:10]     bench DeepSeek-R1-Distill-Qwen-7B/dsa/mix
+[05:24:52]   done DeepSeek-R1-Distill-Qwen-7B/dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 539125 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[05:24:57] GPU freed
+[05:24:57]   ### config=suffix_dsa (0/7 done) ###
+[05:24:57]   boot pid=542457 for DeepSeek-R1-Distill-Qwen-7B/suffix_dsa
+[05:26:17] READY http://127.0.0.1:8001
+[05:26:17]     bench DeepSeek-R1-Distill-Qwen-7B/suffix_dsa/sharegpt
+[05:28:43]     bench DeepSeek-R1-Distill-Qwen-7B/suffix_dsa/swebench
+[05:30:26]     bench DeepSeek-R1-Distill-Qwen-7B/suffix_dsa/humaneval
+[05:31:44]     bench DeepSeek-R1-Distill-Qwen-7B/suffix_dsa/mbpp
+[05:32:58]     bench DeepSeek-R1-Distill-Qwen-7B/suffix_dsa/wildchat
+[05:35:38]     bench DeepSeek-R1-Distill-Qwen-7B/suffix_dsa/lmsys
+[05:37:43]     bench DeepSeek-R1-Distill-Qwen-7B/suffix_dsa/mix
+[05:39:08]   done DeepSeek-R1-Distill-Qwen-7B/suffix_dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 542457 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[05:39:14] GPU freed
+[05:39:14] ########## done DeepSeek-R1-Distill-Qwen-7B ##########
+[05:39:14] ########## SKIP Llama-3.1-8B-Instruct (all 14 cells exist) ##########
+[05:39:14] ########## model=Qwen2.5-32B-Instruct (TP=8, 0/14 done) ##########
+[05:39:14]   ### config=dsa (0/7 done) ###
+[05:39:14]   boot pid=545809 for Qwen2.5-32B-Instruct/dsa
+[05:41:24] READY http://127.0.0.1:8001
+[05:41:24]     bench Qwen2.5-32B-Instruct/dsa/sharegpt
+[05:45:12]     bench Qwen2.5-32B-Instruct/dsa/swebench
+[05:47:12]     bench Qwen2.5-32B-Instruct/dsa/humaneval
+[05:48:47]     bench Qwen2.5-32B-Instruct/dsa/mbpp
+[05:50:48]     bench Qwen2.5-32B-Instruct/dsa/wildchat
+[05:54:26]     bench Qwen2.5-32B-Instruct/dsa/lmsys
+[05:58:13]     bench Qwen2.5-32B-Instruct/dsa/mix
+[06:02:11]   done Qwen2.5-32B-Instruct/dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 545809 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[06:02:24] GPU freed
+[06:02:24]   ### config=suffix_dsa (0/7 done) ###
+[06:02:24]   boot pid=550386 for Qwen2.5-32B-Instruct/suffix_dsa
+[06:04:29] READY http://127.0.0.1:8001
+[06:04:29]     bench Qwen2.5-32B-Instruct/suffix_dsa/sharegpt
+[06:08:29]     bench Qwen2.5-32B-Instruct/suffix_dsa/swebench
+[06:10:09]     bench Qwen2.5-32B-Instruct/suffix_dsa/humaneval
+[06:11:29]     bench Qwen2.5-32B-Instruct/suffix_dsa/mbpp
+[06:13:09]     bench Qwen2.5-32B-Instruct/suffix_dsa/wildchat
+[06:16:47]     bench Qwen2.5-32B-Instruct/suffix_dsa/lmsys
+[06:20:30]     bench Qwen2.5-32B-Instruct/suffix_dsa/mix
+[06:23:28]   done Qwen2.5-32B-Instruct/suffix_dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 550386 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[06:23:41] GPU freed
+[06:23:41] ########## done Qwen2.5-32B-Instruct ##########
+[06:23:41] ########## model=DeepSeek-R1-Distill-Qwen-32B (TP=8, 0/14 done) ##########
+[06:23:41]   ### config=dsa (0/7 done) ###
+[06:23:41]   boot pid=554986 for DeepSeek-R1-Distill-Qwen-32B/dsa
+[06:28:06] READY http://127.0.0.1:8001
+[06:28:06]     bench DeepSeek-R1-Distill-Qwen-32B/dsa/sharegpt
+[06:31:58]     bench DeepSeek-R1-Distill-Qwen-32B/dsa/swebench
+[06:34:28]     bench DeepSeek-R1-Distill-Qwen-32B/dsa/humaneval
+[06:35:28]     bench DeepSeek-R1-Distill-Qwen-32B/dsa/mbpp
+[06:38:33]     bench DeepSeek-R1-Distill-Qwen-32B/dsa/wildchat
+[06:43:12]     bench DeepSeek-R1-Distill-Qwen-32B/dsa/lmsys
+[06:46:50]     bench DeepSeek-R1-Distill-Qwen-32B/dsa/mix
+[06:50:57]   done DeepSeek-R1-Distill-Qwen-32B/dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 554986 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[06:51:10] GPU freed
+[06:51:10]   ### config=suffix_dsa (0/7 done) ###
+[06:51:10]   boot pid=559822 for DeepSeek-R1-Distill-Qwen-32B/suffix_dsa
+[06:53:20] READY http://127.0.0.1:8001
+[06:53:20]     bench DeepSeek-R1-Distill-Qwen-32B/suffix_dsa/sharegpt
+[06:57:16]     bench DeepSeek-R1-Distill-Qwen-32B/suffix_dsa/swebench
+[06:59:17]     bench DeepSeek-R1-Distill-Qwen-32B/suffix_dsa/humaneval
+[07:00:24]     bench DeepSeek-R1-Distill-Qwen-32B/suffix_dsa/mbpp
+[07:03:15]     bench DeepSeek-R1-Distill-Qwen-32B/suffix_dsa/wildchat
+[07:07:29]     bench DeepSeek-R1-Distill-Qwen-32B/suffix_dsa/lmsys
+[07:11:05]     bench DeepSeek-R1-Distill-Qwen-32B/suffix_dsa/mix
+[07:13:21]   done DeepSeek-R1-Distill-Qwen-32B/suffix_dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 559822 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[07:13:33] GPU freed
+[07:13:33] ########## done DeepSeek-R1-Distill-Qwen-32B ##########
+[07:13:33] ########## model=Qwen2.5-72B-Instruct (TP=8, 0/14 done) ##########
+[07:13:33]   ### config=dsa (0/7 done) ###
+[07:13:33]   boot pid=564533 for Qwen2.5-72B-Instruct/dsa
+[07:15:58] READY http://127.0.0.1:8001
+[07:15:58]     bench Qwen2.5-72B-Instruct/dsa/sharegpt
+[07:20:10]     bench Qwen2.5-72B-Instruct/dsa/swebench
+[07:22:22]     bench Qwen2.5-72B-Instruct/dsa/humaneval
+[07:22:37]     bench Qwen2.5-72B-Instruct/dsa/mbpp
+[07:23:10]     bench Qwen2.5-72B-Instruct/dsa/wildchat
+[07:27:19]     bench Qwen2.5-72B-Instruct/dsa/lmsys
+[07:31:44]     bench Qwen2.5-72B-Instruct/dsa/mix
+[07:35:20]   done Qwen2.5-72B-Instruct/dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 564533 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[07:35:32] GPU freed
+[07:35:32]   ### config=suffix_dsa (0/7 done) ###
+[07:35:32]   boot pid=568970 for Qwen2.5-72B-Instruct/suffix_dsa
+[07:37:57] READY http://127.0.0.1:8001
+[07:37:57]     bench Qwen2.5-72B-Instruct/suffix_dsa/sharegpt
+[07:41:37]     bench Qwen2.5-72B-Instruct/suffix_dsa/swebench
+[07:43:29]     bench Qwen2.5-72B-Instruct/suffix_dsa/humaneval
+[07:43:53]     bench Qwen2.5-72B-Instruct/suffix_dsa/mbpp
+[07:44:33]     bench Qwen2.5-72B-Instruct/suffix_dsa/wildchat
+[07:49:05]     bench Qwen2.5-72B-Instruct/suffix_dsa/lmsys
+[07:53:35]     bench Qwen2.5-72B-Instruct/suffix_dsa/mix
+[07:55:41]   done Qwen2.5-72B-Instruct/suffix_dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 568970 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[07:55:53] GPU freed
+[07:55:53] ########## done Qwen2.5-72B-Instruct ##########
+[07:55:53] ########## model=Llama-3.1-70B-Instruct (TP=8, 0/14 done) ##########
+[07:55:53]   ### config=dsa (0/7 done) ###
+[07:55:53]   boot pid=573451 for Llama-3.1-70B-Instruct/dsa
+[07:58:18] READY http://127.0.0.1:8001
+[07:58:18]     bench Llama-3.1-70B-Instruct/dsa/sharegpt
+[08:03:15]     bench Llama-3.1-70B-Instruct/dsa/swebench
+[08:06:56]     bench Llama-3.1-70B-Instruct/dsa/humaneval
+[08:11:34]     bench Llama-3.1-70B-Instruct/dsa/mbpp
+[08:12:57]     bench Llama-3.1-70B-Instruct/dsa/wildchat
+[08:19:29]     bench Llama-3.1-70B-Instruct/dsa/lmsys
+[08:24:02]     bench Llama-3.1-70B-Instruct/dsa/mix
+[08:29:20]   done Llama-3.1-70B-Instruct/dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 573451 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[08:29:32] GPU freed
+[08:29:32]   ### config=suffix_dsa (0/7 done) ###
+[08:29:32]   boot pid=579035 for Llama-3.1-70B-Instruct/suffix_dsa
+[08:31:53] READY http://127.0.0.1:8001
+[08:31:53]     bench Llama-3.1-70B-Instruct/suffix_dsa/sharegpt
+[08:35:23]     bench Llama-3.1-70B-Instruct/suffix_dsa/swebench
+[08:37:23]     bench Llama-3.1-70B-Instruct/suffix_dsa/humaneval
+[08:40:18]     bench Llama-3.1-70B-Instruct/suffix_dsa/mbpp
+[08:41:30]     bench Llama-3.1-70B-Instruct/suffix_dsa/wildchat
+[08:45:33]     bench Llama-3.1-70B-Instruct/suffix_dsa/lmsys
+[08:49:00]     bench Llama-3.1-70B-Instruct/suffix_dsa/mix
+[08:50:53]   done Llama-3.1-70B-Instruct/suffix_dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 579035 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[08:51:05] GPU freed
+[08:51:05] ########## done Llama-3.1-70B-Instruct ##########
+[08:51:05] ########## model=DeepSeek-R1-Distill-Llama-70B (TP=8, 0/14 done) ##########
+[08:51:05]   ### config=dsa (0/7 done) ###
+[08:51:05]   boot pid=583655 for DeepSeek-R1-Distill-Llama-70B/dsa
+[08:53:30] READY http://127.0.0.1:8001
+[08:53:30]     bench DeepSeek-R1-Distill-Llama-70B/dsa/sharegpt
+[08:57:42]     bench DeepSeek-R1-Distill-Llama-70B/dsa/swebench
+[09:02:56]     bench DeepSeek-R1-Distill-Llama-70B/dsa/humaneval
+[09:05:39]     bench DeepSeek-R1-Distill-Llama-70B/dsa/mbpp
+[09:08:43]     bench DeepSeek-R1-Distill-Llama-70B/dsa/wildchat
+[09:13:57]     bench DeepSeek-R1-Distill-Llama-70B/dsa/lmsys
+[09:18:23]     bench DeepSeek-R1-Distill-Llama-70B/dsa/mix
+[09:23:46]   done DeepSeek-R1-Distill-Llama-70B/dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 583655 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[09:23:58] GPU freed
+[09:23:58]   ### config=suffix_dsa (0/7 done) ###
+[09:23:58]   boot pid=589136 for DeepSeek-R1-Distill-Llama-70B/suffix_dsa
+[09:26:18] READY http://127.0.0.1:8001
+[09:26:18]     bench DeepSeek-R1-Distill-Llama-70B/suffix_dsa/sharegpt
+[09:31:48]     bench DeepSeek-R1-Distill-Llama-70B/suffix_dsa/swebench
+[09:37:51]     bench DeepSeek-R1-Distill-Llama-70B/suffix_dsa/humaneval
+[09:40:45]     bench DeepSeek-R1-Distill-Llama-70B/suffix_dsa/mbpp
+[09:44:38]     bench DeepSeek-R1-Distill-Llama-70B/suffix_dsa/wildchat
+[09:51:06]     bench DeepSeek-R1-Distill-Llama-70B/suffix_dsa/lmsys
+[09:55:44]     bench DeepSeek-R1-Distill-Llama-70B/suffix_dsa/mix
+[09:58:47]   done DeepSeek-R1-Distill-Llama-70B/suffix_dsa
+lhc_phase4/optimal_dsa/sweep_multi.sh: line 80: 589136 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[09:58:59] GPU freed
+[09:58:59] ########## done DeepSeek-R1-Distill-Llama-70B ##########
+[09:58:59] === multi-model sweep complete ===
+126

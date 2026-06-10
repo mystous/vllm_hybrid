@@ -1,0 +1,64 @@
+[00:11:59] === Optimal+DSA real-corpus sweep start ===
+[00:11:59] model=meta-llama/Llama-3.1-8B-Instruct TP=8 corpora=[sharegpt swebench humaneval mbpp wildchat lmsys mix] conc=32 maxtok=8192
+[00:11:59] GPU freed
+[00:11:59] ### config=vanilla ###
+[00:11:59] boot pid=511619 for vanilla (env: )
+[00:13:34] READY http://127.0.0.1:8001
+[00:13:34]   bench vanilla x sharegpt
+[00:18:48]   bench vanilla x swebench
+[00:21:24]   bench vanilla x humaneval
+[00:23:25]   bench vanilla x mbpp
+[00:25:28]   bench vanilla x wildchat
+[00:30:44]   bench vanilla x lmsys
+[00:35:59]   bench vanilla x mix
+[00:41:11]   done vanilla (7 cells)
+lhc_phase4/optimal_dsa/sweep_corpus.sh: line 75: 511619 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[00:41:24] GPU freed
+[00:41:24] ### config=dsa ###
+[00:41:24] boot pid=516848 for dsa (env: VLLM_LHC_DSA=1 VLLM_LEVER_N9=1 VLLM_LHC_DSA_MIN=65536)
+[00:43:04] READY http://127.0.0.1:8001
+[00:43:04]   bench dsa x sharegpt
+[00:48:19]   bench dsa x swebench
+[00:51:05]   bench dsa x humaneval
+[00:53:06]   bench dsa x mbpp
+[00:55:08]   bench dsa x wildchat
+[01:00:24]   bench dsa x lmsys
+[01:05:54]   bench dsa x mix
+[01:11:08]   done dsa (7 cells)
+lhc_phase4/optimal_dsa/sweep_corpus.sh: line 75: 516848 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[01:11:20] GPU freed
+[01:11:20] ### config=suffix ###
+[01:11:20] boot pid=522106 for suffix (env: )
+[01:12:55] READY http://127.0.0.1:8001
+[01:12:55]   bench suffix x sharegpt
+[01:16:27]   bench suffix x swebench
+[01:18:00]   bench suffix x humaneval
+[01:19:31]   bench suffix x mbpp
+[01:20:55]   bench suffix x wildchat
+[01:24:13]   bench suffix x lmsys
+[01:27:34]   bench suffix x mix
+[01:30:11]   done suffix (7 cells)
+lhc_phase4/optimal_dsa/sweep_corpus.sh: line 75: 522106 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[01:30:24] GPU freed
+[01:30:24] ### config=suffix_dsa ###
+[01:30:24] boot pid=526507 for suffix_dsa (env: VLLM_LHC_DSA=1 VLLM_LEVER_N9=1 VLLM_LHC_DSA_MIN=65536)
+[01:31:59] READY http://127.0.0.1:8001
+[01:31:59]   bench suffix_dsa x sharegpt
+[01:35:15]   bench suffix_dsa x swebench
+[01:36:48]   bench suffix_dsa x humaneval
+[01:38:13]   bench suffix_dsa x mbpp
+[01:39:40]   bench suffix_dsa x wildchat
+[01:43:00]   bench suffix_dsa x lmsys
+[01:46:27]   bench suffix_dsa x mix
+[01:48:51]   done suffix_dsa (7 cells)
+lhc_phase4/optimal_dsa/sweep_corpus.sh: line 75: 526507 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $ENV_PRE setsid "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $SA > "$BOOT_LOG" 2>&1 < /dev/null
+[01:49:03] GPU freed
+[01:49:03] === sweep complete ===
+0, 0 MiB
+1, 0 MiB
+2, 0 MiB
+3, 0 MiB
+4, 0 MiB
+5, 0 MiB
+6, 0 MiB
+7, 0 MiB
