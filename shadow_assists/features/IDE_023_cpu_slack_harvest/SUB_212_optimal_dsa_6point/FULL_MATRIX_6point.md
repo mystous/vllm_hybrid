@@ -29,6 +29,26 @@
 
 **vllm env 와 호스트 DSA 의 직교성**: VLLM_LHC_DSA env 안 켜도 호스트 DSA 가 enabled 상태면 시스템 메모리 동작에 영향 (vanilla 측정에서도 +33~+36% tps).
 
+### 2.1 호스트 DSA WQ 상세 구성 (sweep 시점 = 현재, 2026-06-12 sysfs 실측)
+
+| device | NUMA | max_batch | max_transfer | enabled WQ | disabled WQ |
+|---|:---:|---:|---:|---|---|
+| `dsa0` | 0 | 1,024 | 2 GiB | wq0.0–wq0.3 (`lhc0`–`lhc3`) | wq0.4–wq0.7 |
+| `dsa1` | 1 | 1,024 | 2 GiB | wq1.0–wq1.3 (`lhc1_0`–`lhc1_3`) | wq1.4–wq1.7 |
+
+Enabled WQ 공통 속성 (8개 모두 동일):
+
+| 속성 | 값 |
+|---|---|
+| `mode` | **shared** (SWQ — ENQCMD 제출) |
+| `type` | `user` (유저스페이스 직접 접근, `/dev/dsa/wqX.Y`) |
+| `size` | 16 entries |
+| `group_id` / `priority` / `threshold` | 0 / 10 / 8 |
+| `max_transfer_size` (per-WQ) | 2 MiB |
+| engines | 디바이스당 4 (engine0.0–0.3, engine1.0–1.3) |
+
+> **주의**: "host DSA enabled" 효과는 위 WQ 가 enable 되어 있다는 **호스트 시스템 상태** 자체를 말한다. SUB_213 검증에서 `clients=0`(어떤 프로세스도 WQ 미사용) 임이 확인되어, +36% 의 진짜 원인은 cudagraph_mode(PIECEWISE→FaP) 차이라는 가설이 유력 — §2 의 시점 표는 confounder 후보 기록으로 유지.
+
 ## 3. 6 Measurement Points Definition
 
 | ID | label | host DSA | spec decode | vllm DSA env | source dir |
@@ -59,15 +79,39 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export VLLM_NGRAM_NUM_THREADS_CAP=8 VLLM_NGRAM_DIVIDE_BY_TP=0
 ```
 
-Spec decode (suffix 점들):
+### 4.1 Suffix decoding 설정 (④⑤⑥ 점)
+
+부팅 인자 (`sweep_corpus.sh:86`):
 ```bash
 --speculative-config '{"method":"suffix","num_speculative_tokens":32}'
 ```
 
-vllm DSA env (③ DSA(ON), ⑥ suf+dsa(ON) 점들):
+| 파라미터 | 값 | 비고 |
+|---|---|---|
+| `method` | `suffix` | suffix-tree 기반 draft (draft 모델 불요, CPU-side) |
+| `num_speculative_tokens` (K) | **32** | step 당 최대 draft 길이 (TSK_042 dominant 설정 승계) |
+| `suffix_decoding_max_tree_depth` | 24 (default) | global/prompt suffix tree 최대 깊이 |
+| `suffix_decoding_max_cached_requests` | 10,000 (default) | global tree 캐시 요청 수 |
+| `suffix_decoding_max_spec_factor` | 1.0 (default) | match 길이 대비 spec 길이 상한 계수 |
+| `suffix_decoding_min_token_prob` | 0.1 (default) | draft 채택 최소 빈도확률 |
+
+suffix 관련 env: **본 sweep 에서는 추가 env 없음** (`VLLM_SUFFIX_PAD_UNIFORM` 은 SUB_213 lever 로 본 sweep 이후 추가된 것 — 본 데이터에는 미적용, 즉 가변 길이 draft → PIECEWISE 경로). 파라미터 정의: `vllm/config/speculative.py:162-177`, env 처리: `vllm/v1/spec_decode/suffix_decoding.py:110-120`.
+
+### 4.2 vllm DSA env 설정 (③⑥ 점)
+
 ```bash
 VLLM_LHC_DSA=1 VLLM_LEVER_N9=1 VLLM_LHC_DSA_MIN=65536
 ```
+
+| env | 값 | 의미 | 코드 |
+|---|---|---|---|
+| `VLLM_LHC_DSA` | 1 | LHC DSA lane 활성 (default off). regime detector static mode 에서 이 플래그를 따름 | `vllm/v1/lhc/dsa_lane.py:19`, `regime_detector.py:334-337` |
+| `VLLM_LEVER_N9` | 1 | DSA 로 host↔pinned memcpy 오프로드 (SUB_201 lever N9) | `vllm/envs.py:117,990` |
+| `VLLM_LHC_DSA_MIN` | 65536 | DSA 사용 최소 바이트 (64 KiB 미만 copy 는 CPU 경로 유지) | `vllm/v1/lhc/dsa_lane.py:21` |
+| `VLLM_LHC_DSA_DEV` | (미설정 → default `/dev/dsa/wq0.0`) | 사용 WQ 디바이스 경로 | `dsa_lane.py:20` |
+| `VLLM_LHC_DSA_WQ_PER_RANK` / `VLLM_LHC_DSA_RANK` | (미설정) | TP rank → WQ 분산 (Phase 3 옵션, 본 sweep 미사용) | `dsa_lane.py:24-27` |
+
+> ①②④⑤ 점들은 위 DSA env **전부 미설정** (= vllm DSA lane off). ②⑤ 와 ①④ 의 차이는 vllm 설정이 아니라 §2 호스트 WQ state (및 §11/SUB_213 의 cudagraph confounder 후보) 다.
 
 ## 5. Benchmark Configuration
 
