@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Aggregate Optimal+DSA real-corpus sweep across all models.
+"""Aggregate 6-point Optimal+DSA sweep into unified MEASUREMENTS.md.
 
-vanilla/suffix baselines  ← TSK_042 (vllm_config_perf/gating/realistic_eval/runs/tput_t1t3_20260602)
-dsa/suffix_dsa cells       ← fresh runs (lhc_phase4/optimal_dsa/runs)
+6 points per (model, corpus):
+  ① van(OFF)   = TSK_042 vanilla (host DSA WQ disabled, 2026-06-02)
+  ② van(ON)    = fresh vanilla   (host DSA WQ enabled,  2026-06-10+)
+  ③ DSA(ON)    = vllm VLLM_LHC_DSA=1 + VLLM_LEVER_N9=1 on top of host DSA ON
+  ④ suf(OFF)   = TSK_042 suffix (host DSA WQ disabled)
+  ⑤ suf(ON)    = fresh suffix    (host DSA WQ enabled)
+  ⑥ suf+dsa(ON)= fresh suffix + vllm DSA env on (host DSA ON)
 
-Emits MEASUREMENTS.md with 4-config × 7-corpus matrix per model + cross-model
-verdict on whether DSA stacks on top of suffix.
+Covers 9 models (8 standard + R1-671B) full 6/6, plus Llama-405B-FP8 4/6
+(⑤⑥ engine init failure with suffix+FP8+B200 single instance).
 """
 import json
 from pathlib import Path
@@ -14,8 +19,6 @@ ROOT = Path(__file__).parent
 RUNS = ROOT / "runs"
 TSK042 = Path("/workspace/host_vllm_hybrid/vllm_config_perf/gating/realistic_eval/"
               "runs/tput_t1t3_20260602")
-
-CONFIGS = ["vanilla", "dsa", "suffix", "suffix_dsa"]
 CORPORA = ["sharegpt", "swebench", "humaneval", "mbpp", "wildchat", "lmsys", "mix"]
 MODELS = [
     "Qwen2.5-7B-Instruct",
@@ -26,15 +29,22 @@ MODELS = [
     "Qwen2.5-72B-Instruct",
     "Llama-3.1-70B-Instruct",
     "DeepSeek-R1-Distill-Llama-70B",
+    "Llama-3.1-405B-Instruct-FP8",
+    "DeepSeek-R1",
+]
+# 6-point mapping: (label, base_dir, config_string)
+POINTS = [
+    ("van(OFF)",   TSK042, "vanilla"),
+    ("van(ON)",    RUNS,   "vanilla"),
+    ("DSA(ON)",    RUNS,   "dsa"),
+    ("suf(OFF)",   TSK042, "suffix"),
+    ("suf(ON)",    RUNS,   "suffix"),
+    ("suf+dsa(ON)",RUNS,   "suffix_dsa"),
 ]
 
 
-def load_cell(tag, cfg, corpus):
-    """vanilla/suffix → TSK_042; dsa/suffix_dsa → our fresh runs."""
-    if cfg in ("vanilla", "suffix"):
-        p = TSK042 / f"summ_{tag}_{cfg}_{corpus}.json"
-    else:
-        p = RUNS / f"summ_{tag}_{cfg}_{corpus}.json"
+def load_cell(tag, base, cfg, corpus):
+    p = base / f"summ_{tag}_{cfg}_{corpus}.json"
     if not p.exists():
         return None
     try:
@@ -43,126 +53,150 @@ def load_cell(tag, cfg, corpus):
         return None
 
 
-def fmt_tps(d):
-    return "—" if d is None else f"{d.get('output_tps', 0):,.0f}"
+def get_tps(d):
+    return d.get("output_tps") if d else None
+
+
+def fmt_tps(v):
+    return f"{v:,.0f}" if v is not None else "—"
 
 
 def fmt_delta(base, cur):
-    if base is None or cur is None:
+    if base is None or cur is None or base == 0:
         return "—"
-    b = base.get("output_tps")
-    c = cur.get("output_tps")
-    if not b:
-        return "—"
-    d = 100.0 * (c - b) / b
-    sign = "+" if d >= 0 else ""
-    return f"{sign}{d:.1f}%"
-
-
-def cells_present(tag):
-    """Count fresh dsa+suffix_dsa cells (0-14)."""
-    n = 0
-    for cfg in ("dsa", "suffix_dsa"):
-        for c in CORPORA:
-            if (RUNS / f"summ_{tag}_{cfg}_{c}.json").exists():
-                n += 1
-    return n
+    d = 100.0 * (cur - base) / base
+    s = "+" if d >= 0 else ""
+    return f"{s}{d:.1f}%"
 
 
 def main():
     out = []
-    out.append("# Optimal+DSA Multi-Model Validation — TSK_042 baseline\n\n")
+    out.append("# Optimal+DSA 6-Point Coverage — Multi-Model Real-Corpus Validation\n\n")
     out.append("**HW**: DGX B200 × 8 (sm_100), Xeon Platinum 8570 + AMX + DSA 8 SWQ\n")
-    out.append("**Harness**: `realistic_eval/throughput_runner.py` (TSK_042 schema)\n")
-    out.append("**Setup**: corpus 500p × conc=32 × max_tokens=8192, streaming, "
-               "`cudagraph_mode=FULL_AND_PIECEWISE` (FaP)\n")
-    out.append("**Baseline source**:\n")
-    out.append(f"- `vanilla`, `suffix` ← TSK_042 ({TSK042.name})\n")
-    out.append(f"- `dsa`, `suffix_dsa` ← fresh ({RUNS.name})\n\n")
-    out.append("**Configs**: vanilla / dsa / suffix(=Optimal) / suffix_dsa(=Optimal+DSA), n=1\n\n")
+    out.append("**Harness**: `vllm_config_perf/gating/realistic_eval/throughput_runner.py`\n")
+    out.append("**Setup**: corpus 500p × conc=32 × max_tok=8192, streaming, "
+               "`cudagraph_mode=FULL_AND_PIECEWISE` (FaP)\n\n")
+    out.append("## 6 measurement points per (model, corpus)\n\n")
+    out.append("| ID | label | host DSA WQ | vllm spec decode | vllm DSA env | source |\n")
+    out.append("|---|---|:---:|:---:|:---:|---|\n")
+    out.append("| ① | van(OFF) | disabled | none | none | TSK_042 (2026-06-02) |\n")
+    out.append("| ② | van(ON) | **enabled** | none | none | fresh (2026-06-10+) |\n")
+    out.append("| ③ | DSA(ON) | enabled | none | **on** | fresh |\n")
+    out.append("| ④ | suf(OFF) | disabled | suffix K=32 | none | TSK_042 |\n")
+    out.append("| ⑤ | suf(ON) | **enabled** | suffix K=32 | none | fresh |\n")
+    out.append("| ⑥ | suf+dsa(ON) | enabled | suffix K=32 | **on** | fresh |\n\n")
 
-    # Coverage
-    out.append("## Coverage (fresh dsa + suffix_dsa cells)\n\n")
-    out.append("| model | cells (out of 14) |\n|---|---:|\n")
+    # Coverage summary
+    out.append("---\n\n## Coverage\n\n")
+    out.append("| model | ① | ② | ③ | ④ | ⑤ | ⑥ | 셀 합 |\n")
+    out.append("|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|\n")
+    grand = 0
     for tag in MODELS:
-        n = cells_present(tag)
-        mark = "✅" if n == 14 else ("🟡" if n > 0 else "⚪")
-        out.append(f"| {tag} | {mark} {n}/14 |\n")
-    out.append("\n")
+        counts = []
+        for label, base, cfg in POINTS:
+            n = sum(1 for c in CORPORA if (base / f"summ_{tag}_{cfg}_{c}.json").exists())
+            counts.append("✅" if n == 7 else f"{n}/7")
+            grand += n
+        out.append(f"| `{tag}` | " + " | ".join(counts) + f" | **{sum(POINTS.__class__([n if isinstance(n,int) else int(n.split('/')[0]) if isinstance(n,str) and '/' in n else 7 for n in counts]))}/42** |\n")
+    # Replace problematic line (simpler counting)
+    out_lines = out
+    out = out[:-len(MODELS)]
+    for tag in MODELS:
+        counts_n = []
+        cells = []
+        for label, base, cfg in POINTS:
+            n = sum(1 for c in CORPORA if (base / f"summ_{tag}_{cfg}_{c}.json").exists())
+            counts_n.append(n)
+            cells.append("✅" if n == 7 else f"{n}/7")
+        total = sum(counts_n)
+        out.append(f"| `{tag}` | " + " | ".join(cells) + f" | **{total}/42** |\n")
+    out.append(f"\n**전체: {grand}/420 = {grand/420*100:.1f}%**\n\n")
 
-    # Headline — mix corpus
-    out.append("## Headline — mix corpus (모든 모델)\n\n")
-    out.append("| model | vanilla | dsa | suffix (Optimal) | **suffix_dsa (Opt+DSA)** | "
-               "DSA vs van | suffix vs van | **suf_dsa vs van** | **DSA gain on suffix** |\n")
-    out.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n")
+    # Main 6-point table — mix corpus (most representative)
+    out.append("---\n\n## Headline — mix corpus (10 모델 × 6 points)\n\n")
+    out.append("| model | ① van(OFF) | ② van(ON) | ③ DSA(ON) | ④ suf(OFF) | ⑤ suf(ON) | ⑥ suf+dsa(ON) | **best** |\n")
+    out.append("|---|---:|---:|---:|---:|---:|---:|:---:|\n")
     for tag in MODELS:
-        v = load_cell(tag, "vanilla", "mix")
-        d = load_cell(tag, "dsa", "mix")
-        s = load_cell(tag, "suffix", "mix")
-        sd = load_cell(tag, "suffix_dsa", "mix")
-        if all(x is None for x in (v, d, s, sd)):
-            continue
-        row = [
-            tag,
-            fmt_tps(v), fmt_tps(d), fmt_tps(s), f"**{fmt_tps(sd)}**",
-            fmt_delta(v, d), fmt_delta(v, s),
-            f"**{fmt_delta(v, sd)}**", f"**{fmt_delta(s, sd)}**",
-        ]
-        out.append("| " + " | ".join(row) + " |\n")
-    out.append("\n")
-
-    # Per-model detailed tables
-    for tag in MODELS:
-        n = cells_present(tag)
-        if n == 0:
-            continue
-        out.append(f"---\n\n## {tag} — output_tps (4 config × 7 corpus)\n\n")
-        out.append("| corpus | vanilla | dsa | suffix | **suffix_dsa** | "
-                   "DSA Δ | suffix Δ | **suf_dsa Δ** | stack Δ (vs suf) |\n")
-        out.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n")
-        for c in CORPORA:
-            v = load_cell(tag, "vanilla", c)
-            d = load_cell(tag, "dsa", c)
-            s = load_cell(tag, "suffix", c)
-            sd = load_cell(tag, "suffix_dsa", c)
-            row = [
-                c,
-                fmt_tps(v), fmt_tps(d), fmt_tps(s), f"**{fmt_tps(sd)}**",
-                fmt_delta(v, d), fmt_delta(v, s),
-                f"**{fmt_delta(v, sd)}**", fmt_delta(s, sd),
-            ]
-            out.append("| " + " | ".join(row) + " |\n")
-        out.append("\n")
-
-    # Verdict — DSA stack effect per (model, corpus)
-    out.append("---\n\n## Verdict — DSA가 suffix 위에 가산되는가? (Δ stack = suffix_dsa vs suffix)\n\n")
-    out.append("| model | sharegpt | swebench | humaneval | mbpp | wildchat | lmsys | mix | **avg** |\n")
-    out.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n")
-    for tag in MODELS:
-        row = [tag]
-        deltas = []
-        for c in CORPORA:
-            s = load_cell(tag, "suffix", c)
-            sd = load_cell(tag, "suffix_dsa", c)
-            if s is None or sd is None or not s.get("output_tps"):
-                row.append("—")
-            else:
-                dd = 100.0 * (sd["output_tps"] - s["output_tps"]) / s["output_tps"]
-                deltas.append(dd)
-                sign = "+" if dd >= 0 else ""
-                row.append(f"{sign}{dd:.1f}%")
-        if deltas:
-            avg = sum(deltas) / len(deltas)
-            sign = "+" if avg >= 0 else ""
-            row.append(f"**{sign}{avg:.2f}%**")
+        vals = {}
+        for label, base, cfg in POINTS:
+            d = load_cell(tag, base, cfg, "mix")
+            vals[label] = get_tps(d)
+        nonempty = [(l, v) for l, v in vals.items() if v is not None]
+        best = max(nonempty, key=lambda x: x[1]) if nonempty else None
+        row = [f"`{tag}`"] + [fmt_tps(vals[l]) for l, _, _ in POINTS]
+        if best:
+            row.append(f"**{best[0]} {best[1]:,.0f}**")
         else:
             row.append("—")
         out.append("| " + " | ".join(row) + " |\n")
 
+    # Per-model 6-point × 7 corpus tables
+    for tag in MODELS:
+        out.append(f"\n---\n\n## `{tag}` — 6 points × 7 corpus\n\n")
+        out.append("| corpus | ① van(OFF) | ② van(ON) | ③ DSA(ON) | ④ suf(OFF) | ⑤ suf(ON) | ⑥ suf+dsa(ON) |\n")
+        out.append("|---|---:|---:|---:|---:|---:|---:|\n")
+        for c in CORPORA:
+            row = [c]
+            for label, base, cfg in POINTS:
+                d = load_cell(tag, base, cfg, c)
+                row.append(fmt_tps(get_tps(d)))
+            out.append("| " + " | ".join(row) + " |\n")
+
+    # Effect decomposition
+    out.append("\n---\n\n## Effect decomposition — mix corpus (Δ% 분해)\n\n")
+    out.append("- **host DSA effect on vanilla**: ② vs ①\n")
+    out.append("- **host DSA effect on suffix**: ⑤ vs ④\n")
+    out.append("- **vllm env effect on vanilla (host ON)**: ③ vs ②\n")
+    out.append("- **vllm env effect on suffix (host ON)**: ⑥ vs ⑤\n")
+    out.append("- **suffix effect (same-state host OFF)**: ④ vs ①\n")
+    out.append("- **suffix effect (same-state host ON)**: ⑤ vs ②\n\n")
+    out.append("| model | DSA on van | DSA on suf | vllm env on van | vllm env on suf | suf-gain (OFF) | suf-gain (ON) |\n")
+    out.append("|---|---:|---:|---:|---:|---:|---:|\n")
+    for tag in MODELS:
+        vals = {}
+        for label, base, cfg in POINTS:
+            d = load_cell(tag, base, cfg, "mix")
+            vals[label] = get_tps(d)
+        row = [f"`{tag}`",
+               fmt_delta(vals["van(OFF)"], vals["van(ON)"]),
+               fmt_delta(vals["suf(OFF)"], vals["suf(ON)"]),
+               fmt_delta(vals["van(ON)"],  vals["DSA(ON)"]),
+               fmt_delta(vals["suf(ON)"],  vals["suf+dsa(ON)"]),
+               fmt_delta(vals["van(OFF)"], vals["suf(OFF)"]),
+               fmt_delta(vals["van(ON)"],  vals["suf(ON)"])]
+        out.append("| " + " | ".join(row) + " |\n")
+
+    # Winner distribution
+    out.append("\n---\n\n## Winner distribution — best point per (model, corpus) 70 셀\n\n")
+    counts = {label: 0 for label, _, _ in POINTS}
+    counts["—"] = 0
+    for tag in MODELS:
+        for c in CORPORA:
+            vals = {}
+            for label, base, cfg in POINTS:
+                d = load_cell(tag, base, cfg, c)
+                vals[label] = get_tps(d)
+            nonempty = [(l, v) for l, v in vals.items() if v is not None]
+            if nonempty:
+                best = max(nonempty, key=lambda x: x[1])
+                counts[best[0]] += 1
+            else:
+                counts["—"] += 1
+    total_cells = sum(counts.values())
+    out.append("| Winner point | count | % |\n")
+    out.append("|---|---:|---:|\n")
+    for label, _, _ in POINTS:
+        n = counts[label]
+        out.append(f"| {label} | **{n}** | {n/total_cells*100:.1f}% |\n")
+    if counts["—"] > 0:
+        out.append(f"| — (missing) | {counts['—']} | {counts['—']/total_cells*100:.1f}% |\n")
+
     text = "".join(out)
-    (ROOT / "MEASUREMENTS.md").write_text(text)
-    print(text[-3000:])
-    print(f"\n[wrote] {ROOT / 'MEASUREMENTS.md'} ({len(text)} chars)")
+    out_path = ROOT / "MEASUREMENTS_6point.md"
+    out_path.write_text(text)
+    print(f"[wrote] {out_path}")
+    print(f"  total cells: {grand}/420 = {grand/420*100:.1f}%")
+    print(f"  doc size: {len(text)} chars")
 
 
 if __name__ == "__main__":
