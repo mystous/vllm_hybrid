@@ -29,23 +29,44 @@
 
 **vllm env 와 호스트 DSA 의 직교성**: VLLM_LHC_DSA env 안 켜도 호스트 DSA 가 enabled 상태면 시스템 메모리 동작에 영향 (vanilla 측정에서도 +33~+36% tps).
 
-### 2.1 호스트 DSA WQ 상세 구성 (sweep 시점 = 현재, 2026-06-12 sysfs 실측)
+### 2.1 호스트 DSA 상세 구성 (sweep 시점 = 현재, 2026-06-12 sysfs 실측)
 
-| device | NUMA | max_batch | max_transfer | enabled WQ | disabled WQ |
-|---|:---:|---:|---:|---|---|
-| `dsa0` | 0 | 1,024 | 2 GiB | wq0.0–wq0.3 (`lhc0`–`lhc3`) | wq0.4–wq0.7 |
-| `dsa1` | 1 | 1,024 | 2 GiB | wq1.0–wq1.3 (`lhc1_0`–`lhc1_3`) | wq1.4–wq1.7 |
+**드라이버 / 디바이스 레벨:**
+
+| 항목 | 값 |
+|---|---|
+| 커널 드라이버 | `idxd` (+ `idxd_bus`, `iaa_crypto` 연동) — dsa bus 드라이버: crypto/dmaengine/idxd/**user** |
+| 설정 도구 | `accel-config` 4.1.6+ (`/usr/bin/accel-config`) |
+| 디바이스 | `dsa0`(NUMA 0) / `dsa1`(NUMA 1) — 둘 다 enabled |
+| PASID | enabled (=1, SVM → 유저공간 ENQCMD 제출 가능) |
+| 디바이스 한계 | max_groups 4 / max_engines 4 / max_work_queues 8 / **max_wq_size 128** |
+| device-level max_batch / max_transfer | 1,024 / 2 GiB |
+
+**WQ 구성** (디바이스당 8개 중 4개만 enable):
+
+| device | NUMA | enabled WQ (name) | disabled WQ |
+|---|:---:|---|---|
+| `dsa0` | 0 | wq0.0–wq0.3 (`lhc0`–`lhc3`) | wq0.4–wq0.7 (size=0, type=none) |
+| `dsa1` | 1 | wq1.0–wq1.3 (`lhc1_0`–`lhc1_3`) | wq1.4–wq1.7 (size=0, type=none) |
 
 Enabled WQ 공통 속성 (8개 모두 동일):
 
-| 속성 | 값 |
-|---|---|
-| `mode` | **shared** (SWQ — ENQCMD 제출) |
-| `type` | `user` (유저스페이스 직접 접근, `/dev/dsa/wqX.Y`) |
-| `size` | 16 entries |
-| `group_id` / `priority` / `threshold` | 0 / 10 / 8 |
-| `max_transfer_size` (per-WQ) | 2 MiB |
-| engines | 디바이스당 4 (engine0.0–0.3, engine1.0–1.3) |
+| 속성 | 값 | 의미 |
+|---|---|---|
+| `mode` | **shared** (SWQ) | ENQCMD 로 다중 프로세스 공유 제출 |
+| `type` | `user` | `/dev/dsa/wqX.Y` 유저스페이스 직접 접근 |
+| `size` | 16 entries | WQ당 16 (총 64/128 — 디바이스 용량의 절반 사용) |
+| `group_id` / `priority` / `threshold` | 0 / 10 / 8 | 전부 group 0, SWQ 제출 한도 8 |
+| `max_transfer_size` (per-WQ) | 2 MiB | per-descriptor 전송 상한 |
+| `max_batch_size` (per-WQ) | 32 | batch descriptor 상한 |
+| `block_on_fault` | 1 | page fault 시 block |
+| `clients` | **0** | 현재 어떤 프로세스도 미사용 (SUB_213 confounder 논거) |
+
+**Engine/그룹 토폴로지**: 디바이스당 engine 4개(engine0.0–0.3 / engine1.0–1.3) 전부 group 0 — "WQ 4 → group 0 → engine 4" 단일 그룹, QoS 분리 없음, 4-way engine 병렬.
+
+**디바이스 노드 / 권한**: `/dev/dsa/wq{0,1}.{0..3}` = `crw-rw-rw- root root` (major 504) — **0666 world-writable** 이라 비특권 사용자도 직접 open 가능 (vllm `VLLM_LHC_DSA_DEV` default `/dev/dsa/wq0.0` 이 그대로 동작하는 이유).
+
+**비영속성 주의**: `/etc/accel-config/` 에 저장 설정 없음 → 이 구성은 수동 enable (2026-06-08 12:59) 상태. **재부팅 시 WQ 구성 소실** — 재현하려면 `accel-config save-config` 저장 또는 enable 스크립트 필요.
 
 > **주의**: "host DSA enabled" 효과는 위 WQ 가 enable 되어 있다는 **호스트 시스템 상태** 자체를 말한다. SUB_213 검증에서 `clients=0`(어떤 프로세스도 WQ 미사용) 임이 확인되어, +36% 의 진짜 원인은 cudagraph_mode(PIECEWISE→FaP) 차이라는 가설이 유력 — §2 의 시점 표는 confounder 후보 기록으로 유지.
 
