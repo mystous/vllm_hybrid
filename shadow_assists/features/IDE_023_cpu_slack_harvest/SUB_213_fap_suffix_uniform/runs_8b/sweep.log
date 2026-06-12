@@ -1,0 +1,26 @@
+[04:15:19] === SUB_213 8B 일반화: K32 base vs K6+pad, 7 corpora ===
+[04:15:19] boot pid=3545050 cell=G0_k32 (taskset 0-47,56-103)
+[04:16:44] READY
+[04:16:44] cell G0_k32: baseline (aggressor 없음)
+[04:16:44]   bench G0_k32 x sharegpt
+[04:20:11]   bench G0_k32 x swebench
+[04:21:43]   bench G0_k32 x humaneval
+[04:23:22]   bench G0_k32 x mbpp
+[04:24:58]   bench G0_k32 x wildchat
+[04:28:27]   bench G0_k32 x lmsys
+[04:31:50]   bench G0_k32 x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_sub213_8b.sh: line 142: 3545050 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[04:34:37] GPU freed
+[04:34:37] boot pid=3562232 cell=G1_k6pad (taskset 0-47,56-103)
+[04:35:37] READY
+[04:35:37] cell G1_k6pad: baseline (aggressor 없음)
+[04:35:37]   bench G1_k6pad x sharegpt
+[04:38:30]   bench G1_k6pad x swebench
+[04:39:53]   bench G1_k6pad x humaneval
+[04:41:04]   bench G1_k6pad x mbpp
+[04:42:23]   bench G1_k6pad x wildchat
+[04:45:25]   bench G1_k6pad x lmsys
+[04:48:22]   bench G1_k6pad x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_sub213_8b.sh: line 142: 3562232 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[04:51:09] GPU freed
+[04:51:09] === SUB_213 8B sweep done ===
