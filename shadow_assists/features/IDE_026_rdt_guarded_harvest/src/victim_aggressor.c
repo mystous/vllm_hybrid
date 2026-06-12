@@ -38,6 +38,8 @@ static double now_sec(void) {
 }
 
 /* "0-7,16,20-23" → cpu 배열 */
+static int g_aggr_mode = 0; /* 0=basic 1=cldemote 2=nt */
+
 static int parse_cpulist(const char *s, int *cpus, int max) {
     int n = 0;
     while (*s && n < max) {
@@ -196,11 +198,28 @@ static void *aggr_thread(void *p) {
     while (now_sec() < t_end) {
 #ifdef __AVX512F__
         __m512d vs = _mm512_set1_pd(s);
-        for (size_t i = 0; i + 8 <= n; i += 8) {
-            __m512d vb = _mm512_load_pd(B + i);
-            __m512d vc = _mm512_load_pd(C + i);
-            /* 일반 store (cache-allocating) — LLC 압박이 목적, NT store 금지 */
-            _mm512_store_pd(A + i, _mm512_fmadd_pd(vs, vc, vb));
+        if (g_aggr_mode == 2) {                 /* nt: RFO 없는 streaming store */
+            for (size_t i = 0; i + 8 <= n; i += 8) {
+                __m512d vb = _mm512_load_pd(B + i);
+                __m512d vc = _mm512_load_pd(C + i);
+                _mm512_stream_pd(A + i, _mm512_fmadd_pd(vs, vc, vb));
+            }
+            _mm_sfence();
+        } else if (g_aggr_mode == 1) {          /* cldemote: 소비 완료 라인 자발 강등 */
+            for (size_t i = 0; i + 8 <= n; i += 8) {
+                __m512d vb = _mm512_load_pd(B + i);
+                __m512d vc = _mm512_load_pd(C + i);
+                _mm512_store_pd(A + i, _mm512_fmadd_pd(vs, vc, vb));
+                _cldemote((void *)(A + i));
+                _cldemote((void *)(B + i));
+                _cldemote((void *)(C + i));
+            }
+        } else {                                /* basic: 일반 store (LLC 압박) */
+            for (size_t i = 0; i + 8 <= n; i += 8) {
+                __m512d vb = _mm512_load_pd(B + i);
+                __m512d vc = _mm512_load_pd(C + i);
+                _mm512_store_pd(A + i, _mm512_fmadd_pd(vs, vc, vb));
+            }
         }
 #else
         for (size_t i = 0; i < n; i++) A[i] = B[i] + s * C[i];
@@ -236,7 +255,7 @@ static int run_aggressor(int *cpus, int n_cpus, size_t array_mb, double secs) {
 #endif
     printf("aggressor: threads=%d array=%zuMBx3/thread isa=%s elapsed=%.1fs\n",
            n_cpus, array_mb, isa, elapsed);
-    printf("AGGR_RESULT,%d,%.1f,%.2f\n", n_cpus, elapsed, gbps);
+    printf("AGGR_RESULT,mode=%d,%d,%.1f,%.2f\n", g_aggr_mode, n_cpus, elapsed, gbps);
     free(args); free(th);
     return 0;
 }
@@ -247,7 +266,7 @@ static void usage(const char *argv0) {
     fprintf(stderr,
         "사용법: %s --role victim|aggressor --cpus <list> [--secs N]\n"
         "  victim 전용 : --ws-mb N (기본 64)  --copy-kb N (기본 4096)  --chase-steps N (기본 200000)\n"
-        "  aggressor   : --array-mb N (스레드당 배열 크기, 기본 32 → 3x32=96MB/thread)\n", argv0);
+        "  aggressor   : --array-mb N (스레드당 배열, 기본 32)  --aggr-mode basic|cldemote|nt\n", argv0);
 }
 
 int main(int argc, char **argv) {
@@ -260,6 +279,7 @@ int main(int argc, char **argv) {
         if (ARG("--role")) role = argv[++i];
         else if (ARG("--cpus")) cpulist = argv[++i];
         else if (ARG("--secs")) secs = atof(argv[++i]);
+        else if (ARG("--aggr-mode")) { const char *m = argv[++i]; g_aggr_mode = !strcmp(m,"cldemote") ? 1 : !strcmp(m,"nt") ? 2 : 0; }
         else if (ARG("--ws-mb")) ws_mb = (size_t)atol(argv[++i]);
         else if (ARG("--copy-kb")) copy_kb = (size_t)atol(argv[++i]);
         else if (ARG("--chase-steps")) chase_steps = (size_t)atol(argv[++i]);
