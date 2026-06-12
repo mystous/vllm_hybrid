@@ -1,0 +1,27 @@
+==== IDE_023 Round 1 sweep start at 2026-06-07T09:14:07Z ====
+[gpu] all 0-7 free
+[boot] tag=baseline extra_cli=[] at 2026-06-07T09:14:07Z
+[ready] port 8087 up after 33*2s
+[bench] baseline → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/ide023_round_1/runs/baseline.json at 2026-06-07T09:15:11Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × round1_baseline × mix: 22000.3 tps (500/500 ok, 44s, gpu 96.1% cpu 5.4% ttft_p50 68.2ms α None)
+[stop] tag=baseline pid=425752 at 2026-06-07T09:15:56Z
+[gpu] all 0-7 free
+[boot] tag=r1a_stream_interval8 extra_cli=[--stream-interval 8] at 2026-06-07T09:16:06Z
+[ready] port 8087 up after 33*2s
+[bench] r1a_stream_interval8 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/ide023_round_1/runs/r1a_stream_interval8.json at 2026-06-07T09:17:10Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × round1_r1a_stream_interval8 × mix: 21917.5 tps (500/500 ok, 44s, gpu 96.4% cpu 4.8% ttft_p50 60.4ms α None)
+[stop] tag=r1a_stream_interval8 pid=427607 at 2026-06-07T09:17:55Z
+[gpu] all 0-7 free
+[boot] tag=r1b_batch16k extra_cli=[--max-num-batched-tokens 16384] at 2026-06-07T09:18:04Z
+[ready] port 8087 up after 45*2s
+[bench] r1b_batch16k → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/ide023_round_1/runs/r1b_batch16k.json at 2026-06-07T09:19:33Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × round1_r1b_batch16k × mix: 21799.7 tps (500/500 ok, 45s, gpu 96.5% cpu 5.3% ttft_p50 69.8ms α None)
+[stop] tag=r1b_batch16k pid=429233 at 2026-06-07T09:20:18Z
+[gpu] all 0-7 free
+[boot] tag=r1c_maxseqs512 extra_cli=[--max-num-seqs 512] at 2026-06-07T09:20:28Z
+[ready] port 8087 up after 33*2s
+[bench] r1c_maxseqs512 → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/ide023_round_1/runs/r1c_maxseqs512.json at 2026-06-07T09:21:32Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × round1_r1c_maxseqs512 × mix: 21842.3 tps (500/500 ok, 44s, gpu 96.3% cpu 5.4% ttft_p50 74.4ms α None)
+[stop] tag=r1c_maxseqs512 pid=434156 at 2026-06-07T09:22:17Z
+[gpu] all 0-7 free
+[boot] tag=r1d_sarathi extra_cli=[--long-prefill-token-threshold 512 --max-num-partial-prefills 4 --max-long-partial-prefills 2] at 2026-06-07T09:22:28Z

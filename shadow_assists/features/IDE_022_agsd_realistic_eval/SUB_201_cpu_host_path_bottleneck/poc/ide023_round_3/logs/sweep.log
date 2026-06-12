@@ -1,0 +1,28 @@
+==== Round 3 sweep start at 2026-06-07T09:48:00Z ====
+[gpu] free
+[boot] tag=r3a_outproc_chunk1024 extra_env=[VLLM_V1_OUTPUT_PROC_CHUNK_SIZE=1024] at 2026-06-07T09:48:00Z
+[ready] up after 33*2s
+[bench] r3a_outproc_chunk1024 at 2026-06-07T09:49:05Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × round3_r3a_outproc_chunk1024 × mix: 22093.6 tps (500/500 ok, 45s, gpu 96.2% cpu 5.4% ttft_p50 68.9ms α None)
+[stop] r3a_outproc_chunk1024 pid=451577
+[gpu] free
+[boot] tag=r3b_tok_workers16 extra_env=[VLLM_PREFETCH_TOKENIZE_WORKERS=16] at 2026-06-07T09:50:00Z
+[ready] up after 45*2s
+[bench] r3b_tok_workers16 at 2026-06-07T09:51:28Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × round3_r3b_tok_workers16 × mix: 21567.4 tps (500/500 ok, 45s, gpu 96.1% cpu 5.4% ttft_p50 72.7ms α None)
+[stop] r3b_tok_workers16 pid=453169
+[gpu] free
+[boot] tag=r3c_flashinfer_sampler extra_env=[VLLM_USE_FLASHINFER_SAMPLER=1] at 2026-06-07T09:52:24Z
+[ready] up after 66*2s
+[bench] r3c_flashinfer_sampler at 2026-06-07T09:54:34Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × round3_r3c_flashinfer_sampler × mix: 21889.7 tps (500/500 ok, 45s, gpu 96.5% cpu 5.3% ttft_p50 70.9ms α None)
+[stop] r3c_flashinfer_sampler pid=458266
+[gpu] free
+[boot] tag=r3d_log_stats_100s extra_env=[VLLM_LOG_STATS_INTERVAL=100] at 2026-06-07T09:55:30Z
+[ready] up after 33*2s
+[bench] r3d_log_stats_100s at 2026-06-07T09:56:34Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × round3_r3d_log_stats_100s × mix: 21918.1 tps (500/500 ok, 45s, gpu 96.1% cpu 5.6% ttft_p50 68.5ms α None)
+[stop] r3d_log_stats_100s pid=463183
+[gpu] free
+==== Round 3 sweep complete at 2026-06-07T09:57:29Z ====
+[gpu] free

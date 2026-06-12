@@ -1,0 +1,220 @@
+[06:22:02] === SUB_201 Optimal vs MWOR TP=8 sweep start → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/runs_tp8 ===
+[06:22:02] common env: VLLM_PREFETCH_TOKENIZE=1 WORKERS=2 BURST=1
+[06:22:02] common args: FaP cudagraph_mode (always on), conc=16 max_tok=512 limit=200 mml=16384
+[06:22:02] 
+[06:22:02] ############## Qwen2.5-7B-Instruct (fam=Qwen-7B tp=4 gpus=0,1,2,3) ##############
+[06:22:02] ==== boot Qwen2.5-7B-Instruct conf=optimal method=vanilla tp=4 gpus=0,1,2,3 ====
+[06:22:02]   PID=289069 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Qwen2.5-7B-Instruct_optimal_vanilla_boot.log timeout=900s
+[06:23:17] READY http://127.0.0.1:8001
+[06:23:17]   bench corp=humaneval 200p × conc=16 × max=512
+[06:23:26]   → humaneval: tps 5989.0 n_ok 164 wall 8.0
+[06:23:26]   bench corp=mbpp 200p × conc=16 × max=512
+[06:23:40]   → mbpp: tps 6863.8 n_ok 198 wall 13.6
+[06:23:40]   bench corp=swebench 200p × conc=16 × max=512
+[06:23:55]   → swebench: tps 6528.7 n_ok 200 wall 14.3
+[06:23:55]   bench corp=sharegpt 200p × conc=16 × max=512
+[06:24:08]   → sharegpt: tps 6757.9 n_ok 200 wall 13.1
+[06:24:08]   bench corp=lmsys 200p × conc=16 × max=512
+[06:24:20]   → lmsys: tps 6634.0 n_ok 200 wall 11.3
+[06:24:20]   bench corp=wildchat 200p × conc=16 × max=512
+[06:24:34]   → wildchat: tps 6757.6 n_ok 200 wall 13.7
+[06:24:34]   bench corp=mix 200p × conc=16 × max=512
+[06:24:47]   → mix: tps 6840.4 n_ok 200 wall 12.3
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 56: 289069 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:24:53] GPU freed
+[06:24:53] ==== boot Qwen2.5-7B-Instruct conf=mwor method=suffix tp=4 gpus=0,1,2,3 ====
+[06:24:53]   PID=292661 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Qwen2.5-7B-Instruct_mwor_suffix_boot.log timeout=900s
+[06:26:13] READY http://127.0.0.1:8001
+[06:26:13]   bench corp=humaneval 200p × conc=16 × max=512
+[06:26:26]   → humaneval: tps 4126.6 n_ok 164 wall 11.7
+[06:26:26]   bench corp=mbpp 200p × conc=16 × max=512
+[06:26:48]   → mbpp: tps 4196.1 n_ok 198 wall 22.1
+[06:26:48]   bench corp=swebench 200p × conc=16 × max=512
+[06:27:13]   → swebench: tps 3898.7 n_ok 200 wall 24.2
+[06:27:13]   bench corp=sharegpt 200p × conc=16 × max=512
+[06:27:38]   → sharegpt: tps 3551.7 n_ok 200 wall 24.8
+[06:27:38]   bench corp=lmsys 200p × conc=16 × max=512
+[06:27:59]   → lmsys: tps 3672.5 n_ok 200 wall 20.4
+[06:27:59]   bench corp=wildchat 200p × conc=16 × max=512
+[06:28:25]   → wildchat: tps 3675.0 n_ok 200 wall 25.2
+[06:28:25]   bench corp=mix 200p × conc=16 × max=512
+[06:28:44]   → mix: tps 4706.2 n_ok 200 wall 18.3
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 56: 292661 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:28:50] GPU freed
+[06:28:50] 
+[06:28:50] ############## Qwen2.5-32B-Instruct (fam=Qwen-32B tp=8 gpus=0,1,2,3,4,5,6,7) ##############
+[06:28:50] ==== boot Qwen2.5-32B-Instruct conf=optimal method=vanilla tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[06:28:50]   PID=296598 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Qwen2.5-32B-Instruct_optimal_vanilla_boot.log timeout=1500s
+[06:30:55] READY http://127.0.0.1:8001
+[06:30:55]   bench corp=humaneval 200p × conc=16 × max=512
+[06:31:14]   → humaneval: tps 2754.8 n_ok 164 wall 18.5
+[06:31:14]   bench corp=mbpp 200p × conc=16 × max=512
+[06:31:45]   → mbpp: tps 2996.7 n_ok 198 wall 30.1
+[06:31:45]   bench corp=swebench 200p × conc=16 × max=512
+[06:32:20]   → swebench: tps 2872.2 n_ok 200 wall 34.2
+[06:32:20]   bench corp=sharegpt 200p × conc=16 × max=512
+[06:32:49]   → sharegpt: tps 2929.4 n_ok 200 wall 29.3
+[06:32:49]   bench corp=lmsys 200p × conc=16 × max=512
+[06:33:15]   → lmsys: tps 2917.0 n_ok 200 wall 24.9
+[06:33:15]   bench corp=wildchat 200p × conc=16 × max=512
+[06:33:46]   → wildchat: tps 2940.9 n_ok 200 wall 30.4
+[06:33:46]   bench corp=mix 200p × conc=16 × max=512
+[06:34:15]   → mix: tps 2981.9 n_ok 200 wall 28.1
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 56: 296598 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:34:23] GPU freed
+[06:34:23] ==== boot Qwen2.5-32B-Instruct conf=mwor method=suffix tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[06:34:23]   PID=302695 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Qwen2.5-32B-Instruct_mwor_suffix_boot.log timeout=1500s
+[06:36:28] READY http://127.0.0.1:8001
+[06:36:28]   bench corp=humaneval 200p × conc=16 × max=512
+[06:36:49]   → humaneval: tps 2481.1 n_ok 164 wall 20.9
+[06:36:49]   bench corp=mbpp 200p × conc=16 × max=512
+[06:37:25]   → mbpp: tps 2584.0 n_ok 198 wall 34.8
+[06:37:25]   bench corp=swebench 200p × conc=16 × max=512
+[06:38:08]   → swebench: tps 2280.2 n_ok 200 wall 42.8
+[06:38:08]   bench corp=sharegpt 200p × conc=16 × max=512
+[06:38:49]   → sharegpt: tps 2104.4 n_ok 200 wall 40.6
+[06:38:49]   bench corp=lmsys 200p × conc=16 × max=512
+[06:39:22]   → lmsys: tps 2211.8 n_ok 200 wall 32.4
+[06:39:22]   bench corp=wildchat 200p × conc=16 × max=512
+[06:40:05]   → wildchat: tps 2080.6 n_ok 200 wall 41.8
+[06:40:05]   bench corp=mix 200p × conc=16 × max=512
+[06:40:36]   → mix: tps 2726.0 n_ok 200 wall 30.3
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 56: 302695 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:40:45] GPU freed
+[06:40:45] 
+[06:40:45] ############## Qwen2.5-72B-Instruct (fam=Qwen-72B tp=8 gpus=0,1,2,3,4,5,6,7) ##############
+[06:40:45] ==== boot Qwen2.5-72B-Instruct conf=optimal method=vanilla tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[06:40:45]   PID=309374 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Qwen2.5-72B-Instruct_optimal_vanilla_boot.log timeout=1800s
+[06:43:00] READY http://127.0.0.1:8001
+[06:43:00]   bench corp=humaneval 200p × conc=16 × max=512
+[06:43:21]   → humaneval: tps 1767.6 n_ok 164 wall 19.8
+[06:43:21]   bench corp=mbpp 200p × conc=16 × max=512
+[06:44:08]   → mbpp: tps 1992.1 n_ok 198 wall 46.1
+[06:44:08]   bench corp=swebench 200p × conc=16 × max=512
+[06:44:58]   → swebench: tps 1908.0 n_ok 200 wall 49.8
+[06:44:58]   bench corp=sharegpt 200p × conc=16 × max=512
+[06:45:42]   → sharegpt: tps 1957.8 n_ok 200 wall 43.7
+[06:45:42]   bench corp=lmsys 200p × conc=16 × max=512
+[06:46:19]   → lmsys: tps 1949.0 n_ok 200 wall 35.8
+[06:46:19]   bench corp=wildchat 200p × conc=16 × max=512
+[06:47:04]   → wildchat: tps 1976.3 n_ok 200 wall 44.8
+[06:47:04]   bench corp=mix 200p × conc=16 × max=512
+[06:47:46]   → mix: tps 1977.9 n_ok 200 wall 41.1
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 56: 309374 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:47:54] GPU freed
+[06:47:54] ==== boot Qwen2.5-72B-Instruct conf=mwor method=suffix tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[06:47:54]   PID=315459 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Qwen2.5-72B-Instruct_mwor_suffix_boot.log timeout=1800s
+[06:50:14] READY http://127.0.0.1:8001
+[06:50:14]   bench corp=humaneval 200p × conc=16 × max=512
+[06:50:36]   → humaneval: tps 1687.6 n_ok 164 wall 21.4
+[06:50:36]   bench corp=mbpp 200p × conc=16 × max=512
+[06:51:25]   → mbpp: tps 1896.1 n_ok 198 wall 48.3
+[06:51:25]   bench corp=swebench 200p × conc=16 × max=512
+[06:52:25]   → swebench: tps 1613.0 n_ok 200 wall 59.3
+[06:52:25]   bench corp=sharegpt 200p × conc=16 × max=512
+[06:53:23]   → sharegpt: tps 1528.4 n_ok 200 wall 57.1
+[06:53:23]   bench corp=lmsys 200p × conc=16 × max=512
+[06:54:07]   → lmsys: tps 1612.0 n_ok 200 wall 44.2
+[06:54:07]   bench corp=wildchat 200p × conc=16 × max=512
+[06:55:06]   → wildchat: tps 1515.9 n_ok 200 wall 58.0
+[06:55:06]   bench corp=mix 200p × conc=16 × max=512
+[06:55:49]   → mix: tps 1947.4 n_ok 200 wall 42.2
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 56: 315459 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:55:58] GPU freed
+[06:55:58] 
+[06:55:58] ############## Llama-3.1-8B-Instruct (fam=Llama-8B tp=8 gpus=0,1,2,3,4,5,6,7) ##############
+[06:55:58] ==== boot Llama-3.1-8B-Instruct conf=optimal method=vanilla tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[06:55:58]   PID=322098 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Llama-3.1-8B-Instruct_optimal_vanilla_boot.log timeout=1200s
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 45: 322098 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:56:13] DEAD backend http://127.0.0.1:8001 (pid 322098)
+[06:56:13]   BOOT FAIL Llama-3.1-8B-Instruct × optimal × vanilla
+[06:56:18] GPU freed
+[06:56:18] ==== boot Llama-3.1-8B-Instruct conf=mwor method=suffix tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[06:56:18]   PID=322404 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Llama-3.1-8B-Instruct_mwor_suffix_boot.log timeout=1200s
+[06:57:58] READY http://127.0.0.1:8001
+[06:57:58]   bench corp=humaneval 200p × conc=16 × max=512
+[06:58:12]   → humaneval: tps 6797.8 n_ok 164 wall 12.3
+[06:58:12]   bench corp=mbpp 200p × conc=16 × max=512
+[06:58:30]   → mbpp: tps 5562.1 n_ok 198 wall 18.1
+[06:58:30]   bench corp=swebench 200p × conc=16 × max=512
+[06:58:47]   → swebench: tps 5867.1 n_ok 200 wall 16.5
+[06:58:47]   bench corp=sharegpt 200p × conc=16 × max=512
+[06:59:09]   → sharegpt: tps 4892.9 n_ok 200 wall 20.7
+[06:59:09]   bench corp=lmsys 200p × conc=16 × max=512
+[06:59:28]   → lmsys: tps 5517.0 n_ok 200 wall 18.3
+[06:59:28]   bench corp=wildchat 200p × conc=16 × max=512
+[06:59:49]   → wildchat: tps 4912.8 n_ok 200 wall 20.6
+[06:59:49]   bench corp=mix 200p × conc=16 × max=512
+[07:00:05]   → mix: tps 6185.5 n_ok 200 wall 16.1
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 56: 322404 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[07:00:15] GPU freed
+[07:00:15] 
+[07:00:15] ############## Llama-3.1-70B-Instruct (fam=Llama-70B tp=8 gpus=0,1,2,3,4,5,6,7) ##############
+[07:00:15] ==== boot Llama-3.1-70B-Instruct conf=optimal method=vanilla tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[07:00:15]   PID=328505 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Llama-3.1-70B-Instruct_optimal_vanilla_boot.log timeout=1800s
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 45: 328505 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[07:02:35] DEAD backend http://127.0.0.1:8001 (pid 328505)
+[07:02:35]   BOOT FAIL Llama-3.1-70B-Instruct × optimal × vanilla
+[07:02:42] GPU freed
+[07:02:42] ==== boot Llama-3.1-70B-Instruct conf=mwor method=suffix tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[07:02:42]   PID=333086 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Llama-3.1-70B-Instruct_mwor_suffix_boot.log timeout=1800s
+[07:04:57] READY http://127.0.0.1:8001
+[07:04:57]   bench corp=humaneval 200p × conc=16 × max=512
+[07:05:20]   → humaneval: tps 2575.0 n_ok 164 wall 23.0
+[07:05:20]   bench corp=mbpp 200p × conc=16 × max=512
+[07:05:59]   → mbpp: tps 2126.5 n_ok 198 wall 38.3
+[07:05:59]   bench corp=swebench 200p × conc=16 × max=512
+[07:06:36]   → swebench: tps 2011.8 n_ok 200 wall 36.2
+[07:06:36]   bench corp=sharegpt 200p × conc=16 × max=512
+[07:07:25]   → sharegpt: tps 1698.4 n_ok 200 wall 47.9
+[07:07:25]   bench corp=lmsys 200p × conc=16 × max=512
+[07:08:01]   → lmsys: tps 1842.9 n_ok 200 wall 35.8
+[07:08:01]   bench corp=wildchat 200p × conc=16 × max=512
+[07:08:51]   → wildchat: tps 1705.0 n_ok 200 wall 49.3
+[07:08:51]   bench corp=mix 200p × conc=16 × max=512
+[07:09:23]   → mix: tps 2416.8 n_ok 200 wall 31.3
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 56: 333086 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[07:09:33] GPU freed
+[07:09:33] 
+[07:09:33] ############## Llama-3.1-405B-Instruct-FP8 (fam=Llama-405B tp=8 gpus=0,1,2,3,4,5,6,7) ##############
+[07:09:33] ==== boot Llama-3.1-405B-Instruct-FP8 conf=optimal method=vanilla tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[07:09:33]   PID=339579 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Llama-3.1-405B-Instruct-FP8_optimal_vanilla_boot.log timeout=3000s
+[07:11:43] READY http://127.0.0.1:8001
+[07:11:43]   bench corp=humaneval 200p × conc=16 × max=512
+[07:13:08]   → humaneval: tps 791.5 n_ok 164 wall 84.8
+[07:13:08]   bench corp=mbpp 200p × conc=16 × max=512
+[07:14:48]   → mbpp: tps 826.9 n_ok 198 wall 98.9
+[07:14:48]   bench corp=swebench 200p × conc=16 × max=512
+[07:16:29]   → swebench: tps 774.2 n_ok 200 wall 100.8
+[07:16:29]   bench corp=sharegpt 200p × conc=16 × max=512
+[07:18:13]   → sharegpt: tps 752.3 n_ok 200 wall 103.2
+[07:18:13]   bench corp=lmsys 200p × conc=16 × max=512
+[07:18:14]   → lmsys: tps 0.0 n_ok 0 wall 0.1
+[07:18:14]   bench corp=wildchat 200p × conc=16 × max=512
+[07:18:16]   → wildchat: tps 0.0 n_ok 0 wall 0.0
+[07:18:16]   bench corp=mix 200p × conc=16 × max=512
+[07:18:16]   → mix: tps 0.0 n_ok 0 wall 0.0
+[07:18:22] GPU freed
+[07:18:22] ==== boot Llama-3.1-405B-Instruct-FP8 conf=mwor method=suffix tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[07:18:22]   PID=342554 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/Llama-3.1-405B-Instruct-FP8_mwor_suffix_boot.log timeout=3000s
+[07:22:07] READY http://127.0.0.1:8001
+[07:22:07]   bench corp=humaneval 200p × conc=16 × max=512
+[07:23:01]   → humaneval: tps 1262.7 n_ok 164 wall 53.8
+[07:23:01]   bench corp=mbpp 200p × conc=16 × max=512
+[07:24:24]   → mbpp: tps 997.9 n_ok 198 wall 81.7
+[07:24:24]   bench corp=swebench 200p × conc=16 × max=512
+[07:25:46]   → swebench: tps 962.6 n_ok 200 wall 81.6
+[07:25:46]   bench corp=sharegpt 200p × conc=16 × max=512
+[07:27:30]   → sharegpt: tps 805.1 n_ok 200 wall 103.6
+[07:27:30]   bench corp=lmsys 200p × conc=16 × max=512
+[07:28:52]   → lmsys: tps 853.0 n_ok 200 wall 81.0
+[07:28:52]   bench corp=wildchat 200p × conc=16 × max=512
+shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_tp8.sh: line 134: 342554 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[07:29:24]   → wildchat: tps 760.1 n_ok 63 wall 31.4
+[07:29:24]   bench corp=mix 200p × conc=16 × max=512
+[07:29:25]   → mix: tps 0.0 n_ok 0 wall 0.0
+[07:29:33] GPU freed
+[07:29:33] 
+[07:29:33] ############## DeepSeek-R1-Distill-Qwen-7B (fam=DS-Qwen-7B tp=4 gpus=0,1,2,3) ##############
+[07:29:33] ==== boot DeepSeek-R1-Distill-Qwen-7B conf=optimal method=vanilla tp=4 gpus=0,1,2,3 ====
+[07:29:33]   PID=351144 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs_tp8/DeepSeek-R1-Distill-Qwen-7B_optimal_vanilla_boot.log timeout=900s

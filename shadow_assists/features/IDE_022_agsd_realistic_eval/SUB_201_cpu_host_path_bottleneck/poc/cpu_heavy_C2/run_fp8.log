@@ -1,0 +1,27 @@
+[boot] tag=C2_fp8_kv model=meta-llama/Llama-3.1-8B-Instruct tp=8 port=8104 env=[VLLM_PREFETCH_TOKENIZE=1 VLLM_BURST_AWARE_ADMISSION=1] cli=[--compilation-config {"cudagraph_mode":"FULL_AND_PIECEWISE"} --kv-cache-dtype fp8]
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC2fp8_C2_fp8_kv_s1 × mix: 22216.3 tps (500/500 ok, 43s, gpu 96.0% cpu 5.3% ttft_p50 73.5ms α None)
+[mpstat] tag=C2_fp8_kv sweep=1 cpu_avg=5.44 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC2fp8_C2_fp8_kv_s2 × mix: 23068.8 tps (500/500 ok, 42s, gpu 94.6% cpu 5.4% ttft_p50 50.8ms α None)
+[mpstat] tag=C2_fp8_kv sweep=2 cpu_avg=5.48 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC2fp8_C2_fp8_kv_s3 × mix: 23121.0 tps (500/500 ok, 42s, gpu 96.2% cpu 5.4% ttft_p50 56.0ms α None)
+[mpstat] tag=C2_fp8_kv sweep=3 cpu_avg=5.49 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC2fp8_C2_fp8_kv_s4 × mix: 23077.8 tps (500/500 ok, 42s, gpu 96.2% cpu 5.4% ttft_p50 56.6ms α None)
+[mpstat] tag=C2_fp8_kv sweep=4 cpu_avg=5.44 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC2fp8_C2_fp8_kv_s5 × mix: 22887.8 tps (500/500 ok, 42s, gpu 96.3% cpu 5.4% ttft_p50 51.8ms α None)
+[mpstat] tag=C2_fp8_kv sweep=5 cpu_avg=5.49 %
+[
+  {
+    "tag": "C2_fp8_kv",
+    "n_sweeps": 5,
+    "output_tps_mean": 22874.34,
+    "output_tps_std": 378.57,
+    "wall_s_mean": 0,
+    "ttft_p50_ms_mean": 0,
+    "tpot_p50_ms_mean": 0,
+    "accept_rate_mean": null,
+    "gpu_util_mean": 95.86,
+    "cpu_util_mpstat_mean": 5.47,
+    "cpu_util_mpstat_std": 0.03
+  }
+]
+==== cpu_heavy_C2_fp8 done @ 2026-06-07T13:09:36Z ====

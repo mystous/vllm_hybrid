@@ -1,0 +1,47 @@
+[05:37:52] === SUB_201 Optimal vs MWOR FULL 7-corpus sweep start → /workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/runs ===
+[05:37:52] common env: VLLM_PREFETCH_TOKENIZE=1 WORKERS=2 BURST=1
+[05:37:52] common args: FaP cudagraph_mode (always on)
+[05:37:52] 
+[05:37:52] ############## Qwen2.5-7B-Instruct (fam=Qwen-7B tp=1 gpus=0) ##############
+[05:37:52] ==== boot Qwen2.5-7B-Instruct conf=optimal method=vanilla tp=1 gpus=0 ====
+[05:37:52]   PID=280794 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-7B-Instruct_optimal_vanilla_boot.log timeout=900s
+[05:38:27] READY http://127.0.0.1:8001
+[05:38:27]   bench corp=humaneval 500p × conc=32 × max=8192
+[05:39:28]   → humaneval: tps 4132.9 n_ok 164 wall 60.0
+[05:39:28]   bench corp=mbpp 500p × conc=32 × max=8192
+[05:40:17]   → mbpp: tps 4329.1 n_ok 198 wall 48.8
+[05:40:17]   bench corp=swebench 500p × conc=32 × max=8192
+[05:42:27]   → swebench: tps 4391.2 n_ok 297 wall 129.5
+[05:42:27]   bench corp=sharegpt 500p × conc=32 × max=8192
+[05:48:36]   → sharegpt: tps 4249.1 n_ok 500 wall 368.7
+[05:48:36]   bench corp=lmsys 500p × conc=32 × max=8192
+[05:54:49]   → lmsys: tps 4257.2 n_ok 500 wall 372.3
+[05:54:49]   bench corp=wildchat 500p × conc=32 × max=8192
+[06:00:42]   → wildchat: tps 4345.5 n_ok 500 wall 351.8
+[06:00:42]   SKIP corpus=mix (exists)
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_full.sh: line 55: 280794 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:00:44] GPU freed
+[06:00:44] ==== boot Qwen2.5-7B-Instruct conf=mwor method=suffix tp=1 gpus=0 ====
+[06:00:44]   PID=284667 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-7B-Instruct_mwor_suffix_boot.log timeout=900s
+[06:01:19] READY http://127.0.0.1:8001
+[06:01:19]   bench corp=humaneval 500p × conc=32 × max=8192
+[06:02:28]   → humaneval: tps 4206.6 n_ok 164 wall 68.1
+[06:02:28]   bench corp=mbpp 500p × conc=32 × max=8192
+[06:03:25]   → mbpp: tps 4497.8 n_ok 198 wall 56.4
+[06:03:25]   bench corp=swebench 500p × conc=32 × max=8192
+[06:05:15]   → swebench: tps 5021.3 n_ok 297 wall 109.5
+[06:05:15]   bench corp=sharegpt 500p × conc=32 × max=8192
+[06:10:48]   → sharegpt: tps 4781.8 n_ok 500 wall 333.2
+[06:10:48]   bench corp=lmsys 500p × conc=32 × max=8192
+[06:16:08]   → lmsys: tps 5152.9 n_ok 500 wall 319.2
+[06:16:08]   bench corp=wildchat 500p × conc=32 × max=8192
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep_full.sh: line 136: 284667 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[06:17:24]   → wildchat: tps 4499.6 n_ok 143 wall 75.1
+[06:17:24]   SKIP corpus=mix (exists)
+[06:17:26] GPU freed
+[06:17:26] 
+[06:17:26] ############## Qwen2.5-32B-Instruct (fam=Qwen-32B tp=2 gpus=0,1) ##############
+[06:17:26] ==== boot Qwen2.5-32B-Instruct conf=optimal method=vanilla tp=2 gpus=0,1 ====
+[06:17:26]   PID=287834 boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-32B-Instruct_optimal_vanilla_boot.log timeout=1200s
+[06:18:26] READY http://127.0.0.1:8001
+[06:18:26]   bench corp=humaneval 500p × conc=32 × max=8192

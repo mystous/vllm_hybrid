@@ -3,7 +3,7 @@
 > **status**: 활성 (계획)
 > **parent**: TSK_020/SUB_072
 > **registered**: 2026-05-29 (id_registry)
-> **자식 SUB**: SUB_212 (Optimal+DSA 6-point coverage, 2026-06-11)
+> **자식 SUB**: SUB_212 (Optimal+DSA 6-point coverage, 2026-06-11), SUB_213 (FaP 재검증 + uniform draft padding, 2026-06-11)
 
 ## 이론적 배경
 
@@ -26,6 +26,7 @@ HW lever 전면: AVX-512 / **AMX** / **DSA** / QAT / CMT / SMT / NUMA / **CXL** 
 | SUB | 상태 | 제목 | 위치 |
 |---|---|---|---|
 | `SUB_212` | ✅ 완료 (2026-06-11) | Optimal+DSA 6-point coverage on 10 models × 7 corpus + host DSA WQ confounder finding | [SUB_212_optimal_dsa_6point/](SUB_212_optimal_dsa_6point/) |
+| `SUB_213` | 활성 (측정 대기) | SUB_212 confounder 재검증 (H-FaP: +36% = cudagraph FaP, host DSA 아님) + FaP×suffix 양립 lever (uniform draft padding) | [SUB_213_fap_suffix_uniform/](SUB_213_fap_suffix_uniform/) |
 
 ## 자세한 idea doc
 

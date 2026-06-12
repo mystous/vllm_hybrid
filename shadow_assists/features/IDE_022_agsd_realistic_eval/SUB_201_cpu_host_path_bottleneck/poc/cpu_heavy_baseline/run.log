@@ -1,0 +1,23 @@
+[boot] tag=baseline_b3l2l10 model=meta-llama/Llama-3.1-8B-Instruct tp=8 port=8101 env=[VLLM_PREFETCH_TOKENIZE=1 VLLM_BURST_AWARE_ADMISSION=1] cli=[--compilation-config {"cudagraph_mode":"FULL_AND_PIECEWISE"}]
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhBL_baseline_b3l2l10_s1 × mix: 21872.9 tps (500/500 ok, 44s, gpu 95.7% cpu 5.3% ttft_p50 70.7ms α None)
+[mpstat] tag=baseline_b3l2l10 sweep=1 cpu_avg=5.41 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhBL_baseline_b3l2l10_s2 × mix: 22158.5 tps (500/500 ok, 44s, gpu 96.4% cpu 5.4% ttft_p50 58.7ms α None)
+[mpstat] tag=baseline_b3l2l10 sweep=2 cpu_avg=5.47 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhBL_baseline_b3l2l10_s3 × mix: 21992.2 tps (500/500 ok, 44s, gpu 96.4% cpu 5.4% ttft_p50 51.8ms α None)
+[mpstat] tag=baseline_b3l2l10 sweep=3 cpu_avg=5.45 %
+[
+  {
+    "tag": "baseline_b3l2l10",
+    "n_sweeps": 3,
+    "output_tps_mean": 22007.87,
+    "output_tps_std": 143.44,
+    "wall_s_mean": 0,
+    "ttft_p50_ms_mean": 0,
+    "tpot_p50_ms_mean": 0,
+    "accept_rate_mean": null,
+    "gpu_util_mean": 96.17,
+    "cpu_util_mpstat_mean": 5.44,
+    "cpu_util_mpstat_std": 0.03
+  }
+]
+==== cpu_heavy_baseline done @ 2026-06-07T12:57:50Z ====

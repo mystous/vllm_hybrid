@@ -1,0 +1,23 @@
+[boot] tag=C3a_cpu_sampling model=meta-llama/Llama-3.1-8B-Instruct tp=8 port=8105 env=[VLLM_PREFETCH_TOKENIZE=1 VLLM_BURST_AWARE_ADMISSION=1 VLLM_CPU_SAMPLING=1] cli=[--compilation-config {"cudagraph_mode":"FULL_AND_PIECEWISE"}]
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC3_C3a_cpu_sampling_s1 × mix: 21586.9 tps (500/500 ok, 44s, gpu 95.9% cpu 5.3% ttft_p50 73.7ms α None)
+[mpstat] tag=C3a_cpu_sampling sweep=1 cpu_avg=5.41 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC3_C3a_cpu_sampling_s2 × mix: 22132.4 tps (500/500 ok, 44s, gpu 96.5% cpu 5.4% ttft_p50 51.0ms α None)
+[mpstat] tag=C3a_cpu_sampling sweep=2 cpu_avg=5.46 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC3_C3a_cpu_sampling_s3 × mix: 22190.7 tps (500/500 ok, 44s, gpu 96.4% cpu 5.4% ttft_p50 56.2ms α None)
+[mpstat] tag=C3a_cpu_sampling sweep=3 cpu_avg=5.44 %
+[
+  {
+    "tag": "C3a_cpu_sampling",
+    "n_sweeps": 3,
+    "output_tps_mean": 21970.0,
+    "output_tps_std": 333.05,
+    "wall_s_mean": 0,
+    "ttft_p50_ms_mean": 0,
+    "tpot_p50_ms_mean": 0,
+    "accept_rate_mean": null,
+    "gpu_util_mean": 96.27,
+    "cpu_util_mpstat_mean": 5.44,
+    "cpu_util_mpstat_std": 0.03
+  }
+]
+==== cpu_heavy_C3 done @ 2026-06-07T13:14:19Z ====

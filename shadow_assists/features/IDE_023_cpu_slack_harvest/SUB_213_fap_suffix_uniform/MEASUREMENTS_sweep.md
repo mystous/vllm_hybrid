@@ -86,3 +86,13 @@
 (70B +38.4% > 8B +16.4%). 8B mix (acc 0.93) 는 중립 — K=32 긴 draft 가 이미
 최적인 초고-accept regime 에선 pad 의 여지가 없음 (regime 게이트의 off-스위치
 조건). 전 셀 100% 성공·0 에러.
+
+---
+
+## 7. TSK_046 dyn-K 판정 (2026-06-13 — 상세는 SUB_247)
+
+D3 (버그 수정판) / D0 (고정 K6+pad) = **+1.1% (게이트 +3% 미달)**. 다중-K FULL
+capture 인프라는 성공 (183 그래프·무사고·적응 실작동 텔레메트리 입증), batch-전역
+EMA 정책은 oracle (+11%p) 미회수. **실용 결론: 고정 K6+pad 가 배포 권장값 유지,
+워크로드를 아는 경우 K-sweep LUT (mbpp→K4 / mix류→K12) 정적 라우팅.**
+데이터: `features/IDE_024_workload_adaptive_composite/SUB_247_dynk_judgment/`

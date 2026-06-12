@@ -1,0 +1,11 @@
+[boot] tag=C4a_fp8_cpusample model=meta-llama/Llama-3.1-8B-Instruct tp=8 port=8106 env=[VLLM_PREFETCH_TOKENIZE=1 VLLM_BURST_AWARE_ADMISSION=1 VLLM_CPU_SAMPLING=1] cli=[--compilation-config {"cudagraph_mode":"FULL_AND_PIECEWISE"} --kv-cache-dtype fp8]
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC4_C4a_fp8_cpusample_s1 × mix: 547.8 tps (6/500 ok, 5s, gpu 78.8% cpu 4.8% ttft_p50 101.0ms α None)
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/cpu_heavy_baseline/scripts/lib_cpu_heavy.sh: line 125: 647107 Killed                  "${args[@]}" >> "$boot_log" 2>&1
+[mpstat] tag=C4a_fp8_cpusample sweep=1 cpu_avg=5.53 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC4_C4a_fp8_cpusample_s2 × mix: 0.0 tps (0/500 ok, 0s, gpu 0.0% cpu 1.0% ttft_p50 Nonems α None)
+[mpstat] tag=C4a_fp8_cpusample sweep=2 cpu_avg=4.89 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC4_C4a_fp8_cpusample_s3 × mix: 0.0 tps (0/500 ok, 0s, gpu None% cpu 0.8% ttft_p50 Nonems α None)
+[mpstat] tag=C4a_fp8_cpusample sweep=3 cpu_avg=nan %
+[boot] tag=C4b_fp8_seqs512 model=meta-llama/Llama-3.1-8B-Instruct tp=8 port=8106 env=[VLLM_PREFETCH_TOKENIZE=1 VLLM_BURST_AWARE_ADMISSION=1] cli=[--compilation-config {"cudagraph_mode":"FULL_AND_PIECEWISE"} --kv-cache-dtype fp8 --max-num-seqs 512]
+[wait_ready] fatal
+[boot] tag=C4c_fp8_seqs512_cpusample model=meta-llama/Llama-3.1-8B-Instruct tp=8 port=8106 env=[VLLM_PREFETCH_TOKENIZE=1 VLLM_BURST_AWARE_ADMISSION=1 VLLM_CPU_SAMPLING=1] cli=[--compilation-config {"cudagraph_mode":"FULL_AND_PIECEWISE"} --kv-cache-dtype fp8 --max-num-seqs 512]

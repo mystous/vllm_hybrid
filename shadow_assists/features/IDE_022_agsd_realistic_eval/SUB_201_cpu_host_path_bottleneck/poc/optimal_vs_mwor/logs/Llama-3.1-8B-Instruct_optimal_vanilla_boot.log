@@ -1,0 +1,1302 @@
+(APIServer pid=259360) INFO 06-07 04:35:20 [utils.py:299] 
+(APIServer pid=259360) INFO 06-07 04:35:20 [utils.py:299]        █     █     █▄   ▄█
+(APIServer pid=259360) INFO 06-07 04:35:20 [utils.py:299]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 1.7.dev16107+gffe20fb09.d20260601
+(APIServer pid=259360) INFO 06-07 04:35:20 [utils.py:299]   █▄█▀ █     █     █     █  model   meta-llama/Llama-3.1-8B-Instruct
+(APIServer pid=259360) INFO 06-07 04:35:20 [utils.py:299]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=259360) INFO 06-07 04:35:20 [utils.py:299] 
+(APIServer pid=259360) INFO 06-07 04:35:20 [utils.py:233] non-default args: {'model_tag': 'meta-llama/Llama-3.1-8B-Instruct', 'port': 8001, 'model': 'meta-llama/Llama-3.1-8B-Instruct', 'max_model_len': 16384, 'allow_deprecated_quantization': True, 'gpu_memory_utilization': 0.85, 'compilation_config': {'mode': None, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}}
+(APIServer pid=259360) WARNING 06-07 04:35:20 [envs.py:1834] Unknown vLLM environment variable detected: VLLM_NGRAM_DIVIDE_BY_TP
+(APIServer pid=259360) WARNING 06-07 04:35:20 [envs.py:1834] Unknown vLLM environment variable detected: VLLM_NGRAM_NUM_THREADS_CAP
+(APIServer pid=259360) WARNING 06-07 04:35:20 [envs.py:1834] Unknown vLLM environment variable detected: VLLM_BURST_AWARE_ADMISSION
+(APIServer pid=259360) INFO 06-07 04:35:21 [model.py:554] Resolved architecture: LlamaForCausalLM
+(APIServer pid=259360) INFO 06-07 04:35:21 [model.py:1685] Using max model len 16384
+(APIServer pid=259360) INFO 06-07 04:35:22 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=259360) INFO 06-07 04:35:22 [vllm.py:834] Asynchronous scheduling is enabled.
+(APIServer pid=259360) INFO 06-07 04:35:22 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+(EngineCore pid=259636) INFO 06-07 04:35:28 [core.py:107] Initializing a V1 LLM engine (v1.7.dev16107+gffe20fb09.d20260601) with config: model='meta-llama/Llama-3.1-8B-Instruct', speculative_config=None, tokenizer='meta-llama/Llama-3.1-8B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=meta-llama/Llama-3.1-8B-Instruct, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::plamo2_mamba_mixer', 'vllm::gdn_attention_core', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::kda_attention', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False}, 'max_cudagraph_capture_size': 512, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=259636) ERROR 06-07 04:35:28 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(EngineCore pid=259636) INFO 06-07 04:35:28 [parallel_state.py:1400] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://172.18.162.61:56723 backend=nccl
+(EngineCore pid=259636) INFO 06-07 04:35:28 [parallel_state.py:1713] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(EngineCore pid=259636) INFO 06-07 04:35:29 [gpu_model_runner.py:5478] Starting to load model meta-llama/Llama-3.1-8B-Instruct...
+(EngineCore pid=259636) INFO 06-07 04:35:29 [cuda.py:368] Using FLASHINFER attention backend out of potential backends: ['FLASHINFER', 'FLASH_ATTN', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(EngineCore pid=259636) INFO 06-07 04:35:29 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(EngineCore pid=259636) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=259636) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=259636) INFO 06-07 04:35:31 [weight_utils.py:904] Filesystem type for checkpoints: EXT4. Checkpoint size: 14.96 GiB. Available RAM: 1931.79 GiB.
+(EngineCore pid=259636) INFO 06-07 04:35:31 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(EngineCore pid=259636) Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+(EngineCore pid=259636) Loading safetensors checkpoint shards:  25% Completed | 1/4 [00:00<00:02,  1.29it/s]
+(EngineCore pid=259636) Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:01<00:01,  1.24it/s]
+(EngineCore pid=259636) Loading safetensors checkpoint shards:  75% Completed | 3/4 [00:02<00:00,  1.15it/s]
+(EngineCore pid=259636) Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:02<00:00,  1.51it/s]
+(EngineCore pid=259636) Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:02<00:00,  1.38it/s]
+(EngineCore pid=259636) 
+(EngineCore pid=259636) INFO 06-07 04:35:34 [default_loader.py:384] Loading weights took 2.90 seconds
+(EngineCore pid=259636) INFO 06-07 04:35:34 [gpu_model_runner.py:5563] Model loading took 14.99 GiB memory and 4.786836 seconds
+(EngineCore pid=259636) INFO 06-07 04:35:38 [backends.py:1077] Using cache directory: /root/.cache/vllm/torch_compile_cache/9e135b8146/rank_0_0/backbone for vLLM's torch.compile
+(EngineCore pid=259636) INFO 06-07 04:35:38 [backends.py:1137] Dynamo bytecode transform time: 3.64 s
+(EngineCore pid=259636) INFO 06-07 04:35:40 [backends.py:377] Cache the graph of compile range (1, 8192) for later use
+(EngineCore pid=259636) INFO 06-07 04:35:43 [backends.py:398] Compiling a graph for compile range (1, 8192) takes 5.13 s
+(EngineCore pid=259636) INFO 06-07 04:35:45 [decorators.py:665] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/80219dea2970444920de2f8a5c1ad81ea422beb9bd2ad1eb3037dd1bd898be15/rank_0_0/model
+(EngineCore pid=259636) INFO 06-07 04:35:45 [monitor.py:48] torch.compile took 10.75 s in total
+(EngineCore pid=259636) INFO 06-07 04:35:45 [monitor.py:76] Initial profiling/warmup run took 0.38 s
+(EngineCore pid=259636) INFO 06-07 04:35:50 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(EngineCore pid=259636) INFO 06-07 04:35:50 [utils.py:60] `_KV_CACHE_LAYOUT_OVERRIDE` variable detected. Setting KV cache layout to HND.
+(EngineCore pid=259636) INFO 06-07 04:35:50 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(EngineCore pid=259636) WARNING 06-07 04:35:51 [flashinfer.py:405] Using TRTLLM prefill attention (auto-detected).
+(EngineCore pid=259636) INFO 06-07 04:35:51 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.64 GiB total
+(EngineCore pid=259636) INFO 06-07 04:35:51 [gpu_worker.py:534] Available KV cache memory: 134.51 GiB
+(EngineCore pid=259636) INFO 06-07 04:35:51 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8536 to maintain the same effective KV cache size.
+(EngineCore pid=259636) INFO 06-07 04:35:51 [kv_cache_utils.py:1319] GPU KV cache size: 1,101,872 tokens
+(EngineCore pid=259636) INFO 06-07 04:35:51 [kv_cache_utils.py:1324] Maximum concurrency for 16,384 tokens per request: 67.25x
+(EngineCore pid=259636) 2026-06-07 04:35:52,119 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(EngineCore pid=259636) 2026-06-07 04:35:52,141 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(EngineCore pid=259636) INFO 06-07 04:35:52 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(EngineCore pid=259636) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   8%|▊         | 4/51 [00:00<00:01, 37.57it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  16%|█▌        | 8/51 [00:00<00:01, 35.94it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  24%|██▎       | 12/51 [00:00<00:01, 36.24it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  31%|███▏      | 16/51 [00:00<00:00, 35.78it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  39%|███▉      | 20/51 [00:00<00:00, 34.58it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  47%|████▋     | 24/51 [00:00<00:00, 34.74it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  55%|█████▍    | 28/51 [00:00<00:00, 34.58it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  63%|██████▎   | 32/51 [00:00<00:00, 34.12it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  71%|███████   | 36/51 [00:01<00:00, 32.66it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  78%|███████▊  | 40/51 [00:01<00:00, 32.26it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  86%|████████▋ | 44/51 [00:01<00:00, 31.72it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  94%|█████████▍| 48/51 [00:01<00:00, 32.95it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 51/51 [00:01<00:00, 33.83it/s]
+(EngineCore pid=259636) Capturing CUDA graphs (decode, FULL):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):  12%|█▏        | 6/51 [00:00<00:00, 53.84it/s]Capturing CUDA graphs (decode, FULL):  24%|██▎       | 12/51 [00:00<00:00, 56.30it/s]Capturing CUDA graphs (decode, FULL):  35%|███▌      | 18/51 [00:00<00:00, 56.94it/s]Capturing CUDA graphs (decode, FULL):  47%|████▋     | 24/51 [00:00<00:00, 57.77it/s]Capturing CUDA graphs (decode, FULL):  59%|█████▉    | 30/51 [00:00<00:00, 58.36it/s]Capturing CUDA graphs (decode, FULL):  71%|███████   | 36/51 [00:00<00:00, 58.38it/s]Capturing CUDA graphs (decode, FULL):  82%|████████▏ | 42/51 [00:00<00:00, 57.76it/s]Capturing CUDA graphs (decode, FULL):  94%|█████████▍| 48/51 [00:00<00:00, 58.02it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 51/51 [00:00<00:00, 57.50it/s]
+(EngineCore pid=259636) INFO 06-07 04:35:55 [gpu_model_runner.py:7734] Graph capturing finished in 3 secs, took 0.39 GiB
+(EngineCore pid=259636) INFO 06-07 04:35:55 [gpu_worker.py:695] CUDA graph pool memory: 0.39 GiB (actual), 0.64 GiB (estimated), difference: 0.24 GiB (62.2%).
+(EngineCore pid=259636) INFO 06-07 04:35:55 [core.py:425] init engine (profile, create kv cache, warmup model) took 20.65 s (compilation: 8.78 s)
+(EngineCore pid=259636) INFO 06-07 04:35:56 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=259636) INFO 06-07 04:35:56 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+(APIServer pid=259360) INFO 06-07 04:35:56 [api_server.py:598] Supported tasks: ['generate']
+(APIServer pid=259360) WARNING 06-07 04:35:57 [model.py:1442] Default vLLM sampling parameters have been overridden by the model's `generation_config.json`: `{'temperature': 0.6, 'top_p': 0.9}`. If this is not intended, please relaunch vLLM instance with `--generation-config vllm`.
+(APIServer pid=259360) INFO 06-07 04:36:00 [hf.py:314] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=259360) INFO 06-07 04:36:00 [api_server.py:602] Starting vLLM server on http://0.0.0.0:8001
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:37] Available routes are:
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /openapi.json, Methods: HEAD, GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /docs, Methods: HEAD, GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /redoc, Methods: HEAD, GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /tokenize, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /detokenize, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /load, Methods: GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /version, Methods: GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /health, Methods: GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /metrics, Methods: GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/models, Methods: GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /ping, Methods: GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /ping, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /invocations, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/chat/completions/batch, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/responses, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/completions, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/messages, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/messages/count_tokens, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /inference/v1/generate, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /generative_scoring, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/chat/completions/render, Methods: POST
+(APIServer pid=259360) INFO 06-07 04:36:00 [launcher.py:46] Route: /v1/completions/render, Methods: POST
+(APIServer pid=259360) INFO:     Started server process [259360]
+(APIServer pid=259360) INFO:     Waiting for application startup.
+(APIServer pid=259360) INFO:     Application startup complete.
+(APIServer pid=259360) INFO:     127.0.0.1:58220 - "GET /v1/models HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58232 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58244 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58256 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) WARNING 06-07 04:36:05 [scheduler.py:130] [SUB_201/L10] VLLM_BURST_AWARE_ADMISSION=1 — CPU burst-aware admission control 활성 (shortest-job-first head reorder, FCFS only).
+(EngineCore pid=259636) INFO 06-07 04:36:05 [core.py:830] [NEO STEP DIAG] step=1 num_scheduled=74 batch_queue=0/2 running=2 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:58272 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58282 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58292 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58302 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58306 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58314 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58328 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58338 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58342 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58344 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58356 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58358 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58366 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58368 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58374 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58376 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58384 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58386 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58392 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58408 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58422 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58434 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58444 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58456 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58462 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58478 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58488 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58494 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58262 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58270 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:36:05 [core.py:830] [NEO STEP DIAG] step=2 num_scheduled=5291 batch_queue=0/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:05 [core.py:830] [NEO STEP DIAG] step=3 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:05 [core.py:830] [NEO STEP DIAG] step=4 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:05 [core.py:830] [NEO STEP DIAG] step=5 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:06 [core.py:830] [NEO STEP DIAG] step=200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:58504 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:36:07 [core.py:830] [NEO STEP DIAG] step=400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:58520 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:36:08 [core.py:830] [NEO STEP DIAG] step=600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:09 [core.py:830] [NEO STEP DIAG] step=800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:10 [core.py:830] [NEO STEP DIAG] step=1000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:36:10 [loggers.py:271] Engine 000: Avg prompt throughput: 398.8 tokens/s, Avg generation throughput: 2593.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 3.7%, Prefix cache hit rate: 0.0%
+(EngineCore pid=259636) INFO 06-07 04:36:11 [core.py:830] [NEO STEP DIAG] step=1200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:11 [core.py:830] [NEO STEP DIAG] step=1400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:12 [core.py:830] [NEO STEP DIAG] step=1600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:58534 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:36:13 [core.py:830] [NEO STEP DIAG] step=1800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:15 [core.py:830] [NEO STEP DIAG] step=2000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:16 [core.py:830] [NEO STEP DIAG] step=2200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:17 [core.py:830] [NEO STEP DIAG] step=2400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:18 [core.py:830] [NEO STEP DIAG] step=2600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:19 [core.py:830] [NEO STEP DIAG] step=2800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:20 [core.py:830] [NEO STEP DIAG] step=3000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:36:20 [loggers.py:271] Engine 000: Avg prompt throughput: 11.2 tokens/s, Avg generation throughput: 6098.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 9.1%, Prefix cache hit rate: 0.0%
+(EngineCore pid=259636) INFO 06-07 04:36:21 [core.py:830] [NEO STEP DIAG] step=3200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:22 [core.py:830] [NEO STEP DIAG] step=3400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:24 [core.py:830] [NEO STEP DIAG] step=3600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:25 [core.py:830] [NEO STEP DIAG] step=3800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:26 [core.py:830] [NEO STEP DIAG] step=4000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:27 [core.py:830] [NEO STEP DIAG] step=4200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:29 [core.py:830] [NEO STEP DIAG] step=4400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:30 [core.py:830] [NEO STEP DIAG] step=4600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:36:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5125.9 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 13.8%, Prefix cache hit rate: 0.0%
+(EngineCore pid=259636) INFO 06-07 04:36:31 [core.py:830] [NEO STEP DIAG] step=4800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:33 [core.py:830] [NEO STEP DIAG] step=5000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:34 [core.py:830] [NEO STEP DIAG] step=5200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:35 [core.py:830] [NEO STEP DIAG] step=5400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:37 [core.py:830] [NEO STEP DIAG] step=5600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:38 [core.py:830] [NEO STEP DIAG] step=5800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:40 [core.py:830] [NEO STEP DIAG] step=6000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:36:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4508.6 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 17.9%, Prefix cache hit rate: 0.0%
+(EngineCore pid=259636) INFO 06-07 04:36:41 [core.py:830] [NEO STEP DIAG] step=6200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:43 [core.py:830] [NEO STEP DIAG] step=6400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:44 [core.py:830] [NEO STEP DIAG] step=6600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:46 [core.py:830] [NEO STEP DIAG] step=6800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:48 [core.py:830] [NEO STEP DIAG] step=7000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:49 [core.py:830] [NEO STEP DIAG] step=7200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:36:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4057.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 21.6%, Prefix cache hit rate: 0.0%
+(EngineCore pid=259636) INFO 06-07 04:36:51 [core.py:830] [NEO STEP DIAG] step=7400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:53 [core.py:830] [NEO STEP DIAG] step=7600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:54 [core.py:830] [NEO STEP DIAG] step=7800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:36:56 [core.py:830] [NEO STEP DIAG] step=8000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:45044 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:36:58 [core.py:830] [NEO STEP DIAG] step=8200 num_scheduled=3 batch_queue=1/2 running=3 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:45058 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45092 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45106 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45110 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45122 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45134 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45144 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45156 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45168 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45170 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45186 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45194 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45200 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45210 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45212 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45214 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45220 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45232 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45234 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45238 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45240 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45256 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45262 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45274 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45276 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45066 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45078 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45084 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45090 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:36:59 [core.py:830] [NEO STEP DIAG] step=8400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:45280 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45294 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45298 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45308 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:37:00 [core.py:830] [NEO STEP DIAG] step=8600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:37:00 [loggers.py:271] Engine 000: Avg prompt throughput: 571.4 tokens/s, Avg generation throughput: 4290.7 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 2.2%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:37:01 [core.py:830] [NEO STEP DIAG] step=8800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:02 [core.py:830] [NEO STEP DIAG] step=9000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:03 [core.py:830] [NEO STEP DIAG] step=9200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:04 [core.py:830] [NEO STEP DIAG] step=9400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:05 [core.py:830] [NEO STEP DIAG] step=9600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:06 [core.py:830] [NEO STEP DIAG] step=9800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:53832 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:37:07 [core.py:830] [NEO STEP DIAG] step=10000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:53834 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:37:08 [core.py:830] [NEO STEP DIAG] step=10200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:09 [core.py:830] [NEO STEP DIAG] step=10400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:37:10 [loggers.py:271] Engine 000: Avg prompt throughput: 33.7 tokens/s, Avg generation throughput: 6008.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 6.9%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:37:10 [core.py:830] [NEO STEP DIAG] step=10600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:12 [core.py:830] [NEO STEP DIAG] step=10800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:13 [core.py:830] [NEO STEP DIAG] step=11000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:14 [core.py:830] [NEO STEP DIAG] step=11200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:15 [core.py:830] [NEO STEP DIAG] step=11400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:16 [core.py:830] [NEO STEP DIAG] step=11600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:17 [core.py:830] [NEO STEP DIAG] step=11800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:19 [core.py:830] [NEO STEP DIAG] step=12000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:20 [core.py:830] [NEO STEP DIAG] step=12200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:37:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5500.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 11.9%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:37:21 [core.py:830] [NEO STEP DIAG] step=12400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:22 [core.py:830] [NEO STEP DIAG] step=12600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:24 [core.py:830] [NEO STEP DIAG] step=12800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:25 [core.py:830] [NEO STEP DIAG] step=13000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:26 [core.py:830] [NEO STEP DIAG] step=13200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:28 [core.py:830] [NEO STEP DIAG] step=13400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:29 [core.py:830] [NEO STEP DIAG] step=13600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:37:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4751.5 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 16.2%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:37:31 [core.py:830] [NEO STEP DIAG] step=13800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:32 [core.py:830] [NEO STEP DIAG] step=14000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:34 [core.py:830] [NEO STEP DIAG] step=14200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:35 [core.py:830] [NEO STEP DIAG] step=14400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:37 [core.py:830] [NEO STEP DIAG] step=14600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:38 [core.py:830] [NEO STEP DIAG] step=14800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:40 [core.py:830] [NEO STEP DIAG] step=15000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:37:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4233.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 20.0%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:37:41 [core.py:830] [NEO STEP DIAG] step=15200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:43 [core.py:830] [NEO STEP DIAG] step=15400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:45 [core.py:830] [NEO STEP DIAG] step=15600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:46 [core.py:830] [NEO STEP DIAG] step=15800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:48 [core.py:830] [NEO STEP DIAG] step=16000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:50 [core.py:830] [NEO STEP DIAG] step=16200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:37:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 3849.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 23.5%, Prefix cache hit rate: 0.1%
+(APIServer pid=259360) INFO:     127.0.0.1:50678 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50694 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:37:51 [core.py:830] [NEO STEP DIAG] step=16400 num_scheduled=7 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:50714 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50718 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50734 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50744 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50756 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50770 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50786 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50796 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50808 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50818 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50824 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50700 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50836 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50848 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50858 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50872 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50886 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50894 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50904 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50920 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50936 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50938 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50954 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50970 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50974 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50982 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:37:52 [core.py:830] [NEO STEP DIAG] step=16600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:50992 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:51004 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:51016 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:51024 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:51032 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:37:53 [core.py:830] [NEO STEP DIAG] step=16800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:54 [core.py:830] [NEO STEP DIAG] step=17000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:55 [core.py:830] [NEO STEP DIAG] step=17200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:57 [core.py:830] [NEO STEP DIAG] step=17400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:58 [core.py:830] [NEO STEP DIAG] step=17600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:37:59 [core.py:830] [NEO STEP DIAG] step=17800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:00 [core.py:830] [NEO STEP DIAG] step=18000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:38:00 [loggers.py:271] Engine 000: Avg prompt throughput: 397.2 tokens/s, Avg generation throughput: 5713.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.6%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:38:01 [core.py:830] [NEO STEP DIAG] step=18200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:59886 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:38:02 [core.py:830] [NEO STEP DIAG] step=18400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:03 [core.py:830] [NEO STEP DIAG] step=18600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:04 [core.py:830] [NEO STEP DIAG] step=18800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:05 [core.py:830] [NEO STEP DIAG] step=19000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:06 [core.py:830] [NEO STEP DIAG] step=19200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:07 [core.py:830] [NEO STEP DIAG] step=19400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:08 [core.py:830] [NEO STEP DIAG] step=19600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:10 [core.py:830] [NEO STEP DIAG] step=19800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:38:10 [loggers.py:271] Engine 000: Avg prompt throughput: 1.8 tokens/s, Avg generation throughput: 5858.6 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 10.2%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:38:11 [core.py:830] [NEO STEP DIAG] step=20000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:12 [core.py:830] [NEO STEP DIAG] step=20200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:13 [core.py:830] [NEO STEP DIAG] step=20400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:14 [core.py:830] [NEO STEP DIAG] step=20600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:16 [core.py:830] [NEO STEP DIAG] step=20800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:17 [core.py:830] [NEO STEP DIAG] step=21000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:18 [core.py:830] [NEO STEP DIAG] step=21200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:20 [core.py:830] [NEO STEP DIAG] step=21400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:38:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5023.7 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 14.7%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:38:21 [core.py:830] [NEO STEP DIAG] step=21600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:22 [core.py:830] [NEO STEP DIAG] step=21800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:24 [core.py:830] [NEO STEP DIAG] step=22000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:25 [core.py:830] [NEO STEP DIAG] step=22200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:27 [core.py:830] [NEO STEP DIAG] step=22400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:28 [core.py:830] [NEO STEP DIAG] step=22600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:30 [core.py:830] [NEO STEP DIAG] step=22800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:38:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4422.2 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 18.7%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:38:31 [core.py:830] [NEO STEP DIAG] step=23000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:33 [core.py:830] [NEO STEP DIAG] step=23200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:34 [core.py:830] [NEO STEP DIAG] step=23400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:36 [core.py:830] [NEO STEP DIAG] step=23600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:38 [core.py:830] [NEO STEP DIAG] step=23800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:39 [core.py:830] [NEO STEP DIAG] step=24000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:38:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 3992.9 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 22.4%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:38:41 [core.py:830] [NEO STEP DIAG] step=24200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:43 [core.py:830] [NEO STEP DIAG] step=24400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:40124 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40132 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:38:44 [core.py:830] [NEO STEP DIAG] step=24600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:40142 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40158 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40160 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40164 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40170 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40172 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40174 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40190 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40194 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40198 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40214 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40230 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40242 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40254 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40264 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40266 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40282 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40284 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40288 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40296 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40308 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40322 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40330 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40342 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:38:46 [core.py:830] [NEO STEP DIAG] step=24800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:40344 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40360 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40374 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40388 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40402 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:40404 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:38:47 [core.py:830] [NEO STEP DIAG] step=25000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:40410 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:38:48 [core.py:830] [NEO STEP DIAG] step=25200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:49 [core.py:830] [NEO STEP DIAG] step=25400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:50 [core.py:830] [NEO STEP DIAG] step=25600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:38:50 [loggers.py:271] Engine 000: Avg prompt throughput: 323.8 tokens/s, Avg generation throughput: 5065.9 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 3.8%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:38:51 [core.py:830] [NEO STEP DIAG] step=25800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:52 [core.py:830] [NEO STEP DIAG] step=26000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:53 [core.py:830] [NEO STEP DIAG] step=26200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:54 [core.py:830] [NEO STEP DIAG] step=26400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:40462 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:38:55 [core.py:830] [NEO STEP DIAG] step=26600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:56 [core.py:830] [NEO STEP DIAG] step=26800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:57 [core.py:830] [NEO STEP DIAG] step=27000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:58 [core.py:830] [NEO STEP DIAG] step=27200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:38:59 [core.py:830] [NEO STEP DIAG] step=27400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:39:00 [loggers.py:271] Engine 000: Avg prompt throughput: 7.1 tokens/s, Avg generation throughput: 5948.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 8.4%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:39:01 [core.py:830] [NEO STEP DIAG] step=27600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:02 [core.py:830] [NEO STEP DIAG] step=27800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:03 [core.py:830] [NEO STEP DIAG] step=28000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:04 [core.py:830] [NEO STEP DIAG] step=28200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:05 [core.py:830] [NEO STEP DIAG] step=28400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:06 [core.py:830] [NEO STEP DIAG] step=28600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:08 [core.py:830] [NEO STEP DIAG] step=28800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:09 [core.py:830] [NEO STEP DIAG] step=29000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:39:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5295.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 13.2%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:39:10 [core.py:830] [NEO STEP DIAG] step=29200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:12 [core.py:830] [NEO STEP DIAG] step=29400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:13 [core.py:830] [NEO STEP DIAG] step=29600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:14 [core.py:830] [NEO STEP DIAG] step=29800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:16 [core.py:830] [NEO STEP DIAG] step=30000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:17 [core.py:830] [NEO STEP DIAG] step=30200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:18 [core.py:830] [NEO STEP DIAG] step=30400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:20 [core.py:830] [NEO STEP DIAG] step=30600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:39:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4604.0 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 17.4%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:39:21 [core.py:830] [NEO STEP DIAG] step=30800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:23 [core.py:830] [NEO STEP DIAG] step=31000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:24 [core.py:830] [NEO STEP DIAG] step=31200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:26 [core.py:830] [NEO STEP DIAG] step=31400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:28 [core.py:830] [NEO STEP DIAG] step=31600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:29 [core.py:830] [NEO STEP DIAG] step=31800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:39:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4127.7 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 21.2%, Prefix cache hit rate: 0.1%
+(EngineCore pid=259636) INFO 06-07 04:39:31 [core.py:830] [NEO STEP DIAG] step=32000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:32 [core.py:830] [NEO STEP DIAG] step=32200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:34 [core.py:830] [NEO STEP DIAG] step=32400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:36 [core.py:830] [NEO STEP DIAG] step=32600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:55782 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55786 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55790 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55794 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55806 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:39:38 [core.py:830] [NEO STEP DIAG] step=32800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:55824 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55838 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55844 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55854 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55812 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55908 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55920 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55922 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55926 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55934 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55938 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55948 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55952 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55866 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55872 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55880 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55892 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55896 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55954 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:39:39 [core.py:830] [NEO STEP DIAG] step=33000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:55970 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55972 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55978 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55986 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:55994 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:56006 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:56022 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:39:40 [core.py:830] [NEO STEP DIAG] step=33200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:39:40 [loggers.py:271] Engine 000: Avg prompt throughput: 525.4 tokens/s, Avg generation throughput: 4340.3 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 3.0%, Prefix cache hit rate: 0.5%
+(APIServer pid=259360) INFO:     127.0.0.1:56032 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:39:41 [core.py:830] [NEO STEP DIAG] step=33400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:42 [core.py:830] [NEO STEP DIAG] step=33600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:43 [core.py:830] [NEO STEP DIAG] step=33800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:56046 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:39:44 [core.py:830] [NEO STEP DIAG] step=34000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:45 [core.py:830] [NEO STEP DIAG] step=34200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:46 [core.py:830] [NEO STEP DIAG] step=34400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:56714 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:39:47 [core.py:830] [NEO STEP DIAG] step=34600 num_scheduled=72 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:48 [core.py:830] [NEO STEP DIAG] step=34800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:49 [core.py:830] [NEO STEP DIAG] step=35000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:39:50 [loggers.py:271] Engine 000: Avg prompt throughput: 19.0 tokens/s, Avg generation throughput: 5979.9 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 6.8%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:39:50 [core.py:830] [NEO STEP DIAG] step=35200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:51 [core.py:830] [NEO STEP DIAG] step=35400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:53 [core.py:830] [NEO STEP DIAG] step=35600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:54 [core.py:830] [NEO STEP DIAG] step=35800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:55 [core.py:830] [NEO STEP DIAG] step=36000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:56 [core.py:830] [NEO STEP DIAG] step=36200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:57 [core.py:830] [NEO STEP DIAG] step=36400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:39:58 [core.py:830] [NEO STEP DIAG] step=36600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:00 [core.py:830] [NEO STEP DIAG] step=36800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:40:00 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5520.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 11.8%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:40:01 [core.py:830] [NEO STEP DIAG] step=37000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:02 [core.py:830] [NEO STEP DIAG] step=37200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:04 [core.py:830] [NEO STEP DIAG] step=37400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:05 [core.py:830] [NEO STEP DIAG] step=37600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:06 [core.py:830] [NEO STEP DIAG] step=37800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:08 [core.py:830] [NEO STEP DIAG] step=38000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:09 [core.py:830] [NEO STEP DIAG] step=38200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:40:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4758.2 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 16.2%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:40:10 [core.py:830] [NEO STEP DIAG] step=38400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:12 [core.py:830] [NEO STEP DIAG] step=38600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:13 [core.py:830] [NEO STEP DIAG] step=38800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:15 [core.py:830] [NEO STEP DIAG] step=39000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:16 [core.py:830] [NEO STEP DIAG] step=39200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:18 [core.py:830] [NEO STEP DIAG] step=39400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:19 [core.py:830] [NEO STEP DIAG] step=39600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:40:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4233.2 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 20.0%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:40:21 [core.py:830] [NEO STEP DIAG] step=39800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:23 [core.py:830] [NEO STEP DIAG] step=40000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:24 [core.py:830] [NEO STEP DIAG] step=40200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:26 [core.py:830] [NEO STEP DIAG] step=40400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:28 [core.py:830] [NEO STEP DIAG] step=40600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:29 [core.py:830] [NEO STEP DIAG] step=40800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:40:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 3849.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 23.5%, Prefix cache hit rate: 0.5%
+(APIServer pid=259360) INFO:     127.0.0.1:57926 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:57940 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:57946 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:57962 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:57970 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:57972 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:57980 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:57996 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58010 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:40:31 [core.py:830] [NEO STEP DIAG] step=41000 num_scheduled=427 batch_queue=1/2 running=20 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:58016 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58022 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58032 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58046 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58052 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58062 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58074 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58090 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58096 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58098 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58106 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58108 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58118 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58134 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:40:32 [core.py:830] [NEO STEP DIAG] step=41200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:58138 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58154 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58158 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58172 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58176 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58186 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:58200 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:40:33 [core.py:830] [NEO STEP DIAG] step=41400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:38624 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:40:34 [core.py:830] [NEO STEP DIAG] step=41600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:35 [core.py:830] [NEO STEP DIAG] step=41800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:37 [core.py:830] [NEO STEP DIAG] step=42000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:38626 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:38638 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:40:38 [core.py:830] [NEO STEP DIAG] step=42200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:39 [core.py:830] [NEO STEP DIAG] step=42400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:38640 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:40:40 [core.py:830] [NEO STEP DIAG] step=42600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:40:40 [loggers.py:271] Engine 000: Avg prompt throughput: 242.7 tokens/s, Avg generation throughput: 5670.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.2%, Prefix cache hit rate: 0.5%
+(APIServer pid=259360) INFO:     127.0.0.1:38642 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:40:41 [core.py:830] [NEO STEP DIAG] step=42800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:42 [core.py:830] [NEO STEP DIAG] step=43000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:43 [core.py:830] [NEO STEP DIAG] step=43200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:44 [core.py:830] [NEO STEP DIAG] step=43400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:45 [core.py:830] [NEO STEP DIAG] step=43600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:46 [core.py:830] [NEO STEP DIAG] step=43800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:47 [core.py:830] [NEO STEP DIAG] step=44000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:48 [core.py:830] [NEO STEP DIAG] step=44200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:49 [core.py:830] [NEO STEP DIAG] step=44400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:40:50 [loggers.py:271] Engine 000: Avg prompt throughput: 2.6 tokens/s, Avg generation throughput: 5925.9 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 9.9%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:40:51 [core.py:830] [NEO STEP DIAG] step=44600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:52 [core.py:830] [NEO STEP DIAG] step=44800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:53 [core.py:830] [NEO STEP DIAG] step=45000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:54 [core.py:830] [NEO STEP DIAG] step=45200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:56 [core.py:830] [NEO STEP DIAG] step=45400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:57 [core.py:830] [NEO STEP DIAG] step=45600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:40:58 [core.py:830] [NEO STEP DIAG] step=45800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:00 [core.py:830] [NEO STEP DIAG] step=46000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:41:00 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5052.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 14.4%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:41:01 [core.py:830] [NEO STEP DIAG] step=46200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:02 [core.py:830] [NEO STEP DIAG] step=46400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:04 [core.py:830] [NEO STEP DIAG] step=46600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:05 [core.py:830] [NEO STEP DIAG] step=46800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:07 [core.py:830] [NEO STEP DIAG] step=47000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:08 [core.py:830] [NEO STEP DIAG] step=47200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:10 [core.py:830] [NEO STEP DIAG] step=47400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:41:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4441.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 18.5%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:41:11 [core.py:830] [NEO STEP DIAG] step=47600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:13 [core.py:830] [NEO STEP DIAG] step=47800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:14 [core.py:830] [NEO STEP DIAG] step=48000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:16 [core.py:830] [NEO STEP DIAG] step=48200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:17 [core.py:830] [NEO STEP DIAG] step=48400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:19 [core.py:830] [NEO STEP DIAG] step=48600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:41:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4006.3 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 22.1%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:41:21 [core.py:830] [NEO STEP DIAG] step=48800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:22 [core.py:830] [NEO STEP DIAG] step=49000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:33900 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33906 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33922 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33934 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33944 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33950 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33966 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33948 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33980 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33990 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:33992 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34006 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34026 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34038 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34040 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34044 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34010 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34056 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34068 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34052 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:41:24 [core.py:830] [NEO STEP DIAG] step=49200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:34078 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34092 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:41:25 [core.py:830] [NEO STEP DIAG] step=49400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:34098 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34102 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34104 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34108 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34124 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34130 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34146 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34152 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34166 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:41:26 [core.py:830] [NEO STEP DIAG] step=49600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:27 [core.py:830] [NEO STEP DIAG] step=49800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:28 [core.py:830] [NEO STEP DIAG] step=50000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:29 [core.py:830] [NEO STEP DIAG] step=50200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:34180 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO 06-07 04:41:30 [loggers.py:271] Engine 000: Avg prompt throughput: 400.3 tokens/s, Avg generation throughput: 5087.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.5%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:41:31 [core.py:830] [NEO STEP DIAG] step=50400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:34184 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:41:32 [core.py:830] [NEO STEP DIAG] step=50600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:34194 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34206 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:41:33 [core.py:830] [NEO STEP DIAG] step=50800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:60556 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:41:34 [core.py:830] [NEO STEP DIAG] step=51000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:35 [core.py:830] [NEO STEP DIAG] step=51200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:36 [core.py:830] [NEO STEP DIAG] step=51400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:37 [core.py:830] [NEO STEP DIAG] step=51600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:38 [core.py:830] [NEO STEP DIAG] step=51800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:39 [core.py:830] [NEO STEP DIAG] step=52000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:41:40 [loggers.py:271] Engine 000: Avg prompt throughput: 49.5 tokens/s, Avg generation throughput: 5957.0 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 8.4%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:41:40 [core.py:830] [NEO STEP DIAG] step=52200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:41 [core.py:830] [NEO STEP DIAG] step=52400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:42 [core.py:830] [NEO STEP DIAG] step=52600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:44 [core.py:830] [NEO STEP DIAG] step=52800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:45 [core.py:830] [NEO STEP DIAG] step=53000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:46 [core.py:830] [NEO STEP DIAG] step=53200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:47 [core.py:830] [NEO STEP DIAG] step=53400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:49 [core.py:830] [NEO STEP DIAG] step=53600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:50 [core.py:830] [NEO STEP DIAG] step=53800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:41:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5288.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 13.2%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:41:51 [core.py:830] [NEO STEP DIAG] step=54000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:53 [core.py:830] [NEO STEP DIAG] step=54200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:54 [core.py:830] [NEO STEP DIAG] step=54400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:55 [core.py:830] [NEO STEP DIAG] step=54600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:57 [core.py:830] [NEO STEP DIAG] step=54800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:41:58 [core.py:830] [NEO STEP DIAG] step=55000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:00 [core.py:830] [NEO STEP DIAG] step=55200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:42:00 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4598.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 17.4%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:42:01 [core.py:830] [NEO STEP DIAG] step=55400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:03 [core.py:830] [NEO STEP DIAG] step=55600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:04 [core.py:830] [NEO STEP DIAG] step=55800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:06 [core.py:830] [NEO STEP DIAG] step=56000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:07 [core.py:830] [NEO STEP DIAG] step=56200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:09 [core.py:830] [NEO STEP DIAG] step=56400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:42:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4118.0 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 21.1%, Prefix cache hit rate: 0.5%
+(EngineCore pid=259636) INFO 06-07 04:42:10 [core.py:830] [NEO STEP DIAG] step=56600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:12 [core.py:830] [NEO STEP DIAG] step=56800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:14 [core.py:830] [NEO STEP DIAG] step=57000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:15 [core.py:830] [NEO STEP DIAG] step=57200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:52658 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52668 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52684 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52698 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52700 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52710 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52714 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52720 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52732 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52736 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52762 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52768 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52774 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52780 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52746 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52794 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52802 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52816 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:42:17 [core.py:830] [NEO STEP DIAG] step=57400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:52828 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52834 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:42:19 [core.py:830] [NEO STEP DIAG] step=57600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:52846 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52856 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52858 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52872 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52880 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52886 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52894 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52908 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52918 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:42:20 [core.py:830] [NEO STEP DIAG] step=57800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:42:20 [loggers.py:271] Engine 000: Avg prompt throughput: 435.3 tokens/s, Avg generation throughput: 4232.6 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 3.5%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:42:21 [core.py:830] [NEO STEP DIAG] step=58000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:22 [core.py:830] [NEO STEP DIAG] step=58200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:23 [core.py:830] [NEO STEP DIAG] step=58400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:24 [core.py:830] [NEO STEP DIAG] step=58600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:36834 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:42:25 [core.py:830] [NEO STEP DIAG] step=58800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:36846 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:42:26 [core.py:830] [NEO STEP DIAG] step=59000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:36862 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:42:27 [core.py:830] [NEO STEP DIAG] step=59200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:28 [core.py:830] [NEO STEP DIAG] step=59400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:29 [core.py:830] [NEO STEP DIAG] step=59600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:42:30 [loggers.py:271] Engine 000: Avg prompt throughput: 112.2 tokens/s, Avg generation throughput: 5883.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 6.7%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:42:31 [core.py:830] [NEO STEP DIAG] step=59800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:32 [core.py:830] [NEO STEP DIAG] step=60000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:33 [core.py:830] [NEO STEP DIAG] step=60200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:34 [core.py:830] [NEO STEP DIAG] step=60400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:35 [core.py:830] [NEO STEP DIAG] step=60600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:36 [core.py:830] [NEO STEP DIAG] step=60800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:37 [core.py:830] [NEO STEP DIAG] step=61000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:39 [core.py:830] [NEO STEP DIAG] step=61200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:40 [core.py:830] [NEO STEP DIAG] step=61400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:42:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5475.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 11.6%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:42:41 [core.py:830] [NEO STEP DIAG] step=61600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:42 [core.py:830] [NEO STEP DIAG] step=61800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:44 [core.py:830] [NEO STEP DIAG] step=62000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:45 [core.py:830] [NEO STEP DIAG] step=62200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:46 [core.py:830] [NEO STEP DIAG] step=62400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:48 [core.py:830] [NEO STEP DIAG] step=62600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:49 [core.py:830] [NEO STEP DIAG] step=62800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:42:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4735.6 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 15.9%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:42:51 [core.py:830] [NEO STEP DIAG] step=63000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:52 [core.py:830] [NEO STEP DIAG] step=63200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:54 [core.py:830] [NEO STEP DIAG] step=63400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:55 [core.py:830] [NEO STEP DIAG] step=63600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:57 [core.py:830] [NEO STEP DIAG] step=63800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:42:58 [core.py:830] [NEO STEP DIAG] step=64000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:00 [core.py:830] [NEO STEP DIAG] step=64200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:43:00 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4220.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 19.8%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:43:01 [core.py:830] [NEO STEP DIAG] step=64400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:03 [core.py:830] [NEO STEP DIAG] step=64600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:05 [core.py:830] [NEO STEP DIAG] step=64800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:06 [core.py:830] [NEO STEP DIAG] step=65000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:08 [core.py:830] [NEO STEP DIAG] step=65200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:10 [core.py:830] [NEO STEP DIAG] step=65400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:43:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 3839.7 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 23.3%, Prefix cache hit rate: 0.6%
+(APIServer pid=259360) INFO:     127.0.0.1:35842 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35844 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35848 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35858 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35860 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35864 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35868 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35882 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35892 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35894 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35900 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35910 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35926 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35936 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35944 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35954 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35956 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35958 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:43:12 [core.py:830] [NEO STEP DIAG] step=65600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35964 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35966 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35976 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:43:13 [core.py:830] [NEO STEP DIAG] step=65800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35984 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35990 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:36006 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:36022 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:36034 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:36044 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:60200 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:60202 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:60214 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:43:14 [core.py:830] [NEO STEP DIAG] step=66000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:60226 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:43:15 [core.py:830] [NEO STEP DIAG] step=66200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:16 [core.py:830] [NEO STEP DIAG] step=66400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:60238 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:43:17 [core.py:830] [NEO STEP DIAG] step=66600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:18 [core.py:830] [NEO STEP DIAG] step=66800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:60240 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:43:20 [core.py:830] [NEO STEP DIAG] step=67000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:43:20 [loggers.py:271] Engine 000: Avg prompt throughput: 681.6 tokens/s, Avg generation throughput: 5299.7 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.7%, Prefix cache hit rate: 0.6%
+(APIServer pid=259360) INFO:     127.0.0.1:60246 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:43:21 [core.py:830] [NEO STEP DIAG] step=67200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:60262 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:43:22 [core.py:830] [NEO STEP DIAG] step=67400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:23 [core.py:830] [NEO STEP DIAG] step=67600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:24 [core.py:830] [NEO STEP DIAG] step=67800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:25 [core.py:830] [NEO STEP DIAG] step=68000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:26 [core.py:830] [NEO STEP DIAG] step=68200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:27 [core.py:830] [NEO STEP DIAG] step=68400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:28 [core.py:830] [NEO STEP DIAG] step=68600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:29 [core.py:830] [NEO STEP DIAG] step=68800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:43:30 [loggers.py:271] Engine 000: Avg prompt throughput: 49.7 tokens/s, Avg generation throughput: 5835.6 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 9.6%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:43:31 [core.py:830] [NEO STEP DIAG] step=69000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:32 [core.py:830] [NEO STEP DIAG] step=69200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:33 [core.py:830] [NEO STEP DIAG] step=69400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:34 [core.py:830] [NEO STEP DIAG] step=69600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:36 [core.py:830] [NEO STEP DIAG] step=69800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:37 [core.py:830] [NEO STEP DIAG] step=70000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:38 [core.py:830] [NEO STEP DIAG] step=70200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:39 [core.py:830] [NEO STEP DIAG] step=70400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:43:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5052.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 14.2%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:43:41 [core.py:830] [NEO STEP DIAG] step=70600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:42 [core.py:830] [NEO STEP DIAG] step=70800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:44 [core.py:830] [NEO STEP DIAG] step=71000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:45 [core.py:830] [NEO STEP DIAG] step=71200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:46 [core.py:830] [NEO STEP DIAG] step=71400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:48 [core.py:830] [NEO STEP DIAG] step=71600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:49 [core.py:830] [NEO STEP DIAG] step=71800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:43:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4441.5 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 18.2%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:43:51 [core.py:830] [NEO STEP DIAG] step=72000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:53 [core.py:830] [NEO STEP DIAG] step=72200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:54 [core.py:830] [NEO STEP DIAG] step=72400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:56 [core.py:830] [NEO STEP DIAG] step=72600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:57 [core.py:830] [NEO STEP DIAG] step=72800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:43:59 [core.py:830] [NEO STEP DIAG] step=73000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:44:00 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4006.0 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 21.8%, Prefix cache hit rate: 0.6%
+(EngineCore pid=259636) INFO 06-07 04:44:01 [core.py:830] [NEO STEP DIAG] step=73200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:02 [core.py:830] [NEO STEP DIAG] step=73400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:04 [core.py:830] [NEO STEP DIAG] step=73600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:43004 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43020 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43028 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43032 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43034 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43048 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43062 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43070 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43074 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43078 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43092 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43108 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43054 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43110 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43120 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:06 [core.py:830] [NEO STEP DIAG] step=73800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:43126 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43140 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43142 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:07 [core.py:830] [NEO STEP DIAG] step=74000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:43158 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43172 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43180 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43192 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43200 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43210 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43218 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43220 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43236 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:08 [core.py:830] [NEO STEP DIAG] step=74200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:43248 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:10 [core.py:830] [NEO STEP DIAG] step=74400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:43252 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:43260 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO 06-07 04:44:10 [loggers.py:271] Engine 000: Avg prompt throughput: 362.1 tokens/s, Avg generation throughput: 4372.5 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.6%, Prefix cache hit rate: 0.7%
+(EngineCore pid=259636) INFO 06-07 04:44:11 [core.py:830] [NEO STEP DIAG] step=74600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:43262 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:12 [core.py:830] [NEO STEP DIAG] step=74800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:13 [core.py:830] [NEO STEP DIAG] step=75000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:43276 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:14 [core.py:830] [NEO STEP DIAG] step=75200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:60424 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:15 [core.py:830] [NEO STEP DIAG] step=75400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:60430 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:16 [core.py:830] [NEO STEP DIAG] step=75600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:17 [core.py:830] [NEO STEP DIAG] step=75800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:18 [core.py:830] [NEO STEP DIAG] step=76000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:19 [core.py:830] [NEO STEP DIAG] step=76200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:44:20 [loggers.py:271] Engine 000: Avg prompt throughput: 27.9 tokens/s, Avg generation throughput: 5956.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 7.0%, Prefix cache hit rate: 0.7%
+(EngineCore pid=259636) INFO 06-07 04:44:20 [core.py:830] [NEO STEP DIAG] step=76400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:21 [core.py:830] [NEO STEP DIAG] step=76600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:22 [core.py:830] [NEO STEP DIAG] step=76800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:24 [core.py:830] [NEO STEP DIAG] step=77000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:25 [core.py:830] [NEO STEP DIAG] step=77200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:26 [core.py:830] [NEO STEP DIAG] step=77400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:27 [core.py:830] [NEO STEP DIAG] step=77600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:28 [core.py:830] [NEO STEP DIAG] step=77800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:30 [core.py:830] [NEO STEP DIAG] step=78000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:44:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5481.6 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 12.0%, Prefix cache hit rate: 0.7%
+(EngineCore pid=259636) INFO 06-07 04:44:31 [core.py:830] [NEO STEP DIAG] step=78200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:32 [core.py:830] [NEO STEP DIAG] step=78400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:33 [core.py:830] [NEO STEP DIAG] step=78600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:35 [core.py:830] [NEO STEP DIAG] step=78800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:36 [core.py:830] [NEO STEP DIAG] step=79000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:38 [core.py:830] [NEO STEP DIAG] step=79200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:39 [core.py:830] [NEO STEP DIAG] step=79400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:44:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4729.3 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 16.3%, Prefix cache hit rate: 0.7%
+(EngineCore pid=259636) INFO 06-07 04:44:40 [core.py:830] [NEO STEP DIAG] step=79600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:42 [core.py:830] [NEO STEP DIAG] step=79800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:43 [core.py:830] [NEO STEP DIAG] step=80000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:45 [core.py:830] [NEO STEP DIAG] step=80200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:46 [core.py:830] [NEO STEP DIAG] step=80400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:48 [core.py:830] [NEO STEP DIAG] step=80600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:50 [core.py:830] [NEO STEP DIAG] step=80800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:44:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4214.2 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 20.1%, Prefix cache hit rate: 0.7%
+(EngineCore pid=259636) INFO 06-07 04:44:51 [core.py:830] [NEO STEP DIAG] step=81000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:53 [core.py:830] [NEO STEP DIAG] step=81200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:54 [core.py:830] [NEO STEP DIAG] step=81400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:56 [core.py:830] [NEO STEP DIAG] step=81600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:44:58 [core.py:830] [NEO STEP DIAG] step=81800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:49756 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49760 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49776 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49790 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49796 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49806 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49808 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49814 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49824 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49840 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49844 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49846 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49850 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49864 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49880 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:44:59 [core.py:830] [NEO STEP DIAG] step=82000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:49896 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49910 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO 06-07 04:45:00 [loggers.py:271] Engine 000: Avg prompt throughput: 168.8 tokens/s, Avg generation throughput: 3894.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 11.1%, Prefix cache hit rate: 2.2%
+(EngineCore pid=259636) INFO 06-07 04:45:01 [core.py:830] [NEO STEP DIAG] step=82200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:49912 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49924 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49932 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49940 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49950 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49952 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49964 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49972 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:02 [core.py:830] [NEO STEP DIAG] step=82400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:49974 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49988 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50000 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50012 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:03 [core.py:830] [NEO STEP DIAG] step=82600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:50020 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52412 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:52418 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:04 [core.py:830] [NEO STEP DIAG] step=82800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:52420 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:05 [core.py:830] [NEO STEP DIAG] step=83000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:06 [core.py:830] [NEO STEP DIAG] step=83200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:52428 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:08 [core.py:830] [NEO STEP DIAG] step=83400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:52436 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:09 [core.py:830] [NEO STEP DIAG] step=83600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:52450 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:10 [core.py:830] [NEO STEP DIAG] step=83800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:45:10 [loggers.py:271] Engine 000: Avg prompt throughput: 273.7 tokens/s, Avg generation throughput: 5702.3 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.9%, Prefix cache hit rate: 2.1%
+(EngineCore pid=259636) INFO 06-07 04:45:11 [core.py:830] [NEO STEP DIAG] step=84000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:12 [core.py:830] [NEO STEP DIAG] step=84200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:13 [core.py:830] [NEO STEP DIAG] step=84400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:14 [core.py:830] [NEO STEP DIAG] step=84600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:15 [core.py:830] [NEO STEP DIAG] step=84800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:16 [core.py:830] [NEO STEP DIAG] step=85000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:17 [core.py:830] [NEO STEP DIAG] step=85200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:18 [core.py:830] [NEO STEP DIAG] step=85400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:20 [core.py:830] [NEO STEP DIAG] step=85600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:45:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5810.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 10.2%, Prefix cache hit rate: 2.1%
+(EngineCore pid=259636) INFO 06-07 04:45:21 [core.py:830] [NEO STEP DIAG] step=85800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:22 [core.py:830] [NEO STEP DIAG] step=86000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:23 [core.py:830] [NEO STEP DIAG] step=86200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:25 [core.py:830] [NEO STEP DIAG] step=86400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:26 [core.py:830] [NEO STEP DIAG] step=86600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:27 [core.py:830] [NEO STEP DIAG] step=86800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:28 [core.py:830] [NEO STEP DIAG] step=87000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:30 [core.py:830] [NEO STEP DIAG] step=87200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:45:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4940.3 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 14.7%, Prefix cache hit rate: 2.1%
+(EngineCore pid=259636) INFO 06-07 04:45:31 [core.py:830] [NEO STEP DIAG] step=87400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:33 [core.py:830] [NEO STEP DIAG] step=87600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:34 [core.py:830] [NEO STEP DIAG] step=87800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:36 [core.py:830] [NEO STEP DIAG] step=88000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:37 [core.py:830] [NEO STEP DIAG] step=88200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:39 [core.py:830] [NEO STEP DIAG] step=88400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:40 [core.py:830] [NEO STEP DIAG] step=88600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:45:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4370.6 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 18.6%, Prefix cache hit rate: 2.1%
+(EngineCore pid=259636) INFO 06-07 04:45:42 [core.py:830] [NEO STEP DIAG] step=88800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:43 [core.py:830] [NEO STEP DIAG] step=89000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:45 [core.py:830] [NEO STEP DIAG] step=89200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:46 [core.py:830] [NEO STEP DIAG] step=89400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:48 [core.py:830] [NEO STEP DIAG] step=89600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:45:50 [core.py:830] [NEO STEP DIAG] step=89800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:45:50 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 3951.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 22.2%, Prefix cache hit rate: 2.1%
+(EngineCore pid=259636) INFO 06-07 04:45:51 [core.py:830] [NEO STEP DIAG] step=90000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:34036 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34038 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34050 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34058 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34070 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34080 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34094 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34110 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34120 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34122 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34126 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34132 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:34142 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:53 [core.py:830] [NEO STEP DIAG] step=90200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35116 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35120 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:55 [core.py:830] [NEO STEP DIAG] step=90400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35128 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35130 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35142 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35156 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35172 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35182 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:56 [core.py:830] [NEO STEP DIAG] step=90600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35192 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35202 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35210 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35224 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:57 [core.py:830] [NEO STEP DIAG] step=90800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35240 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35248 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35264 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:45:58 [core.py:830] [NEO STEP DIAG] step=91000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35274 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:00 [core.py:830] [NEO STEP DIAG] step=91200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:46:00 [loggers.py:271] Engine 000: Avg prompt throughput: 861.3 tokens/s, Avg generation throughput: 4717.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 5.4%, Prefix cache hit rate: 1.8%
+(EngineCore pid=259636) INFO 06-07 04:46:01 [core.py:830] [NEO STEP DIAG] step=91400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35286 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:02 [core.py:830] [NEO STEP DIAG] step=91600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:35292 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:35296 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:03 [core.py:830] [NEO STEP DIAG] step=91800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:49088 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:04 [core.py:830] [NEO STEP DIAG] step=92000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:05 [core.py:830] [NEO STEP DIAG] step=92200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:06 [core.py:830] [NEO STEP DIAG] step=92400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:07 [core.py:830] [NEO STEP DIAG] step=92600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:08 [core.py:830] [NEO STEP DIAG] step=92800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:10 [core.py:830] [NEO STEP DIAG] step=93000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:46:10 [loggers.py:271] Engine 000: Avg prompt throughput: 44.2 tokens/s, Avg generation throughput: 5698.0 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 8.2%, Prefix cache hit rate: 1.8%
+(EngineCore pid=259636) INFO 06-07 04:46:11 [core.py:830] [NEO STEP DIAG] step=93200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:12 [core.py:830] [NEO STEP DIAG] step=93400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:13 [core.py:830] [NEO STEP DIAG] step=93600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:14 [core.py:830] [NEO STEP DIAG] step=93800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:16 [core.py:830] [NEO STEP DIAG] step=94000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:17 [core.py:830] [NEO STEP DIAG] step=94200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:18 [core.py:830] [NEO STEP DIAG] step=94400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:20 [core.py:830] [NEO STEP DIAG] step=94600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:46:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5030.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 12.8%, Prefix cache hit rate: 1.8%
+(EngineCore pid=259636) INFO 06-07 04:46:21 [core.py:830] [NEO STEP DIAG] step=94800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:22 [core.py:830] [NEO STEP DIAG] step=95000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:24 [core.py:830] [NEO STEP DIAG] step=95200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:25 [core.py:830] [NEO STEP DIAG] step=95400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:27 [core.py:830] [NEO STEP DIAG] step=95600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:28 [core.py:830] [NEO STEP DIAG] step=95800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:30 [core.py:830] [NEO STEP DIAG] step=96000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:46:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4441.3 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 16.8%, Prefix cache hit rate: 1.8%
+(EngineCore pid=259636) INFO 06-07 04:46:31 [core.py:830] [NEO STEP DIAG] step=96200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:33 [core.py:830] [NEO STEP DIAG] step=96400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:34 [core.py:830] [NEO STEP DIAG] step=96600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:36 [core.py:830] [NEO STEP DIAG] step=96800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:38 [core.py:830] [NEO STEP DIAG] step=97000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:39 [core.py:830] [NEO STEP DIAG] step=97200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:46:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4015.6 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 20.5%, Prefix cache hit rate: 1.8%
+(EngineCore pid=259636) INFO 06-07 04:46:41 [core.py:830] [NEO STEP DIAG] step=97400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:43 [core.py:830] [NEO STEP DIAG] step=97600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:44 [core.py:830] [NEO STEP DIAG] step=97800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:46 [core.py:830] [NEO STEP DIAG] step=98000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:48 [core.py:830] [NEO STEP DIAG] step=98200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:50706 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50718 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50726 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50738 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50740 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50754 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50756 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50772 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50778 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50788 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50794 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50802 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50816 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:49 [core.py:830] [NEO STEP DIAG] step=98400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:50822 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50834 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO 06-07 04:46:50 [loggers.py:271] Engine 000: Avg prompt throughput: 100.1 tokens/s, Avg generation throughput: 3748.7 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 12.6%, Prefix cache hit rate: 1.8%
+(EngineCore pid=259636) INFO 06-07 04:46:51 [core.py:830] [NEO STEP DIAG] step=98600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:50840 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50850 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50854 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50856 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50872 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50886 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:52 [core.py:830] [NEO STEP DIAG] step=98800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:50896 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50906 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50914 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50922 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50928 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:48280 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:54 [core.py:830] [NEO STEP DIAG] step=99000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:48294 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:48300 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:48306 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:55 [core.py:830] [NEO STEP DIAG] step=99200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:48318 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:56 [core.py:830] [NEO STEP DIAG] step=99400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:46:57 [core.py:830] [NEO STEP DIAG] step=99600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:48334 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:58 [core.py:830] [NEO STEP DIAG] step=99800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:48338 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:48348 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:46:59 [core.py:830] [NEO STEP DIAG] step=100000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:48364 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO 06-07 04:47:00 [loggers.py:271] Engine 000: Avg prompt throughput: 321.9 tokens/s, Avg generation throughput: 5406.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 4.3%, Prefix cache hit rate: 1.7%
+(EngineCore pid=259636) INFO 06-07 04:47:00 [core.py:830] [NEO STEP DIAG] step=100200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:01 [core.py:830] [NEO STEP DIAG] step=100400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:02 [core.py:830] [NEO STEP DIAG] step=100600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:03 [core.py:830] [NEO STEP DIAG] step=100800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:04 [core.py:830] [NEO STEP DIAG] step=101000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:05 [core.py:830] [NEO STEP DIAG] step=101200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:06 [core.py:830] [NEO STEP DIAG] step=101400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:08 [core.py:830] [NEO STEP DIAG] step=101600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:09 [core.py:830] [NEO STEP DIAG] step=101800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:10 [core.py:830] [NEO STEP DIAG] step=102000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:47:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 5958.2 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 9.7%, Prefix cache hit rate: 1.7%
+(APIServer pid=259360) INFO:     127.0.0.1:50000 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:11 [core.py:830] [NEO STEP DIAG] step=102200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:12 [core.py:830] [NEO STEP DIAG] step=102400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:14 [core.py:830] [NEO STEP DIAG] step=102600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:15 [core.py:830] [NEO STEP DIAG] step=102800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:16 [core.py:830] [NEO STEP DIAG] step=103000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:17 [core.py:830] [NEO STEP DIAG] step=103200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:19 [core.py:830] [NEO STEP DIAG] step=103400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:20 [core.py:830] [NEO STEP DIAG] step=103600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:47:20 [loggers.py:271] Engine 000: Avg prompt throughput: 1.9 tokens/s, Avg generation throughput: 5064.9 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 14.0%, Prefix cache hit rate: 1.7%
+(EngineCore pid=259636) INFO 06-07 04:47:21 [core.py:830] [NEO STEP DIAG] step=103800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:23 [core.py:830] [NEO STEP DIAG] step=104000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:24 [core.py:830] [NEO STEP DIAG] step=104200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:26 [core.py:830] [NEO STEP DIAG] step=104400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:27 [core.py:830] [NEO STEP DIAG] step=104600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:29 [core.py:830] [NEO STEP DIAG] step=104800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:30 [core.py:830] [NEO STEP DIAG] step=105000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:47:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4448.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 18.0%, Prefix cache hit rate: 1.7%
+(EngineCore pid=259636) INFO 06-07 04:47:32 [core.py:830] [NEO STEP DIAG] step=105200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:33 [core.py:830] [NEO STEP DIAG] step=105400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:35 [core.py:830] [NEO STEP DIAG] step=105600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:36 [core.py:830] [NEO STEP DIAG] step=105800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:38 [core.py:830] [NEO STEP DIAG] step=106000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:40 [core.py:830] [NEO STEP DIAG] step=106200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:47:40 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4009.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 21.7%, Prefix cache hit rate: 1.7%
+(EngineCore pid=259636) INFO 06-07 04:47:41 [core.py:830] [NEO STEP DIAG] step=106400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:49964 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49968 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49978 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49984 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49994 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:49998 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50010 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50014 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50022 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50036 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:43 [core.py:830] [NEO STEP DIAG] step=106600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:50046 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:50052 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:44 [core.py:830] [NEO STEP DIAG] step=106800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:47172 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47178 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47192 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47196 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47204 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47218 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:46 [core.py:830] [NEO STEP DIAG] step=107000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:47234 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47240 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47244 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47256 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47272 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:47 [core.py:830] [NEO STEP DIAG] step=107200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:47286 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47302 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47312 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:48 [core.py:830] [NEO STEP DIAG] step=107400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:47320 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47334 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:50 [core.py:830] [NEO STEP DIAG] step=107600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:47344 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO 06-07 04:47:50 [loggers.py:271] Engine 000: Avg prompt throughput: 794.2 tokens/s, Avg generation throughput: 4564.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 6.0%, Prefix cache hit rate: 1.6%
+(EngineCore pid=259636) INFO 06-07 04:47:51 [core.py:830] [NEO STEP DIAG] step=107800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:47358 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:52 [core.py:830] [NEO STEP DIAG] step=108000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:47360 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47362 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:47364 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:53 [core.py:830] [NEO STEP DIAG] step=108200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:55010 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:47:54 [core.py:830] [NEO STEP DIAG] step=108400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:55 [core.py:830] [NEO STEP DIAG] step=108600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:57 [core.py:830] [NEO STEP DIAG] step=108800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:58 [core.py:830] [NEO STEP DIAG] step=109000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:47:59 [core.py:830] [NEO STEP DIAG] step=109200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:00 [core.py:830] [NEO STEP DIAG] step=109400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:48:00 [loggers.py:271] Engine 000: Avg prompt throughput: 201.5 tokens/s, Avg generation throughput: 5515.3 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 8.1%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:48:01 [core.py:830] [NEO STEP DIAG] step=109600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:02 [core.py:830] [NEO STEP DIAG] step=109800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:04 [core.py:830] [NEO STEP DIAG] step=110000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:05 [core.py:830] [NEO STEP DIAG] step=110200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:46576 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:48:06 [core.py:830] [NEO STEP DIAG] step=110400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:08 [core.py:830] [NEO STEP DIAG] step=110600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:09 [core.py:830] [NEO STEP DIAG] step=110800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:10 [core.py:830] [NEO STEP DIAG] step=111000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:48:10 [loggers.py:271] Engine 000: Avg prompt throughput: 10.3 tokens/s, Avg generation throughput: 5039.4 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 11.9%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:48:12 [core.py:830] [NEO STEP DIAG] step=111200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:13 [core.py:830] [NEO STEP DIAG] step=111400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:14 [core.py:830] [NEO STEP DIAG] step=111600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:16 [core.py:830] [NEO STEP DIAG] step=111800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:17 [core.py:830] [NEO STEP DIAG] step=112000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:19 [core.py:830] [NEO STEP DIAG] step=112200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:20 [core.py:830] [NEO STEP DIAG] step=112400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:48:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4511.8 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 16.0%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:48:22 [core.py:830] [NEO STEP DIAG] step=112600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:23 [core.py:830] [NEO STEP DIAG] step=112800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:25 [core.py:830] [NEO STEP DIAG] step=113000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:26 [core.py:830] [NEO STEP DIAG] step=113200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:28 [core.py:830] [NEO STEP DIAG] step=113400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:30 [core.py:830] [NEO STEP DIAG] step=113600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO 06-07 04:48:30 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 4067.1 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 19.7%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:48:31 [core.py:830] [NEO STEP DIAG] step=113800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:33 [core.py:830] [NEO STEP DIAG] step=114000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:35 [core.py:830] [NEO STEP DIAG] step=114200 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:36 [core.py:830] [NEO STEP DIAG] step=114400 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:38 [core.py:830] [NEO STEP DIAG] step=114600 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:45812 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45818 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45824 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45838 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45848 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45862 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45872 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45888 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45898 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:48:40 [core.py:830] [NEO STEP DIAG] step=114800 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:45902 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45912 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO 06-07 04:48:40 [loggers.py:271] Engine 000: Avg prompt throughput: 260.1 tokens/s, Avg generation throughput: 3760.0 tokens/s, Running: 32 reqs, Waiting: 0 reqs, GPU KV cache usage: 15.0%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:48:41 [core.py:830] [NEO STEP DIAG] step=115000 num_scheduled=32 batch_queue=1/2 running=32 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:45920 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45930 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45936 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=259360) INFO:     127.0.0.1:45938 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=259636) INFO 06-07 04:48:43 [core.py:830] [NEO STEP DIAG] step=115200 num_scheduled=30 batch_queue=1/2 running=30 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:44 [core.py:830] [NEO STEP DIAG] step=115400 num_scheduled=25 batch_queue=1/2 running=25 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:45 [core.py:830] [NEO STEP DIAG] step=115600 num_scheduled=23 batch_queue=1/2 running=23 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:47 [core.py:830] [NEO STEP DIAG] step=115800 num_scheduled=21 batch_queue=1/2 running=21 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:48 [core.py:830] [NEO STEP DIAG] step=116000 num_scheduled=20 batch_queue=1/2 running=20 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:49 [core.py:830] [NEO STEP DIAG] step=116200 num_scheduled=19 batch_queue=1/2 running=19 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:50 [core.py:830] [NEO STEP DIAG] step=116400 num_scheduled=17 batch_queue=1/2 running=17 waiting=0
+(APIServer pid=259360) INFO 06-07 04:48:50 [loggers.py:271] Engine 000: Avg prompt throughput: 98.9 tokens/s, Avg generation throughput: 3789.9 tokens/s, Running: 17 reqs, Waiting: 0 reqs, GPU KV cache usage: 3.9%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:48:51 [core.py:830] [NEO STEP DIAG] step=116600 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:52 [core.py:830] [NEO STEP DIAG] step=116800 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:53 [core.py:830] [NEO STEP DIAG] step=117000 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:54 [core.py:830] [NEO STEP DIAG] step=117200 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:55 [core.py:830] [NEO STEP DIAG] step=117400 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:56 [core.py:830] [NEO STEP DIAG] step=117600 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:57 [core.py:830] [NEO STEP DIAG] step=117800 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:58 [core.py:830] [NEO STEP DIAG] step=118000 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:48:59 [core.py:830] [NEO STEP DIAG] step=118200 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:00 [core.py:830] [NEO STEP DIAG] step=118400 num_scheduled=16 batch_queue=1/2 running=16 waiting=0
+(APIServer pid=259360) INFO 06-07 04:49:00 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 3179.1 tokens/s, Running: 16 reqs, Waiting: 0 reqs, GPU KV cache usage: 6.0%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:49:01 [core.py:830] [NEO STEP DIAG] step=118600 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:02 [core.py:830] [NEO STEP DIAG] step=118800 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:03 [core.py:830] [NEO STEP DIAG] step=119000 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:04 [core.py:830] [NEO STEP DIAG] step=119200 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:05 [core.py:830] [NEO STEP DIAG] step=119400 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:06 [core.py:830] [NEO STEP DIAG] step=119600 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:07 [core.py:830] [NEO STEP DIAG] step=119800 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:08 [core.py:830] [NEO STEP DIAG] step=120000 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:09 [core.py:830] [NEO STEP DIAG] step=120200 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(APIServer pid=259360) INFO 06-07 04:49:10 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2948.3 tokens/s, Running: 15 reqs, Waiting: 0 reqs, GPU KV cache usage: 7.9%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:49:10 [core.py:830] [NEO STEP DIAG] step=120400 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:11 [core.py:830] [NEO STEP DIAG] step=120600 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:12 [core.py:830] [NEO STEP DIAG] step=120800 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:13 [core.py:830] [NEO STEP DIAG] step=121000 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:15 [core.py:830] [NEO STEP DIAG] step=121200 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:16 [core.py:830] [NEO STEP DIAG] step=121400 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:17 [core.py:830] [NEO STEP DIAG] step=121600 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:18 [core.py:830] [NEO STEP DIAG] step=121800 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:19 [core.py:830] [NEO STEP DIAG] step=122000 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(APIServer pid=259360) INFO 06-07 04:49:20 [loggers.py:271] Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 2683.5 tokens/s, Running: 15 reqs, Waiting: 0 reqs, GPU KV cache usage: 10.3%, Prefix cache hit rate: 1.5%
+(EngineCore pid=259636) INFO 06-07 04:49:20 [core.py:830] [NEO STEP DIAG] step=122200 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:21 [core.py:830] [NEO STEP DIAG] step=122400 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:23 [core.py:830] [NEO STEP DIAG] step=122600 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:24 [core.py:830] [NEO STEP DIAG] step=122800 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:25 [core.py:830] [NEO STEP DIAG] step=123000 num_scheduled=6 batch_queue=1/2 running=6 waiting=0
+(EngineCore pid=259636) INFO 06-07 04:49:26 [core.py:830] [NEO STEP DIAG] step=123200 num_scheduled=3 batch_queue=1/2 running=3 waiting=0
+(APIServer pid=259360) INFO:     127.0.0.1:52576 - "GET /metrics HTTP/1.1" 200 OK

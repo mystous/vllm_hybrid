@@ -1,0 +1,14 @@
+[08:12:38] === TSK_046 D3: pop-버그 수정 후 진짜 dyn-K 판정 (기본 SAT/BETA), 7 corpora ===
+[08:12:38] boot pid=3768090 cell=D3_dynk_fix (taskset 0-47,56-103)
+[08:14:18] READY
+[08:14:18] cell D3_dynk_fix: baseline (aggressor 없음)
+[08:14:18]   bench D3_dynk_fix x sharegpt
+[08:16:57]   bench D3_dynk_fix x swebench
+[08:18:28]   bench D3_dynk_fix x humaneval
+[08:20:32]   bench D3_dynk_fix x mbpp
+[08:21:15]   bench D3_dynk_fix x wildchat
+[08:24:33]   bench D3_dynk_fix x lmsys
+[08:26:59]   bench D3_dynk_fix x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_tsk046_d3.sh: line 142: 3768090 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[08:29:03] GPU freed
+[08:29:03] === TSK_046 D3 done ===

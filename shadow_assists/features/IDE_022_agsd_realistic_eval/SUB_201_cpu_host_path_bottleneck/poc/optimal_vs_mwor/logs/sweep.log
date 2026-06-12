@@ -14,3 +14,89 @@
 [04:01:25]   PID=244498 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-7B-Instruct_mwor_suffix_boot.log timeout=900s)
 [04:02:15] READY http://127.0.0.1:8001
 [04:02:15]   bench mix 500p × conc=32 × max=8192
+[04:06:51]   → tps 5290.3 n_ok 500 wall 275.6
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 244498 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[04:06:53] GPU freed
+[04:06:53] 
+[04:06:53] ############## Qwen2.5-32B-Instruct (tp=2 gpus=0,1 optm=vanilla mwor=suffix) ##############
+[04:06:53] ==== boot Qwen2.5-32B-Instruct conf=optimal method=vanilla tp=2 gpus=0,1 ====
+[04:06:53]   PID=246576 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-32B-Instruct_optimal_vanilla_boot.log timeout=1200s)
+[04:08:23] READY http://127.0.0.1:8001
+[04:08:23]   bench mix 500p × conc=32 × max=8192
+[04:15:05]   → tps 2575.7 n_ok 500 wall 401.5
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 246576 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[04:15:08] GPU freed
+[04:15:08] ==== boot Qwen2.5-32B-Instruct conf=mwor method=suffix tp=2 gpus=0,1 ====
+[04:15:08]   PID=249332 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-32B-Instruct_mwor_suffix_boot.log timeout=1200s)
+[04:16:38] READY http://127.0.0.1:8001
+[04:16:38]   bench mix 500p × conc=32 × max=8192
+[04:21:42]   → tps 3616.8 n_ok 500 wall 303.7
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 249332 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[04:21:44] GPU freed
+[04:21:44] 
+[04:21:44] ############## Qwen2.5-72B-Instruct (tp=4 gpus=0,1,2,3 optm=vanilla mwor=suffix) ##############
+[04:21:44] ==== boot Qwen2.5-72B-Instruct conf=optimal method=vanilla tp=4 gpus=0,1,2,3 ====
+[04:21:44]   PID=252024 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-72B-Instruct_optimal_vanilla_boot.log timeout=1800s)
+[04:23:49] READY http://127.0.0.1:8001
+[04:23:49]   bench mix 500p × conc=32 × max=8192
+[04:28:55]   → tps 2197.6 n_ok 500 wall 305.3
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 252024 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[04:28:59] GPU freed
+[04:28:59] ==== boot Qwen2.5-72B-Instruct conf=mwor method=suffix tp=4 gpus=0,1,2,3 ====
+[04:28:59]   PID=255617 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Qwen2.5-72B-Instruct_mwor_suffix_boot.log timeout=1800s)
+[04:30:49] READY http://127.0.0.1:8001
+[04:30:49]   bench mix 500p × conc=32 × max=8192
+[04:35:11]   → tps 2559.5 n_ok 500 wall 260.7
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 255617 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[04:35:14] GPU freed
+[04:35:14] 
+[04:35:14] ############## Llama-3.1-8B-Instruct (tp=1 gpus=0 optm=vanilla mwor=suffix) ##############
+[04:35:14] ==== boot Llama-3.1-8B-Instruct conf=optimal method=vanilla tp=1 gpus=0 ====
+[04:35:14]   PID=259360 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Llama-3.1-8B-Instruct_optimal_vanilla_boot.log timeout=900s)
+[04:36:04] READY http://127.0.0.1:8001
+[04:36:04]   bench mix 500p × conc=32 × max=8192
+[04:49:26]   → tps 4757.3 n_ok 500 wall 801.3
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 259360 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[04:49:29] GPU freed
+[04:49:29] ==== boot Llama-3.1-8B-Instruct conf=mwor method=suffix tp=1 gpus=0 ====
+[04:49:29]   PID=262135 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Llama-3.1-8B-Instruct_mwor_suffix_boot.log timeout=900s)
+[04:50:19] READY http://127.0.0.1:8001
+[04:50:19]   bench mix 500p × conc=32 × max=8192
+[04:58:12]   → tps 8123.6 n_ok 500 wall 472.3
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 262135 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[04:58:14] GPU freed
+[04:58:14] 
+[04:58:14] ############## Llama-3.1-70B-Instruct (tp=4 gpus=0,1,2,3 optm=vanilla mwor=suffix) ##############
+[04:58:14] ==== boot Llama-3.1-70B-Instruct conf=optimal method=vanilla tp=4 gpus=0,1,2,3 ====
+[04:58:14]   PID=264366 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Llama-3.1-70B-Instruct_optimal_vanilla_boot.log timeout=1800s)
+[05:00:04] READY http://127.0.0.1:8001
+[05:00:04]   bench mix 500p × conc=32 × max=8192
+[05:06:52]   → tps 2456.0 n_ok 500 wall 407.3
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 264366 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[05:06:55] GPU freed
+[05:06:55] ==== boot Llama-3.1-70B-Instruct conf=mwor method=suffix tp=4 gpus=0,1,2,3 ====
+[05:06:55]   PID=268109 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Llama-3.1-70B-Instruct_mwor_suffix_boot.log timeout=1800s)
+[05:08:46] READY http://127.0.0.1:8001
+[05:08:46]   bench mix 500p × conc=32 × max=8192
+[05:13:47]   → tps 3330.4 n_ok 500 wall 301.2
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 58: 268109 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[05:13:51] GPU freed
+[05:13:51] 
+[05:13:51] ############## Llama-3.1-405B-Instruct-FP8 (tp=8 gpus=0,1,2,3,4,5,6,7 optm=vanilla mwor=suffix) ##############
+[05:13:51] ==== boot Llama-3.1-405B-Instruct-FP8 conf=optimal method=vanilla tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[05:13:51]   PID=271899 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Llama-3.1-405B-Instruct-FP8_optimal_vanilla_boot.log timeout=2400s)
+[05:18:06] READY http://127.0.0.1:8001
+[05:18:06]   bench mix 500p × conc=32 × max=8192
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 97: 271899 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[05:32:50]   → tps 1260.1 n_ok 492 wall 882.9
+[05:32:58] GPU freed
+[05:32:58] ==== boot Llama-3.1-405B-Instruct-FP8 conf=mwor method=suffix tp=8 gpus=0,1,2,3,4,5,6,7 ====
+[05:32:58]   PID=279288 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/Llama-3.1-405B-Instruct-FP8_mwor_suffix_boot.log timeout=2400s)
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/scripts/run_sweep.sh: line 47: 279288 Killed                  CUDA_VISIBLE_DEVICES=$gpus setsid "$VBIN" serve "$model" --tensor-parallel-size $tp --port 8001 --gpu-memory-utilization 0.85 --max-model-len $MML --allow-deprecated-quantization --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' $sa > "$boot_log" 2>&1 < /dev/null
+[05:33:13] DEAD backend http://127.0.0.1:8001 (pid 279288)
+[05:33:13]   BOOT FAIL Llama-3.1-405B-Instruct-FP8 × mwor × suffix
+[05:33:16] GPU freed
+[05:33:16] 
+[05:33:16] ############## DeepSeek-R1-Distill-Qwen-7B (tp=1 gpus=0 optm=vanilla mwor=suffix) ##############
+[05:33:16] ==== boot DeepSeek-R1-Distill-Qwen-7B conf=optimal method=vanilla tp=1 gpus=0 ====
+[05:33:16]   PID=279596 (boot_log=/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/optimal_vs_mwor/logs/DeepSeek-R1-Distill-Qwen-7B_optimal_vanilla_boot.log timeout=900s)

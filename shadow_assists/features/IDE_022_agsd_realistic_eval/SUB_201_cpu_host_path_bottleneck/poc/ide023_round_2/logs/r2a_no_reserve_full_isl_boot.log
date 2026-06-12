@@ -1,0 +1,1059 @@
+[boot] tag=r2a_no_reserve_full_isl extra_cli=[--no-scheduler-reserve-full-isl] at 2026-06-07T09:27:57Z
+[boot] cmd: env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 VLLM_PREFETCH_TOKENIZE=1 VLLM_BURST_AWARE_ADMISSION=1 setsid /workspace/vllm_dev_prj/bin/vllm serve meta-llama/Llama-3.1-8B-Instruct --tensor-parallel-size 8 --port 8087 --gpu-memory-utilization 0.85 --max-model-len 16384 --compilation-config {"cudagraph_mode":"FULL_AND_PIECEWISE"} --allow-deprecated-quantization --no-scheduler-reserve-full-isl
+(APIServer pid=436496) INFO 06-07 09:28:07 [utils.py:299] 
+(APIServer pid=436496) INFO 06-07 09:28:07 [utils.py:299]        █     █     █▄   ▄█
+(APIServer pid=436496) INFO 06-07 09:28:07 [utils.py:299]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 1.7.dev16107+gffe20fb09.d20260601
+(APIServer pid=436496) INFO 06-07 09:28:07 [utils.py:299]   █▄█▀ █     █     █     █  model   meta-llama/Llama-3.1-8B-Instruct
+(APIServer pid=436496) INFO 06-07 09:28:07 [utils.py:299]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=436496) INFO 06-07 09:28:07 [utils.py:299] 
+(APIServer pid=436496) INFO 06-07 09:28:07 [utils.py:233] non-default args: {'model_tag': 'meta-llama/Llama-3.1-8B-Instruct', 'port': 8087, 'model': 'meta-llama/Llama-3.1-8B-Instruct', 'max_model_len': 16384, 'allow_deprecated_quantization': True, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.85, 'scheduler_reserve_full_isl': False, 'compilation_config': {'mode': None, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}}
+(APIServer pid=436496) WARNING 06-07 09:28:07 [envs.py:1862] Unknown vLLM environment variable detected: VLLM_BURST_AWARE_ADMISSION
+(APIServer pid=436496) INFO 06-07 09:28:09 [model.py:554] Resolved architecture: LlamaForCausalLM
+(APIServer pid=436496) INFO 06-07 09:28:09 [model.py:1685] Using max model len 16384
+(APIServer pid=436496) INFO 06-07 09:28:09 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=436496) INFO 06-07 09:28:09 [vllm.py:834] Asynchronous scheduling is enabled.
+(APIServer pid=436496) INFO 06-07 09:28:09 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+(APIServer pid=436496) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(APIServer pid=436496) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(APIServer pid=436496) INFO 06-07 09:28:10 [compilation.py:294] Enabled custom fusions: allreduce_rms
+(EngineCore pid=436787) INFO 06-07 09:28:16 [core.py:115] Initializing a V1 LLM engine (v1.7.dev16107+gffe20fb09.d20260601) with config: model='meta-llama/Llama-3.1-8B-Instruct', speculative_config=None, tokenizer='meta-llama/Llama-3.1-8B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=16384, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=meta-llama/Llama-3.1-8B-Instruct, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::plamo2_mamba_mixer', 'vllm::gdn_attention_core', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::kda_attention', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': [], 'compile_ranges_endpoints': [128, 8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True}, 'max_cudagraph_capture_size': 512, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native']), enable_flashinfer_autotune=True, moe_backend='auto')
+(EngineCore pid=436787) WARNING 06-07 09:28:16 [multiproc_executor.py:1044] Reducing Torch parallelism from 112 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+(EngineCore pid=436787) INFO 06-07 09:28:16 [multiproc_executor.py:141] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=172.18.162.61 (local), world_size=8, local_world_size=8
+ERROR 06-07 09:28:28 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(Worker pid=437058) INFO 06-07 09:28:28 [parallel_state.py:1400] world_size=8 rank=3 local_rank=3 distributed_init_method=tcp://127.0.0.1:33871 backend=nccl
+ERROR 06-07 09:28:28 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-07 09:28:28 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-07 09:28:28 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-07 09:28:28 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(Worker pid=437062) INFO 06-07 09:28:28 [parallel_state.py:1400] world_size=8 rank=7 local_rank=7 distributed_init_method=tcp://127.0.0.1:33871 backend=nccl
+ERROR 06-07 09:28:28 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+ERROR 06-07 09:28:28 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(Worker pid=437055) INFO 06-07 09:28:29 [parallel_state.py:1400] world_size=8 rank=0 local_rank=0 distributed_init_method=tcp://127.0.0.1:33871 backend=nccl
+ERROR 06-07 09:28:29 [gpt_oss_triton_kernels_moe.py:63] Failed to import Triton kernels. Please make sure your triton version is compatible. Error: cannot import name 'SparseMatrix' from 'triton_kernels.tensor' (/workspace/vllm_dev_prj/lib/python3.12/site-packages/triton_kernels/tensor.py)
+(Worker pid=437057) INFO 06-07 09:28:29 [parallel_state.py:1400] world_size=8 rank=2 local_rank=2 distributed_init_method=tcp://127.0.0.1:33871 backend=nccl
+(Worker pid=437059) INFO 06-07 09:28:29 [parallel_state.py:1400] world_size=8 rank=4 local_rank=4 distributed_init_method=tcp://127.0.0.1:33871 backend=nccl
+(Worker pid=437060) INFO 06-07 09:28:29 [parallel_state.py:1400] world_size=8 rank=5 local_rank=5 distributed_init_method=tcp://127.0.0.1:33871 backend=nccl
+(Worker pid=437061) INFO 06-07 09:28:29 [parallel_state.py:1400] world_size=8 rank=6 local_rank=6 distributed_init_method=tcp://127.0.0.1:33871 backend=nccl
+(Worker pid=437056) INFO 06-07 09:28:29 [parallel_state.py:1400] world_size=8 rank=1 local_rank=1 distributed_init_method=tcp://127.0.0.1:33871 backend=nccl
+(Worker pid=437061) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=437060) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=437060) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=437061) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=437057) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=437057) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=437058) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=437058) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=437055) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=437055) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=437055) INFO 06-07 09:28:30 [pynccl.py:111] vLLM is using nccl==2.28.9
+(Worker pid=437056) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=437056) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=437062) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=437062) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=437059) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(Worker pid=437059) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(Worker pid=437055) INFO 06-07 09:28:34 [parallel_state.py:1713] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(Worker_TP0 pid=437055) INFO 06-07 09:28:34 [gpu_model_runner.py:5478] Starting to load model meta-llama/Llama-3.1-8B-Instruct...
+(Worker_TP5 pid=437060) INFO 06-07 09:28:35 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(Worker_TP7 pid=437062) INFO 06-07 09:28:35 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(Worker_TP1 pid=437056) INFO 06-07 09:28:35 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(Worker_TP4 pid=437059) INFO 06-07 09:28:35 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(Worker_TP0 pid=437055) INFO 06-07 09:28:35 [cuda.py:368] Using FLASHINFER attention backend out of potential backends: ['FLASHINFER', 'FLASH_ATTN', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(Worker_TP0 pid=437055) INFO 06-07 09:28:35 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(Worker_TP3 pid=437058) INFO 06-07 09:28:35 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(Worker_TP2 pid=437057) INFO 06-07 09:28:35 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(Worker_TP6 pid=437061) INFO 06-07 09:28:35 [selector.py:132] Using HND KV cache layout for FLASHINFER backend.
+(Worker_TP0 pid=437055) INFO 06-07 09:28:36 [weight_utils.py:904] Filesystem type for checkpoints: EXT4. Checkpoint size: 14.96 GiB. Available RAM: 1919.19 GiB.
+(Worker_TP0 pid=437055) INFO 06-07 09:28:36 [weight_utils.py:927] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(Worker_TP0 pid=437055) Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+(Worker_TP0 pid=437055) Loading safetensors checkpoint shards:  25% Completed | 1/4 [00:00<00:00,  7.28it/s]
+(Worker_TP0 pid=437055) Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:00<00:00,  6.75it/s]
+(Worker_TP0 pid=437055) Loading safetensors checkpoint shards:  75% Completed | 3/4 [00:00<00:00,  5.90it/s]
+(Worker_TP0 pid=437055) Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:00<00:00,  7.20it/s]
+(Worker_TP0 pid=437055) 
+(Worker_TP0 pid=437055) INFO 06-07 09:28:37 [default_loader.py:384] Loading weights took 0.56 seconds
+(Worker_TP0 pid=437055) INFO 06-07 09:28:37 [gpu_model_runner.py:5563] Model loading took 1.9 GiB memory and 2.104512 seconds
+(Worker_TP0 pid=437055) INFO 06-07 09:28:42 [backends.py:1077] Using cache directory: /root/.cache/vllm/torch_compile_cache/6ef6acef36/rank_0_0/backbone for vLLM's torch.compile
+(Worker_TP0 pid=437055) INFO 06-07 09:28:42 [backends.py:1137] Dynamo bytecode transform time: 1.51 s
+(Worker_TP0 pid=437055) INFO 06-07 09:28:42 [flashinfer_all_reduce.py:109] Auto-selected flashinfer allreduce backend: trtllm
+(Worker_TP0 pid=437055) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+(Worker_TP0 pid=437055)   return func(*args, **kwargs)
+(Worker_TP3 pid=437058) rank 3 allocated ipc_handles: [['0xbd20000000', '0xbd40000000', '0xbd60000000', '0xbd80000000', '0xbda0000000', '0xbdc0000000', '0xbde0000000', '0xbe00000000'], ['0xbe20000000', '0xbe40000000', '0xbe60000000', '0xbe80000000', '0xbea0000000', '0xbec0000000', '0xbee0000000', '0xbf00000000'], ['0xbf20000000', '0xbf40000000', '0xbf60000000', '0xbf80000000', '0xbfa0000000', '0xbfc0000000', '0xbfe0000000', '0xc000000000']]
+[2026-06-07 09:28:44.336] [info] lamportInitialize start: buffer: 0xbf80000000, size: 12582912
+(Worker_TP0 pid=437055) rank 0 allocated ipc_handles: [['0xbd20000000', '0xbd40000000', '0xbd60000000', '0xbd80000000', '0xbda0000000', '0xbdc0000000', '0xbde0000000', '0xbe00000000'], ['0xbe20000000', '0xbe40000000', '0xbe60000000', '0xbe80000000', '0xbea0000000', '0xbec0000000', '0xbee0000000', '0xbf00000000'], ['0xbf20000000', '0xbf40000000', '0xbf60000000', '0xbf80000000', '0xbfa0000000', '0xbfc0000000', '0xbfe0000000', '0xc000000000']]
+[2026-06-07 09:28:44.343] [info] lamportInitialize start: buffer: 0xbf20000000, size: 12582912
+(Worker_TP0 pid=437055) /workspace/vllm_dev_prj/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+(Worker_TP0 pid=437055)   return func(*args, **kwargs)
+(Worker_TP6 pid=437061) rank 6 allocated ipc_handles: [['0xbd20000000', '0xbd40000000', '0xbd60000000', '0xbd80000000', '0xbda0000000', '0xbdc0000000', '0xbde0000000', '0xbe00000000'], ['0xbe20000000', '0xbe40000000', '0xbe60000000', '0xbe80000000', '0xbea0000000', '0xbec0000000', '0xbee0000000', '0xbf00000000'], ['0xbf20000000', '0xbf40000000', '0xbf60000000', '0xbf80000000', '0xbfa0000000', '0xbfc0000000', '0xbfe0000000', '0xc000000000']]
+[2026-06-07 09:28:44.388] [info] lamportInitialize start: buffer: 0xbfe0000000, size: 12582912
+(Worker_TP7 pid=437062) rank 7 allocated ipc_handles: [['0xbd20000000', '0xbd40000000', '0xbd60000000', '0xbd80000000', '0xbda0000000', '0xbdc0000000', '0xbde0000000', '0xbe00000000'], ['0xbe20000000', '0xbe40000000', '0xbe60000000', '0xbe80000000', '0xbea0000000', '0xbec0000000', '0xbee0000000', '0xbf00000000'], ['0xbf20000000', '0xbf40000000', '0xbf60000000', '0xbf80000000', '0xbfa0000000', '0xbfc0000000', '0xbfe0000000', '0xc000000000']]
+[2026-06-07 09:28:44.396] [info] lamportInitialize start: buffer: 0xc000000000, size: 12582912
+(Worker_TP4 pid=437059) rank 4 allocated ipc_handles: [['0xbd20000000', '0xbd40000000', '0xbd60000000', '0xbd80000000', '0xbda0000000', '0xbdc0000000', '0xbde0000000', '0xbe00000000'], ['0xbe20000000', '0xbe40000000', '0xbe60000000', '0xbe80000000', '0xbea0000000', '0xbec0000000', '0xbee0000000', '0xbf00000000'], ['0xbf20000000', '0xbf40000000', '0xbf60000000', '0xbf80000000', '0xbfa0000000', '0xbfc0000000', '0xbfe0000000', '0xc000000000']]
+[2026-06-07 09:28:44.442] [info] lamportInitialize start: buffer: 0xbfa0000000, size: 12582912
+(Worker_TP1 pid=437056) rank 1 allocated ipc_handles: [['0xbd20000000', '0xbd40000000', '0xbd60000000', '0xbd80000000', '0xbda0000000', '0xbdc0000000', '0xbde0000000', '0xbe00000000'], ['0xbe20000000', '0xbe40000000', '0xbe60000000', '0xbe80000000', '0xbea0000000', '0xbec0000000', '0xbee0000000', '0xbf00000000'], ['0xbf20000000', '0xbf40000000', '0xbf60000000', '0xbf80000000', '0xbfa0000000', '0xbfc0000000', '0xbfe0000000', '0xc000000000']]
+[2026-06-07 09:28:44.448] [info] lamportInitialize start: buffer: 0xbf40000000, size: 12582912
+(Worker_TP5 pid=437060) rank 5 allocated ipc_handles: [['0xbd20000000', '0xbd40000000', '0xbd60000000', '0xbd80000000', '0xbda0000000', '0xbdc0000000', '0xbde0000000', '0xbe00000000'], ['0xbe20000000', '0xbe40000000', '0xbe60000000', '0xbe80000000', '0xbea0000000', '0xbec0000000', '0xbee0000000', '0xbf00000000'], ['0xbf20000000', '0xbf40000000', '0xbf60000000', '0xbf80000000', '0xbfa0000000', '0xbfc0000000', '0xbfe0000000', '0xc000000000']]
+[2026-06-07 09:28:44.493] [info] lamportInitialize start: buffer: 0xbfc0000000, size: 12582912
+(Worker_TP2 pid=437057) rank 2 allocated ipc_handles: [['0xbd20000000', '0xbd40000000', '0xbd60000000', '0xbd80000000', '0xbda0000000', '0xbdc0000000', '0xbde0000000', '0xbe00000000'], ['0xbe20000000', '0xbe40000000', '0xbe60000000', '0xbe80000000', '0xbea0000000', '0xbec0000000', '0xbee0000000', '0xbf00000000'], ['0xbf20000000', '0xbf40000000', '0xbf60000000', '0xbf80000000', '0xbfa0000000', '0xbfc0000000', '0xbfe0000000', '0xc000000000']]
+[2026-06-07 09:28:44.549] [info] lamportInitialize start: buffer: 0xbf60000000, size: 12582912
+(Worker_TP0 pid=437055) set flag_ptr[3] = lamport_comm_size:  8388608
+(Worker_TP0 pid=437055) Rank 0 workspace[0] 0xbd20000000
+(Worker_TP0 pid=437055) Rank 0 workspace[1] 0xbd40000000
+(Worker_TP0 pid=437055) Rank 0 workspace[2] 0xbd60000000
+(Worker_TP0 pid=437055) Rank 0 workspace[3] 0xbd80000000
+(Worker_TP0 pid=437055) Rank 0 workspace[4] 0xbda0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[5] 0xbdc0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[6] 0xbde0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[7] 0xbe00000000
+(Worker_TP0 pid=437055) Rank 0 workspace[8] 0xbe20000000
+(Worker_TP0 pid=437055) Rank 0 workspace[9] 0xbe40000000
+(Worker_TP0 pid=437055) Rank 0 workspace[10] 0xbe60000000
+(Worker_TP0 pid=437055) Rank 0 workspace[11] 0xbe80000000
+(Worker_TP0 pid=437055) Rank 0 workspace[12] 0xbea0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[13] 0xbec0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[14] 0xbee0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[15] 0xbf00000000
+(Worker_TP0 pid=437055) Rank 0 workspace[16] 0xbf20000000
+(Worker_TP0 pid=437055) Rank 0 workspace[17] 0xbf40000000
+(Worker_TP0 pid=437055) Rank 0 workspace[18] 0xbf60000000
+(Worker_TP0 pid=437055) Rank 0 workspace[19] 0xbf80000000
+(Worker_TP0 pid=437055) Rank 0 workspace[20] 0xbfa0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[21] 0xbfc0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[22] 0xbfe0000000
+(Worker_TP0 pid=437055) Rank 0 workspace[23] 0xc000000000
+(Worker_TP0 pid=437055) Rank 0 workspace[24] 0x639e301000
+(Worker_TP0 pid=437055) INFO 06-07 09:28:44 [flashinfer_all_reduce.py:149] Initialized FlashInfer Allreduce norm fusion workspace with backend=trtllm
+(Worker_TP6 pid=437061) set flag_ptr[3] = lamport_comm_size:  8388608
+(Worker_TP6 pid=437061) Rank 6 workspace[0] 0xbd20000000
+(Worker_TP6 pid=437061) Rank 6 workspace[1] 0xbd40000000
+(Worker_TP6 pid=437061) Rank 6 workspace[2] 0xbd60000000
+(Worker_TP6 pid=437061) Rank 6 workspace[3] 0xbd80000000
+(Worker_TP6 pid=437061) Rank 6 workspace[4] 0xbda0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[5] 0xbdc0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[6] 0xbde0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[7] 0xbe00000000
+(Worker_TP6 pid=437061) Rank 6 workspace[8] 0xbe20000000
+(Worker_TP6 pid=437061) Rank 6 workspace[9] 0xbe40000000
+(Worker_TP6 pid=437061) Rank 6 workspace[10] 0xbe60000000
+(Worker_TP6 pid=437061) Rank 6 workspace[11] 0xbe80000000
+(Worker_TP6 pid=437061) Rank 6 workspace[12] 0xbea0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[13] 0xbec0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[14] 0xbee0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[15] 0xbf00000000
+(Worker_TP6 pid=437061) Rank 6 workspace[16] 0xbf20000000
+(Worker_TP6 pid=437061) Rank 6 workspace[17] 0xbf40000000
+(Worker_TP6 pid=437061) Rank 6 workspace[18] 0xbf60000000
+(Worker_TP6 pid=437061) Rank 6 workspace[19] 0xbf80000000
+(Worker_TP6 pid=437061) Rank 6 workspace[20] 0xbfa0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[21] 0xbfc0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[22] 0xbfe0000000
+(Worker_TP6 pid=437061) Rank 6 workspace[23] 0xc000000000
+(Worker_TP6 pid=437061) Rank 6 workspace[24] 0x639e301000
+(Worker_TP6 pid=437061) INFO 06-07 09:28:47 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/58167f73693a9fc218b595e835d398cc61e0858bc948afe5c34a664b00f8e9df/rank_6_0/model
+(Worker_TP0 pid=437055) INFO 06-07 09:28:47 [backends.py:290] Directly load the compiled graph(s) for compile range (1, 128) from the cache, took 1.960 s
+(Worker_TP1 pid=437056) set flag_ptr[3] = lamport_comm_size:  8388608
+(Worker_TP1 pid=437056) Rank 1 workspace[0] 0xbd20000000
+(Worker_TP1 pid=437056) Rank 1 workspace[1] 0xbd40000000
+(Worker_TP1 pid=437056) Rank 1 workspace[2] 0xbd60000000
+(Worker_TP1 pid=437056) Rank 1 workspace[3] 0xbd80000000
+(Worker_TP1 pid=437056) Rank 1 workspace[4] 0xbda0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[5] 0xbdc0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[6] 0xbde0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[7] 0xbe00000000
+(Worker_TP1 pid=437056) Rank 1 workspace[8] 0xbe20000000
+(Worker_TP1 pid=437056) Rank 1 workspace[9] 0xbe40000000
+(Worker_TP1 pid=437056) Rank 1 workspace[10] 0xbe60000000
+(Worker_TP1 pid=437056) Rank 1 workspace[11] 0xbe80000000
+(Worker_TP1 pid=437056) Rank 1 workspace[12] 0xbea0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[13] 0xbec0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[14] 0xbee0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[15] 0xbf00000000
+(Worker_TP1 pid=437056) Rank 1 workspace[16] 0xbf20000000
+(Worker_TP1 pid=437056) Rank 1 workspace[17] 0xbf40000000
+(Worker_TP1 pid=437056) Rank 1 workspace[18] 0xbf60000000
+(Worker_TP1 pid=437056) Rank 1 workspace[19] 0xbf80000000
+(Worker_TP1 pid=437056) Rank 1 workspace[20] 0xbfa0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[21] 0xbfc0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[22] 0xbfe0000000
+(Worker_TP1 pid=437056) Rank 1 workspace[23] 0xc000000000
+(Worker_TP1 pid=437056) Rank 1 workspace[24] 0x639e301000
+(Worker_TP1 pid=437056) INFO 06-07 09:28:47 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/58167f73693a9fc218b595e835d398cc61e0858bc948afe5c34a664b00f8e9df/rank_1_0/model
+(Worker_TP2 pid=437057) set flag_ptr[3] = lamport_comm_size:  8388608
+(Worker_TP2 pid=437057) Rank 2 workspace[0] 0xbd20000000
+(Worker_TP2 pid=437057) Rank 2 workspace[1] 0xbd40000000
+(Worker_TP2 pid=437057) Rank 2 workspace[2] 0xbd60000000
+(Worker_TP2 pid=437057) Rank 2 workspace[3] 0xbd80000000
+(Worker_TP2 pid=437057) Rank 2 workspace[4] 0xbda0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[5] 0xbdc0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[6] 0xbde0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[7] 0xbe00000000
+(Worker_TP2 pid=437057) Rank 2 workspace[8] 0xbe20000000
+(Worker_TP2 pid=437057) Rank 2 workspace[9] 0xbe40000000
+(Worker_TP2 pid=437057) Rank 2 workspace[10] 0xbe60000000
+(Worker_TP2 pid=437057) Rank 2 workspace[11] 0xbe80000000
+(Worker_TP2 pid=437057) Rank 2 workspace[12] 0xbea0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[13] 0xbec0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[14] 0xbee0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[15] 0xbf00000000
+(Worker_TP2 pid=437057) Rank 2 workspace[16] 0xbf20000000
+(Worker_TP2 pid=437057) Rank 2 workspace[17] 0xbf40000000
+(Worker_TP2 pid=437057) Rank 2 workspace[18] 0xbf60000000
+(Worker_TP2 pid=437057) Rank 2 workspace[19] 0xbf80000000
+(Worker_TP2 pid=437057) Rank 2 workspace[20] 0xbfa0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[21] 0xbfc0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[22] 0xbfe0000000
+(Worker_TP2 pid=437057) Rank 2 workspace[23] 0xc000000000
+(Worker_TP2 pid=437057) Rank 2 workspace[24] 0x639e301000
+(Worker_TP2 pid=437057) INFO 06-07 09:28:47 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/58167f73693a9fc218b595e835d398cc61e0858bc948afe5c34a664b00f8e9df/rank_2_0/model
+(Worker_TP0 pid=437055) INFO 06-07 09:28:47 [backends.py:290] Directly load the compiled graph(s) for compile range (129, 8192) from the cache, took 1.975 s
+(Worker_TP0 pid=437055) INFO 06-07 09:28:47 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/58167f73693a9fc218b595e835d398cc61e0858bc948afe5c34a664b00f8e9df/rank_0_0/model
+(Worker_TP0 pid=437055) INFO 06-07 09:28:47 [monitor.py:48] torch.compile took 6.38 s in total
+(Worker_TP7 pid=437062) set flag_ptr[3] = lamport_comm_size:  8388608
+(Worker_TP7 pid=437062) Rank 7 workspace[0] 0xbd20000000
+(Worker_TP7 pid=437062) Rank 7 workspace[1] 0xbd40000000
+(Worker_TP7 pid=437062) Rank 7 workspace[2] 0xbd60000000
+(Worker_TP7 pid=437062) Rank 7 workspace[3] 0xbd80000000
+(Worker_TP7 pid=437062) Rank 7 workspace[4] 0xbda0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[5] 0xbdc0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[6] 0xbde0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[7] 0xbe00000000
+(Worker_TP7 pid=437062) Rank 7 workspace[8] 0xbe20000000
+(Worker_TP7 pid=437062) Rank 7 workspace[9] 0xbe40000000
+(Worker_TP7 pid=437062) Rank 7 workspace[10] 0xbe60000000
+(Worker_TP7 pid=437062) Rank 7 workspace[11] 0xbe80000000
+(Worker_TP7 pid=437062) Rank 7 workspace[12] 0xbea0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[13] 0xbec0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[14] 0xbee0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[15] 0xbf00000000
+(Worker_TP7 pid=437062) Rank 7 workspace[16] 0xbf20000000
+(Worker_TP7 pid=437062) Rank 7 workspace[17] 0xbf40000000
+(Worker_TP7 pid=437062) Rank 7 workspace[18] 0xbf60000000
+(Worker_TP7 pid=437062) Rank 7 workspace[19] 0xbf80000000
+(Worker_TP7 pid=437062) Rank 7 workspace[20] 0xbfa0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[21] 0xbfc0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[22] 0xbfe0000000
+(Worker_TP7 pid=437062) Rank 7 workspace[23] 0xc000000000
+(Worker_TP7 pid=437062) Rank 7 workspace[24] 0x639e301000
+(Worker_TP7 pid=437062) INFO 06-07 09:28:47 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/58167f73693a9fc218b595e835d398cc61e0858bc948afe5c34a664b00f8e9df/rank_7_0/model
+(Worker_TP5 pid=437060) set flag_ptr[3] = lamport_comm_size:  8388608
+(Worker_TP5 pid=437060) Rank 5 workspace[0] 0xbd20000000
+(Worker_TP5 pid=437060) Rank 5 workspace[1] 0xbd40000000
+(Worker_TP5 pid=437060) Rank 5 workspace[2] 0xbd60000000
+(Worker_TP5 pid=437060) Rank 5 workspace[3] 0xbd80000000
+(Worker_TP5 pid=437060) Rank 5 workspace[4] 0xbda0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[5] 0xbdc0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[6] 0xbde0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[7] 0xbe00000000
+(Worker_TP5 pid=437060) Rank 5 workspace[8] 0xbe20000000
+(Worker_TP5 pid=437060) Rank 5 workspace[9] 0xbe40000000
+(Worker_TP5 pid=437060) Rank 5 workspace[10] 0xbe60000000
+(Worker_TP5 pid=437060) Rank 5 workspace[11] 0xbe80000000
+(Worker_TP5 pid=437060) Rank 5 workspace[12] 0xbea0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[13] 0xbec0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[14] 0xbee0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[15] 0xbf00000000
+(Worker_TP5 pid=437060) Rank 5 workspace[16] 0xbf20000000
+(Worker_TP5 pid=437060) Rank 5 workspace[17] 0xbf40000000
+(Worker_TP5 pid=437060) Rank 5 workspace[18] 0xbf60000000
+(Worker_TP5 pid=437060) Rank 5 workspace[19] 0xbf80000000
+(Worker_TP5 pid=437060) Rank 5 workspace[20] 0xbfa0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[21] 0xbfc0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[22] 0xbfe0000000
+(Worker_TP5 pid=437060) Rank 5 workspace[23] 0xc000000000
+(Worker_TP5 pid=437060) Rank 5 workspace[24] 0x639e301000
+(Worker_TP5 pid=437060) INFO 06-07 09:28:47 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/58167f73693a9fc218b595e835d398cc61e0858bc948afe5c34a664b00f8e9df/rank_5_0/model
+(Worker_TP4 pid=437059) set flag_ptr[3] = lamport_comm_size:  8388608
+(Worker_TP4 pid=437059) Rank 4 workspace[0] 0xbd20000000
+(Worker_TP4 pid=437059) Rank 4 workspace[1] 0xbd40000000
+(Worker_TP4 pid=437059) Rank 4 workspace[2] 0xbd60000000
+(Worker_TP4 pid=437059) Rank 4 workspace[3] 0xbd80000000
+(Worker_TP4 pid=437059) Rank 4 workspace[4] 0xbda0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[5] 0xbdc0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[6] 0xbde0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[7] 0xbe00000000
+(Worker_TP4 pid=437059) Rank 4 workspace[8] 0xbe20000000
+(Worker_TP4 pid=437059) Rank 4 workspace[9] 0xbe40000000
+(Worker_TP4 pid=437059) Rank 4 workspace[10] 0xbe60000000
+(Worker_TP4 pid=437059) Rank 4 workspace[11] 0xbe80000000
+(Worker_TP4 pid=437059) Rank 4 workspace[12] 0xbea0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[13] 0xbec0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[14] 0xbee0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[15] 0xbf00000000
+(Worker_TP4 pid=437059) Rank 4 workspace[16] 0xbf20000000
+(Worker_TP4 pid=437059) Rank 4 workspace[17] 0xbf40000000
+(Worker_TP4 pid=437059) Rank 4 workspace[18] 0xbf60000000
+(Worker_TP4 pid=437059) Rank 4 workspace[19] 0xbf80000000
+(Worker_TP4 pid=437059) Rank 4 workspace[20] 0xbfa0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[21] 0xbfc0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[22] 0xbfe0000000
+(Worker_TP4 pid=437059) Rank 4 workspace[23] 0xc000000000
+(Worker_TP4 pid=437059) Rank 4 workspace[24] 0x639e301000
+(Worker_TP4 pid=437059) INFO 06-07 09:28:47 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/58167f73693a9fc218b595e835d398cc61e0858bc948afe5c34a664b00f8e9df/rank_4_0/model
+(Worker_TP3 pid=437058) set flag_ptr[3] = lamport_comm_size:  8388608
+(Worker_TP3 pid=437058) Rank 3 workspace[0] 0xbd20000000
+(Worker_TP3 pid=437058) Rank 3 workspace[1] 0xbd40000000
+(Worker_TP3 pid=437058) Rank 3 workspace[2] 0xbd60000000
+(Worker_TP3 pid=437058) Rank 3 workspace[3] 0xbd80000000
+(Worker_TP3 pid=437058) Rank 3 workspace[4] 0xbda0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[5] 0xbdc0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[6] 0xbde0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[7] 0xbe00000000
+(Worker_TP3 pid=437058) Rank 3 workspace[8] 0xbe20000000
+(Worker_TP3 pid=437058) Rank 3 workspace[9] 0xbe40000000
+(Worker_TP3 pid=437058) Rank 3 workspace[10] 0xbe60000000
+(Worker_TP3 pid=437058) Rank 3 workspace[11] 0xbe80000000
+(Worker_TP3 pid=437058) Rank 3 workspace[12] 0xbea0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[13] 0xbec0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[14] 0xbee0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[15] 0xbf00000000
+(Worker_TP3 pid=437058) Rank 3 workspace[16] 0xbf20000000
+(Worker_TP3 pid=437058) Rank 3 workspace[17] 0xbf40000000
+(Worker_TP3 pid=437058) Rank 3 workspace[18] 0xbf60000000
+(Worker_TP3 pid=437058) Rank 3 workspace[19] 0xbf80000000
+(Worker_TP3 pid=437058) Rank 3 workspace[20] 0xbfa0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[21] 0xbfc0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[22] 0xbfe0000000
+(Worker_TP3 pid=437058) Rank 3 workspace[23] 0xc000000000
+(Worker_TP3 pid=437058) Rank 3 workspace[24] 0x639e301000
+(Worker_TP3 pid=437058) INFO 06-07 09:28:47 [decorators.py:305] Directly load AOT compilation from path /root/.cache/vllm/torch_compile_cache/torch_aot_compile/58167f73693a9fc218b595e835d398cc61e0858bc948afe5c34a664b00f8e9df/rank_3_0/model
+(Worker_TP0 pid=437055) INFO 06-07 09:28:47 [monitor.py:76] Initial profiling/warmup run took 0.30 s
+(Worker_TP1 pid=437056) INFO 06-07 09:28:47 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP1 pid=437056) INFO 06-07 09:28:47 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP6 pid=437061) INFO 06-07 09:28:47 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP2 pid=437057) INFO 06-07 09:28:47 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP6 pid=437061) INFO 06-07 09:28:47 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP2 pid=437057) INFO 06-07 09:28:47 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP0 pid=437055) INFO 06-07 09:28:47 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP0 pid=437055) INFO 06-07 09:28:47 [utils.py:60] `_KV_CACHE_LAYOUT_OVERRIDE` variable detected. Setting KV cache layout to HND.
+(Worker_TP0 pid=437055) INFO 06-07 09:28:47 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP3 pid=437058) INFO 06-07 09:28:47 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP3 pid=437058) INFO 06-07 09:28:47 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP5 pid=437060) INFO 06-07 09:28:47 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP5 pid=437060) INFO 06-07 09:28:47 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP4 pid=437059) INFO 06-07 09:28:48 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP7 pid=437062) INFO 06-07 09:28:48 [kv_cache_utils.py:829] Overriding num_gpu_blocks=0 with num_gpu_blocks_override=512
+(Worker_TP4 pid=437059) INFO 06-07 09:28:48 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP7 pid=437062) INFO 06-07 09:28:48 [gpu_model_runner.py:7564] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+(Worker_TP0 pid=437055) WARNING 06-07 09:28:48 [flashinfer.py:405] Using TRTLLM prefill attention (auto-detected).
+(Worker_TP4 pid=437059) INFO 06-07 09:28:48 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP7 pid=437062) INFO 06-07 09:28:48 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP6 pid=437061) INFO 06-07 09:28:48 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP2 pid=437057) INFO 06-07 09:28:48 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP0 pid=437055) INFO 06-07 09:28:48 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP1 pid=437056) INFO 06-07 09:28:48 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP3 pid=437058) INFO 06-07 09:28:48 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP5 pid=437060) INFO 06-07 09:28:48 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP4 pid=437059) INFO 06-07 09:28:49 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.68 GiB total
+(Worker_TP3 pid=437058) INFO 06-07 09:28:49 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.68 GiB total
+(Worker_TP7 pid=437062) INFO 06-07 09:28:49 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.68 GiB total
+(Worker_TP0 pid=437055) INFO 06-07 09:28:49 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.68 GiB total
+(Worker_TP2 pid=437057) INFO 06-07 09:28:49 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.68 GiB total
+(Worker_TP6 pid=437061) INFO 06-07 09:28:49 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.68 GiB total
+(Worker_TP1 pid=437056) INFO 06-07 09:28:49 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.68 GiB total
+(Worker_TP4 pid=437059) INFO 06-07 09:28:49 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8538 to maintain the same effective KV cache size.
+(Worker_TP7 pid=437062) INFO 06-07 09:28:49 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8538 to maintain the same effective KV cache size.
+(Worker_TP3 pid=437058) INFO 06-07 09:28:49 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8538 to maintain the same effective KV cache size.
+(Worker_TP5 pid=437060) INFO 06-07 09:28:49 [gpu_model_runner.py:7643] Estimated CUDA graph memory: 0.68 GiB total
+(Worker_TP0 pid=437055) INFO 06-07 09:28:49 [gpu_worker.py:534] Available KV cache memory: 145.63 GiB
+(Worker_TP0 pid=437055) INFO 06-07 09:28:49 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8538 to maintain the same effective KV cache size.
+(Worker_TP6 pid=437061) INFO 06-07 09:28:49 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8538 to maintain the same effective KV cache size.
+(Worker_TP2 pid=437057) INFO 06-07 09:28:49 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8538 to maintain the same effective KV cache size.
+(Worker_TP1 pid=437056) INFO 06-07 09:28:49 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8538 to maintain the same effective KV cache size.
+(Worker_TP5 pid=437060) INFO 06-07 09:28:49 [gpu_worker.py:568] In v0.19, CUDA graph memory profiling will be enabled by default (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1), which more accurately accounts for CUDA graph memory during KV cache allocation. To try it now, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=1 and increase --gpu-memory-utilization from 0.8500 to 0.8538 to maintain the same effective KV cache size.
+(EngineCore pid=436787) INFO 06-07 09:28:49 [kv_cache_utils.py:1319] GPU KV cache size: 9,543,872 tokens
+(EngineCore pid=436787) INFO 06-07 09:28:49 [kv_cache_utils.py:1324] Maximum concurrency for 16,384 tokens per request: 582.51x
+(Worker_TP1 pid=437056) 2026-06-07 09:28:49,609 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP2 pid=437057) 2026-06-07 09:28:49,609 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=437055) 2026-06-07 09:28:49,609 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP6 pid=437061) 2026-06-07 09:28:49,609 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP3 pid=437058) 2026-06-07 09:28:49,609 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP5 pid=437060) 2026-06-07 09:28:49,609 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP7 pid=437062) 2026-06-07 09:28:49,610 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP4 pid=437059) 2026-06-07 09:28:49,610 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+(Worker_TP0 pid=437055) 2026-06-07 09:28:49,621 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP0 pid=437055) INFO 06-07 09:28:49 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(Worker_TP1 pid=437056) 2026-06-07 09:28:49,621 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP5 pid=437060) 2026-06-07 09:28:49,621 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP1 pid=437056) INFO 06-07 09:28:49 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(Worker_TP5 pid=437060) INFO 06-07 09:28:49 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(Worker_TP2 pid=437057) 2026-06-07 09:28:49,621 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP2 pid=437057) INFO 06-07 09:28:49 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(Worker_TP6 pid=437061) 2026-06-07 09:28:49,621 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP3 pid=437058) 2026-06-07 09:28:49,621 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP6 pid=437061) INFO 06-07 09:28:49 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(Worker_TP3 pid=437058) INFO 06-07 09:28:49 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(Worker_TP7 pid=437062) 2026-06-07 09:28:49,622 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP7 pid=437062) INFO 06-07 09:28:49 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(Worker_TP4 pid=437059) 2026-06-07 09:28:49,622 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+(Worker_TP4 pid=437059) INFO 06-07 09:28:49 [kernel_warmup.py:69] Warming up FlashInfer attention.
+(Worker_TP0 pid=437055) Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   2%|▏         | 1/51 [00:00<00:06,  8.18it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   8%|▊         | 4/51 [00:00<00:02, 17.69it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  14%|█▎        | 7/51 [00:00<00:02, 21.98it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  20%|█▉        | 10/51 [00:00<00:01, 23.78it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  25%|██▌       | 13/51 [00:00<00:01, 25.36it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  31%|███▏      | 16/51 [00:00<00:01, 26.22it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  37%|███▋      | 19/51 [00:00<00:01, 26.73it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  43%|████▎     | 22/51 [00:00<00:01, 27.28it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  49%|████▉     | 25/51 [00:00<00:00, 27.94it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  57%|█████▋    | 29/51 [00:01<00:00, 28.63it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  63%|██████▎   | 32/51 [00:01<00:00, 28.71it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  69%|██████▊   | 35/51 [00:01<00:00, 27.46it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  75%|███████▍  | 38/51 [00:01<00:00, 26.61it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  80%|████████  | 41/51 [00:01<00:00, 26.09it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  86%|████████▋ | 44/51 [00:01<00:00, 26.97it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  94%|█████████▍| 48/51 [00:01<00:00, 28.57it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 51/51 [00:01<00:00, 26.61it/s]
+(Worker_TP0 pid=437055) Capturing CUDA graphs (decode, FULL):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):   8%|▊         | 4/51 [00:00<00:01, 37.81it/s]Capturing CUDA graphs (decode, FULL):  18%|█▊        | 9/51 [00:00<00:01, 39.55it/s]Capturing CUDA graphs (decode, FULL):  27%|██▋       | 14/51 [00:00<00:00, 41.28it/s]Capturing CUDA graphs (decode, FULL):  37%|███▋      | 19/51 [00:00<00:00, 43.02it/s]Capturing CUDA graphs (decode, FULL):  47%|████▋     | 24/51 [00:00<00:00, 43.75it/s]Capturing CUDA graphs (decode, FULL):  57%|█████▋    | 29/51 [00:00<00:00, 44.96it/s]Capturing CUDA graphs (decode, FULL):  67%|██████▋   | 34/51 [00:00<00:00, 44.91it/s]Capturing CUDA graphs (decode, FULL):  76%|███████▋  | 39/51 [00:00<00:00, 45.36it/s]Capturing CUDA graphs (decode, FULL):  88%|████████▊ | 45/51 [00:01<00:00, 47.35it/s](Worker_TP1 pid=437056) INFO 06-07 09:28:53 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP5 pid=437060) INFO 06-07 09:28:53 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP4 pid=437059) INFO 06-07 09:28:53 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+Capturing CUDA graphs (decode, FULL): 100%|██████████| 51/51 [00:01<00:00, 48.83it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 51/51 [00:01<00:00, 45.49it/s]
+(Worker_TP0 pid=437055) INFO 06-07 09:28:53 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP3 pid=437058) INFO 06-07 09:28:53 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP2 pid=437057) INFO 06-07 09:28:53 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP6 pid=437061) INFO 06-07 09:28:53 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP7 pid=437062) INFO 06-07 09:28:53 [custom_all_reduce.py:215] Registering 0 cuda graph addresses
+(Worker_TP0 pid=437055) INFO 06-07 09:28:53 [gpu_model_runner.py:7734] Graph capturing finished in 4 secs, took 0.34 GiB
+(Worker_TP0 pid=437055) INFO 06-07 09:28:53 [gpu_worker.py:695] CUDA graph pool memory: 0.34 GiB (actual), 0.68 GiB (estimated), difference: 0.34 GiB (100.0%).
+(Worker_TP1 pid=437056) INFO 06-07 09:28:53 [gpu_worker.py:695] CUDA graph pool memory: 0.34 GiB (actual), 0.68 GiB (estimated), difference: 0.34 GiB (100.0%).
+(Worker_TP3 pid=437058) INFO 06-07 09:28:53 [gpu_worker.py:695] CUDA graph pool memory: 0.34 GiB (actual), 0.68 GiB (estimated), difference: 0.34 GiB (100.0%).
+(Worker_TP2 pid=437057) INFO 06-07 09:28:53 [gpu_worker.py:695] CUDA graph pool memory: 0.34 GiB (actual), 0.68 GiB (estimated), difference: 0.34 GiB (100.0%).
+(Worker_TP6 pid=437061) INFO 06-07 09:28:53 [gpu_worker.py:695] CUDA graph pool memory: 0.34 GiB (actual), 0.68 GiB (estimated), difference: 0.34 GiB (100.0%).
+(Worker_TP7 pid=437062) INFO 06-07 09:28:53 [gpu_worker.py:695] CUDA graph pool memory: 0.34 GiB (actual), 0.68 GiB (estimated), difference: 0.34 GiB (100.0%).
+(Worker_TP4 pid=437059) INFO 06-07 09:28:53 [gpu_worker.py:695] CUDA graph pool memory: 0.34 GiB (actual), 0.68 GiB (estimated), difference: 0.34 GiB (100.0%).
+(Worker_TP5 pid=437060) INFO 06-07 09:28:53 [gpu_worker.py:695] CUDA graph pool memory: 0.34 GiB (actual), 0.68 GiB (estimated), difference: 0.34 GiB (100.0%).
+(EngineCore pid=436787) INFO 06-07 09:28:53 [core.py:433] init engine (profile, create kv cache, warmup model) took 13.06 s (compilation: 5.65 s)
+(EngineCore pid=436787) INFO 06-07 09:28:56 [vllm.py:834] Asynchronous scheduling is enabled.
+(EngineCore pid=436787) INFO 06-07 09:28:56 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+(EngineCore pid=436787) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(EngineCore pid=436787) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(EngineCore pid=436787) INFO 06-07 09:28:57 [compilation.py:294] Enabled custom fusions: allreduce_rms
+(APIServer pid=436496) INFO 06-07 09:28:57 [api_server.py:598] Supported tasks: ['generate']
+(APIServer pid=436496) WARNING 06-07 09:28:57 [model.py:1442] Default vLLM sampling parameters have been overridden by the model's `generation_config.json`: `{'temperature': 0.6, 'top_p': 0.9}`. If this is not intended, please relaunch vLLM instance with `--generation-config vllm`.
+(APIServer pid=436496) INFO 06-07 09:29:00 [hf.py:314] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+(APIServer pid=436496) INFO 06-07 09:29:00 [api_server.py:602] Starting vLLM server on http://0.0.0.0:8087
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:37] Available routes are:
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /openapi.json, Methods: HEAD, GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /docs, Methods: HEAD, GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /redoc, Methods: HEAD, GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /tokenize, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /detokenize, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /load, Methods: GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /version, Methods: GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /health, Methods: GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /metrics, Methods: GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/models, Methods: GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /ping, Methods: GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /ping, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /invocations, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/chat/completions, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/chat/completions/batch, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/responses, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/responses/{response_id}, Methods: GET
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/responses/{response_id}/cancel, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/completions, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/messages, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/messages/count_tokens, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /inference/v1/generate, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /scale_elastic_ep, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /is_scaling_elastic_ep, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /generative_scoring, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/chat/completions/render, Methods: POST
+(APIServer pid=436496) INFO 06-07 09:29:00 [launcher.py:46] Route: /v1/completions/render, Methods: POST
+(APIServer pid=436496) INFO:     Started server process [436496]
+(APIServer pid=436496) INFO:     Waiting for application startup.
+(APIServer pid=436496) INFO:     Application startup complete.
+(APIServer pid=436496) INFO:     127.0.0.1:57510 - "GET /health HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57522 - "GET /metrics HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57572 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57586 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57598 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57608 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57620 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57622 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) WARNING 06-07 09:29:02 [scheduler.py:130] [SUB_201/L10] VLLM_BURST_AWARE_ADMISSION=1 — CPU burst-aware admission control 활성 (shortest-job-first head reorder, FCFS only).
+(APIServer pid=436496) INFO:     127.0.0.1:57636 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:02 [core.py:838] [NEO STEP DIAG] step=1 num_scheduled=23 batch_queue=0/2 running=1 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:57648 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:02 [core.py:838] [NEO STEP DIAG] step=2 num_scheduled=62 batch_queue=1/2 running=2 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:57660 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57668 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57674 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57684 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57688 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57692 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57708 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57716 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57728 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57730 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57740 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57742 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57752 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57756 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57772 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57784 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57794 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57796 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57804 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57808 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57824 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57834 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57836 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57838 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57864 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57534 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57550 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57558 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57872 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57880 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57896 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57906 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57908 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57920 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57922 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57934 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57948 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57958 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57964 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57966 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57980 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57996 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58000 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58010 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58020 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58024 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58038 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58048 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58056 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58066 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58070 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58078 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58088 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:58092 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57854 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:57856 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:02 [core.py:838] [NEO STEP DIAG] step=3 num_scheduled=8192 batch_queue=1/2 running=63 waiting=1
+(EngineCore pid=436787) INFO 06-07 09:29:02 [core.py:838] [NEO STEP DIAG] step=4 num_scheduled=4520 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:02 [core.py:838] [NEO STEP DIAG] step=5 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:58094 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:03 [core.py:838] [NEO STEP DIAG] step=200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:58108 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:03 [core.py:838] [NEO STEP DIAG] step=400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:45404 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45416 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:04 [core.py:838] [NEO STEP DIAG] step=600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:45418 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45432 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:04 [core.py:838] [NEO STEP DIAG] step=800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:45446 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:05 [core.py:838] [NEO STEP DIAG] step=1000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:06 [core.py:838] [NEO STEP DIAG] step=1200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:06 [core.py:838] [NEO STEP DIAG] step=1400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:07 [core.py:838] [NEO STEP DIAG] step=1600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:07 [core.py:838] [NEO STEP DIAG] step=1800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:08 [core.py:838] [NEO STEP DIAG] step=2000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:45456 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45472 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45486 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45496 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45504 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45514 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45526 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45538 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45542 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45552 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45556 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45568 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45580 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45594 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45608 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45624 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45632 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45636 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45644 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45658 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45666 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45680 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45702 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45696 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45716 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45718 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45722 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45728 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45740 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45746 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45750 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45764 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45766 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45778 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45786 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45788 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45798 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45806 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45810 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45816 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45826 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45838 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45844 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45858 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45862 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45866 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45880 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45886 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45892 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45898 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45910 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45916 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45918 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45926 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45942 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45946 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45954 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45960 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:08 [core.py:838] [NEO STEP DIAG] step=2200 num_scheduled=63 batch_queue=1/2 running=63 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:45964 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:09 [core.py:838] [NEO STEP DIAG] step=2400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:45972 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:45986 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:09 [core.py:838] [NEO STEP DIAG] step=2600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:45990 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:46002 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:10 [core.py:838] [NEO STEP DIAG] step=2800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:46004 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO 06-07 09:29:10 [loggers.py:271] Engine 000: Avg prompt throughput: 1600.7 tokens/s, Avg generation throughput: 13254.1 tokens/s, Running: 64 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.7%, Prefix cache hit rate: 0.0%
+(APIServer pid=436496) INFO:     127.0.0.1:46020 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:11 [core.py:838] [NEO STEP DIAG] step=3000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:11 [core.py:838] [NEO STEP DIAG] step=3200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:12 [core.py:838] [NEO STEP DIAG] step=3400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:12 [core.py:838] [NEO STEP DIAG] step=3600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:13 [core.py:838] [NEO STEP DIAG] step=3800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:13 [core.py:838] [NEO STEP DIAG] step=4000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:54460 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54466 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54468 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54474 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54488 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54496 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54498 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54506 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54516 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54526 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54530 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54546 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54548 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54560 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54566 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54568 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54584 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54588 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54594 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54604 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54616 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54622 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54634 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54650 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54666 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54678 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54670 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54672 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54674 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54686 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54702 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54712 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54728 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54734 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54736 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54748 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54764 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54766 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54774 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54780 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54782 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54794 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54810 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54812 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54814 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54816 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54830 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54836 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54852 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54868 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54880 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54890 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54906 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54920 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54922 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54930 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54946 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:14 [core.py:838] [NEO STEP DIAG] step=4200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:54960 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54968 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:14 [core.py:838] [NEO STEP DIAG] step=4400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:54984 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54992 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:54996 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:15 [core.py:838] [NEO STEP DIAG] step=4600 num_scheduled=63 batch_queue=1/2 running=63 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55012 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55026 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:15 [core.py:838] [NEO STEP DIAG] step=4800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55028 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55044 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55048 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:16 [core.py:838] [NEO STEP DIAG] step=5000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55060 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55066 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:17 [core.py:838] [NEO STEP DIAG] step=5200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:17 [core.py:838] [NEO STEP DIAG] step=5400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:18 [core.py:838] [NEO STEP DIAG] step=5600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:18 [core.py:838] [NEO STEP DIAG] step=5800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55080 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:19 [core.py:838] [NEO STEP DIAG] step=6000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55088 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55096 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:19 [core.py:838] [NEO STEP DIAG] step=6200 num_scheduled=15 batch_queue=1/2 running=15 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55112 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55128 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55136 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55146 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55150 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55156 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55158 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55174 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55178 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55182 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55194 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55208 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55222 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55232 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55240 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55252 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55264 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55268 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55282 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55288 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55292 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55302 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55318 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55326 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55340 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55356 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55366 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55374 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55382 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55384 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55398 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55400 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55410 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55416 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55428 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55466 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55472 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55482 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55494 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55508 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55516 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55518 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55534 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55540 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55556 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55560 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55568 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55444 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55452 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55580 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55596 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:20 [core.py:838] [NEO STEP DIAG] step=6400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55608 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55624 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55628 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO 06-07 09:29:20 [loggers.py:271] Engine 000: Avg prompt throughput: 2097.0 tokens/s, Avg generation throughput: 23076.6 tokens/s, Running: 64 reqs, Waiting: 0 reqs, GPU KV cache usage: 0.5%, Prefix cache hit rate: 0.0%
+(APIServer pid=436496) INFO:     127.0.0.1:55632 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:20 [core.py:838] [NEO STEP DIAG] step=6600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55648 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55664 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55680 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55684 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55690 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:21 [core.py:838] [NEO STEP DIAG] step=6800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55698 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55708 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55720 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55722 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:22 [core.py:838] [NEO STEP DIAG] step=7000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55734 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:55736 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:22 [core.py:838] [NEO STEP DIAG] step=7200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55748 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:23 [core.py:838] [NEO STEP DIAG] step=7400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:23 [core.py:838] [NEO STEP DIAG] step=7600 num_scheduled=63 batch_queue=1/2 running=63 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:55754 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:24 [core.py:838] [NEO STEP DIAG] step=7800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:41432 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:24 [core.py:838] [NEO STEP DIAG] step=8000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:25 [core.py:838] [NEO STEP DIAG] step=8200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:41448 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41460 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41470 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41476 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41484 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41486 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41488 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41504 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41520 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41526 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41542 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41558 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41566 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41576 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41582 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41590 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41596 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41608 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41622 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41636 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41650 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41654 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41658 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41660 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41670 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41674 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41682 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41688 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41692 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41708 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41722 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41732 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41734 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41748 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41750 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41756 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41758 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41766 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41774 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41780 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41794 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41802 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41816 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41824 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41834 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41850 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:25 [core.py:838] [NEO STEP DIAG] step=8400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:41866 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41878 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:26 [core.py:838] [NEO STEP DIAG] step=8600 num_scheduled=63 batch_queue=1/2 running=63 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:41890 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41894 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41896 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41908 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41920 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41936 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41952 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:26 [core.py:838] [NEO STEP DIAG] step=8800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:41960 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41962 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41970 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:27 [core.py:838] [NEO STEP DIAG] step=9000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:41980 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41990 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:41994 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42006 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42020 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:28 [core.py:838] [NEO STEP DIAG] step=9200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:42028 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:28 [core.py:838] [NEO STEP DIAG] step=9400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:29 [core.py:838] [NEO STEP DIAG] step=9600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:42042 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:29 [core.py:838] [NEO STEP DIAG] step=9800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:30 [core.py:838] [NEO STEP DIAG] step=10000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:42046 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:30 [core.py:838] [NEO STEP DIAG] step=10200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO 06-07 09:29:30 [loggers.py:271] Engine 000: Avg prompt throughput: 830.7 tokens/s, Avg generation throughput: 23430.8 tokens/s, Running: 64 reqs, Waiting: 0 reqs, GPU KV cache usage: 1.3%, Prefix cache hit rate: 0.0%
+(APIServer pid=436496) INFO:     127.0.0.1:42048 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42050 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42064 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42070 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42074 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42076 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42084 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42100 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42112 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42114 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42124 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42132 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42146 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42156 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42172 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42182 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42192 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42194 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42206 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42216 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42232 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42240 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42256 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42272 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42274 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42282 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42286 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42302 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42308 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42312 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42324 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42336 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42338 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42354 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42364 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42370 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42374 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42390 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42392 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42406 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42420 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42426 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42428 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42438 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:31 [core.py:838] [NEO STEP DIAG] step=10400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:42448 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42454 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42468 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:31 [core.py:838] [NEO STEP DIAG] step=10600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:42472 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42476 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42490 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42496 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42506 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:32 [core.py:838] [NEO STEP DIAG] step=10800 num_scheduled=381 batch_queue=1/2 running=63 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:42514 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42516 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42530 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:32 [core.py:838] [NEO STEP DIAG] step=11000 num_scheduled=62 batch_queue=1/2 running=62 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:42532 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42536 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42552 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42554 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42566 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:33 [core.py:838] [NEO STEP DIAG] step=11200 num_scheduled=63 batch_queue=1/2 running=63 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:42572 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:42588 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:33 [core.py:838] [NEO STEP DIAG] step=11400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38260 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38270 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:34 [core.py:838] [NEO STEP DIAG] step=11600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38276 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38286 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:34 [core.py:838] [NEO STEP DIAG] step=11800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:35 [core.py:838] [NEO STEP DIAG] step=12000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38290 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:36 [core.py:838] [NEO STEP DIAG] step=12200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38306 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38312 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38318 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38322 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38328 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:36 [core.py:838] [NEO STEP DIAG] step=12400 num_scheduled=48 batch_queue=1/2 running=50 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38344 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38350 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38364 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38370 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38378 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38394 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38410 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38418 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38422 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38428 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38440 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38448 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38458 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38532 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38544 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38554 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38556 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38566 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38574 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38590 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38592 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38594 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38596 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38470 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38472 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38488 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38496 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38512 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38518 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38608 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38610 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38618 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38628 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38636 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38650 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38660 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38664 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38670 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38678 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38680 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:37 [core.py:838] [NEO STEP DIAG] step=12600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38694 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38698 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38712 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38714 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:37 [core.py:838] [NEO STEP DIAG] step=12800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38730 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38734 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38738 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38752 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38756 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:38 [core.py:838] [NEO STEP DIAG] step=13000 num_scheduled=63 batch_queue=1/2 running=63 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38762 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38774 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38780 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38796 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38806 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:38 [core.py:838] [NEO STEP DIAG] step=13200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38814 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38828 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38830 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:39 [core.py:838] [NEO STEP DIAG] step=13400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38834 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38836 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38838 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38848 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:39 [core.py:838] [NEO STEP DIAG] step=13600 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38862 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38874 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:40 [core.py:838] [NEO STEP DIAG] step=13800 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38878 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO 06-07 09:29:40 [loggers.py:271] Engine 000: Avg prompt throughput: 1854.0 tokens/s, Avg generation throughput: 23446.2 tokens/s, Running: 64 reqs, Waiting: 0 reqs, GPU KV cache usage: 1.0%, Prefix cache hit rate: 0.1%
+(EngineCore pid=436787) INFO 06-07 09:29:40 [core.py:838] [NEO STEP DIAG] step=14000 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38892 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:41 [core.py:838] [NEO STEP DIAG] step=14200 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:42 [core.py:838] [NEO STEP DIAG] step=14400 num_scheduled=64 batch_queue=1/2 running=64 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:38896 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38898 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38902 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38906 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38914 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38918 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38930 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38946 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38950 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38964 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38978 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:38994 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:39008 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:39014 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:39026 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:39030 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:39042 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:39050 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:39066 - "POST /v1/completions HTTP/1.1" 200 OK
+(APIServer pid=436496) INFO:     127.0.0.1:39068 - "POST /v1/completions HTTP/1.1" 200 OK
+(EngineCore pid=436787) INFO 06-07 09:29:42 [core.py:838] [NEO STEP DIAG] step=14600 num_scheduled=43 batch_queue=1/2 running=43 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:43 [core.py:838] [NEO STEP DIAG] step=14800 num_scheduled=39 batch_queue=1/2 running=39 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:43 [core.py:838] [NEO STEP DIAG] step=15000 num_scheduled=35 batch_queue=1/2 running=35 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:44 [core.py:838] [NEO STEP DIAG] step=15200 num_scheduled=31 batch_queue=1/2 running=31 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:44 [core.py:838] [NEO STEP DIAG] step=15400 num_scheduled=26 batch_queue=1/2 running=26 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:44 [core.py:838] [NEO STEP DIAG] step=15600 num_scheduled=21 batch_queue=1/2 running=21 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:45 [core.py:838] [NEO STEP DIAG] step=15800 num_scheduled=21 batch_queue=1/2 running=21 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:45 [core.py:838] [NEO STEP DIAG] step=16000 num_scheduled=18 batch_queue=1/2 running=18 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:46 [core.py:838] [NEO STEP DIAG] step=16200 num_scheduled=18 batch_queue=1/2 running=18 waiting=0
+(EngineCore pid=436787) INFO 06-07 09:29:46 [core.py:838] [NEO STEP DIAG] step=16400 num_scheduled=18 batch_queue=1/2 running=18 waiting=0
+(APIServer pid=436496) INFO:     127.0.0.1:41876 - "GET /metrics HTTP/1.1" 200 OK
+(Worker_TP0 pid=437055) WARNING 06-07 09:29:47 [multiproc_executor.py:899] WorkerProc was terminated
+(Worker_TP6 pid=437061) WARNING 06-07 09:29:47 [multiproc_executor.py:899] WorkerProc was terminated
+(Worker_TP3 pid=437058) WARNING 06-07 09:29:47 [multiproc_executor.py:899] WorkerProc was terminated
+(Worker_TP2 pid=437057) WARNING 06-07 09:29:47 [multiproc_executor.py:899] WorkerProc was terminated
+(Worker_TP5 pid=437060) WARNING 06-07 09:29:47 [multiproc_executor.py:899] WorkerProc was terminated
+(Worker_TP1 pid=437056) WARNING 06-07 09:29:47 [multiproc_executor.py:899] WorkerProc was terminated
+(Worker_TP7 pid=437062) WARNING 06-07 09:29:47 [multiproc_executor.py:899] WorkerProc was terminated
+(Worker_TP4 pid=437059) WARNING 06-07 09:29:47 [multiproc_executor.py:899] WorkerProc was terminated
+(EngineCore pid=436787) INFO 06-07 09:29:47 [core.py:1640] Shutdown initiated (timeout=0)
+(EngineCore pid=436787) INFO 06-07 09:29:47 [core.py:1663] Shutdown complete
+(Worker_TP0 pid=437055) INFO 06-07 09:29:47 [multiproc_executor.py:784] Parent process exited, terminating worker queues
+(APIServer pid=436496) INFO:     Shutting down
+(APIServer pid=436496) INFO:     Waiting for application shutdown.
+(APIServer pid=436496) INFO:     Application shutdown complete.
+(APIServer pid=436496) INFO:     Finished server process [436496]

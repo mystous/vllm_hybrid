@@ -1,0 +1,120 @@
+[boot] tag=h1_numa_bind env=[] cli=[--numa-bind --numa-bind-nodes 0 0 0 0 1 1 1 1]
+[boot] argc=30
+[boot] arg: env
+[boot] arg: CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+[boot] arg: VLLM_PREFETCH_TOKENIZE=1
+[boot] arg: VLLM_BURST_AWARE_ADMISSION=1
+[boot] arg: VLLM_WORKER_MULTIPROC_METHOD=spawn
+[boot] arg: setsid
+[boot] arg: /workspace/vllm_dev_prj/bin/vllm
+[boot] arg: serve
+[boot] arg: meta-llama/Llama-3.1-8B-Instruct
+[boot] arg: --tensor-parallel-size
+[boot] arg: 8
+[boot] arg: --port
+[boot] arg: 8087
+[boot] arg: --gpu-memory-utilization
+[boot] arg: 0.85
+[boot] arg: --max-model-len
+[boot] arg: 16384
+[boot] arg: --allow-deprecated-quantization
+[boot] arg: --compilation-config
+[boot] arg: {"cudagraph_mode":"FULL_AND_PIECEWISE"}
+[boot] arg: --numa-bind
+[boot] arg: --numa-bind-nodes
+[boot] arg: 0
+[boot] arg: 0
+[boot] arg: 0
+[boot] arg: 0
+[boot] arg: 1
+[boot] arg: 1
+[boot] arg: 1
+[boot] arg: 1
+(APIServer pid=543512) INFO 06-07 11:35:05 [utils.py:299] 
+(APIServer pid=543512) INFO 06-07 11:35:05 [utils.py:299]        █     █     █▄   ▄█
+(APIServer pid=543512) INFO 06-07 11:35:05 [utils.py:299]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 1.7.dev16107+gffe20fb09.d20260601
+(APIServer pid=543512) INFO 06-07 11:35:05 [utils.py:299]   █▄█▀ █     █     █     █  model   meta-llama/Llama-3.1-8B-Instruct
+(APIServer pid=543512) INFO 06-07 11:35:05 [utils.py:299]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=543512) INFO 06-07 11:35:05 [utils.py:299] 
+(APIServer pid=543512) INFO 06-07 11:35:05 [utils.py:233] non-default args: {'model_tag': 'meta-llama/Llama-3.1-8B-Instruct', 'port': 8087, 'model': 'meta-llama/Llama-3.1-8B-Instruct', 'max_model_len': 16384, 'allow_deprecated_quantization': True, 'numa_bind': True, 'numa_bind_nodes': [0, 0, 0, 0, 1, 1, 1, 1], 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.85, 'compilation_config': {'mode': None, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}}
+(APIServer pid=543512) WARNING 06-07 11:35:05 [envs.py:1872] Unknown vLLM environment variable detected: VLLM_BURST_AWARE_ADMISSION
+(APIServer pid=543512) INFO 06-07 11:35:07 [model.py:554] Resolved architecture: LlamaForCausalLM
+(APIServer pid=543512) INFO 06-07 11:35:07 [model.py:1685] Using max model len 16384
+(APIServer pid=543512) INFO 06-07 11:35:07 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=543512) INFO 06-07 11:35:07 [vllm.py:834] Asynchronous scheduling is enabled.
+(APIServer pid=543512) INFO 06-07 11:35:07 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+(APIServer pid=543512) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(APIServer pid=543512) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(APIServer pid=543512) INFO 06-07 11:35:08 [compilation.py:294] Enabled custom fusions: allreduce_rms
+(APIServer pid=543512) INFO 06-07 11:35:09 [numa_utils.py:199] Binding EngineCore subprocess (local_rank=0, gpu_index=0) to NUMA node 0
+set_mempolicy: Operation not permitted
+setting membind: Operation not permitted
+set_mempolicy: Operation not permitted
+setting membind: Operation not permitted
+(APIServer pid=543512) Traceback (most recent call last):
+(APIServer pid=543512)   File "/workspace/vllm_dev_prj/bin/vllm", line 10, in <module>
+(APIServer pid=543512)     sys.exit(main())
+(APIServer pid=543512)              ^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/cli/main.py", line 75, in main
+(APIServer pid=543512)     args.dispatch_function(args)
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/cli/serve.py", line 122, in cmd
+(APIServer pid=543512)     uvloop.run(run_server(args))
+(APIServer pid=543512)   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/uvloop/__init__.py", line 96, in run
+(APIServer pid=543512)     return __asyncio.run(
+(APIServer pid=543512)            ^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/usr/lib/python3.12/asyncio/runners.py", line 195, in run
+(APIServer pid=543512)     return runner.run(main)
+(APIServer pid=543512)            ^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=543512)     return self._loop.run_until_complete(task)
+(APIServer pid=543512)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=543512)   File "/workspace/vllm_dev_prj/lib/python3.12/site-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=543512)     return await main
+(APIServer pid=543512)            ^^^^^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 678, in run_server
+(APIServer pid=543512)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 692, in run_server_worker
+(APIServer pid=543512)     async with build_async_engine_client(
+(APIServer pid=543512)                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=543512)     return await anext(self.gen)
+(APIServer pid=543512)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 100, in build_async_engine_client
+(APIServer pid=543512)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=543512)                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=543512)     return await anext(self.gen)
+(APIServer pid=543512)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/entrypoints/openai/api_server.py", line 136, in build_async_engine_client_from_engine_args
+(APIServer pid=543512)     async_llm = AsyncLLM.from_vllm_config(
+(APIServer pid=543512)                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/async_llm.py", line 219, in from_vllm_config
+(APIServer pid=543512)     return cls(
+(APIServer pid=543512)            ^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/async_llm.py", line 148, in __init__
+(APIServer pid=543512)     self.engine_core = EngineCoreClient.make_async_mp_client(
+(APIServer pid=543512)                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(APIServer pid=543512)     return func(*args, **kwargs)
+(APIServer pid=543512)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core_client.py", line 130, in make_async_mp_client
+(APIServer pid=543512)     return AsyncMPClient(*client_args)
+(APIServer pid=543512)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(APIServer pid=543512)     return func(*args, **kwargs)
+(APIServer pid=543512)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core_client.py", line 900, in __init__
+(APIServer pid=543512)     super().__init__(
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core_client.py", line 535, in __init__
+(APIServer pid=543512)     with launch_core_engines(
+(APIServer pid=543512)          ^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=543512)   File "/usr/lib/python3.12/contextlib.py", line 144, in __exit__
+(APIServer pid=543512)     next(self.gen)
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/utils.py", line 1094, in launch_core_engines
+(APIServer pid=543512)     wait_for_engine_startup(
+(APIServer pid=543512)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/utils.py", line 1153, in wait_for_engine_startup
+(APIServer pid=543512)     raise RuntimeError(
+(APIServer pid=543512) RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {'EngineCore': 1}
+[wait_ready] fatal error detected in boot log; aborting
+[boot] wait_ready timeout or fatal — pid=543512

@@ -1,0 +1,26 @@
+[build] workload=code-heavy n=500 target_in=1024 ...
+[build] done. sample avg input tokens (first 20) = 1580
+=== vanilla × code-heavy ===
+{
+  "scenario": "vanilla",
+  "workload": "code-heavy",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 1024,
+  "max_tokens": 2048,
+  "concurrency": 64,
+  "wall_total_s": 43.4594584829174,
+  "total_input_tokens": 808524,
+  "total_output_tokens": 908964,
+  "output_tps": 20915.216887879225,
+  "req_per_s": 11.504975382897026,
+  "p50_ms": 6030.595652060583,
+  "p99_ms": 6129.605760099366,
+  "by_workload_ok": {
+    "sonnet": 50,
+    "chat": 100,
+    "code": 350
+  },
+  "n_err": 0,
+  "first_errors": []
+}

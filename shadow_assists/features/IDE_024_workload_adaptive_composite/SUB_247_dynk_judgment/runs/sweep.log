@@ -1,0 +1,26 @@
+[07:00:07] === TSK_046 dyn-K 판정: D0 K6+pad 고정 vs D1 dyn-K {4,6,12}, 7 corpora ===
+[07:00:07] boot pid=3697343 cell=D0_k6pad (taskset 0-47,56-103)
+[07:01:27] READY
+[07:01:27] cell D0_k6pad: baseline (aggressor 없음)
+[07:01:27]   bench D0_k6pad x sharegpt
+[07:04:05]   bench D0_k6pad x swebench
+[07:05:38]   bench D0_k6pad x humaneval
+[07:07:44]   bench D0_k6pad x mbpp
+[07:08:30]   bench D0_k6pad x wildchat
+[07:11:39]   bench D0_k6pad x lmsys
+[07:13:57]   bench D0_k6pad x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_tsk046_dynk.sh: line 142: 3697343 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[07:16:02] GPU freed
+[07:16:02] boot pid=3711467 cell=D1_dynk (taskset 0-47,56-103)
+[07:17:42] READY
+[07:17:42] cell D1_dynk: baseline (aggressor 없음)
+[07:17:42]   bench D1_dynk x sharegpt
+[07:20:20]   bench D1_dynk x swebench
+[07:21:56]   bench D1_dynk x humaneval
+[07:24:03]   bench D1_dynk x mbpp
+[07:24:42]   bench D1_dynk x wildchat
+[07:27:49]   bench D1_dynk x lmsys
+[07:30:07]   bench D1_dynk x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_tsk046_dynk.sh: line 142: 3711467 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[07:32:19] GPU freed
+[07:32:19] === TSK_046 dyn-K sweep done ===

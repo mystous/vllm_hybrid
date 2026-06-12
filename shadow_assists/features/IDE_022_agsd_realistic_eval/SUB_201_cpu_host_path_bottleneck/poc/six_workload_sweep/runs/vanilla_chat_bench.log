@@ -1,0 +1,28 @@
+[build] workload=chat n=500 target_in=1024 ...
+[build] done. sample avg input tokens (first 20) = 1478
+[build] workload=chat n=500 target_in=1024 ...
+[build] done. sample avg input tokens (first 20) = 1478
+=== vanilla × chat ===
+{
+  "scenario": "vanilla",
+  "workload": "chat",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 1024,
+  "max_tokens": 2048,
+  "concurrency": 64,
+  "wall_total_s": 19.750332973897457,
+  "total_input_tokens": 738923,
+  "total_output_tokens": 324020,
+  "output_tps": 16405.79935681252,
+  "req_per_s": 25.316028882187087,
+  "p50_ms": 1803.6891431547701,
+  "p99_ms": 7483.987795887515,
+  "by_workload_ok": {
+    "sonnet": 0,
+    "chat": 500,
+    "code": 0
+  },
+  "n_err": 0,
+  "first_errors": []
+}

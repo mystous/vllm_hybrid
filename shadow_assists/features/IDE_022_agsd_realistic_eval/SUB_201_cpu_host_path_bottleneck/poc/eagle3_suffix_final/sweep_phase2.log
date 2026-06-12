@@ -1,0 +1,25 @@
+==== Eagle3/Suffix final sweep start at 2026-06-07T22:43:00Z ====
+[gpu] all 0-7 free
+[boot] tag=P2_S_boot spec={"method":"suffix","num_speculative_tokens":8} at 2026-06-07T22:43:00Z
+[ready] port 8005 up after 46*2s
+[bench] P2_S1_c8 conc=8 max_tok=128 n=500 at 2026-06-07T22:44:30Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × P2_S1_c8 × mix: 2151.5 tps (500/500 ok, 30s, gpu 62.2% cpu 4.3% ttft_p50 14.8ms α 0.3179)
+[bench] P2_S2_c16 conc=16 max_tok=256 n=500 at 2026-06-07T22:45:00Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × P2_S2_c16 × mix: 6336.4 tps (500/500 ok, 20s, gpu 57.8% cpu 4.4% ttft_p50 16.3ms α 0.5469)
+[bench] P2_S3_c32 conc=32 max_tok=512 n=500 at 2026-06-07T22:45:21Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × P2_S3_c32 × mix: 11361.8 tps (500/500 ok, 22s, gpu 53.8% cpu 4.6% ttft_p50 20.2ms α 0.5684)
+[bench] P2_S4_c64 conc=64 max_tok=2048 n=500 at 2026-06-07T22:45:44Z
+[tput] meta-llama/Llama-3.1-8B-Instruct × P2_S4_c64 × mix: 16744.0 tps (90/500 ok, 10s, gpu 47.8% cpu 4.5% ttft_p50 60.6ms α None)
+/workspace/host_vllm_hybrid/shadow_assists/features/IDE_022_agsd_realistic_eval/SUB_201_cpu_host_path_bottleneck/poc/eagle3_suffix_final/sweep.sh: line 113: 740869 Killed                  "${cmd[@]}" >> "$boot_log" 2>&1
+[stop] tag=P2_S_boot pid=740869 at 2026-06-07T22:45:54Z
+[gpu] all 0-7 free
+==== sweep complete at 2026-06-07T22:46:00Z ====
+[gpu] all 0-7 free
+0, 0 MiB
+1, 0 MiB
+2, 0 MiB
+3, 0 MiB
+4, 0 MiB
+5, 0 MiB
+6, 0 MiB
+7, 0 MiB

@@ -1,0 +1,26 @@
+[build] workload=sonnet-heavy n=500 target_in=1024 ...
+[build] done. sample avg input tokens (first 20) = 1541
+=== vanilla × sonnet-heavy ===
+{
+  "scenario": "vanilla",
+  "workload": "sonnet-heavy",
+  "num_prompts": 500,
+  "n_ok": 500,
+  "target_input_len": 1024,
+  "max_tokens": 2048,
+  "concurrency": 64,
+  "wall_total_s": 42.061392365023494,
+  "total_input_tokens": 753290,
+  "total_output_tokens": 904380,
+  "output_tps": 21501.4280114998,
+  "req_per_s": 11.887385839746457,
+  "p50_ms": 4396.210425067693,
+  "p99_ms": 13513.822735054418,
+  "by_workload_ok": {
+    "sonnet": 300,
+    "chat": 100,
+    "code": 100
+  },
+  "n_err": 0,
+  "first_errors": []
+}

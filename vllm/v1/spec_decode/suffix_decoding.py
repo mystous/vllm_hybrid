@@ -11,6 +11,10 @@ import torch
 from vllm.config import VllmConfig
 from vllm.v1.worker.gpu_input_batch import InputBatch
 
+from vllm.logger import init_logger
+
+logger = init_logger(__name__)
+
 
 # ===== SUB_201 / L3 — CPU tree spec-decoding instrumentation =====
 #
@@ -141,6 +145,9 @@ class SuffixDecodingProposer:
         self._k_eff: int = self._dyn_ks[len(self._dyn_ks) // 2]
         self._accept_len_ema: float = float(self._k_eff) / 2
         self._dyn_beta: float = float(os.environ.get("VLLM_SUFFIX_DYN_BETA", "1.5"))
+        self._dyn_sat: float = float(os.environ.get("VLLM_SUFFIX_DYN_SAT", "0.8"))
+        self._dyn_step_count: int = 0
+        self._dyn_k_hist: dict[int, int] = {}
         if self._dyn_k_enabled:
             self._pad_uniform = True
 
@@ -437,14 +444,12 @@ class SuffixDecodingProposer:
             else:
                 emitted = list(draft.token_ids)
 
-            # TSK_046: 직전 step 의 수락 길이 수집 (prev 덮어쓰기 전)
-            if self._dyn_k_enabled:
-                _prev = self._l3_prev_proposal.get(req_id)
-                if _prev and _prev.get("draft_linear"):
-                    _acc = max(0, (len(sampled_ids) - 1) if sampled_ids else 0)
-                    _step_accept_lens.append(
-                        min(_acc, len(_prev["draft_linear"]))
-                    )
+            # TSK_046: 직전 step 의 수락 길이 수집.
+            # 주의: L3 스코어링 (위) 이 이미 pop() 했으므로 그 지역변수 `prev`
+            # 를 사용 — dict 재조회는 항상 None (실측 버그, 2026-06-13 수정)
+            if self._dyn_k_enabled and prev is not None and prev.get("draft_linear"):
+                _acc = max(0, len(sampled_ids) - 1)
+                _step_accept_lens.append(min(_acc, len(prev["draft_linear"])))
 
             # Remember for next-step α scoring.
             self._l3_prev_proposal[req_id] = {
@@ -485,7 +490,7 @@ class SuffixDecodingProposer:
             self._accept_len_ema = 0.9 * self._accept_len_ema + 0.1 * _l
             _ks = self._dyn_ks
             if (
-                self._accept_len_ema >= 0.8 * self._k_eff
+                self._accept_len_ema >= self._dyn_sat * self._k_eff
                 and self._k_eff != _ks[-1]
             ):
                 self._k_eff = _ks[_ks.index(self._k_eff) + 1]
@@ -494,6 +499,17 @@ class SuffixDecodingProposer:
                     k for k in _ks if k >= self._dyn_beta * self._accept_len_ema
                 ]
                 self._k_eff = _cand[0] if _cand else _ks[-1]
+            # 텔레메트리: K 분포·EMA 주기 로그 (판정/디버그용)
+            self._dyn_k_hist[self._k_eff] = self._dyn_k_hist.get(self._k_eff, 0) + 1
+            self._dyn_step_count += 1
+            if self._dyn_step_count % 200 == 0:
+                logger.info(
+                    "[dyn-K] steps=%d ema=%.2f k_eff=%d hist=%s",
+                    self._dyn_step_count,
+                    self._accept_len_ema,
+                    self._k_eff,
+                    self._dyn_k_hist,
+                )
 
         return draft_token_ids
 

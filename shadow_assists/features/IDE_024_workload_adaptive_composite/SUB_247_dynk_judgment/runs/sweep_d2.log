@@ -1,0 +1,14 @@
+[07:41:03] === TSK_046 dyn-K 튜닝: D2 (SAT=0.6 BETA=1.2 + 텔레메트리), 7 corpora ===
+[07:41:03] boot pid=3732126 cell=D2_dynk_t (taskset 0-47,56-103)
+[07:42:43] READY
+[07:42:43] cell D2_dynk_t: baseline (aggressor 없음)
+[07:42:43]   bench D2_dynk_t x sharegpt
+[07:45:37]   bench D2_dynk_t x swebench
+[07:47:11]   bench D2_dynk_t x humaneval
+[07:49:18]   bench D2_dynk_t x mbpp
+[07:50:02]   bench D2_dynk_t x wildchat
+[07:53:12]   bench D2_dynk_t x lmsys
+[07:55:29]   bench D2_dynk_t x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_tsk046_d2.sh: line 142: 3732126 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[07:57:33] GPU freed
+[07:57:33] === TSK_046 dyn-K 튜닝 done ===

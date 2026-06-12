@@ -1,0 +1,103 @@
+[boot] tag=r3_4_fp8_combo env=[] cli=[--async-scheduling --max-num-batched-tokens 8192 --max-num-seqs 256]
+[boot] arg: env
+[boot] arg: CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+[boot] arg: VLLM_PREFETCH_TOKENIZE=1
+[boot] arg: VLLM_BURST_AWARE_ADMISSION=1
+[boot] arg: VLLM_WORKER_MULTIPROC_METHOD=spawn
+[boot] arg: setsid
+[boot] arg: /workspace/vllm_dev_prj/bin/vllm
+[boot] arg: serve
+[boot] arg: meta-llama/Llama-3.1-8B-Instruct
+[boot] arg: --tensor-parallel-size
+[boot] arg: 8
+[boot] arg: --port
+[boot] arg: 8087
+[boot] arg: --gpu-memory-utilization
+[boot] arg: 0.85
+[boot] arg: --max-model-len
+[boot] arg: 16384
+[boot] arg: --allow-deprecated-quantization
+[boot] arg: --kv-cache-dtype
+[boot] arg: fp8
+[boot] arg: --compilation-config
+[boot] arg: {"cudagraph_mode":"FULL_AND_PIECEWISE"}
+[boot] arg: --async-scheduling
+[boot] arg: --max-num-batched-tokens
+[boot] arg: 8192
+[boot] arg: --max-num-seqs
+[boot] arg: 256
+(APIServer pid=603165) INFO 06-07 12:29:35 [utils.py:299] 
+(APIServer pid=603165) INFO 06-07 12:29:35 [utils.py:299]        █     █     █▄   ▄█
+(APIServer pid=603165) INFO 06-07 12:29:35 [utils.py:299]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 1.7.dev16107+gffe20fb09.d20260601
+(APIServer pid=603165) INFO 06-07 12:29:35 [utils.py:299]   █▄█▀ █     █     █     █  model   meta-llama/Llama-3.1-8B-Instruct
+(APIServer pid=603165) INFO 06-07 12:29:35 [utils.py:299]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=603165) INFO 06-07 12:29:35 [utils.py:299] 
+(APIServer pid=603165) INFO 06-07 12:29:35 [utils.py:233] non-default args: {'model_tag': 'meta-llama/Llama-3.1-8B-Instruct', 'port': 8087, 'model': 'meta-llama/Llama-3.1-8B-Instruct', 'max_model_len': 16384, 'allow_deprecated_quantization': True, 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.85, 'kv_cache_dtype': 'fp8', 'max_num_batched_tokens': 8192, 'max_num_seqs': 256, 'async_scheduling': True, 'compilation_config': {'mode': None, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': 0, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}}
+(APIServer pid=603165) WARNING 06-07 12:29:35 [envs.py:1872] Unknown vLLM environment variable detected: VLLM_BURST_AWARE_ADMISSION
+(APIServer pid=603165) INFO 06-07 12:29:38 [model.py:554] Resolved architecture: LlamaForCausalLM
+(APIServer pid=603165) INFO 06-07 12:29:38 [model.py:1685] Using max model len 16384
+(APIServer pid=603165) INFO 06-07 12:29:38 [cache.py:247] Using fp8 data type to store kv cache. It reduces the GPU memory footprint and boosts the performance. Meanwhile, it may cause accuracy drop without a proper scaling factor
+(APIServer pid=603165) INFO 06-07 12:29:39 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=603165) INFO 06-07 12:29:39 [vllm.py:834] Asynchronous scheduling is enabled.
+(APIServer pid=603165) INFO 06-07 12:29:39 [kernel.py:199] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'])
+(APIServer pid=603165) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+(APIServer pid=603165) <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.nvrtc module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.nvrtc module instead.
+(APIServer pid=603165) INFO 06-07 12:29:40 [compilation.py:294] Enabled custom fusions: allreduce_rms
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538] EngineCore failed to start.
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538] Traceback (most recent call last):
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1512, in run_engine_core
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]     return func(*args, **kwargs)
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1244, in __init__
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]     with self._perform_handshakes(
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]          ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]   File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]     return next(self.gen)
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]            ^^^^^^^^^^^^^^
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1368, in _perform_handshakes
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]     with handshake as addresses:
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]          ^^^^^^^^^
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]   File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]     return next(self.gen)
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]            ^^^^^^^^^^^^^^
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1408, in _perform_handshake
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]     addresses = self.startup_handshake(
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]                 ^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1448, in startup_handshake
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538]     raise RuntimeError(
+(EngineCore pid=603481) ERROR 06-07 12:34:50 [core.py:1538] RuntimeError: Did not receive response from front-end process within 5 minutes
+(EngineCore pid=603481) Process EngineCore:
+(EngineCore pid=603481) Traceback (most recent call last):
+(EngineCore pid=603481)   File "/usr/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+(EngineCore pid=603481)     self.run()
+(EngineCore pid=603481)   File "/usr/lib/python3.12/multiprocessing/process.py", line 108, in run
+(EngineCore pid=603481)     self._target(*self._args, **self._kwargs)
+(EngineCore pid=603481)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1542, in run_engine_core
+(EngineCore pid=603481)     raise e
+(EngineCore pid=603481)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1512, in run_engine_core
+(EngineCore pid=603481)     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=603481)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=603481)   File "/workspace/host_vllm_hybrid/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=603481)     return func(*args, **kwargs)
+(EngineCore pid=603481)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=603481)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1244, in __init__
+(EngineCore pid=603481)     with self._perform_handshakes(
+(EngineCore pid=603481)          ^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=603481)   File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+(EngineCore pid=603481)     return next(self.gen)
+(EngineCore pid=603481)            ^^^^^^^^^^^^^^
+(EngineCore pid=603481)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1368, in _perform_handshakes
+(EngineCore pid=603481)     with handshake as addresses:
+(EngineCore pid=603481)          ^^^^^^^^^
+(EngineCore pid=603481)   File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+(EngineCore pid=603481)     return next(self.gen)
+(EngineCore pid=603481)            ^^^^^^^^^^^^^^
+(EngineCore pid=603481)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1408, in _perform_handshake
+(EngineCore pid=603481)     addresses = self.startup_handshake(
+(EngineCore pid=603481)                 ^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=603481)   File "/workspace/host_vllm_hybrid/vllm/v1/engine/core.py", line 1448, in startup_handshake
+(EngineCore pid=603481)     raise RuntimeError(
+(EngineCore pid=603481) RuntimeError: Did not receive response from front-end process within 5 minutes

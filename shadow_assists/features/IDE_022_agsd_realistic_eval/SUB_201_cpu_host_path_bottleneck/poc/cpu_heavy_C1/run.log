@@ -1,0 +1,8 @@
+[boot] tag=C1a_ngram_k3_default model=meta-llama/Llama-3.1-8B-Instruct tp=8 port=8102 env=[VLLM_PREFETCH_TOKENIZE=1 VLLM_BURST_AWARE_ADMISSION=1] cli=[--compilation-config {"cudagraph_mode":"FULL_AND_PIECEWISE"} --speculative-config {"method":"ngram","num_speculative_tokens":3,"prompt_lookup_max":4,"prompt_lookup_min":2}]
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC1_C1a_ngram_k3_default_s1 × mix: 16903.3 tps (500/500 ok, 57s, gpu 66.6% cpu 4.5% ttft_p50 21.8ms α 0.7131)
+[mpstat] tag=C1a_ngram_k3_default sweep=1 cpu_avg=4.56 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC1_C1a_ngram_k3_default_s2 × mix: 17327.1 tps (500/500 ok, 56s, gpu 68.0% cpu 4.5% ttft_p50 21.2ms α 0.7087)
+[mpstat] tag=C1a_ngram_k3_default sweep=2 cpu_avg=4.58 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC1_C1a_ngram_k3_default_s3 × mix: 17020.1 tps (500/500 ok, 57s, gpu 68.3% cpu 4.5% ttft_p50 21.5ms α 0.7079)
+[mpstat] tag=C1a_ngram_k3_default sweep=3 cpu_avg=4.54 %
+[tput] meta-llama/Llama-3.1-8B-Instruct × cpuhC1_C1a_ngram_k3_default_s4 × mix: 13282.5 tps (224/500 ok, 22s, gpu 66.6% cpu 4.3% ttft_p50 22.6ms α None)

@@ -1,0 +1,10 @@
+==== Round 5 sweep start at 2026-06-07T10:10:32Z ====
+[boot] tag=r5a_allreduce_flashinfer env=[VLLM_ALLREDUCE_USE_FLASHINFER=1] cli=[]
+[tput] meta-llama/Llama-3.1-8B-Instruct × round5_r5a_allreduce_flashinfer × mix: 21729.0 tps (500/500 ok, 45s, gpu 96.3% cpu 5.3% ttft_p50 62.4ms α None)
+[boot] tag=r5b_fbgemm env=[VLLM_USE_FBGEMM=1] cli=[]
+[tput] meta-llama/Llama-3.1-8B-Instruct × round5_r5b_fbgemm × mix: 21759.8 tps (500/500 ok, 44s, gpu 96.5% cpu 5.3% ttft_p50 57.5ms α None)
+[boot] tag=r5c_nccl_symm_mem env=[VLLM_USE_NCCL_SYMM_MEM=1] cli=[]
+[tput] meta-llama/Llama-3.1-8B-Instruct × round5_r5c_nccl_symm_mem × mix: 21579.5 tps (500/500 ok, 45s, gpu 96.2% cpu 5.3% ttft_p50 78.7ms α None)
+[boot] tag=r5d_compile_full3 env=[] cli=[--compilation-config {"cudagraph_mode":"FULL"}]
+[tput] meta-llama/Llama-3.1-8B-Instruct × round5_r5d_compile_full3 × mix: 21317.4 tps (500/500 ok, 45s, gpu 95.7% cpu 5.3% ttft_p50 73.5ms α None)
+==== Round 5 sweep complete at 2026-06-07T10:20:24Z ====
