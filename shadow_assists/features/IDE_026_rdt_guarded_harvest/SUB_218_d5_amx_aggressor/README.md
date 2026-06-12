@@ -28,3 +28,15 @@ GPU 불요.
 - 상세: `../RESEARCH_DIRECTIONS.md §3 D5`
 - 범위 선언: `../RESEARCH_DIRECTIONS.md` §0 (비-GPU 하드웨어, 마이크로~매크로)
 - 공용 인프라: `../src/` (rdt_ctl.py, victim_aggressor.c, run_t1_ab.sh)
+
+## ✅ 결과 (2026-06-12 — 70B × 7 corpus × 4셀)
+
+| 셀 | serving (X0 대비) | harvest BW | IE |
+|---|---:|---:|---:|
+| X1 AVX-512 무가드 | 0.838 | 77.5 GB/s | 4.8 |
+| X2 AMX 무가드 | 0.874 | 74.2 GB/s | 5.9 |
+| X3 AMX+MBA20 | 0.958 | 11.7 GB/s | 2.8 |
+
+**판정**: ① AMX↔AVX-512 차 +3.6pp = 게이트(>10%) 미달 → 이후 AVX-512 단일 패턴.
+② MBA 는 AMX 에도 유효 (실효 15.8% — 패턴별 차이: AVX store 21.4%) → T1.5 LUT 에
+패턴 축 필요. ③ 무가드 sibling 적자 −16% 수렴 (SUB_214 재현). 상세: `MEASUREMENTS.md`

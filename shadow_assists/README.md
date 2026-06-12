@@ -253,7 +253,7 @@ flowchart TB
     TSK_048 --> SUB_215["SUB_215<br/>D2 L2 CAT SMT co-location harvest<br/>✅ 완료 — negative: 스트리밍형엔 MBA 단독 충분"]
     TSK_048 --> SUB_216["SUB_216<br/>D3 DDIO way × GPU DMA 경합<br/>❌ 기각 — GPU 결박 (범위 재정의 2026-06-12)"]
     TSK_048 --> SUB_217["SUB_217<br/>D4 cldemote 협조적 aggressor<br/>✅ 완료 ⭐ — 적자 59% 회복 IE 2.1× / NT는 anti-pattern"]
-    TSK_048 --> SUB_218["SUB_218<br/>D5 AMX-tile aggressor 추가<br/>⚪ 대기"]
+    TSK_048 --> SUB_218["SUB_218<br/>D5 AMX-tile aggressor<br/>✅ 완료 — 차이 +3.6pp 게이트 미달, MBA→AMX 유효"]
     TSK_048 --> SUB_219["SUB_219<br/>D6 UPI-aware MBA 무력화 곡선<br/>⚪ 대기"]
     TSK_048 --> SUB_220["SUB_220<br/>D7 전력/주파수 간섭 채널 RAPL·uncore<br/>⚪ 대기 — CPU-only 재범위화"]
     TSK_048 --> SUB_221["SUB_221<br/>D8 CDP code/data 분리<br/>⚪ 대기 — 후순위"]

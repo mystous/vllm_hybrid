@@ -38,7 +38,37 @@ static double now_sec(void) {
 }
 
 /* "0-7,16,20-23" → cpu 배열 */
-static int g_aggr_mode = 0; /* 0=basic 1=cldemote 2=nt */
+static int g_aggr_mode = 0; /* 0=basic 1=cldemote 2=nt 3=amx */
+
+/* ---- AMX tile 지원 (EMR native) ---- */
+#include <sys/syscall.h>
+#include <unistd.h>
+#define ARCH_REQ_XCOMP_PERM 0x1023
+#define XFEATURE_XTILEDATA  18
+typedef struct __attribute__((packed)) {
+    unsigned char palette, start_row, rsvd[14];
+    unsigned short colsb[16];
+    unsigned char rows[16];
+} tilecfg_t;
+static int amx_request_perm(void) {
+    return syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA);
+}
+__attribute__((target("amx-tile,amx-bf16")))
+static double amx_stream_pass(const char *buf, size_t bytes) {
+    /* tile0/1 = 16행 x 64B — 1KB 씩 tile load 로 스트리밍 + bf16 dot 로 연산 압력 */
+    tilecfg_t cfg = {0}; cfg.palette = 1;
+    for (int t = 0; t < 3; t++) { cfg.colsb[t] = 64; cfg.rows[t] = 16; }
+    _tile_loadconfig(&cfg);
+    size_t moved = 0;
+    for (size_t off = 0; off + 2048 <= bytes; off += 2048) {
+        _tile_loadd(0, buf + off, 64);
+        _tile_loadd(1, buf + off + 1024, 64);
+        _tile_dpbf16ps(2, 0, 1);          /* 연산 유닛도 점유 (현실적 draft 패턴) */
+        moved += 2048;
+    }
+    _tile_release();
+    return (double)moved;
+}
 
 static int parse_cpulist(const char *s, int *cpus, int max) {
     int n = 0;
@@ -196,6 +226,12 @@ static void *aggr_thread(void *p) {
     double t_end = now_sec() + a->secs;
     size_t iters = 0;
     while (now_sec() < t_end) {
+        if (g_aggr_mode == 3) {           /* amx: tile 스트리밍 (read-dominant) */
+            iters++;
+            (void)amx_stream_pass((const char *)B, n * sizeof(double));
+            (void)amx_stream_pass((const char *)C, n * sizeof(double));
+            continue;
+        }
 #ifdef __AVX512F__
         __m512d vs = _mm512_set1_pd(s);
         if (g_aggr_mode == 2) {                 /* nt: RFO 없는 streaming store */
@@ -234,6 +270,9 @@ static void *aggr_thread(void *p) {
 }
 
 static int run_aggressor(int *cpus, int n_cpus, size_t array_mb, double secs) {
+    if (g_aggr_mode == 3 && amx_request_perm() != 0) {
+        fprintf(stderr, "AMX XTILEDATA 권한 요청 실패\n"); exit(3);
+    }
     aggr_arg_t *args = calloc(n_cpus, sizeof(aggr_arg_t));
     pthread_t *th = calloc(n_cpus, sizeof(pthread_t));
     size_t elems = (array_mb << 20) / sizeof(double);
@@ -266,7 +305,7 @@ static void usage(const char *argv0) {
     fprintf(stderr,
         "사용법: %s --role victim|aggressor --cpus <list> [--secs N]\n"
         "  victim 전용 : --ws-mb N (기본 64)  --copy-kb N (기본 4096)  --chase-steps N (기본 200000)\n"
-        "  aggressor   : --array-mb N (스레드당 배열, 기본 32)  --aggr-mode basic|cldemote|nt\n", argv0);
+        "  aggressor   : --array-mb N (스레드당 배열, 기본 32)  --aggr-mode basic|cldemote|nt|amx\n", argv0);
 }
 
 int main(int argc, char **argv) {
@@ -279,7 +318,7 @@ int main(int argc, char **argv) {
         if (ARG("--role")) role = argv[++i];
         else if (ARG("--cpus")) cpulist = argv[++i];
         else if (ARG("--secs")) secs = atof(argv[++i]);
-        else if (ARG("--aggr-mode")) { const char *m = argv[++i]; g_aggr_mode = !strcmp(m,"cldemote") ? 1 : !strcmp(m,"nt") ? 2 : 0; }
+        else if (ARG("--aggr-mode")) { const char *m = argv[++i]; g_aggr_mode = !strcmp(m,"cldemote") ? 1 : !strcmp(m,"nt") ? 2 : !strcmp(m,"amx") ? 3 : 0; }
         else if (ARG("--ws-mb")) ws_mb = (size_t)atol(argv[++i]);
         else if (ARG("--copy-kb")) copy_kb = (size_t)atol(argv[++i]);
         else if (ARG("--chase-steps")) chase_steps = (size_t)atol(argv[++i]);
