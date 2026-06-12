@@ -1,6 +1,6 @@
 # SUB_219 — [D6] UPI-aware 부하 분리 (MBA 무력화 곡선)
 
-> **상태**: 대기 | **parent**: `TSK_048` (`IDE_026`) | **수준**: NUMA/UPI
+> **상태**: ✅ 완료 — 가설 반증 ⭐ (2026-06-12) | **parent**: `TSK_048` (`IDE_026`) | **수준**: NUMA/UPI
 > **등록**: 2026-06-12, `shadow_assists/id_registry.md` | **GPU**: 불요 (§0 범위 준수)
 
 ## 정의 / HW 근거 (실측)
@@ -28,3 +28,16 @@ GPU 불요.
 - 상세: `../RESEARCH_DIRECTIONS.md §3 D6`
 - 범위 선언: `../RESEARCH_DIRECTIONS.md` §0 (비-GPU 하드웨어, 마이크로~매크로)
 - 공용 인프라: `../src/` (rdt_ctl.py, victim_aggressor.c, run_t1_ab.sh)
+
+## ✅ 결과 (2026-06-12 — 70B × 7 corpus × 4셀)
+
+| 셀 | serving | harvest BW | 원격비율 |
+|---|---:|---:|---:|
+| U1 원격 무가드 | 0.966 | 41.6 GB/s | 100% |
+| U2 원격+MBA20 | 1.015 | **7.9 GB/s** | 100% |
+| U3 로컬+MBA20 (대조) | 1.029 | 8.1 GB/s | 0% |
+
+**판정: 가설 반증 — MBA 는 원격(UPI) 트래픽도 동등 절단 (실효 19% ≈ 로컬 21%).**
+governor 의 remote→DUTY 전환 불필요 (채널 ④ 가 ① 로 흡수), 원격 트래픽 자체도
+로컬보다 본질적으로 덜 해로움 (41.6 GB/s 에 −3.4%). mbm_local/total 분해 완벽
+검증 (100%↔0%). 상세·문서 정정 목록: `MEASUREMENTS.md`

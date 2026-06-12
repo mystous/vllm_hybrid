@@ -105,9 +105,10 @@ cat /sys/fs/resctrl/harvest/mon_data/mon_L3_00/mbm_total_bytes
    ThreadPoolExecutor 는 `initializer=` 콜백에서 자기 TID 를 등록하는 패턴이 정석.
 2. CLOS 수 제한 (실측): **L3=15, L2=8, MB=15** — L2 CAT 병용 시 8 이 바인딩 상한
    (closid 는 자원 간 공유). 그룹 2~3개면 충분.
-3. MBA 는 **socket-로컬 트래픽만** throttle — cross-socket (UPI) 은 제어 밖.
-   NUMA bind (기존 N8/SUB_165 지식) 와 병행해야 의미. 원격 비율은
-   `mbm_total_bytes − mbm_local_bytes` 로 정량 (RESEARCH_DIRECTIONS.md D6).
+3. ~~MBA 는 socket-로컬 트래픽만 throttle~~ → **정정 (SUB_219 실측 반증, 2026-06-12)**:
+   raw MBA delay 는 코어→mesh 인터페이스에서 작동하므로 **원격(UPI) 트래픽도 동등
+   절단** (실효 19% ≈ 로컬 21%). "로컬만" 통념은 mba_MBps SW 컨트롤러 (로컬 MBM
+   피드백) 한계의 와전. 원격 비율 정량은 `mbm_total − mbm_local` (완벽 검증됨).
 4. 측정 중 cudagraph/FaP 모드 고정 (SUB_212 confounder 교훈).
 5. GPU 점유 중 — (a)(b) 단계만 진행, vLLM 부팅 금지.
 6. **`thread_throttle_mode=max` (실측)** — SMT sibling 두 스레드가 다른 CLOS 면

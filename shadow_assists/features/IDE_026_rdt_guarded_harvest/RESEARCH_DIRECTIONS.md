@@ -63,7 +63,7 @@ GPU-가속 LLM serving 호스트의 메모리 계층 간섭은 **RDT 가 보는 
 | ① 코어 load/store | serving·harvest 스레드 | ✅ RMID | ✅ | ✅ | resctrl (본론) |
 | ② DSA/IAA engine | 디바이스 (descriptor 처리) | ❌ (RMID 미태깅) | ❌ (코어 지연 삽입 무관) | ❌ | WQ size/priority/group, 제출률 (소프트웨어) |
 | ③ GPU PCIe DMA | B200 H2D/D2H | ❌ | ❌ | △ (DDIO way 18-19 고정 착지) | way 18-19 비침범 규칙 (방어적 제약만 — 제어/측정은 범위 밖, §0) |
-| ④ UPI 원격 | cross-socket 접근 | △ (total−local 로 양만) | ❌ (socket-로컬만) | ❌ | NUMA bind + duty-cycle |
+| ④ UPI 원격 | cross-socket 접근 | △ (total−local 로 양만) | **✅ (SUB_219 실측 — raw delay 는 원격도 절단)** | ❌ | MBA 로 흡수 (DUTY 전환 불필요) |
 | ⑤ 전력/주파수 | RAPL package budget, uncore freq | ❌ | ❌ | ❌ | cpufreq cap, uncore min/max 고정 |
 | ⑥ **SW 런타임** | GIL·allocator 락·run-queue 경합 (in-process harvest) | ❌ (하드웨어 트래픽 아님) | ❌ | ❌ | 프로세스 분리, SCHED_IDLE, free-threaded CPython (D12) |
 
