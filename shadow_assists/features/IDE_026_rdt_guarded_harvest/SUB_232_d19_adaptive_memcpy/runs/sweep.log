@@ -1,0 +1,38 @@
+[21:50:58] === SUB_232 sweep start: Llama-3.1-70B-Instruct suffix K=32, 3 cells x 7 corpora, per-cell boot ===
+[21:50:58] boot pid=3165344 cell=M0_base (taskset 0-47,56-103)
+[21:52:13] READY
+[21:52:13] cell M0_base: baseline (aggressor 없음)
+[21:52:13]   bench M0_base x sharegpt
+[21:55:44]   bench M0_base x swebench
+[21:57:49]   bench M0_base x humaneval
+[22:00:45]   bench M0_base x mbpp
+[22:01:35]   bench M0_base x wildchat
+[22:06:01]   bench M0_base x lmsys
+[22:09:18]   bench M0_base x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_232_d19_adaptive_memcpy/run_sub232.sh: line 142: 3165344 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[22:11:46] GPU freed
+[22:11:46] boot pid=3183138 cell=M1_nt8m (taskset 0-47,56-103)
+[22:13:02] READY
+[22:13:02] cell M1_nt8m: baseline (aggressor 없음)
+[22:13:02]   bench M1_nt8m x sharegpt
+[22:16:30]   bench M1_nt8m x swebench
+[22:18:34]   bench M1_nt8m x humaneval
+[22:21:18]   bench M1_nt8m x mbpp
+[22:22:18]   bench M1_nt8m x wildchat
+[22:26:30]   bench M1_nt8m x lmsys
+[22:30:13]   bench M1_nt8m x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_232_d19_adaptive_memcpy/run_sub232.sh: line 142: 3183138 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[22:33:04] GPU freed
+[22:33:04] boot pid=3201231 cell=M2_nt256k (taskset 0-47,56-103)
+[22:34:19] READY
+[22:34:19] cell M2_nt256k: baseline (aggressor 없음)
+[22:34:19]   bench M2_nt256k x sharegpt
+[22:37:43]   bench M2_nt256k x swebench
+[22:39:38]   bench M2_nt256k x humaneval
+[22:42:38]   bench M2_nt256k x mbpp
+[22:43:38]   bench M2_nt256k x wildchat
+[22:47:46]   bench M2_nt256k x lmsys
+[22:51:28]   bench M2_nt256k x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_232_d19_adaptive_memcpy/run_sub232.sh: line 142: 3201231 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[22:54:28] GPU freed
+[22:54:28] === SUB_232 sweep done ===

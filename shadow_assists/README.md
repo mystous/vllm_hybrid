@@ -267,7 +267,7 @@ flowchart TB
     TSK_048 --> SUB_229["SUB_229<br/>D16 건설적 간섭 prefetch harvest<br/>⚪ 대기 — CPU-only 재범위화·탐색"]
     TSK_048 --> SUB_230["SUB_230<br/>D17 eBPF runq-latency governor 신호<br/>⚪ 대기"]
     TSK_048 --> SUB_231["SUB_231<br/>D18 false-sharing 캐시라인 감사<br/>⚪ 대기 — 64B 마이크로"]
-    TSK_048 --> SUB_232["SUB_232<br/>D19 크기-적응 memcpy 디스패처<br/>⚪ 대기 — 레지스터 마이크로 ⭐"]
+    TSK_048 --> SUB_232["SUB_232<br/>D19 memcpy 디스패처<br/>✅ negative — libc 미경유 (torch 내부), 재조준 필요"]
     TSK_048 --> SUB_233["SUB_233<br/>D20 SW prefetch 거리 오토튜닝<br/>⚪ 대기 — 명령 마이크로"]
     TSK_048 --> SUB_234["SUB_234<br/>D21 TLB/hugepage page-walk 트래픽<br/>⚪ 대기 — 페이지 계층"]
     TSK_048 --> SUB_235["SUB_235<br/>D22 NUMA 드리프트 복구 알고리즘<br/>⚪ 대기 — NUMA 매크로"]

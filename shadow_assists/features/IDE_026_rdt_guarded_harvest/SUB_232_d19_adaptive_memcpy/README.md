@@ -1,6 +1,6 @@
 # SUB_232 — [D19] 크기-적응 memcpy 디스패처 (FSRM/AVX-512/NT)
 
-> **상태**: 대기 — 레지스터 마이크로 ⭐ | **parent**: `TSK_048` (`IDE_026`) | **수준**: 레지스터/명령
+> **상태**: ✅ 완료 — negative + 원인 확정 (2026-06-12) | **parent**: `TSK_048` (`IDE_026`) | **수준**: 레지스터/명령
 > **등록**: 2026-06-12, `shadow_assists/id_registry.md` | **GPU**: 불요 (§0 범위 준수)
 
 ## 정의 / HW 근거 (실측)
@@ -28,3 +28,9 @@ GPU 불요.
 - 상세: `../RESEARCH_DIRECTIONS.md §3c D19`
 - 범위 선언: `../RESEARCH_DIRECTIONS.md` §0 (비-GPU 하드웨어, 마이크로~매크로)
 - 공용 인프라: `../src/` (rdt_ctl.py, victim_aggressor.c, run_t1_ab.sh)
+
+## ✅ 결과 (2026-06-12): negative — LD_PRELOAD 디스패처 무효 (M1 0.972 / M2 0.961)
+
+**원인 실측**: steady-state libc memcpy = 13.6M 호출 × 평균 34 B, NT-급은 25회뿐 —
+"host path 80% memcpy" 는 torch 내부 copy 커널 (libc 미경유). **개입 지점을 vLLM/torch
+코드 내부로 옮겨야 함** → py-spy 재프로파일 후 재조준. 상세: `MEASUREMENTS.md`

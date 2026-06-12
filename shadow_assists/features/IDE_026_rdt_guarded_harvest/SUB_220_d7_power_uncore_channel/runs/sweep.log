@@ -1,0 +1,22 @@
+[21:16:58] === SUB_220 sweep start: Llama-3.1-70B-Instruct suffix K=32, 4 cells x 7 corpora, per-cell boot ===
+[21:16:58] boot pid=3126295 cell=P0_base (taskset 0-47,56-103)
+[21:18:13] READY
+[21:18:13] cell P0_base: baseline (aggressor 없음)
+[21:18:13]   bench P0_base x sharegpt
+[21:21:47]   bench P0_base x swebench
+[21:23:37]   bench P0_base x humaneval
+[21:26:27]   bench P0_base x mbpp
+[21:27:27]   bench P0_base x wildchat
+[21:31:30]   bench P0_base x lmsys
+[21:34:50]   bench P0_base x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_220_d7_power_uncore_channel/run_sub220.sh: line 164: 3126295 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[21:37:41] GPU freed
+[21:37:41] boot pid=3144064 cell=P1_guard (taskset 0-47,56-103)
+[21:38:56] READY
+[21:38:56] cell P1_guard: aggressor pid=3155832 cpus=112-119,168-175 MBA=20%
+[21:39:01]   bench P1_guard x sharegpt
+[21:42:39]   bench P1_guard x swebench
+[21:44:48]   bench P1_guard x humaneval
+[21:47:51]   bench P1_guard x mbpp
+[trap] interrupted
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_220_d7_power_uncore_channel/run_sub220.sh: line 106: 3155832 Killed                  "$SRC/victim_aggressor" --role aggressor --cpus "$aggr_cpus" --secs 1000000 --array-mb 32 --aggr-mode "$amode" > "$LOGD/aggr_${name}.log" 2>&1
