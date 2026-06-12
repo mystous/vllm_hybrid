@@ -106,6 +106,44 @@ class SuffixDecodingProposer:
         self.min_token_prob = config.suffix_decoding_min_token_prob
         self.max_model_len = vllm_config.model_config.max_model_len
 
+        # ---- SUB_213: uniform draft padding (FaP × suffix 양립) ----
+        # VLLM_SUFFIX_PAD_UNIFORM=1: pad/truncate every proposal to exactly
+        # ``num_speculative_tokens`` so that pure-decode batches satisfy the
+        # uniform-decode condition (q_len == 1 + K for ALL requests) and
+        # dispatch through FULL cudagraphs under FULL_AND_PIECEWISE.
+        # Padding tokens are always rejected by the rejection sampler, so
+        # output equivalence is preserved; the cost is wasted verify FLOPs
+        # for (K - match_len) positions, traded against the FULL-graph
+        # launch-overhead win measured at +33~36% on vanilla decode.
+        # Choose K small (e.g. 8) so num_tokens = conc×(1+K) stays within
+        # ``max_cudagraph_capture_size`` (default 512).
+        self._pad_uniform = _env_bool("VLLM_SUFFIX_PAD_UNIFORM")
+
+        # ---- TSK_046: α-EMA 동적 K_eff (다중-K FULL graph 와 연동) ----
+        # VLLM_SUFFIX_DYN_K=1 + VLLM_SPEC_DYN_KS="4,6,12" (capture 인프라와 동일
+        # env). 신호 = step 평균 *수락 길이* L̂ 의 EMA (수락률은 K-의존이라 부적합).
+        # 규칙: L̂ 이 현재 K 의 80% 이상이면 한 단계 상향 (포화 탐색) / 아니면
+        # K ≥ β·L̂ 인 최소 K (β 기본 1.5). pad 는 K_eff 로 수행 → 해당 len 의
+        # uniform FULL graph 적중. 출력 등가 (pad = 기각 보장) 유지.
+        self._dyn_k_enabled = _env_bool("VLLM_SUFFIX_DYN_K")
+        _ks_env = os.environ.get("VLLM_SPEC_DYN_KS", "")
+        _ks = set()
+        if _ks_env:
+            try:
+                _ks = {
+                    int(x)
+                    for x in _ks_env.split(",")
+                    if x.strip() and 1 <= int(x) <= self.num_speculative_tokens
+                }
+            except ValueError:
+                _ks = set()
+        self._dyn_ks: list[int] = sorted(_ks | {self.num_speculative_tokens})
+        self._k_eff: int = self._dyn_ks[len(self._dyn_ks) // 2]
+        self._accept_len_ema: float = float(self._k_eff) / 2
+        self._dyn_beta: float = float(os.environ.get("VLLM_SUFFIX_DYN_BETA", "1.5"))
+        if self._dyn_k_enabled:
+            self._pad_uniform = True
+
         # ---- L3 instrumentation ----
         self._l3_tree_enabled = _env_bool("VLLM_L3_TREE_SPEC")
         self._l3_branches = max(1, _env_int("VLLM_L3_TREE_BRANCHES", 4))
@@ -334,6 +372,7 @@ class SuffixDecodingProposer:
         so each entry in the returned list may have different lengths.
         """
         draft_token_ids: list[list[int]] = []
+        _step_accept_lens: list[int] = []  # TSK_046
         for i, sampled_ids in enumerate(sampled_token_ids):
             if not sampled_ids:
                 # Skip speculative decoding for partial prefills.
@@ -398,11 +437,37 @@ class SuffixDecodingProposer:
             else:
                 emitted = list(draft.token_ids)
 
+            # TSK_046: 직전 step 의 수락 길이 수집 (prev 덮어쓰기 전)
+            if self._dyn_k_enabled:
+                _prev = self._l3_prev_proposal.get(req_id)
+                if _prev and _prev.get("draft_linear"):
+                    _acc = max(0, (len(sampled_ids) - 1) if sampled_ids else 0)
+                    _step_accept_lens.append(
+                        min(_acc, len(_prev["draft_linear"]))
+                    )
+
             # Remember for next-step α scoring.
             self._l3_prev_proposal[req_id] = {
                 "draft_obj": draft,
                 "draft_linear": emitted,
             }
+
+            # SUB_213 — uniform padding: make every proposal exactly
+            # ``target`` tokens long (== num_speculative_tokens except near
+            # the max_model_len boundary). Pad token = last sampled token
+            # (any id is correctness-safe; mismatches are rejected).
+            if self._pad_uniform:
+                target = min(
+                    self._k_eff
+                    if self._dyn_k_enabled
+                    else self.num_speculative_tokens,
+                    self.max_model_len - num_tokens - 1,
+                )
+                if len(emitted) > target:
+                    emitted = emitted[:target]
+                elif len(emitted) < target:
+                    pad_tok = int(sampled_ids[-1]) if sampled_ids else 0
+                    emitted = emitted + [pad_tok] * (target - len(emitted))
 
             draft_token_ids.append(emitted)
 
@@ -413,6 +478,22 @@ class SuffixDecodingProposer:
         for req_id in stopped:
             self.suffix_cache.stop_request(req_id)
             self._l3_prev_proposal.pop(req_id, None)
+
+        # TSK_046: α-EMA 갱신 → K_eff 선택
+        if self._dyn_k_enabled and _step_accept_lens:
+            _l = sum(_step_accept_lens) / len(_step_accept_lens)
+            self._accept_len_ema = 0.9 * self._accept_len_ema + 0.1 * _l
+            _ks = self._dyn_ks
+            if (
+                self._accept_len_ema >= 0.8 * self._k_eff
+                and self._k_eff != _ks[-1]
+            ):
+                self._k_eff = _ks[_ks.index(self._k_eff) + 1]
+            else:
+                _cand = [
+                    k for k in _ks if k >= self._dyn_beta * self._accept_len_ema
+                ]
+                self._k_eff = _cand[0] if _cand else _ks[-1]
 
         return draft_token_ids
 

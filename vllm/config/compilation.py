@@ -1434,11 +1434,35 @@ class CompilationConfig:
             return
 
         assert self.max_cudagraph_capture_size is not None
+
+        # TSK_046 (IDE_024): VLLM_SPEC_DYN_KS="4,6,12" 면 각 (k+1) 배수 size 를
+        # union 으로 보존해 다중 K 의 uniform-decode FULL graph capture 를 가능케
+        # 한다. env 미설정 시 기존과 동일 (single multiple_of 정렬). SP 병행 시
+        # 정렬 제약이 충돌하므로 다중-K 는 비활성.
+        import os as _os
+
+        multiples = [multiple_of]
+        _dyn_ks = _os.getenv("VLLM_SPEC_DYN_KS", "")
+        if (
+            _dyn_ks
+            and uniform_decode_query_len > 1
+            and not (tensor_parallel_size > 1 and self.pass_config.enable_sp)
+        ):
+            try:
+                for _k in sorted({int(x) for x in _dyn_ks.split(",") if x.strip()}):
+                    if 1 <= _k <= uniform_decode_query_len - 1:
+                        _m = _k + 1
+                        if _m not in multiples:
+                            multiples.append(_m)
+            except ValueError:
+                pass
+
         rounded_sizes = sorted(
             set(
-                round_up(size, multiple_of)
+                round_up(size, m)
+                for m in multiples
                 for size in self.cudagraph_capture_sizes
-                if round_up(size, multiple_of) <= self.max_cudagraph_capture_size
+                if round_up(size, m) <= self.max_cudagraph_capture_size
             )
         )
 

@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from collections.abc import Set as AbstractSet
 from dataclasses import replace
+import os
 from itertools import product
 
 from vllm.config import CUDAGraphMode, VllmConfig
@@ -39,6 +40,23 @@ class CudagraphDispatcher:
             if not self.vllm_config.speculative_config
             else 1 + self.vllm_config.speculative_config.num_speculative_tokens
         )
+        # TSK_046 (IDE_024): VLLM_SPEC_DYN_KS="4,6,12" — 추가 uniform query len
+        # (k+1) 들의 FULL graph 를 함께 capture/dispatch. env 미설정 시 단일 len
+        # (기존과 동일 경로).
+        self.uniform_decode_query_lens: list[int] = [self.uniform_decode_query_len]
+        _dyn_ks = os.getenv("VLLM_SPEC_DYN_KS", "")
+        if _dyn_ks and self.uniform_decode_query_len > 1:
+            try:
+                for _k in sorted({int(x) for x in _dyn_ks.split(",") if x.strip()}):
+                    if 1 <= _k <= self.uniform_decode_query_len - 1:
+                        _q = _k + 1
+                        if _q not in self.uniform_decode_query_lens:
+                            self.uniform_decode_query_lens.append(_q)
+            except ValueError:
+                pass
+        self.uniform_decode_query_lens.sort()
+        # per-len padding map: q -> (bs -> q 의 배수인 최소 capture size)
+        self._uniform_bs_to_padded: dict[int, list[int]] = {}
 
         # Dict to store valid cudagraph dispatching keys.
         self.cudagraph_keys: dict[CUDAGraphMode, set[BatchDescriptor]] = {
@@ -89,6 +107,21 @@ class CudagraphDispatcher:
                 else:
                     self._bs_to_padded_graph_size[bs] = end
 
+        # TSK_046: per-len padding map — q 의 배수인 capture size 만으로
+        # 동일한 next-size 매핑을 구축 (uniform-q 배치의 FULL 패딩용)
+        for q in self.uniform_decode_query_lens:
+            if q <= 1:
+                continue
+            sizes_q = [cs for cs in capture_sizes if cs % q == 0]
+            table = [0] * (max_size + 1)
+            if sizes_q:
+                for end, start in zip(sizes_q + [max_size + 1], [0] + sizes_q):
+                    for bs in range(start, min(end, max_size + 1)):
+                        table[bs] = start if bs == start else (
+                            end if end <= max_size else 0
+                        )
+            self._uniform_bs_to_padded[q] = table
+
         # Validate that compile_sizes won't be changed by padding.
         # Only validate when cudagraphs are actually being used.
         if (
@@ -134,10 +167,25 @@ class CudagraphDispatcher:
         uniform_decode: bool,
         has_lora: bool,
         num_active_loras: int = 0,
+        uniform_query_len: int | None = None,
     ) -> BatchDescriptor:
         max_num_seqs = self.vllm_config.scheduler_config.max_num_seqs
-        uniform_decode_query_len = self.uniform_decode_query_len
-        num_tokens_padded = self._bs_to_padded_graph_size[num_tokens]
+        uniform_decode_query_len = uniform_query_len or self.uniform_decode_query_len
+        # TSK_046: uniform-q 배치는 q 배수 capture size 로 패딩 (per-len map).
+        # map 미존재/범위 초과 시 비균일로 강등 → PIECEWISE 폴백.
+        if (
+            uniform_decode
+            and uniform_decode_query_len > 1
+            and uniform_decode_query_len in self._uniform_bs_to_padded
+        ):
+            padded = self._uniform_bs_to_padded[uniform_decode_query_len][num_tokens]
+            if padded <= 0:
+                uniform_decode = False
+                num_tokens_padded = self._bs_to_padded_graph_size[num_tokens]
+            else:
+                num_tokens_padded = padded
+        else:
+            num_tokens_padded = self._bs_to_padded_graph_size[num_tokens]
 
         if uniform_decode and self.cudagraph_mode.has_mode(CUDAGraphMode.FULL):
             num_reqs = min(num_tokens_padded // uniform_decode_query_len, max_num_seqs)
@@ -207,27 +255,31 @@ class CudagraphDispatcher:
             cudagraph_mode.decode_mode() == CUDAGraphMode.FULL
             and cudagraph_mode.separate_routine()
         ):
-            max_num_tokens = (
-                uniform_decode_query_len
-                * self.vllm_config.scheduler_config.max_num_seqs
-            )
             assert self.compilation_config.cudagraph_capture_sizes is not None, (
                 "Cudagraph capture sizes must be set when full mode is enabled."
             )
-            cudagraph_capture_sizes_for_decode = [
-                x
-                for x in self.compilation_config.cudagraph_capture_sizes
-                if x <= max_num_tokens and x >= uniform_decode_query_len
-            ]
-            for bs, num_active_loras in product(
-                cudagraph_capture_sizes_for_decode, lora_cases
-            ):
-                self.add_cudagraph_key(
-                    CUDAGraphMode.FULL,
-                    self._create_padded_batch_descriptor(
-                        bs, True, num_active_loras > 0, num_active_loras
-                    ),
-                )
+            # TSK_046: 각 uniform query len 마다 FULL decode 키 생성
+            # (단일 len 이면 기존과 동일)
+            for q in self.uniform_decode_query_lens:
+                max_num_tokens = q * self.vllm_config.scheduler_config.max_num_seqs
+                cudagraph_capture_sizes_for_decode = [
+                    x
+                    for x in self.compilation_config.cudagraph_capture_sizes
+                    if x <= max_num_tokens and x >= q and (q <= 1 or x % q == 0)
+                ]
+                for bs, num_active_loras in product(
+                    cudagraph_capture_sizes_for_decode, lora_cases
+                ):
+                    self.add_cudagraph_key(
+                        CUDAGraphMode.FULL,
+                        self._create_padded_batch_descriptor(
+                            bs,
+                            True,
+                            num_active_loras > 0,
+                            num_active_loras,
+                            uniform_query_len=q,
+                        ),
+                    )
 
         self.keys_initialized = True
 
@@ -239,6 +291,7 @@ class CudagraphDispatcher:
         num_active_loras: int = 0,
         valid_modes: AbstractSet[CUDAGraphMode] | None = None,
         invalid_modes: AbstractSet[CUDAGraphMode] | None = None,
+        uniform_query_len: int | None = None,
     ) -> tuple[CUDAGraphMode, BatchDescriptor]:
         """
         Given conditions(e.g.,batch descriptor and if using piecewise only),
@@ -300,7 +353,11 @@ class CudagraphDispatcher:
 
         normalized_uniform = uniform_decode and self.cudagraph_mode.separate_routine()
         batch_desc = self._create_padded_batch_descriptor(
-            num_tokens, normalized_uniform, has_lora, effective_num_active_loras
+            num_tokens,
+            normalized_uniform,
+            has_lora,
+            effective_num_active_loras,
+            uniform_query_len=uniform_query_len,
         )
 
         if CUDAGraphMode.FULL in allowed_modes:

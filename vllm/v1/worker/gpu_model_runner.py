@@ -242,6 +242,26 @@ _phase_burst_PHASE_SAMPLE = 3
 _phase_burst_PHASE_POST_STEP = 5
 
 
+def _hwc1_make_stream(device=None) -> "torch.cuda.Stream":
+    """Aux copy stream factory — high priority when VLLM_HWC1_STREAM_PRIO=1.
+
+    Decode main stream runs at default prio (0). Setting aux copy streams to
+    -1 lets D2H output / sampled-token / draft-token copies preempt cooperating
+    CUDA blocks slightly earlier, reducing end-of-step bubble. Effect is
+    measurable mainly when output_tps > 20k and CPU side is not the bottleneck.
+    """
+    try:
+        if envs.VLLM_HWC1_STREAM_PRIO:
+            if device is not None:
+                return torch.cuda.Stream(device=device, priority=-1)
+            return torch.cuda.Stream(priority=-1)
+    except Exception:
+        pass
+    if device is not None:
+        return torch.cuda.Stream(device=device)
+    return torch.cuda.Stream()
+
+
 def _phase_burst_get_runtime():
     """Lazy initialise phase_burst runtime in the calling process.
 
@@ -767,7 +787,7 @@ class GPUModelRunner(
         # when async scheduling is enabled.
         self.prepare_inputs_event: torch.Event | None = None
         if self.use_async_scheduling:
-            self.async_output_copy_stream = torch.cuda.Stream()
+            self.async_output_copy_stream = _hwc1_make_stream()
             self.prepare_inputs_event = torch.Event()
 
         # self.cudagraph_batch_sizes sorts in ascending order.
@@ -889,6 +909,10 @@ class GPUModelRunner(
 
         # Cudagraph dispatcher for runtime cudagraph dispatching.
         self.cudagraph_dispatcher = CudagraphDispatcher(self.vllm_config)
+        # TSK_046: 허용 uniform query len 집합 (env VLLM_SPEC_DYN_KS 시 다중)
+        self.uniform_decode_query_lens: list[int] = (
+            self.cudagraph_dispatcher.uniform_decode_query_lens
+        )
 
         # ─── L12 CPU-side cudagraph batch-size predictor (SUB_201) ────────
         # Env-gated; no-op when VLLM_CUDAGRAPH_PREDICTIVE_WARMUP is unset.
@@ -951,7 +975,7 @@ class GPUModelRunner(
                 self.max_num_reqs, dtype=torch.int32, pin_memory=self.pin_memory
             )
             self._num_valid_draft_tokens_event = torch.cuda.Event()
-            self._num_valid_draft_tokens_copy_stream = torch.cuda.Stream()
+            self._num_valid_draft_tokens_copy_stream = _hwc1_make_stream()
 
         self._draft_token_req_ids: list[str] | None = None
         self.transfer_event = torch.Event()
@@ -976,7 +1000,7 @@ class GPUModelRunner(
         if self.num_spec_tokens:
             self.draft_token_ids_event = torch.Event()
             self.num_accepted_tokens_event = torch.Event()
-            self.draft_token_ids_copy_stream = torch.cuda.Stream()
+            self.draft_token_ids_copy_stream = _hwc1_make_stream()
             self.draft_token_ids_cpu = torch.empty(
                 (self.max_num_reqs, self.num_spec_tokens),
                 dtype=torch.int64,
@@ -985,7 +1009,7 @@ class GPUModelRunner(
             )
             if self.use_async_scheduling:
                 self.valid_sampled_token_count_event = torch.Event()
-                self.valid_sampled_token_count_copy_stream = torch.cuda.Stream()
+                self.valid_sampled_token_count_copy_stream = _hwc1_make_stream()
                 self.valid_sampled_token_count_cpu = torch.empty(
                     self.max_num_reqs,
                     dtype=torch.int32,
@@ -1286,7 +1310,7 @@ class GPUModelRunner(
     def _get_or_create_async_output_copy_stream(self) -> torch.cuda.Stream:
         stream = self.async_output_copy_stream
         if stream is None:
-            stream = torch.cuda.Stream()
+            stream = _hwc1_make_stream()
             self.async_output_copy_stream = stream
         return stream
 
@@ -3959,22 +3983,25 @@ class GPUModelRunner(
     @staticmethod
     def _is_uniform_decode(
         max_num_scheduled_tokens: int,
-        uniform_decode_query_len: int,
+        uniform_decode_query_len: "int | list[int]",
         num_tokens: int,
         num_reqs: int,
         force_uniform_decode: bool | None = None,
     ) -> bool:
         """
         Checks if it's a decode batch with same amount scheduled tokens
-        across all requests.
+        across all requests. TSK_046: uniform_decode_query_len 이 리스트면
+        그중 하나와 일치할 때 uniform 으로 판정 (다중-K FULL graph).
         """
-        return (
-            (
-                (max_num_scheduled_tokens == uniform_decode_query_len)
-                and (num_tokens == max_num_scheduled_tokens * num_reqs)
-            )
-            if force_uniform_decode is None
-            else force_uniform_decode
+        if force_uniform_decode is not None:
+            return force_uniform_decode
+        lens = (
+            uniform_decode_query_len
+            if isinstance(uniform_decode_query_len, list)
+            else [uniform_decode_query_len]
+        )
+        return (max_num_scheduled_tokens in lens) and (
+            num_tokens == max_num_scheduled_tokens * num_reqs
         )
 
     def _determine_batch_execution_and_padding(
@@ -4001,11 +4028,13 @@ class GPUModelRunner(
     ]:
         uniform_decode = self._is_uniform_decode(
             max_num_scheduled_tokens=max_num_scheduled_tokens,
-            uniform_decode_query_len=self.uniform_decode_query_len,
+            uniform_decode_query_len=self.uniform_decode_query_lens,
             num_tokens=num_tokens,
             num_reqs=num_reqs,
             force_uniform_decode=force_uniform_decode,
         )
+        # TSK_046: 이 배치의 실제 uniform query len (다중-K dispatch 용)
+        uniform_query_len = max_num_scheduled_tokens if uniform_decode else None
         # Encoder-decoder models only support CG for decoder_step > 0 (no enc_output
         # is present). Also, chunked-prefill is disabled, so batch are uniform.
         has_encoder_output = (
@@ -4030,6 +4059,7 @@ class GPUModelRunner(
                 num_active_loras=num_active_loras,
                 valid_modes={CUDAGraphMode.NONE} if force_eager else valid_modes,
                 invalid_modes={CUDAGraphMode.FULL} if disable_full else None,
+                uniform_query_len=uniform_query_len,
             )
 
         cudagraph_mode, batch_descriptor = dispatch_cudagraph(
@@ -5954,6 +5984,7 @@ class GPUModelRunner(
         is_graph_capturing: bool = False,
         num_active_loras: int = 0,
         profile_seq_lens: int | None = None,
+        uniform_query_len: int | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Run a dummy forward pass to warm up/profile run or capture the
@@ -6006,7 +6037,11 @@ class GPUModelRunner(
         # When setting max_query_len = 1, we switch to and capture the optimized
         # routine of FA2 for pure decode, i.e., Flashdecode + an optimization
         # for GQA/MQA.
-        max_query_len = self.uniform_decode_query_len if uniform_decode else num_tokens
+        max_query_len = (
+            (uniform_query_len or self.uniform_decode_query_len)
+            if uniform_decode
+            else num_tokens
+        )
 
         # Set num_scheduled_tokens based on num_tokens and max_num_seqs
         # for dummy run with LoRA so that the num_reqs collectively
@@ -6775,6 +6810,17 @@ class GPUModelRunner(
                 "[NEO] swap-out: _ensure_neo_cpu_kv_buffer failed — skip"
             )
             return
+        # LHC Phase 4 / Option C — record swap events into regime detector
+        # so KV_HEAVY classification can fire. Cheap when adaptive=0.
+        try:
+            import os as _os_re
+            if _os_re.environ.get("VLLM_LHC_REGIME_ADAPTIVE", "0") == "1":
+                from vllm.v1.lhc.regime_detector import note_swap_event
+                n_events = len(swap_out_ids or []) + len(swap_in_ids or [])
+                if n_events > 0:
+                    note_swap_event(n_events)
+        except Exception:  # noqa: BLE001
+            pass
 
         buf = self._neo_cpu_kv_buffer
         # TSK_019 plan A4 — `_neo_swap_communication_stream` (별 CUDA stream)
@@ -6807,6 +6853,22 @@ class GPUModelRunner(
         # 풀 크기 — staging buffer 가 lazy-init 인 경우 첫 async 시도 후 결정.
         # 본 step 진입 시 0 일 수 있으므로 alloc 직후 동적 read.
 
+        # LHC_P4_001 fix — derive worker's KV cache block capacity for OOB
+        # guard. The scheduler's block-id space can exceed this worker's
+        # kv_caches[0].shape[0] when (a) cudagraph-profiling left a residual
+        # short KV cache (override=64), or (b) cluster-wide block pool is
+        # larger than this worker's slice. Indexing past shape[0] triggers
+        # CUDA device-side assert which kills the worker.
+        _kv_cap = 0
+        try:
+            for _kv in self.kv_caches:
+                if _kv is None:
+                    continue
+                _kv_cap = int(_kv[0].shape[0]) if _kv[0].dim() >= 1 else 0
+                break
+        except (AttributeError, IndexError, RuntimeError):
+            _kv_cap = 0
+
         with torch.cuda.stream(swap_stream):
             # ── swap-out: GPU → CPU per-layer copy ────────────────
             # Async path (SUB_026: up to N=3 slots): gather GPU KV into
@@ -6829,6 +6891,28 @@ class GPUModelRunner(
                         req_id,
                     )
                     continue
+                # LHC_P4_001 OOB guard — drop reqs whose block_ids exceed
+                # this worker's KV cache shape[0]. The mismatch arises when
+                # the scheduler's global block pool size is larger than the
+                # per-worker GPU KV cache capacity. Without this guard, the
+                # subsequent ``kv[0][gpu_idx]`` triggers a CUDA device-side
+                # assert and kills the worker.
+                if _kv_cap > 0:
+                    _max_blk = max(gpu_blocks)
+                    if _max_blk >= _kv_cap:
+                        if not getattr(self, "_neo_oob_dropped_logged", False):
+                            logger.warning(
+                                "[NEO LHC_P4_001] swap-out OOB drop: req=%s "
+                                "max_block_id=%d >= kv_cap=%d — drop swap "
+                                "(per-worker KV slice). Subsequent OOB "
+                                "drops suppressed.",
+                                req_id, _max_blk, _kv_cap,
+                            )
+                            self._neo_oob_dropped_logged = True
+                        # ACCENT-RITARDANDO fallback: mark req unresident,
+                        # do not allocate CPU pool slot (caller's mirror set
+                        # will clean up via swap_in skip path).
+                        continue
                 cpu_blocks = buf.alloc(req_id, num_blocks=len(gpu_blocks))
                 if cpu_blocks is None:
                     logger.warning(
@@ -6908,6 +6992,16 @@ class GPUModelRunner(
                     continue   # not on CPU
                 gpu_blocks = self._get_req_gpu_block_ids(req_id)
                 if gpu_blocks is None:
+                    continue
+                # LHC_P4_001 OOB guard (swap-in mirror of above).
+                if _kv_cap > 0 and max(gpu_blocks) >= _kv_cap:
+                    if not getattr(self, "_neo_oob_si_dropped_logged", False):
+                        logger.warning(
+                            "[NEO LHC_P4_001] swap-in OOB drop: req=%s "
+                            "max_block_id=%d >= kv_cap=%d",
+                            req_id, max(gpu_blocks), _kv_cap,
+                        )
+                        self._neo_oob_si_dropped_logged = True
                     continue
                 try:
                     _t0_si = _t_prof.perf_counter() if _prof_on else 0.0
@@ -7750,6 +7844,13 @@ class GPUModelRunner(
         if num_warmups is None:
             num_warmups = self.compilation_config.cudagraph_num_of_warmups
         force_attention = cudagraph_runtime_mode == CUDAGraphMode.FULL
+        # TSK_046: 다중-K uniform 키의 캡처 — descriptor 의 (num_tokens, num_reqs)
+        # 에서 이 키의 uniform query len 을 복원해 전달
+        uniform_q = (
+            desc.num_tokens // desc.num_reqs
+            if desc.uniform and desc.num_reqs
+            else None
+        )
         for _ in range(num_warmups):
             self._dummy_run(
                 desc.num_tokens,
@@ -7761,6 +7862,7 @@ class GPUModelRunner(
                 remove_lora=False,
                 num_active_loras=desc.num_active_loras,
                 profile_seq_lens=profile_seq_lens,
+                uniform_query_len=uniform_q,
             )
         self._dummy_run(
             desc.num_tokens,
@@ -7772,6 +7874,7 @@ class GPUModelRunner(
             num_active_loras=desc.num_active_loras,
             is_graph_capturing=True,
             profile_seq_lens=profile_seq_lens,
+            uniform_query_len=uniform_q,
         )
 
     def _capture_cudagraphs(
