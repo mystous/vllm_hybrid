@@ -1,0 +1,38 @@
+[23:42:44] === SUB_240 sweep start: Llama-3.1-70B-Instruct suffix K=32, 3 cells x 7 corpora, per-cell boot ===
+[23:42:44] boot pid=3276112 cell=W0_base (taskset 0-47,56-103)
+[23:44:00] READY
+[23:44:00] cell W0_base: baseline (aggressor 없음)
+[23:44:00]   bench W0_base x sharegpt
+[23:47:28]   bench W0_base x swebench
+[23:49:28]   bench W0_base x humaneval
+[23:52:32]   bench W0_base x mbpp
+[23:53:22]   bench W0_base x wildchat
+[23:57:26]   bench W0_base x lmsys
+[00:00:46]   bench W0_base x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_240_a4_relay_q/run_sub240.sh: line 141: 3276112 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[00:03:26] GPU freed
+[00:03:26] boot pid=3294128 cell=W1_tp2us (taskset 0-47,56-103)
+[00:04:41] READY
+[00:04:41] cell W1_tp2us: baseline (aggressor 없음)
+[00:04:41]   bench W1_tp2us x sharegpt
+[00:08:08]   bench W1_tp2us x swebench
+[00:10:08]   bench W1_tp2us x humaneval
+[00:13:06]   bench W1_tp2us x mbpp
+[00:14:04]   bench W1_tp2us x wildchat
+[00:18:09]   bench W1_tp2us x lmsys
+[00:21:33]   bench W1_tp2us x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_240_a4_relay_q/run_sub240.sh: line 141: 3294128 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[00:24:15] GPU freed
+[00:24:15] boot pid=3312255 cell=W2_tp8us (taskset 0-47,56-103)
+[00:25:30] READY
+[00:25:30] cell W2_tp8us: baseline (aggressor 없음)
+[00:25:30]   bench W2_tp8us x sharegpt
+[00:29:01]   bench W2_tp8us x swebench
+[00:31:09]   bench W2_tp8us x humaneval
+[00:33:57]   bench W2_tp8us x mbpp
+[00:34:57]   bench W2_tp8us x wildchat
+[00:39:02]   bench W2_tp8us x lmsys
+[00:42:42]   bench W2_tp8us x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_240_a4_relay_q/run_sub240.sh: line 141: 3312255 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[00:45:11] GPU freed
+[00:45:11] === SUB_240 sweep done ===

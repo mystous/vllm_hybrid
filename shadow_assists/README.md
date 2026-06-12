@@ -275,7 +275,7 @@ flowchart TB
     TSK_048 --> SUB_237["SUB_237<br/>A1 CC-CAT: AIMD elastic way 할당<br/>⚪ 대기 — 신규 알고리즘 ⭐⭐"]
     TSK_048 --> SUB_238["SUB_238<br/>A2 CSMA-MEM: 분산 carrier-sense BW 중재<br/>⚪ 대기 — 신규 알고리즘 ⭐⭐"]
     TSK_048 --> SUB_239["SUB_239<br/>A3 FERRY: DSA-운반 NUMA 파이프라인<br/>⚪ 대기 — 신규 알고리즘 ⭐"]
-    TSK_048 --> SUB_240["SUB_240<br/>A4 RELAY-Q: RFO-free 핸드오프 큐<br/>⚪ 대기 — 신규 알고리즘 ⭐"]
+    TSK_048 --> SUB_240["SUB_240<br/>A4 RELAY-Q vLLM판: sched_yield→tpause<br/>✅ tps 중립 — wake 지연 비병목 판명"]
     TSK_048 --> SUB_241["SUB_241<br/>A5 CLOSPACK: RMID 측정주도 CLOS 패킹<br/>⚪ 대기 — 신규 알고리즘 ⭐⭐"]
     TSK_048 --> SUB_242["SUB_242<br/>A6 MERCATO: 혼잡가격 BW 시장<br/>⚪ 대기 — 2차 알고리즘·경제학 ⭐"]
     TSK_048 --> SUB_243["SUB_243<br/>A7 CANARY: 카나리 간섭 센싱<br/>⚪ 대기 — 2차 알고리즘·센싱 ⭐⭐"]

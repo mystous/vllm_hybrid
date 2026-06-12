@@ -42,9 +42,40 @@ USE_SCHED_YIELD = (sys.version_info[:3] >= (3, 11, 1)) or (
     sys.version_info[:2] == (3, 10) and sys.version_info[2] >= 8
 )
 
+# SUB_240 (IDE_026): VLLM_SCHED_YIELD_MODE=tpause 면 sched_yield 스핀을
+# waitpkg tpause(C0.2) 로 대체 — syscall 0회/스케줄러 무부하/저전력 대기.
+# 대기 길이 VLLM_TPAUSE_CYCLES (TSC cycles, 기본 4000 ≈ 2µs). 수치 경로
+# 무접촉 (순수 대기 방식 변경) — 출력 등가. 기본 off.
+_TPAUSE_FN = None
+if os.getenv("VLLM_SCHED_YIELD_MODE", "") == "tpause":
+    try:
+        import ctypes
+
+        _uwait_so = os.getenv(
+            "VLLM_UWAIT_SO",
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                "shadow_assists/features/IDE_026_rdt_guarded_harvest/"
+                "SUB_240_a4_relay_q/libuwait.so",
+            ),
+        )
+        _uwait = ctypes.CDLL(_uwait_so)
+        _tpause_cycles = ctypes.c_uint64(int(os.getenv("VLLM_TPAUSE_CYCLES", "4000")))
+
+        def _tpause_yield():
+            _uwait.u_tpause(_tpause_cycles)
+
+        _TPAUSE_FN = _tpause_yield
+        # 주의: 모듈 로드 시점에 logger.info_once 호출 금지 — info_once 가
+        # parallel_state 를 lazy import 해 순환 import 유발 (실측)
+    except OSError:
+        _TPAUSE_FN = None  # .so 부재 시 기본 경로 유지
+
 
 def sched_yield():
-    if USE_SCHED_YIELD:
+    if _TPAUSE_FN is not None:
+        _TPAUSE_FN()
+    elif USE_SCHED_YIELD:
         os.sched_yield()
     else:
         time.sleep(0)
