@@ -1,0 +1,38 @@
+[01:26:45] === SUB_213 sweep start: Llama-3.1-70B-Instruct suffix, 3 cells x 7 corpora, per-cell boot ===
+[01:26:45] boot pid=3371032 cell=V0_k32 (taskset 0-47,56-103)
+[01:28:00] READY
+[01:28:00] cell V0_k32: baseline (aggressor 없음)
+[01:28:00]   bench V0_k32 x sharegpt
+[01:31:29]   bench V0_k32 x swebench
+[01:33:42]   bench V0_k32 x humaneval
+[01:36:42]   bench V0_k32 x mbpp
+[01:37:44]   bench V0_k32 x wildchat
+[01:41:45]   bench V0_k32 x lmsys
+[01:45:07]   bench V0_k32 x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_sub213.sh: line 142: 3371032 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[01:47:43] GPU freed
+[01:47:43] boot pid=3398723 cell=V1_k8 (taskset 0-47,56-103)
+[01:49:03] READY
+[01:49:03] cell V1_k8: baseline (aggressor 없음)
+[01:49:03]   bench V1_k8 x sharegpt
+[01:52:37]   bench V1_k8 x swebench
+[01:54:47]   bench V1_k8 x humaneval
+[01:57:42]   bench V1_k8 x mbpp
+[01:58:57]   bench V1_k8 x wildchat
+[02:03:28]   bench V1_k8 x lmsys
+[02:06:39]   bench V1_k8 x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_sub213.sh: line 142: 3398723 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[02:09:59] GPU freed
+[02:09:59] boot pid=3417889 cell=V2_k8pad (taskset 0-47,56-103)
+[02:11:19] READY
+[02:11:19] cell V2_k8pad: baseline (aggressor 없음)
+[02:11:19]   bench V2_k8pad x sharegpt
+[02:14:01]   bench V2_k8pad x swebench
+[02:15:31]   bench V2_k8pad x humaneval
+[02:17:38]   bench V2_k8pad x mbpp
+[02:18:34]   bench V2_k8pad x wildchat
+[02:21:43]   bench V2_k8pad x lmsys
+[02:24:02]   bench V2_k8pad x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_sub213.sh: line 142: 3417889 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$SPEC_K}" > "$BOOT_LOG" 2>&1 < /dev/null
+[02:26:39] GPU freed
+[02:26:39] === SUB_213 sweep done ===

@@ -242,7 +242,7 @@ flowchart TB
     %% IDE_023 / IDE_024 — HPC slack harvest + workload-adaptive composite (2026-06-11 갱신)
     TSK_020 --> IDE_023["IDE_023<br/>HPC Theory-Grounded Multi-Axis CPU Slack Harvesting<br/>⚪ 활성"]
     IDE_023 --> SUB_212["SUB_212<br/>Optimal+DSA 6-point 70-cell coverage<br/>✅ 완료 — 단, host DSA WQ confounder 결론은 SUB_213이 재검증 중"]
-    IDE_023 --> SUB_213["SUB_213<br/>FaP 재검증(H-FaP) + uniform draft padding lever<br/>⚪ 활성 — E1/E2+P1~P4 GPU 대기"]
+    IDE_023 --> SUB_213["SUB_213<br/>FaP×suffix uniform pad lever<br/>✅ P-셀 +28.0% ⭐⭐⭐ (K8+pad, 최대 +51%) — E1/E2 잔여"]
     TSK_020 --> IDE_024["IDE_024<br/>Workload-Adaptive Composite Optimization<br/>HPC/SE 방법론 매핑: autotuning + α-EMA 게이팅 + memoization<br/>⚪ 활성 (2026-06-11)"]
     IDE_024 --> TSK_046["TSK_046<br/>Regime-Oracle Router + α-EMA pad 게이트<br/>⚪ 활성 — SUB_213 판정 후 구현"]
     TSK_020 --> IDE_025["IDE_025<br/>Parallelism·Precision·Comm Remap<br/>전 sweep 고정축(TP8/dp1/bf16KV/no-overlap) 재조사<br/>⚪ 활성 — 역할 재정의: upstream 기능 → baseline 강화 전용 (논문 기여 아님)"]
