@@ -1,0 +1,53 @@
+[12:21:02] === SUB_214 sweep v2 start: Llama-3.1-70B-Instruct suffix K=32, 4 cells x 7 corpora, per-cell boot ===
+[12:21:02] boot pid=2597134 cell=C0_base (taskset 0-47,56-103)
+[12:22:17] READY
+[12:22:17] cell C0_base: baseline (aggressor 없음)
+[12:22:17]   bench C0_base x sharegpt
+[12:25:46]   bench C0_base x swebench
+[12:27:45]   bench C0_base x humaneval
+[12:30:28]   bench C0_base x mbpp
+[12:31:27]   bench C0_base x wildchat
+[12:35:41]   bench C0_base x lmsys
+[12:38:55]   bench C0_base x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 140: 2597134 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[12:41:46] GPU freed
+[12:41:46] boot pid=2624800 cell=C1_sep20 (taskset 0-47,56-103)
+[12:43:01] READY
+[12:43:01] cell C1_sep20: aggressor pid=2626658 cpus=48-55,104-111 MBA=20%
+[12:43:06]   bench C1_sep20 x sharegpt
+[12:46:43]   bench C1_sep20 x swebench
+[12:48:52]   bench C1_sep20 x humaneval
+[12:51:38]   bench C1_sep20 x mbpp
+[12:52:35]   bench C1_sep20 x wildchat
+[12:56:53]   bench C1_sep20 x lmsys
+[13:00:43]   bench C1_sep20 x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 84: 2626658 Killed                  "$SRC/victim_aggressor" --role aggressor --cpus "$aggr_cpus" --secs 1000000 --array-mb 32 > "$LOGD/aggr_${name}.log" 2>&1
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 140: 2624800 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[13:03:28] GPU freed
+[13:03:28] boot pid=2643070 cell=C2_sib100 (taskset 0-47,56-103)
+[13:04:43] READY
+[13:04:43] cell C2_sib100: aggressor pid=2644987 cpus=112-119,168-175 MBA=100%
+[13:04:48]   bench C2_sib100 x sharegpt
+[13:08:48]   bench C2_sib100 x swebench
+[13:11:15]   bench C2_sib100 x humaneval
+[13:14:43]   bench C2_sib100 x mbpp
+[13:15:57]   bench C2_sib100 x wildchat
+[13:20:45]   bench C2_sib100 x lmsys
+[13:25:04]   bench C2_sib100 x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 84: 2644987 Killed                  "$SRC/victim_aggressor" --role aggressor --cpus "$aggr_cpus" --secs 1000000 --array-mb 32 > "$LOGD/aggr_${name}.log" 2>&1
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 140: 2643070 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[13:28:33] GPU freed
+[13:28:33] boot pid=2663296 cell=C3_sib20 (taskset 0-47,56-103)
+[13:29:48] READY
+[13:29:49] cell C3_sib20: aggressor pid=2665179 cpus=112-119,168-175 MBA=20%
+[13:29:54]   bench C3_sib20 x sharegpt
+[13:33:28]   bench C3_sib20 x swebench
+[13:35:30]   bench C3_sib20 x humaneval
+[13:38:25]   bench C3_sib20 x mbpp
+[13:39:25]   bench C3_sib20 x wildchat
+[13:43:37]   bench C3_sib20 x lmsys
+[13:47:05]   bench C3_sib20 x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 84: 2665179 Killed                  "$SRC/victim_aggressor" --role aggressor --cpus "$aggr_cpus" --secs 1000000 --array-mb 32 > "$LOGD/aggr_${name}.log" 2>&1
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 140: 2663296 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":32}' > "$BOOT_LOG" 2>&1 < /dev/null
+[13:49:51] GPU freed
+[13:49:51] === SUB_214 sweep v2 done ===

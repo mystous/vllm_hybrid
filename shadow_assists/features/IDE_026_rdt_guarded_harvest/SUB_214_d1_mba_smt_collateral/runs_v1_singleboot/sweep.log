@@ -1,0 +1,39 @@
+[11:13:30] === SUB_214 sweep start: Llama-3.1-70B-Instruct suffix K=32, 4 cells x 7 corpora ===
+[11:13:30] boot pid=2531831 (taskset 0-47,56-103)
+[11:14:51] READY
+[11:14:51] cell C0_base: baseline (aggressor 없음)
+[11:14:51]   bench C0_base x sharegpt
+[11:18:23]   bench C0_base x swebench
+[11:20:31]   bench C0_base x humaneval
+[11:23:32]   bench C0_base x mbpp
+[11:24:30]   bench C0_base x wildchat
+[11:28:34]   bench C0_base x lmsys
+[11:32:22]   bench C0_base x mix
+[11:35:02] cell C1_sep20: aggressor pid=2560577 cpus=48-55,104-111 MBA=20%
+[11:35:07]   bench C1_sep20 x sharegpt
+[11:37:38]   bench C1_sep20 x swebench
+[11:39:28]   bench C1_sep20 x humaneval
+[11:41:29]   bench C1_sep20 x mbpp
+[11:42:16]   bench C1_sep20 x wildchat
+[11:45:23]   bench C1_sep20 x lmsys
+[11:47:57]   bench C1_sep20 x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 84: 2560577 Killed                  "$SRC/victim_aggressor" --role aggressor --cpus "$aggr_cpus" --secs 1000000 --array-mb 32 > "$LOGD/aggr_${name}.log" 2>&1
+[11:50:18] cell C2_sib100: aggressor pid=2572891 cpus=112-119,168-175 MBA=100%
+[11:50:23]   bench C2_sib100 x sharegpt
+[11:53:37]   bench C2_sib100 x swebench
+[11:55:08]   bench C2_sib100 x humaneval
+[11:57:37]   bench C2_sib100 x mbpp
+[11:58:19]   bench C2_sib100 x wildchat
+[12:01:46]   bench C2_sib100 x lmsys
+[12:04:23]   bench C2_sib100 x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 84: 2572891 Killed                  "$SRC/victim_aggressor" --role aggressor --cpus "$aggr_cpus" --secs 1000000 --array-mb 32 > "$LOGD/aggr_${name}.log" 2>&1
+[12:06:55] cell C3_sib20: aggressor pid=2585692 cpus=112-119,168-175 MBA=20%
+[12:07:00]   bench C3_sib20 x sharegpt
+[12:09:13]   bench C3_sib20 x swebench
+[12:10:40]   bench C3_sib20 x humaneval
+[12:12:44]   bench C3_sib20 x mbpp
+[12:13:28]   bench C3_sib20 x wildchat
+[12:16:16]   bench C3_sib20 x lmsys
+[12:18:20]   bench C3_sib20 x mix
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_214_d1_mba_smt_collateral/run_sub214.sh: line 84: 2585692 Killed                  "$SRC/victim_aggressor" --role aggressor --cpus "$aggr_cpus" --secs 1000000 --array-mb 32 > "$LOGD/aggr_${name}.log" 2>&1
+[12:20:27] === SUB_214 sweep done ===

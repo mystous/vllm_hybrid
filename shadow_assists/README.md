@@ -249,7 +249,7 @@ flowchart TB
     IDE_025 --> TSK_047["TSK_047<br/>Remap sweep: (TP×DP) × {fp8KV, DBO, enable_sp}<br/>예측: 8B TP1/DP8 ≥ 2× cluster tps<br/>⚪ GPU 대기 — baseline 강화 용도"]
     TSK_020 --> IDE_026["IDE_026<br/>RDT-Guarded Slack Harvesting (Harvest-without-Harm)<br/>CAT/CDP+MBA+CMT/MBM 간섭 격리·계측·폐루프<br/>⚪ 활성 (2026-06-11) — not-upstream·not-tried·출력등가 충족"]
     IDE_026 --> TSK_048["TSK_048<br/>MBM attribution + resctrl harness + CPU-only CAT A/B<br/>⚪ 활성 — T0/T1 은 GPU 불요, 지금 가능"]
-    TSK_048 --> SUB_214["SUB_214<br/>D1 thread_throttle_mode=max SMT 연좌 정량화<br/>⚪ 대기 — 즉시 묶음"]
+    TSK_048 --> SUB_214["SUB_214<br/>D1 thread_throttle_mode=max SMT 연좌 정량화<br/>✅ 완료 — 연좌 미발생, sibling+MBA20 = serving −1%"]
     TSK_048 --> SUB_215["SUB_215<br/>D2 L2 CAT SMT co-location harvest<br/>⚪ 대기 — 신규축 ⭐"]
     TSK_048 --> SUB_216["SUB_216<br/>D3 DDIO way × GPU DMA 경합<br/>❌ 기각 — GPU 결박 (범위 재정의 2026-06-12)"]
     TSK_048 --> SUB_217["SUB_217<br/>D4 cldemote 협조적 aggressor<br/>⚪ 대기 — prod 전용 선택"]
