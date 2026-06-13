@@ -127,3 +127,32 @@ host-DSA confounder 해석은 기각). FULL_MATRIX_6point 의 ①↔② 차이 �
 **VERDICT: PASS (binding = D-ii)** — pad lever 는 Constraint 의 분포-유사성 게이트
 충족. main 머지 품질 증거 확보. 도구: `accuracy_gate.py` (1차 실행은 parquet 컬럼
 오독으로 0-prompt 무효 — `raw_text` 수정 후 재실행, 교훈: collect 결과 건수 assert).
+
+---
+
+## 10. Full matrix (pad on/off × K, 70B, 2026-06-13)
+
+K{4,6,8,12} × {nopad,pad} + base(K=32) × 7 corpus = 63셀. **padding 인과 확정**:
+
+| cell | sharegpt | swebench | humaneval | mbpp | wildchat | lmsys | mix | vs base |
+|---|---|---|---|---|---|---|---|---|
+| base_k32 | 4496 | 5195 | 4907 | 3090 | 5096 | 4180 | 7143 | 1.000 |
+| k4_nopad | 3641 | 4129 | 3693 | 2318 | 4055 | 3796 | 4505 | 0.774 |
+| k4_pad | 5864 | 6522 | 6547 | 3448 | 6425 | 5846 | 7751 | 1.246 |
+| k6_nopad | 4252 | 4657 | 4395 | 3006 | 4553 | 3555 | 5892 | 0.896 |
+| k6_pad | 6104 | 6826 | 6251 | 3629 | 6751 | 5968 | 8346 | 1.289 |
+| k8_nopad | 4465 | 5030 | 4482 | 2634 | 4919 | 3813 | 6944 | 0.938 |
+| k8_pad | 5932 | 6475 | 6279 | 2909 | 6497 | 6013 | 9707 | 1.256 |
+| k12_nopad | 4506 | 5011 | 4427 | 3233 | 5322 | 4629 | 6565 | 0.996 |
+| k12_pad | 5550 | 6518 | 5896 | 2926 | 6131 | 5562 | 14565 | 1.284 |
+
+- K4: pad vs base +25% / pad-vs-nopad +61%
+- K6: pad vs base +29% / pad-vs-nopad +44%
+- K8: pad vs base +26% / pad-vs-nopad +34%
+- K12: pad vs base +28% / pad-vs-nopad +29%
+
+**결론**: ① 같은 K 에서 pad on 이 항상 빠름 (+17~61%, 7/7 corpus) → 향상 원인은
+K 축소가 아니라 **uniform pad → FULL graph**. ② nopad 는 전부 base 이하 (K 축소
+단독은 손해). ③ K별 pad-vs-base 는 역U자, **K6 최적 (+29%)** — 어제 K-sweep
+독립 재현. ④ mix 는 K8_pad 가 최대 (corpus 별 최적 K 상이 → 모델별 최적 K 탐색
+근거 = §11 multi-model).
