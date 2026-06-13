@@ -1,0 +1,16 @@
+[08:52:22] === SUB_213 E1/E2: 8B vanilla x {PIECEWISE, FaP} — +36% confounder 확정 ===
+[08:52:22] boot pid=3809033 cell=E1_pw (taskset 0-47,56-103)
+[08:53:42] READY
+[08:53:42] cell E1_pw: baseline (aggressor 없음)
+[08:53:42]   bench E1_pw x sharegpt
+[09:01:14]   bench E1_pw x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_e1e2.sh: line 141: 3809033 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config "{\"cudagraph_mode\":\"$CG_MODE\"}" > "$BOOT_LOG" 2>&1 < /dev/null
+[09:09:03] GPU freed
+[09:09:03] boot pid=3824294 cell=E2_fap (taskset 0-47,56-103)
+[09:10:28] READY
+[09:10:28] cell E2_fap: baseline (aggressor 없음)
+[09:10:28]   bench E2_fap x sharegpt
+[09:16:10]   bench E2_fap x mix
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_e1e2.sh: line 141: 3824294 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS $EXTRA_ENV setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len "$MML" --compilation-config "{\"cudagraph_mode\":\"$CG_MODE\"}" > "$BOOT_LOG" 2>&1 < /dev/null
+[09:22:04] GPU freed
+[09:22:04] === E1/E2 done ===

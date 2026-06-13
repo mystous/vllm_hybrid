@@ -1,0 +1,11 @@
+[09:26:23] === 정확도 게이트: A (no-pad) ===
+[collect] 32 prompts → shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/runs_acc_gate/A_nopad.jsonl
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_acc_gate.sh: line 26: 3841886 Killed                  env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 $1 setsid taskset -c 0-47,56-103 "$VBIN" serve "$MODEL" --tensor-parallel-size 8 --port $PORT --gpu-memory-utilization 0.85 --max-model-len 16384 --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":6}' > "$OUT/boot_$2.log" 2>&1 < /dev/null
+[09:27:59] === B (PAD_UNIFORM) ===
+[collect] 32 prompts → shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/runs_acc_gate/B_pad.jsonl
+shadow_assists/features/IDE_023_cpu_slack_harvest/SUB_213_fap_suffix_uniform/run_acc_gate.sh: line 26: 3844016 Killed                  env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 $1 setsid taskset -c 0-47,56-103 "$VBIN" serve "$MODEL" --tensor-parallel-size 8 --port $PORT --gpu-memory-utilization 0.85 --max-model-len 16384 --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config '{"method":"suffix","num_speculative_tokens":6}' > "$OUT/boot_$2.log" 2>&1 < /dev/null
+[09:29:33] === compare ===
+[D-i ] 완전 일치 18/32, 발산 토큰수 분포: max=125, mean=31.4 (informational)
+[D-ii] worst_max_abs_logprob=0.2743 (atol 0.5) / worst_ppl_rel=0.0730 (rtol 0.1) / pass 32/32
+[VERDICT] PASS (binding = D-ii)
+[09:29:34] === acc gate done ===

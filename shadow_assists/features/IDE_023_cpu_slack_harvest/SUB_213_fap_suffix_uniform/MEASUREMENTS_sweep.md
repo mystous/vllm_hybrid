@@ -96,3 +96,34 @@ capture 인프라는 성공 (183 그래프·무사고·적응 실작동 텔레�
 EMA 정책은 oracle (+11%p) 미회수. **실용 결론: 고정 K6+pad 가 배포 권장값 유지,
 워크로드를 아는 경우 K-sweep LUT (mbpp→K4 / mix류→K12) 정적 라우팅.**
 데이터: `features/IDE_024_workload_adaptive_composite/SUB_247_dynk_judgment/`
+
+---
+
+## 8. E1/E2 confounder 최종 확정 (2026-06-13 09:23 KST)
+
+8B vanilla × {PIECEWISE, FaP} × {sharegpt, mix} (셀별 fresh boot):
+
+| 셀 | sharegpt | mix |
+|---|---:|---:|
+| E1 PIECEWISE | 8,550 | 8,376 |
+| E2 FaP | 11,067 | 11,185 |
+| **E2/E1** | **+29.4%** | **+33.5%** |
+
+**판정: SUB_212 의 "+36% (TSK_042 8,850 vs 본 sweep 12,089)" 의 원인 = FaP
+(cudagraph mode) 확정.** 호스트 DSA WQ 는 무죄 (SUB_213 가설 입증, SUB_212 의
+host-DSA confounder 해석은 기각). FULL_MATRIX_6point 의 ①↔② 차이 해석에 반영 필요.
+
+## 9. 정확도 게이트 — pad lever (2026-06-13 09:29 KST, TST_003 방식)
+
+70B suffix K6+FaP, {no-pad vs PAD_UNIFORM}, 32 prompts × greedy 128 tok, logprobs=1:
+
+| 지표 | 값 | 임계 | 판정 |
+|---|---|---|---|
+| **D-ii** worst_max_abs_logprob | **0.2743** | ≤ 0.5 (atol) | ✅ |
+| **D-ii** worst_ppl_rel | **0.0730** | ≤ 0.1 (rtol) | ✅ |
+| D-ii per-prompt pass | 32/32 | — | ✅ |
+| D-i 완전 일치 (informational) | 18/32, 발산 mean 31.4 tok | — | BF16 cascade 범위 |
+
+**VERDICT: PASS (binding = D-ii)** — pad lever 는 Constraint 의 분포-유사성 게이트
+충족. main 머지 품질 증거 확보. 도구: `accuracy_gate.py` (1차 실행은 parquet 컬럼
+오독으로 0-prompt 무효 — `raw_text` 수정 후 재실행, 교훈: collect 결과 건수 assert).

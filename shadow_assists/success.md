@@ -47,7 +47,10 @@ VLLM_SUFFIX_PAD_UNIFORM=1 vllm serve meta-llama/Llama-3.1-70B-Instruct \
 — `MEASUREMENTS_sweep.md` (본판정·K-sweep·8B), `runs*/` (105+ 셀), `run_sub213*.sh`.
 근거 프로파일: `features/IDE_026_rdt_guarded_harvest/profiling/worker0_profile.speedscope.json`.
 코드: `vllm/v1/spec_decode/suffix_decoding.py` (`VLLM_SUFFIX_PAD_UNIFORM`).
-후속: TSK_046 (다중-K FULL capture + α-EMA 동적 K — oracle 회수, 판정 진행 중).
+후속: TSK_046 (다중-K capture 인프라 ✅ / 정책 v1 +1.1% 게이트 미달 — SUB_247).
+**정확도 게이트 PASS** (2026-06-13, TST_003 D-ii 방식: worst_max_abs_logprob 0.2743 ≤ 0.5,
+ppl_rel 0.0730 ≤ 0.1, 32/32) — main 머지 품질 증거 확보.
+**E1/E2 확정**: SUB_212 의 +36% = FaP (호스트 DSA 무죄) — confounder 종결.
 
 ---
 
