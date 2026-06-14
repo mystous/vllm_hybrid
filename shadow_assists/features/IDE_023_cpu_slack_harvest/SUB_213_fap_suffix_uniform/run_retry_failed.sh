@@ -22,8 +22,8 @@ log(){ echo "[$(TZ=Asia/Seoul date '+%H:%M:%S')] $*"; }
 
 # tag|model_id|TP|extra_serve_args|Ks
 JOBS=(
+  "DeepSeek-R1|deepseek-ai/DeepSeek-R1|8||6 4"
   "Llama-3.1-405B-Instruct-FP8|meta-llama/Llama-3.1-405B-Instruct-FP8|8|--allow-deprecated-quantization|4 6 8 12"
-  "DeepSeek-R1|deepseek-ai/DeepSeek-R1|8||4 6"
 )
 
 wait_ready(){ local i; for i in $(seq 1 600); do   # 50분

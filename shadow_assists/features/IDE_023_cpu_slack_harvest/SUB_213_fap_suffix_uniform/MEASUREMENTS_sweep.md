@@ -156,3 +156,54 @@ K 축소가 아니라 **uniform pad → FULL graph**. ② nopad 는 전부 base 
 단독은 손해). ③ K별 pad-vs-base 는 역U자, **K6 최적 (+29%)** — 어제 K-sweep
 독립 재현. ④ mix 는 K8_pad 가 최대 (corpus 별 최적 K 상이 → 모델별 최적 K 탐색
 근거 = §11 multi-model).
+
+---
+
+## 11. Multi-model 일반화 — 전 모델 × K{4,6,8,12}pad × 7corpus (SUB_213, 2026-06-14)
+
+**목적**: SUB_212 6-point 표에 ⑦ (uniform-pad best-K) 열을 추가하기 위해, 10개 모델
+전부에서 per-(model,corpus) 최적 K 와 그 tps 를 실측. 70B 는 §10 fullmatrix 에서,
+나머지 9모델은 runs_multimodel/ 에서 측정.
+
+**측정 규모**: 9모델 × K{4,6,8,12} × 7corpus = **252 셀** (+ 70B fullmatrix 별도).
+전 셀 100% 성공·0 에러. 셀별 fresh boot (suffix tree 오염 회피, SUB_214 규칙).
+조건: suffix+FaP, gmu 0.85, MML 16384, conc 32, max_tok 8192, 실 trace, mix=500p
+shuffle seed0 (SUB_212 canonical 동일). 차이: `VLLM_SUFFIX_PAD_UNIFORM=1` +
+K∈{4,6,8,12} + taskset 0-47,56-103 (절대비교 caveat).
+
+### 11.1 모델별 ⑦ best-K pad 향상 (7-corpus 기하평균)
+
+| model | ⑦ vs ④ suf(OFF) | ⑦ vs ⑤ suf(ON) | ⑦ vs ② van(ON) | best-K (mix) |
+|---|---:|---:|---:|:---:|
+| `Qwen2.5-7B-Instruct` | +8.8% | +12.5% | +16.0% | K6 |
+| `DeepSeek-R1-Distill-Qwen-7B` | +33.7% | +42.0% | +51.9% | K12 |
+| `Llama-3.1-8B-Instruct` | +29.2% | +34.2% | +113.5% | K12 |
+| `Qwen2.5-32B-Instruct` | +18.9% | +27.3% | +37.0% | K8 |
+| `DeepSeek-R1-Distill-Qwen-32B` | +19.6% | +24.6% | +39.6% | K12 |
+| `Qwen2.5-72B-Instruct` | +22.8% | +27.9% | +39.8% | K6 |
+| `Llama-3.1-70B-Instruct` | +29.1% | +33.4% | +130.4% | K12 |
+| `DeepSeek-R1-Distill-Llama-70B` | +39.2% | +41.9% | +37.1% | K12 |
+| `Llama-3.1-405B-Instruct-FP8` | +24.0% | — | +135.5% | K6 |
+| `DeepSeek-R1` | +175.6% | +156.9% | +35.1% | K12 |
+
+> ⑦ vs ⑤ = pad 레버의 순수 효과 (둘 다 suffix+FaP, K 만 다름). ⑦ vs ② =
+> non-suffix 최강 baseline 대비. **671B 는 ④⑤(suffix K=32) 가 vanilla 보다
+> net-negative 였으나 ⑦(pad) 가 ② 대비 +35% 로 역전** — pad 가 step-bound MoE
+> 에서도 suffix 를 살려냄. 405B 는 ⑤⑥ 가 §11.1(SUB_212) 부팅한계로 미측정이라
+> ⑦ vs ⑤ 는 N/A, ⑦ vs ④ +24% / ⑦ vs ② +135%.
+
+### 11.2 best-K 의 regime 의존성
+
+- **Qwen dense (7B/32B/72B)**: 단일 corpus → **K4**, mix → K6~K8.
+- **DS-Qwen distill (7B/32B)**: **K6~K12** (긴 reasoning trace = 높은 accept).
+- **Llama-8B**: 전 corpus **K12 석권** (최고 accept).
+- **대형 dense (70B/405B)**: **K6** 중심, mix → K12.
+- **671B MoE (37B active)**: 단일 corpus **K4**, mix → K12.
+- 공통: **mix corpus 는 큰 K, 단일 corpus 는 작은 K** 유리 (accept rate ∝ 최적 K).
+
+### 11.3 산출물
+
+- 결과: `runs_multimodel/summ_*.json` (252 셀), `runs_fullmatrix/` (70B 63셀).
+- LIVE 매트릭스: `LIVE_multimodel_results.md` (`/tmp/mm_report.py` 자동생성).
+- ⑦열 반영: `SUB_212_optimal_dsa_6point/FULL_MATRIX_6point.md` (6→7 point 갱신,
+  ⑦ 가 70셀 중 **68셀** 행 최대).

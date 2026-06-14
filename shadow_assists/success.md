@@ -21,8 +21,12 @@
 3. **K 의 regime 의존성 지도 확보** — 역U자 (고정 최적 K6 +38.4%) + corpus 별
    winner (저-accept mbpp→K4 +46% / 고-accept mix→K12 +104%) → per-corpus
    oracle ≈ **+49%**. 적응형 게이트 (TSK_046) 의 상방 +11%p 를 정량 입증.
-4. **모델 크기 일반화** — 이득 ∝ host-bound 정도 (70B +38.4% > 8B +16.4%),
-   초고-accept (8B mix acc 0.93) 는 중립 = 게이트 off-조건까지 실측.
+4. **모델 크기 일반화 (10모델 전수 확정, 2026-06-14)** — 9모델 × K{4,6,8,12} ×
+   7corpus = 252셀 (+70B 63셀) 전부 측정. ⑦(best-K pad) 가 **70셀 중 68셀**에서
+   기존 6개 설정(①~⑥)을 전부 상회. 모델별 ⑦ vs ⑤(suf+FaP) 기하평균: Q7B +12.5% /
+   DS-Q7B +42% / 8B +34% / Q32B +27% / DS-Q32B +25% / Q72B +28% / 70B +33% /
+   DS-70B +42% / **671B +157%** (suffix net-neg 를 pad 가 역전) / 405B +24%(vs④).
+   regime: Qwen dense→K4, distill→K6~12, 8B→K12, 대형 dense→K6, MoE→K4 (mix 는 큰 K).
 5. **측정 방법론** — "셀별 fresh boot" 규칙 (suffix tree 누적학습이 셀 비교를
    최대 +24% 오염 — SUB_214 에서 발견, 본 측정 전체에 적용).
 
