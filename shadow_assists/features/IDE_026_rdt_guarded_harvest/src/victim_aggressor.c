@@ -18,6 +18,7 @@
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <sched.h>
+#include <sys/mman.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +40,17 @@ static double now_sec(void) {
 
 /* "0-7,16,20-23" → cpu 배열 */
 static int g_aggr_mode = 0; /* 0=basic 1=cldemote 2=nt 3=amx */
+static int g_budget_pct = 0; /* SUB_224 SW token-bucket: 0=unlimited, 1..99=throttle */
+static int g_hugepage = 0; /* SUB_234: MADV_HUGEPAGE on victim buffers */
+static int g_hugetlb = 0; /* SUB_234: 예약 HugeTLB mmap */
+static int g_tpause_duty = 0; /* SUB_223: tpause duty actuator (0=off, 1..99=duty%) */
+static double g_tsc_hz = 0.0; /* TSC frequency (calibrated) */
+#include <x86intrin.h>
+static void calib_tsc(void){ unsigned long long t0=__rdtsc(); struct timespec ts={0,50000000};
+    clock_nanosleep(CLOCK_MONOTONIC,0,&ts,NULL); unsigned long long t1=__rdtsc(); g_tsc_hz=(t1-t0)/0.05; }
+static void tpause_for(double secs){ /* off-time 동안 self-tpause (C0.2), max TSC 초과시 loop */
+    unsigned long long deadline=__rdtsc()+(unsigned long long)(secs*g_tsc_hz);
+    while(__rdtsc()<deadline) _tpause(0, deadline); }
 
 /* ---- AMX tile 지원 (EMR native) ---- */
 #include <sys/syscall.h>
@@ -132,9 +144,30 @@ static void *victim_thread(void *p) {
     pin_to(a->cpu);
 
     size_t n_lines = a->ws_bytes / CACHELINE;
-    void **chase = aligned_alloc(CACHELINE, n_lines * CACHELINE);
-    char *src = aligned_alloc(CACHELINE, a->copy_bytes);
-    char *dst = aligned_alloc(CACHELINE, a->copy_bytes);
+    void **chase; char *src, *dst;
+    size_t HP2M = 2UL<<20;
+    if (g_hugetlb) {  /* SUB_234: 예약 HugeTLB(2MB) 직접 mmap */
+        #ifndef MAP_HUGE_2MB
+        #define MAP_HUGE_2MB (21 << 26)
+        #endif
+        int mf = MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB;
+        size_t cs=(n_lines*CACHELINE+HP2M-1)&~(HP2M-1), cb=(a->copy_bytes+HP2M-1)&~(HP2M-1);
+        chase=mmap(NULL,cs,PROT_READ|PROT_WRITE,mf,-1,0);
+        src=mmap(NULL,cb,PROT_READ|PROT_WRITE,mf,-1,0);
+        dst=mmap(NULL,cb,PROT_READ|PROT_WRITE,mf,-1,0);
+        if(chase==MAP_FAILED||src==MAP_FAILED||dst==MAP_FAILED){fprintf(stderr,"HugeTLB mmap 실패\n");exit(2);}
+    } else if (g_hugepage) {  /* SUB_234: 2MB 정렬 + MADV_HUGEPAGE → THP 형성 가능 */
+        posix_memalign((void**)&chase, HP2M, n_lines * CACHELINE);
+        posix_memalign((void**)&src, HP2M, a->copy_bytes);
+        posix_memalign((void**)&dst, HP2M, a->copy_bytes);
+        madvise(chase, n_lines * CACHELINE, MADV_HUGEPAGE);
+        madvise(src, a->copy_bytes, MADV_HUGEPAGE);
+        madvise(dst, a->copy_bytes, MADV_HUGEPAGE);
+    } else {
+        chase = aligned_alloc(CACHELINE, n_lines * CACHELINE);
+        src = aligned_alloc(CACHELINE, a->copy_bytes);
+        dst = aligned_alloc(CACHELINE, a->copy_bytes);
+    }
     if (!chase || !src || !dst) { fprintf(stderr, "alloc 실패\n"); exit(2); }
     build_chain(chase, n_lines, (unsigned)(a->cpu * 7919 + 1));
     memset(src, 0x5a, a->copy_bytes);
@@ -161,7 +194,7 @@ static void *victim_thread(void *p) {
     }
     /* pp 가 최적화로 제거되지 않도록 */
     if ((uintptr_t)pp == 1) fprintf(stderr, ".");
-    free(chase); free(src); free(dst);
+    if (!g_hugetlb) { free(chase); free(src); free(dst); }  /* HugeTLB 은 mmap → 프로세스 종료시 반환 */
     return NULL;
 }
 
@@ -225,7 +258,25 @@ static void *aggr_thread(void *p) {
     const double s = 3.0;
     double t_end = now_sec() + a->secs;
     size_t iters = 0;
+    /* SUB_224 SW token-bucket (소프트웨어 MBA): pass-duty 방식. 직전 pass 소요시간의
+       (100/budget - 1) 배만큼 clock_nanosleep → 활성시간 = budget% = BW의 budget%.
+       pass 크기에 무관하게 견고 (epoch < pass 문제 회피). */
+    double tb_last = 0.0;
     while (now_sec() < t_end) {
+        if (g_budget_pct > 0 && g_budget_pct < 100 && tb_last > 0.0) {
+            double pass_dur = now_sec() - tb_last;
+            double sleep_t = pass_dur * (100.0 / g_budget_pct - 1.0);
+            if (sleep_t > 0.0 && sleep_t < 0.5) {
+                struct timespec ts = {0, (long)(sleep_t * 1e9)};
+                clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
+            }
+        } else if (g_tpause_duty > 0 && g_tpause_duty < 100 && tb_last > 0.0) {
+            /* SUB_223: off-time 만큼 self-tpause (context switch 없음, L2 보존) */
+            double pass_dur = now_sec() - tb_last;
+            double off_t = pass_dur * (100.0 / g_tpause_duty - 1.0);
+            if (off_t > 0.0 && off_t < 0.5) tpause_for(off_t);
+        }
+        tb_last = now_sec();
         if (g_aggr_mode == 3) {           /* amx: tile 스트리밍 (read-dominant) */
             iters++;
             (void)amx_stream_pass((const char *)B, n * sizeof(double));
@@ -323,6 +374,10 @@ int main(int argc, char **argv) {
         else if (ARG("--copy-kb")) copy_kb = (size_t)atol(argv[++i]);
         else if (ARG("--chase-steps")) chase_steps = (size_t)atol(argv[++i]);
         else if (ARG("--array-mb")) array_mb = (size_t)atol(argv[++i]);
+        else if (ARG("--budget-pct")) g_budget_pct = atoi(argv[++i]);
+        else if (ARG("--tpause-duty")) { g_tpause_duty = atoi(argv[++i]); calib_tsc(); }
+        else if (!strcmp(argv[i], "--hugepage")) g_hugepage = 1;
+        else if (!strcmp(argv[i], "--hugetlb")) g_hugetlb = 1;
         else { usage(argv[0]); return 1; }
         #undef ARG
     }

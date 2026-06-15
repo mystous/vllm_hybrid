@@ -1,0 +1,16 @@
+[22:18:03] === SUB_225 A/B start: arms=[baseline jemalloc] ===
+[22:18:03] === ARM=baseline (r1_baseline) LD_PRELOAD='' boot ===
+[22:18:03] boot r1_baseline (pid=4032387)
+[22:19:23] READY (85s)
+[22:22:19]   r1_baseline x mix tps=6232.4
+[22:23:39]   r1_baseline x swebench tps=8023.1
+[22:25:48]   r1_baseline x lmsys tps=6349.6
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_225_allocator_jemalloc/driver_ab.sh: line 30: 4032387 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS VLLM_SUFFIX_PAD_UNIFORM=1 LD_PRELOAD="$PRE" setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len $MML --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$K}" > "$BL" 2>&1 < /dev/null
+[22:26:00] === ARM=jemalloc (r2_jemalloc) LD_PRELOAD='/usr/lib/x86_64-linux-gnu/libjemalloc.so.2' boot ===
+[22:26:00] boot r2_jemalloc (pid=4039758)
+[22:27:20] READY (85s)
+[22:30:14]   r2_jemalloc x mix tps=6209.3
+[22:31:37]   r2_jemalloc x swebench tps=7947.6
+[22:33:42]   r2_jemalloc x lmsys tps=6332.3
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_225_allocator_jemalloc/driver_ab.sh: line 30: 4039758 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS VLLM_SUFFIX_PAD_UNIFORM=1 LD_PRELOAD="$PRE" setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len $MML --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$K}" > "$BL" 2>&1 < /dev/null
+[22:33:55] === SUB_225 A/B done ===

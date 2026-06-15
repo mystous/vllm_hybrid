@@ -207,3 +207,19 @@ K∈{4,6,8,12} + taskset 0-47,56-103 (절대비교 caveat).
 - LIVE 매트릭스: `LIVE_multimodel_results.md` (`/tmp/mm_report.py` 자동생성).
 - ⑦열 반영: `SUB_212_optimal_dsa_6point/FULL_MATRIX_6point.md` (6→7 point 갱신,
   ⑦ 가 70셀 중 **68셀** 행 최대).
+
+## 동적 K 컨트롤러 — 데이터-주도 오프라인 검증 (2026-06-15, GPU 0)
+
+> **판정: 동적 K-선택은 헤드룸 없음 (천장 +6.5%, 온라인 회수 ~+1%). dyn-K +1.1%는 버그
+> 아닌 천장.** `ktail_offline.py` (63셀 runs_multimodel 리플레이).
+
+- **oracle / 고정K6 = 1.065 (+6.5%)** — 동적이 노릴 전부. (+49%는 K-pad 레버 vs K32였고
+  *어떤 고정 K-pad든* 잡음. 동적 부분 ≠ +49%.)
+- **α는 K를 예측 못 함**: 같은 α=0.367이 K4(Qwen-32B mbpp)·K12(DS-Qwen-7B humaneval).
+  최적 단조 α-threshold 규칙조차 oracle의 97.3%. → α-버킷 무의미.
+- **UCB 동적 컨트롤러**: 레짐길이 5~500 전부 **dyn/K6 = 99.1~101.3%** (고정 K6과 동률).
+  dyn/oracle 레짐500에서도 95% — K-tps 곡면이 최적 근처 평평(near-tie)이라 탐색이
+  못 건짐. 큰 갭은 mix/고-tail(K12 +30%) 소수뿐.
+- **실속**: "mix/고-accept-tail → K12, else K6" 2-state가 갭 대부분. 동적 장치 불요.
+
+산출물: `ktail_offline.py`.

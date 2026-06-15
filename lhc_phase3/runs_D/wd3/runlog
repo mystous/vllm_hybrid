@@ -1,0 +1,17 @@
+[13:36:53 KST] launching vllm: lhc_dsa workload=wd3
+[cfg] sonnet_input=12000 output=512 prefix=8000 num_prompts=128 conc=32 max_model_len=16384 mem_util=0.60
+[13:36:53 KST] serve PID=14754 PGID=14744
+[13:36:53 KST] waiting for vllm /health...
+[13:38:13 KST] vllm ready (8x10s = 80s)
+[13:38:13 KST] running bench (workload=wd3 cfg=lhc_dsa)
+[13:38:27 KST] bench done; collecting NEO+DSA stats
+{
+  "config": "lhc_dsa",
+  "workload": "wd3",
+  "neo_swap_out_log_count": 8,
+  "neo_swap_in_log_count": 00,
+  "neo_drain_scatter_fail": 00,
+  "dsa_lane_enabled_workers": 00,
+  "kv_usage_pct_max": 0
+}
+[13:38:27 KST] killing serve PGID=14744

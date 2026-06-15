@@ -82,9 +82,11 @@ Enabled WQ 공통 속성 (8개 모두 동일):
 | ④ | suf(OFF) | disabled | suffix K=32 | — | TSK_042 |
 | ⑤ | suf(ON) | **enabled** | suffix K=32 | — | 본 sweep |
 | ⑥ | suf+dsa(ON) | enabled | suffix K=32 | **on** | 본 sweep |
-| ⑦ | **bestK pad** | enabled | **suffix K∈{4,6,8,12} + `VLLM_SUFFIX_PAD_UNIFORM=1`** | — | **SUB_213** (2026-06-14) |
+| ⑦ | **suffix+FaP+Kpad** (=bestK pad) ⭐ | enabled | **suffix K∈{4,6,8,12} + `VLLM_SUFFIX_PAD_UNIFORM=1`** | — | **SUB_213** (2026-06-14) |
 
 > ⑦ 은 ⑤ suf(ON) 기준선에 (a) K 를 4/6/8/12 로 바꾸고 (b) draft 를 K 로 균일패딩(`VLLM_SUFFIX_PAD_UNIFORM=1`)해 FULL cudagraph 를 적중시킨 변형. pad 토큰은 rejection sampler 가 기각 → 출력분포 ⑤ 와 등가. 셀값 = per-(model,corpus) 최적 K 의 tps. (taskset 0-47,56-103 적용 — 절대비교 caveat.)
+>
+> **명명/지위 (2026-06-15)**: ⑦ = **`suffix+FaP+Kpad`** = 본 fork 의 현재 챔피언(70셀 중 68셀 행 최대). 이것이 앞으로 **"뛰어넘을 대상(to-beat baseline)"** 이다 — upstream 의 동등 작업(eagle_dynamic `DynamicProposer` #26504 = 동적 K, uniform cudagraph 정렬 #23679)을 비교에 넣을 때, 그것들이 ⑦ `suffix+FaP+Kpad` 를 넘는지로 판정한다. (upstream rebase 후 ⑧ 열로 추가 측정 권장. 메모리 `spec-decode-adaptive-k-upstream` 참조.)
 
 ## 4. vLLM Configuration
 

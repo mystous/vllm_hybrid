@@ -912,6 +912,23 @@ class Scheduler(SchedulerInterface):
                             num_local_cached_tokens=num_new_local_computed_tokens,
                             num_external_cached_tokens=num_external_computed_tokens,
                         )
+
+                    # LHC Phase 4: feed per-request prefix-cache hit signal to
+                    # the regime detector so PREFIX_HOT gating reflects the
+                    # actual workload (code workload exhibits sustained
+                    # >60% local hit rate that triggers the AMX C3 Path 1).
+                    # Import is lazy and guarded so a missing module never
+                    # breaks the scheduler hot-path.
+                    try:
+                        from vllm.v1.lhc.regime_detector import (
+                            note_prefix_hit as _lhc_note_prefix_hit,
+                        )
+                        _lhc_note_prefix_hit(
+                            num_new_local_computed_tokens,
+                            request.num_prompt_tokens,
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
                 else:
                     # KVTransfer: WAITING reqs have num_computed_tokens > 0
                     # after async KV recvs are completed.
@@ -1219,6 +1236,61 @@ class Scheduler(SchedulerInterface):
 
         with record_function_or_nullcontext("schedule: update_after_schedule"):
             self._update_after_schedule(scheduler_output)
+        # METRONOME-LHC step-end hook (env-gated, no-op when disabled).
+        try:
+            from vllm.v1.lhc.metronome import metronome_step_end
+            metronome_step_end()
+        except Exception:  # noqa: BLE001
+            pass
+        # LHC Phase 4 anti-pattern 2 — VLLM_LHC_AMX_C3_FORCE_EVERY_STEP=1
+        # forces an AMX C3 prefix scan on every scheduler step, ignoring
+        # both regime gate and prefix-hit filter. Used only to measure
+        # the misuse cost for the LHC misuse anti-pattern paper section.
+        try:
+            import os as _os_amx
+            if _os_amx.environ.get(
+                "VLLM_LHC_AMX_C3_FORCE_EVERY_STEP", "0"
+            ) == "1":
+                from vllm.v1.lhc.amx_c3_lane import amx_c3_prefix_scan
+                # Synthetic 64 KB scan with 64 B granule — same shape the
+                # real prefix-hasher would issue on a moderate prompt batch.
+                # NOTE: this allocates a small ctypes buffer per call; the
+                # whole point is that the buffer is FAKE work (no consumer
+                # of the returned hash) so we are measuring pure misuse
+                # overhead.
+                import ctypes as _ct
+                _buf = (_ct.c_uint8 * 65536)()
+                amx_c3_prefix_scan(
+                    _ct.addressof(_buf), 65536, 64,
+                )
+        except Exception:  # noqa: BLE001
+            pass
+        # LHC Phase 4 / Option C regime detector hook. Cheap when
+        # VLLM_LHC_REGIME_ADAPTIVE=0 (just counters); when ON, classifies
+        # every VLLM_LHC_REGIME_INTERVAL steps (default 20). We feed kv
+        # usage from the block pool (free_block_queue.num_free_blocks).
+        try:
+            import os as _os_re
+            if _os_re.environ.get("VLLM_LHC_REGIME_ADAPTIVE", "0") == "1":
+                from vllm.v1.lhc.regime_detector import (
+                    note_kv_usage, note_step,
+                )
+                try:
+                    mgr = getattr(self, "kv_cache_manager", None)
+                    bp = (
+                        getattr(mgr, "block_pool", None)
+                        if mgr is not None else None
+                    )
+                    if bp is not None and getattr(bp, "num_gpu_blocks", 0) > 0:
+                        free = int(getattr(bp, "num_free_blocks", 0))
+                        total = int(bp.num_gpu_blocks)
+                        used_pct = 1.0 - (free / max(total, 1))
+                        note_kv_usage(used_pct)
+                except Exception:  # noqa: BLE001
+                    pass
+                note_step()
+        except Exception:  # noqa: BLE001
+            pass
         return scheduler_output
 
     def _build_kv_connector_meta(

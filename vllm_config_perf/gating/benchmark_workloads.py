@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import random
 import time
 from pathlib import Path
@@ -104,7 +105,7 @@ def _build_chat(rng: random.Random, target: int, nonce: str) -> str:
     return body + "\n<|assistant|>\n"
 
 
-def _build_code(rng: random.Random, target: int, nonce: str) -> str:
+def _build_code_python(rng: random.Random, target: int, nonce: str) -> str:
     # import ≥2, 주석 ≥10, py keyword ≥3 신호를 맨 앞에 확정 배치
     head = (
         "import os\nimport sys\nimport json\nimport time\nimport re\n"
@@ -128,6 +129,87 @@ def _build_code(rng: random.Random, target: int, nonce: str) -> str:
     )
     # code filler: sampled sonnet 을 주석으로 (코드 신호 유지)
     return _grow_to_target(head, rng, target, line_fmt=lambda s: f"# {s}")
+
+
+def _build_code_rust(rng: random.Random, target: int, nonce: str) -> str:
+    """Rust source code variant — use/crate/fn/let mut signal block at head."""
+    head = (
+        "use std::collections::HashMap;\n"
+        "use std::sync::Arc;\n"
+        "use std::time::Instant;\n"
+        "use serde::{Serialize, Deserialize};\n"
+        "use tokio::sync::Mutex;\n"
+        f"// module {nonce}\n"
+        "// rust crate logic line 1\n// rust crate logic line 2\n"
+        "// rust crate logic line 3\n// rust crate logic line 4\n"
+        "// rust crate logic line 5\n// rust crate logic line 6\n"
+        "// rust crate logic line 7\n// rust crate logic line 8\n"
+        "// rust crate logic line 9\n// rust crate logic line 10\n"
+        "// rust crate logic line 11\n// rust crate logic line 12\n"
+        "pub struct Worker {\n"
+        "    pub cfg: Arc<Mutex<HashMap<String, String>>>,\n"
+        "}\n"
+        "impl Worker {\n"
+        "    pub fn new() -> Self {\n"
+        "        let mut cfg = HashMap::new();\n"
+        "        cfg.insert(String::from(\"role\"), String::from(\"main\"));\n"
+        "        Self { cfg: Arc::new(Mutex::new(cfg)) }\n"
+        "    }\n"
+        "    pub async fn run(&self) -> Result<Vec<u32>, String> {\n"
+        "        let mut out = Vec::new();\n"
+        "        for i in 0..32 {\n"
+        "            out.push(i as u32);\n"
+        "        }\n"
+        "        Ok(out)\n"
+        "    }\n"
+        "}\n"
+    )
+    return _grow_to_target(head, rng, target, line_fmt=lambda s: f"// {s}")
+
+
+def _build_code_json(rng: random.Random, target: int, nonce: str) -> str:
+    """JSON-like dataset variant — repeated key:value structures."""
+    head = (
+        "{\n"
+        f"  \"id\": \"{nonce}\",\n"
+        "  \"schema\": \"v1\",\n"
+        "  \"created\": \"2026-01-01T00:00:00Z\",\n"
+        "  \"updated\": \"2026-06-01T00:00:00Z\",\n"
+        "  \"author\": {\"name\": \"system\", \"role\": \"automation\"},\n"
+        "  \"tags\": [\"alpha\", \"beta\", \"gamma\", \"delta\"],\n"
+        "  \"counts\": {\"prompts\": 500, \"requests\": 256, \"errors\": 0},\n"
+        "  \"flags\": {\"enabled\": true, \"debug\": false, \"trace\": true},\n"
+        "  \"metrics\": {\"p50\": 11.5, \"p99\": 41.2, \"throughput\": 4.2},\n"
+        "  \"notes\": [\n"
+    )
+    # Treat each filler sonnet line as a JSON string array entry.
+    body_iter = []
+    def _line_fmt(s: str) -> str:
+        # escape any double quotes inside, and trailing comma
+        return f"    \"{s.replace(chr(92), chr(92)+chr(92)).replace(chr(34), chr(92)+chr(34))}\","
+    body = _grow_to_target(head, rng, target, line_fmt=_line_fmt)
+    return body + "\n    \"end\"\n  ]\n}\n"
+
+
+_CODE_VARIANT_MAP = {
+    "python": _build_code_python,
+    "rust":   _build_code_rust,
+    "json":   _build_code_json,
+}
+
+
+def _build_code(rng: random.Random, target: int, nonce: str) -> str:
+    """Code prompt builder with variant selection via env.
+
+    Selects between Python / Rust / JSON corpora to allow the LHC code-workload
+    finding (+10.67% on Python in Phase 4 conc256) to be checked for
+    generalization across different prefix shapes / token distributions.
+
+    Env: WORKLOAD_CODE_VARIANT in {python (default), rust, json}.
+    """
+    variant = os.environ.get("WORKLOAD_CODE_VARIANT", "python").lower()
+    builder = _CODE_VARIANT_MAP.get(variant, _build_code_python)
+    return builder(rng, target, nonce)
 
 
 _BUILDERS = {"sonnet": _build_sonnet, "chat": _build_chat, "code": _build_code}

@@ -104,6 +104,23 @@ if TYPE_CHECKING:
     VLLM_USE_TRITON_AWQ: bool = False
     VLLM_PREFETCH_TOKENIZE: bool = False
     VLLM_PREFETCH_TOKENIZE_WORKERS: int = 2
+    # hw_custom_round_1 levers
+    VLLM_HWC1_STREAM_PRIO: bool = False  # high-prio (-1) for aux copy streams
+    VLLM_HWC1_HUGEPAGE: bool = False     # MADV_HUGEPAGE for KV pinned buffers
+    # IDE_023 13 new levers (SUB_201)
+    VLLM_LEVER_N1: bool = False  # AVX-512 BPE encode
+    VLLM_LEVER_N4: bool = False  # SoA paged attention layout (KV stride)
+    VLLM_LEVER_N5: bool = False  # SMT-pair pinning scheduler
+    VLLM_LEVER_N6: bool = False  # Lock-free priority queue
+    VLLM_LEVER_N7: bool = False  # Huge pages 2MB for KV (host shadow)
+    VLLM_LEVER_N8: bool = False  # NUMA-local draft state
+    VLLM_LEVER_N9: bool = False  # DSA memcpy host<->pinned
+    VLLM_LEVER_N10: bool = False  # AVX-512 simdjson request parse
+    VLLM_LEVER_N11: bool = False  # AVX-512 base64 output streaming
+    VLLM_LEVER_N14: bool = False  # Prefetch suffix tree
+    VLLM_LEVER_N17: bool = False  # CMT-driven priority (Intel PCM / resctrl)
+    VLLM_LEVER_N19: bool = False  # AVX-512 SSE writer
+    VLLM_LEVER_N20: bool = False  # LogGP admission (cost-aware)
     VLLM_ALLOW_RUNTIME_LORA_UPDATING: bool = False
     VLLM_SKIP_P2P_CHECK: bool = False
     VLLM_DISABLED_KERNELS: list[str] = []
@@ -956,6 +973,27 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VLLM_PREFETCH_TOKENIZE_WORKERS": lambda: int(
         os.getenv("VLLM_PREFETCH_TOKENIZE_WORKERS", "2")
     ),
+    # hw_custom_round_1 levers — high-prio CUDA streams for aux copy paths
+    "VLLM_HWC1_STREAM_PRIO": lambda: bool(
+        int(os.getenv("VLLM_HWC1_STREAM_PRIO", "0"))
+    ),
+    "VLLM_HWC1_HUGEPAGE": lambda: bool(
+        int(os.getenv("VLLM_HWC1_HUGEPAGE", "0"))
+    ),
+    # IDE_023 13 new levers (SUB_201) — default OFF, env-gated PoC
+    "VLLM_LEVER_N1": lambda: bool(int(os.getenv("VLLM_LEVER_N1", "0"))),
+    "VLLM_LEVER_N4": lambda: bool(int(os.getenv("VLLM_LEVER_N4", "0"))),
+    "VLLM_LEVER_N5": lambda: bool(int(os.getenv("VLLM_LEVER_N5", "0"))),
+    "VLLM_LEVER_N6": lambda: bool(int(os.getenv("VLLM_LEVER_N6", "0"))),
+    "VLLM_LEVER_N7": lambda: bool(int(os.getenv("VLLM_LEVER_N7", "0"))),
+    "VLLM_LEVER_N8": lambda: bool(int(os.getenv("VLLM_LEVER_N8", "0"))),
+    "VLLM_LEVER_N9": lambda: bool(int(os.getenv("VLLM_LEVER_N9", "0"))),
+    "VLLM_LEVER_N10": lambda: bool(int(os.getenv("VLLM_LEVER_N10", "0"))),
+    "VLLM_LEVER_N11": lambda: bool(int(os.getenv("VLLM_LEVER_N11", "0"))),
+    "VLLM_LEVER_N14": lambda: bool(int(os.getenv("VLLM_LEVER_N14", "0"))),
+    "VLLM_LEVER_N17": lambda: bool(int(os.getenv("VLLM_LEVER_N17", "0"))),
+    "VLLM_LEVER_N19": lambda: bool(int(os.getenv("VLLM_LEVER_N19", "0"))),
+    "VLLM_LEVER_N20": lambda: bool(int(os.getenv("VLLM_LEVER_N20", "0"))),
     # If set, allow loading or unloading lora adapters in runtime,
     "VLLM_ALLOW_RUNTIME_LORA_UPDATING": lambda: (
         os.environ.get("VLLM_ALLOW_RUNTIME_LORA_UPDATING", "0").strip().lower()

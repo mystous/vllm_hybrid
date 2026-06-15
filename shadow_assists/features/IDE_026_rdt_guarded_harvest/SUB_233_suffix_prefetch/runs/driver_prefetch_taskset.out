@@ -1,0 +1,10 @@
+[20:11:40] === SUB_233 A/B start: arms=[prefetch] ===
+[20:11:40] === ARM=prefetch (r1_prefetch): install .so + boot ===
+[20:11:40] boot r1_prefetch (pid=3920293)
+[20:13:00] READY (85s)
+[20:15:56]   r1_prefetch x mix tps=6264.5
+[20:17:23]   r1_prefetch x swebench tps=6861.4
+[20:19:33]   r1_prefetch x lmsys tps=6367.0
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_233_suffix_prefetch/driver_ab.sh: line 32: 3920293 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS VLLM_SUFFIX_PAD_UNIFORM=1 setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len $MML --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$K}" > "$BL" 2>&1 < /dev/null
+[20:19:45] 원본 .so 복원
+[20:19:45] === SUB_233 A/B done ===

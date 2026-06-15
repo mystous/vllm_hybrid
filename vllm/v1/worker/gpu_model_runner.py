@@ -7274,6 +7274,19 @@ class GPUModelRunner(
                 # vLLM is NHD — permute CPU (HND) → NHD.
                 k_cpu = k_cpu.permute(0, 2, 1, 3).contiguous()
                 v_cpu = v_cpu.permute(0, 2, 1, 3).contiguous()
+            # SUB_239 FERRY — stage the gathered (remote-NUMA, non-pinned)
+            # CPU blocks into a node-local pinned bounce buffer before H2D.
+            # DSA-offloaded when the lane is available (CPU-free transport),
+            # else a bit-exact CPU copy. Env-gated (VLLM_NEO_FERRY=1),
+            # default off → reversible. Result is identical to the direct
+            # path, so swap-in KV stays distribution-equivalent.
+            from vllm.v1.lhc.ferry import ferry_enabled
+            if ferry_enabled():
+                if getattr(self, "_neo_ferry_stager", None) is None:
+                    from vllm.v1.lhc.ferry import FerryStager
+                    self._neo_ferry_stager = FerryStager()
+                k_cpu = self._neo_ferry_stager.stage(k_cpu)
+                v_cpu = self._neo_ferry_stager.stage(v_cpu)
             # Cast back to the GPU cache's dtype (may differ from FP16).
             k_gpu = k_cpu.to(device=self.device, dtype=kv.dtype)
             v_gpu = v_cpu.to(device=self.device, dtype=kv.dtype)

@@ -3,6 +3,7 @@
 import numpy as np
 import torch
 
+import vllm.envs as _vllm_envs_hwc1
 from vllm.triton_utils import tl, triton
 from vllm.utils.math_utils import cdiv
 from vllm.v1.worker.gpu.buffer_utils import async_copy_to_gpu
@@ -18,7 +19,8 @@ class StructuredOutputsWorker:
             (max_num_logits, cdiv(vocab_size, 32)), dtype=torch.int32, device=device
         )
         self.device = device
-        self.copy_stream = torch.cuda.Stream()
+        _prio = -1 if getattr(_vllm_envs_hwc1, "VLLM_HWC1_STREAM_PRIO", False) else 0
+        self.copy_stream = torch.cuda.Stream(priority=_prio)
 
     def apply_grammar_bitmask(
         self,

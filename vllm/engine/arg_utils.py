@@ -1321,6 +1321,22 @@ class EngineArgs:
         scheduler_group.add_argument(
             "--stream-interval", **scheduler_kwargs["stream_interval"]
         )
+        # LHC Phase 3 Task D: expose NEO scheduler flag at CLI.
+        scheduler_group.add_argument(
+            "--enable-neo-asymmetric",
+            **scheduler_kwargs["enable_neo_asymmetric"],
+        )
+        scheduler_group.add_argument(
+            "--enable-neo-force-pipelined",
+            **scheduler_kwargs["enable_neo_force_pipelined"],
+        )
+        # IDE_006 TSK_015 — kv_cache_policy field existed + passthrough
+        # (line ~1940) but was never exposed at CLI. Expose it so
+        # ``--kv-cache-policy exclusive`` activates NEO CPU-resident swap.
+        scheduler_group.add_argument(
+            "--kv-cache-policy",
+            **scheduler_kwargs["kv_cache_policy"],
+        )
 
         # Compilation arguments
         compilation_kwargs = get_kwargs(CompilationConfig)

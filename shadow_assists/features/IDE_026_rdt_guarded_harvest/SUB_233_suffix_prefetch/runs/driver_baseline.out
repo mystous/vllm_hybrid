@@ -1,0 +1,10 @@
+[21:28:05] === SUB_233 A/B start: arms=[baseline] ===
+[21:28:05] === ARM=baseline (r1_baseline): install .so + boot ===
+[21:28:05] boot r1_baseline (pid=3985491)
+[21:29:25] READY (85s)
+[21:32:17]   r1_baseline x mix tps=6259.2
+[21:33:43]   r1_baseline x swebench tps=7694.1
+[21:35:49]   r1_baseline x lmsys tps=6213.6
+shadow_assists/features/IDE_026_rdt_guarded_harvest/SUB_233_suffix_prefetch/driver_ab.sh: line 32: 3985491 Killed                  env CUDA_VISIBLE_DEVICES=$GPUS VLLM_SUFFIX_PAD_UNIFORM=1 setsid taskset -c "$VLLM_CPUS" "$VBIN" serve "$MODEL" --tensor-parallel-size $TP --port $PORT --gpu-memory-utilization 0.85 --max-model-len $MML --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE"}' --speculative-config "{\"method\":\"suffix\",\"num_speculative_tokens\":$K}" > "$BL" 2>&1 < /dev/null
+[21:36:02] 원본 .so 복원
+[21:36:02] === SUB_233 A/B done ===

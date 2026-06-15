@@ -27,6 +27,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+import vllm.envs as _vllm_envs_hwc1
 from vllm.config import VllmConfig
 from vllm.config.compilation import CUDAGraphMode
 from vllm.distributed.parallel_state import (
@@ -132,7 +133,8 @@ class GPUModelRunner(LoRAModelRunnerMixin):
         self.is_encoder_decoder = self.model_config.is_encoder_decoder
 
         self.use_async_scheduling = self.scheduler_config.async_scheduling
-        self.output_copy_stream = torch.cuda.Stream(self.device)
+        _stream_prio = -1 if getattr(_vllm_envs_hwc1, "VLLM_HWC1_STREAM_PRIO", False) else 0
+        self.output_copy_stream = torch.cuda.Stream(self.device, priority=_stream_prio)
 
         # Pipeline parallelism.
         self.use_pp = self.parallel_config.pipeline_parallel_size > 1

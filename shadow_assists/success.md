@@ -59,3 +59,19 @@ ppl_rel 0.0730 ≤ 0.1, 32/32) — main 머지 품질 증거 확보.
 ---
 
 (다음 성공 사례는 SR-002 로 추가)
+
+---
+
+## ⚠ Upstream 중복 경고 (2026-06-15) — SR-001 후속 작업 관련
+
+SR-001(SUB_213 uniform-pad +38%)의 후속으로 검토하던 **적응형 K선택 / cudagraph 정렬은
+upstream vLLM 이 이미 하고 있음** (웹조사):
+- **동적 K (per-request)**: PR #26504 `DynamicProposer`/`eagle_dynamic` — 수용률 기반 K
+  조절, **Open(2026-06-12)**. = TSK_046 옵션 B(α-EMA 게이트)와 사실상 동일.
+- **uniform cudagraph 정렬**: PR #23679 — capture size `1+num_spec_tokens` 정렬,
+  **Closed(2026-03-13)**. = SUB_213 uniform-pad 메커니즘과 겹침. + Issue #33341, #36657.
+
+→ **AGENTS.md 중복-작업 금지 적용**: fork 에서 동적-K 게이트나 uniform cudagraph 를
+새로 구현하면 중복. **권고: upstream 에 rebase 후 +38~49% 가 이미 흡수됐는지 재측정**,
+남는 진짜 빈틈(suffix+FaP 특이 상호작용, 워크로드→K LUT)만 upstream 기여. 메모리
+`spec-decode-adaptive-k-upstream` 참조.

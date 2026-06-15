@@ -448,15 +448,84 @@ class NeoCpuKvBuffer:
         # 시 20 threads × 12 cores 경합 → cdec compute 가 critical path
         # 에서 손해. ATen 의 vectorized index_put_ 가 naive memcpy OMP
         # 보다 빠른 것으로 판명. Python 원본 복원.
+        #
+        # LHC Phase 2 (2026-06-08): DSA host-memcpy lane 옵트인.
+        # ``VLLM_LHC_DSA=1`` 시 contiguous block_ids 경로에서 DSA MEMMOVE
+        # 로 scatter 를 대체 — CPU stall ≈0% lane 이라 cdec executor 와
+        # 비경합. 우회 조건 (non-contig block_ids, lane unavailable,
+        # < min_bytes) 시 ATen path fall-through.
         block_ids = self.get_block_ids(req_id)
         if block_ids is None:
             raise ValueError(
                 f"copy_all_layers_in_from_staged: req {req_id!r} not allocated"
             )
-        idx = torch.tensor(block_ids, dtype=torch.long)
-        for layer_idx in range(self.spec.num_layers):
-            self.k_cpu[layer_idx, idx] = k_staged[layer_idx, :n_blocks]
-            self.v_cpu[layer_idx, idx] = v_staged[layer_idx, :n_blocks]
+
+        _used_dsa = False
+        if n_blocks > 0:
+            try:
+                from vllm.v1.lhc.dsa_lane import (
+                    dsa_lane_available,
+                    dsa_memcpy,
+                )
+            except Exception:  # noqa: BLE001
+                dsa_lane_available = None  # type: ignore[assignment]
+                dsa_memcpy = None  # type: ignore[assignment]
+            # contiguous block_ids check — common after fresh alloc since
+            # the CPU buffer's free-list is FIFO. Falls back to ATen scatter
+            # whenever this fails (no behavior regression).
+            ids = block_ids[:n_blocks]
+            contig = (
+                len(ids) >= 1
+                and all(ids[i + 1] - ids[i] == 1 for i in range(len(ids) - 1))
+            )
+            # METRONOME-LHC ACCENT/RITARDANDO gate — defer to CPU memcpy
+            # when ACCENT throttles DSA or RITARDANDO has paused the lane.
+            _accent_ok = True
+            _ritardando_ok = True
+            try:
+                from vllm.v1.lhc.metronome import metronome_active
+                if metronome_active():
+                    from vllm.v1.lhc.metronome.accent import accent_dsa_allowed
+                    from vllm.v1.lhc.metronome.ritardando import (
+                        ritardando_dsa_paused,
+                    )
+                    _accent_ok = accent_dsa_allowed()
+                    _ritardando_ok = not ritardando_dsa_paused()
+            except Exception:  # noqa: BLE001
+                pass
+            if (contig and dsa_lane_available is not None
+                    and dsa_lane_available()
+                    and _accent_ok and _ritardando_ok):
+                start = ids[0]
+                # k_cpu / v_cpu shape: (num_layers, num_blocks, num_kv_heads,
+                # block_size, head_dim). For a contiguous range we hand DSA
+                # a single block of bytes per layer.
+                k_buf = self.k_cpu
+                v_buf = self.v_cpu
+                k_stride = k_buf[0, 0].numel() * k_buf.element_size()
+                v_stride = v_buf[0, 0].numel() * v_buf.element_size()
+                nbytes_k = k_stride * n_blocks
+                nbytes_v = v_stride * n_blocks
+                _all_ok = True
+                for layer_idx in range(self.spec.num_layers):
+                    dst_k = k_buf[layer_idx, start].data_ptr()
+                    src_k = k_staged[layer_idx, 0].data_ptr()
+                    dst_v = v_buf[layer_idx, start].data_ptr()
+                    src_v = v_staged[layer_idx, 0].data_ptr()
+                    if not dsa_memcpy(dst_k, src_k, nbytes_k):
+                        _all_ok = False
+                        break
+                    if not dsa_memcpy(dst_v, src_v, nbytes_v):
+                        _all_ok = False
+                        break
+                if _all_ok:
+                    _used_dsa = True
+
+        if not _used_dsa:
+            idx = torch.tensor(block_ids, dtype=torch.long)
+            for layer_idx in range(self.spec.num_layers):
+                self.k_cpu[layer_idx, idx] = k_staged[layer_idx, :n_blocks]
+                self.v_cpu[layer_idx, idx] = v_staged[layer_idx, :n_blocks]
 
     @_neo_synchronized
     def copy_layer_out(

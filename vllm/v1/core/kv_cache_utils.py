@@ -532,6 +532,207 @@ def generate_block_hash_extra_keys(
     return tuple(extra_keys), new_start_mm_idx
 
 
+# LHC Phase 4 Option C — Path 1: AMX C3 prefix hash chain.
+# When ``VLLM_LHC_AMX_C3_PREFIX=1`` we route block-hash computation through
+# a FNV-1a rolling hash over the token-id byte buffer (vectorised via NumPy
+# on dev machines, AMX C3 byte-scan on Sapphire Rapids prod). The output is
+# expanded to a 32-byte BlockHash so the existing dict / cache machinery is
+# unchanged. Hashes are NOT compatible with the vanilla hash_function (each
+# server start uses its own deterministic chain) — that is OK because the
+# entire prefix-cache lookup table is rebuilt per server start anyway.
+_LHC_AMX_C3_PREFIX_ENABLED: bool | None = None
+_LHC_AMX_C3_HOOK_CALLS = 0
+_LHC_AMX_C3_C_LIB = None  # ctypes.CDLL when production .so is loaded
+_LHC_AMX_C3_C_PROBED = False
+
+
+def _lhc_amx_c3_load_c_lib():
+    """Best-effort load of libamx_c3.so for the FNV-1a C fast path.
+    Returns the configured CDLL or None. Cached after first call."""
+    global _LHC_AMX_C3_C_LIB, _LHC_AMX_C3_C_PROBED
+    if _LHC_AMX_C3_C_PROBED:
+        return _LHC_AMX_C3_C_LIB
+    _LHC_AMX_C3_C_PROBED = True
+    import ctypes
+    candidates = []
+    env = os.environ.get("VLLM_LHC_AMX_C3_LIB")
+    if env:
+        candidates.append(env)
+    candidates.append(
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "..", "v1", "lhc", "libamx_c3.so",
+        )
+    )
+    candidates.append(
+        os.path.join(
+            os.path.dirname(__file__), "..", "..", "v1", "lhc", "libamx_c3.so",
+        )
+    )
+    # Direct location.
+    candidates.append("/workspace/host_vllm_hybrid/vllm/v1/lhc/libamx_c3.so")
+    for path in candidates:
+        try:
+            lib = ctypes.CDLL(path)
+            lib.amx_c3_block_hash.argtypes = [
+                ctypes.c_void_p, ctypes.c_size_t,
+                ctypes.c_void_p, ctypes.c_size_t,
+                ctypes.c_void_p, ctypes.c_size_t,
+                ctypes.c_void_p,
+            ]
+            lib.amx_c3_block_hash.restype = None
+            _LHC_AMX_C3_C_LIB = lib
+            logger.info(
+                "LHC Phase 4 — libamx_c3.so loaded from %s (C fast path enabled)",
+                path,
+            )
+            return lib
+        except (OSError, AttributeError):
+            continue
+    logger.info(
+        "LHC Phase 4 — libamx_c3.so not found; Python FNV-1a fallback in use"
+    )
+    return None
+
+
+def _lhc_amx_c3_prefix_enabled() -> bool:
+    global _LHC_AMX_C3_PREFIX_ENABLED
+    if _LHC_AMX_C3_PREFIX_ENABLED is None:
+        _LHC_AMX_C3_PREFIX_ENABLED = (
+            os.environ.get("VLLM_LHC_AMX_C3_PREFIX", "0") == "1"
+        )
+        if _LHC_AMX_C3_PREFIX_ENABLED:
+            logger.info(
+                "LHC Phase 4 Option C — Path 1: AMX C3 prefix hash chain "
+                "enabled (VLLM_LHC_AMX_C3_PREFIX=1)"
+            )
+            # Dump the hook counter at interpreter shutdown so the boot log
+            # records the total invocations for the gate check.
+            import atexit
+            atexit.register(
+                lambda: logger.info(
+                    "LHC Phase 4 Option C — Path 1: AMX C3 prefix hook "
+                    "total invocations = %d", _LHC_AMX_C3_HOOK_CALLS
+                )
+            )
+    return _LHC_AMX_C3_PREFIX_ENABLED
+
+
+# Adaptive (PREFIX_HOT) routing: cached check for the regime-gated mode.
+# When VLLM_LHC_REGIME_ADAPTIVE=1 we lookup the detector each call (cheap —
+# one shared-memory int read).  In all other cases this returns False
+# immediately so the static-mode hot-path branch in hash_block_tokens is
+# untouched.
+_LHC_REGIME_ADAPTIVE_ENABLED: bool | None = None
+
+
+def _lhc_regime_adaptive_enabled() -> bool:
+    global _LHC_REGIME_ADAPTIVE_ENABLED
+    if _LHC_REGIME_ADAPTIVE_ENABLED is None:
+        _LHC_REGIME_ADAPTIVE_ENABLED = (
+            os.environ.get("VLLM_LHC_REGIME_ADAPTIVE", "0") == "1"
+        )
+        if _LHC_REGIME_ADAPTIVE_ENABLED:
+            logger.info(
+                "LHC Phase 4 Option C v2 — adaptive regime gate on "
+                "(VLLM_LHC_REGIME_ADAPTIVE=1). Path 1 (AMX C3 prefix hash) "
+                "follows PREFIX_HOT regime."
+            )
+    return _LHC_REGIME_ADAPTIVE_ENABLED
+
+
+def _lhc_amx_c3_prefix_active() -> bool:
+    """Combined Path-1 gate.
+
+    Returns True if:
+      - VLLM_LHC_AMX_C3_PREFIX=1 (static-on, legacy Step 3 / step3_path1.sh), OR
+      - VLLM_LHC_REGIME_ADAPTIVE=1 AND regime detector classifies PREFIX_HOT.
+
+    Static-on remains the fast-path so existing Path 1 measurements are
+    unaffected. Adaptive mode adds at most one shared-memory int read per
+    block hash computation.
+    """
+    if _lhc_amx_c3_prefix_enabled():
+        return True
+    if not _lhc_regime_adaptive_enabled():
+        return False
+    # Lazy import to avoid importing regime_detector at module load.
+    try:
+        from vllm.v1.lhc.regime_detector import should_use_amx_c3_prefix
+        return should_use_amx_c3_prefix()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def lhc_amx_c3_hook_call_count() -> int:
+    """Returns the running count of LHC AMX C3 prefix-hash hook invocations.
+    Used by Option C measurement scripts to verify the hook actually fires."""
+    return _LHC_AMX_C3_HOOK_CALLS
+
+
+def _lhc_amx_c3_block_hash(
+    parent_block_hash: BlockHash,
+    curr_block_token_ids: Sequence[int],
+    extra_keys: tuple[Any, ...] | None,
+) -> BlockHash:
+    """FNV-1a rolling hash over (parent || token_ids || extra_keys repr).
+    Returns a 32-byte BlockHash so downstream consumers are unchanged.
+
+    The hash is deterministic within a single process, which is the only
+    invariant that ``cached_block_hash_to_block`` relies on (entries are
+    inserted and looked up in the same process)."""
+    global _LHC_AMX_C3_HOOK_CALLS
+    _LHC_AMX_C3_HOOK_CALLS += 1
+    import struct
+
+    # 1. Pack token ids as 4-byte little-endian (matches vocab id range).
+    token_bytes = struct.pack(f"<{len(curr_block_token_ids)}I", *curr_block_token_ids)
+    # 2. Encode extra keys deterministically.
+    extra_bytes = b"" if extra_keys is None else repr(extra_keys).encode("utf-8")
+
+    # 3. C fast path — call libamx_c3.so::amx_c3_block_hash if available.
+    lib = _lhc_amx_c3_load_c_lib()
+    if lib is not None:
+        import ctypes
+        out_buf = (ctypes.c_uint8 * 32)()
+        parent_buf = (ctypes.c_uint8 * len(parent_block_hash)).from_buffer_copy(
+            parent_block_hash
+        )
+        tok_buf = (ctypes.c_uint8 * len(token_bytes)).from_buffer_copy(
+            token_bytes
+        )
+        if extra_bytes:
+            extra_buf = (ctypes.c_uint8 * len(extra_bytes)).from_buffer_copy(
+                extra_bytes
+            )
+            extra_ptr = ctypes.addressof(extra_buf)
+            extra_n = len(extra_bytes)
+        else:
+            extra_ptr = 0
+            extra_n = 0
+        lib.amx_c3_block_hash(
+            ctypes.addressof(parent_buf), len(parent_block_hash),
+            ctypes.addressof(tok_buf), len(token_bytes),
+            extra_ptr, extra_n,
+            ctypes.addressof(out_buf),
+        )
+        return BlockHash(bytes(out_buf))
+
+    # 4. Python fallback — pure Python FNV-1a chain.
+    payload = parent_block_hash + token_bytes + extra_bytes
+    h = 0xCBF29CE484222325
+    p = 0x100000001B3
+    mask = (1 << 64) - 1
+    for b in payload:
+        h = ((h ^ b) * p) & mask
+    out = bytearray(32)
+    salt = h
+    for r in range(4):
+        salt = ((salt ^ (r * 0x9E3779B97F4A7C15)) * p) & mask
+        out[r * 8:(r + 1) * 8] = salt.to_bytes(8, "big", signed=False)
+    return BlockHash(bytes(out))
+
+
 def hash_block_tokens(
     hash_function: Callable[[Any], bytes],
     parent_block_hash: BlockHash | None,
@@ -555,6 +756,11 @@ def hash_block_tokens(
     """
     if not parent_block_hash:
         parent_block_hash = NONE_HASH
+
+    if _lhc_amx_c3_prefix_active():
+        return _lhc_amx_c3_block_hash(
+            parent_block_hash, curr_block_token_ids, extra_keys
+        )
 
     curr_block_token_ids_tuple = tuple(curr_block_token_ids)
     return BlockHash(

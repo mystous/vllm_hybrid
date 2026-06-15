@@ -102,6 +102,14 @@ class EngineCore:
 
         load_general_plugins()
 
+        # IDE_023 SUB_201 — apply any enabled lever PoC hooks (default OFF)
+        try:
+            from vllm.v1.spec_decode.ide023_levers import apply_ide023_levers
+
+            apply_ide023_levers()
+        except Exception as _e:  # noqa: BLE001
+            logger.warning("[IDE_023] lever apply failed: %s", _e)
+
         self.vllm_config = vllm_config
         if not vllm_config.parallel_config.data_parallel_rank_local:
             logger.info(

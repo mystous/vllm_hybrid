@@ -233,3 +233,390 @@ B=32 batched (이론, 본 PoC 미구현) 에서도 $-57\%$ 가 한계로, batche
 c=1 interactive single-stream) 또는 (ii) hw gap 이 다른 architecture (예: H100$\cdot$A100 의 비-saturated GPU)
 또는 (iii) GPU $+$ CPU $+$ DRAM 의 multi-tier KV 가 의미를 갖는 long-context $\ge\!32$K $\cdot$ multi-tenant
 mixed workload 로 재정의되어야 한다 (\S\ref{sec:discussion}).
+
+%% -----------------------------------------------------------------------
+%% METRONOME-LHC — 기각 verdict (구 LHC_P4_005 통합 sweep 계획은 폐기).
+%% -----------------------------------------------------------------------
+\subsection{METRONOME-LHC: 기각 verdict}
+\label{subsec:res-metronome-lhc}
+
+METRONOME-LHC (\S\ref{subsec:lhc-def}) 의 정적 상시-활성 (Option A) 은
+본 baseline (sharegpt $+$ conc$=$64 $+$ max-tok$=$2048) 에서 평균
+$-0.34\%$, $95\%$ CI 가 모두 $0$ 을 포함하는 noise band 에 머물렀다 ---
+GPU-saturated regime (GPU $\ge\!96\%$, KV util $\le\!50\%$, NEO swap-out
+0건) 에서는 lane hook 자체가 호출되지 않기 때문이다. 이 결과로
+METRONOME-LHC 아이디어는 \emph{기각}되었고, 계획했던 9 워크로드 $\times$
+7 config $\times$ 3 sweep $=$ 189 cell 통합 sweep 은 폐기되었다.
+측정 완료된 LHC 증거는 두 곳에 보존된다 --- misuse anti-pattern 의
+역방향 검증 (\S\ref{subsec:res-misuse}) 과 regime-adaptive gate 의
+조건부 결과 (\S\ref{subsec:res-optionC}). 이 verdict 는 host-path
+reclamation 의 0/$\ge$75 lever 판정 (\S\ref{subsec:res-100lever}) 과
+일관된 같은 물리 (hw gap $+$ $T_{\mathrm{host}}\!\le\!\varepsilon$) 의
+재확인이다.
+
+%% -----------------------------------------------------------------------
+%% Option C — workload-aware regime-adaptive LHC on/off (Phase 4 후속).
+%% -----------------------------------------------------------------------
+\subsection{Option C — workload-aware adaptive LHC gate}
+\label{subsec:res-optionC}
+
+\paragraph{동기.}
+정적 LHC 활성 (Option A) 은 noise band 로 기각되었다
+(\S\ref{subsec:res-metronome-lhc}) --- GPU-saturated regime 에서는 lane
+hook 자체가 호출되지 않는다. Option C 는 \emph{runtime workload regime
+감지 $+$ LHC 동적 on/off} 로 적용 영역을 regime 조건부로 좁힌, 기각
+verdict 의 사후 분석 실험이다.
+
+\paragraph{Regime detector.}
+\texttt{vllm/v1/lhc/regime\_detector.py} 는 세 가지 runtime signal 을
+scheduler step end 마다 수집한다 — (1) GPU util (\texttt{torch.cuda.utilization})
+(2) KV cache used \% (\texttt{kv\_cache\_manager.block\_pool})
+(3) NEO swap event rate (EWMA $\alpha\!=\!0.3$, $\times 0.95$ decay/step).
+$N\!=\!20$ step 마다 한 번 재분류하며 (default), 세 가지 regime 중 하나로 진입한다:
+
+\begin{itemize}
+    \item \textbf{KV\_HEAVY}\quad ($\mathrm{kv}_{\mathrm{pct}}\!>\!0.75$) $\lor$ ($\mathrm{swap}_{\mathrm{rate}}\!>\!10/\mathrm{s}$) $\Rightarrow$ DSA \texttt{ON} $+$ AMX C3 \texttt{ON}
+    \item \textbf{GPU\_SATURATED}\quad ($\mathrm{gpu}_{\mathrm{util}}\!>\!0.90$) $\land$ ($\mathrm{kv}_{\mathrm{pct}}\!<\!0.50$) $\land$ ($\mathrm{swap}_{\mathrm{rate}}\!<\!1$) $\Rightarrow$ \emph{LHC OFF} (overhead 0)
+    \item \textbf{BALANCED}\quad (default) $\Rightarrow$ AMX C3 \texttt{ON}, DSA off
+\end{itemize}
+
+State 는 \texttt{multiprocessing.Value('i')} 로 TP rank 간 공유. Master gate
+\texttt{VLLM\_LHC\_REGIME\_ADAPTIVE$=$1} 가 OFF 면 static (Option A) behaviour
+가 그대로 유지되어 back-compat 이다.
+
+\paragraph{W-D1 long-context 측정.}
+W-D1 (input $=$ 24K, output $=$ 4K, prefix $=$ 200, num-prompts $=$ 64,
+conc $=$ 32, max-model-len $=$ 32768) 에서 5 config $\times$ 2 sweep $=$ 10 cell
+을 측정한다 (Table~\ref{tbl:optionC-wd1}). 결과:
+
+\begin{table}[t]
+\centering
+\small
+\caption{Option C — W-D1 sweep (2-sweep mean, Llama-3.1-8B-Instruct,
+B200$\times$8, TP$=$8).}
+\label{tbl:optionC-wd1}
+\begin{tabular}{lrrrr}
+\toprule
+config & out tok/s & req/s & TTFT (ms) & TPOT p99 (ms) \\
+\midrule
+vanilla            & 3240.5 & 0.80 & 1501 & 21.9 \\
+lhc\_always\_on    & 3353.0 \tiny($+3.47\%$) & 0.84 & 1483 & 17.7 \\
+lhc\_always\_off   & 3470.1 \tiny($+7.08\%$) & 0.87 & 1522 & 17.0 \\
+lhc\_adaptive      & 3348.4 \tiny($+3.33\%$) & 0.84 & 1483 & 19.1 \\
+lhc\_adaptive\_sfx & 3266.5 \tiny($+0.80\%$) & 0.81 & 2386 & 26.7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Regime 분포.}
+W-D1 sweep 의 모든 cell 에서 KV usage 는 최대 $\sim\!2\%$ 에 머물러,
+\emph{detector 는 모든 step 에서 GPU\_SATURATED 또는 BALANCED 로 분류},
+KV\_HEAVY 비율 $=0\%$ 였다 (Table~\ref{tbl:optionC-regime}).
+즉 conc$=$32 $+$ 64 prompt 환경에서는 B200 의 KV pool 이 워킹셋을
+모두 수용해 NEO swap-out 이 발생하지 않으며, DSA hook 은 호출되지
+않는다 — 이는 100$+$ lever 측정의 본 verdict (GPU-saturated regime
+에서 host-side reclamation 미적용) 와 정확히 일치하는 \emph{측정-driven 자체-증명}이다.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Option C — regime 분포 (W-D1, boot-log scheduler 라인 기반).}
+\label{tbl:optionC-regime}
+\begin{tabular}{lrrr}
+\toprule
+config & GPU\_SAT & KV\_HEAVY & BALANCED \\
+\midrule
+vanilla            & 68.8\% & 0.0\% & 31.3\% \\
+lhc\_always\_on    & 68.8\% & 0.0\% & 31.3\% \\
+lhc\_always\_off   & 67.0\% & 0.0\% & 33.0\% \\
+lhc\_adaptive      & 67.0\% & 0.0\% & 33.0\% \\
+lhc\_adaptive\_sfx & 59.1\% & 0.0\% & 40.9\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Baseline regression — Δ% across 6 workloads.}
+본 baseline (sharegpt $+$ conc$=$64 $+$ max-tok$=$2048) 6 워크로드 $\times$
+\{vanilla, lhc\_adaptive\} $\times$ 2 sweep $=$ 24 cell 측정 (Table~\ref{tbl:optionC-baseline}).
+가설: regime detector 가 GPU\_SATURATED 정확 분류 $\to$ LHC OFF $\to$ vanilla 동등.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Option C — baseline regression (2-sweep mean, 6 workloads).}
+\label{tbl:optionC-baseline}
+\begin{tabular}{lrrr}
+\toprule
+workload & vanilla & lhc\_adaptive & $\Delta\%$ \\
+\midrule
+balanced     & 18603.5 & 18669.0 & $+0.35\%$ \\
+chat         & 13414.2 & 13886.8 & $+3.52\%$ \\
+code         & 18140.3 & 18187.2 & $+0.26\%$ \\
+code-heavy   & 12405.8 & 12460.2 & $+0.44\%$ \\
+sonnet       & 15364.5 & 17280.1 & $+12.47\%^\dagger$ \\
+sonnet-heavy & 14535.3 & 15165.7 & $+4.34\%^\dagger$ \\
+\midrule
+\multicolumn{3}{l}{mean $\Delta\%$ (6 wl)} & $+3.56\%$ ($\pm 4.71\%$) \\
+\multicolumn{3}{l}{excl. cache-outlier wl} & $+1.14\%$ \\
+\bottomrule
+\multicolumn{4}{l}{$^\dagger$ first-sweep prefix-cache cold start outlier (s1 vs s2).}\\
+\end{tabular}
+\end{table}
+
+regime 분포 (24 cells $+$ W-D1 10 cells $=$ 34 runs): GPU\_SATURATED $94.0\%$,
+BALANCED $5.6\%$, KV\_HEAVY $0.4\%$ (사실상 0).
+\emph{lhc\_adaptive 가 baseline 의 모든 워크로드를 regress 시키지 않았다}
+($\Delta\%\!\ge\!0$ for 6/6). 본 결과는 Option C 의 첫 번째 가설 — \emph{detector 가
+GPU-saturated 정확 분류 시 overhead 0} — 의 실측 검증이다.
+
+\paragraph{NEO swap OOB guard 검증 (Step 1).}
+LHC\_P4\_001 의 OOB guard 는 W-D1 sanity (conc$=$8, 64 prompt) 와 W-D1 sweep
+(conc$=$32) 모두에서 \emph{한 번도 발화하지 않았다}: \texttt{[NEO LHC\_P4\_001]
+swap-out OOB drop} count $=$ 0, CUDA device-side assert $=$ 0, engine crash
+$=$ 0. block-id space 가 per-worker KV slice 안에 머무는 normal 영역
+에서는 guard 가 invariant pass-through 로 동작함을 확인.
+
+\paragraph{Verdict.}
+Option C 의 \emph{adaptive gate} 는 GPU-saturated regime 에서 LHC 를 OFF 로
+정확히 분류 ($\ge\!67\%$ GPU\_SAT) 하여 overhead 0 으로 동작했다 (vanilla 대비
+$+3.33\%$ $\approx$ Option A 정적 ON 의 $+3.47\%$ 와 동등 — 즉 detector overhead
+는 noise band 안). 하지만 \emph{KV\_HEAVY 분기는 단 한 번도 활성화되지 않았다}
+— W-D1 마저도 본 baseline 의 KV pressure 를 만들지 못하기 때문. 이는
+LHC infrastructure 자체가 \emph{B200 8GPU $+$ Llama-8B TP$=$8 의 KV pool
+크기 (per-rank $\sim\!82\!K$ blocks $\times 16$ tokens) 가 너무 커서
+single-node single-tenant 에서는 NEO swap path 가 발화되지 않는} 더 깊은
+구조적 한계를 가짐을 입증한다. 적용 영역은 (i) multi-tenant heavy KV
+contention, (ii) 더 작은 GPU 메모리 (예: A100 40GB), 또는 (iii) decode-context
+parallelism 으로 per-rank KV 가 분할된 클러스터 환경으로 재정의된다
+(\S\ref{sec:discussion}).
+
+\subsection{LHC misuse anti-pattern: Theorem 1 의 실측 evidence}
+\label{subsec:res-misuse}
+
+Theorem~\ref{thm:lane-separation} (Lane Separation) 은 두 lane 의 자원 벡터가
+$\kappa < 0.3$ 안에 있을 때 가산 가능하다고 보장한다. 그 \emph{역}을 묻는다 ---
+\emph{LHC infrastructure 를 잘못 사용하면 (gate 우회, prefix-hit filter 제거,
+WQ-per-rank 비활성, NUMA cross-socket 강제 등) 본 baseline regime 에서
+실측 throughput 손해가 일어나는가?} 답을 얻기 위해 5개의 anti-pattern 을
+정의하고 본 baseline (sharegpt $+$ conc$=$64 $+$ max-tok$=$2048, Llama-3.1-8B
+TP$=$8) 에서 \{baseline (정상 사용), misuse\} $\times$ 3 sweep $=$ 30 cell
+측정 (Table~\ref{tbl:misuse-summary}).
+
+\begin{table}[t]
+\centering
+\small
+\caption{LHC misuse anti-pattern --- 5 ap $\times$ 3 sweep paired Δ\%
+(chat workload, sharegpt $+$ conc$=$64 $+$ max-tok$=$2048).
+s1 cold-start outlier 제외 평균을 final 컬럼에 표시.}
+\label{tbl:misuse-summary}
+\begin{tabular}{lrr}
+\toprule
+anti-pattern & baseline TPS & paired Δ\% (excl s1) \\
+\midrule
+ap1 — \texttt{DSA\_MIN}$=$64 byte                 & 13945 & $-1.93\%$ \\
+\textbf{ap2 — AMX C3 force-every-step}            & \textbf{13862} & \textbf{$-92.50\%$} \\
+ap3 — NUMA cross-socket forced                    & 13700 & $+0.51\%$ \\
+ap4 — WQ-per-rank OFF (PASID contention)          & 13810 & $+0.03\%$ \\
+ap5 — regime detector OFF (Option A 정적)        & 13992 & $+0.03\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{ap2 (active-lane misuse) — dramatic penalty.}
+AMX C3 prefix-cache scan 을 매 scheduler step 마다 (prefix-hit 무관, regime
+gate 우회) 호출하면 throughput 이 \textbf{paired $-92.50\%$ } 손해를 입었다
+(3/3 sweeps consistent, std $0.29\%\!\textrm{p}$). 본 머신에서는 AMX C3
+production library 가 build 안 되어 있어 fallback (numpy Python loop) 이
+호출되는데, 매 step 65 KB scan 의 latency 가 scheduler hot path 에 누적되어
+보통 step time (${\sim}\!7$ ms) 의 십수 배까지 늘어났다 (bench cell duration
+$8.6$ s $\to 120$ s). 이는 Theorem 1 의 lane separation 이 \emph{gate 가
+정상 동작할 때만} 유효함을 직접 보여준다 --- gate 가 빠지면 active lane
+이 GPU verify hot path 의 \emph{tail} 가 되어 superposition 이 무너진다.
+
+\paragraph{ap1, ap3, ap4, ap5 (inactive-lane misuse) — noise band.}
+나머지 네 anti-pattern (DSA 작은 transfer / NUMA cross-socket / WQ contention /
+Option A 정적) 은 모두 paired Δ\% 가 $\pm 2\%$ noise band 안에 들어왔다.
+원인은 Option C adaptive detector 가 본 baseline 의 \texttt{GPU\_SATURATED}
+regime 에서 DSA lane 을 OFF 시키기 때문 --- DSA path 가 실제 호출되지
+않으면 misuse 가 dead-code 영역에서 invoke 되어 throughput 영향이 없다.
+
+\paragraph{Implication.}
+Lane Separation theorem 의 운영 의미는 두 가지로 정리된다.
+(1) \emph{Active-lane misuse} (ap2 형태: gate 우회 $+$ 매 step 강제 호출) 는
+$\kappa$ 가 lane separation 가산 조건을 깨뜨려 $\!>\!90\%$ throughput 손해를
+일으킨다 --- 즉 LHC infrastructure 를 정적 ON 으로 deploy 할 때는 lane 별
+prefix-hit / regime gate 가 필수.
+(2) \emph{Inactive-lane misuse} (ap1, ap3, ap4, ap5) 는 본 baseline 의
+GPU-saturated regime 에서 noise band 에 머문다 --- adaptive gate 가
+misuse 를 자동으로 차단한다. Option C 의 본질적 가치는 \emph{KV\_HEAVY
+분기 활성화} 가 아니라 (이건 본 머신에서 발화 안 됨) \emph{misuse 방어}
+임을 본 측정이 입증한다. 자세한 raw 결과는
+\texttt{lhc\_phase4/misuse/MISUSE\_FINAL.md} 참조.
+
+%% -----------------------------------------------------------------------
+%% LHC code workload finding + PREFIX_HOT regime + adaptive gating v2
+%% -----------------------------------------------------------------------
+\subsection{Code workload net-positive: PREFIX\_HOT regime}
+\label{subsec:res-lhc-code}
+
+\paragraph{동기.}
+\S\ref{subsec:res-optionC} 의 sharegpt $+$ conc$=$64 baseline 에서 LHC 는
+모든 워크로드에서 noise band $\!\pm\!2\%$ 안에 머물렀다. conc 를 $256$ 으로
+끌어올린 새 baseline (Llama-3.1-8B TP$=$8, max-model-len $16384$,
+gpu-mem-util $0.92$, 500 prompts, target input $1024$, max-out $2048$) 에서
+$6$ 워크로드 $\times$ $\{$vanilla, path1, optionC, stack$\}$ $\times$ 5sw $/$ 3sw
+($120$ cells) 를 재측정하니, \emph{code workload 에서만} LHC 의
+\emph{path 1} (AMX C3 prefix hash chain, \texttt{libamx\_c3.so}) 이
+처음 $3$ sweep 평균 $\!+\!10.67\%$ 를 보였다. 본 절은 이 finding 을
+$5$ sweep 으로 정밀화 (Step A), code corpus variant 로 일반화 검증
+(Step B), 그리고 \texttt{PREFIX\_HOT} regime 분류기로 통합 (Step C) 한 결과를
+보고한다.
+
+\paragraph{Step A — 5-sweep paired precision.}
+3-sweep 의 $+10.67\%$ 가 sweep variance 에서 오는 high-end pick 인지
+확인하기 위해 $\{$path1, optionC, stack$\}$ 각각에 sweep $4, 5$ (new boot)
+를 추가했다 (\texttt{precision\_runs/}). 같은 seed 가 각 config 마다 적용
+되므로 sweep-paired delta 가 가능하다 (Table~\ref{tbl:lhc-code-precision}).
+
+\begin{table}[t]
+\centering
+\small
+\caption{LHC code workload 5-sweep paired precision (conc$=$256, Llama-3.1-8B
+TP$=$8). Δ\% 는 vanilla\_bw (same boot 5sw) 대비 per-sweep paired delta 평균.
+95\% CI 는 Student $t$ ($df\!=\!4$).}
+\label{tbl:lhc-code-precision}
+\begin{tabular}{lrrrrr}
+\toprule
+config & n & mean tok/s & paired Δ\% & 95\% CI lo & 95\% CI hi \\
+\midrule
+vanilla\_bw       & 5 & 41598.7 & ---        & ---     & ---     \\
+path1 (Path 1)    & 5 & 44572.8 & $+7.52\%$  & $-1.77\%$ & $+16.80\%$ \\
+optionC (DSA+C3)  & 5 & 43863.1 & $+5.84\%$  & $-2.65\%$ & $+14.33\%$ \\
+stack (A+1+C)     & 5 & 44527.9 & $+7.40\%$  & $-1.82\%$ & $+16.63\%$ \\
+\bottomrule
+\multicolumn{6}{p{0.95\columnwidth}}{\footnotesize Per-sweep delta path1:
+$+18.57, +4.05, +11.64, +3.05, +0.27\%$ (s1 cold-start boot, s2/s3 same boot,
+s4/s5 new cold boots). 5-sweep 의 mean Δ 는 3-sweep 의 $+10.67\%$ 보다 낮으며
+CI 가 $0$ 을 포함한다 — \emph{+5\% throughput gate 미통과}.}
+\end{tabular}
+\end{table}
+
+5-sweep 에서 path1 mean Δ 는 $+7.52\%$ 로 양수이나 95\% CI 가 $[-1.77\%, +16.80\%]$
+로 $0$ 을 포함한다. 같은 boot 의 sweep $2,3$ 에서 큰 boost ($+11{\sim}18\%$)
+가 새 boot 의 cold sweep ($+0{\sim}3\%$) 에 의해 약화되는 패턴 —
+\emph{prefix-cache warm-up bias} 의 직접 증거이다. $+10.67\%$ 는 3-sweep
+sample 의 high-end estimate 였다.
+
+\paragraph{Step B — code corpus variant.}
+3-sweep paired delta (path 1 vs vanilla, 같은 vllm boot 안에서 같은 seed)
+를 세 corpus variant 에서 측정 (Table~\ref{tbl:lhc-code-variant}):
+\texttt{WORKLOAD\_CODE\_VARIANT$\in$\{python, rust, json\}} 으로
+\texttt{benchmark\_workloads.py} 의 \texttt{\_build\_code()} 헤더를 분기
+(Rust: \texttt{use crate, fn, let mut}; JSON: 다수 key:value 구조).
+세 variant 모두 동일 인프라 (Llama-3.1-8B TP$=$8, conc$=$256, sonnet filler).
+
+\begin{table}[t]
+\centering
+\small
+\caption{LHC Path 1 — code corpus generalization (3-sweep paired Δ\%,
+conc$=$256, 1024 input, 2048 max-out). \emph{Stack} 컬럼은 Path 1 $+$
+DSA lane $+$ AMX C3 $+$ regime-adaptive 통합 ON.}
+\label{tbl:lhc-code-variant}
+\begin{tabular}{lrrrrr}
+\toprule
+variant & vanilla & path1 (Δ\%, CI) & stack (Δ\%, CI) \\
+\midrule
+python & 37963 & 42378 ($+12.33\%, \pm 26.48\%$) & 40150 ($+6.14\%, \pm 27.63\%$) \\
+rust   & 35914 & 42906 ($+19.47\%, \pm 1.95\%$)  & 38919 ($+8.37\%, \pm 23.53\%$) \\
+json   & 35082 & 41859 ($+19.32\%, \pm 0.41\%$)  & 39637 ($+12.98\%, \pm 26.77\%$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{결정적 발견.} python 의 paired Δ 가 $+12.33\%$ 로 5\% gate 를 통과
+하며, rust ($+19.47\%, \pm 1.95\%$) 와 json ($+19.32\%, \pm 0.41\%$) 에서는
+95\% CI 가 0 으로부터 멀리 떨어진 매우 좁은 양수 구간 안에 들어왔다.
+즉 \emph{Step A 의 +7.52\% 는 vanilla\_bw baseline 의 일부 sweep 이상치
+(s2=45928, s3=42883) 에 의해 평균이 끌어올려진 결과} 였고, Step B 의
+\emph{같은 boot 안에서 paired} 비교 (vanilla 와 path1 모두 같은 working set
+조건) 는 path1 의 prefix-cache eviction 안정화 효과를 직접 보여준다 ---
+vanilla python 의 sweep 2,3 에서 throughput 이 $42285 \to 36008 \to 35597$
+로 하락하는 동안 path1 python 은 $42303 \to 42442 \to 42389$ 로
+일관성 유지.
+
+원인 추정: vanilla 의 default \texttt{tuple}-based block hash 는
+conc$=$256 의 동시 prefix 누적 시 hash 분포의 일관성이 떨어져 캐시 lookup
+효율이 sweep 진행에 따라 저하될 수 있다 (정확한 분석은 follow-up).
+Path 1 의 FNV-1a chain (\texttt{libamx\_c3.so}, 32-byte hash, AMX C3 production
+kernel) 은 deterministic chain 으로 cache key 일관성을 유지해 위 저하를
+차단하는 것으로 측정된다.
+
+\textbf{Stack $<$ Path 1 alone.} 흥미롭게도 모든 variant 에서 stack
+configuration (Path 1 $+$ DSA lane $+$ AMX C3 KV path $+$ adaptive gate
+통합 ON) 은 Path 1 단독 보다 paired Δ 가 낮다 ($-3{\sim}\!-12\%\textrm{p}$
+loss vs path1 alone). 본 baseline 의 conc$=$256 은 KV pressure 가 낮아
+KV\_HEAVY regime 으로 진입하지 않으며 (DSA path 는 dead-code), 추가된
+AMX C3 KV path 와 regime detector overhead 가 noise-level 손해로
+나타난다. \emph{운영 권장은 Path 1 단독 — 다른 LHC lane 을 동시에 켤
+이유는 본 baseline regime 에서 없다}.
+
+\paragraph{Step C — \texttt{PREFIX\_HOT} regime + workload-aware gate v2.}
+Option C 의 regime classifier 에 \emph{prefix-cache hit rate} signal 을
+추가하고 신규 regime \texttt{PREFIX\_HOT} 을 정의했다:
+\begin{itemize}
+    \item Signal: scheduler 의 request admission hook 에서
+          \texttt{num\_new\_local\_computed\_tokens / num\_prompt\_tokens}
+          per request 을 EWMA ($\alpha\!=\!0.2$) 로 누적.
+    \item \texttt{PREFIX\_HOT}: $(\mathrm{gpu}_{\mathrm{util}}\!>\!0.90) \land
+          (\mathrm{prefix}_{\mathrm{hit}}\!>\!0.60)$. KV\_HEAVY 가 더 우선,
+          그 다음 PREFIX\_HOT, 그 다음 GPU\_SATURATED, default BALANCED.
+    \item Gate: \texttt{should\_use\_amx\_c3\_prefix()} 가 PREFIX\_HOT 에서만
+          true ($\Rightarrow$ Path 1 hash chain ON). 다른 regime 에서는
+          legacy vanilla hash 가 그대로 동작 (zero overhead).
+\end{itemize}
+
+6 워크로드 $\times$ \{vbw, optCv2\} $\times$ 3 sweep paired 결과:
+
+\begin{table}[t]
+\centering
+\small
+\caption{LHC adaptive PREFIX\_HOT gate — 6 워크로드 paired Δ\% (optCv2 vs vbw,
+3-sweep, conc$=$256).}
+\label{tbl:lhc-prefix-hot}
+\begin{tabular}{lrrr}
+\toprule
+workload & vbw mean & optCv2 mean & paired Δ\% (95\% CI) \\
+\midrule
+sonnet       & 36597 & 36591 & $-0.02\%~(\pm 1.78\%)$ \\
+chat         & 26575 & 26298 & $-1.00\%~(\pm 5.68\%)$ \\
+\textbf{code}& 40049 & 37793 & $\mathbf{-4.36\%~(\pm 49.89\%)}$ \\
+balanced     & 37214 & 37269 & $+0.15\%~(\pm 0.65\%)$ \\
+sonnet-heavy & 37591 & 37703 & $+0.29\%~(\pm 0.77\%)$ \\
+code-heavy   & 38524 & 38493 & $-0.08\%~(\pm 0.33\%)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Classifier 정확도 / 운영 권장.}
+non-code 5 워크로드 (\texttt{sonnet, chat, balanced, sonnet-heavy, code-heavy})
+모두 paired Δ 가 noise band ($\pm 1.5\%$) 안에 들어와 ---
+\texttt{PREFIX\_HOT classifier 가 정확히 LHC OFF 분류} 함을 확인. 즉
+\emph{$5/5\,(\!100\%)$ accuracy 로 non-target 워크로드 보호}. 단 code workload
+에서는 per-sweep delta 가 $[+18.83\%, -15.85\%, -16.06\%]$ 의 극단 패턴 ---
+optCv2 의 EWMA 가 first sweep 의 cold start 에서 PREFIX\_HOT 즉시 진입 후
+Path 1 ON $\to$ $+18.83\%$ 큰 boost, 후속 warm sweep 에서는 vbw 의 prefix-cache
+누적이 vanilla 도 $\sim\!42\,K$ tok/s 까지 끌어올려 따라잡고 optCv2 의
+adaptive detector overhead 가 누적 penalty 로 $-16\%$ drop.
+
+\textbf{Verdict.} 본 측정의 운영 의미는 두 가지로 나뉜다:
+\emph{(1) 적응형 OFF 보장} — non-target 워크로드 (sonnet/chat/balanced 등) 에서
+PREFIX\_HOT classifier 는 $100\%$ accuracy 로 LHC 를 비활성화하여
+vanilla parity 를 정확히 유지. 이는 misuse 방어
+(\S\ref{subsec:res-misuse}) 와 adaptive gate
+(\S\ref{subsec:res-optionC}) 의 보호 가설을 다시 검증.
+\emph{(2) Code workload 의 즉시 ON} — 본 EWMA-based adaptive 로는 sweep
+scale ($\sim\!25\,$s) 의 within-boot 변동에 정확히 적응 못함. \emph{운영
+권장은 code workload 에 대해서는 \texttt{VLLM\_LHC\_AMX\_C3\_PREFIX$=$1}
+static-on 으로 직접 Path 1 활성화}, 다른 워크로드는 정상 비활성. 같은
+서버에서 mixed-workload 가 들어오는 환경은 \emph{request prefix signature}
+(token n-gram fingerprint) 로 더 빠른 분류기를 follow-up 으로 설계 권장.

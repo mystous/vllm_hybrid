@@ -150,15 +150,18 @@ node distance=0.5cm    % 권장 기본값
 ## 도메인 커맨드 / 표기
 
 ```latex
-\algname          % → \textsc{Metronome}
+\algname          % → \textsc{Ceres}  (main.tex:51 — Metronome 아님)
 \tgpu             % → T_{\mathrm{gpu}}
 \tcpu             % → T_{\mathrm{cpu}}
 \dom              % → \mathrm{dom}
 ```
 
 - 직접 `T_{gpu}` 입력 금지. 커맨드 사용 강제.
-- 알고리즘 참조: `Algorithm~\ref{alg:metronome-init}`, `Algorithm~\ref{alg:metronome-serve}`
-- 정리 참조: `Theorem~\ref{thm:superposition}`, `Theorem~\ref{thm:alignment}`
+- **Metronome(METRONOME-LHC) 은 기각된 아이디어 (2026-06-11 사용자 판정)** —
+  논문에는 부정 결과로만 보존: §06 `subsec:lhc-def` (시도와 기각) +
+  §08 `subsec:res-metronome-lhc` (기각 verdict). 새 본문을 Metronome 서사에
+  얹지 말 것. `tbl_metronome_lhc` / `fig_lhc_pipeline` 은 삭제됨.
+- 정리 참조: `Theorem~\ref{thm:lane-separation}` (잔존 유일 LHC theorem)
 
 ---
 

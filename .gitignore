@@ -267,3 +267,24 @@ shadow_assists/features/IDE_016_avx512_amx_pool/build/
 shadow_assists/features/IDE_016_avx512_amx_pool/SUB_190_async_tokenizer_worker/build/
 shadow_assists/features/IDE_017_dma_zero_copy/build/
 shadow_assists/features/IDE_017_dma_zero_copy/*/build/
+
+# IDE_026 컴파일 마이크로벤치 바이너리 (소스 .c 만 추적)
+shadow_assists/features/IDE_026_rdt_guarded_harvest/**/constructive_bench
+shadow_assists/features/IDE_026_rdt_guarded_harvest/**/dsa_traffic
+shadow_assists/features/IDE_026_rdt_guarded_harvest/**/coloc_victim
+shadow_assists/features/IDE_026_rdt_guarded_harvest/**/ferry
+shadow_assists/features/IDE_026_rdt_guarded_harvest/**/ferry_host
+shadow_assists/features/IDE_026_rdt_guarded_harvest/src/victim_aggressor
+
+# 실험 런 산출물 — 로그/프로세스 아티팩트 (commit 제외, 2026-06-15)
+*.log
+*.pid
+*.pgid
+*.done
+# 대용량 raw per-request 덤프
+**/per_request_raw.jsonl
+# 모든 ELF 마이크로벤치 바이너리 (소스만 추적)
+lhc_phase*/**/dsa_*bench
+lhc_phase*/**/dsa_verify
+lhc_phase*/**/dsa_mt_bench
+lhc_phase*/**/dsa_multi_engine_bench
