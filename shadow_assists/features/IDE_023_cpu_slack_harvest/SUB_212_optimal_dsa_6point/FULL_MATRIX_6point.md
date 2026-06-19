@@ -1,7 +1,7 @@
-# Optimal+DSA 7-Point Coverage — Multi-Model Full Matrix (Single-Completed Doc)
+# Optimal+DSA 7-Point Coverage (+⑧⑨ 70B 확장) — Multi-Model Full Matrix (Single-Completed Doc)
 
 > **Source**: TSK_042 baseline (2026-06-02, host DSA WQ disabled) + 본 sweep (2026-06-10+ host DSA WQ enabled) + **⑦ SUB_213 uniform-pad sweep (2026-06-14)**
-> **Coverage**: 10 models × 7 corpora × **7 points** (①~⑥ + ⑦ best-K uniform-pad). ①~⑥ = 406/420 측정, ⑦ = **70/70 측정 완료** (SUB_213).
+> **Coverage**: 10 models × 7 corpora × **7 points** (①~⑥ + ⑦ best-K uniform-pad). ①~⑥ = 406/420 측정, ⑦ = **70/70 측정 완료** (SUB_213). **+ 70B 행에 ⑧(W4A4 양자화)·⑨(동적-K) 확장 (2026-06-19, §3 ⑧⑨ 표): ⑧ ⑦ 대비 +7.1%, ⑨ −7.9%.**
 > **⑦ 정의**: `VLLM_SUFFIX_PAD_UNIFORM=1` + suffix+FaP 에서 per-(model,corpus) 최적 K∈{4,6,8,12} 의 tps. 셀에 `tps (Kx)` 병기. taskset 0-47,56-103 (절대비교 시 caveat). 출력분포 등가 (정확도 게이트 D-ii PASS).
 > **핵심 결과**: ⑦ 가 **70셀 중 68셀**에서 행 최대 = 기존 6개 설정을 전부 상회. 예외 2셀(Qwen2.5-7B lmsys=⑥, mix=④).
 > **Stand-alone**: HW/SW/corpus/모델 정보 모두 포함, 외부 의존 없이 재현 가능
@@ -83,10 +83,29 @@ Enabled WQ 공통 속성 (8개 모두 동일):
 | ⑤ | suf(ON) | **enabled** | suffix K=32 | — | 본 sweep |
 | ⑥ | suf+dsa(ON) | enabled | suffix K=32 | **on** | 본 sweep |
 | ⑦ | **suffix+FaP+Kpad** (=bestK pad) ⭐ | enabled | **suffix K∈{4,6,8,12} + `VLLM_SUFFIX_PAD_UNIFORM=1`** | — | **SUB_213** (2026-06-14) |
+| ⑧ | **⑦ + W4A4 양자화** (70B만) | enabled | suffix bestK pad + **AWQ+GPTQ NVFP4 W4A4** | — | **2026-06-19** (codesci/POINT8) |
+| ⑨ | **⑦ + 동적-K** (bf16) | enabled | suffix pad + **`VLLM_SUFFIX_DYN_K=1` KS={4,6,12}**(α-EMA) | — | **2026-06-19** (SUB_247 D3 / codesci/POINT9) |
 
 > ⑦ 은 ⑤ suf(ON) 기준선에 (a) K 를 4/6/8/12 로 바꾸고 (b) draft 를 K 로 균일패딩(`VLLM_SUFFIX_PAD_UNIFORM=1`)해 FULL cudagraph 를 적중시킨 변형. pad 토큰은 rejection sampler 가 기각 → 출력분포 ⑤ 와 등가. 셀값 = per-(model,corpus) 최적 K 의 tps. (taskset 0-47,56-103 적용 — 절대비교 caveat.)
 >
 > **명명/지위 (2026-06-15)**: ⑦ = **`suffix+FaP+Kpad`** = 본 fork 의 현재 챔피언(70셀 중 68셀 행 최대). 이것이 앞으로 **"뛰어넘을 대상(to-beat baseline)"** 이다 — upstream 의 동등 작업(eagle_dynamic `DynamicProposer` #26504 = 동적 K, uniform cudagraph 정렬 #23679)을 비교에 넣을 때, 그것들이 ⑦ `suffix+FaP+Kpad` 를 넘는지로 판정한다. (upstream rebase 후 ⑧ 열로 추가 측정 권장. 메모리 `spec-decode-adaptive-k-upstream` 참조.)
+
+### ⑧⑨ 확장 측정 (2026-06-19, Llama-3.1-70B, output_tps, DSA-on, TP8)
+
+⑦(bf16 best-K pad) 위에 ⑧(W4A4 양자화)·⑨(동적-K)를 얹어 측정. ⑦/⑨ = 06-13 era, ⑧ = 06-19(세션-drift caveat). ⑨=`VLLM_SUFFIX_DYN_K=1 KS={4,6,12}`(SUB_247 D3). ⑧=`awqgptq_nvfp4_70b`(SR-004 게이트 PASS).
+
+| corpus | ⑦ bf16 best-K | ⑧ W4A4 (⑧/⑦) | ⑨ 동적-K (⑨/⑦) |
+|---|---:|---:|---:|
+| sharegpt | 6,092 (K8) | 6,183 (+1.5%) | 6,165 (+1.2%) |
+| swebench | 7,179 (K8) | 7,328 (+2.1%) | 7,398 (+3.1%) |
+| humaneval | 6,218 (K6) | 7,216 (**+16.1%**) | 6,247 (+0.5%) |
+| mbpp | 3,814 (K4) | 4,909 (**+28.7%**) | 3,256 (**−14.6%**) |
+| wildchat | 6,883 (K6) | 7,497 (+8.9%) | 6,465 (−6.1%) |
+| lmsys | 6,060 (K6) | 6,418 (+5.9%) | 6,043 (−0.3%) |
+| mix | 14,389 (K12) | 13,011 (−9.6%) | 9,656 (**−32.9%**) |
+| **기하평균 vs ⑦** | 기준 | **+7.1%** | **−7.9%** |
+
+> **판정**: **⑧(+W4A4 양자화) = ⑦ 대비 +7.1%**(코드 corpus 큼·mix −10%; standalone +55%→스택 위 수확체감). **⑨(동적-K) = ⑦ 대비 −7.9%**(컨트롤러가 oracle best-K 못 따라감, mix −33%; naive 고정K6 대비는 ~+1.1%). → **⑦이 여전히 챔피언, ⑧만 그 위 +7% 더함. 동적-K(=upstream #26504 류)는 ⑦ 못 넘음**(suffix가 이미 native 동적-K라 흡수). 상세=`codesci/POINT8_RESULT.md`·`POINT9_RESULT.md`.
 
 ## 4. vLLM Configuration
 
