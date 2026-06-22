@@ -1,7 +1,7 @@
 # Optimal+DSA 7-Point Coverage (+(8)(9) 70B 확장) — Multi-Model Full Matrix (Single-Completed Doc)
 
 > **Source**: TSK_042 baseline (2026-06-02, host DSA WQ disabled) + 본 sweep (2026-06-10+ host DSA WQ enabled) + **(7) SUB_213 uniform-pad sweep (2026-06-14)**
-> **Coverage**: 10 models × 7 corpora × **9 points** ((1)~(6) + (7) best-K uniform-pad + (8) W4A4 + (9) 동적-K). (1)~(6) = 406/420, (7) = 70/70, **(9) 동적-K = 70/70 전 모델 측정완료 (2026-06-20)**, **(8) W4A4 = Llama-3.1-70B만 게이트 PASS(SR-004), 그외 9모델 N/A**(게이트 FAIL 7 + 양자화불가 2, §14.1). 70B vs (7): (8) +7.1%, (9) −7.9%.
+> **Coverage**: **11 models** × 7 corpora × **9 points** ((1)~(6) + (7) best-K uniform-pad + (8) W4A4 + (9) 동적-K). 10모델 (1)~(9) + **K-EXAONE-236B (1)~(9) 추가 (2026-06-22, (1)(4)는 host DSA-OFF 실측, (8)=N/A FP8MoE)**. **(9) 동적-K = 전 모델 측정완료**, **(8) W4A4 = Llama-3.1-70B만 게이트 PASS(SR-004), 그외 N/A**(게이트 FAIL 7 + 양자화불가 3, §14.1). 70B vs (7): (8) +7.1%, (9) −7.9%.
 > **(7) 정의**: `VLLM_SUFFIX_PAD_UNIFORM=1` + suffix+FaP 에서 per-(model,corpus) 최적 K∈{4,6,8,12} 의 tps. 셀에 `tps (Kx)` 병기. taskset 0-47,56-103 (절대비교 시 caveat). 출력분포 등가 (정확도 게이트 D-ii PASS).
 > **핵심 결과**: (7) 가 **70셀 중 68셀**에서 행 최대 = 기존 6개 설정을 전부 상회. 예외 2셀(Qwen2.5-7B lmsys=(6), mix=(4)).
 > **Stand-alone**: HW/SW/corpus/모델 정보 모두 포함, 외부 의존 없이 재현 가능
@@ -198,10 +198,11 @@ VLLM_LHC_DSA=1 VLLM_LEVER_N9=1 VLLM_LHC_DSA_MIN=65536
 | `DeepSeek-R1-Distill-Llama-70B` | `deepseek-ai/DeepSeek-R1-Distill-Llama-70B` | 8 | 64 | 70B reasoning distill |
 | `Llama-3.1-405B-Instruct-FP8` | `meta-llama/Llama-3.1-405B-Instruct-FP8` | 8 | 128 | 405B FP8 (⚠ (5)(6) boot fail) |
 | `DeepSeek-R1` | `deepseek-ai/DeepSeek-R1` | 8 | 128 | 671B MoE (37B active) |
+| `K-EXAONE-236B` | `LGAI-EXAONE/K-EXAONE-236B-A23B-FP8` | 8 | 48 | 236B MoE (A23B, 128exp top-8, FP8) |
 
 ---
 
-## 8. 6-Point Headline — mix corpus (10 모델)
+## 8. 6-Point Headline — mix corpus (11 모델)
 
 > (7) bestKpad(bf16) 열 추가 (2026-06-19). (7) = suffix + uniform-pad + FaP + best-K (SUB_213). 70B 만 (8)(W4A4)·(9)(동적-K) 별도 보유(§9 참조). winner 는 (1)~(7) 전체 기준.
 
@@ -217,6 +218,7 @@ VLLM_LHC_DSA=1 VLLM_LEVER_N9=1 VLLM_LHC_DSA_MIN=65536
 | `DeepSeek-R1-Distill-Llama-70B` | 3,164 | 3,244 | 3,198 | 6,127 | 6,175 | 5,818 | **6,493** | N/A | 4,869 | **(7) bestKpad 6,493** |
 | `Llama-3.1-405B-Instruct-FP8` | 1,252 | 1,252 | 1,271 | 2,829 | — | — | **3,446** | N/A | 3,224 | **(7) bestKpad 3,446** |
 | `DeepSeek-R1` | 1,538 | 1,599 | 1,601 | 781 | 754 | 727 | **2,224** | N/A | **2,294** | **(9) dynK 2,294** |
+| `K-EXAONE-236B` | 2,491 | 2,496 | 2,500 | 11,213 | 11,391 | 10,530 | **11,702** | N/A | 11,699 | **(7) bestKpad 11,702** |
 
 ## 9. Per-Model 6-Point × 7-Corpus Tables
 
@@ -345,6 +347,22 @@ VLLM_LHC_DSA=1 VLLM_LEVER_N9=1 VLLM_LHC_DSA_MIN=65536
 | lmsys | 1,533 | 1,587 | 1,592 | 811 | 808 | 773 | **1,999 (K4)** | N/A | 1,949 | (7) bestKpad |
 | mix | 1,538 | 1,599 | 1,601 | 781 | 754 | 727 | **2,224** (K12) | N/A | **2,294** | (9) dynK |
 
+### `K-EXAONE-236B` (TP=8, FP8 MoE 128exp top-8)
+
+> 2026-06-22 측정. (1)(4) = host DSA WQ disabled 실측(전후 복원). (7) = 전 corpus k12pad. (8) = N/A(이미 FP8 → AWQ calibration dtype 충돌, 양자화 불가). **(1)van(OFF)≈(2)van(ON)≈(3)DSA(ON) — host DSA on/off 무영향 실증.**
+
+| corpus | (1) van(OFF) | (2) van(ON) | (3) DSA(ON) | (4) suf(OFF) | (5) suf(ON) | (6) suf+dsa(ON) | (7) bestKpad | (8) +W4A4 | (9) dynK | winner |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---:|
+| sharegpt | 2,490 | 2,508 | 2,495 | 10,447 | 10,963 | **11,616** | 11,262 (K12) | N/A | 11,300 | (6) suf+dsa |
+| swebench | 2,380 | 2,351 | 2,376 | 6,583 | 8,181 | **8,873** | 8,329 (K12) | N/A | 8,656 | (6) suf+dsa |
+| humaneval | 2,488 | 2,572 | 2,475 | **10,387** | 8,767 | 6,860 | 9,681 (K12) | N/A | 7,240 | (4) suf(OFF)* |
+| mbpp | 2,616 | 2,664 | 2,578 | 8,241 | 10,602 | **13,539** | 11,248 (K12) | N/A | 10,064 | (6) suf+dsa |
+| wildchat | 2,475 | 2,479 | 2,488 | 10,720 | 10,686 | 11,123 | 11,487 (K12) | N/A | **11,815** | (9) dynK |
+| lmsys | 2,506 | 2,485 | 2,494 | 10,669 | 9,913 | 10,674 | 11,654 (K12) | N/A | **12,122** | (9) dynK |
+| mix | 2,491 | 2,496 | 2,500 | 11,213 | 11,391 | 10,530 | **11,702 (K12)** | N/A | 11,699 | (7) bestKpad |
+
+> suffix가 EXAONE에 폭발적(**van ~2,500 → suffix ~11,000, 4.4×**). 큰 K 유리 — (6)sufdsa(K32)·(9)dynk·(7)k12pad 경합. *humaneval (4)1위는 suffix run 분산.
+
 ---
 
 ## 10. Effect Decomposition (mix corpus)
@@ -423,7 +441,7 @@ VLLM_LHC_DSA=1 VLLM_LEVER_N9=1 VLLM_LHC_DSA_MIN=65536
 
 ---
 
-## 14. Appendix — 전체 70셀 단일 통합 테이블 (10 models × 7 corpora × 7 points; +70B (8)(9))
+## 14. Appendix — 전체 77셀 단일 통합 테이블 (11 models × 7 corpora; (1)~(9))
 
 > §8(mix headline)·§9(per-model)와 동일 데이터의 flat 뷰. 단위 tok/s. `—` = 측정 없음 ((5)(6)=Llama-405B-FP8 engine init fail §11.1). **(9) 동적-K = 전 모델 측정 완료 (2026-06-20, runs_p9_dynk; 405B는 --allow-deprecated-quantization 재실행).** **(8) W4A4 = Llama-3.1-70B만 PASS(SR-004). 그 외 9모델 전부 `N/A`** — 7모델(7B~72B, distill-70B)은 분포동등 게이트 FAIL(출력 비등가), 405B(이미 FP8)·R1-671B(MoE)는 AWQ smoothlayer 매핑 불가로 양자화 자체 실패. 실증=§14.1 게이트 표. 70B (7)(8)(9)는 §9 70B 표와 동일(POINT8/9).
 
@@ -499,8 +517,17 @@ VLLM_LHC_DSA=1 VLLM_LEVER_N9=1 VLLM_LHC_DSA_MIN=65536
 |  | wildchat | 1,556 | 1,614 | 1,614 | 858 | 880 | 824 | 1,934 (K4) | N/A | **1,992** | (9) dynK |
 |  | lmsys | 1,533 | 1,587 | 1,592 | 811 | 808 | 773 | **1,999 (K4)** | N/A | 1,949 | (7) bestKpad |
 |  | mix | 1,538 | 1,599 | 1,601 | 781 | 754 | 727 | 2,224 (K12) | N/A | **2,294** | (9) dynK |
+| `K-EXAONE-236B` | sharegpt | 2,490 | 2,508 | 2,495 | 10,447 | 10,963 | **11,616** | 11,262 (K12) | N/A | 11,300 | (6) suf+dsa |
+|  | swebench | 2,380 | 2,351 | 2,376 | 6,583 | 8,181 | **8,873** | 8,329 (K12) | N/A | 8,656 | (6) suf+dsa |
+|  | humaneval | 2,488 | 2,572 | 2,475 | **10,387** | 8,767 | 6,860 | 9,681 (K12) | N/A | 7,240 | (4) suf(OFF)* |
+|  | mbpp | 2,616 | 2,664 | 2,578 | 8,241 | 10,602 | **13,539** | 11,248 (K12) | N/A | 10,064 | (6) suf+dsa |
+|  | wildchat | 2,475 | 2,479 | 2,488 | 10,720 | 10,686 | 11,123 | 11,487 (K12) | N/A | **11,815** | (9) dynK |
+|  | lmsys | 2,506 | 2,485 | 2,494 | 10,669 | 9,913 | 10,674 | 11,654 (K12) | N/A | **12,122** | (9) dynK |
+|  | mix | 2,491 | 2,496 | 2,500 | 11,213 | 11,391 | 10,530 | **11,702 (K12)** | N/A | 11,699 | (7) bestKpad |
 
-**winner 분포** (70 cells, (1)~(9); (8)은 Llama-3.1-70B만 적용가능·그외 N/A): (4) 1 · (6) 1 · (7) **43** · (8) 5 · (9) 20
+**winner 분포** (77 cells = 11 models × 7, (1)~(9); (8)은 Llama-3.1-70B만 적용가능·그외 N/A): (4) 2 · (6) 4 · (7) **44** · (8) 5 · (9) 22
+
+> **EXAONE-236B (FP8 MoE, TP8, 2026-06-22) 특이점**: (1)vanoff≈(2)van≈(3)dsa≈2,500 — **host DSA on/off가 vanilla tput에 무영향**((4)sufoff≈(5)suf도 동일). §2.1 "DSA clients=0, 실효과는 cudagraph" 가설을 DSA-OFF 실측으로 확정. EXAONE은 **큰 K 선호** — (7)은 전 corpus k12pad, 더 큰 K=32의 (6)sufdsa·(9)dynk이 7셀 중 6셀 winner(소형모델과 반대). (8)=N/A(이미 FP8 → AWQ calibration dtype 충돌). *humaneval (4) 1위는 suffix 셀 run 분산 내(6,860~10,387).
 
 > (9) 동적-K가 20셀에서 행 최대 — 단 (7)은 06-14, (9)는 06-20 측정이라 cross-era 비교(소폭 차는 세션 drift 가능). (8)은 70B 5셀에서만 winner(나머지 비-70B는 측정 불가라 비경쟁).
 
