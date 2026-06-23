@@ -24,9 +24,31 @@
 # limitations under the License.
 """Inference-only DeepseekV2/DeepseekV3 model."""
 
+import os
+import re
 import typing
 from collections.abc import Callable, Iterable
 from itertools import islice
+
+# SUB_260 #3 — Sync-Point-Drop (SPD): drop attention o_proj TP all-reduce for
+# selected layers. ENV `VLLM_SPD_DROP_LAYERS`="5,30,60" → 해당 layer의 MLA o_proj가
+# reduce_results=False (cross-rank 합산 생략, 각 rank가 partial로 진행). 미설정=완전 no-op.
+# 지배 통신(TP all-reduce 73%) 직접 제거 시도. 측정용 calibration: layer별 민감도(logprob_diff).
+_SPD_DROP_LAYERS: set[int] = set(
+    int(x) for x in os.environ.get("VLLM_SPD_DROP_LAYERS", "").replace(" ", "").split(",") if x
+)
+
+
+def _spd_layer_idx(prefix: str) -> int | None:
+    m = re.search(r"layers\.(\d+)\b", prefix)
+    return int(m.group(1)) if m else None
+
+
+def _spd_should_drop(prefix: str) -> bool:
+    if not _SPD_DROP_LAYERS:
+        return False
+    idx = _spd_layer_idx(prefix)
+    return idx is not None and idx in _SPD_DROP_LAYERS
 
 import torch
 from torch import nn
@@ -500,12 +522,17 @@ class DeepseekV2Attention(nn.Module):
             prefix=f"{prefix}.kv_b_proj",
         )
         # O projection.
+        # SUB_260 #3 SPD: drop-layer면 reduce_results=False → o_proj TP all-reduce 생략.
+        _spd_drop = _spd_should_drop(prefix)
+        if _spd_drop:
+            logger.info("SPD: dropping o_proj all-reduce for %s", prefix)
         self.o_proj = RowParallelLinear(
             self.num_heads * self.v_head_dim,
             self.hidden_size,
             bias=False,
             quant_config=quant_config,
             prefix=f"{prefix}.o_proj",
+            reduce_results=not _spd_drop,
         )
         if config.rope_parameters["rope_type"] != "default":
             config.rope_parameters["rope_type"] = (
@@ -952,12 +979,17 @@ class DeepseekV2MLAAttention(nn.Module):
             quant_config=quant_config,
             prefix=f"{prefix}.kv_b_proj",
         )
+        # SUB_260 #3 SPD: drop-layer면 reduce_results=False → MLA o_proj TP all-reduce 생략.
+        _spd_drop = _spd_should_drop(prefix)
+        if _spd_drop:
+            logger.info("SPD: dropping MLA o_proj all-reduce for %s", prefix)
         self.o_proj = RowParallelLinear(
             self.num_heads * self.v_head_dim,
             self.hidden_size,
             bias=False,
             quant_config=quant_config,
             prefix=f"{prefix}.o_proj",
+            reduce_results=not _spd_drop,
         )
 
         if config.rope_parameters["rope_type"] != "default":

@@ -159,3 +159,20 @@ resctrl 미마운트(`/sys` ro)·mbind EPERM(seccomp)·accel-config 미설치·I
 않는다**. 그리고 **SUB_228(헤드라인)**: 실제 유용작업(연산-bound)은 **이 가드 없이도
 near-free harvest** → 정교한 가드(CSMA/MERCATO/CANARY)는 **메모리-bound harvest 변두리
 케이스용 보험**. 실제 시스템 성능 향상은 spec-decode(SUB_213 +38%)·CPU-offload(①) 트랙.
+
+## 종합판단 검증 — NUMA-local이 서빙 throughput을 개선하나 (2026-06-15)
+
+> **판정: 아니오. throughput 서빙은 GPU-bound라 host 메모리 NUMA 배치가 tps에 안 닿음.**
+> IDE_026 유일 고-magnitude 레버(메모리 배치)도 서빙-win 전환 안 됨 → 종합 NEGATIVE.
+
+측정(Llama-3.1-70B + ngram spec, GPU0-3=node0):
+1. vLLM 기본 = NUMA 드리프트 확인: 워커 Private 1678MB가 원격 node1(node0엔 222MB).
+   → vanilla serving에서 host 버퍼를 GPU-로컬로 안 묶음(배치 비효율 실재).
+2. 그러나 conc24/conc2 부하에서 GPU util 86-100% = GPU-bound. ngram으론 SUB_201
+   host-bound(26-65%) 미재현(그건 고-accept suffix+저-conc).
+3. A/B: numactl --membind=0(local, node0 2908MB/node1 445MB로 교정) vs 드리프트.
+   local에서도 util 86-100% = 병목 불변. tps는 prefix-cache 노이즈로 결정불가나 util 동일.
+
+결론: 배치 비효율 있으나 throughput 서빙 GPU-bound라 NUMA-local이 tps 못 올림. NUMA가
+닿으려면 host-bound(고-accept suffix+저-conc=latency) 레짐이어야 하나 throughput 타깃 아님.
+→ IDE_026 성공기술의 서빙-win 전환 = 종합 소진(NEGATIVE).

@@ -1,9 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+import os
 from abc import abstractmethod
 from collections.abc import Callable
 
 import torch
+
+# SUB_260 (분산-EP 축소-expert self-spec) — draft pass 측정용 전역 top-k 강제.
+# 미설정(0)이면 완전 no-op (baseline 무영향). >0 이면 routing 후 상위 N expert만 유지+renorm.
+# B0 kill-gate(통신 스케일링/acceptance) 측정 전용. 정식 per-forward 경로는 후속 proposer에서.
+_FORCE_MOE_TOPK = int(os.environ.get("VLLM_MOE_FORCE_TOPK", "0") or "0")
 
 from vllm.distributed.eplb.eplb_state import EplbLayerState
 from vllm.model_executor.layers.fused_moe.router.fused_moe_router import (
@@ -275,6 +281,13 @@ class BaseRouter(FusedMoERouter):
         topk_weights, topk_ids = self._compute_routing(
             hidden_states, router_logits, indices_type
         )
+
+        # SUB_260: 축소-expert draft 강제(측정용). 상위 N개만 유지 + weight renorm.
+        if 0 < _FORCE_MOE_TOPK < topk_ids.shape[-1]:
+            topk_ids = topk_ids[..., :_FORCE_MOE_TOPK].contiguous()
+            w = topk_weights[..., :_FORCE_MOE_TOPK]
+            denom = w.sum(dim=-1, keepdim=True).clamp_min(1e-9)
+            topk_weights = (w / denom).contiguous()
 
         # Capture logical ids before EPLB mapping.
         if self.capture_fn is not None:

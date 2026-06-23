@@ -1,0 +1,6 @@
+##### Phase1 FP8 all-reduce (H=16384, N=128, W=8) #####
+  bf16 AR(현행): 74.5 us
+  FP8  AR(신규): 474.2 us  → -537% 지연
+  FP8 합산 rel_err=0.0208  max_abs=1.250
+  통신량: bf16 2×(W-1)/W vs FP8 all_to_all(1/2) — 이론상 ~절반
+  판정: 지연↓ AND rel_err 보상가능(<3%)면 Phase2(오차보상)로.

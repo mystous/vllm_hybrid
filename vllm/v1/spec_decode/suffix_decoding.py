@@ -378,6 +378,12 @@ class SuffixDecodingProposer:
         will speculate a dynamic number of tokens for each request every decoding step,
         so each entry in the returned list may have different lengths.
         """
+        # SUB_254 (b) critical-path probe: env-gated per-step delay. tps 기울기로
+        # suffix draft 가 critical-path 인지(지연∝tps↓) GPU 와 오버랩인지(평탄) 판정.
+        _probe_us = os.environ.get("VLLM_SUFFIX_PROBE_DELAY_US")
+        if _probe_us:
+            import time as _t
+            _t.sleep(float(_probe_us) / 1e6)
         draft_token_ids: list[list[int]] = []
         _step_accept_lens: list[int] = []  # TSK_046
         for i, sampled_ids in enumerate(sampled_token_ids):
