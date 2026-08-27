@@ -1,0 +1,737 @@
+(APIServer pid=42239) INFO 08-27 04:31:07 [api_utils.py:333] 
+(APIServer pid=42239) INFO 08-27 04:31:07 [api_utils.py:333]        █     █     █▄   ▄█
+(APIServer pid=42239) INFO 08-27 04:31:07 [api_utils.py:333]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.28.0
+(APIServer pid=42239) INFO 08-27 04:31:07 [api_utils.py:333]   █▄█▀ █     █     █     █  model   /models/hub/models--deepseek-ai--DeepSeek-R1-0528/snapshots/4236a6af538feda4548eca9ab308586007567f52
+(APIServer pid=42239) INFO 08-27 04:31:07 [api_utils.py:333]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=42239) INFO 08-27 04:31:07 [api_utils.py:333] 
+(APIServer pid=42239) INFO 08-27 04:31:07 [api_utils.py:272] non-default args: {'model_tag': '/models/hub/models--deepseek-ai--DeepSeek-R1-0528/snapshots/4236a6af538feda4548eca9ab308586007567f52', 'host': '127.0.0.1', 'model': '/models/hub/models--deepseek-ai--DeepSeek-R1-0528/snapshots/4236a6af538feda4548eca9ab308586007567f52', 'max_model_len': 8192, 'served_model_name': ['r1'], 'tensor_parallel_size': 8, 'gpu_memory_utilization': 0.95}
+(APIServer pid=42239) INFO 08-27 04:31:24 [model.py:672] Resolved architecture: DeepseekV3ForCausalLM
+(APIServer pid=42239) INFO 08-27 04:31:24 [model.py:1965] Using max model len 8192
+(APIServer pid=42239) INFO 08-27 04:31:29 [scheduler.py:242] Chunked prefill is enabled with max_num_batched_tokens=8192.
+(APIServer pid=42239) INFO 08-27 04:31:29 [kernel.py:308] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(APIServer pid=42239) INFO 08-27 04:31:29 [compilation.py:329] Enabled custom fusions: norm_quant, act_quant, allreduce_rms
+(EngineCore pid=42815) INFO 08-27 04:31:44 [core.py:122] Initializing a V1 LLM engine (v0.28.0) with config: model='/models/hub/models--deepseek-ai--DeepSeek-R1-0528/snapshots/4236a6af538feda4548eca9ab308586007567f52', speculative_config=None, tokenizer='/models/hub/models--deepseek-ai--DeepSeek-R1-0528/snapshots/4236a6af538feda4548eca9ab308586007567f52', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=8192, download_dir=None, load_format=auto, tensor_parallel_size=8, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=fp8, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False, jit_monitor_mode='warn', jit_monitor_verbose=False), seed=0, served_model_name=r1, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['+quant_fp8', 'none', '+quant_fp8'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::qwen_gdn_attention_core', 'vllm::qwen_gdn_attention_core_fused_norm_packed', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::hpc_rope_norm_forward', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [36, 8192], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': True, 'enable_qk_norm_rope_fusion': False, 'fuse_rope_kvcache_cat_mla': False, 'fuse_act_padding': False, 'fuse_qk_norm_rope_kvcache': False}, 'max_cudagraph_capture_size': 512, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=True, enable_cutedsl_warmup=True, enable_jit_warmup=True, enable_bf16x3_router_gemm=False, moe_backend='auto', linear_backend='auto')
+(EngineCore pid=42815) INFO 08-27 04:31:44 [multiproc_executor.py:150] DP group leader: node_rank=0, node_rank_within_dp=0, master_addr=127.0.0.1, mq_connect_ip=211.115.75.81 (local), world_size=8, local_world_size=8
+(Worker pid=43055) INFO 08-27 04:32:01 [parallel_state.py:1638] world_size=8 rank=2 local_rank=2 distributed_init_method=file:///tmp/vllm_dist_26d343a436e54302b7ad9bda252b8f1a backend=nccl
+(Worker pid=43053) INFO 08-27 04:32:02 [parallel_state.py:1638] world_size=8 rank=0 local_rank=0 distributed_init_method=file:///tmp/vllm_dist_26d343a436e54302b7ad9bda252b8f1a backend=nccl
+(Worker pid=43058) INFO 08-27 04:32:02 [parallel_state.py:1638] world_size=8 rank=5 local_rank=5 distributed_init_method=file:///tmp/vllm_dist_26d343a436e54302b7ad9bda252b8f1a backend=nccl
+(Worker pid=43060) INFO 08-27 04:32:02 [parallel_state.py:1638] world_size=8 rank=7 local_rank=7 distributed_init_method=file:///tmp/vllm_dist_26d343a436e54302b7ad9bda252b8f1a backend=nccl
+(Worker pid=43059) INFO 08-27 04:32:03 [parallel_state.py:1638] world_size=8 rank=6 local_rank=6 distributed_init_method=file:///tmp/vllm_dist_26d343a436e54302b7ad9bda252b8f1a backend=nccl
+(Worker pid=43054) INFO 08-27 04:32:03 [parallel_state.py:1638] world_size=8 rank=1 local_rank=1 distributed_init_method=file:///tmp/vllm_dist_26d343a436e54302b7ad9bda252b8f1a backend=nccl
+(Worker pid=43057) INFO 08-27 04:32:03 [parallel_state.py:1638] world_size=8 rank=4 local_rank=4 distributed_init_method=file:///tmp/vllm_dist_26d343a436e54302b7ad9bda252b8f1a backend=nccl
+(Worker pid=43056) INFO 08-27 04:32:03 [parallel_state.py:1638] world_size=8 rank=3 local_rank=3 distributed_init_method=file:///tmp/vllm_dist_26d343a436e54302b7ad9bda252b8f1a backend=nccl
+(Worker pid=43053) INFO 08-27 04:32:03 [pynccl.py:113] vLLM is using nccl==2.30.7
+(Worker pid=43053) INFO 08-27 04:32:06 [cuda_communicator.py:266] Using ['CUSTOM', 'SYMM_MEM', 'PYNCCL'] all-reduce backends (in dispatch order) for group 'tp:0' out of potential backends: ['NCCL_SYMM_MEM', 'QUICK_REDUCE', 'FLASHINFER', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=43053) INFO 08-27 04:32:08 [cuda_communicator.py:266] Using ['PYNCCL'] all-reduce backends (in dispatch order) for group 'ep:0' out of potential backends: ['NCCL_SYMM_MEM', 'QUICK_REDUCE', 'FLASHINFER', 'AITER_CUSTOM', 'CUSTOM', 'SYMM_MEM', 'PYNCCL'].
+(Worker pid=43053) INFO 08-27 04:32:08 [parallel_state.py:1982] rank 0 in world size 8 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank 0, EPLB rank N/A
+(Worker pid=43053) INFO 08-27 04:32:08 [topk_topp_sampler.py:62] Using FlashInfer for top-p & top-k sampling.
+(Worker_TP0 pid=43053) INFO 08-27 04:32:08 [gpu_model_runner.py:5419] Starting to load model /models/hub/models--deepseek-ai--DeepSeek-R1-0528/snapshots/4236a6af538feda4548eca9ab308586007567f52...
+(Worker_TP0 pid=43053) INFO 08-27 04:32:09 [__init__.py:689] Selected FlashInferFp8DeepGEMMDynamicBlockScaledKernel for Fp8LinearMethod
+(Worker_TP0 pid=43053) INFO 08-27 04:32:09 [deep_gemm.py:186] deep_gemm not found in site-packages, trying vendored vllm.third_party.deep_gemm
+(Worker_TP0 pid=43053) INFO 08-27 04:32:09 [deep_gemm.py:213] DeepGEMM PDL enabled on vllm.third_party.deep_gemm.
+(Worker_TP0 pid=43053) INFO 08-27 04:32:09 [deep_gemm.py:131] DeepGEMM E8M0 enabled on current platform.
+(Worker_TP0 pid=43053) INFO 08-27 04:32:09 [cuda.py:486] Using FLASH_ATTN_MLA attention backend out of potential backends: ['FLASH_ATTN_MLA', 'FLASHMLA', 'TRITON_MLA'].
+(Worker_TP0 pid=43053) INFO 08-27 04:32:09 [selector.py:190] Using FLASH_ATTN MLA prefill backend.
+(Worker_TP0 pid=43053) INFO 08-27 04:32:09 [fp8.py:411] Using TRITON Fp8 MoE backend out of potential backends: ['TRITON', 'AITER', 'FLASHINFER_TRTLLM', 'FLASHINFER_CUTLASS', 'DEEPGEMM', 'MARLIN', 'HUMMING', 'BATCHED_DEEPGEMM', 'BATCHED_TRITON', 'XPU', 'CPU', 'HPC'].
+[rank7]:[W827 04:32:09.535618155 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 7 while trying to allocate 939524096 bytes (free: 301989888, total: 85017493504).
+[rank7]:[W827 04:32:09.537898180 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 7 while trying to allocate 939524096 bytes (free: 364904448, total: 85017493504).
+[rank5]:[W827 04:32:09.546394232 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 5 while trying to allocate 939524096 bytes (free: 301989888, total: 85017493504).
+[rank5]:[W827 04:32:09.547572606 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 5 while trying to allocate 939524096 bytes (free: 364904448, total: 85017493504).
+[rank6]:[W827 04:32:09.551084160 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 6 while trying to allocate 939524096 bytes (free: 301989888, total: 85017493504).
+[rank0]:[W827 04:32:09.551099660 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 939524096 bytes (free: 301989888, total: 85017493504).
+[rank6]:[W827 04:32:09.552894862 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 6 while trying to allocate 939524096 bytes (free: 364904448, total: 85017493504).
+[rank0]:[W827 04:32:09.552935651 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 939524096 bytes (free: 364904448, total: 85017493504).
+[rank1]:[W827 04:32:09.582350121 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 1 while trying to allocate 939524096 bytes (free: 301989888, total: 85017493504).
+[rank1]:[W827 04:32:09.583059757 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 1 while trying to allocate 939524096 bytes (free: 364904448, total: 85017493504).
+[rank3]:[W827 04:32:09.588787136 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 3 while trying to allocate 939524096 bytes (free: 301989888, total: 85017493504).
+[rank4]:[W827 04:32:09.589385298 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 4 while trying to allocate 939524096 bytes (free: 301989888, total: 85017493504).
+[rank3]:[W827 04:32:09.589754488 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 3 while trying to allocate 939524096 bytes (free: 364904448, total: 85017493504).
+[rank4]:[W827 04:32:09.592216057 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 4 while trying to allocate 939524096 bytes (free: 364904448, total: 85017493504).
+[rank2]:[W827 04:32:09.625174322 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 2 while trying to allocate 939524096 bytes (free: 301989888, total: 85017493504).
+[rank2]:[W827 04:32:09.625876159 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 2 while trying to allocate 939524096 bytes (free: 364904448, total: 85017493504).
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [gpu_model_runner.py:5513] Failed to load model - not enough GPU memory. Try lowering --gpu-memory-utilization to free memory for weights, increasing --tensor-parallel-size, or using --quantization. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more tips. (original error: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 5 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf))
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941] WorkerProc failed to start.
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941] Traceback (most recent call last):
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 908, in worker_main
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     worker = WorkerProc(*args, **kwargs)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 677, in __init__
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.worker.load_model()
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 457, in load_model
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5514, in load_model
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     raise e
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5435, in load_model
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = model_loader.load_model(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = initialize_model(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/utils.py", line 58, in initialize_model
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = model_class(vllm_config=vllm_config, prefix=prefix)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1836, in __init__
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = self.model_cls(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 383, in __init__
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     old_init(self, *args, **kwargs)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1394, in __init__
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.start_layer, self.end_layer, self.layers = make_layers(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                                                     ^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 812, in make_layers
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     + get_offloader().wrap_modules(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/offloader/base.py", line 104, in wrap_modules
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return list(modules_generator)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 813, in <genexpr>
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     layer_fn(prefix=f"{prefix}.{idx}") for idx in range(start_layer, end_layer)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1396, in <lambda>
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     lambda prefix: DeepseekV2DecoderLayer(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1264, in __init__
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.mlp = DeepseekV2MoE(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                ^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 358, in __init__
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.experts = FusedMoEFactory(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/layer.py", line 375, in FusedMoEFactory
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     routed_experts = routed_experts_cls(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                      ^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 175, in __init__
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.quant_method.create_weights(layer=self, **moe_quant_params)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/fp8.py", line 550, in create_weights
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     torch.empty(
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP5 pid=43058) ERROR 08-27 04:32:10 [multiproc_executor.py:941] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 5 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+(EngineCore pid=42815) INFO 08-27 04:32:10 [multiproc_executor.py:469] [shutdown] Executor: waiting for worker exit count=8
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [gpu_model_runner.py:5513] Failed to load model - not enough GPU memory. Try lowering --gpu-memory-utilization to free memory for weights, increasing --tensor-parallel-size, or using --quantization. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more tips. (original error: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 6 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf))
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941] WorkerProc failed to start.
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941] Traceback (most recent call last):
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 908, in worker_main
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     worker = WorkerProc(*args, **kwargs)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 677, in __init__
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.worker.load_model()
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 457, in load_model
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5514, in load_model
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     raise e
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5435, in load_model
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = model_loader.load_model(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = initialize_model(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/utils.py", line 58, in initialize_model
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = model_class(vllm_config=vllm_config, prefix=prefix)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1836, in __init__
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = self.model_cls(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 383, in __init__
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     old_init(self, *args, **kwargs)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1394, in __init__
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.start_layer, self.end_layer, self.layers = make_layers(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                                                     ^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 812, in make_layers
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     + get_offloader().wrap_modules(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/offloader/base.py", line 104, in wrap_modules
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return list(modules_generator)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 813, in <genexpr>
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     layer_fn(prefix=f"{prefix}.{idx}") for idx in range(start_layer, end_layer)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1396, in <lambda>
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     lambda prefix: DeepseekV2DecoderLayer(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1264, in __init__
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.mlp = DeepseekV2MoE(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                ^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 358, in __init__
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.experts = FusedMoEFactory(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/layer.py", line 375, in FusedMoEFactory
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     routed_experts = routed_experts_cls(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                      ^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 175, in __init__
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.quant_method.create_weights(layer=self, **moe_quant_params)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/fp8.py", line 550, in create_weights
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     torch.empty(
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP6 pid=43059) ERROR 08-27 04:32:10 [multiproc_executor.py:941] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 6 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [gpu_model_runner.py:5513] Failed to load model - not enough GPU memory. Try lowering --gpu-memory-utilization to free memory for weights, increasing --tensor-parallel-size, or using --quantization. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more tips. (original error: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 7 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf))
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [gpu_model_runner.py:5513] Failed to load model - not enough GPU memory. Try lowering --gpu-memory-utilization to free memory for weights, increasing --tensor-parallel-size, or using --quantization. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more tips. (original error: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 1 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf))
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941] WorkerProc failed to start.
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941] Traceback (most recent call last):
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 908, in worker_main
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     worker = WorkerProc(*args, **kwargs)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 677, in __init__
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.worker.load_model()
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 457, in load_model
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5514, in load_model
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     raise e
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5435, in load_model
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = model_loader.load_model(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = initialize_model(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/utils.py", line 58, in initialize_model
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = model_class(vllm_config=vllm_config, prefix=prefix)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1836, in __init__
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = self.model_cls(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 383, in __init__
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     old_init(self, *args, **kwargs)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1394, in __init__
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.start_layer, self.end_layer, self.layers = make_layers(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                                                     ^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 812, in make_layers
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     + get_offloader().wrap_modules(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/offloader/base.py", line 104, in wrap_modules
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return list(modules_generator)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 813, in <genexpr>
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     layer_fn(prefix=f"{prefix}.{idx}") for idx in range(start_layer, end_layer)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1396, in <lambda>
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     lambda prefix: DeepseekV2DecoderLayer(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1264, in __init__
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.mlp = DeepseekV2MoE(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                ^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 358, in __init__
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.experts = FusedMoEFactory(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/layer.py", line 375, in FusedMoEFactory
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     routed_experts = routed_experts_cls(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                      ^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 175, in __init__
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.quant_method.create_weights(layer=self, **moe_quant_params)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/fp8.py", line 550, in create_weights
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     torch.empty(
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP7 pid=43060) ERROR 08-27 04:32:10 [multiproc_executor.py:941] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 7 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941] WorkerProc failed to start.
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941] Traceback (most recent call last):
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 908, in worker_main
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     worker = WorkerProc(*args, **kwargs)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 677, in __init__
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.worker.load_model()
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 457, in load_model
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5514, in load_model
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     raise e
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5435, in load_model
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = model_loader.load_model(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = initialize_model(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/utils.py", line 58, in initialize_model
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = model_class(vllm_config=vllm_config, prefix=prefix)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1836, in __init__
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = self.model_cls(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 383, in __init__
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     old_init(self, *args, **kwargs)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1394, in __init__
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.start_layer, self.end_layer, self.layers = make_layers(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                                                     ^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 812, in make_layers
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     + get_offloader().wrap_modules(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/offloader/base.py", line 104, in wrap_modules
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return list(modules_generator)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 813, in <genexpr>
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     layer_fn(prefix=f"{prefix}.{idx}") for idx in range(start_layer, end_layer)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1396, in <lambda>
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     lambda prefix: DeepseekV2DecoderLayer(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1264, in __init__
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.mlp = DeepseekV2MoE(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                ^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 358, in __init__
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.experts = FusedMoEFactory(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/layer.py", line 375, in FusedMoEFactory
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     routed_experts = routed_experts_cls(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                      ^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 175, in __init__
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.quant_method.create_weights(layer=self, **moe_quant_params)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/fp8.py", line 550, in create_weights
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     torch.empty(
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP1 pid=43054) ERROR 08-27 04:32:10 [multiproc_executor.py:941] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 1 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [gpu_model_runner.py:5513] Failed to load model - not enough GPU memory. Try lowering --gpu-memory-utilization to free memory for weights, increasing --tensor-parallel-size, or using --quantization. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more tips. (original error: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 0 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf))
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [gpu_model_runner.py:5513] Failed to load model - not enough GPU memory. Try lowering --gpu-memory-utilization to free memory for weights, increasing --tensor-parallel-size, or using --quantization. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more tips. (original error: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 3 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf))
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941] WorkerProc failed to start.
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941] Traceback (most recent call last):
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 908, in worker_main
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     worker = WorkerProc(*args, **kwargs)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 677, in __init__
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.worker.load_model()
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 457, in load_model
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5514, in load_model
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     raise e
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5435, in load_model
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = model_loader.load_model(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = initialize_model(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/utils.py", line 58, in initialize_model
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = model_class(vllm_config=vllm_config, prefix=prefix)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1836, in __init__
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = self.model_cls(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 383, in __init__
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     old_init(self, *args, **kwargs)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1394, in __init__
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.start_layer, self.end_layer, self.layers = make_layers(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                                                     ^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 812, in make_layers
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     + get_offloader().wrap_modules(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/offloader/base.py", line 104, in wrap_modules
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return list(modules_generator)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 813, in <genexpr>
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     layer_fn(prefix=f"{prefix}.{idx}") for idx in range(start_layer, end_layer)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1396, in <lambda>
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     lambda prefix: DeepseekV2DecoderLayer(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1264, in __init__
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.mlp = DeepseekV2MoE(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                ^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 358, in __init__
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.experts = FusedMoEFactory(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/layer.py", line 375, in FusedMoEFactory
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     routed_experts = routed_experts_cls(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                      ^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 175, in __init__
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.quant_method.create_weights(layer=self, **moe_quant_params)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/fp8.py", line 550, in create_weights
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     torch.empty(
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP0 pid=43053) ERROR 08-27 04:32:10 [multiproc_executor.py:941] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 0 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941] WorkerProc failed to start.
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941] Traceback (most recent call last):
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 908, in worker_main
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     worker = WorkerProc(*args, **kwargs)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 677, in __init__
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.worker.load_model()
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 457, in load_model
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5514, in load_model
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     raise e
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5435, in load_model
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = model_loader.load_model(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = initialize_model(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/utils.py", line 58, in initialize_model
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = model_class(vllm_config=vllm_config, prefix=prefix)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1836, in __init__
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = self.model_cls(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 383, in __init__
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     old_init(self, *args, **kwargs)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1394, in __init__
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.start_layer, self.end_layer, self.layers = make_layers(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                                                     ^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 812, in make_layers
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     + get_offloader().wrap_modules(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/offloader/base.py", line 104, in wrap_modules
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return list(modules_generator)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 813, in <genexpr>
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     layer_fn(prefix=f"{prefix}.{idx}") for idx in range(start_layer, end_layer)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1396, in <lambda>
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     lambda prefix: DeepseekV2DecoderLayer(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1264, in __init__
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.mlp = DeepseekV2MoE(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                ^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 358, in __init__
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.experts = FusedMoEFactory(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/layer.py", line 375, in FusedMoEFactory
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     routed_experts = routed_experts_cls(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                      ^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 175, in __init__
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.quant_method.create_weights(layer=self, **moe_quant_params)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/fp8.py", line 550, in create_weights
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     torch.empty(
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP3 pid=43056) ERROR 08-27 04:32:10 [multiproc_executor.py:941] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 3 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [gpu_model_runner.py:5513] Failed to load model - not enough GPU memory. Try lowering --gpu-memory-utilization to free memory for weights, increasing --tensor-parallel-size, or using --quantization. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more tips. (original error: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 4 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf))
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941] WorkerProc failed to start.
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941] Traceback (most recent call last):
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 908, in worker_main
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     worker = WorkerProc(*args, **kwargs)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 677, in __init__
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.worker.load_model()
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 457, in load_model
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5514, in load_model
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     raise e
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5435, in load_model
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = model_loader.load_model(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = initialize_model(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/utils.py", line 58, in initialize_model
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = model_class(vllm_config=vllm_config, prefix=prefix)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1836, in __init__
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = self.model_cls(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 383, in __init__
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     old_init(self, *args, **kwargs)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1394, in __init__
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.start_layer, self.end_layer, self.layers = make_layers(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                                                     ^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 812, in make_layers
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     + get_offloader().wrap_modules(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/offloader/base.py", line 104, in wrap_modules
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return list(modules_generator)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 813, in <genexpr>
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     layer_fn(prefix=f"{prefix}.{idx}") for idx in range(start_layer, end_layer)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1396, in <lambda>
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     lambda prefix: DeepseekV2DecoderLayer(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1264, in __init__
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.mlp = DeepseekV2MoE(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                ^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 358, in __init__
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.experts = FusedMoEFactory(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/layer.py", line 375, in FusedMoEFactory
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     routed_experts = routed_experts_cls(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                      ^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 175, in __init__
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.quant_method.create_weights(layer=self, **moe_quant_params)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/fp8.py", line 550, in create_weights
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     torch.empty(
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP4 pid=43057) ERROR 08-27 04:32:10 [multiproc_executor.py:941] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 4 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [gpu_model_runner.py:5513] Failed to load model - not enough GPU memory. Try lowering --gpu-memory-utilization to free memory for weights, increasing --tensor-parallel-size, or using --quantization. See https://docs.vllm.ai/en/latest/configuration/conserving_memory/ for more tips. (original error: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 2 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf))
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941] WorkerProc failed to start.
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941] Traceback (most recent call last):
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 908, in worker_main
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     worker = WorkerProc(*args, **kwargs)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 677, in __init__
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.worker.load_model()
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py", line 457, in load_model
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5514, in load_model
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     raise e
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_model_runner.py", line 5435, in load_model
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = model_loader.load_model(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/base_loader.py", line 55, in load_model
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = initialize_model(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/utils.py", line 58, in initialize_model
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     model = model_class(vllm_config=vllm_config, prefix=prefix)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1836, in __init__
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.model = self.model_cls(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                  ^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/compilation/decorators.py", line 383, in __init__
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     old_init(self, *args, **kwargs)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1394, in __init__
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.start_layer, self.end_layer, self.layers = make_layers(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                                                     ^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 812, in make_layers
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     + get_offloader().wrap_modules(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/offloader/base.py", line 104, in wrap_modules
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return list(modules_generator)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/utils.py", line 813, in <genexpr>
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     layer_fn(prefix=f"{prefix}.{idx}") for idx in range(start_layer, end_layer)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1396, in <lambda>
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     lambda prefix: DeepseekV2DecoderLayer(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 1264, in __init__
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.mlp = DeepseekV2MoE(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                ^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/deepseek_v2.py", line 358, in __init__
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.experts = FusedMoEFactory(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                    ^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/layer.py", line 375, in FusedMoEFactory
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     routed_experts = routed_experts_cls(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]                      ^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/routed_experts.py", line 175, in __init__
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     self.quant_method.create_weights(layer=self, **moe_quant_params)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/fp8.py", line 550, in create_weights
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     torch.empty(
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]   File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]     return func(*args, **kwargs)
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941]            ^^^^^^^^^^^^^^^^^^^^^
+(Worker_TP2 pid=43055) ERROR 08-27 04:32:10 [multiproc_executor.py:941] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 896.00 MiB. GPU 2 has a total capacity of 79.18 GiB of which 348.00 MiB is free. Including non-PyTorch memory, this process has 78.83 GiB memory in use. Of the allocated memory 76.62 GiB is allocated by PyTorch, and 73.76 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+[rank0]:[W827 04:32:11.405900564 ProcessGroupNCCL.cpp:1624] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+(EngineCore pid=42815) INFO 08-27 04:32:14 [multiproc_executor.py:476] [shutdown] Executor: all workers exited gracefully
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346] EngineCore failed to start.
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346] Traceback (most recent call last):
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1315, in run_engine_core
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     return func(*args, **kwargs)
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1073, in __init__
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     super().__init__(
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 133, in __init__
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     self.model_executor = executor_class(vllm_config)
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 116, in __init__
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     super().__init__(vllm_config)
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     return func(*args, **kwargs)
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/abstract.py", line 110, in __init__
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     self._init_executor()
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 211, in _init_executor
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     self.workers = WorkerProc.wait_for_ready(unready_workers)
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 805, in wait_for_ready
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346]     raise e from None
+(EngineCore pid=42815) ERROR 08-27 04:32:14 [core.py:1346] Exception: WorkerProc initialization failed due to an exception in a background process. See stack trace for root cause.
+(EngineCore pid=42815) Process EngineCore:
+(EngineCore pid=42815) Traceback (most recent call last):
+(EngineCore pid=42815)   File "/usr/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+(EngineCore pid=42815)     self.run()
+(EngineCore pid=42815)   File "/usr/lib/python3.12/multiprocessing/process.py", line 108, in run
+(EngineCore pid=42815)     self._target(*self._args, **self._kwargs)
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1350, in run_engine_core
+(EngineCore pid=42815)     raise e
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1315, in run_engine_core
+(EngineCore pid=42815)     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=42815)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=42815)     return func(*args, **kwargs)
+(EngineCore pid=42815)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 1073, in __init__
+(EngineCore pid=42815)     super().__init__(
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core.py", line 133, in __init__
+(EngineCore pid=42815)     self.model_executor = executor_class(vllm_config)
+(EngineCore pid=42815)                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 116, in __init__
+(EngineCore pid=42815)     super().__init__(vllm_config)
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=42815)     return func(*args, **kwargs)
+(EngineCore pid=42815)            ^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/abstract.py", line 110, in __init__
+(EngineCore pid=42815)     self._init_executor()
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 211, in _init_executor
+(EngineCore pid=42815)     self.workers = WorkerProc.wait_for_ready(unready_workers)
+(EngineCore pid=42815)                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(EngineCore pid=42815)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/executor/multiproc_executor.py", line 805, in wait_for_ready
+(EngineCore pid=42815)     raise e from None
+(EngineCore pid=42815) Exception: WorkerProc initialization failed due to an exception in a background process. See stack trace for root cause.
+(APIServer pid=42239) INFO 08-27 04:32:16 [utils.py:615] [shutdown] Process manager: send sigterm to process EngineCore
+(APIServer pid=42239) Traceback (most recent call last):
+(APIServer pid=42239)   File "/usr/local/bin/vllm", line 10, in <module>
+(APIServer pid=42239)     sys.exit(main())
+(APIServer pid=42239)              ^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/cli/main.py", line 97, in main
+(APIServer pid=42239)     args.dispatch_function(args)
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/cli/serve.py", line 152, in cmd
+(APIServer pid=42239)     uvloop.run(run_server(args))
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/uvloop/__init__.py", line 96, in run
+(APIServer pid=42239)     return __asyncio.run(
+(APIServer pid=42239)            ^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+(APIServer pid=42239)     return runner.run(main)
+(APIServer pid=42239)            ^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=42239)     return self._loop.run_until_complete(task)
+(APIServer pid=42239)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=42239)     return await main
+(APIServer pid=42239)            ^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/openai/api_server.py", line 739, in run_server
+(APIServer pid=42239)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/openai/api_server.py", line 753, in run_server_worker
+(APIServer pid=42239)     async with build_async_engine_client(
+(APIServer pid=42239)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=42239)     return await anext(self.gen)
+(APIServer pid=42239)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/openai/api_server.py", line 127, in build_async_engine_client
+(APIServer pid=42239)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=42239)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=42239)     return await anext(self.gen)
+(APIServer pid=42239)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/openai/api_server.py", line 163, in build_async_engine_client_from_engine_args
+(APIServer pid=42239)     async_llm = AsyncLLM.from_vllm_config(
+(APIServer pid=42239)                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/async_llm.py", line 220, in from_vllm_config
+(APIServer pid=42239)     return cls(
+(APIServer pid=42239)            ^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/async_llm.py", line 149, in __init__
+(APIServer pid=42239)     self.engine_core = EngineCoreClient.make_async_mp_client(
+(APIServer pid=42239)                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(APIServer pid=42239)     return func(*args, **kwargs)
+(APIServer pid=42239)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 139, in make_async_mp_client
+(APIServer pid=42239)     return AsyncMPClient(*client_args)
+(APIServer pid=42239)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(APIServer pid=42239)     return func(*args, **kwargs)
+(APIServer pid=42239)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 990, in __init__
+(APIServer pid=42239)     super().__init__(
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 609, in __init__
+(APIServer pid=42239)     with launch_core_engines(
+(APIServer pid=42239)   File "/usr/lib/python3.12/contextlib.py", line 144, in __exit__
+(APIServer pid=42239)     next(self.gen)
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/utils.py", line 1206, in launch_core_engines
+(APIServer pid=42239)     wait_for_engine_startup(
+(APIServer pid=42239)   File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/utils.py", line 1286, in wait_for_engine_startup
+(APIServer pid=42239)     raise RuntimeError(
+(APIServer pid=42239) RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {}
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked shared_memory objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
