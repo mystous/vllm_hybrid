@@ -1,8 +1,8 @@
 # PLN_003 Hybrid Regime Sweep — 종합 보고서 (2026-08-27)
 
 > **한 줄 요약**: violet-h100-016 (Xeon 8480+×2 AMX + DDR5 2TB + H100 80GB×8) 에서 1일 캠페인으로,
-> **fork 코드 변경 0줄** 로 ① DRAM KV tier **+51.8% net win**, ② co-location trade-off 곡선 (−0.5%/CPU 29% ~ −3.7%/CPU 55%),
-> ③ **GPU-only 로 불가능한 642GB 모델 (DeepSeek-R1-0528) 의 CPU-AMX hybrid 서빙 성립** 을 실측 확보했다.
+> **fork 코드 변경 0줄** 로 성능 향상 2건 — ① DRAM KV tier **+51.8% net win**, ② **GPU-only 로 불가능한 642GB 모델 (DeepSeek-R1-0528) 의 CPU-AMX hybrid 서빙 성립 (0→19.67 tok/s)** — 과
+> 운영 실증 1건 — ③ co-location 간섭 비용 곡선 (CPU 작업 co-host 시 GPU −0.5%~−3.7%, 성능 향상 아님·§0.1b) — 을 실측 확보했다.
 > 본 저장소 5세대 hybrid 시도 역사상 처음으로 "CPU 가 실제로 소비되면서 이득인 경로" 가 검증되었다.
 
 - 관련 ID: `PLN_003` / `IDE_023`·`IDE_024`·`IDE_025` / `TSK_043`~`TSK_046` / `TST_020`~`TST_023` / `SUB_167`
@@ -23,19 +23,28 @@
 | 3 | KV tier | TTFT p95 — tail 지연 (ms) | 〃 | 631.4 | 400.2 | −36.6% |
 | 4 | KV tier | TPOT p50 — 토큰당 지연 (ms) | 〃 | 16.4 | 10.0 | −39.0% |
 | 5 | KV tier | 압박 손실 회복률 (비압박 상한 651.8 tok/s 대비 %) | 〃 | 64.1% | **97.3%** | +33.2%p |
-| 6 | Co-location | **서버 합산 산출 — CPU 부수 작업 (hash/s)** | 일반 서빙 중 유휴 CPU 활용 (BG 56proc) | 0 | **51,451** | **+51.5K hash/s** ⭐ (GPU 는 4,921→4,896 tok/s, −0.5% 로 사실상 무손실) |
-| 7 | Co-location | CPU 부수 작업 (hash/s) — CPU 최대 가동 구성 | 〃 (BG 112proc, "idle 불허" 우선 시) | 0 | 99,496 | +99.5K hash/s (GPU −3.7% 비용) |
-| 8 | Co-location | CPU 활용률 (busy %) | 〃 (BG 112proc) | 4.5% | **54.6%** | +50.1%p (12배) |
-| 9 | MoE offload | **서빙 성립 여부 + throughput (tok/s)** | HBM 640GB 초과 모델 (R1-0528 642GB) | **0 (OOM — 서빙 불가)** | **19.67** | **불가능 → 가능** ⭐ |
-| 10 | MoE offload | CPU 활용률 (busy %) — #9 서빙 중 | 〃 | ~0% (서빙 자체 없음) | **42.7% (max 49.5%)** | AMX expert 연산이 성능의 주체 |
+| 6 | MoE offload | **서빙 성립 여부 + throughput (tok/s)** | HBM 640GB 초과 모델 (R1-0528 642GB) | **0 (OOM — 서빙 불가)** | **19.67** | **불가능 → 가능** ⭐ |
+| 7 | MoE offload | CPU 활용률 (busy %) — #6 서빙 중 | 〃 | ~0% (서빙 자체 없음) | **42.7% (max 49.5%)** | AMX expert 연산이 성능의 주체 |
+
+### 0.1b Co-location — "성능 향상" 이 아니라 "운영 여력 실증" (재분류)
+
+co-location 은 그 자체로 무언가를 빠르게 하는 기술이 아니다 (측정에 쓴 hash 작업은 합성 대리물). TSK_044 가 증명한 것은 향상이 아니라 **운영 사실 3가지**:
+
+| 실증된 사실 | 수치 | 의미 |
+|---|---|---|
+| GPU 서빙 중 CPU 작업 co-host 가 **거의 무손실로 가능** | BG 56proc 시 GPU −0.5% (4,921→4,896 tok/s), CPU 작업 51.5K hash/s 수행 | 향후 CPU 일감 (embedding/전처리/ETL 등) 이 생기면 **별도 CPU 서버 없이 이 서버에서 처리 가능하다는 실측 보증** |
+| 간섭 비용 곡선 확보 | 56proc→−0.5% / 112proc→−3.7% (CPU 54.6%) | "얼마까지 얹어도 되는가" 의 운영 기준 |
+| 격리 (taskset) 불필요 — 오히려 손해 | 격리 −1.9% vs 비격리 −0.5% | 5월 SUB_049 의 "격리 부재가 원인" 가설 실측 기각 |
+
+**효용 발생 조건**: LLM 외 CPU-bound 실워크로드를 이 서버로 옮기는 시점. 그 전까지는 잠재 가치이며, LLM 요청량과는 무관 (LLM 은 만부하에서도 CPU 4.5% 만 사용).
 
 > ⭐ = 본 캠페인의 3대 핵심 향상. 각 수치의 측정 조건·원시 데이터는 §1.2 및 `eval/results/20260827_*` 참조.
 
 ### 0.2 각 향상의 의미 (왜 좋아졌나)
 
 1. **#1~5 (KV tier)**: GPU pool 에서 밀려난 prefix KV 를 2TB DRAM 이 보관 → hit 시 **prefill 재계산을 회피** (DRAM→GPU reload 91.3GB/280회 실측). GPU 연산 절약이 그대로 throughput/TTFT 개선으로 전환.
-2. **#6~8 (co-location)**: GPU serving 은 CPU 를 4.5% 만 쓰므로, 나머지 ~95% 를 별도 CPU 작업에 주어도 GPU 가 거의 느려지지 않음 — **같은 서버에서 두 가지 일을 동시에** 하는 만큼 서버 합산 처리량 순증.
-3. **#9~10 (MoE offload)**: 모델이 HBM 에 안 들어가면 GPU-only 는 0 이다. CPU AMX 가 expert 연산을 맡아 **이 서버로는 원래 못 돌리던 모델 클래스** (1T급 MoE 포함) 가 서빙 가능해짐.
+2. **#6~7 (MoE offload)**: 모델이 HBM 에 안 들어가면 GPU-only 는 0 이다. CPU AMX 가 expert 연산을 맡아 **이 서버로는 원래 못 돌리던 모델 클래스** (1T급 MoE 포함) 가 서빙 가능해짐.
+3. **co-location 은 §0.1b 로 별도 분류** — 성능 향상이 아니라 운영 여력 실증이므로 본 표에서 제외.
 
 ### 0.3 좋아진 것이 "아닌" 것 (오해 방지)
 
@@ -52,7 +61,7 @@
 | # | 트랙 (IDE/TSK) | 판정 | **개선 수치** | 핵심 수치 (상세) |
 |---|---|---|---|---|
 | 1 | **DRAM KV/Prefix Tier** (IDE_025/TSK_045) | ✅ **net win** | **throughput +51.8% · TTFT p50 −64.9% · TTFT p95 −36.6% · TPOT −39.0%** | KV 압박 구성 418.0→634.4 tok/s, TTFT 347→122ms. DRAM→GPU reload **91.3GB/280회** 카운터 실증 |
-| 2 | **CPU Co-location** (IDE_024/TSK_044) | ✅ 곡선 확보 | **합산 산출 +51.5K hash/s (GPU −0.5%) · CPU 활용 +50.1%p 구성 시 +99.5K hash/s (GPU −3.7%)** | BG 56proc: CPU 29.4% / BG 112proc: CPU 54.6% |
+| 2 | **CPU Co-location** (IDE_024/TSK_044) | ✅ 곡선 확보 | **— (성능 향상 아님 — 운영 여력 실증, §0.1b)**: co-host 시 GPU 손실 56proc −0.5% / 112proc −3.7% 실측 | 합성 BG 로 간섭 곡선 확보 (51.5K/99.5K hash/s, CPU 29.4%/54.6%). 격리 가설 기각. 효용은 실 CPU 워크로드 이관 시점에 발생 |
 | 3 | **MoE Expert Offload** (IDE_023/TSK_043) | ✅ 부분 통과 | **서빙 불가능(OOM, 0 tok/s) → 가능(19.67 tok/s) · CPU 활용 +42.7%p** | R1-0528 (642GB) GPU-only OOM 실증 → KT hybrid 서빙 성립, cpuinfer 96 포화, 기동 160s. 품질 결함 1건 잔여 (`SUB_167`) |
 | 4 | Baseline re-anchor (TSK_046) | ✅ | — (비교 기준선) | vanilla 70B-FP8 TP=8 = **3,039.0 tok/s** (재현성 −0.04%) |
 
