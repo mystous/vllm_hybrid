@@ -16,24 +16,26 @@
 
 ### 0.1 좋아진 것 — Before → After
 
-| # | 무엇이 | 조건 (언제 적용되나) | Before (GPU-only) | After (+CPU hybrid) | **개선폭** |
-|---|---|---|---:|---:|---|
-| 1 | **Throughput** — 70B serving | KV 압박 (공유 8K prefix × 32종, pool 부족) | 418.0 tok/s | **634.4 tok/s** | **+51.8%** ⭐ |
-| 2 | **TTFT p50** (첫 토큰 지연) | 〃 | 347.1 ms | **121.8 ms** | **−65%** ⭐ |
-| 3 | **TTFT p95** (tail 지연) | 〃 | 631.4 ms | 400.2 ms | −37% |
-| 4 | **압박 손실 회복률** | 〃 (비압박 상한 651.8 대비) | 64.1% | **97.3%** | 압박 페널티 거의 소멸 |
-| 5 | **서버 합산 처리량** — GPU 서빙 + CPU 작업 동시 | 일반 서빙 중 유휴 CPU 활용 | GPU 4,921 tok/s + CPU 0 | GPU 4,896 tok/s (−0.5%) **+ 51,451 hash/s** | GPU 사실상 무손실로 **CPU 작업 공짜 획득** ⭐ |
-| 6 | 〃 (CPU 최대 가동 구성) | 〃 (CLAUDE.md "idle 불허" 우선 시) | CPU busy 4.5% | GPU 4,739 (−3.7%) + **99,496 hash/s**, CPU busy **54.6%** | CPU 활용 12배 ↑ |
-| 7 | **서빙 가능 모델 크기** | HBM 640GB 초과 모델 (DeepSeek-R1-0528 642GB) | **0 tok/s (OOM — 서빙 자체 불가)** | **19.67 tok/s (서빙 성립)** | **불가능 → 가능** ⭐ |
-| 8 | CPU 활용률 (7번 서빙 중) | 〃 | idle | **42.7% (max 49.5%)** — AMX expert 연산 | CPU 가 성능의 주체 |
+| # | 트랙 | **개선 지표 (단위)** | 조건 (언제 적용되나) | Before (GPU-only) | After (+CPU hybrid) | **개선폭** |
+|---|---|---|---|---:|---:|---|
+| 1 | KV tier | **출력 throughput (tok/s)** | KV 압박 (공유 8K prefix × 32종, pool 부족) | 418.0 | **634.4** | **+51.8%** ⭐ |
+| 2 | KV tier | **TTFT p50 — 첫 토큰 지연 (ms)** | 〃 | 347.1 | **121.8** | **−64.9%** ⭐ |
+| 3 | KV tier | TTFT p95 — tail 지연 (ms) | 〃 | 631.4 | 400.2 | −36.6% |
+| 4 | KV tier | TPOT p50 — 토큰당 지연 (ms) | 〃 | 16.4 | 10.0 | −39.0% |
+| 5 | KV tier | 압박 손실 회복률 (비압박 상한 651.8 tok/s 대비 %) | 〃 | 64.1% | **97.3%** | +33.2%p |
+| 6 | Co-location | **서버 합산 산출 — CPU 부수 작업 (hash/s)** | 일반 서빙 중 유휴 CPU 활용 (BG 56proc) | 0 | **51,451** | **+51.5K hash/s** ⭐ (GPU 는 4,921→4,896 tok/s, −0.5% 로 사실상 무손실) |
+| 7 | Co-location | CPU 부수 작업 (hash/s) — CPU 최대 가동 구성 | 〃 (BG 112proc, "idle 불허" 우선 시) | 0 | 99,496 | +99.5K hash/s (GPU −3.7% 비용) |
+| 8 | Co-location | CPU 활용률 (busy %) | 〃 (BG 112proc) | 4.5% | **54.6%** | +50.1%p (12배) |
+| 9 | MoE offload | **서빙 성립 여부 + throughput (tok/s)** | HBM 640GB 초과 모델 (R1-0528 642GB) | **0 (OOM — 서빙 불가)** | **19.67** | **불가능 → 가능** ⭐ |
+| 10 | MoE offload | CPU 활용률 (busy %) — #9 서빙 중 | 〃 | ~0% (서빙 자체 없음) | **42.7% (max 49.5%)** | AMX expert 연산이 성능의 주체 |
 
 > ⭐ = 본 캠페인의 3대 핵심 향상. 각 수치의 측정 조건·원시 데이터는 §1.2 및 `eval/results/20260827_*` 참조.
 
 ### 0.2 각 향상의 의미 (왜 좋아졌나)
 
-1. **#1~4 (KV tier)**: GPU pool 에서 밀려난 prefix KV 를 2TB DRAM 이 보관 → hit 시 **prefill 재계산을 회피** (DRAM→GPU reload 91.3GB/280회 실측). GPU 연산 절약이 그대로 throughput/TTFT 개선으로 전환.
-2. **#5~6 (co-location)**: GPU serving 은 CPU 를 4.5% 만 쓰므로, 나머지 ~95% 를 별도 CPU 작업에 주어도 GPU 가 거의 느려지지 않음 — **같은 서버에서 두 가지 일을 동시에** 하는 만큼 서버 합산 처리량 순증.
-3. **#7~8 (MoE offload)**: 모델이 HBM 에 안 들어가면 GPU-only 는 0 이다. CPU AMX 가 expert 연산을 맡아 **이 서버로는 원래 못 돌리던 모델 클래스** (1T급 MoE 포함) 가 서빙 가능해짐.
+1. **#1~5 (KV tier)**: GPU pool 에서 밀려난 prefix KV 를 2TB DRAM 이 보관 → hit 시 **prefill 재계산을 회피** (DRAM→GPU reload 91.3GB/280회 실측). GPU 연산 절약이 그대로 throughput/TTFT 개선으로 전환.
+2. **#6~8 (co-location)**: GPU serving 은 CPU 를 4.5% 만 쓰므로, 나머지 ~95% 를 별도 CPU 작업에 주어도 GPU 가 거의 느려지지 않음 — **같은 서버에서 두 가지 일을 동시에** 하는 만큼 서버 합산 처리량 순증.
+3. **#9~10 (MoE offload)**: 모델이 HBM 에 안 들어가면 GPU-only 는 0 이다. CPU AMX 가 expert 연산을 맡아 **이 서버로는 원래 못 돌리던 모델 클래스** (1T급 MoE 포함) 가 서빙 가능해짐.
 
 ### 0.3 좋아진 것이 "아닌" 것 (오해 방지)
 
@@ -47,12 +49,12 @@
 
 ### 1.1 스코어보드
 
-| # | 트랙 (IDE/TSK) | 판정 | 핵심 수치 |
-|---|---|---|---|
-| 1 | **DRAM KV/Prefix Tier** (IDE_025/TSK_045) | ✅ **net win** | KV 압박 구성 **+51.8%** (418.0→634.4 tok/s), TTFT p50 **−65%** (347→122ms). DRAM→GPU reload **91.3GB/280회** 카운터 실증 |
-| 2 | **CPU Co-location** (IDE_024/TSK_044) | ✅ 곡선 확보 | BG 56proc: GPU **−0.50%** + 51.5K hash/s (CPU 29.4%) / BG 112proc: −3.69% + 99.5K hash/s (CPU **54.6%**) |
-| 3 | **MoE Expert Offload** (IDE_023/TSK_043) | ✅ 부분 통과 | R1-0528 (642GB) GPU-only **OOM 실증** → KT hybrid **서빙 성립** 19.67 tok/s, CPU 42.7% (cpuinfer 96 포화), 기동 160s. 품질 결함 1건 잔여 (`SUB_167`) |
-| 4 | Baseline re-anchor (TSK_046) | ✅ | vanilla 70B-FP8 TP=8 = **3,039.0 tok/s** (재현성 −0.04%) |
+| # | 트랙 (IDE/TSK) | 판정 | **개선 수치** | 핵심 수치 (상세) |
+|---|---|---|---|---|
+| 1 | **DRAM KV/Prefix Tier** (IDE_025/TSK_045) | ✅ **net win** | **throughput +51.8% · TTFT p50 −64.9% · TTFT p95 −36.6% · TPOT −39.0%** | KV 압박 구성 418.0→634.4 tok/s, TTFT 347→122ms. DRAM→GPU reload **91.3GB/280회** 카운터 실증 |
+| 2 | **CPU Co-location** (IDE_024/TSK_044) | ✅ 곡선 확보 | **합산 산출 +51.5K hash/s (GPU −0.5%) · CPU 활용 +50.1%p 구성 시 +99.5K hash/s (GPU −3.7%)** | BG 56proc: CPU 29.4% / BG 112proc: CPU 54.6% |
+| 3 | **MoE Expert Offload** (IDE_023/TSK_043) | ✅ 부분 통과 | **서빙 불가능(OOM, 0 tok/s) → 가능(19.67 tok/s) · CPU 활용 +42.7%p** | R1-0528 (642GB) GPU-only OOM 실증 → KT hybrid 서빙 성립, cpuinfer 96 포화, 기동 160s. 품질 결함 1건 잔여 (`SUB_167`) |
+| 4 | Baseline re-anchor (TSK_046) | ✅ | — (비교 기준선) | vanilla 70B-FP8 TP=8 = **3,039.0 tok/s** (재현성 −0.04%) |
 
 ### 1.2 트랙별 상세
 
