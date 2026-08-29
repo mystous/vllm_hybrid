@@ -1,0 +1,67 @@
+{
+ "r1_30b": {
+  "gpu_only": 2073.2,
+  "hybrid": 168.9,
+  "ratio": 12.3,
+  "measured_ratio": 15
+ },
+ "r2_480b_S_C16": {
+  "bracket_uniform_to_concentrated": [
+   15.5,
+   164.2
+  ],
+  "measured": 44.5
+ },
+ "r3_480b_D_C16": {
+  "bracket_uniform_to_concentrated": [
+   8.3,
+   90.4
+  ],
+  "measured": 30.6
+ },
+ "r4_knee": {
+  "note": "curve is input; plateau at n_e 128-256 == measured 75-129 knee band (±50% gate)"
+ },
+ "r5_k3": {
+  "pred": {
+   "4": {
+    "S": 10.9,
+    "D": 11.8,
+    "D_win": true,
+    "gap_pct": 8.5
+   },
+   "16": {
+    "S": 15.5,
+    "D": 13.8,
+    "D_win": false,
+    "gap_pct": -10.9
+   },
+   "32": {
+    "S": 22.0,
+    "D": 16.6,
+    "D_win": false,
+    "gap_pct": -24.3
+   },
+   "64": {
+    "S": 37.3,
+    "D": 23.1,
+    "D_win": false,
+    "gap_pct": -38.1
+   }
+  },
+  "measured_gap_pct": {
+   "4": 9.7,
+   "16": 11.7,
+   "32": 3.5,
+   "64": 2.2
+  }
+ },
+ "r6_coexist": {
+  "note": "disjoint resources (GPU sets, sockets) -> 0 interference structurally; measured ~0"
+ },
+ "bound_480b_C16": {
+  "lower_bound_tps": 47.6,
+  "S_measured": 44.5,
+  "note": "gap: measured/bound=93%"
+ }
+}

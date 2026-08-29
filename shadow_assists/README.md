@@ -264,3 +264,23 @@ flowchart TB
 | 🟠 | 부분 — 일부만 적재 | `partial` |
 | 🔴 | 기각 — 시도 후 revert / reject | `시도 후 revert / reject` |
 | ⚪ | 대기 — 미진행 | `대기` |
+
+### 2026-08 캠페인 트리 (violet-h100-016)
+
+```mermaid
+graph TD
+    U27["사용자 지시 (08-27)<br/>가능한 모든 hybrid 검증"] --> IDE_023["IDE_023<br/>MoE expert offload<br/>(480B·×2 동시, K2/K3)"]
+    U27 --> IDE_024["IDE_024<br/>co-location (부록 강등)"]
+    U27 --> IDE_025["IDE_025<br/>DRAM KV tier (+51.8%)"]
+    IDE_023 --> PLN_003["PLN_003<br/>regime sweep"]
+    PLN_003 --> TSK_043["TSK_043~046"]
+    IDE_023 --> TSK_047["TSK_047<br/>480B 검증·SUB_167 확정"]
+    UN["사용자 지시 (08-29)<br/>논문급 신규성 탐색"] --> IDE_026["IDE_026<br/>SCED (보류)"]
+    IDE_026 --> PLN_004["PLN_004<br/>E0~E4 (H3 기각)"]
+    UN --> C1["C-트랙 후보 1 (기각)"]
+    C1 --> PLN_005["PLN_005<br/>kill-test (K2/K3 FAIL)"]
+    UN --> FP["후보 2 Footprint-Elastic<br/>(기각: K3 교차 없음+AlpaServe)"]
+    UH["사용자 지시 (08-30)<br/>HPC 고전 기법 이식"] --> IDE_029["IDE_029<br/>PlacementBound<br/>데이터 이동 하한"]
+    IDE_027["IDE_027<br/>regime atlas (보류)"] -.골격 승계.-> IDE_029
+    IDE_029 --> PLN_006["PLN_006<br/>K1/E0/E1/E2 게이트"]
+```

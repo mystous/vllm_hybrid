@@ -115,3 +115,39 @@ K2 (스케줄 순서 효과) 최대 Δ +0.0%p < +5%p FAIL / K3 (eviction 정책)
 - **zero-copy 가중치 복제 서빙**: IPC 공유 텐서로 multi-role 배포가 1벌 메모리로 동작하는 기법 기실용화, dedup/ref-count 도 LMCache 등에 존재
 
 **4라운드 누적 패턴**: SCED·C1·Footprint·훈련동거·zero-copy — 생성한 모든 후보가 2023~2026 선행의 1~2보 이내에서 격추. 하이브리드 서빙 메커니즘 공간은 포화 상태라는 것이 데이터. → 권고 전환: novelty 논문 대신 **experience/measurement 논문** (capacity-초과 MoE 서빙 실측 corpus: 복제>샤딩 곡선, 양자화-병렬성 제약, kt pin 결함, DeepSeek 변환 결함, spec 상호작용 + upstream 제보 2건). 사용자 결정 대기.
+
+---
+
+## 8. 탐색 5라운드 — HPC 고전 기법의 이식 (2026-08-30, 사용자 지시)
+
+**지시**: "고전 HPC/슈퍼컴퓨팅에는 메모리·캐시 로컬리티가 다른 계층을 다루는 기법이 많다. 가져와서 응용하는 방법을 구상하라."
+
+### 8.1 고전 기법 → LLM hybrid 서빙 대응표
+
+| HPC 고전 기법 | 우리 문제에서의 대응 | 선점 여부 |
+|---|---|---|
+| out-of-core (외부 메모리 알고리즘) | 가중치/KV offloading | 선점 (FlexGen, ZeRO-Inference 등) |
+| latency hiding (double buffering, prefetch) | 전송-계산 overlap | 선점 (2508.21706, HybriMoE prefetch) |
+| work stealing / 동적 부하 분산 | GPU↔CPU expert 작업 훔치기 | **선점 — HybriMoE, MoE-SpAc, TriMoE(AMX+NDP, hot/warm/cold 비용모델 배치)** |
+| NUMA-aware 배치, read-only 복제 | K2/K3에서 우리가 운영적으로 수행 | 기법 자체는 상식 |
+| temporal blocking (시간 타일링) | spec decode = 가중치 스트림의 시간 블로킹 | SCED에서 기각 완료 |
+| huge pages / TLB, cache partitioning (CAT) | 232GB expert 가중치의 TLB, LLC 격리 | 엔지니어링 레버 (수 % 급) — 검증 노브로만 |
+| **communication-avoiding / 데이터 이동 하한 (Hong-Kung, Ballard-Demmel)** | **"expert를 어디에 두어야 하는가"를 토큰당 최소 데이터 이동량의 하한 문제로 형식화** | **직접 선행 미발견 (검색 2종). 인접: FlashAttention 계열의 attention I/O 분석 (단일 디바이스 SRAM/HBM) — 계층 양쪽에 연산기가 있는 HBM/DRAM 배치 문제는 미형식화** |
+| roofline model | 우리 E1 knee가 이미 암묵적 roofline | 단독으론 도구, 위 하한과 결합 시 골격 |
+
+### 8.2 후보 3 — "MoE 배치의 데이터 이동 하한" (가칭 PlacementBound)
+
+**초록 형식 (지시 6 준수)**:
+> MoE 모델을 GPU(HBM)와 CPU(DRAM)에 걸쳐 서빙할 때 expert 가중치를 어디에 두고 어디서 계산할지는 지금까지 시스템마다의 경험 법칙이었다. 우리는 이 배치 문제를 고전 HPC의 데이터 이동 하한 문제로 형식화한다. 모델 구조(expert 크기, top-k, 층수)와 하드웨어 수치(HBM/DRAM 용량·대역폭, 연산 처리량)만 넣으면 토큰당 최소 데이터 이동량과 각 배치 정책의 실제 이동량이 계산되고, 어느 체제에서 어떤 배치가 이길 수밖에 없는지가 수식에서 바로 나온다. 이 모델은 우리가 H100×8+AMX 머신에서 실측한 세 현상 — ① GPU에 들어가는 모델은 CPU 이관 시 15배 손해 ② 배치 크기 knee에서 CPU expert 비용 43~53배 하락 ③ 용량 초과 모델은 NUMA 분할 복제가 통합보다 전 부하 +2~12% — 을 사후 설명이 아니라 **사전 예측**한다. 신규성은 "계층 양쪽에 연산기가 있는" 배치 문제의 하한 형식화다 (FlashAttention 계열의 I/O 분석은 단일 디바이스 내부 계층만 다룬다).
+
+**이것이 기존 자산과 맞물리는 지점**: 보류된 IDE_027(regime atlas)이 골격이나, 당시 기각 사유가 "확인적(측정 서술)"이었음. 하한 형식화가 붙으면 서술→예측으로 바뀌어 그 사유가 해소됨. 실측 corpus(30B/70B/480B, knee, K3 곡선)는 전부 검증 데이터로 재사용.
+
+### 8.3 사전등록 kill-test (착수 전 판정)
+
+| 게이트 | 내용 | 죽는 조건 |
+|---|---|---|
+| K1 (선행 정밀) | "I/O complexity MoE placement", Hong-Kung→LLM 적용 전수 조사 (FlashAttention I/O 하한 계열과의 delta 명문화 포함) | 동일 주장 선행 ≥2 |
+| K2 (예측력) | 모델이 **아직 측정 안 한 수치**를 먼저 예측하고 실측으로 검증 (예: 70B hybrid 처리량, 30B의 가상 crossover 배치 크기) | 예측 오차 > ±30% (그럼 이론이 장식) |
+| K3 (비자명성) | 모델이 상식과 다른 검증 가능한 예측을 ≥1개 내놓아야 함 (예: HBM에 들어가는데도 hybrid가 이기는 특정 구조, 최적 expert 분할비가 0도 100도 아닌 지점) | 전 예측이 "당연한 얘기" (지시 3 위반) |
+
+통과 시 → PLN 발급, characterization study(선택지 ①)의 이론 골격으로 착수. 실패 시 → 사인 기록.
