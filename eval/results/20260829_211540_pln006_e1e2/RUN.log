@@ -1,0 +1,29 @@
+== E1E2 start 20260829_211540 ==
+-- P1 thr=24 pools=1 --
+P1_t24_p1 DONE
+-- P1 thr=48 pools=1 --
+P1_t48_p1 DONE
+-- P1 thr=48 pools=2 --
+P1_t48_p2 DONE
+-- P1 thr=96 pools=2 --
+P1_t96_p2 DONE
+-- P2 smoke (30B x=8) --
+P2_SMOKE_OK: {"id":"b1d696b0bdb44e6080a9d52a527aa934","object":"text_completion","created":1788007308,"model":"q30","choices":[{"index":0,"text":" a well-known fact, but what is","logprobs":null,"finish_reason":"length","matched_stop":null}],"usage":{"prompt_tokens":5,"total_tokens":13,"completion_tokens":8,"prompt_tokens_details":null,"reasoning_tokens":0},"metadata":{"weight_version":"default"}}
+-- P2 x=16 --
+P2_x16 DONE
+-- P2 x=32 --
+P2_x32 DONE
+-- P3 boot --
+-- P3 C=1 --
+-- P3 C=4 --
+-- P3 C=16 --
+-- P3 C=64 --
+P3 DONE
+-- P4 smoke (TP2 single) --
+P4_SMOKE_OK
+-- P4 quad boot --
+P4_QUAD boot 1 224s
+-- P4 C=4(each) --
+-- P4 C=8(each) --
+P4 DONE
+== E1E2 done 221440 ==

@@ -50,7 +50,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_026` | **보류 — 기록보관** (2026-08-29, E0~E4 완료 후 사용자 결정: 안A draft-in-bubble·안B atlas 는 착수 없이 보존, 원점 재탐색으로 전환) | **SCED: Speculation-Coupled Expert Dispatch** (논문 주력 후보) | spec depth K 를 CPU AMX expert 배치의 1급 제어변수로 — 검증 배치 증폭이 CPU expert 를 GEMV→GEMM 화해 경제성 반전. (K, dispatch, deferral) 공동 최적화 + 닫힌형 비용모델 + "최적 K 이동" 예측·실증. 선행 delta: CoX-MoE (no-spec·정적) / 2508.21706 (전송 은닉·GPU 연산) / FASER (GPU-only 제어). 본문 = `brainstorming/paper_novelty_candidates_20260827.md` §2 |
 | `IDE_027` | 보류 — 기록보관 (2026-08-29, 확인적 성격 한계로 미착수 보존) | **Hybrid Legality 형식화 + Regime Atlas** (동반 논문 후보) | CPU 이관 가능 작업의 의존성-클래스 분류 (Q-dependent/KV-resident/weight-resident/control-plane) + 클래스별 이득 상한 닫힌형 + 5세대 실측 corpus 로 경계 정량. Q-dependency dilemma 의 최초 명명·형식화. 신규 실험 최소 (기존 eval/results 재사용). 본문 = 동 문서 §3 |
 | `IDE_028` | 대기 (2026-08-27, 예비) | 통합 Speculative Prefetch Oracle | draft 신호 (router 출력 + sparse 접근) 로 expert·KV·weight tier 선반입의 단일 추상화. composition 성격 → IDE_026 확장 섹션으로 흡수 권장. 본문 = 동 문서 §4 |
-| `IDE_029` | 활성 (2026-08-30) | **PlacementBound — MoE 배치의 데이터 이동 하한** | 부모 = 사용자 지시 (HPC 고전 기법 이식, 탐색 5라운드) + `IDE_027` 골격 승계 (하한 형식화로 '확인적' 기각 사유 해소). 초록·kill-test = `brainstorming/problem_search_20260829.md` §8. 실험 플랜 = `PLN_006` |
+| `IDE_029` | **기각** (2026-08-30, K2 오차중앙값 56%·K3 방향 반대 — 사전등록 게이트 FAIL. 기전 4개+능력기록 보존) | **PlacementBound — MoE 배치의 데이터 이동 하한** | 부모 = 사용자 지시 (HPC 고전 기법 이식, 탐색 5라운드) + `IDE_027` 골격 승계 (하한 형식화로 '확인적' 기각 사유 해소). 초록·kill-test = `brainstorming/problem_search_20260829.md` §8. 실험 플랜 = `PLN_006` |
 
 ---
 
@@ -65,7 +65,7 @@ IDE 의 진입·정확도·throughput 가정을 풀기 위한 PoC / microbench �
 | `PLN_001` | 활성 (Phase 1 dev) | Cold-KV CPU Partial Attention PoC 플랜 | 부모 `IDE_006`. Phase 1 (dev simulation — ≥8K prompt 합성, RTX 3090 + 12900KF) 진행 중. Phase 2 (prod — 운영 (a) 충족 후 Xeon SPR + H100×8) 는 사용자 직접 진행 |
 | `PLN_002` | (외부 발급) | vllm_config_perf 시대 번호 소진 | `vllm_config_perf` 문서 참조 |
 | `PLN_005` | **완료 — C1 기각** (2026-08-29, 사전등록 게이트: K2 +0.0%p FAIL / K3 음수 FAIL / K1 통과) | C1 탐색-네이티브 서빙 kill-test (K1 문헌 / K2 스케줄 순서 효과 / K3 eviction 정책 효과) | 부모 = C-트랙 (`brainstorming/problem_search_20260829.md` §4). GSM8K 100문제 × 12가지 세그먼트 트리 1회 생성 후 오프라인 정책 재생. 게이트: K2 ≥+5%p / K3 ≥+2%p / K1 정면 선행 <2. 결과: `eval/results/*_pln005_killtest/` |
-| `PLN_006` | 활성 (2026-08-30) | PlacementBound 실험 플랜 (K1 문헌 / E0 모델+재예측 / E1 사전예측 / E2 비자명 예측) | 부모 `IDE_029`. 사전등록 예측 방식 (predictions.json 을 측정 전 커밋). 게이트: K1 선행<2 / E1 중앙값 오차 ≤±30% / E2 비자명 예측 방향 일치 ≥1. 본문 = `features/IDE_029/PLN_006.md` |
+| `PLN_006` | **완료 — 기각 판정** (2026-08-30) | PlacementBound 실험 플랜 (K1 문헌 / E0 모델+재예측 / E1 사전예측 / E2 비자명 예측) | 부모 `IDE_029`. 사전등록 예측 방식 (predictions.json 을 측정 전 커밋). 게이트: K1 선행<2 / E1 중앙값 오차 ≤±30% / E2 비자명 예측 방향 일치 ≥1. 본문 = `features/IDE_029/PLN_006.md` |
 | `PLN_004` | **E0~E4 완료 / E5 보류** (2026-08-29) | SCED 실험 플랜 (이론·가설·절차) | 부모 `IDE_026`. **판정: H1 ✅ (knee, 43~53×) / H2 부분 (expert 한정) / H3 ❌ 기각 (eager 체제 M 32·128, 기전 규명) / H4 부분 (spec 1.45~1.55×) / H5 축소판 ((G,K) 비분리, best G32-K3 817 tok/s) / H6 미검**. ★ 신규 발견 = curvature 역전 (microbench knee 의 시스템 발현 포착). 논문 서사 = 측정-중심 pivot. 결과: `eval/results/20260829_*_pln004_*` (E0/E1/E3 RESULTS + E4_RESULTS). E5 는 `SUB_167` 게이트 |
 | `PLN_003` | 활성 (2026-08-27) | Hybrid Regime Sweep — violet-h100-016 캠페인 | 부모 `IDE_023`/`IDE_024`/`IDE_025`. 신규 노드에서 가능한 모든 hybrid 경로 동시 검증: `TSK_046` (baseline re-anchor) → `TSK_045` (KV tier) → `TSK_044` (co-location) ∥ `TSK_043` (MoE offload, long-pole). 본문 = `features/IDE_023/PLN_003.md`, 진행 로그 = `features/IDE_023/PROGRESS_20260827.md` (10분 단위) |
 
