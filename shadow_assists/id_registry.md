@@ -29,7 +29,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 구현 후보 단계. profile / 측정 결과로 진입·기각 판정 후에야 다음 단계 prefix(`PLN` 등) 로 파생된다.
 
-**다음 부여 번호**: `IDE_026`
+**다음 부여 번호**: `IDE_029`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
@@ -46,7 +46,10 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_009`~`IDE_022` | (외부 발급) | vllm_config_perf 시대 ID | 본 레지스트리 미경유 발급분. 정의·상태는 `vllm_config_perf/docs/idea/` (009~014) 및 `vllm_config_perf/docs/spec_decoding/plan_README.md` (015~021 외) 참조. 번호 소진 처리 |
 | `IDE_023` | 활성 (2026-08-27) | MoE Expert Offload Hybrid (KTransformers 계열, AMX) | HBM 640GB 초과 MoE (DeepSeek-R1-0528 FP8, 1T급) 를 GPU attention + CPU AMX expert 로 서빙. 이 노드(violet-h100-016, SPR×2+2TB+H100×8)가 레퍼런스 하드웨어인 유일 hybrid regime. feasibility = `TSK_043` |
 | `IDE_024` | 활성 (2026-08-27) | CPU Co-location — 서버 합산 throughput | SUB_041 (vanilla+BG −0.04%) 실증 승계 + SUB_049 미봉합(-3.6%, core 미격리) 재정의. core 격리 (cgroup/numactl, GPU 반대 socket pin) 후 GPU serving 무손실 + CPU 독립 워크로드 합산 검증. 측정 = `TSK_044` |
-| `IDE_025` | 활성 (2026-08-27) | DRAM KV/Prefix-Cache Tier (연산 아닌 저장) | 2TB DRAM ≈ 70B KV 6M tokens 를 prefix/KV tier 로. 재계산 회피가 이득 원천 — IDE_006 의 Q-dilemma 무관 (CPU 는 계산하지 않음). vLLM OffloadingConnector/LMCache 활용. 측정 = `TSK_045` |
+| `IDE_025` | 완료 (2026-08-27) — **논문 기여 아님 판정** | DRAM KV/Prefix-Cache Tier (연산 아닌 저장) | 압박 구성 +51.8% 실측했으나 **vLLM 내장 기능 활용** — 운영 성과일 뿐 신규성 없음 (사용자 판정 2026-08-27). 운영 권고로만 보존 |
+| `IDE_026` | **보류 — 기록보관** (2026-08-29, E0~E4 완료 후 사용자 결정: 안A draft-in-bubble·안B atlas 는 착수 없이 보존, 원점 재탐색으로 전환) | **SCED: Speculation-Coupled Expert Dispatch** (논문 주력 후보) | spec depth K 를 CPU AMX expert 배치의 1급 제어변수로 — 검증 배치 증폭이 CPU expert 를 GEMV→GEMM 화해 경제성 반전. (K, dispatch, deferral) 공동 최적화 + 닫힌형 비용모델 + "최적 K 이동" 예측·실증. 선행 delta: CoX-MoE (no-spec·정적) / 2508.21706 (전송 은닉·GPU 연산) / FASER (GPU-only 제어). 본문 = `brainstorming/paper_novelty_candidates_20260827.md` §2 |
+| `IDE_027` | 보류 — 기록보관 (2026-08-29, 확인적 성격 한계로 미착수 보존) | **Hybrid Legality 형식화 + Regime Atlas** (동반 논문 후보) | CPU 이관 가능 작업의 의존성-클래스 분류 (Q-dependent/KV-resident/weight-resident/control-plane) + 클래스별 이득 상한 닫힌형 + 5세대 실측 corpus 로 경계 정량. Q-dependency dilemma 의 최초 명명·형식화. 신규 실험 최소 (기존 eval/results 재사용). 본문 = 동 문서 §3 |
+| `IDE_028` | 대기 (2026-08-27, 예비) | 통합 Speculative Prefetch Oracle | draft 신호 (router 출력 + sparse 접근) 로 expert·KV·weight tier 선반입의 단일 추상화. composition 성격 → IDE_026 확장 섹션으로 흡수 권장. 본문 = 동 문서 §4 |
 
 ---
 
@@ -54,12 +57,14 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 IDE 의 진입·정확도·throughput 가정을 풀기 위한 PoC / microbench 플랜. PLN 결과에 따라 `FEA_###` 진입 또는 IDE 기각.
 
-**다음 부여 번호**: `PLN_004`
+**다음 부여 번호**: `PLN_006`
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
 | `PLN_001` | 활성 (Phase 1 dev) | Cold-KV CPU Partial Attention PoC 플랜 | 부모 `IDE_006`. Phase 1 (dev simulation — ≥8K prompt 합성, RTX 3090 + 12900KF) 진행 중. Phase 2 (prod — 운영 (a) 충족 후 Xeon SPR + H100×8) 는 사용자 직접 진행 |
 | `PLN_002` | (외부 발급) | vllm_config_perf 시대 번호 소진 | `vllm_config_perf` 문서 참조 |
+| `PLN_005` | **완료 — C1 기각** (2026-08-29, 사전등록 게이트: K2 +0.0%p FAIL / K3 음수 FAIL / K1 통과) | C1 탐색-네이티브 서빙 kill-test (K1 문헌 / K2 스케줄 순서 효과 / K3 eviction 정책 효과) | 부모 = C-트랙 (`brainstorming/problem_search_20260829.md` §4). GSM8K 100문제 × 12가지 세그먼트 트리 1회 생성 후 오프라인 정책 재생. 게이트: K2 ≥+5%p / K3 ≥+2%p / K1 정면 선행 <2. 결과: `eval/results/*_pln005_killtest/` |
+| `PLN_004` | **E0~E4 완료 / E5 보류** (2026-08-29) | SCED 실험 플랜 (이론·가설·절차) | 부모 `IDE_026`. **판정: H1 ✅ (knee, 43~53×) / H2 부분 (expert 한정) / H3 ❌ 기각 (eager 체제 M 32·128, 기전 규명) / H4 부분 (spec 1.45~1.55×) / H5 축소판 ((G,K) 비분리, best G32-K3 817 tok/s) / H6 미검**. ★ 신규 발견 = curvature 역전 (microbench knee 의 시스템 발현 포착). 논문 서사 = 측정-중심 pivot. 결과: `eval/results/20260829_*_pln004_*` (E0/E1/E3 RESULTS + E4_RESULTS). E5 는 `SUB_167` 게이트 |
 | `PLN_003` | 활성 (2026-08-27) | Hybrid Regime Sweep — violet-h100-016 캠페인 | 부모 `IDE_023`/`IDE_024`/`IDE_025`. 신규 노드에서 가능한 모든 hybrid 경로 동시 검증: `TSK_046` (baseline re-anchor) → `TSK_045` (KV tier) → `TSK_044` (co-location) ∥ `TSK_043` (MoE offload, long-pole). 본문 = `features/IDE_023/PLN_003.md`, 진행 로그 = `features/IDE_023/PROGRESS_20260827.md` (10분 단위) |
 
 ---
@@ -68,7 +73,7 @@ IDE 의 진입·정확도·throughput 가정을 풀기 위한 PoC / microbench �
 
 FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디렉토리 내 `task.md` 항목과 매핑된다.
 
-**다음 부여 번호**: `TSK_047`
+**다음 부여 번호**: `TSK_048`
 
 > `TSK_020`~`TSK_042` 는 vllm_config_perf 시대 외부 발급분 (번호 소진 처리, 정의는 `vllm_config_perf/` 참조).
 
@@ -92,6 +97,7 @@ FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디�
 | `TSK_016` | 활성 (2026-04-30 — Step 5.1~5.5 통과 / Step 5.6 모델 확장 + 5.7 TST_016) | Asymmetric pipelining (sub-batch 동시 실행, NEO §4) | 부모 `PLN_001`. NEO `swiftllm/worker/model.py:_forward_pipeline` 의 layer 단위 ping-pong port ([`NEO_code_deepdive.md`](features/IDE_006/NEO_code_deepdive.md) §4). **vLLM 적재 영역 Step 5.1~5.5 land**: `gpu_model_runner._model_forward` 의 dual forward 분기 + per-sub-batch `ForwardContext` × 2 + 입력 slice + `forward_neo_pipelined(per_subbatch_contexts=...)` + `torch.cat` 머지 / `vllm/v1/worker/sub_batch_executor.py` (LayerPipelineCallbacks + SubBatchPipelineExecutor) / Llama + Qwen2 두 모델의 `neo_preproj` / `neo_attention` / `neo_postproj` + `forward_neo_pipelined` (`per_subbatch_contexts` kwarg + `override_forward_context` push/pop) / `execute_model` 의 NEO sub-batch → ubatch_slices 변환 + `should_ubatch=True` + vLLM `split_attn_metadata` 인프라 reuse / `initialize_metadata_builders` 의 `enable_neo_asymmetric=True` 시 자동 2 builders. dev smoke (RTX 3090 + Qwen-1.5B + `VLLM_NEO_FORCE_PIPELINED=1`) 통과: `[NEO-DEBUG] forward-context fork active: split_point=4 (boundary req=1, sub-batch sizes=1/1)` → `forked dual forward (token_slices=[(0, 4), (4, 8)], attn_metadata layers per sb=[28, 28])` → `merged shape=(8, 1536)` → token-id equality PASS. **NEO 의 layer-offset ping-pong (forward_double 의 batch[1] layer i + batch[0] layer i+1) 은 callback orchestration 영역에 그대로 보존** — TSK_018 CPU pacpu 후 진짜 GPU/CPU dual forward 효과 발현 가능. 의존: TSK_014 ✓ + TSK_015 (KV exclusive 의 swap lifecycle 병렬). 검증 게이트 = `TST_016` (TSK_017 PerfPredictor 실측 후). |
 | `TSK_017` | 활성 (2026-04-30 — Step 1.1~1.6 land. PerfPredictor 실측 활성 / Step 1.7 disk cache + 1.8 TST_017 남음) | Load-aware scheduling heuristic (PerfPredictor, NEO §6) | 부모 `PLN_001`. NEO `swiftllm/perfpredictor.py:TablePerfPredictor` 의 4 종류 prediction + 1D/2D linear interpolation port ([`NEO_code_deepdive.md`](features/IDE_006/NEO_code_deepdive.md) §6). **vLLM 적재 영역 1.1~1.4 land**: `vllm/v1/core/sched/perfpredictor.py` (`PerfPredictor` / `ZeroPerfPredictor` / `TablePerfPredictor` + `_get_lb_idx_list` + `_interp_1d` + bilinear `get_cdec_T`) + `vllm/v1/metrics/profiler.py` (`ModelProfiler` 추상 + nwarmup=2 + nrepeat=3 + 4 table 채움 알고리즘). **다음 적재 (1.5~1.6)**: engine-side `measure_fn` callback (`vLLM` `_dummy_run` 인프라 reuse) + LLMEngine startup wiring (model load + KV alloc 후 `ModelProfiler.run()` 호출 + `adapter.predictor` 를 `table_predictor` 로 swap). **caching (1.7)**: `(model, gpu_arch, dtype, tp_size, max_num_seqs, block_size)` hash key 로 disk save/load (60s cold-start 비용 회피). 의존: 독립 (TSK_014 의 mode_selector 입력). 검증 게이트 = `TST_017`. |
 | `TSK_018` | 활성 (2026-05-02 — Phase 1+2+3.1~3.2+3.4+3.5 land. **3.3 BF16↔FP16 cast 만 prod-only deferred** (TSK_015 §3.5 P-3 합체). 모델 macro 확장 — Qwen-1.5B/7B/32B/72B + Llama-70B + Mistral-7B + Mistral-Nemo-12B + Phi3-medium-14B) | CPU attention kernel 통합 (NEO pacpu cherry-pick) | 부모 `PLN_001`. **2026-04-30 전략 변경**: 사용자 "NEO 와 가장 가깝게" → IDE_006 AVX-512/AMX 직접 cherry-pick 대신 **NEO 원 pacpu (ISPC + AVX-512spr-x16) cherry-pick**. `csrc/cpu/pacpu/` 의 NEO 6 file (`CMakeLists.txt` + `build.sh` + `core.h` + `dtype.h` + `pacpu.cpp` + `pacpu.ispc`) 그대로. **모델 macro (head_dim=128 정합)**: `LLAMA3_3_70B` / `QWEN2_5_1_5B` / `QWEN2_5_7B` / `QWEN2_5_32B` / `QWEN2_5_72B` / `MISTRAL_7B` / `MISTRAL_NEMO_12B` / `PHI3_MEDIUM_14B`. **deferred** (head_dim ≠ 128): Gemma (256), Phi-3-mini (96) — `HEAD_DIM=128` constant 변경 영역. g++-12 채택 (g++-11 의 `_Float16` 미지원). `assert_hyper_params_expected` 의 num_layers 완화 (per-layer view 호환). `vllm/v1/attention/ops/neo_pacpu.py` Python wrapper + KV layout adapter (vLLM HND → NEO multi-layer view, zero-copy) + `ensure_loaded(...)` startup auto-build (Phase 3.4.b). **Phase 3.1+3.2** 는 TSK_015.Step3.2.B + Step3.2.C.1~C.8 와 합체해 `unified_attention_with_output` dispatch hook 으로 land. **Phase 3.3 BF16↔FP16 cast** 는 prod-only deferred (dev FP16 모델로 측정 무의미). **TST_018 14 unit PASS** (단 본 turn 신규 추가 매핑으로 `test_resolve_neo_macro_unknown_returns_none` 1 fail — outdated test, 별도 fix). AMX 는 NEO 미지원 — 별도 phase. 검증 게이트 = `TST_018`. |
+| `TSK_047` | **완료** (2026-08-29 — 방법 건전성 확정: r0 TP4 OOM 실증 / r1 hybrid TP4 서빙 성립 + **품질 4/4 정상** (44.5 tok/s, CPU 41.9%) / r2 TP8 은 FP8 block 제약으로 기준선 미확보. **SUB_167 = DeepSeek-특이로 확정**) | CPU-AMX expert 서빙 방법의 대형 Qwen 검증 (Qwen3-Coder-480B-A35B-FP8) | 부모 `IDE_023`. 목적: ① 방법 자체의 스케일 검증 (480B급) ② R1 품질 결함 (`SUB_167`) 이 DeepSeek-특이인지 교차 확인 (Qwen 30B 는 정상이었음). 셀 (사용자 지시로 재설계): r0 = GPU-only **TP=4** OOM 실증 (480GB>320GB, 진짜 capacity regime) / r1 = **hybrid TP=4** (GPU 4장+CPU expert 전량) 품질 smoke+벤치 / r2 = GPU-only TP=8 기준선 (동일 프롬프트 greedy 출력을 품질 비교 기준으로). 공간 확보 위해 r1-0528-int4 삭제 (재생성 가능) |
 | `TSK_043` | **완료 (품질 follow-up 은 SUB_167 분리)** (2026-08-27) | IDE_023 feasibility — SGLang+KT 로 R1-0528 hybrid 서빙 | 부모 `PLN_003`/`IDE_023`. **결과**: (1) Qwen3-30B smoke — CPU AMX 전-expert 서빙 성립 (96.1 tok/s, CPU 43% 포화, 출력 정상), (2) R1-0528 GPU-only **OOM 실증** (642GB>608GB), (3) R1 KT hybrid **서빙 성립** — 19.67 tok/s, CPU 42.7%/max 49.5%, 기동 160s. 단 R1 출력 품질 결함 (DeepSeek 특이 변환 경로 후보) → `SUB_167`. 호환성 패치 4건 문서화. `eval/results/20260827_140008_tsk043_main_r1/RESULTS.md` |
 | `TSK_044` | **완료** (2026-08-27) | IDE_024 co-location 측정 | 부모 `PLN_003`/`IDE_024`. **결과 (warm 기준)**: BG 56 비격리 −0.50% (CPU 29.4%, 51.5K hash/s) / BG 112 −3.69% (CPU 54.6%, 99.5K hash/s) / **격리(taskset)가 오히려 불리 (−1.9%) → SUB_049 의 "격리 부재" 가설 기각, 실원인 = BG 강도**. trade-off 곡선 확보. `eval/results/20260827_125956_tsk044_colocation/RESULTS.md` |
 | `TSK_045` | **완료** (2026-08-27) | IDE_025 DRAM KV/prefix tier 측정 | 부모 `PLN_003`/`IDE_025`. **결과: 압박 구성에서 +51.8% (418.0→634.4 tok/s), TTFT p50 −65%, DRAM→GPU reload 91.3GB/280회 실증. 비압박 회귀 −1.31% (경계) → 압박/공유-prefix 워크로드 한정 ON 권고**. `eval/results/20260827_120530_tsk045_kv_tier/RESULTS.md` |
@@ -153,7 +159,7 @@ PLN/TST 통과 후 본 코드 베이스에 들어가는 단위 기능. CLAUDE.md
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
-| `SUB_167` | 대기 (2026-08-27) | R1-0528 AMXINT4 출력 품질 결함 규명 | parent `TSK_043`. 증상: greedy 출력 비문 (기호 스팸). 판별 완료 — template ✗ / INT4 일반 결함 ✗ (Qwen INT4 정상) / 스크립트 버전 스큐 ✗ (main=tag IDENTICAL). **원인 후보 = DeepSeek block-wise `weight_scale_inv` dequant 또는 shared expert (257번째) 폴딩**. 다음 수: kt_kernel FP8 dequant 코드 검증 + upstream (kvcache-ai/ktransformers) 이슈 조회/제보. 통과 전 R1 성능 튜닝 금지 |
+| `SUB_167` | 대기 (2026-08-27) | R1-0528 AMXINT4 출력 품질 결함 규명 | parent `TSK_043`. 증상: greedy 출력 비문 (기호 스팸). 판별 완료 — template ✗ / INT4 일반 결함 ✗ (Qwen INT4 정상) / 스크립트 버전 스큐 ✗ (main=tag IDENTICAL). **원인 후보 = DeepSeek block-wise `weight_scale_inv` dequant 또는 shared expert (257번째) 폴딩**. **TSK_047 로 DeepSeek-특이 확정** (Qwen 30B·480B 동일 파이프라인 정상). 다음 수: upstream 이슈 제보 + shared-expert/block-scale 경로 코드 검증 |
 
 > **결함 기록 (2026-08-27)**: `SUB_049` 가 본 표에 2회 부여됨 (재사용 금지 위반) — 두 번째 행 (Tier 3 E plan-only) 은 `SUB_050` 으로 소급 재지정하고 planning 문서 (`SUB_046_to_049_cpu_spec_plans.md` §4) 기준 참조 시 주의. 또한 `SUB_029` 는 결번, `SUB_050`~`SUB_166` 은 vllm_config_perf 시대 외부 발급분 (번호 소진 처리).
 

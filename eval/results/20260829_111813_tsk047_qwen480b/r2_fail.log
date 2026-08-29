@@ -1,0 +1,60 @@
+    self.init_tp_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 921, in init_tp_model_worker
+    self.tp_worker = TpModelWorker(**worker_kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 337, in __init__
+    self._init_model_runner()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 466, in _init_model_runner
+    self._model_runner = ModelRunner(
+                         ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 436, in __init__
+    self.initialize()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 630, in initialize
+    self.load_model()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1099, in load_model
+    loaded = load_model_with_memory_saver(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner_components/load_model_utils.py", line 321, in load_model_with_memory_saver
+    model = loader.load_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 985, in load_model
+    model = _initialize_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 345, in _initialize_model
+    return model_class(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 956, in __init__
+    self.model = Qwen3MoeModel(
+                 ^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 921, in __init__
+    super().__init__(
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 904, in __init__
+    self.layers, self.start_layer, self.end_layer = make_layers(
+                                                    ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 1470, in make_layers
+    + get_offloader().wrap_modules(
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/offloader.py", line 41, in wrap_modules
+    return list(all_modules_generator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 1472, in <genexpr>
+    layer_fn(idx=idx, prefix=add_prefix(idx, prefix))
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 906, in <lambda>
+    lambda idx, prefix: decoder_layer_type(
+                        ^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 774, in __init__
+    self.mlp = Qwen3MoeSparseMoeBlock(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 259, in __init__
+    self.experts = get_moe_impl_class(quant_config)(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 402, in __init__
+    self.quant_method.create_weights(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/fp8.py", line 1410, in create_weights
+    Fp8MoEMethod.create_fp8_moe_weight_(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/fp8.py", line 1166, in create_fp8_moe_weight_
+    raise ValueError(
+ValueError: The output_size of gate's and up's weight = 320 is not divisible by weight quantization block_n = 128.
+
+[2026-08-29 02:40:08] Received sigquit from a child process. It usually means the child failed.
+[2026-08-29 02:40:08] kill_process_tree called: parent_pid=67966, include_parent=True, pid=67966

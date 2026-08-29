@@ -1,0 +1,10 @@
+== TSK_047 start 20260829_111813 model=/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f ==
+-- kt quant int4 시작 --
+QUANT_EXIT=0
+-- r0 gpu-only TP4 --
+r0 verdict=DIED_AS_EXPECTED after 45s
+-- r1 hybrid TP4 --
+r1 HEALTH OK 90s
+-- r2 gpu-only TP8 --
+r2 DIED 45s (TP8 도 불가?)
+== TSK_047 done 114024 ==

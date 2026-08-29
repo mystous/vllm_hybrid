@@ -1,0 +1,150 @@
+[2026-08-29 02:35:05 TP2] [SymmDeviceMemory] Rank: 2, Group size: 4, device_idx: 2, Signal pad offset: 301989888
+[2026-08-29 02:35:05 TP1] [SymmDeviceMemory] Rank: 1, Group size: 4, device_idx: 1, Signal pad offset: 301989888
+[2026-08-29 02:35:05 TP3] [SymmDeviceMemory] Rank: 3, Group size: 4, device_idx: 3, Signal pad offset: 301989888
+[2026-08-29 02:35:06 TP1] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=1, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-08-29 02:35:06 TP0] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=0, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-08-29 02:35:06 TP2] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=2, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-08-29 02:35:06 TP3] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=3, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-08-29 02:35:06 TP0] Disable prefill CUDA graph because cuda_graph_config resolved prefill.backend='disabled' (e.g. via --cuda-graph-backend-prefill=disabled or auto-disable rules).
+[2026-08-29 02:35:06 TP3] Disable prefill CUDA graph because cuda_graph_config resolved prefill.backend='disabled' (e.g. via --cuda-graph-backend-prefill=disabled or auto-disable rules).
+[2026-08-29 02:35:06 TP2] Disable prefill CUDA graph because cuda_graph_config resolved prefill.backend='disabled' (e.g. via --cuda-graph-backend-prefill=disabled or auto-disable rules).
+[2026-08-29 02:35:06 TP1] Disable prefill CUDA graph because cuda_graph_config resolved prefill.backend='disabled' (e.g. via --cuda-graph-backend-prefill=disabled or auto-disable rules).
+[2026-08-29 02:35:06 TP0] max_total_num_tokens=131072, chunked_prefill_size=8192, max_prefill_tokens=16384, max_running_requests=2048, context_len=262144, available_gpu_mem=62.24 GB
+[2026-08-29 02:35:06 TP3] Tree cache initialized: source=default impl=RadixCache hybrid_swa=False hybrid_ssm=False hicache_attached=False streaming_wrapped=False
+[2026-08-29 02:35:06 TP0] Tree cache initialized: source=default impl=RadixCache hybrid_swa=False hybrid_ssm=False hicache_attached=False streaming_wrapped=False
+[2026-08-29 02:35:06 TP1] Tree cache initialized: source=default impl=RadixCache hybrid_swa=False hybrid_ssm=False hicache_attached=False streaming_wrapped=False
+[2026-08-29 02:35:06 TP2] Tree cache initialized: source=default impl=RadixCache hybrid_swa=False hybrid_ssm=False hicache_attached=False streaming_wrapped=False
+[2026-08-29 02:35:06] Engine startup timings (s): load_weight=37.58, kv_cache_allocation=0.05, scheduler_e2e=46.19, cuda_graph={prefill=0.00, decode=0.00, target_verify=0.00, draft_prefill=0.00, draft_decode=0.00, draft_extend=0.00}, tokenizer_e2e=59.94
+[2026-08-29 02:35:06] INFO:     Started server process [65823]
+[2026-08-29 02:35:06] INFO:     Waiting for application startup.
+[2026-08-29 02:35:06] Using default chat sampling params from model generation config: {'repetition_penalty': 1.05, 'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+[2026-08-29 02:35:06] INFO:     Application startup complete.
+[2026-08-29 02:35:06] INFO:     Uvicorn running on http://127.0.0.1:30000 (Press CTRL+C to quit)
+[2026-08-29 02:35:07] INFO:     127.0.0.1:47946 - "GET /model_info HTTP/1.1" 200 OK
+[2026-08-29 02:35:08 TP0] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=3584,K=6144,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-08-29 02:35:08 TP2] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=3584,K=6144,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-08-29 02:35:08 TP3] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=3584,K=6144,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-08-29 02:35:08 TP1] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=3584,K=6144,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-08-29 02:35:08 TP0] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=6144,K=3072,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-08-29 02:35:08 TP2] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=6144,K=3072,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-08-29 02:35:08 TP3] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=6144,K=3072,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-08-29 02:35:08 TP1] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=6144,K=3072,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-08-29 02:35:09 TP1] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=0,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-08-29 02:35:09 TP1] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=0,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128]_down.json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-08-29 02:35:09 TP2] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=0,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-08-29 02:35:09 TP3] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=0,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-08-29 02:35:09 TP2] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=0,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128]_down.json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-08-29 02:35:09 TP3] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=0,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128]_down.json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-08-29 02:35:09 TP0] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=0,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-08-29 02:35:09 TP0] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=0,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128]_down.json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-08-29 02:35:09] INFO:     127.0.0.1:47968 - "GET /health HTTP/1.1" 503 Service Unavailable
+[2026-08-29 02:35:13 TP0] Prefill batch, #new-seq: 1, #new-token: 6, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 0.82
+[2026-08-29 02:35:14] INFO:     127.0.0.1:47954 - "POST /generate HTTP/1.1" 200 OK
+[2026-08-29 02:35:15 TP0] Freezing GC in Scheduler process. gen0: 72->0, gen1: 0->0, gen2: 1095793->0
+[2026-08-29 02:35:15 TP3] Freezing GC in Scheduler process. gen0: 69->0, gen1: 0->0, gen2: 1095232->0
+[2026-08-29 02:35:15 TP2] Freezing GC in Scheduler process. gen0: 69->0, gen1: 0->0, gen2: 1094433->0
+[2026-08-29 02:35:15 TP1] Freezing GC in Scheduler process. gen0: 69->0, gen1: 0->0, gen2: 1095261->0
+[2026-08-29 02:35:15] Freezing GC in Detokenizer Manager process. gen0: 382->0, gen1: 0->0, gen2: 851093->0
+[2026-08-29 02:35:15] Freezing GC in Tokenizer Manager process. gen0: 347->0, gen1: 2411->0, gen2: 914294->0
+[2026-08-29 02:35:15] INFO:     127.0.0.1:39200 - "POST /freeze_gc HTTP/1.1" 200 OK
+[2026-08-29 02:35:15] The server is fired up and ready to roll!
+[2026-08-29 02:35:25 TP0] Prefill batch, #new-seq: 1, #new-token: 1, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 0.08
+[2026-08-29 02:35:26] INFO:     127.0.0.1:51460 - "GET /health HTTP/1.1" 200 OK
+[2026-08-29 02:35:27 TP0] Prefill batch, #new-seq: 1, #new-token: 3, #cached-token: 2, token usage: 0.00, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 1.64
+[2026-08-29 02:35:34 TP0] Decode batch, #running-req: 1, #token: 37, token usage: 0.00, cuda graph: False, gen throughput (token/s): 1.39, #queue-req: 0
+[2026-08-29 02:35:38] INFO:     127.0.0.1:51470 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:35:39 TP0] Prefill batch, #new-seq: 1, #new-token: 4, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 0.34
+[2026-08-29 02:35:44 TP0] Decode batch, #running-req: 1, #token: 28, token usage: 0.00, cuda graph: False, gen throughput (token/s): 4.07, #queue-req: 0
+[2026-08-29 02:35:50] INFO:     127.0.0.1:46532 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:35:50 TP0] Prefill batch, #new-seq: 1, #new-token: 12, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 1.04
+[2026-08-29 02:35:54 TP0] Decode batch, #running-req: 1, #token: 28, token usage: 0.00, cuda graph: False, gen throughput (token/s): 4.13, #queue-req: 0
+[2026-08-29 02:36:01] INFO:     127.0.0.1:48644 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:02 TP0] Prefill batch, #new-seq: 1, #new-token: 22, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 1.82
+[2026-08-29 02:36:04 TP0] Decode batch, #running-req: 1, #token: 30, token usage: 0.00, cuda graph: False, gen throughput (token/s): 3.91, #queue-req: 0
+[2026-08-29 02:36:06] INFO:     127.0.0.1:38606 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:21] INFO:     127.0.0.1:35690 - "GET /metrics HTTP/1.1" 404 Not Found
+[2026-08-29 02:36:21] INFO:     127.0.0.1:35690 - "GET /metrics HTTP/1.1" 404 Not Found
+[2026-08-29 02:36:32 TP0] Prefill batch, #new-seq: 1, #new-token: 495, #cached-token: 3, token usage: 0.06, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 16.45
+[2026-08-29 02:36:32] INFO:     127.0.0.1:35690 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34 TP0] Prefill batch, #new-seq: 15, #new-token: 7498, #cached-token: 45, token usage: 0.05, #running-req: 1, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 5290.82
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35702 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35716 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35720 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35726 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35738 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35754 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35756 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35760 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35768 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35780 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35788 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35798 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35800 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35806 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:34] INFO:     127.0.0.1:35816 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:36:42 TP0] Decode batch, #running-req: 16, #token: 7296, token usage: 0.06, cuda graph: False, gen throughput (token/s): 13.37, #queue-req: 0
+[2026-08-29 02:36:53 TP0] Decode batch, #running-req: 16, #token: 7936, token usage: 0.06, cuda graph: False, gen throughput (token/s): 54.98, #queue-req: 0
+[2026-08-29 02:37:05 TP0] Decode batch, #running-req: 16, #token: 8576, token usage: 0.07, cuda graph: False, gen throughput (token/s): 53.52, #queue-req: 0
+[2026-08-29 02:37:18 TP0] Prefill batch, #new-seq: 16, #new-token: 6639, #cached-token: 1343, token usage: 0.05, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 148.79
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35754 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35720 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35756 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35690 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35806 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35800 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35798 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35788 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35702 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35768 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35780 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35760 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35816 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35716 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35726 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:18] INFO:     127.0.0.1:35738 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:37:24 TP0] Decode batch, #running-req: 16, #token: 7117, token usage: 0.05, cuda graph: False, gen throughput (token/s): 34.24, #queue-req: 0
+[2026-08-29 02:37:35 TP0] Decode batch, #running-req: 16, #token: 7757, token usage: 0.06, cuda graph: False, gen throughput (token/s): 55.63, #queue-req: 0
+[2026-08-29 02:37:48 TP0] Decode batch, #running-req: 16, #token: 8397, token usage: 0.06, cuda graph: False, gen throughput (token/s): 52.68, #queue-req: 0
+[2026-08-29 02:38:03 TP0] Prefill batch, #new-seq: 16, #new-token: 6725, #cached-token: 1339, token usage: 0.05, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 149.52
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35754 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35716 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35720 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35756 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35690 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35806 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35800 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35798 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35788 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35702 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35768 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35780 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35816 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35760 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35726 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:03] INFO:     127.0.0.1:35738 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:07 TP0] Decode batch, #running-req: 16, #token: 7071, token usage: 0.05, cuda graph: False, gen throughput (token/s): 33.22, #queue-req: 0
+[2026-08-29 02:38:18 TP0] Decode batch, #running-req: 16, #token: 7711, token usage: 0.06, cuda graph: False, gen throughput (token/s): 56.74, #queue-req: 0
+[2026-08-29 02:38:30 TP0] Decode batch, #running-req: 16, #token: 8351, token usage: 0.06, cuda graph: False, gen throughput (token/s): 53.69, #queue-req: 0
+[2026-08-29 02:38:48 TP0] Prefill batch, #new-seq: 16, #new-token: 6684, #cached-token: 1357, token usage: 0.05, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 149.12
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35754 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35720 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35756 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35690 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35806 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35800 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35798 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35788 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35702 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35768 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35780 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35816 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35760 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35716 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35726 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:48] INFO:     127.0.0.1:35738 - "POST /v1/completions HTTP/1.1" 200 OK
+[2026-08-29 02:38:50 TP0] Decode batch, #running-req: 16, #token: 6922, token usage: 0.05, cuda graph: False, gen throughput (token/s): 32.51, #queue-req: 0
+[2026-08-29 02:39:01 TP0] Decode batch, #running-req: 16, #token: 7562, token usage: 0.06, cuda graph: False, gen throughput (token/s): 57.14, #queue-req: 0
+[2026-08-29 02:39:13 TP0] Decode batch, #running-req: 16, #token: 8202, token usage: 0.06, cuda graph: False, gen throughput (token/s): 51.66, #queue-req: 0
+[2026-08-29 02:39:25 TP0] Decode batch, #running-req: 16, #token: 0, token usage: 0.00, cuda graph: False, gen throughput (token/s): 53.67, #queue-req: 0
+[2026-08-29 02:39:25] INFO:     127.0.0.1:35754 - "GET /metrics HTTP/1.1" 404 Not Found
+[2026-08-29 02:39:25] INFO:     127.0.0.1:35716 - "GET /metrics HTTP/1.1" 404 Not Found
