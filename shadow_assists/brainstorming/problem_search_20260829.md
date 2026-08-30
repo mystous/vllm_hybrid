@@ -211,3 +211,9 @@ K2 (스케줄 순서 효과) 최대 Δ +0.0%p < +5%p FAIL / K3 (eviction 정책)
 - **8라운드 (배치=품질 변수)**: PLN_007 실측 관측 ("hot expert 의 GPU 배치가 GSM8K 85→95% — 배치가 품질을 바꾼다") 에서 출발했으나 선점: HOBBIT (2411.01433, mixed-precision expert offloading), DynaExq (2511.15015, 런타임 빈도-기반 정밀도 배분), MC-MoE/MxMoE/GEMQ/AlphaQ (expert 별 bit 배분), MoE-CAP (품질-비용-성능 평가). **자체 실측에서 나온 관측조차 1년 전 시스템화** — 포화 논제의 최종 확인 2.
 - **9라운드 (co-use 축 재정렬, 사용자 교정 "CPU·GPU 모두 사용이 핵심")**: ① CPU-draft/GPU-verify 이종 spec — Dovetail (EMNLP'25) 뼈대 선점 ② INT4 자기-초안 — QuantSpec/ML-SpecQD/CAS-Spec 선점 ③ 배치-인지 라우팅 — expert-skip 인접 + 품질 Constraint 충돌.
 - **구조 진단**: 9라운드 전패. "아이디어 단위 공백 없음" 확정. 남은 경로: (1) 성능 트랙 — CPU-draft 이전 등 co-use 개선 계속 (논문 아님) (2) 논문 트랙 — 수개월 측정-이론 프로그램 (SIGMETRICS/MLSys급 현실성). 사용자 트랙 선택 대기.
+
+## 13. 탐색 10·11라운드 (2026-08-30 저녁) — 기각, 그리고 구조적 종결
+
+- **10라운드 (에이전트/RL 자원 공유)**: Agentic CPU-GPU Scheduling (2607.22242), ROSE, TideRL, Libra, PlexRL, 구글 llm-d 시분할 — 전장 한복판.
+- **11라운드 (서빙-인지 라우터 재학습, 자체 실측에서 유도)**: **ReMoE** (2605.27081 — 라우터만 미세조정+지역성 정규화, vLLM CPU-offload +8.4%) 직격. Sticky Routing, Cache-Conditional Experts 변형 선점. 결정적으로 **2608.18261 "Cacheable by Design?" — 같은 아이디어의 사전등록 부정 결과 논문까지 존재** (긍·부정 양쪽 출판 = 채굴 종료 광맥).
+- **종합**: 11 후보 / 11 선점 (자체 실측 유도 후보 2건 포함). 판정 확정: 이 분야 아이디어 공간은 발상 속도 < 출판 속도. 이후 논문 경로는 (1) 지금 corpus 의 측정·경험 논문화 (부정결과+사전등록 장르 선례 = 2608.18261) (2) 수개월 확장 프로그램 뿐. 사용자 선택 (2026-08-30): **성능 트랙 계속** (spec×graph, turbo).
