@@ -1,0 +1,82 @@
+== SPEC480 start 20260830_104336 ==
+-- B0_base boot --
+B0_base quality:
+  Q[The capital of France is] -> [ Paris, which is one of the world's most visited cities. It ]
+  Q[def fibonacci(n):] -> [
+    if n <= 1:
+        return n
+    else:
+       ]
+  Q[The sum of integers from 1 to 100 is] -> [ divided by 3. What is the remainder?
+To find the remainder ]
+  Q[Reverse the string "abc": ] -> [ "abc" reversed is "cba". 
+
+Now, reverse the string "code]
+B0_base DONE
+-- V1_specK3 boot --
+V1_specK3 BOOT_FAIL
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 58, pool: 0x2d49c6c0, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 59, pool: 0x2d49c6c0, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 60, pool: 0x2d49c6c0, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 61, pool: 0x2d49c6c0, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+[2026-08-30 01:50:31] Received sigquit from a child process. It usually means the child failed.
+[2026-08-30 01:50:31] kill_process_tree called: parent_pid=146097, include_parent=True, pid=146097
+-- V2_specK5 boot --
+V2_specK5 BOOT_FAIL
+    if scheduler_pipe_readers[i].poll(timeout=5.0):
+  File "/usr/lib/python3.12/multiprocessing/connection.py", line 257, in poll
+    return self._poll(timeout)
+  File "/usr/lib/python3.12/multiprocessing/connection.py", line 440, in _poll
+    r = wait([self], timeout)
+  File "/usr/lib/python3.12/multiprocessing/connection.py", line 1136, in wait
+    ready = selector.select(timeout)
+  File "/usr/lib/python3.12/selectors.py", line 415, in select
+    fd_event_list = self._selector.poll(timeout)
+  File "/sgl-workspace/sglang/python/sglang/srt/entrypoints/engine.py", line 1726, in launch_phase_sigquit_handler
+    def launch_phase_sigquit_handler(signum, frame):
+  File "/sgl-workspace/sglang/python/sglang/srt/entrypoints/engine.py", line 1727, in launch_phase_sigquit_handler
+    logger.error(
+  File "/usr/lib/python3.12/logging/__init__.py", line 1558, in error
+    def error(self, msg, *args, **kwargs):
+  File "/sgl-workspace/sglang/python/sglang/srt/entrypoints/engine.py", line 1727, in launch_phase_sigquit_handler
+    logger.error(
+Message: 'Received sigquit from a child process. It usually means the child failed.'
+Arguments: ()
+[2026-08-30 01:51:50] kill_process_tree called: parent_pid=147317, include_parent=True, pid=147317
+-- V3_specK3_defer1 boot --
+V3_specK3_defer1 BOOT_FAIL
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 58, pool: 0x2e518a50, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 59, pool: 0x2e518a50, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 60, pool: 0x2e518a50, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 61, pool: 0x2e518a50, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+[2026-08-30 01:53:07] Received sigquit from a child process. It usually means the child failed.
+[2026-08-30 01:53:07] kill_process_tree called: parent_pid=148531, include_parent=True, pid=148531
+== SPEC480 done ==
