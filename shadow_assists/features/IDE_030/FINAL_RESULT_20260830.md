@@ -2,7 +2,9 @@
 
 ## 한 줄 요약
 
-Qwen3-Coder-480B(FP8, 450GB)를 **GPU 4장 + CPU로 서빙하면서 56.3 → 152.6 tok/s (+171%)**. 품질 저하 없음(GSM8K 85.0% → 95.0%).
+Qwen3-Coder-480B(FP8, 450GB)를 **GPU 4장 + CPU로 서빙하면서 56.3 → 229 tok/s (+307%)**. 품질 저하 없음(GSM8K 85.0% → 95.0%).
+
+> 갱신 (16시): 부분 CUDA graph(`tc_piecewise`) 적용으로 152.6 → 229. rank 간 동기화 대기(프로파일 실측 47%)가 제거된 효과. 이 구성에서 초안 검증은 제외(graph와 결합 시 충돌 — 향후 과제). 상세는 `eval/results/*_pln007_spec480/RESULTS.md`의 CUDA graph 트랙 절.
 
 ## 최종 구성
 
