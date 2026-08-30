@@ -26,3 +26,9 @@
 
 - x=80 품질: **GSM8K 97.5% (39/40)** — 게이트 통과 (기준 85.0%)
 - **최종 확정 구성 (2026-08-30 16:30)**: (96,2) + hot-80 + tc_piecewise decode graph = **~324 tok/s @C32 — 기준 56.3 대비 +475%**
+
+### 정정 (16:50, 로그 판독): 실제 backend 는 full
+
+- `tc_piecewise` 는 decode 미구현 — 로그: "falling back to 'full'". 즉 G3~x=80 의 +475% 는 **full decode graph** 위에서 달성됨
+- 따라서 G1 segfault 와의 대조로 결론 정정: **kt×full-graph 는 호환** (GSM 97.5% 가 cold-expert 갱신의 증거). 비호환은 **spec(verify)×graph 결합뿐** — 어제 "kt×CUDA graph 비호환" 딱지는 부정확했음 (당시 검증 없이 관행적으로 --disable-cuda-graph 사용)
+- 남은 공사 대상도 재정의: "kt graph-safe화" (불필요해짐) → "spec verify 경로의 graph 호환" (원하면 +20% 추가 여지)
