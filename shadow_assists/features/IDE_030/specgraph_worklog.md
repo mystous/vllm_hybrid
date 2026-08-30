@@ -21,3 +21,13 @@
 
 ## 참고
 - turbo 해제는 OS 에서 불가 (no_turbo 쓰기 root 도 거부 — BIOS 잠금, 하드웨어 관리자 필요) — 보류 기록
+
+## 종결 (2026-08-30 밤)
+
+1. -1 id 가설 기각 (프로브 실측: 음수 id 0건). 크래시는 부하 무관, **verify graph 첫 재생에서 즉사**로 특정
+2. **근본 원인 (버그 #5)**: sglang 이 kt 에 캡처 배치 목록을 요청-폭 1 기준으로 전달 (`set_capture_batch_sizes(self.capture_bs)`). 검증 graph 는 요청당 4토큰이라 실제 크기 = bs×4 인데 목록에 없어, kt 가 임시 버퍼를 쓰고 다음 캡처 때 재할당 → graph 가 해제된 고정 버퍼를 재생에서 접근 → segfault
+3. 수리 (3줄): 목록에 `captured_req_width` 곱을 반영 → **spec+graph 전체 부하 생존, 품질 정상**
+4. **성능 판정: 결합 기각** — C=32: 279.8 (graph-only 324, −13.6%) / C=16: 206.4 (251.5, −18%). accept 0.67 로 좋아도 graph 체제 (TPOT 82ms) 에선 draft 왕복 비용이 검증 절약을 상회
+5. 산출물: 성능 0 / 안정성 수리 1건 (upstream 제보 #5 — spec+graph+kt 사용자의 확정 크래시)
+
+**최종 확정 구성 유지: hot-80 + full decode graph, spec 없음 = 324 tok/s @C32**
