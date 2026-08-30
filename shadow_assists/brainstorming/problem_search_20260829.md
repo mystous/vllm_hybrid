@@ -205,3 +205,9 @@ K2 (스케줄 순서 효과) 최대 Δ +0.0%p < +5%p FAIL / K3 (eviction 정책)
 
 논문 arc: "480B 를 반쪽 노드로 서빙하는 시스템의 데이터-이동 하한을 실측 계측으로 세우고 (67%), 결핍 기전 3개를 규명·구현해 하한의 ≥85~90% 에 도달" — 측정→진단→구축→도달. 선행 대비: TriMoE/HybriMoE 는 스케줄링을 제시하나 하한 대비 도달률로 자기를 채점한 시스템은 없음. 사전등록 성공 기준: routing-aware bound 의 85% (실패 시 그대로 기록).
 소요: 수 주 (엔지니어링 깊이). 대안: (B) 8라운드 계속 탐색 — 수확 체감 데이터가 반대 (C) characterization/workshop 마감.
+
+## 12. 탐색 8·9라운드 (2026-08-30 오후) — 기각 기록
+
+- **8라운드 (배치=품질 변수)**: PLN_007 실측 관측 ("hot expert 의 GPU 배치가 GSM8K 85→95% — 배치가 품질을 바꾼다") 에서 출발했으나 선점: HOBBIT (2411.01433, mixed-precision expert offloading), DynaExq (2511.15015, 런타임 빈도-기반 정밀도 배분), MC-MoE/MxMoE/GEMQ/AlphaQ (expert 별 bit 배분), MoE-CAP (품질-비용-성능 평가). **자체 실측에서 나온 관측조차 1년 전 시스템화** — 포화 논제의 최종 확인 2.
+- **9라운드 (co-use 축 재정렬, 사용자 교정 "CPU·GPU 모두 사용이 핵심")**: ① CPU-draft/GPU-verify 이종 spec — Dovetail (EMNLP'25) 뼈대 선점 ② INT4 자기-초안 — QuantSpec/ML-SpecQD/CAS-Spec 선점 ③ 배치-인지 라우팅 — expert-skip 인접 + 품질 Constraint 충돌.
+- **구조 진단**: 9라운드 전패. "아이디어 단위 공백 없음" 확정. 남은 경로: (1) 성능 트랙 — CPU-draft 이전 등 co-use 개선 계속 (논문 아님) (2) 논문 트랙 — 수개월 측정-이론 프로그램 (SIGMETRICS/MLSys급 현실성). 사용자 트랙 선택 대기.
