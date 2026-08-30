@@ -1,0 +1,24 @@
+== HOT start 20260830_084050 ==
+-- hot32_t96p2 boot --
+hot32_t96p2 QUALITY:  Paris. The capital of the United States
+hot32_t96p2 DONE
+-- hot32_t48p1 boot --
+hot32_t48p1 QUALITY: 
+hot32_t48p1 DONE
+-- hot32_t24p1 boot --
+hot32_t24p1 QUALITY: 
+hot32_t24p1 DONE
+== HOT done 090051 ==
+-- permonly_t48p1 boot --
+permonly_t48p1 QUALITY: [兜微量被捕 ча quoETOParameterValueParameterVa]
+permonly_t48p1 DONE
+-- x32id_t48p1 boot --
+x32id_t48p1 QUALITY: [)))\\\\\\\\\\\\\\\\\\\\]
+x32id_t48p1 DONE
+== HOT2 done ==
+== 중대 발견: kt 결함 #4 (threadpool-가중치 numa 불일치 시 조용한 출력 붕괴) ==
+동일 시점·컨테이너·가중치 (qwen3-480b-int4, kt quant --numa-nodes 2 변환):
+  (96,2): 'Paris, which is...' 정상 / (48,1): '兜微量被捕...' 붕괴 / (48,2): 정상 / cpuset+(48,2): 정상
+→ threadpool_count 가 변환 시 --numa-nodes 와 일치해야 함. 불일치 시 오류 없이 출력만 붕괴.
+소급 오염: K2 dual·K3 D arm (48,1), P4 quad (24,1), P1 (48,1)/(24,1), 금일 hot 48/24 셀 — 품질 전부 미보증 (rate 는 부하 측정으로 유효).
+30B (48,1) 정상인 이유 추정: qwen3-30b-int4-b 는 별도 변환본 (numa 1 추정).

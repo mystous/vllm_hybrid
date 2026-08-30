@@ -157,3 +157,51 @@ K2 (스케줄 순서 효과) 최대 Δ +0.0%p < +5%p FAIL / K3 (eviction 정책)
 **기각.** 사전등록 게이트: K2 FAIL (신규 예측 11건 오차 중앙값 56% > 30%) / K3 FAIL (quad>dual 예측 → 실측 반대: 63.3 < 68.9). 허용된 1회 수정(v4 max-overlap)도 P4 방향을 못 바꿈. 성공 부분: CPU-bound 체제의 스레드 스케일링 예측은 적중(±3%) — 비용 법칙 자체는 유효하나, 시스템의 binding 제약(overlap 바닥·소켓 공유·id-배치)이 스펙+마이크로벤치 밖에 있어 "스펙만으로 예측"이라는 논문 주장이 성립하지 않음.
 
 **살아남은 산출**: 기전 4개(id-고정 배치·overlap 바닥·layer 고정비 지배·소켓 공유 대역폭) + 능력 기록(480B TP2 성립, 머신 1대=480B×4, 분할 최적점=2) + 최적성 gap 67% 분해. 상세: `eval/results/20260829_211540_pln006_e1e2/RESULTS.md`
+
+---
+
+## 9. 탐색 6라운드 (2026-08-30) — 문제 영역 전환: 처리량 → 신뢰성
+
+### 9.1 조사 결과
+
+| 축 | 선행 | 판정 |
+|---|---|---|
+| expert 재배열 (기전 ① 활용: kt id-배치에 hot을 앞번호로 permute) | EPLB (SGLang/vLLM 내장, logical→physical remap + hot 복제), LAER-MoE, CRAFT | **논문 불가** (기성 개념). 단 kt 경로에는 미적용 — **엔지니어링 트랙**으로 분리: 모델이 +40~70% 예측한 counterfactual 의 실검증 + upstream 기여 후보 |
+| **SDC 온라인 탐지 (이종 중복)** | SDC 문헌은 **training 중심** (2502.12340, LLM-PRISM, TU Berlin 계열, Anatomy of SDC). ABFT 는 inference 보호가 있으나 **동일-디바이스 checksum** (Flash-ABFT, FT-Transformer/EFTA — kernel 내 검증, transient 대상) | **직접 선행 미발견** — "유휴 CPU-AMX 로 GPU 서빙 출력을 이종-중복 대조" 는 공백으로 보임. 1차 통과 |
+
+### 9.2 후보 4 — HeteroGuard (가칭): 유휴 CPU 를 GPU 서빙의 감시자로
+
+**한 줄**: GPU 서빙 중 유휴인 CPU-AMX 가 요청 일부를 독립 경로 (INT4 expert) 로 재계산해 **SDC·지속 결함 (잘못된 가중치 변환, 커널 버그) 을 온라인 탐지**한다. GPU 중복은 처리량 2× 를 소모하지만 CPU 검증은 서빙에 ~0 비용 (co-location 실증: BG 부하 시 GPU −0.5%).
+
+**5-필터**: F1 ✓ (CPU idle 실증) / F2 ✓ (GPU 자가중복은 2× 비용) / F3 ✓ (반직관: 낮은 정밀도 INT4 가 높은 정밀도 FP8 을 감시 — bit-exact 이 아니라 분포 게이트로) / F4 1차 통과 (K1 정밀 필요) / F5 ✓ (kt 스택·분포-게이트 방법론 (Constraint 운영해석!)·SUB_167 자연 사례 전부 재사용)
+
+**자산 정합이 이례적으로 좋음**: ① 이 프로젝트의 정확도 Constraint 해석 ("token-exact 불가, 분포 유사성으로 판정") 이 그대로 탐지 게이트가 됨 ② SUB_167 (DeepSeek 변환 결함 = 실존 지속 결함) 이 첫 탐지 대상 — "우리 게이트가 이 실제 결함을 잡는가" 가 자연 실험
+
+**사전등록 kill-test**:
+| 게이트 | 내용 | 죽는 조건 |
+|---|---|---|
+| K1 | 문헌 정밀: "inference SDC heterogeneous redundancy", canary serving, cross-precision verification 전수 | 동일 주장 ≥2 |
+| K2 (탐지력) | fault injection (가중치 bit-flip·activation 오염·SUB_167 자연 사례) → CPU-INT4 대조 게이트의 탐지율 | SUB_167 급 지속 결함 탐지 실패, 또는 주입 결함 탐지율 <80% |
+| K3 (판별력) | 정상 INT4↔FP8 수치 차이 vs 결함의 분리도 (ROC) | 오탐율 >5% 에서 탐지율 <80% (분리 불가) |
+| K4 (비용) | 검증 커버리지 (CPU 예산 내 요청 %) + 서빙 간섭 | 간섭 >1% 또는 커버리지 <10% |
+
+### 9.3 후보 4 (HeteroGuard) K1 판정 — 기각 (2026-08-30)
+
+4개 기둥이 전부 선점: ① **Ekka** (2606.04594, "LLM inference 의 silent error 자동 진단" — 문제 자체를 선점) ② 안전 분야의 **diverse DMR/TMR** (Semantic Diverse DMR, ACM TCPS 2025; GPU diverse redundancy 계열 — 이종 중복 채널 개념 기성) ③ **정밀도-차이 특성화** (2604.19790 — 우리의 "null 분포" 작업이 이미 논문으로 존재) ④ **rank-based 분포 검정** (2506.06975 — 통계 게이트 기성). 남는 것은 "유휴 CPU에서 실행" 조합뿐 — SCED 기각 사유와 동일한 "조합 on 희귀 하드웨어". **사용자 기준 (논문 수준) 미달 → 기각.**
+
+## 10. 탐색 7라운드 — dLLM 축 (자체 물리에서 파생, 즉시 기각)
+
+가설: diffusion LLM 은 매 스텝이 전 시퀀스를 처리 → expert 당 토큰이 항상 knee 우측 (43~53× 저렴 구간) → CPU-expert 오프로드가 dLLM 에서는 체제-최적일 것.
+**기각: TIDE** (2605.20179, "I/O-aware Expert Offload for MoE Diffusion LLM", LLaDA2.0/256expert/top-8 평가) — 정확히 이 교차점이 2026-05 에 이미 출판. 자체 물리에서 5분 만에 유도한 아이디어조차 선점 — **포화 논제의 최종 확인.**
+
+## 11. 전략 전환 제안 (7라운드 종합)
+
+7 후보 / 7 기각. 데이터가 말하는 것: 이 하드웨어·수 주 시간틀에서 "아이디어 수준" 신규성은 소진됨. 논문급은 이제 **찾는 게 아니라 짓는 것** — 시스템 논문의 정상 경로.
+
+**제안 (Build-first, "gap-closing" 서사)**: PLN_006 이 남긴 것을 뒤집어 쓴다 — 하한은 예측기로는 실패했지만 **야드스틱으로는 유효** (라우팅-인지 하한 대비 실측 67%). 우리가 직접 발견한 미구현 기전들이 나머지 33%p 의 주소를 알고 있다:
+1. **비-expert 바닥 제거** (기전 ②: launch/allreduce/kt 왕복 288ms — CUDA graph×kt 호환 또는 layer-fused submission)
+2. **빈도-인지 hot expert 배치** (기전 ①: kt 는 id-고정 — expert permutation 으로 즉시 검증 가능, 모델 추정 +40~70%)
+3. 소켓-인지 분할 (기전 ④)
+
+논문 arc: "480B 를 반쪽 노드로 서빙하는 시스템의 데이터-이동 하한을 실측 계측으로 세우고 (67%), 결핍 기전 3개를 규명·구현해 하한의 ≥85~90% 에 도달" — 측정→진단→구축→도달. 선행 대비: TriMoE/HybriMoE 는 스케줄링을 제시하나 하한 대비 도달률로 자기를 채점한 시스템은 없음. 사전등록 성공 기준: routing-aware bound 의 85% (실패 시 그대로 기록).
+소요: 수 주 (엔지니어링 깊이). 대안: (B) 8라운드 계속 탐색 — 수확 체감 데이터가 반대 (C) characterization/workshop 마감.
