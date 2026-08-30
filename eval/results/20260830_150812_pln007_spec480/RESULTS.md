@@ -32,3 +32,11 @@
 - `tc_piecewise` 는 decode 미구현 — 로그: "falling back to 'full'". 즉 G3~x=80 의 +475% 는 **full decode graph** 위에서 달성됨
 - 따라서 G1 segfault 와의 대조로 결론 정정: **kt×full-graph 는 호환** (GSM 97.5% 가 cold-expert 갱신의 증거). 비호환은 **spec(verify)×graph 결합뿐** — 어제 "kt×CUDA graph 비호환" 딱지는 부정확했음 (당시 검증 없이 관행적으로 --disable-cuda-graph 사용)
 - 남은 공사 대상도 재정의: "kt graph-safe화" (불필요해짐) → "spec verify 경로의 graph 호환" (원하면 +20% 추가 여지)
+
+### 최종 구성 동시성별 (hot-80 + full graph)
+
+| 동시성 | 최종 | 기준 | 이득 |
+|---:|---:|---:|---:|
+| 16 | 251.5 (TPOT 54.1ms) | 55.5 | +353% |
+| 32 | 324 | 56.3 | +475% |
+| 64 | 343.1 (TPOT 148ms) | 84.2 | +308% |

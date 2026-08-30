@@ -4,7 +4,7 @@
 
 Qwen3-Coder-480B(FP8, 450GB)를 **GPU 4장 + CPU로 서빙하면서 56.3 → 324 tok/s (+475%)**. 품질 저하 없음(GSM8K 85.0% → 95.0%).
 
-> 갱신 (16:30): 부분 CUDA graph(`tc_piecewise`) + hot-80 으로 152.6 → 229 → 324 (GSM8K 97.5%). graph가 GPU를 빠르게 하자 최적 hot 개수가 64→80으로 이동. rank 간 동기화 대기(프로파일 실측 47%)가 제거된 효과. 이 구성에서 초안 검증은 제외(graph와 결합 시 충돌 — 향후 과제). 상세는 `eval/results/*_pln007_spec480/RESULTS.md`의 CUDA graph 트랙 절.
+> 갱신 (17시): decode CUDA graph(플래그는 tc_piecewise였으나 미구현으로 full로 동작) + hot-80 으로 152.6 → 324 (GSM8K 97.5%). 동시성별: C16 251.5 / C32 324 / C64 343.1 (기준 대비 +308~475%). kt는 full graph와 호환 — 비호환은 초안검증×graph 결합뿐(향후 과제). rank 간 동기화 대기(프로파일 실측 47%)가 제거된 효과. 이 구성에서 초안 검증은 제외(graph와 결합 시 충돌 — 향후 과제). 상세는 `eval/results/*_pln007_spec480/RESULTS.md`의 CUDA graph 트랙 절.
 
 ## 최종 구성
 
