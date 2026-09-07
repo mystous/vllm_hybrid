@@ -64,3 +64,12 @@ B:                       attn(L) → submit_cold(L,B) → gpu_hot(L,B) → sync(
 - 요구 사항: kt-kernel 소스 빌드 체인 (repo + cmake + AMX 툴체인) 구축 후 커널 수정·재빌드 — 다음 단계
 
 부산물: 격리 수리 5건은 kt×sglang 의 다중-graph-세트 사용 일반(예: pdmux 와 kt 병용)에 필요한 수리로, 자체 가치 있음.
+
+## 3일차: KTransformers C++ 수정 (2026-09-08 자정 무렵)
+
+- 소스 빌드 체인 구축 완료 (repo + 서브모듈 + AMX 툴체인, 무수정 wheel 빌드 성공)
+- 수정 구현 (방향 B):
+  1. `cpuinfer.h`: 완료-신호 슬롯 512개 (호스트-GPU 공유 핀 메모리), `submit_signal_with_cuda_stream`(비블로킹: 큐에 "플래그=1 쓰기" 작업만 추가), `wait_signal_on_stream`(cuStreamWaitValue32 로 GPU 스트림이 플래그 대기 → cuStreamWriteValue32 로 0 재설정 — 재생 반복 안전)
+  2. `ext_bindings.cpp`: 파이썬 바인딩 2개 추가
+  3. `CMakeLists.txt`: CUDA driver 라이브러리 링크 추가
+- 남은 순서: 재빌드 → wheel 교체 설치 → 파이썬 패치(채널 버퍼/채널 큐) 소스판 재적용 → sync_forward 를 신호 방식으로 교체 → 동시 재생 재시험
