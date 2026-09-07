@@ -40,3 +40,11 @@ B:                       attn(L) → submit_cold(L,B) → gpu_hot(L,B) → sync(
 - 다음 수: kt C++ 바인딩의 submit_with_cuda_stream 재생 트리거 메커니즘 분석 → 세트별 등록 분리
 
 원상 복구 방법: SGL_INTERLEAVE 미설정 시 모든 훅 비활성 — 기존 327 구성 그대로 동작 (분리 검증 완료)
+
+## 2일차 진행 (2026-09-07 심야)
+
+- kt C++ 소스 판독으로 대기 방식 확정: submit=cudaLaunchHostFunc(작업 큐 삽입), sync=host 함수가 **전역 큐 잔량 0까지 블로킹 대기** (`task_queue_->sync`)
+- 수리 4: CPU 작업 큐를 세트별 2개로 분리 (CPUInfer 인스턴스 2개, 스레드 48+48) — 적용했으나 **행업 재발, 같은 지점**
+- 최종 원인 규명: **NCCL 통신 순서 불일치** — rank0 의 graph 에만 CPU 대기 노드가 있어 rank 간 A/B 진행 속도가 갈리고, rank0 의 A 통신과 rank1-3 의 B 통신이 매칭 → 교착. 두 스트림이 같은 통신 채널을 공유하는 한 구조적
+- 다음 후보 (미착수): ① 세트 B 에 별도 NCCL 커뮤니케이터 (sglang 에 스트림별 자원 그룹 개념 존재 — decode_attn_backend_group/get_current_stream_idx 경로 조사) ② rank 전체 동기 배리어로 A/B 재생 경계 고정 (겹침 이득 일부 상실) ③ TP allreduce 를 graph 밖으로 빼는 재구성 (대공사)
+- 현재 안전 상태: SGL_INTERLEAVE 미설정 시 기존 327 구성 무손상
