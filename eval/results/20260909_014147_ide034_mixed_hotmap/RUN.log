@@ -1,0 +1,19 @@
+prefill passes 12 tokens 55088 | decode passes 512 tokens 16384
+current   H=96: cov_prefill 0.9917 cov_decode 0.9598 E[D_c]dec(B32) 7.81
+alpha=0.25 H=96: cov_prefill 0.9810 cov_decode 0.9769 E[D_c]dec(B32) 5.13 overlap_cur 88.2
+alpha=0.5 H=96: cov_prefill 0.9875 cov_decode 0.9731 E[D_c]dec(B32) 5.82 overlap_cur 90.5
+alpha=0.75 H=96: cov_prefill 0.9912 cov_decode 0.9666 E[D_c]dec(B32) 6.88 overlap_cur 92.5
+mx0.5 boot ok 110s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+mx0.5_c32 C32: 642.33 tok/s, TPOT 37.60, TTFT 1598.64  (prompt 600/43.5/1304, decode-only 554/38.0/2560)
+mx0.25 boot ok 100s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+mx0.25_c32 C32: 661.44 tok/s, TPOT 35.90, TTFT 1628.76  (prompt 600/43.5/1304, decode-only 554/38.0/2560)
+mx0.75 boot ok 100s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+mx0.75_c32 C32: 616.60 tok/s, TPOT 40.16, TTFT 1539.31  (prompt 600/43.5/1304, decode-only 554/38.0/2560)
+best alpha=0.25 (661.44 tok/s)
+mxbest boot ok 100s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+mxbest_c64 C64: 883.70 tok/s, TPOT 54.17, TTFT 2381.90  (prompt C64 760~786)
+MIXED(0.25) GSM40: ACC 0.975 (39/40)
