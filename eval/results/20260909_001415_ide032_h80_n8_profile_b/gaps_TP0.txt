@@ -1,0 +1,16 @@
+    0.18 ms  x  1  at::native::vectorized_elementwise_ker → Memcpy HtoD (Pinned -> Device)
+    0.10 ms  x  1  at::native::index_elementwise_kernel<1 → at::native::vectorized_elementwise_ker
+    0.09 ms  x  1  at::native::unrolled_elementwise_kerne → at::native::index_elementwise_kernel<1
+    0.09 ms  x  1  Memcpy DtoD (Device -> Device) → at::native::unrolled_elementwise_kerne
+    0.06 ms  x  1  at::native::vectorized_elementwise_ker → at::native::vectorized_elementwise_ker
+갭 크기 분위: p50 62us p90 1277us max 2557us
+
+=== step2: span 87.7 ms | gaps>30us: 126 개, 합 57.3 ms ===
+갭 위치 (앞 커널 → 뒤 커널) 별 합계 ms, 상위 8:
+   53.04 ms  x 60  triton_per_fused_copy__mul_sum_0 → Memcpy HtoD (Pinned -> Device)
+    3.10 ms  x 62  Memcpy DtoH (Device -> Pinned) → triton_poi_fused_ge_index_put_lift_fre
+    0.89 ms  x  1  at::native::vectorized_elementwise_ker → Memcpy HtoD (Pinned -> Device)
+    0.10 ms  x  1  at::native::index_elementwise_kernel<1 → at::native::vectorized_elementwise_ker
+    0.09 ms  x  1  triton_per_fused_copy__mul_sum_0 → at::native::index_elementwise_kernel<1
+    0.07 ms  x  1  at::native::vectorized_elementwise_ker → at::native::vectorized_elementwise_ker
+갭 크기 분위: p50 95us p90 1105us max 2768us
