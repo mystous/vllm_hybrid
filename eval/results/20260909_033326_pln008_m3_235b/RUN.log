@@ -1,0 +1,48 @@
+trace boot ok 120s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+  greedy: ' Paris, a fact that is widely known and easily verified. This statemen'
+  greedy: '\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n-'
+trace_c32 C32: tok/s 253.56 TPOT 83.78 TTFT 5396.00
+L=94 E=128 prefill passes 14 tokens 55066 | decode passes 514 tokens 16388
+prompt       H= 32: cov_p 0.8952 cov_d 0.5006 E[Dc] B32/64 = 35.34/43.13
+prompt       H= 48: cov_p 0.9658 cov_d 0.6837 E[Dc] B32/64 = 24.47/30.59
+prompt       H= 64: cov_p 0.9902 cov_d 0.8146 E[Dc] B32/64 = 15.94/20.34
+prompt       H= 80: cov_p 0.9978 cov_d 0.9076 E[Dc] B32/64 = 8.84/11.58
+prompt       H= 96: cov_p 0.9998 cov_d 0.9622 E[Dc] B32/64 = 3.87/5.09
+prompt       H=112: cov_p 1.0000 cov_d 0.9863 E[Dc] B32/64 = 1.38/1.81
+alpha0.25    H= 32: cov_p 0.7730 cov_d 0.7551 E[Dc] B32/64 = 31.0/40.47
+alpha0.25    H= 48: cov_p 0.8992 cov_d 0.8908 E[Dc] B32/64 = 17.61/25.38
+alpha0.25    H= 64: cov_p 0.9637 cov_d 0.9600 E[Dc] B32/64 = 7.78/12.53
+alpha0.25    H= 80: cov_p 0.9893 cov_d 0.9893 E[Dc] B32/64 = 2.34/4.11
+alpha0.25    H= 96: cov_p 0.9980 cov_d 0.9982 E[Dc] B32/64 = 0.4/0.73
+alpha0.25    H=112: cov_p 0.9999 cov_d 0.9999 E[Dc] B32/64 = 0.03/0.05
+alpha0.5     H= 32: cov_p 0.8355 cov_d 0.7185 E[Dc] B32/64 = 32.1/41.09
+alpha0.5     H= 48: cov_p 0.9339 cov_d 0.8704 E[Dc] B32/64 = 19.0/26.47
+alpha0.5     H= 64: cov_p 0.9752 cov_d 0.9531 E[Dc] B32/64 = 8.62/13.48
+alpha0.5     H= 80: cov_p 0.9927 cov_d 0.9874 E[Dc] B32/64 = 2.69/4.67
+alpha0.5     H= 96: cov_p 0.9987 cov_d 0.9979 E[Dc] B32/64 = 0.48/0.88
+alpha0.5     H=112: cov_p 1.0000 cov_d 0.9999 E[Dc] B32/64 = 0.03/0.06
+decode_only  H= 32: cov_p 0.6063 cov_d 0.7748 E[Dc] B32/64 = 30.34/40.15
+decode_only  H= 48: cov_p 0.7866 cov_d 0.9025 E[Dc] B32/64 = 16.66/24.62
+decode_only  H= 64: cov_p 0.8978 cov_d 0.9653 E[Dc] B32/64 = 7.01/11.59
+decode_only  H= 80: cov_p 0.9623 cov_d 0.9910 E[Dc] B32/64 = 2.0/3.56
+decode_only  H= 96: cov_p 0.9907 cov_d 0.9985 E[Dc] B32/64 = 0.33/0.6
+decode_only  H=112: cov_p 0.9986 cov_d 0.9999 E[Dc] B32/64 = 0.02/0.04
+saved /tmp/hm235
+gpuonly boot ok 90s
+pinned 1326 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+gpuonly_c32 C32: tok/s 929.62 TPOT 21.16 TTFT 1714.33
+gpuonly_c64 C64: tok/s 1915.82 TPOT 24.77 TTFT 1123.41
+gpuonly GSM40: ACC 0.975 (39/40)
+h96_prompt boot ok 100s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+h96_prompt_c32 C32: tok/s 791.78 TPOT 29.04 TTFT 1481.82
+h96_prompt_c64 C64: tok/s 1377.09 TPOT 37.95 TTFT 1121.92
+h96_a25 boot ok 100s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+h96_a25_c32 C32: tok/s 804.41 TPOT 28.73 TTFT 1439.67
+h96_a25_c64 C64: tok/s 1549.39 TPOT 32.89 TTFT 1101.82
+h96_a25 GSM40: ACC 0.975 (39/40)
+h64_a25 boot ok 90s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+h64_a25_c64 C64: tok/s 794.66 TPOT 62.18 TTFT 2281.47
