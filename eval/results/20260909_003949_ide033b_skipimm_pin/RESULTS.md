@@ -14,3 +14,18 @@
 - 분해: host 노드 제거 +5.1%, 빈 immediate 생략 +8.3%, 코어 재배치 +4.3% (TPOT 불변 → decode 스텝이 아니라 prefill/스케줄러 쪽 이득). 합계 기존 최종 대비 C32 **+22.5%**, C64 **+86%**.
 - TaskQueue 계측 (생략 후): 층당 [신호, deferred] 2개, 워커 busy 0.99~1.00, deferred 평균 ≈0.8ms/층. 남은 병목 = CPU 층 작업 시간 자체 (모델 항 0.3ms 대비 2.7배) → phase 분해 (`…_ide033_phase_prof/`).
 - C64 760 은 별도 부팅에서 재현 예정 (phase prof 체인).
+
+## hot-80 N=8, KV 131072
+| 구성 | C32 tok/s / TPOT | C64 tok/s / TPOT |
+|---|---|---|
+| hot-80 N=4 (host 콜백, IDE_032) | 329.0 / 80.1 | 487.0 / 117.7 |
+| hot-80 N=8 (host 콜백) | 343.4 / 76.8 | 479.7 / 120.2 |
+| CF + 생략 (미고정) | 394.3 / 69.0 | — |
+| CF + 생략 + 재배치 | **430.1 / 70.9** | **559.6 / 106.6** |
+
+- hot-80 도 +25% (C32) / +15% (C64). 그러나 새 메커니즘 아래에서는 **hot-96 이 C64 에서도 hot-80 을 이김** (760 vs 560) — IDE_032 에서 관찰한 "C64 → hot-80" 전이가 사라짐. 정책 모델 (M2) 의 KV/thrash 항과 CPU 항을 새 메커니즘 파라미터로 재교정해야 함 (paper 의 전이점 주장은 "메커니즘이 전이점을 옮긴다" 로 보강).
+- 두 체제 모두 재배치 이득은 TPOT 에 없고 처리량에만 있음 → prefill (eager 경로, 호스트 스레드 밀집) 구간 이득으로 추정. 별도 TTFT 비교 필요 (로그의 Mean TTFT 로 확인 가능).
+h96_skip_unpinned.log: TTFT 1673.77 ms, P99 TPOT 
+h96_skip_pinned.log: TTFT 1304.27 ms, P99 TPOT 
+h80_skip_unpinned.log: TTFT 1627.35 ms, P99 TPOT 
+h80_skip_pinned.log: TTFT 520.38 ms, P99 TPOT 

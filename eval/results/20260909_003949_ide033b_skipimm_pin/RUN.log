@@ -1,0 +1,19 @@
+SKIP boot ok 110s
+  greedy: ' Paris. It is located in the north-central part of the country along t'
+  greedy: '\n    #write your code here\n    if n < 0:\n        return -1\n    elif n '
+BURST 32/32 in 2.4s
+h96_skip_unpinned C32: 575.08 tok/s, TPOT 42.87  (CF 531.0/45.5, 기준 505.4/48.3, kill ≥580)
+  tq: [kt-tq] n=2048 exec_us p50=52 p90=1095 p99=1849 mean=411 | hist(<5,<30,<100,<300,<600,<1k,<2k,<4k,>=4k)=1016,0,19,31,280,405,285,12,0 | wait_us p50=0 p90=0 p99=140 mean=4 | busy=0.99
+pinned 1338 non-kt threads to 48-55,104-111,160-167,216-223
+h96_skip_pinned C32: 599.74 tok/s, TPOT 43.47  (pinned)
+  tq: [kt-tq] n=2048 exec_us p50=59 p90=1069 p99=1725 mean=410 | hist(<5,<30,<100,<300,<600,<1k,<2k,<4k,>=4k)=1015,0,17,23,257,464,262,10,0 | wait_us p50=0 p90=0 p99=69 mean=2 | busy=1.00
+h96_skip_pinned_r2 C32: 601.27 tok/s, TPOT 43.39  (pinned, 반복)
+  tq: [kt-tq] n=2048 exec_us p50=55 p90=1059 p99=1648 mean=406 | hist(<5,<30,<100,<300,<600,<1k,<2k,<4k,>=4k)=1016,0,19,31,283,434,256,9,0 | wait_us p50=0 p90=0 p99=112 mean=3 | busy=0.99
+SKIP GSM40: ACC 0.975 (39/40)
+h96_skip_pinned_c64 C64: 760.13 tok/s, TPOT 69.83  (pinned; hot-96+def4 C64 408.2)
+  tq: [kt-tq] n=2048 exec_us p50=68 p90=1631 p99=2538 mean=622 | hist(<5,<30,<100,<300,<600,<1k,<2k,<4k,>=4k)=1016,0,15,3,82,269,594,69,0 | wait_us p50=0 p90=0 p99=1 mean=0 | busy=1.00
+h80 SKIP boot ok 100s
+h80_skip_unpinned C32: 394.30 tok/s, TPOT 68.95  (hot-80 N=8 기준 343.4/76.8)
+pinned 1338 non-kt threads to 48-55,104-111,160-167,216-223
+h80_skip_pinned C32: 430.13 tok/s, TPOT 70.85  (pinned)
+h80_skip_pinned_c64 C64: 559.62 tok/s, TPOT 106.64  (pinned; hot-80 N=4 C64 487.0)
