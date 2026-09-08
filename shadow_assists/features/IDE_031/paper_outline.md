@@ -2,7 +2,8 @@
 
 **가제**: Predicting the Bottleneck Transition in CPU–GPU Hybrid MoE Serving: A Pre-registered Mechanistic Model for Hot-Expert Residency
 
-> **M1/v2 검증 반영 (09-08 19:55)**: 절대-TPOT ≤20% 게이트는 실패(중앙값 M1 52%·v2 새셀 60%, 전부 긴 컨텍스트 과소). 그러나 구성 **순위 일치는 M1 93%·새 셀 100%**, 짧은 컨텍스트 절대값 ±7~30%. → 주장을 "절대 예측"에서 "**순위·전이점 사전 예측 + 짧은 컨텍스트 절대 예측**"으로 조정. 긴 컨텍스트 절대 TPOT 는 명시적 future work.
+> **M1 최종 (09-09 02:40)**: 트레이스 불일치를 고친 v3 셀 8개에서 사전 등록 모델 (v1 원본·v2 모두) 중앙값 |오차| 8%, 순위 일치 100% → 주장 2 (마이크로벤치·트레이스 파라미터만으로 절대 TPOT 사전 예측 ≤20%) **복원**. 남은 결함 = hot-96 소형 KV 초과 구간의 retract 항 (1셀 +47%).
+> **M1/v2 검증 반영 (09-08 19:55, 역사)**: 절대-TPOT ≤20% 게이트는 실패(중앙값 M1 52%·v2 새셀 60%, 전부 긴 컨텍스트 과소). 그러나 구성 **순위 일치는 M1 93%·새 셀 100%**, 짧은 컨텍스트 절대값 ±7~30%. → 주장을 "절대 예측"에서 "**순위·전이점 사전 예측 + 짧은 컨텍스트 절대 예측**"으로 조정. 긴 컨텍스트 절대 TPOT 는 명시적 future work.
 
 ## 1. Introduction (1쪽)
 - 문제: 480B급 MoE 를 GPU 4장 + 2소켓 Xeon 으로 서빙할 때, GPU 에 상주시킬 hot expert 수 H 는 운영자가 손으로 정한다 (KTransformers `--kt-num-gpu-experts`, CoX-MoE 정적 배치). H 를 늘리면 CPU 의 cold expert 스트리밍 (DDR 대역폭 한계) 이 줄지만 GPU expert 연산이 늘고 KV 자리가 준다.
