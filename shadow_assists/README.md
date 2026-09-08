@@ -295,3 +295,5 @@ graph TD
     IDE_034 --> IDE_035["IDE_035<br/>가중치 임계 τ deferral<br/>(정확도–처리량 곡선)"]
     IDE_033 --> IDE_036["IDE_036<br/>폴러 수준 빈 deferred 생략<br/>(235B 층당 고정비 80µs)"]
 ```
+
+- [CPU/호스트 활용 시도 전체 이력 (2026-04~09)](CPU_UTILIZATION_HISTORY_20260909.md) — 시도·개선·실패 연표와 분류
