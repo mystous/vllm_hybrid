@@ -1,0 +1,16 @@
+
+=== step1: span 32.3 ms | gaps>30us: 127 개, 합 7.5 ms ===
+갭 위치 (앞 커널 → 뒤 커널) 별 합계 ms, 상위 8:
+    4.36 ms  x 61  triton_per_fused_copy__mul_sum_0 → Memcpy HtoD (Pinned -> Device)
+    2.80 ms  x 62  Memcpy DtoH (Device -> Pinned) → triton_poi_fused_ge_index_put_lift_fre
+    0.11 ms  x  1  triton_per_fused_copy__mul_sum_0 → Memcpy DtoD (Device -> Device)
+    0.10 ms  x  1  at::native::unrolled_elementwise_kerne → at::native::index_elementwise_kernel<1
+    0.08 ms  x  1  at::native::index_elementwise_kernel<1 → at::native::vectorized_elementwise_ker
+    0.08 ms  x  1  Memcpy DtoD (Device -> Device) → at::native::unrolled_elementwise_kerne
+갭 크기 분위: p50 42us p90 64us max 951us
+
+=== step2: span 32.1 ms | gaps>30us: 121 개, 합 6.1 ms ===
+갭 위치 (앞 커널 → 뒤 커널) 별 합계 ms, 상위 8:
+    3.41 ms  x 60  triton_per_fused_copy__mul_sum_0 → Memcpy HtoD (Pinned -> Device)
+    2.70 ms  x 61  Memcpy DtoH (Device -> Pinned) → triton_poi_fused_ge_index_put_lift_fre
+갭 크기 분위: p50 42us p90 50us max 496us
