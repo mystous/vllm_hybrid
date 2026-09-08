@@ -55,17 +55,11 @@ def gpu_expert_ms(B, D_h):
         return (D_h * 17.33 / 61.5 / MODEL["L"])
     return (g["fixed_us"] + D_h * g["per_expert_us"] + B * g["per_token_us"]) / 1e3
 
-# M1-후 수정(1회): KV-context 항. 독립 벤치(dec_in512→77.4? no: 68.9 / dec_in1600 77.4 @H96 C8)에서
-# ctx 512→1600 (+1088 tok, out=128 평균 ctx +해당) 이 TPOT +8.5 ms → 토큰·배치당 KV 읽기 계수.
-# 생성 중 KV 는 prefix+누적출력으로 커지므로 평균 ctx ≈ ctx + out/2 를 쓴다 (out 은 워크로드).
-KV_CTX = dict(ms_per_ktok_per8=8.5/ (1600-512) *1000 /8)  # ms per 1000 ctx-token, per (B/8)
 def gpu_nonexpert_ms(B, ctx):
     n = GPU_NONEXPERT
     attn = n["attn_ms_at_B32_ctx640"] * (B / 32) * (ctx / 640)
     other = n["other_ms_at_B32"] * (0.5 + 0.5 * B / 32)
-    avg_ctx = ctx + WORKLOAD["out"] / 2
-    kv = KV_CTX["ms_per_ktok_per8"] * (avg_ctx / 1000.0) * (B / 8)
-    return n["fixed_ms"] + attn + other + kv
+    return n["fixed_ms"] + attn + other
 
 def gpu_pre_moe_ms(B, ctx):
     # 프로파일 범주 (hot-96 C≈32): attention 1.07 + dense_gemm 3.34 중 qkv/o 몫 ≈ 0.6 + AR 1.35 의 절반 (attention 뒤 AR)
@@ -120,9 +114,7 @@ def prefill_ms_per_request(b_p):
             t = (math.log(b_p) - math.log(a)) / (math.log(b) - math.log(a))
             return PREFILL["per_req_ms"][a] * (1 - t) + PREFILL["per_req_ms"][b] * t
 WORKLOADS = {640: dict(in_total=612, in_unique=512, out=128),      # sonnet 512 + prefix 100 (공유) / 128
-             1000: dict(in_total=1000, in_unique=900, out=256),    # v2 검증 새 셀
-             2000: dict(in_total=1600, in_unique=1500, out=512),   # 긴 프롬프트 셀 (M1): 1500(+100 prefix) / 512
-             3000: dict(in_total=3000, in_unique=2900, out=256)}   # v2 검증 새 셀
+             2000: dict(in_total=1600, in_unique=1500, out=512)}   # 긴 프롬프트 셀 (M1): 1500(+100 prefix) / 512
 WORKLOAD = WORKLOADS[640]
 def set_workload(ctx):
     global WORKLOAD
