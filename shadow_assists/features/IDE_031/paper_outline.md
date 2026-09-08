@@ -41,3 +41,5 @@
 
 > **추가 기여 (09-09 02:20, IDE_034)**: (4) **phase-가중 hot expert 선택** — prefill 은 cold (token,expert) 쌍 수, decode 는 배치당 distinct cold expert 수가 비용이라 최적 집합이 다름 (현행 prompt 기반 hotmap: prefill 99.2% / decode 96.0%). α 스윕으로 처리량 최대점 (α=0.25) 과 TTFT↔TPOT 단조 교환 실측. 누적: C32 491→661 (+35%), C64 408→884 (+116%), 정확도 무손실. §3 모델에 in-situ CPU 법칙 (40+90+71·D_c µs, DDR 천장 80%) 과 phase 별 D_c 항, §5 정책에 α 결정 편입. 그림 추가: α–(TTFT, TPOT, tput) 곡선.
 
+> **새 메커니즘 하 모델 (09-09 03:10)**: v3 (층당 max(GPU,CPU) + in-situ CPU 법칙 + phase 라우팅) 사전 등록 10셀 TPOT 중앙값 15%, 순위 100%. §4 에 "메커니즘 전후 두 번의 사전 예측" 으로 서술; 저동시성 과대 편향과 TTFT 항 실패는 한계 절에 명시.
+
