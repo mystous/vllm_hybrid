@@ -29,7 +29,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 구현 후보 단계. profile / 측정 결과로 진입·기각 판정 후에야 다음 단계 prefix(`PLN` 등) 로 파생된다.
 
-**다음 부여 번호**: `IDE_036`
+**다음 부여 번호**: `IDE_037`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
@@ -58,6 +58,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_034` | **완료 (2026-09-09 02:20) — 채택 (α=0.25)** | **Decode-phase 라우팅 기반 hot set (phase-aware hotmap)** — AMX 커널 phase 분해에서 hot-96 decode 층당 distinct cold expert 실측 중앙값 6 (prompt 트레이스 기대 3.2). 현행 hotmap 은 prompt 구간 라우팅 빈도로 선정되어 decode 생성 토큰의 커버리지가 낮다는 가설. 입력 64/출력 512 워크로드로 decode 트레이스 수집 → 층별 빈도순 hotmap 재구성 → hot-96 N=8 (IDE_033 스택) C32/C64/GSM40 재측정 + phase 분해로 D_c 감소 직접 확인 | 부모 = `IDE_033` phase 분해 (`…_ide033_phase_prof/RESULTS.md`). **사전 등록**: 통과 = decode D_c 중앙값 6 → ≤4.5 AND C32 ≥640 tok/s (현 600) AND GSM40 ≥95. 결과: 1차 (in64/out512 트레이스) 기각 D_c 6→7; 2차 (워크로드-일치 decode-only) D_c 6→**4**, TPOT −12.5%, TTFT ×2 → 처리량 −7%; 3차 **phase-가중 α=0.25**: C32 **661.4** (+10% vs prompt hotmap, 기존 최종 대비 +34.7%), C64 **883.7** (+116%), GSM40 97.5%. 최적 hot set = 워크로드 prefill:decode 비율 함수. `eval/results/*_ide034_{decode_hotmap,decode_hotmap_r2,mixed_hotmap}/` |
 | `IDE_035` | 활성 (2026-09-09 03:40) | **가중치 임계 τ deferral** — GSM100 귀속에서 cold 전량 deferral (N=8) 의 정확도 비용 −2~4점 (N=4 97.0×2 vs N=8 95/93/94) 확인. cold expert 중 라우팅 가중치 < τ 인 것만 다음 층으로 지연하고 고가중치 cold 는 즉시 계산 (IDE_032 의 `KT_COLD_DEFER`/`KT_COLD_TAU` 패치 재사용; 빈 immediate 생략은 OFF → 상한 −8% 처리량). τ ∈ {0.15, 0.25, 0.4} 에서 GSM100 + C32 → 정확도–처리량 곡선 | 부모 = `IDE_034` 최종 구성 GSM100 (`…_ide034_gsm100_attribution/`). **사전 등록**: 채택 = 어떤 τ 에서 GSM100 ≥96 AND C32 ≥620 (N=8 skip 659 의 −6% 이내). 결과 `eval/results/*_ide035_tau_sweep/` |
+| `IDE_036` | 활성 (2026-09-09 04:05) | **폴러 수준 빈 deferred 생략** — 235B M3 에서 cold 0.4개/층인데도 하이브리드가 GPU-only 보다 스텝 +7.5ms = 94층 × ~80µs 의 층당 고정비 (빈 deferred 작업 커널 진입 24 + wrapper 40 + 핸드오프). 폴러가 deferred 의 expert ids 를 훑어 cold 작업이 없으면 커널을 건너뛰고 출력 슬롯을 0 으로 채움 (`KT_CF_SKIP_EMPTY_DEF`) | 부모 = `IDE_033` 폴러 + M3 235B (`…_pln008_m3_235b/`). **사전 등록**: 235B hot-96 α C32 TPOT ≤24 (현 28.7; GPU-only 21.2) AND GSM40 ≥95; 480B C32 는 불변 (±3%). 결과 `eval/results/*_ide036_skipdef/` |
 
 ---
 

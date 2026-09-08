@@ -293,4 +293,5 @@ graph TD
     IDE_032 --> IDE_033["IDE_033<br/>Callback-free CPU↔GPU 핸드오프<br/>+빈 immediate 생략 +HT 형제 회피<br/>(hot-96 C32 600 / C64 786, kill 통과)"]
     IDE_033 --> IDE_034["IDE_034<br/>Phase-가중 hot set α=0.25<br/>(C32 661 / C64 884, GSM100 94)"]
     IDE_034 --> IDE_035["IDE_035<br/>가중치 임계 τ deferral<br/>(정확도–처리량 곡선)"]
+    IDE_033 --> IDE_036["IDE_036<br/>폴러 수준 빈 deferred 생략<br/>(235B 층당 고정비 80µs)"]
 ```
