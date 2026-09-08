@@ -29,7 +29,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 구현 후보 단계. profile / 측정 결과로 진입·기각 판정 후에야 다음 단계 prefix(`PLN` 등) 로 파생된다.
 
-**다음 부여 번호**: `IDE_034`
+**다음 부여 번호**: `IDE_035`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
@@ -54,7 +54,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_030` | 활성 (2026-08-30) | **Build 트랙: gap-closing** — 하한을 야드스틱으로, 결핍 기전 3개 (hot 배치·overlap 바닥·소켓 분할) 를 구현해 routing-aware bound 의 85% 도달 목표 | 부모 = 사용자 승인 ("해봐") + `IDE_029` 기전 승계. 본문 = `brainstorming/problem_search_20260829.md` §11, 플랜 = `PLN_007` |
 | `IDE_031` | 활성 (2026-09-08, PLN_008 승인) | **DDR-대역폭 예산 하의 하이브리드 MoE 메모리 분할** — GPU 메모리를 hot expert 와 KV 에 어떻게 나눌지를, 밖으로 내보낸 것이 모두 DDR 대역폭을 소모한다는 제약 아래 결정하는 기계적 비용 모델 + 분할 정책 | 부모 = `IDE_030` 실측 (CPU 구간 = DDR 천장, hot-96 +53%, hot↔KV 교환) + `IDE_029` 기전 4개 승계 (기각된 스펙-only 하한 모델을 마이크로벤치 기계 모델로 대체). 플랜 = `PLN_008` |
 | `IDE_032` | **기각 확정** (2026-09-09 00:10 — 동일 KV 131K 공정비교: N=8 vs N=4 = C32 +4.4% / C64 −1.5%. deferral 효과 ≈0. 부수 발견: hot-80+KV131K C64 487 tok/s = 기존 최종(408) 대비 +19% → 최적 H 는 동시성 의존 [C32→hot-96, C64→hot-80]) | **배치-인지 Expert Deferral (Placement-Aware Deferral)** — KTransformers 의 가중치-순위 deferral 은 hot/cold 토폴로지에서 CPU cold expert 를 N/8 만 미루므로 (topk 덤프 실측) CPU/GPU 겹침이 안 생김. 대신 **장치 기준**으로 cold(CPU) expert 기여 전량을 다음 층에 더하고 hot(GPU) 은 즉시 계산 → 층 L 의 CPU 작업이 층 L+1 의 GPU 전체 밑에 숨음. 가중치 임계 τ 로 정확도 제어. 모델 예측: hot-96 스텝 39→~28ms (+40%), hot-80 66→~40 (+65%) | 부모 = `IDE_031` 측정 (직렬 스텝·deferral 적중 N/8·숨김 창) + `IDE_030` hot-96. **사전 등록 kill test**: hot-96 N=8 C=32 ≥600 tok/s (현 490.9) AND GSM8K40 ≥95% → 진입; 미달 시 기각. 결과 `eval/results/*_ide032_colddefer_kill/` |
-| `IDE_033` | 활성 (2026-09-09 00:15) | **Callback-free CPU↔GPU 핸드오프** — KT 의 층당 host 콜백 노드 3개 (submit imm/def, sync) 를 mapped-memory 플래그 + 스트림 memop + CPU 폴러 스레드로 대체. 프로파일 기전: hot-96 N=8 스텝 32.2ms 중 유휴 8.7ms 가 층당 2 사이트 × ~50µs 의 host 노드 디스패치 (CPU 대기 0) | 부모 = `IDE_032` 프로파일 (deferral 은 CPU 를 숨겼으나 host 노드 바닥이 남음) + `IDE_030` 신호식 대기 C++ (CPU→GPU memop 완료 통지, 재사용). **사전 등록 kill test**: hot-96 N=8 C32 ≥580 tok/s (현 505, +15%) AND GSM40 ≥95%. 설계 `features/IDE_031/IDE_033_hostnode_free_handoff_design.md` |
+| `IDE_033` | 활성 (2026-09-09 00:15) — **kill 통과 (01:00)** | **Callback-free CPU↔GPU 핸드오프** — KT 의 층당 host 콜백 노드 3개 (submit imm/def, sync) 를 mapped-memory 플래그 + 스트림 memop + CPU 폴러 스레드로 대체. 프로파일 기전: hot-96 N=8 스텝 32.2ms 중 유휴 8.7ms 가 층당 2 사이트 × ~50µs 의 host 노드 디스패치 (CPU 대기 0) | 부모 = `IDE_032` 프로파일 (deferral 은 CPU 를 숨겼으나 host 노드 바닥이 남음) + `IDE_030` 신호식 대기 C++ (CPU→GPU memop 완료 통지, 재사용). **사전 등록 kill test**: hot-96 N=8 C32 ≥580 tok/s (현 505, +15%) AND GSM40 ≥95%. 설계 `features/IDE_031/IDE_033_hostnode_free_handoff_design.md`. **결과**: CF 단독 +5.1% (531) → TaskQueue 계측으로 CPU-bound 확인 → (b) 빈 immediate 생략 +8.3% (575) → (c) 스핀 스레드의 AMX 워커 HT 형제 회피 +4.3% (600, TTFT −22~68%). hot-96 N=8 C32 **600** (+22.5%), C64 **760~786** (+86~93%), GSM40 97.5%; hot-80 C32 430 / C64 560. 결과 `eval/results/20260909_00{2112_ide033_cf_kill,2717_ide033_cf_diag,3*_ide033b_skipimm_pin,5*_ide033_phase_prof}/` |
+
+| `IDE_034` | 활성 (2026-09-09 01:12) | **Decode-phase 라우팅 기반 hot set (phase-aware hotmap)** — AMX 커널 phase 분해에서 hot-96 decode 층당 distinct cold expert 실측 중앙값 6 (prompt 트레이스 기대 3.2). 현행 hotmap 은 prompt 구간 라우팅 빈도로 선정되어 decode 생성 토큰의 커버리지가 낮다는 가설. 입력 64/출력 512 워크로드로 decode 트레이스 수집 → 층별 빈도순 hotmap 재구성 → hot-96 N=8 (IDE_033 스택) C32/C64/GSM40 재측정 + phase 분해로 D_c 감소 직접 확인 | 부모 = `IDE_033` phase 분해 (`…_ide033_phase_prof/RESULTS.md`). **사전 등록**: 통과 = decode D_c 중앙값 6 → ≤4.5 AND C32 ≥640 tok/s (현 600) AND GSM40 ≥95. 결과 `eval/results/*_ide034_decode_hotmap/` |
 
 ---
 
