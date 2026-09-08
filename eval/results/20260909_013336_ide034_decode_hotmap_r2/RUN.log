@@ -1,0 +1,22 @@
+trace boot ok 110s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+record start
+trace_in512_out128 C32 in512/out128: 542.73 tok/s, TPOT 46.05  (트레이스 수집용: 측정 워크로드와 동일)
+files 4
+decode passes 512
+layers 62 experts 160 tokens 16384.0
+prompt-derived(current) H=80: coverage 0.9188 E[D_cold](B=32) 14.53
+prompt-derived(current) H=96: coverage 0.9598 E[D_cold](B=32) 7.81
+decode-derived(new) H=80: coverage 0.9501 E[D_cold](B=32) 10.39
+decode-derived(new) H=96: coverage 0.9790 E[D_cold](B=32) 4.73
+hot-96 overlap per layer: mean 85.4 min 80
+saved /tmp/hotmap_decode2.json
+dec boot ok 110s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+  greedy: ' Paris, which is located in the northern part of the country. It is kn'
+  greedy: '\n    #write your code here\n    if n < 0:\n        return -1\n    elif n '
+dec_c32 C32 in512/out128: 554.10 tok/s, TPOT 38.02  (prompt-hotmap 580~600/43.5, in64-decode-hotmap 556/45.4)
+dec_c64 C64 in512/out128: 762.83 tok/s, TPOT 56.95  (prompt-hotmap 기준 760~786)
+DEC GSM40: ACC 0.975 (39/40)
+  decode(qlen16..40,numa0) n=495 act_exp median=4 mean=4.30 total median=352
+  wrap decode n=504 numa_job median=356.5 merge median=17.0 p90 merge=24
