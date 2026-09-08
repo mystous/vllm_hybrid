@@ -291,5 +291,6 @@ graph TD
     IDE_031 --> PLN_008["PLN_008<br/>K1 정독 → M0 모델 → M1 사전예측<br/>→ M2 정책+HiCache → M3 평가"]
     PLN_008 --> IDE_032["IDE_032<br/>배치-인지 cold deferral<br/>(기각: 처리량 +3%, 프로파일로 기전 특정)"]
     IDE_032 --> IDE_033["IDE_033<br/>Callback-free CPU↔GPU 핸드오프<br/>+빈 immediate 생략 +HT 형제 회피<br/>(hot-96 C32 600 / C64 786, kill 통과)"]
-    IDE_033 --> IDE_034["IDE_034<br/>Decode-phase 라우팅 hot set<br/>(D_c 실측 6 vs 기대 3.2)"]
+    IDE_033 --> IDE_034["IDE_034<br/>Phase-가중 hot set α=0.25<br/>(C32 661 / C64 884, GSM100 94)"]
+    IDE_034 --> IDE_035["IDE_035<br/>가중치 임계 τ deferral<br/>(정확도–처리량 곡선)"]
 ```
