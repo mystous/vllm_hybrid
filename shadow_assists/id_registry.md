@@ -29,7 +29,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 구현 후보 단계. profile / 측정 결과로 진입·기각 판정 후에야 다음 단계 prefix(`PLN` 등) 로 파생된다.
 
-**다음 부여 번호**: `IDE_031`
+**다음 부여 번호**: `IDE_032`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
@@ -52,6 +52,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_028` | 대기 (2026-08-27, 예비) | 통합 Speculative Prefetch Oracle | draft 신호 (router 출력 + sparse 접근) 로 expert·KV·weight tier 선반입의 단일 추상화. composition 성격 → IDE_026 확장 섹션으로 흡수 권장. 본문 = 동 문서 §4 |
 | `IDE_029` | **기각** (2026-08-30, K2 오차중앙값 56%·K3 방향 반대 — 사전등록 게이트 FAIL. 기전 4개+능력기록 보존) | **PlacementBound — MoE 배치의 데이터 이동 하한** | 부모 = 사용자 지시 (HPC 고전 기법 이식, 탐색 5라운드) + `IDE_027` 골격 승계 (하한 형식화로 '확인적' 기각 사유 해소). 초록·kill-test = `brainstorming/problem_search_20260829.md` §8. 실험 플랜 = `PLN_006` |
 | `IDE_030` | 활성 (2026-08-30) | **Build 트랙: gap-closing** — 하한을 야드스틱으로, 결핍 기전 3개 (hot 배치·overlap 바닥·소켓 분할) 를 구현해 routing-aware bound 의 85% 도달 목표 | 부모 = 사용자 승인 ("해봐") + `IDE_029` 기전 승계. 본문 = `brainstorming/problem_search_20260829.md` §11, 플랜 = `PLN_007` |
+| `IDE_031` | 활성 (2026-09-08, PLN_008 승인) | **DDR-대역폭 예산 하의 하이브리드 MoE 메모리 분할** — GPU 메모리를 hot expert 와 KV 에 어떻게 나눌지를, 밖으로 내보낸 것이 모두 DDR 대역폭을 소모한다는 제약 아래 결정하는 기계적 비용 모델 + 분할 정책 | 부모 = `IDE_030` 실측 (CPU 구간 = DDR 천장, hot-96 +53%, hot↔KV 교환) + `IDE_029` 기전 4개 승계 (기각된 스펙-only 하한 모델을 마이크로벤치 기계 모델로 대체). 플랜 = `PLN_008` |
 
 ---
 
@@ -59,7 +60,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 IDE 의 진입·정확도·throughput 가정을 풀기 위한 PoC / microbench 플랜. PLN 결과에 따라 `FEA_###` 진입 또는 IDE 기각.
 
-**다음 부여 번호**: `PLN_008`
+**다음 부여 번호**: `PLN_009`
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
@@ -68,6 +69,7 @@ IDE 의 진입·정확도·throughput 가정을 풀기 위한 PoC / microbench �
 | `PLN_005` | **완료 — C1 기각** (2026-08-29, 사전등록 게이트: K2 +0.0%p FAIL / K3 음수 FAIL / K1 통과) | C1 탐색-네이티브 서빙 kill-test (K1 문헌 / K2 스케줄 순서 효과 / K3 eviction 정책 효과) | 부모 = C-트랙 (`brainstorming/problem_search_20260829.md` §4). GSM8K 100문제 × 12가지 세그먼트 트리 1회 생성 후 오프라인 정책 재생. 게이트: K2 ≥+5%p / K3 ≥+2%p / K1 정면 선행 <2. 결과: `eval/results/*_pln005_killtest/` |
 | `PLN_006` | **완료 — 기각 판정** (2026-08-30) | PlacementBound 실험 플랜 (K1 문헌 / E0 모델+재예측 / E1 사전예측 / E2 비자명 예측) | 부모 `IDE_029`. 사전등록 예측 방식 (predictions.json 을 측정 전 커밋). 게이트: K1 선행<2 / E1 중앙값 오차 ≤±30% / E2 비자명 예측 방향 일치 ≥1. 본문 = `features/IDE_029/PLN_006.md` |
 | `PLN_007` | **완료 — 최종 +171% 확정** (2026-08-30, x=64 최적: 152.6 tok/s @C32, GSM8K 95.0% 게이트 통과) | Build 트랙 1단계: EPLB 맵 주입 hot-expert 배치 (무패치: --init-expert-location + --ep-dispatch-algorithm static + kt x=32) | 부모 `IDE_030`. 사전 예측: ⓐ 96thr+hot32 이득 ≈0 (floor 288ms binding) ⓑ 48thr+hot32 → TPOT ~288ms 도달 (= 절반 CPU 로 96thr 성능) ⓒ 따라서 dual×(48thr+hot32) 합산 ~110 tok/s @총32 (현 68.9 대비 +60%) |
+| `PLN_008` | 활성 (2026-09-08 — K1 조건부 통과: D1 부분선행 3편으로 주장③ 보조 강등, D2 중단조건 미발동, H축 전이 선행 0. M0 파라미터 8종 확보·게이트 미통과(중앙값 18%), M1 12셀 예측 등록 대기) | IDE_031 연구 플랜: K1 22편 전문 정독 (3일) → M0 기계 모델 v2 + 재예측 ±20% (4~5일) → M1 사전 예측 12셀 무작위+극단 (2~3일) → M2 분할 정책 + HiCache 통합 (5~6일) → M3 480B·235B·30B × 워크로드 3종 (6~7일) → 워크샵 8쪽 집필. 총 4~5주 | 부모 `IDE_031`. 사전등록·순환적합 금지 규율은 `PLN_006` 승계. 본문 = `features/IDE_031/PLN_008.md` |
 | `PLN_004` | **E0~E4 완료 / E5 보류** (2026-08-29) | SCED 실험 플랜 (이론·가설·절차) | 부모 `IDE_026`. **판정: H1 ✅ (knee, 43~53×) / H2 부분 (expert 한정) / H3 ❌ 기각 (eager 체제 M 32·128, 기전 규명) / H4 부분 (spec 1.45~1.55×) / H5 축소판 ((G,K) 비분리, best G32-K3 817 tok/s) / H6 미검**. ★ 신규 발견 = curvature 역전 (microbench knee 의 시스템 발현 포착). 논문 서사 = 측정-중심 pivot. 결과: `eval/results/20260829_*_pln004_*` (E0/E1/E3 RESULTS + E4_RESULTS). E5 는 `SUB_167` 게이트 |
 | `PLN_003` | 활성 (2026-08-27) | Hybrid Regime Sweep — violet-h100-016 캠페인 | 부모 `IDE_023`/`IDE_024`/`IDE_025`. 신규 노드에서 가능한 모든 hybrid 경로 동시 검증: `TSK_046` (baseline re-anchor) → `TSK_045` (KV tier) → `TSK_044` (co-location) ∥ `TSK_043` (MoE offload, long-pole). 본문 = `features/IDE_023/PLN_003.md`, 진행 로그 = `features/IDE_023/PROGRESS_20260827.md` (10분 단위) |
 

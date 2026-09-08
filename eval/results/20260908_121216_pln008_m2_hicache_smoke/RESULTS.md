@@ -1,0 +1,3 @@
+# PLN_008 M2 선행 — HiCache × KTransformers 동시 사용 생존 시험 (2026-09-08 12:12)
+- 구성: hot-96 + deferred 4 + `--enable-hierarchical-cache --hicache-size 64` (rank 당 host 풀 1,008,065 토큰 / 64 GB, HiRadixCache attached). 부팅 160초, greedy 정상, 32 동시 버스트 32/32 (3.6초). **생존.**
+- 의미 주의: SGLang HiCache 는 **prefix 캐시의 host 계층** (evict 된 KV 를 host 에 보관해 prefix 재사용) 이며, 실행 중 요청의 KV 를 host 에 두는 offload 가 아니다. 따라서 "GPU KV 를 줄여 hot expert 를 늘린다" 는 그대로는 성립하지 않고, (a) 공유 prefix·멀티턴 워크로드에서 prefill 재계산을 host 읽기로 대체 → GPU KV 는 활성 토큰만 → 같은 GPU 예산으로 더 많은 동시성 또는 더 많은 hot expert (b) host 읽기가 DDR 을 expert 스트리밍과 나눔 — 이 두 항이 정책 변수. 실행 중 KV 의 host 배치는 `enable_unified_memory` (UVM) 가능성 확인 중.

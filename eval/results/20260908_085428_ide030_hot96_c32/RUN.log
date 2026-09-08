@@ -1,0 +1,40 @@
+== DDR BW 08:54:28 ==
+copy 2GB (r+w 4GB): 191 GB/s  (threads=96)
+copy 2GB (r+w 4GB): 246 GB/s  (threads=96)
+copy 2GB (r+w 4GB): 249 GB/s  (threads=96)
+read-only sum 2GB: 348 GB/s
+read-only sum 2GB: 388 GB/s
+read-only sum 2GB: 387 GB/s
+== BOOT hot-96 mf=0.85 08:54:36 ==
+BOOT_FAIL at 90s
+TP Load from loader
+TP MOE[2026-09-07 23:56:05 TP0] Load weight end. elapsed=55.01 s, type=Qwen3MoeForCausalLM, quant=fp8, avail mem=8.45 GB, mem usage=68.96 GB.
+[2026-09-07 23:56:06 TP0] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5048, in run_scheduler_process
+    scheduler = Scheduler(
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 1002, in init_model_worker
+    self.init_memory_pools()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 968, in init_memory_pools
+    self.init_target_memory_pool()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 964, in init_target_memory_pool
+    self.tp_worker.alloc_memory_pool()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 403, in alloc_memory_pool
+--
+ValueError: Loaded weights leave no GPU memory for the KV cache under --mem-fraction-static=0.85. Raise --mem-fraction-static above 0.892 (minimum viable = 1 - available/pre = 0.8913). If using speculative decoding, draft weights are now counted.
+
+[2026-09-07 23:56:06 TP3] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5048, in run_scheduler_process
+    scheduler = Scheduler(
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 1002, in init_model_worker
+    self.init_memory_pools()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 968, in init_memory_pools
+    self.init_target_memory_pool()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 964, in init_target_memory_pool
+    self.tp_worker.alloc_memory_pool()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 403, in alloc_memory_pool

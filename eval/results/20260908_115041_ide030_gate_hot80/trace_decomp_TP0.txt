@@ -1,0 +1,6 @@
+graph launches: 5  host dur(ms): [308.5, 26.8, 28.8, 35.5, 30.0]
+step0: span 318.3 ms | kernel 102.9 x2231 | memcpy 58.5 | idle 157.3 (gaps>50us: 104, 151.5 ms) | top: fused_moe_kernel 46.0, _w8a8_block_fp8_matmul 16.1, ncclDevKernel_AllReduc 14.3, _fwd_kernel 4.9
+step1: span 33.5 ms | kernel 14.5 x1494 | memcpy 1.9 | idle 17.6 (gaps>50us: 37, 13.2 ms) | top: fused_moe_kernel 6.0, _w8a8_block_fp8_matmul 2.7, void flashinfer::trtll 1.2, triton_per_fused_copy_ 0.9
+step2: span 33.8 ms | kernel 15.6 x1522 | memcpy 1.9 | idle 16.7 (gaps>50us: 42, 12.4 ms) | top: fused_moe_kernel 7.1, _w8a8_block_fp8_matmul 2.7, void flashinfer::trtll 1.2, triton_per_fused_copy_ 0.9
+step3: span 40.1 ms | kernel 18.6 x1673 | memcpy 2.1 | idle 19.9 (gaps>50us: 51, 15.2 ms) | top: fused_moe_kernel 9.2, _w8a8_block_fp8_matmul 3.0, void flashinfer::trtll 1.4, triton_per_fused_copy_ 1.0
+AVG(step1+): span 35.8 ms | kernel 16.2 | memcpy 2.0 | idle 18.1

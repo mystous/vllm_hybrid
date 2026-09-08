@@ -1,0 +1,78 @@
+== BOOT 08:20:23 env: SGL_INTERLEAVE=1 SGL_IL_LADDER=1  ==
+BOOT_FAIL at 150s
+[kt-signal] cudaHostAlloc FAILED err=900
+Fatal Python error: Aborted
+
+Thread 0x00007ead75fff6c0 (most recent call first):
+  File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/compile_worker/subproc_pool.py", line 76 in _recv_msg
+  File "/usr/local/lib/python3.12/dist-packages/torch/_inductor/compile_worker/subproc_pool.py", line 271 in _read_thread
+  File "/usr/lib/python3.12/threading.py", line 1010 in run
+  File "/usr/lib/python3.12/threading.py", line 1073 in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1030[kt-signal] cudaHostAlloc FAILED err=900
+ in _bootstrap
+
+Thread 0x00007ead9dfff6c0 (most recent call first):
+  File "/usr/lib/python3.12/threading.pyFatal Python error: "Aborted, line 
+
+359Thread 0x in 00007f1ed7fff6c0wait (most recent call first):
+
+  File   File ""/usr/lib/python3.12/threading.py/usr/lib/python3.12/threading.py"", line , line 359655 in  in waitwait
+
+  File   File ""/usr/lib/python3.12/threading.py/usr/local/lib/python3.12/dist-packages/tqdm/_monitor.py"", line , line 65569 in  in waitrun
+
+  File   File ""/usr/local/lib/python3.12/dist-packages/tqdm/_monitor.py/usr/lib/python3.12/threading.py"", line , line 691073 in  in run_bootstrap_inner
+
+  File   File ""/usr/lib/python3.12/threading.py/usr/lib/python3.12/threading.py"", line , line 10301073 in  in _bootstrap_bootstrap_inner
+
+
+  File Thread 0x"00007ee817fff6c0/usr/lib/python3.12/threading.py (most recent call first):
+"  File , line "1030/usr/lib/python3.12/threading.py in "_bootstrap, line 
+359
+ in Thread 0xwait00007f1efffff6c0
+ (most recent call first):
+  File   File ""/usr/lib/python3.12/threading.py/usr/local/lib/python3.12/dist-packages/torch/_inductor/compile_worker/subproc_pool.py"", line , line 65576 in  in wait_recv_msg
+
+  File   File ""/usr/local/lib/python3.12/dist-packages/tqdm/_monitor.py/usr/local/lib/python3.12/dist-packages/torch/_inductor/compile_worker/subproc_pool.py"", line , line 69271 in  in run_read_thread
+
+--
+"  File /sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py""/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py, line "1014 in , line [kt-signal] cudaHostAlloc FAILED err=900
+forward1821
+ in   File inner"
+/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py  File "", line /usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py124"Fatal Python error:  in , line Aborteddecorate_context1884
+
+
+ in   File Thread 0x"_call_impl00007fd763fff6c0/sgl-workspace/sglang/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py
+ (most recent call first):
+"  File   File , line ""1193/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py/usr/lib/python3.12/threading.py in ""run_once, line 
+, line 1778  File 359 in " in _wrapped_call_impl/sgl-workspace/sglang/python/sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.pywait
+"
+  File , line   File "136"/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py in /usr/lib/python3.12/threading.py"capture_one"
+, line , line   File 980655" in  in /sgl-workspace/sglang/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.pyforwardwait"
+
+  File , line   File "1231"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py in /usr/local/lib/python3.12/dist-packages/tqdm/_monitor.py"capture_one_shape", line 
+, line   File 178969" in  in /sgl-workspace/sglang/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py_call_implrun"
+
+  File , line   File "1114" in /usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py/usr/lib/python3.12/threading.py_capture_one_stream""
+, line   File 1778, line " in 1073/sgl-workspace/sglang/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py_wrapped_call_impl in "
+_bootstrap_inner  File , line 
+1045"  File  in /sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py"capture"/usr/lib/python3.12/threading.py
+, line "  File 1014, line " in 1030/sgl-workspace/sglang/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.pyforward in "
+_bootstrap  File 
+"
+, line /usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.pyThread 0x466"[kt-signal] cudaHostAlloc FAILED err=900
+00007fd78bfff6c0 in , line  (most recent call first):
+  File "/sgl-workspace/sglang/python/sglang/launch_server.py", line 70, in <module>
+    run_server(server_args)
+  File "/sgl-workspace/sglang/python/sglang/launch_server.py", line 53, in run_server
+    launch_server(server_args)
+  File "/sgl-workspace/sglang/python/sglang/srt/entrypoints/http_server.py", line 2797, in launch_server
+    ) = Engine._launch_subprocesses(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/entrypoints/engine.py", line 1225, in _launch_subprocesses
+    scheduler_init_result.wait_for_ready()
+  File "/sgl-workspace/sglang/python/sglang/srt/entrypoints/engine.py", line 948, in wait_for_ready
+    infos = _wait_for_scheduler_ready(scheduler_pipe_readers, scheduler_procs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/entrypoints/engine.py", line 1820, in _wait_for_scheduler_ready
+    raise _scheduler_died_error(j, scheduler_procs[j])
+RuntimeError: Rank 1 scheduler died during initialization (exit code: -6). If exit code is -9 (SIGKILL), a common cause is the OS OOM killer. Run `dmesg -T | grep -i oom` to check.

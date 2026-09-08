@@ -283,4 +283,10 @@ graph TD
     UH["사용자 지시 (08-30)<br/>HPC 고전 기법 이식"] --> IDE_029["IDE_029<br/>PlacementBound<br/>데이터 이동 하한"]
     IDE_027["IDE_027<br/>regime atlas (보류)"] -.골격 승계.-> IDE_029
     IDE_029 --> PLN_006["PLN_006<br/>K1/E0/E1/E2 게이트"]
+    IDE_029 --> IDE_030["IDE_030<br/>Build 트랙 gap-closing<br/>(hot expert 배치, 교차 실행 기각)"]
+    IDE_030 --> PLN_007["PLN_007<br/>EPLB hot 배치 (+171% → hot-96+def4 +53.5%)"]
+    UP["사용자 지시 (09-08)<br/>연구 결과로 도출"] --> IDE_031["IDE_031<br/>DDR 예산 하 메모리 분할<br/>(hot expert ↔ KV)"]
+    IDE_030 --> IDE_031
+    IDE_029 -.기전 4개 승계.-> IDE_031
+    IDE_031 --> PLN_008["PLN_008<br/>K1 정독 → M0 모델 → M1 사전예측<br/>→ M2 정책+HiCache → M3 평가"]
 ```

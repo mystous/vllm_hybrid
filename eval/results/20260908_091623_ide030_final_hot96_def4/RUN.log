@@ -1,0 +1,18 @@
+CMD: CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m sglang.launch_server --model-path /models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f --served-model-name q480 --host 127.0.0.1 --port 30000 --tp 4 --attention-backend triton --cuda-graph-backend-prefill disabled --mem-fraction-static 0.92 --max-total-tokens 24576 --context-length 32768 --kt-weight-path /models/kt/qwen3-480b-int4 --kt-method AMXINT4 --kt-cpuinfer 96 --kt-threadpool-count 2 --kt-num-gpu-experts 96 --init-expert-location /tmp/hotmap.json --ep-dispatch-algorithm dynamic --cuda-graph-max-bs 64 --kt-max-deferred-experts-per-token 4
+== BOOT 09:16:28 ==
+HEALTH_OK at 110s
+== GREEDY 4 ==
+' Paris.\nA. Correct\nB. Incorrect\nAnswer:\nA\n\nThe main reason for the formation of ' length
+'\n    if n == 0:\n        return 0\n    elif n == 1:\n        return 1' length
+' red, yellow, and blue. When mixed in equal amounts, they produce ____\nA. Green\n' length
+' 17 * 23 = (10 + 7) * 23 = 230' length
+== GSM 100 09:18:26 ==
+ACC 0.970 (97/100)
+== C=32 + 정상상태 프로파일 09:22:27 ==
+C=32: 462.14 tok/s, TPOT 54.19 ms
+4
+== C=16 ==
+C=16: 358.55 tok/s, TPOT 35.94 ms
+== C=64 ==
+C=64: 408.16 tok/s, TPOT 86.73 ms
+== DONE 09:25:38 ==
