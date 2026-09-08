@@ -24,7 +24,7 @@
 | FlexGen (ICML'23) | PDF | 아니오 (MoE) / 예 (dense: 가중치·KV 비율 9변수 LP 를 공통 I/O 항 아래 동시 결정) | 아니오 — "run profiling on the hardware to sample some data points and fit the hardware parameters", 오차 미보고 | 부분 — max(I/O, compute) 형태 | 가중치↔KV 공동 배치는 선행. 우리: MoE expert 집합 H + DDR 예산 + 사전등록 오차 |
 | **MoE-Lightning** (ASPLOS'25) | PDF | **부분 예** — (N, μ, Ag, Fg, rw, rc) 를 같은 comm_cpu_to_gpu 예산으로 결정 (단위 = 비율, 예산 = PCIe) | 부분 — "theoretically calculated … with profiled peak performance and memory bandwidth" (스펙+피크벤치), 오차 미보고 | **예** — HRM turning point P1/P2/balance point (Eq.9–11) | **최대 위협.** 남는 delta: H 축 전이, DDR 예산, 라우팅 트레이스 항, 절대 오차 사전등록, 온라인 서빙 |
 | NEO (MLSys'25) | PDF | 아니오 (dense, attention offload) | 아니오 (오프라인 프로파일 보간, 오차 미보고) | 부분 (출력 길이 축 balance point) | DDR 이 CPU attention 의 binding 자원이라는 실측은 선행 |
-| KTransformers (SOSP'25) | **아니오** (README·초록) | 아니오 (추측; H 는 사용자 파라미터) | 아니오 (추측) | 아니오 (추측; AMX↔AVX 임계만) | 우리 기반 시스템. **전문 확인 전 판정 보류** — madsys PDF 필요 |
+| KTransformers (SOSP'25) | **PDF (사용자 반입, 14:10)** | 아니오 — shared expert GPU / routed expert CPU, hot expert 수 변수 아님, KV GPU | 아니오 — 성능 모델 없음, 실측 speedup 만 | 아니오 — 배치 1, deferral 개수 = 단일 층 타임라인 실측 → "CPU 포화까지" 휴리스틱 | 기반 시스템. H 축·KV 결합·사전 예측·온라인 배치 서빙이 빈자리. deferral 창 기전은 우리 모델 항과 일치 (`ktransformers_sosp25_full.md`) |
 | Fiddler (ICLR'25) | PDF | 아니오 (용량 순 popularity 배치, KV 없음) | 부분/아니오 (초기화 마이크로벤치 상수, 처리량 예측 없음) | 부분·정성 (입력 크기 임계) | batch-1 지연, PCIe 중심 |
 | HybriMoE (DAC'25, 2504.05897) | PDF | 아니오 | 아니오 (warmup 프로파일) | 아니오 | kt 기반 단일 요청 지연. 하 |
 | MoE-Gen (2503.09716) | PDF | **부분 예** — S_Params (GPU 상주 파라미터) 와 ω (KV PCIe/CPU) 를 공통 HtoD 예산으로 탐색 | 아니오 (오프라인 프로파일, 오차 없음) | 부분·실측 (ω breakeven ≈60%) | GPU 메모리를 파라미터 캐시에 쓰면 링크 예산이 풀린다는 인식은 선행 (PCIe) |
@@ -44,7 +44,7 @@
 
 판정 (8편): D1 0편 / D2 완전 0편·부분 1편 (Klotski) / D3 완전 0편·경험적 부분 3편 (ProMoE·Klotski·TriMoE). H 축 전이점을 모델로 사전 예측한 선행 없음.
 
-## K1 판정 (2026-09-08 13:00, 21/22편 전문·1편 미확보)
+## K1 판정 (2026-09-08 14:10 확정, **22/22편 전문**)
 - **D1** (expert 상주 + KV 배치를 공통 대역폭 예산으로 함께 결정, MoE 맥락): 완전 일치 0편, **부분 일치 3편** — MoE-Lightning (비율, PCIe 예산), MoE-Gen (S_Params+ω, PCIe 예산), CoX-MoE (VRAM 용량 예산, AMX cold + GPU hot 상주). 사전 등록 규칙 "≥1 → 주장 ③ 보조 강등" 을 **발동**으로 판정 (부분 일치라도 "함께 결정" 의 핵심이 선행됨).
 - **D2** (마이크로벤치/스펙-only 파라미터 → 하이브리드 MoE 처리량 사전 예측 + 오차 보고): 완전 0편. 형식 선례 MoE-Lens (평균 94%, 파라미터 = 실측 B_IO 상수 + GPU 프로파일 직선, 사전등록 없음), MoE-Lightning (스펙+피크벤치, 오차 미보고). **연구 중단 조건 (≥2) 미발동.** 셀별 오차 분포·사전등록은 0편.
 - **D3** (전이점 명시): MoE-Lightning (HRM turning points, 배치·비율 축), MoE-Lens (KV 용량 축), CoX-MoE (micro-batch 축), MoE-SpeQ (k 축). **hot expert 수 H 축 (DDR 대역폭 ↔ GPU expert 연산) 전이는 0편.**
@@ -55,4 +55,4 @@
 2. **주력 ②**: 위 모델의 예측력 자체 (격자 12셀, 중앙값 ≤20%, 순위 일치) — 선행은 평균 한 숫자·사후 비교뿐.
 3. **보조 ③ (강등)**: KV 호스트 읽기와 cold 스트리밍의 DDR 경합 항 — HiCache 멀티턴 셀에서 binding 여부를 실측해 MoE-Lens 의 비-binding 결론이 어느 조건에서 뒤집히는지 보고. 정책 (H·KV 분할) 은 이 결과에 따라 본문 또는 부록.
 - 무대 (온라인) 와 토폴로지 (CPU cold expert + GPU hot expert) 는 CoX-MoE·KTransformers 와 겹치므로 단독 delta 로 주장하지 않음.
-- 미완: KTransformers SOSP'25 전문 (madsys PDF) — 본문에 GPU expert 수별 병목 분석이 있으면 주장 ① 의 delta 가 줄어듦. **확인 필수.**
+- KTransformers SOSP'25 전문 확인 완료 (사용자 반입): GPU expert 수별 병목 분석 없음 (배치 1, shared/routed 고정 배치) → 주장 ① delta 유지. **K1 최종: 조건부 통과** (주장 ③ 보조 강등).
