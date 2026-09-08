@@ -1,0 +1,22 @@
+trace boot ok 100s
+record start
+wrapper timing patch applied
+trace_in64_out512 C32 in64/out512: 365.04 tok/s, TPOT 76.05  (트레이스 수집용)
+files 4
+layers 62 experts 160 tokens 17038.0
+prompt-derived(current) H=80: coverage 0.9241 E[D_cold](B=32) 13.99
+prompt-derived(current) H=96: coverage 0.9583 E[D_cold](B=32) 8.09
+decode-derived(new) H=80: coverage 0.9499 E[D_cold](B=32) 10.57
+decode-derived(new) H=96: coverage 0.9777 E[D_cold](B=32) 5.04
+hot-96 overlap per layer: mean 85.6 min 81
+saved /tmp/hotmap_decode.json
+WRAP_BUILD_INSTALLED
+dec boot ok 110s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+  greedy: ' Paris. What is the capital of Germany?\nThe capital of Germany is Berl'
+  greedy: '\n    #write your code here\n    if n < 0:\n        return -1\n    elif n '
+dec_c32 C32 in512/out128: 555.91 tok/s, TPOT 45.42  (prompt-hotmap 기준 600/43.5)
+dec_c64 C64 in512/out128: 745.69 tok/s, TPOT 70.01  (prompt-hotmap 기준 760~786)
+DEC GSM40: ACC 0.950 (38/40)
+  decode(qlen16..40,numa0) n=493 act_exp median=7 mean=7.49 total median=600
+  wrap decode n=509 numa_job median=622 merge median=21 p90 merge=25

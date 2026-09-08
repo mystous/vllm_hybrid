@@ -29,3 +29,5 @@
 활성 expert 수별 total (numa0): 1:186 3:315 5:491 7:596 9:747 11:908 → 기울기 ≈ 72µs/expert (hot-96 과 동일 법칙). hot-80 도 distinct cold expert 가 트레이스 기대의 1.8배. TaskQueue 작업 평균 1.4ms − 커널 1.0ms = wrapper ≈ 0.3~0.4ms (hot-96 의 0.25 보다 큼: merge/합류가 expert 수·행 수와 함께 증가).
 
 **공통 법칙 (in-situ, B=32)**: CPU 층 작업 ≈ wrapper(0.25~0.35ms) + 90µs + 72µs × D_c, D_c(in-situ) ≈ 1.8~1.9 × D_c(prompt 트레이스 기대). → IDE_034 (decode hotmap) 와 wrapper 제거가 다음 두 손잡이.
+
+> **정정 (01:50)**: wrapper 오버헤드는 [kt-wrap] 직접 계측 결과 ≈40µs/층 (디스패치 20 + merge 21). 위의 0.2~0.35ms 추정은 TaskQueue 평균 vs 커널 중앙값 비교 오류. 손잡이 ① (wrapper 제거) 은 기각. 남는 것: D_c (hot set), expert 당 71µs ≈ 332GB/s (DDR 천장 ~80%).
