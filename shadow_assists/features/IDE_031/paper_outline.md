@@ -2,6 +2,8 @@
 
 **가제**: Predicting the Bottleneck Transition in CPU–GPU Hybrid MoE Serving: A Pre-registered Mechanistic Model for Hot-Expert Residency
 
+> **M1/v2 검증 반영 (09-08 19:55)**: 절대-TPOT ≤20% 게이트는 실패(중앙값 M1 52%·v2 새셀 60%, 전부 긴 컨텍스트 과소). 그러나 구성 **순위 일치는 M1 93%·새 셀 100%**, 짧은 컨텍스트 절대값 ±7~30%. → 주장을 "절대 예측"에서 "**순위·전이점 사전 예측 + 짧은 컨텍스트 절대 예측**"으로 조정. 긴 컨텍스트 절대 TPOT 는 명시적 future work.
+
 ## 1. Introduction (1쪽)
 - 문제: 480B급 MoE 를 GPU 4장 + 2소켓 Xeon 으로 서빙할 때, GPU 에 상주시킬 hot expert 수 H 는 운영자가 손으로 정한다 (KTransformers `--kt-num-gpu-experts`, CoX-MoE 정적 배치). H 를 늘리면 CPU 의 cold expert 스트리밍 (DDR 대역폭 한계) 이 줄지만 GPU expert 연산이 늘고 KV 자리가 준다.
 - 관찰 (실측): H=80 에서 스텝 66ms = GPU 26 + CPU 대기 40 (DDR-bound); H=96 에서 39ms = GPU 27.7 + CPU 대기 9.9 (GPU-expert-bound). 전이점이 H=80~96 사이에 있다. C=32 처리량 319.9 → 490.9 tok/s (+53.5%), GSM8K 97.0%.
