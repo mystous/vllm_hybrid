@@ -134,11 +134,21 @@ RETRO = [
 # decode 스텝 직접 실측 (프로파일): hot-96+def4 C≈32 정상 스텝 39.0 ms (커널 27.7 + 복사 1.9 + 유휴 9.9)
 PROFILE_STEPS = [dict(name="hot-96+def4 C32 decode step", C=32, H=96, N=4, kv_tokens=24576, step_ms=39.0)]
 
-def tpot_ms(C, H, ctx=640, deferred_N=0, kv_loc="gpu", kv_tokens=32768, routing=None):
+# M2 항 (M1 예측 동결 후 추가, 기본 OFF): HiCache 공유 prefix hit — prefill 토큰에서 공유 prefix 제외 + host 읽기 비용 (토큰당 µs, HiCache 단독 벤치로 채움)
+HICACHE = dict(enabled=False, host_read_us_per_token=None)
+
+def tpot_ms(C, H, ctx=640, deferred_N=0, kv_loc="gpu", kv_tokens=32768, routing=None, hicache_prefix_hit=False):
     r = step_ms(C, H, ctx, deferred_N, kv_loc, kv_tokens, routing)
+    if hicache_prefix_hit and HICACHE["enabled"]:
+        # prefix (in_total − in_unique) 는 host hit → prefill 비용에서 제외, 대신 host 읽기 비용 가산
+        prefix_tok = WORKLOAD["in_total"] - WORKLOAD["in_unique"]
+        r["hicache_prefix_tok"] = prefix_tok
     # 스텝당 prefill 정지 = B × (요청당 prefill 시간 at b_p) / 출력 토큰 수, retraction 재-prefill 포함
     b_p = PREFILL["bp_rule"](C)
     pre = r["B_eff"] * prefill_ms_per_request(b_p) / WORKLOAD["out"] * (1.0 + r["f_retract"])
+    if hicache_prefix_hit and HICACHE["enabled"] and HICACHE["host_read_us_per_token"] is not None:
+        frac = 1.0 - (WORKLOAD["in_total"] - WORKLOAD["in_unique"]) / WORKLOAD["in_total"]   # prefill 에 남는 토큰 비율
+        pre = pre * frac + r["B_eff"] * (WORKLOAD["in_total"] - WORKLOAD["in_unique"]) * HICACHE["host_read_us_per_token"] / 1e3 / WORKLOAD["out"]
     r["prefill_ms_per_out_tok"] = round(pre, 1); r["tpot_ms"] = round(r["step_ms"] + pre, 1)
     return r
 
