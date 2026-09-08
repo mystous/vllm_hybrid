@@ -18,3 +18,14 @@
 ## 판정
 1. 모델의 hot-96 CPU 항 (0.3ms) 이 in-situ (deferred 작업 평균 0.76ms) 대비 2.5배 과소인 이유 = 세 요인의 곱: (a) **층당 distinct cold expert 가 트레이스 기대 3.2 (B=32) 가 아니라 실측 중앙값 6, 평균 ≈6.5** (트레이스 18,776 토큰은 prompt 구간 라우팅; decode 생성 토큰은 hot-96 커버리지가 낮음) (b) expert 당 71µs (1.3×, GPU 트래픽·2소켓 동시 스트리밍 간섭) (c) 커널 밖 **wrapper 오버헤드 ≈0.2~0.25ms/작업** (do_numa_job 2-풀 디스패치/합류 + merge_results) — TaskQueue 작업 평균 0.76 vs 커널 total 중앙값 0.5.
 2. 다음 손잡이 (효과 크기 순): ① wrapper 0.2~0.25ms × 62층 = 12~15ms/스텝 (스텝 43ms 의 30%) — numa 디스패치 cv 대기·합류 스핀 구조 판독 후 제거 ② decode 라우팅 트레이스로 hotmap 재구성 (D_c 6.5 → 트레이스 기대치에 근접시키면 CPU 항 −30~40%) ③ expert 당 71→55µs (스트리밍 간섭 원인 규명).
+
+## hot-80, decode 호출 (qlen 16..40, 표본 992건, qlen=32) — 재현 C32 385.9 / C64 562.3
+| 항목 | numa0 | numa1 |
+|---|---|---|
+| act_exp 중앙값 | **12** (트레이스 기대 6.7) | 12 |
+| up_gate / down | 512 / 413 µs | 508 / 382 |
+| total | **1009** | 971 |
+| max_local_num | 3 | 3 |
+활성 expert 수별 total (numa0): 1:186 3:315 5:491 7:596 9:747 11:908 → 기울기 ≈ 72µs/expert (hot-96 과 동일 법칙). hot-80 도 distinct cold expert 가 트레이스 기대의 1.8배. TaskQueue 작업 평균 1.4ms − 커널 1.0ms = wrapper ≈ 0.3~0.4ms (hot-96 의 0.25 보다 큼: merge/합류가 expert 수·행 수와 함께 증가).
+
+**공통 법칙 (in-situ, B=32)**: CPU 층 작업 ≈ wrapper(0.25~0.35ms) + 90µs + 72µs × D_c, D_c(in-situ) ≈ 1.8~1.9 × D_c(prompt 트레이스 기대). → IDE_034 (decode hotmap) 와 wrapper 제거가 다음 두 손잡이.
