@@ -308,4 +308,5 @@ graph TD
     IDE_037 --> IDE_046
 ```
 
+- [성능 기록 2026-09-09 (보고서 제안 기준·최종 표·재현 명령)](../eval/results/PERFORMANCE_RECORD_20260909.md)
 - [CPU/호스트 활용 시도 전체 이력 (2026-04~09)](CPU_UTILIZATION_HISTORY_20260909.md) — 시도·개선·실패 연표와 분류
