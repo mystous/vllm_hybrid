@@ -41,7 +41,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_050` | **채택 (2026-09-09 17:55, 기본 PF=2)** | **AVX rb 커널 B 스트림 소프트웨어 prefetch** (`KT_AVX_PF=<2 KB 블록 거리>`) — 1행 expert 스트리밍이 소켓당 ~180 GB/s (DDR 피크 282 의 64%, torch 195) 에서 멈춤. 하드웨어 prefetcher 의 페이지 경계·MLP 한계를 SW prefetch 로 보완 | 부모 = `IDE_048`. **사전 등록**: 1행 µs/expert −7% 이상 (69 → ≤64) AND bit 동일. **결과**: 1행 69.7~70.6 → 65.6~66.0 µs (−6%), bit 동일; 원본 대비 누적 −13% (≈190 GB/s/소켓). `eval/results/20260909_170007_ide050_avx_prefetch/` |
 
-**다음 부여 번호**: `IDE_051`
+| `IDE_051` | 활성 (2026-09-09 18:55) | **gather+양자화 위상 융합** (`KT_FUSE_QIN=1`) — decode 규모 위상 분해 (24 cold expert, 1행): GEMM 2개 88% (소켓당 214 GB/s = DDR 피크 76%, 실용 상한), 나머지 5개 소위상 165 µs (11%) 는 장벽 지연. 토큰별 gather memcpy 와 expert 별 A 양자화를 한 위상으로 융합 (행을 BufferA 슬롯에 직접 양자화, bf16 복사본 제거) → 위상 1개·복사 1회 제거. 행 독립 스케일 → bit 동일 | 부모 = `IDE_046-b`, probe `20260909_174147_probe_decode_phase_threads`. **사전 등록**: 층당 (24 expert 1행) −90 µs 이상 (1493 → ≤1400) AND bit 동일 AND 서빙 C192 +3% 이상. 결과 `eval/results/*_ide051_fuse_qin/` |
+
+**다음 부여 번호**: `IDE_052`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
