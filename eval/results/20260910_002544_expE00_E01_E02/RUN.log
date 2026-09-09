@@ -22,3 +22,8 @@ C2 BOOT_OK 100s kv_tokens=63654 kv_dtype=torch.float8_e5m2 max_running_requests=
 C2_C224: [flush=200] tok/s 630.12, TPOT 151.33 (p99 188.29), TTFT p50 25375.68 p99 30562.33, B_decode(p50/max) 116/214  (C2: KV 를 A00 수준 63654 토큰으로 제한)
 C2_C64: [flush=200] tok/s 788.31, TPOT 61.16 (p99 73.79), TTFT p50 2782.34 p99 4051.03, B_decode(p50/max) 49/87  (C2 @C64)
 == TUNED-EXISTING (bf16 기준선에 동일 탐색 기회) + 각 구성 최적 C 00:56
+TUNED96 BOOT_OK 100s kv_tokens=63654 kv_dtype=torch.bfloat16 max_running_requests= gpu_mem_used=[78570 MiB 78640 MiB 78640 MiB 78160 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+TUNED96_C96: [flush=200] tok/s 889.19, TPOT 80.13 (p99 100.91), TTFT p50 3588.22 p99 6002.24, B_decode(p50/max) 60/96  (TUNED-EXISTING bf16 최적 C)
+TUNED96_C64: [flush=200] tok/s 812.82, TPOT 58.85 (p99 73.47), TTFT p50 2767.93 p99 3904.38, B_decode(p50/max) 50/96  (동일 C 대조)
+F96 BOOT_OK 100s kv_tokens=127309 kv_dtype=torch.float8_e5m2 max_running_requests= gpu_mem_used=[78578 MiB 78642 MiB 78642 MiB 78162 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+F96_C96: [flush=200] tok/s 876.16, TPOT 81.66 (p99 102.11), TTFT p50 3656.55 p99 6058.23, B_decode(p50/max) 59/96  (FP8, 같은 graph 상한)
