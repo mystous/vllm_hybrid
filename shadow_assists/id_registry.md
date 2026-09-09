@@ -53,7 +53,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_057` | **기각 (2026-09-09 21:10, 계측 게이트)** | **EPOCH-X / GRC 상한 계측: 층당 잔여 고정비 (~130 µs) 의 구성 분해** — callback-free 경로에서 submit→go(memop)→워커 시작→완료 플래그→GPU 재개 각 구간을 계측해, host 를 완전히 없앤 continuation 이 실제로 회수 가능한 µs 를 산정 | 부모 = EPOCH-X 문서 GRC, `IDE_033`. **사전 등록**: 회수 가능 구간이 층당 30 µs 이상이면 프로토타입 진행, 아니면 기각. **결과**: 빈 핸드오프(CPU 작업 0) = host 콜백 82 µs / callback-free 67 µs / graph 재생 56 µs (T=1), T=32 는 138/106/104. 남은 바닥은 activation 복사·워커 디스패치가 지배하고 동기화 잔여분은 memop 1회 수준 → 회수 <30 µs. `eval/results/20260909_*_ide057_grc_probe/` |
 
-**다음 부여 번호**: `IDE_058`
+| `IDE_058` | 활성 (2026-09-10 00:20, 사용자 반입 실행계획서) | **EPOCH 실행계획서 묶음 A+B: EXP-E00 (구성·지표 고정) / E01 (44% 재현, 특히 기록에 없던 최종 B 구성의 C64) / E02 (KV × graph 2×2 + capacity-cap 대조군)** — 문서 `shadow_assists/brainstorming/epoch_experiment_plan_20260909.md` 의 §5~8. 공통 고정: hot-96 α0.25, common R, Dτ, chunk 4096, mixed off, mem 0.94. 셀: A00(K0+G0)/A10(F+G0)/A01(K0+GS)/A11(F+GS) @graph max 64 × C32/C64, BREPRO(graph 224 sparse) @C64/C224, C1(admission 64 제한), C2(KV 를 A00 풀 수준으로 제한) | 부모 = `IDE_039`, `IDE_049`. **판정 기준 (문서 §8.5)**: A11 이 A00 보다 큰 실행 가능 동시성을 주고 C1/C2 에서 줄어든 이득이 C3 에서 회복되면 capacity 경로 지지; 같은 C 에서도 빨라지면 그 몫은 실행 경로 효과. 결과 `eval/results/*_expE00_E01_E02/` |
+
+**다음 부여 번호**: `IDE_059`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
