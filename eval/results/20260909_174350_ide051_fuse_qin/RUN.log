@@ -1,0 +1,94 @@
+buffers: from_mat_row added
+moe_base: fuse gather+quantize patch applied
+== build 17:43:51
+INSTALLED
+BUILD_OK 17:47:03
+== decode phase (base) 17:47:03
+== rows 1 n_cold 24
+  n_cold= 24 T=    3 rows/expert=   1.0 us=   1601.4 us/expert=    66.7 us/row=66.73
+== rows 2 n_cold 24
+  n_cold= 24 T=    6 rows/expert=   2.0 us=   1735.5 us/expert=    72.3 us/row=36.16
+Profiling Results (numa[0]): activated_expert: 24, prepare: 2 us, cpy_input: 34 us, q_input: 95 us, up_gate: 837 us, act: 22 us, q_down: 13 us, down: 447 us, weight: 12 us, total: 1465 us, max_local_num: 1, qlen: 3
+Profiling Results (numa[0]): activated_expert: 24, prepare: 2 us, cpy_input: 76 us, q_input: 100 us, up_gate: 865 us, act: 49 us, q_down: 16 us, down: 459 us, weight: 15 us, total: 1585 us, max_local_num: 2, qlen: 6
+== decode phase (fuse) 17:47:14
+== rows 1 n_cold 24
+  n_cold= 24 T=    3 rows/expert=   1.0 us=   1628.3 us/expert=    67.8 us/row=67.85
+== rows 2 n_cold 24
+  n_cold= 24 T=    6 rows/expert=   2.0 us=   1757.2 us/expert=    73.2 us/row=36.61
+Profiling Results (numa[0]): activated_expert: 24, prepare: 2 us, cpy_input: 37 us, q_input: 83 us, up_gate: 876 us, act: 21 us, q_down: 11 us, down: 439 us, weight: 13 us, total: 1486 us, max_local_num: 1, qlen: 3
+Profiling Results (numa[0]): activated_expert: 24, prepare: 3 us, cpy_input: 66 us, q_input: 103 us, up_gate: 899 us, act: 47 us, q_down: 15 us, down: 476 us, weight: 14 us, total: 1627 us, max_local_num: 2, qlen: 6
+== decode phase (base) 17:47:25
+== rows 1 n_cold 24
+  n_cold= 24 T=    3 rows/expert=   1.0 us=   1606.1 us/expert=    66.9 us/row=66.92
+== rows 2 n_cold 24
+  n_cold= 24 T=    6 rows/expert=   2.0 us=   1735.5 us/expert=    72.3 us/row=36.16
+Profiling Results (numa[0]): activated_expert: 24, prepare: 2 us, cpy_input: 28 us, q_input: 85 us, up_gate: 882 us, act: 22 us, q_down: 12 us, down: 451 us, weight: 12 us, total: 1497 us, max_local_num: 1, qlen: 3
+Profiling Results (numa[0]): activated_expert: 24, prepare: 2 us, cpy_input: 58 us, q_input: 96 us, up_gate: 875 us, act: 47 us, q_down: 16 us, down: 474 us, weight: 12 us, total: 1584 us, max_local_num: 2, qlen: 6
+== decode phase (fuse) 17:47:35
+== rows 1 n_cold 24
+  n_cold= 24 T=    3 rows/expert=   1.0 us=   1695.2 us/expert=    70.6 us/row=70.63
+== rows 2 n_cold 24
+  n_cold= 24 T=    6 rows/expert=   2.0 us=   1838.1 us/expert=    76.6 us/row=38.29
+Profiling Results (numa[0]): activated_expert: 24, prepare: 2 us, cpy_input: 28 us, q_input: 84 us, up_gate: 795 us, act: 24 us, q_down: 13 us, down: 455 us, weight: 13 us, total: 1417 us, max_local_num: 1, qlen: 3
+Profiling Results (numa[0]): activated_expert: 24, prepare: 3 us, cpy_input: 80 us, q_input: 127 us, up_gate: 793 us, act: 67 us, q_down: 13 us, down: 471 us, weight: 14 us, total: 1570 us, max_local_num: 2, qlen: 6
+== prefill phase (base) 17:47:46
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  17809.5 us/expert=   278.3 us/row= 2.17
+Profiling Results (numa[0]): activated_expert: 64, prepare: 28 us, cpy_input: 772 us, q_input: 1550 us, up_gate: 6660 us, act: 436 us, q_down: 245 us, down: 6445 us, weight: 697 us, total: 16838 us, max_local_num: 128, qlen: 1024
+== prefill phase (fuse) 17:48:01
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  16178.7 us/expert=   252.8 us/row= 1.97
+Profiling Results (numa[0]): activated_expert: 64, prepare: 28 us, cpy_input: 927 us, q_input: 0 us, up_gate: 6250 us, act: 424 us, q_down: 368 us, down: 6253 us, weight: 670 us, total: 14924 us, max_local_num: 128, qlen: 1024
+numcheck fuse T=8 n_cold=8 max_abs_diff=0.000e+00
+numcheck fuse T=40 n_cold=8 max_abs_diff=9.766e-04
+numcheck fuse T=200 n_cold=8 max_abs_diff=1.953e-03
+numcheck fuse T=1024 n_cold=64 max_abs_diff=7.812e-03
+== decode phase qlen>=10 (n_cold 32, rows 3/6 → T 12/24) (base) 17:48:42
+== rows 3 n_cold 32
+  n_cold= 32 T=   12 rows/expert=   3.0 us=   2813.3 us/expert=    87.9 us/row=29.31
+== rows 6 n_cold 32
+  n_cold= 32 T=   24 rows/expert=   6.0 us=   2892.2 us/expert=    90.4 us/row=15.06
+Profiling Results (numa[0]): activated_expert: 32, prepare: 4 us, cpy_input: 13 us, q_input: 52 us, up_gate: 1388 us, act: 44 us, q_down: 11 us, down: 1114 us, weight: 13 us, total: 2643 us, max_local_num: 3, qlen: 12
+Profiling Results (numa[0]): activated_expert: 32, prepare: 4 us, cpy_input: 18 us, q_input: 93 us, up_gate: 1385 us, act: 41 us, q_down: 17 us, down: 1139 us, weight: 15 us, total: 2715 us, max_local_num: 6, qlen: 24
+== decode phase qlen>=10 (n_cold 32, rows 3/6 → T 12/24) (fuse) 17:48:53
+== rows 3 n_cold 32
+  n_cold= 32 T=   12 rows/expert=   3.0 us=   2806.1 us/expert=    87.7 us/row=29.23
+== rows 6 n_cold 32
+  n_cold= 32 T=   24 rows/expert=   6.0 us=   2802.5 us/expert=    87.6 us/row=14.60
+Profiling Results (numa[0]): activated_expert: 32, prepare: 4 us, cpy_input: 34 us, q_input: 0 us, up_gate: 1385 us, act: 39 us, q_down: 11 us, down: 1138 us, weight: 18 us, total: 2633 us, max_local_num: 3, qlen: 12
+Profiling Results (numa[0]): activated_expert: 32, prepare: 4 us, cpy_input: 45 us, q_input: 0 us, up_gate: 1396 us, act: 44 us, q_down: 17 us, down: 1187 us, weight: 15 us, total: 2711 us, max_local_num: 6, qlen: 24
+== decode phase qlen>=10 (n_cold 32, rows 3/6 → T 12/24) (base) 17:49:04
+== rows 3 n_cold 32
+  n_cold= 32 T=   12 rows/expert=   3.0 us=   2845.5 us/expert=    88.9 us/row=29.64
+== rows 6 n_cold 32
+  n_cold= 32 T=   24 rows/expert=   6.0 us=   2926.8 us/expert=    91.5 us/row=15.24
+Profiling Results (numa[0]): activated_expert: 32, prepare: 4 us, cpy_input: 13 us, q_input: 53 us, up_gate: 1385 us, act: 41 us, q_down: 13 us, down: 1127 us, weight: 17 us, total: 2657 us, max_local_num: 3, qlen: 12
+Profiling Results (numa[0]): activated_expert: 32, prepare: 3 us, cpy_input: 16 us, q_input: 88 us, up_gate: 1346 us, act: 39 us, q_down: 17 us, down: 1178 us, weight: 15 us, total: 2705 us, max_local_num: 6, qlen: 24
+== decode phase qlen>=10 (n_cold 32, rows 3/6 → T 12/24) (fuse) 17:49:15
+== rows 3 n_cold 32
+  n_cold= 32 T=   12 rows/expert=   3.0 us=   2808.5 us/expert=    87.8 us/row=29.26
+== rows 6 n_cold 32
+  n_cold= 32 T=   24 rows/expert=   6.0 us=   2836.9 us/expert=    88.7 us/row=14.78
+Profiling Results (numa[0]): activated_expert: 32, prepare: 4 us, cpy_input: 31 us, q_input: 0 us, up_gate: 1426 us, act: 40 us, q_down: 11 us, down: 1160 us, weight: 12 us, total: 2686 us, max_local_num: 3, qlen: 12
+Profiling Results (numa[0]): activated_expert: 32, prepare: 4 us, cpy_input: 45 us, q_input: 0 us, up_gate: 1374 us, act: 40 us, q_down: 17 us, down: 1183 us, weight: 17 us, total: 2682 us, max_local_num: 6, qlen: 24
+== serving A/B FUSE_QIN on/off (운영점 A) 17:49
+== serving A/B FUSE_QIN on/off (운영점 A) 17:49
+numcheck base-vs-base2 T=8 n_cold=8 max_abs_diff=0.000e+00 n_bad=0
+numcheck base-vs-base2 T=40 n_cold=8 max_abs_diff=0.000e+00 n_bad=0
+numcheck base-vs-base2 T=200 n_cold=8 max_abs_diff=0.000e+00 n_bad=0
+numcheck base-vs-base2 T=1024 n_cold=64 max_abs_diff=0.000e+00 n_bad=0
+numcheck fuse-vs-fuse2 T=8 n_cold=8 max_abs_diff=0.000e+00 n_bad=0
+numcheck fuse-vs-fuse2 T=40 n_cold=8 max_abs_diff=0.000e+00 n_bad=0
+numcheck fuse-vs-fuse2 T=200 n_cold=8 max_abs_diff=0.000e+00 n_bad=0
+numcheck fuse-vs-fuse2 T=1024 n_cold=64 max_abs_diff=0.000e+00 n_bad=0
+numcheck base-vs-fuse2 T=8 n_cold=8 max_abs_diff=0.000e+00 n_bad=0
+numcheck base-vs-fuse2 T=40 n_cold=8 max_abs_diff=9.766e-04 n_bad=39248
+numcheck base-vs-fuse2 T=200 n_cold=8 max_abs_diff=1.953e-03 n_bad=65991
+numcheck base-vs-fuse2 T=1024 n_cold=64 max_abs_diff=7.812e-03 n_bad=398780
+fuse_on boot ok 100s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 122880, K size: 1.82 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+on_c192 C192: 1052.20 tok/s, TPOT 132.49, TTFT 6530.35  (기준 1048.7 / 131.1)
+on_c160 C160: 1038.68 tok/s, TPOT 111.82, TTFT 5497.96  (기준 1012.2 / 114.0)
+fuse_on GSM40: ACC 0.975 (39/40)
+fuse_off boot ok 100s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 122880, K size: 1.82 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+off_c192 C192: 1034.79 tok/s, TPOT 132.58, TTFT 6882.56  (대조)
+off_c160 C160: 1005.85 tok/s, TPOT 114.87, TTFT 5751.78  (대조)

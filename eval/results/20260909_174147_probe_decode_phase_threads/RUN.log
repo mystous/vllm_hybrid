@@ -1,0 +1,25 @@
+== decode phase split (n_cold 24, rows 1/2, 96 threads, RB+PF2)
+== rows 1 n_cold 24
+  n_cold= 24 T=    3 rows/expert=   1.0 us=   1643.0 us/expert=    68.5 us/row=68.46
+== rows 2 n_cold 24
+  n_cold= 24 T=    6 rows/expert=   2.0 us=   1756.5 us/expert=    73.2 us/row=36.59
+Profiling Results (numa[1]): activated_expert: 24, prepare: 3 us, cpy_input: 30 us, q_input: 83 us, up_gate: 868 us, act: 22 us, q_down: 12 us, down: 438 us, weight: 13 us, total: 1471 us, max_local_num: 1, qlen: 3
+Profiling Results (numa[0]): activated_expert: 24, prepare: 2 us, cpy_input: 33 us, q_input: 83 us, up_gate: 870 us, act: 22 us, q_down: 11 us, down: 452 us, weight: 16 us, total: 1493 us, max_local_num: 1, qlen: 3
+Profiling Results (numa[1]): activated_expert: 24, prepare: 3 us, cpy_input: 58 us, q_input: 103 us, up_gate: 868 us, act: 47 us, q_down: 15 us, down: 460 us, weight: 12 us, total: 1569 us, max_local_num: 2, qlen: 6
+Profiling Results (numa[0]): activated_expert: 24, prepare: 3 us, cpy_input: 66 us, q_input: 106 us, up_gate: 881 us, act: 49 us, q_down: 16 us, down: 460 us, weight: 12 us, total: 1596 us, max_local_num: 2, qlen: 6
+== threads=96 rows 1/2/4 n_cold 32 (RB+PF2)
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2137.7 us/expert=    66.8 us/row=66.80
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2309.1 us/expert=    72.2 us/row=36.08
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2281.6 us/expert=    71.3 us/row=17.83
+== threads=112 rows 1/2/4 n_cold 32 (RB+PF2)
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2171.4 us/expert=    67.9 us/row=67.85
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2317.2 us/expert=    72.4 us/row=36.21
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2249.4 us/expert=    70.3 us/row=17.57
+== threads=96 rows 1/2/4 n_cold 32 (RB+PF2)
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2126.9 us/expert=    66.5 us/row=66.47
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2307.3 us/expert=    72.1 us/row=36.05
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2289.7 us/expert=    71.6 us/row=17.89
+== threads=112 rows 1/2/4 n_cold 32 (RB+PF2)
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2085.6 us/expert=    65.2 us/row=65.18
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2246.7 us/expert=    70.2 us/row=35.10
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2161.4 us/expert=    67.5 us/row=16.89
