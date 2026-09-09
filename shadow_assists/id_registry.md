@@ -29,9 +29,11 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 구현 후보 단계. profile / 측정 결과로 진입·기각 판정 후에야 다음 단계 prefix(`PLN` 등) 로 파생된다.
 
-| `IDE_045` | 활성 (2026-09-09 15:15) | **expert 가중치 버퍼 2MB huge page** — cold expert 스트리밍 332GB/s (torch 96스레드 읽기 390 의 85%) 의 잔여 격차를 TLB miss·page walk 로 가정. `moe_base.hpp` 의 BufferB `aligned_alloc(64)` → 2MB 정렬 + `madvise(MADV_HUGEPAGE)` (`KT_HUGEPAGE=1`). 마이크로벤치 (rows 스윕 base vs hp) + 최선 구성 C160/C64/GSM40 | 부모 = `IDE_037` (rows 스윕), `IDE_039-i`. **사전 등록**: 마이크로벤치 expert당 스트리밍 시간 −5% 이상 AND C160 ≥ 1,010 (+3%) AND GSM40 ≥95. 결과 `eval/results/*_ide045_hugepage/` |
+| `IDE_045` | **기각 (2026-09-09 15:25, 효과 없음)** | **expert 가중치 버퍼 2MB huge page** — cold expert 스트리밍 332GB/s (torch 96스레드 읽기 390 의 85%) 의 잔여 격차를 TLB miss·page walk 로 가정. `moe_base.hpp` 의 BufferB `aligned_alloc(64)` → 2MB 정렬 + `madvise(MADV_HUGEPAGE)` (`KT_HUGEPAGE=1`). 마이크로벤치 (rows 스윕 base vs hp) + 최선 구성 C160/C64/GSM40 | 부모 = `IDE_037` (rows 스윕), `IDE_039-i`. **사전 등록**: 마이크로벤치 expert당 스트리밍 시간 −5% 이상 AND C160 ≥ 1,010 (+3%) AND GSM40 ≥95. **결과**: huge page 적용 확인 (프로세스 huge page 133→245 GB) 했으나 마이크로벤치 동일 (58.4→59.5 µs/expert), C160 480 프롬프트 947/970 vs 대조 965 (동일), C64 722 vs 766. 1차 C64 1093/TTFT 551ms 는 직전 C160 (192 프롬프트, seed 42) 과 프롬프트 집합이 같아 prefix cache 적중한 것 (재측정 시 재현 안 됨). 스트리밍 잔여 격차는 TLB 아님. `eval/results/20260909_145919_ide045_hugepage/` |
 
-**다음 부여 번호**: `IDE_046`
+| `IDE_046` | 활성 (2026-09-09 15:30) | **AMX INT4 GEMM 커널의 B 타일 언팩 중복 제거** — `GemmKernel224Int4::amx_kernel` 은 M 블록 (32행) 마다 같은 INT4 가중치 타일을 AVX-512 로 INT8 언팩 (mask/shift → 스택 → tileload) 을 반복. m>32 (prefill: cold expert 당 50~400행) 에서 M/32 배 중복. 첫 M 블록에서 언팩 결과를 스레드 로컬 L2 캐시 (k_block×128열 int8 = 448 KB) 에 두고 이후 M 블록은 직접 tileload. 부가로 A 타일 non-temporal load → 일반 load 검토 | 부모 = `IDE_037` (rows 스윕: 행당 2.3µs = AMX 피크 11%), `IDE_045`. 동기: prefix cache 적중 실험이 prefill 제거 시 C64 +43% 를 보임 → prefill (CPU cold expert AMX 연산이 임계) 가속이 처리량·TTFT 직결. **사전 등록**: rows 스윕 128·256행에서 행당 µs −30% 이상 AND 서빙 C64 TTFT −15% 이상 AND GSM40 ≥95. 결과 `eval/results/*_ide046_amx_bcache/` |
+
+**다음 부여 번호**: `IDE_047`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 

@@ -303,7 +303,9 @@ graph TD
     IDE_041 --> IDE_042["IDE_042<br/>prefill 청크 확대<br/>(OOM 기각)"]
     IDE_041 --> IDE_043["IDE_043<br/>스트리밍-인지 prefill 배칭<br/>(TPOT −27%, TTFT p99 −76%)"]
     IDE_034 --> IDE_044["IDE_044<br/>hot set 2차 반복<br/>(기각)"]
-    IDE_037 --> IDE_045["IDE_045<br/>expert 버퍼 huge page<br/>(스트리밍 효율)"]
+    IDE_037 --> IDE_045["IDE_045<br/>expert 버퍼 huge page<br/>(기각)"]
+    IDE_045 --> IDE_046["IDE_046<br/>AMX INT4 커널 B 타일 언팩 캐시<br/>(prefill CPU 연산 가속)"]
+    IDE_037 --> IDE_046
 ```
 
 - [CPU/호스트 활용 시도 전체 이력 (2026-04~09)](CPU_UTILIZATION_HISTORY_20260909.md) — 시도·개선·실패 연표와 분류

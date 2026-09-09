@@ -1,0 +1,52 @@
+patch already applied (guard-fixed)
+== build 14:59:19
+INSTALLED
+BUILD_OK 15:02:29
+== rows bench (base: base vs KT_HUGEPAGE=1)
+  n_cold= 8 T=  1 rows/expert=  1.0 us=   467.4 us/expert=   58.4 us/row= 58.4
+  n_cold= 8 T=  2 rows/expert=  2.0 us=   599.5 us/expert=   74.9 us/row= 37.5
+  n_cold= 8 T=  4 rows/expert=  4.0 us=   931.0 us/expert=  116.4 us/row= 29.1
+  n_cold= 8 T=  8 rows/expert=  8.0 us=  1627.6 us/expert=  203.5 us/row= 25.4
+  n_cold= 8 T= 16 rows/expert= 16.0 us=  2570.6 us/expert=  321.3 us/row= 20.1
+  n_cold= 8 T= 32 rows/expert= 32.0 us=  4792.5 us/expert=  599.1 us/row= 18.7
+  n_cold= 8 T= 64 rows/expert= 64.0 us=  9413.3 us/expert= 1176.7 us/row= 18.4
+  n_cold=32 T=  1 rows/expert=  0.2 us=   458.8 us/expert=   14.3 us/row= 57.4
+  n_cold=32 T=  2 rows/expert=  0.5 us=   793.7 us/expert=   24.8 us/row= 49.6
+  n_cold=32 T=  4 rows/expert=  1.0 us=  1559.9 us/expert=   48.7 us/row= 48.7
+  n_cold=32 T=  8 rows/expert=  2.0 us=  2566.8 us/expert=   80.2 us/row= 40.1
+  n_cold=32 T= 16 rows/expert=  4.0 us=  3093.8 us/expert=   96.7 us/row= 24.2
+  n_cold=32 T= 32 rows/expert=  8.0 us=  4827.0 us/expert=  150.8 us/row= 18.9
+  n_cold=32 T= 64 rows/expert= 16.0 us=  8763.4 us/expert=  273.9 us/row= 17.1
+== rows bench (hp: base vs KT_HUGEPAGE=1)
+  n_cold= 8 T=  1 rows/expert=  1.0 us=   476.0 us/expert=   59.5 us/row= 59.5
+  n_cold= 8 T=  2 rows/expert=  2.0 us=   631.4 us/expert=   78.9 us/row= 39.5
+  n_cold= 8 T=  4 rows/expert=  4.0 us=   968.4 us/expert=  121.1 us/row= 30.3
+  n_cold= 8 T=  8 rows/expert=  8.0 us=  1642.5 us/expert=  205.3 us/row= 25.7
+  n_cold= 8 T= 16 rows/expert= 16.0 us=  2558.2 us/expert=  319.8 us/row= 20.0
+  n_cold= 8 T= 32 rows/expert= 32.0 us=  4812.2 us/expert=  601.5 us/row= 18.8
+  n_cold= 8 T= 64 rows/expert= 64.0 us=  9387.9 us/expert= 1173.5 us/row= 18.3
+  n_cold=32 T=  1 rows/expert=  0.2 us=   454.6 us/expert=   14.2 us/row= 56.8
+  n_cold=32 T=  2 rows/expert=  0.5 us=   795.7 us/expert=   24.9 us/row= 49.7
+  n_cold=32 T=  4 rows/expert=  1.0 us=  1561.8 us/expert=   48.8 us/row= 48.8
+  n_cold=32 T=  8 rows/expert=  2.0 us=  2576.9 us/expert=   80.5 us/row= 40.3
+  n_cold=32 T= 16 rows/expert=  4.0 us=  3104.0 us/expert=   97.0 us/row= 24.2
+  n_cold=32 T= 32 rows/expert=  8.0 us=  4827.3 us/expert=  150.9 us/row= 18.9
+  n_cold=32 T= 64 rows/expert= 16.0 us=  8782.2 us/expert=  274.4 us/row= 17.2
+hp boot ok 110s
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+AnonHugePages:  280788992 kB
+hp_c160 C160: 836.30 tok/s, TPOT 106.95  (기준 982.4/119.5)
+hp_c64 C64: 1093.50 tok/s, TPOT 54.59  (기준 769/60.9)
+hp GSM40: ACC 0.975 (39/40)
+== repeat 480 prompts 15:08
+hp480 boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+AnonHugePages:  280858624 kB
+hp480_c160_r1 C160: 947.43 tok/s, TPOT 122.28, TTFT 6066.74  (기준 982.4/119.5, 480 프롬프트)
+hp480_c160_r2 C160: 970.07 tok/s, TPOT 120.62, TTFT 5775.37  (r2)
+hp480_c64 C64: 722.14 tok/s, TPOT 64.54, TTFT 3140.14  (기준 769/60.9)
+base480 boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+AnonHugePages:  132573184 kB
+base480_c160_r1 C160: 965.30 tok/s, TPOT 120.41, TTFT 5904.28  (동일 조건 대조)
+base480_c160_r2 C160: 984.55 tok/s, TPOT 119.39, TTFT 5619.80  (r2)
