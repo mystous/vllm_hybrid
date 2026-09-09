@@ -33,7 +33,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_046` | **기각 (2026-09-09 16:05, 서빙 이득 없음)** | **AMX INT4 GEMM 커널의 B 타일 언팩 중복 제거** — `GemmKernel224Int4::amx_kernel` 은 M 블록 (32행) 마다 같은 INT4 가중치 타일을 AVX-512 로 INT8 언팩 (mask/shift → 스택 → tileload) 을 반복. m>32 (prefill: cold expert 당 50~400행) 에서 M/32 배 중복. 첫 M 블록에서 언팩 결과를 스레드 로컬 L2 캐시 (k_block×128열 int8 = 448 KB) 에 두고 이후 M 블록은 직접 tileload. 부가로 A 타일 non-temporal load → 일반 load 검토 | 부모 = `IDE_037` (rows 스윕: 행당 2.3µs = AMX 피크 11%), `IDE_045`. 동기: prefix cache 적중 실험이 prefill 제거 시 C64 +43% 를 보임 → prefill (CPU cold expert AMX 연산이 임계) 가속이 처리량·TTFT 직결. **사전 등록**: rows 스윕 128·256행에서 행당 µs −30% 이상 AND 서빙 C64 TTFT −15% 이상 AND GSM40 ≥95. **결과**: bit 동일, 층당 −3~6% (GEMM 은 L2 타일 적재 한계로 AMX 24%), 서빙 C64/C160 켬·끔 동일. 스레드 절반 실험: TTFT +27% (CPU 는 prefill 임계의 ~1/4), TPOT +24~26% (decode 는 CPU 노출 큼) → 다음 = decode 스트리밍 효율. `eval/results/20260909_152125_ide046_amx_bcache/` |
 
-**다음 부여 번호**: `IDE_047`
+| `IDE_047` | 활성 (2026-09-09 16:15) | **EAGLE3 투기적 디코딩 × 하이브리드** — decode 는 CPU 스트리밍에 묶여 있고 (스레드 절반 → TPOT +24~26%) cold expert 1개를 24 MB 스트리밍해 1.3행만 처리. 투기 디코딩은 스텝당 검증 토큰을 B×(k+1) 로 늘려 **같은 스트리밍으로 2~3배의 유효 행** 을 처리 (greedy 검증은 결과 동일 = 무손실). draft = `lmsys/SGLang-EAGLE3-Qwen3-Coder-480B-A35B-Instruct-SpecForge-EigenAI` (0.9B, GPU). 위험: KTransformers 경로의 forward mode (TARGET_VERIFY / DRAFT) 처리·CUDA graph 캡처 호환 | 부모 = `IDE_046` (CPU-bound 판별), `IDE_039-i`. 모델 예측 (hot-96, 수락 길이 2.5): C64 766→~1070, C160 982→~1670 (GPU 가 따라올 때). **사전 등록**: C64 처리량 +25% 이상 AND GSM40 ≥95 (greedy 동일성은 토큰 일치율로 별도 확인). 결과 `eval/results/*_ide047_eagle3/` |
+
+**다음 부여 번호**: `IDE_048`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
