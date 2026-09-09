@@ -1,2 +1,40 @@
 IDE_050 prefetch patch applied
 == build 17:00:08
+INSTALLED
+BUILD_OK 17:03:20
+== rows bench (rb: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1) 17:03:20
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2231.8 us/expert=    69.7 us/row=69.74
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2432.7 us/expert=    76.0 us/row=38.01
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2471.3 us/expert=    77.2 us/row=19.31
+== rows bench (pf2: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1 KT_AVX_PF=2) 17:03:31
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2112.4 us/expert=    66.0 us/row=66.01
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2311.3 us/expert=    72.2 us/row=36.11
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2282.3 us/expert=    71.3 us/row=17.83
+== rows bench (pf4: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1 KT_AVX_PF=4) 17:03:42
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2111.3 us/expert=    66.0 us/row=65.98
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2344.5 us/expert=    73.3 us/row=36.63
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2287.9 us/expert=    71.5 us/row=17.87
+== rows bench (pf8: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1 KT_AVX_PF=8) 17:03:53
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2180.3 us/expert=    68.1 us/row=68.14
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2718.9 us/expert=    85.0 us/row=42.48
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2452.9 us/expert=    76.7 us/row=19.16
+== rows bench (rb: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1) 17:04:04
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2257.6 us/expert=    70.6 us/row=70.55
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2439.9 us/expert=    76.2 us/row=38.12
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2475.1 us/expert=    77.3 us/row=19.34
+== rows bench (pf2: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1 KT_AVX_PF=2) 17:04:15
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2102.2 us/expert=    65.7 us/row=65.69
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2271.3 us/expert=    71.0 us/row=35.49
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2264.5 us/expert=    70.8 us/row=17.69
+== rows bench (pf4: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1 KT_AVX_PF=4) 17:04:26
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2099.8 us/expert=    65.6 us/row=65.62
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2275.8 us/expert=    71.1 us/row=35.56
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2292.5 us/expert=    71.6 us/row=17.91
+== rows bench (pf8: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1 KT_AVX_PF=8) 17:04:37
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2109.3 us/expert=    65.9 us/row=65.91
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2324.4 us/expert=    72.6 us/row=36.32
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2577.9 us/expert=    80.6 us/row=20.14
+numcheck pf4 T=8 n_cold=8 max_abs_diff=0.000e+00
+numcheck pf4 T=40 n_cold=8 max_abs_diff=0.000e+00
+numcheck pf4 T=200 n_cold=8 max_abs_diff=0.000e+00
+numcheck pf4 T=1024 n_cold=64 max_abs_diff=0.000e+00

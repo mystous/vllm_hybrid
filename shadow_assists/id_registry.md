@@ -39,7 +39,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_049` | **채택 (2026-09-09 17:15)** | **CUDA graph 버킷 축소로 GPU 메모리 회수 → KV 확대 → C192/C224** — IDE_047 부팅에서 `--cuda-graph-bs` 6종 명시가 기본 39종 대비 수 GB 를 회수함을 관찰. 최선 구성에 적용해 KV 110k → 123k (C192) / 143k (C224) 시도. CPU 는 같은 스트리밍으로 더 많은 토큰 처리 (모델: C192 cold 22→26 expert, +13% CPU 에 +20% 토큰 → 처리량 +6%) | 부모 = `IDE_039-i`, `IDE_047` (관찰). **사전 등록**: C192 ≥ 1,030 tok/s (+5%) AND GSM40 ≥95. **결과**: 버킷 6종 + graph 192 + KV 122,880: **C192 1032.6 / 133.5** (+5.1%), C160 994.6 / 116.6, GSM40 97.5. graph 224 + KV 127k 는 청크 8192 에서 첫 prefill OOM → **049-b 청크 4096: C224 1070.1 / 153.8 (+8.9%)**, GSM40 97.5. 운영점 2개 (균형 graph 192 / 최대 graph 224). `eval/results/20260909_163853_ide049_graph_buckets/` |
 
-| `IDE_050` | 활성 (2026-09-09 17:35) | **AVX rb 커널 B 스트림 소프트웨어 prefetch** (`KT_AVX_PF=<2 KB 블록 거리>`) — 1행 expert 스트리밍이 소켓당 ~180 GB/s (DDR 피크 282 의 64%, torch 195) 에서 멈춤. 하드웨어 prefetcher 의 페이지 경계·MLP 한계를 SW prefetch 로 보완 | 부모 = `IDE_048`. **사전 등록**: 1행 µs/expert −7% 이상 (69 → ≤64) AND bit 동일. 결과 `eval/results/*_ide050_avx_prefetch/` |
+| `IDE_050` | **채택 (2026-09-09 17:55, 기본 PF=2)** | **AVX rb 커널 B 스트림 소프트웨어 prefetch** (`KT_AVX_PF=<2 KB 블록 거리>`) — 1행 expert 스트리밍이 소켓당 ~180 GB/s (DDR 피크 282 의 64%, torch 195) 에서 멈춤. 하드웨어 prefetcher 의 페이지 경계·MLP 한계를 SW prefetch 로 보완 | 부모 = `IDE_048`. **사전 등록**: 1행 µs/expert −7% 이상 (69 → ≤64) AND bit 동일. **결과**: 1행 69.7~70.6 → 65.6~66.0 µs (−6%), bit 동일; 원본 대비 누적 −13% (≈190 GB/s/소켓). `eval/results/20260909_170007_ide050_avx_prefetch/` |
 
 **다음 부여 번호**: `IDE_051`
 
