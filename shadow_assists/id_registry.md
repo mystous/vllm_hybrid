@@ -43,7 +43,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_051` | **채택 (2026-09-09 20:05; 운영점 B 에서 C224 1098.2 / GSM100 97.0)** | **gather+양자화 위상 융합** (`KT_FUSE_QIN=1`) — decode 규모 위상 분해 (24 cold expert, 1행): GEMM 2개 88% (소켓당 214 GB/s = DDR 피크 76%, 실용 상한), 나머지 5개 소위상 165 µs (11%) 는 장벽 지연. 토큰별 gather memcpy 와 expert 별 A 양자화를 한 위상으로 융합 (행을 BufferA 슬롯에 직접 양자화, bf16 복사본 제거) → 위상 1개·복사 1회 제거. 행 독립 스케일 → bit 동일 | 부모 = `IDE_046-b`, probe `20260909_174147_probe_decode_phase_threads`. **사전 등록**: 층당 (24 expert 1행) −90 µs 이상 (1493 → ≤1400) AND bit 동일 AND 서빙 C192 +3% 이상. **결과**: prefill 층당 −11%, decode −1%; 서빙 C160 1038.7 (+3.3%), C192 +1.7%, GSM40 97.5. 수치: A 버퍼 덤프로 원인 특정 — `-ffast-math` 하 `1/d` 의 1-ulp 차이로 양자화 tie (±63↔±64, 0.016%) 만 갈림. `eval/results/20260909_174350_ide051_fuse_qin/` |
 
-**다음 부여 번호**: `IDE_052`
+| `IDE_052` | 활성 (2026-09-09 19:05) | **prefill·decode 혼합 forward (`--enable-mixed-chunk`)** — 도착 체제에서 요청별 prefill forward (cold expert ~50개 스트리밍 ≈ 250 ms 고정비) 가 decode 를 끊어 rate 5 에서 TPOT 299 (버스트 149 의 2배). 혼합 배치는 decode 토큰을 prefill forward 에 태워, 어차피 스트리밍되는 cold expert 위에 decode 행을 얹음 (같은 스트리밍으로 더 많은 유효 행). delayer 와 결합도 측정 | 부모 = `IDE_043`, `final_arrival`. **사전 등록**: rate 5 TPOT ≤ 200 (delayer 없이) AND 버스트 C224 ≥ 1050 AND GSM40 ≥95. 결과 `eval/results/*_ide052_mixed_chunk/` |
+
+**다음 부여 번호**: `IDE_053`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
