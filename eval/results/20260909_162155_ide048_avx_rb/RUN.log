@@ -1,2 +1,63 @@
 IDE_048 avx rb patch applied
 == build 16:21:56
+INSTALLED
+BUILD_OK 16:25:08
+== rows bench vec (base: KT_AMX_MIN_QLEN=1000000) 16:25:08
+Profiling Results (numa[0]): activated_expert: 8, q_input: 22 us, up_gate: 164 us,  n_cold=  8 T=    1 rows/expert=   1.0 us=    498.4 us/expert=    62.3 us/row=62.30
+  n_cold=  8 T=    2 rows/expert=   2.0 us=    646.7 us/expert=    80.8 us/row=40.42
+  n_cold=  8 T=    4 rows/expert=   4.0 us=    976.3 us/expert=   122.0 us/row=30.51
+  n_cold=  8 T=    8 rows/expert=   8.0 us=   1648.3 us/expert=   206.0 us/row=25.75
+  n_cold=  8 T=   16 rows/expert=  16.0 us=   2557.7 us/expert=   319.7 us/row=19.98
+  n_cold=  8 T=   32 rows/expert=  32.0 us=   4828.8 us/expert=   603.6 us/row=18.86
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2408.8 us/expert=    75.3 us/row=75.27
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2631.6 us/expert=    82.2 us/row=41.12
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   3012.5 us/expert=    94.1 us/row=23.54
+  n_cold= 32 T=   32 rows/expert=   8.0 us=   4839.9 us/expert=   151.2 us/row=18.91
+  n_cold= 32 T=   64 rows/expert=  16.0 us=   8898.6 us/expert=   278.1 us/row=17.38
+  n_cold= 32 T=  128 rows/expert=  32.0 us=  17012.9 us/expert=   531.7 us/row=16.61
+== rows bench vec (rb: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1) 16:25:21
+Profiling Results (numa[0]): activated_expert: 8, q_input: 23 us, up_gate: 117 us, act: 9 u  n_cold=  8 T=    1 rows/expert=   1.0 us=    399.9 us/expert=    50.0 us/row=49.99
+  n_cold=  8 T=    2 rows/expert=   2.0 us=    517.9 us/expert=    64.7 us/row=32.37
+  n_cold=  8 T=    4 rows/expert=   4.0 us=    783.6 us/expert=    97.9 us/row=24.49
+  n_cold=  8 T=    8 rows/expert=   8.0 us=   1296.7 us/expert=   162.1 us/row=20.26
+  n_cold=  8 T=   16 rows/expert=  16.0 us=   1920.9 us/expert=   240.1 us/row=15.01
+  n_cold=  8 T=   32 rows/expert=  32.0 us=   4020.7 us/expert=   502.6 us/row=15.71
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2208.7 us/expert=    69.0 us/row=69.02
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2441.9 us/expert=    76.3 us/row=38.15
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2389.7 us/expert=    74.7 us/row=18.67
+  n_cold= 32 T=   32 rows/expert=   8.0 us=   4121.9 us/expert=   128.8 us/row=16.10
+  n_cold= 32 T=   64 rows/expert=  16.0 us=   6782.1 us/expert=   211.9 us/row=13.25
+  n_cold= 32 T=  128 rows/expert=  32.0 us=  12790.2 us/expert=   399.7 us/row=12.49
+== rows bench vec (base: KT_AMX_MIN_QLEN=1000000) 16:25:34
+Profiling Results (numa[0]): activated_expert: 8, q_input: 23 us, up_gate: 149 us, act: 9  n_cold=  8 T=    1 rows/expert=   1.0 us=    484.0 us/expert=    60.5 us/row=60.50
+  n_cold=  8 T=    2 rows/expert=   2.0 us=    642.7 us/expert=    80.3 us/row=40.17
+  n_cold=  8 T=    4 rows/expert=   4.0 us=    977.5 us/expert=   122.2 us/row=30.55
+  n_cold=  8 T=    8 rows/expert=   8.0 us=   1623.9 us/expert=   203.0 us/row=25.37
+  n_cold=  8 T=   16 rows/expert=  16.0 us=   2682.9 us/expert=   335.4 us/row=20.96
+  n_cold=  8 T=   32 rows/expert=  32.0 us=   4828.3 us/expert=   603.5 us/row=18.86
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2451.0 us/expert=    76.6 us/row=76.59
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2719.5 us/expert=    85.0 us/row=42.49
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   3027.0 us/expert=    94.6 us/row=23.65
+  n_cold= 32 T=   32 rows/expert=   8.0 us=   4875.2 us/expert=   152.4 us/row=19.04
+  n_cold= 32 T=   64 rows/expert=  16.0 us=   8925.9 us/expert=   278.9 us/row=17.43
+  n_cold= 32 T=  128 rows/expert=  32.0 us=  17030.5 us/expert=   532.2 us/row=16.63
+== rows bench vec (rb: KT_AMX_MIN_QLEN=1000000 KT_AVX_RB=1) 16:25:46
+Profiling Results (numa[1]): activated_expert: 8, q_input: 21 us, up_gate: 120 us, act: 8 us, q_down: 6 us, down: 117   n_cold=  8 T=    1 rows/expert=   1.0 us=    390.6 us/expert=    48.8 us/row=48.83
+  n_cold=  8 T=    2 rows/expert=   2.0 us=    490.5 us/expert=    61.3 us/row=30.66
+  n_cold=  8 T=    4 rows/expert=   4.0 us=    747.5 us/expert=    93.4 us/row=23.36
+  n_cold=  8 T=    8 rows/expert=   8.0 us=   1302.3 us/expert=   162.8 us/row=20.35
+  n_cold=  8 T=   16 rows/expert=  16.0 us=   1968.3 us/expert=   246.0 us/row=15.38
+  n_cold=  8 T=   32 rows/expert=  32.0 us=   3900.4 us/expert=   487.6 us/row=15.24
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2265.0 us/expert=    70.8 us/row=70.78
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   5564.1 us/expert=   173.9 us/row=86.94
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2461.1 us/expert=    76.9 us/row=19.23
+  n_cold= 32 T=   32 rows/expert=   8.0 us=   3785.3 us/expert=   118.3 us/row=14.79
+  n_cold= 32 T=   64 rows/expert=  16.0 us=   6779.1 us/expert=   211.8 us/row=13.24
+  n_cold= 32 T=  128 rows/expert=  32.0 us=  13122.1 us/expert=   410.1 us/row=12.81
+CPUInfer[0x98ded10]: Goodbye
+CPUInfer[0x9437e90]: Goodbye
+numcheck rb T=8 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
+numcheck rb T=40 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
+numcheck rb T=200 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
+numcheck rb T=1024 n_cold=64 max_abs_diff=0.000e+00 rel=0.00e+00
+== serving with KT_AVX_RB=1 16:26
