@@ -108,7 +108,7 @@ python3 -m sglang.launch_server --model-path <Qwen3-Coder-480B-A35B-Instruct-FP8
 # 부팅 후 pin_nonkt.sh 실행 (비-워커 스레드를 코어 48-55/104-111 로). 운영 시 --enable-mixed-chunk 추가.
 ```
 
-## 10. EPOCH-X 문서(2026-09-09 반입) 3축 평가 — 구현 전 오라클·계측 단계에서 전부 기각
+## 9. EPOCH-X 문서(2026-09-09 반입) 3축 평가 — 구현 전 오라클·계측 단계에서 전부 기각
 
 문서 방법론("full serving stack 을 고치기 전에 trace oracle 로 검증하고, oracle 이 이긴 영역만 코드로 옮긴다")을 그대로 적용했다. 사용한 입력은 실측 라우팅 트레이스(399 패스 × 62층 × 160 expert)와 당일 측정 상수(expert 당 CPU = 고정 8 µs + 스트리밍 58 µs + 행당 9.5 µs, 층당 핸드오프 130 µs).
 모델 타당성: 오라클의 스텝당 CPU 50.4 ms vs 같은 체제 실측 TPOT 57.6 ms (C64) → CPU 가 스텝의 87%. 일관.
@@ -123,7 +123,7 @@ python3 -m sglang.launch_server --model-path <Qwen3-Coder-480B-A35B-Instruct-FP8
 
 관련 디렉토리: `20260909_204840_ide055_056_epochx_oracle/`, `20260909_205537_ide057_grc_probe/`.
 
-## 11. 파일 색인
+## 10. 파일 색인
 
 - 요약: `eval/results/SUMMARY_20260909.md` (§11 추가 트랙), 이력: `shadow_assists/CPU_UTILIZATION_HISTORY_20260909.md`
 - 최종 재측정: `eval/results/20260909_170510_final_sweep/`, 도착률: `20260909_182418_final_arrival/`, 혼합 forward: `20260909_190222_ide052_mixed_chunk/`
