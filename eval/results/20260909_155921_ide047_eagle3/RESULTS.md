@@ -15,7 +15,7 @@ draft: `lmsys/SGLang-EAGLE3-Qwen3-Coder-480B-A35B-Instruct-SpecForge-EigenAI` (0
 GSM40 95.0 vs 97.5: greedy 검증은 이론상 동일하나 배치 구성 차이로 인한 BF16 비결합성 토큰 분기 (운영 해석상 허용 범위). 최종 구성에서 GSM100 재확인 예정.
 
 ## 3차 (mem 0.92 + KV 명시 81,920): KV 여전히 35,944 (메모리 부족) → 중단
-## 4차 (mem 0.94, , KV 요청 98k → 실제 87,449, 청크 4096, KT_PHASE_PROF=1)
+## 4차 (mem 0.94, `--cuda-graph-bs 16 32 64 96 128 160`, KV 요청 98k → 실제 87,449, 청크 4096, KT_PHASE_PROF=1)
 | | tok/s | TPOT | TTFT | accept len | GSM40 |
 |---|---|---|---|---|---|
 | C160 (실효 ~136, fresh) | **706.3** | 190.5 | 2.68s | 1.99~2.23 | |
