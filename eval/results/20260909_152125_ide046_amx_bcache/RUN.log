@@ -1,0 +1,172 @@
+IDE_046 bcache patch applied
+== build 15:21:27
+INSTALLED
+BUILD_OK 15:24:36
+== rows bench (base: KT_AMX_MIN_QLEN=0) 15:24:36
+  n_cold=  8 T=   16 rows/expert=  16.0 us=    829.4 us/expert=   103.7 us/row= 6.48
+  n_cold=  8 T=   32 rows/expert=  32.0 us=    862.4 us/expert=   107.8 us/row= 3.37
+  n_cold=  8 T=   64 rows/expert=  64.0 us=   1332.8 us/expert=   166.6 us/row= 2.60
+  n_cold=  8 T=  128 rows/expert= 128.0 us=   2350.6 us/expert=   293.8 us/row= 2.30
+  n_cold=  8 T=  256 rows/expert= 256.0 us=   4341.5 us/expert=   542.7 us/row= 2.12
+  n_cold= 64 T=  128 rows/expert=  16.0 us=   6622.0 us/expert=   103.5 us/row= 6.47
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7346.8 us/expert=   114.8 us/row= 3.59
+  n_cold= 64 T=  512 rows/expert=  64.0 us=  11241.4 us/expert=   175.6 us/row= 2.74
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  17802.7 us/expert=   278.2 us/row= 2.17
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  32176.5 us/expert=   502.8 us/row= 1.96
+== rows bench (bcache: KT_AMX_MIN_QLEN=0 KT_AMX_BCACHE=1) 15:24:49
+  n_cold=  8 T=   16 rows/expert=  16.0 us=    825.5 us/expert=   103.2 us/row= 6.45
+  n_cold=  8 T=   32 rows/expert=  32.0 us=    865.3 us/expert=   108.2 us/row= 3.38
+  n_cold=  8 T=   64 rows/expert=  64.0 us=   1349.0 us/expert=   168.6 us/row= 2.63
+  n_cold=  8 T=  128 rows/expert= 128.0 us=   2218.3 us/expert=   277.3 us/row= 2.17
+  n_cold=  8 T=  256 rows/expert= 256.0 us=   4362.5 us/expert=   545.3 us/row= 2.13
+  n_cold= 64 T=  128 rows/expert=  16.0 us=   6565.8 us/expert=   102.6 us/row= 6.41
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7409.3 us/expert=   115.8 us/row= 3.62
+  n_cold= 64 T=  512 rows/expert=  64.0 us=  10740.1 us/expert=   167.8 us/row= 2.62
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  17150.8 us/expert=   268.0 us/row= 2.09
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  30830.9 us/expert=   481.7 us/row= 1.88
+== rows bench (bcache_aloadd: KT_AMX_MIN_QLEN=0 KT_AMX_BCACHE=1 KT_AMX_A_LOADD=1) 15:25:01
+  n_cold=  8 T=   16 rows/expert=  16.0 us=    839.4 us/expert=   104.9 us/row= 6.56
+  n_cold=  8 T=   32 rows/expert=  32.0 us=    873.0 us/expert=   109.1 us/row= 3.41
+  n_cold=  8 T=   64 rows/expert=  64.0 us=   1353.7 us/expert=   169.2 us/row= 2.64
+  n_cold=  8 T=  128 rows/expert= 128.0 us=   2202.0 us/expert=   275.2 us/row= 2.15
+  n_cold=  8 T=  256 rows/expert= 256.0 us=   4115.0 us/expert=   514.4 us/row= 2.01
+  n_cold= 64 T=  128 rows/expert=  16.0 us=   6511.9 us/expert=   101.7 us/row= 6.36
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7302.0 us/expert=   114.1 us/row= 3.57
+  n_cold= 64 T=  512 rows/expert=  64.0 us=  11093.6 us/expert=   173.3 us/row= 2.71
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  18054.1 us/expert=   282.1 us/row= 2.20
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  30955.7 us/expert=   483.7 us/row= 1.89
+TP Load from loader
+CPUInfer[0x9a78510]: Goodbye
+TP Load from loader
+CPUInfer[0xa290c60]: Goodbye
+TP Load from loader
+CPUInfer[0xa5f41a0]: Goodbye
+numcheck bcache T=8 n_cold=8 max_abs_diff=0.000e+00 mean|base|=4.211e-03 rel=0.00e+00
+numcheck bcache T=40 n_cold=8 max_abs_diff=0.000e+00 mean|base|=4.060e-03 rel=0.00e+00
+numcheck bcache T=200 n_cold=8 max_abs_diff=0.000e+00 mean|base|=4.307e-03 rel=0.00e+00
+numcheck bcache T=1024 n_cold=64 max_abs_diff=0.000e+00 mean|base|=5.417e-03 rel=0.00e+00
+numcheck bcache_aloadd T=8 n_cold=8 max_abs_diff=0.000e+00 mean|base|=4.211e-03 rel=0.00e+00
+numcheck bcache_aloadd T=40 n_cold=8 max_abs_diff=0.000e+00 mean|base|=4.060e-03 rel=0.00e+00
+numcheck bcache_aloadd T=200 n_cold=8 max_abs_diff=0.000e+00 mean|base|=4.307e-03 rel=0.00e+00
+numcheck bcache_aloadd T=1024 n_cold=64 max_abs_diff=0.000e+00 mean|base|=5.417e-03 rel=0.00e+00
+== phase (base)
+== rows 32
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7256.1 us/expert=   113.4 us/row= 3.54
+== rows 128
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  17629.7 us/expert=   275.5 us/row= 2.15
+== rows 256
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  32714.4 us/expert=   511.2 us/row= 2.00
+Profiling Results (numa[1]): activated_expert: 64, prepare: 14 us, cpy_input: 116 us, q_input: 665 us, up_gate: 2988 us, act: 118 us, q_down: 109 us, down: 2736 us, weight: 137 us, total: 6885 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[0]): activated_expert: 64, prepare: 11 us, cpy_input: 168 us, q_input: 667 us, up_gate: 3019 us, act: 114 us, q_down: 118 us, down: 2751 us, weight: 112 us, total: 6964 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[1]): activated_expert: 64, prepare: 35 us, cpy_input: 598 us, q_input: 1840 us, up_gate: 6323 us, act: 435 us, q_down: 213 us, down: 6400 us, weight: 739 us, total: 16587 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[0]): activated_expert: 64, prepare: 27 us, cpy_input: 754 us, q_input: 1587 us, up_gate: 6464 us, act: 447 us, q_down: 244 us, down: 6442 us, weight: 692 us, total: 16661 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[1]): activated_expert: 64, prepare: 61 us, cpy_input: 1307 us, q_input: 3504 us, up_gate: 11238 us, act: 903 us, q_down: 411 us, down: 11107 us, weight: 1429 us, total: 29964 us, max_local_num: 256, qlen: 2048
+Profiling Results (numa[0]): activated_expert: 64, prepare: 49 us, cpy_input: 1624 us, q_input: 3330 us, up_gate: 11575 us, act: 918 us, q_down: 461 us, down: 11450 us, weight: 1389 us, total: 30799 us, max_local_num: 256, qlen: 2048
+== phase (bcache)
+== rows 32
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7334.3 us/expert=   114.6 us/row= 3.58
+== rows 128
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  18347.2 us/expert=   286.7 us/row= 2.24
+== rows 256
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  31303.7 us/expert=   489.1 us/row= 1.91
+Profiling Results (numa[1]): activated_expert: 64, prepare: 13 us, cpy_input: 102 us, q_input: 693 us, up_gate: 3033 us, act: 116 us, q_down: 112 us, down: 2772 us, weight: 139 us, total: 6984 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[0]): activated_expert: 64, prepare: 11 us, cpy_input: 153 us, q_input: 664 us, up_gate: 3039 us, act: 115 us, q_down: 113 us, down: 2808 us, weight: 118 us, total: 7024 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[1]): activated_expert: 64, prepare: 31 us, cpy_input: 557 us, q_input: 1866 us, up_gate: 6073 us, act: 447 us, q_down: 271 us, down: 5849 us, weight: 748 us, total: 15845 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[0]): activated_expert: 64, prepare: 41 us, cpy_input: 736 us, q_input: 1767 us, up_gate: 6080 us, act: 459 us, q_down: 280 us, down: 5844 us, weight: 751 us, total: 15961 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[1]): activated_expert: 64, prepare: 60 us, cpy_input: 1316 us, q_input: 3690 us, up_gate: 10136 us, act: 962 us, q_down: 508 us, down: 10424 us, weight: 1477 us, total: 28577 us, max_local_num: 256, qlen: 2048
+Profiling Results (numa[0]): activated_expert: 64, prepare: 48 us, cpy_input: 1617 us, q_input: 3530 us, up_gate: 10395 us, act: 986 us, q_down: 572 us, down: 10877 us, weight: 1440 us, total: 29470 us, max_local_num: 256, qlen: 2048
+== HT test threads=96 (bcache) 15:30:10
+== rows 32
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7359.0 us/expert=   115.0 us/row= 3.59
+== rows 128
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  16979.6 us/expert=   265.3 us/row= 2.07
+== rows 256
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  31197.8 us/expert=   487.5 us/row= 1.90
+Profiling Results (numa[1]): activated_expert: 64, prepare: 11 us, cpy_input: 149 us, q_input: 613 us, up_gate: 3028 us, act: 122 us, q_down: 109 us, down: 2760 us, weight: 133 us, total: 6928 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[0]): activated_expert: 64, prepare: 19 us, cpy_input: 110 us, q_input: 721 us, up_gate: 3117 us, act: 117 us, q_down: 108 us, down: 2787 us, weight: 121 us, total: 7102 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[1]): activated_expert: 64, prepare: 32 us, cpy_input: 565 us, q_input: 1909 us, up_gate: 6106 us, act: 453 us, q_down: 299 us, down: 5789 us, weight: 762 us, total: 15918 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[0]): activated_expert: 64, prepare: 46 us, cpy_input: 749 us, q_input: 1705 us, up_gate: 6309 us, act: 462 us, q_down: 198 us, down: 5924 us, weight: 728 us, total: 16124 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[1]): activated_expert: 64, prepare: 60 us, cpy_input: 1316 us, q_input: 3551 us, up_gate: 10152 us, act: 976 us, q_down: 488 us, down: 10377 us, weight: 1462 us, total: 28387 us, max_local_num: 256, qlen: 2048
+Profiling Results (numa[0]): activated_expert: 64, prepare: 60 us, cpy_input: 1620 us, q_input: 3482 us, up_gate: 10463 us, act: 961 us, q_down: 501 us, down: 10806 us, weight: 1415 us, total: 29309 us, max_local_num: 256, qlen: 2048
+== HT test threads=192 (bcache) 15:30:25
+== rows 32
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   6996.9 us/expert=   109.3 us/row= 3.42
+== rows 128
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  17004.9 us/expert=   265.7 us/row= 2.08
+== rows 256
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  32041.8 us/expert=   500.7 us/row= 1.96
+Profiling Results (numa[0]): activated_expert: 64, prepare: 17 us, cpy_input: 89 us, q_input: 753 us, up_gate: 2936 us, act: 91 us, q_down: 120 us, down: 2031 us, weight: 118 us, total: 6158 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[1]): activated_expert: 64, prepare: 18 us, cpy_input: 120 us, q_input: 666 us, up_gate: 3023 us, act: 110 us, q_down: 116 us, down: 1964 us, weight: 163 us, total: 6185 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[1]): activated_expert: 64, prepare: 34 us, cpy_input: 630 us, q_input: 1477 us, up_gate: 6227 us, act: 370 us, q_down: 285 us, down: 4999 us, weight: 770 us, total: 14794 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[0]): activated_expert: 64, prepare: 48 us, cpy_input: 529 us, q_input: 2016 us, up_gate: 6390 us, act: 410 us, q_down: 318 us, down: 5018 us, weight: 791 us, total: 15525 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[1]): activated_expert: 64, prepare: 59 us, cpy_input: 1112 us, q_input: 3616 us, up_gate: 10794 us, act: 863 us, q_down: 781 us, down: 8865 us, weight: 1456 us, total: 27549 us, max_local_num: 256, qlen: 2048
+Profiling Results (numa[0]): activated_expert: 64, prepare: 95 us, cpy_input: 1615 us, q_input: 3537 us, up_gate: 10948 us, act: 822 us, q_down: 755 us, down: 8889 us, weight: 1436 us, total: 28101 us, max_local_num: 256, qlen: 2048
+buffers: from_mat_block added
+moe_base: q_input/q_down parallel patch applied
+== build2 15:30:45
+BUILD_FAIL
+  Building wheel for kt-kernel (pyproject.toml): started
+  Building wheel for kt-kernel (pyproject.toml): finished with status 'error'
+  error: subprocess-exited-with-error
+  
+  × Building wheel for kt-kernel (pyproject.toml) did not run successfully.
+  │ exit code: 1
+  ╰─> [342 lines of output]
+--
+      /sgl-workspace/ktransformers/kt-kernel/ext_bindings.cpp:474:23:   required from ‘void bind_moe_module(pybind11::module_&, const char*) [with MoeTP = AMX_MOE_TP<amx::GemmKernel224Int4_1>]’
+      /sgl-workspace/ktransformers/kt-kernel/ext_bindings.cpp:962:56:   required from here
+      /sgl-workspace/ktransformers/kt-kernel/operators/amx/moe_base.hpp:345:36: error: ‘using std::__shared_ptr_access<amx::BufferAWithSumImpl<amx::GemmKernel224Int4_1>, __gnu_cxx::_S_atomic, false, false>::element_type = struct amx::BufferAWithSumImpl<amx::GemmKernel224Int4_1>’ {aka ‘struct amx::BufferAWithSumImpl<amx::GemmKernel224Int4_1>’} has no member named ‘from_mat_block’
+        345 |           gate_up_ba_[expert_idx]->from_mat_block(m_local_num_[expert_idx], m_local_input_ptr_[expert_idx], m_begin);
+            |           ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+      /sgl-workspace/ktransformers/kt-kernel/operators/amx/moe_base.hpp:402:33: error: ‘using std::__shared_ptr_access<amx::BufferAWithSumImpl<amx::GemmKernel224Int4_1>, __gnu_cxx::_S_atomic, false, false>::element_type = struct amx::BufferAWithSumImpl<amx::GemmKernel224Int4_1>’ {aka ‘struct amx::BufferAWithSumImpl<amx::GemmKernel224Int4_1>’} has no member named ‘from_mat_block’
+        402 |           down_ba_[expert_idx]->from_mat_block(m_local_num_[expert_idx], m_local_gate_output_ptr_[expert_idx], m_begin);
+            |           ~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+      /sgl-workspace/ktransformers/kt-kernel/operators/amx/moe_base.hpp: In instantiation of ‘void AMX_MOE_BASE<T, Derived>::forward_prefill(int, int, const int64_t*, const float*, const void*, void*) [with T = amx::GemmKernel224Int4_1_LowKGroup; Derived = AMX_AWQ_MOE_TP<amx::GemmKernel224Int4_1_LowKGroup>; int64_t = long int]’:
+      /sgl-workspace/ktransformers/kt-kernel/operators/amx/moe_base.hpp:192:7:   required from ‘void AMX_MOE_BASE<T, Derived>::forward(int, int, const int64_t*, const float*, const void*, void*) [with T = amx::GemmKernel224Int4_1_LowKGroup; Derived = AMX_AWQ_MOE_TP<amx::GemmKernel224Int4_1_LowKGroup>; int64_t = long int]’
+== build2 15:32:06
+INSTALLED
+BUILD2_OK 15:35:17
+== phase2 (base: KT_PHASE_PROF=1 KT_AMX_MIN_QLEN=0) 15:35:17
+== rows 32
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7483.9 us/expert=   116.9 us/row= 3.65
+== rows 128
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  17768.4 us/expert=   277.6 us/row= 2.17
+== rows 256
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  32759.5 us/expert=   511.9 us/row= 2.00
+Profiling Results (numa[1]): activated_expert: 64, prepare: 10 us, cpy_input: 102 us, q_input: 660 us, up_gate: 3093 us, act: 116 us, q_down: 115 us, down: 2772 us, weight: 138 us, total: 7009 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[0]): activated_expert: 64, prepare: 16 us, cpy_input: 165 us, q_input: 666 us, up_gate: 3052 us, act: 117 us, q_down: 109 us, down: 2791 us, weight: 116 us, total: 7035 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[1]): activated_expert: 64, prepare: 33 us, cpy_input: 591 us, q_input: 1758 us, up_gate: 6373 us, act: 440 us, q_down: 228 us, down: 6369 us, weight: 734 us, total: 16531 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[0]): activated_expert: 64, prepare: 28 us, cpy_input: 754 us, q_input: 1520 us, up_gate: 6448 us, act: 444 us, q_down: 186 us, down: 6490 us, weight: 689 us, total: 16562 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[1]): activated_expert: 64, prepare: 61 us, cpy_input: 1360 us, q_input: 3396 us, up_gate: 11472 us, act: 903 us, q_down: 482 us, down: 11192 us, weight: 1439 us, total: 30310 us, max_local_num: 256, qlen: 2048
+Profiling Results (numa[0]): activated_expert: 64, prepare: 49 us, cpy_input: 1640 us, q_input: 3371 us, up_gate: 11506 us, act: 926 us, q_down: 482 us, down: 11600 us, weight: 1371 us, total: 30948 us, max_local_num: 256, qlen: 2048
+== phase2 (qapar: KT_PHASE_PROF=1 KT_AMX_MIN_QLEN=0 KT_QA_PAR=1) 15:35:32
+== rows 32
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7344.0 us/expert=   114.8 us/row= 3.59
+== rows 128
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  17607.0 us/expert=   275.1 us/row= 2.15
+== rows 256
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  31727.0 us/expert=   495.7 us/row= 1.94
+Profiling Results (numa[1]): activated_expert: 64, prepare: 13 us, cpy_input: 101 us, q_input: 656 us, up_gate: 2946 us, act: 119 us, q_down: 115 us, down: 2750 us, weight: 140 us, total: 6843 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[0]): activated_expert: 64, prepare: 11 us, cpy_input: 147 us, q_input: 671 us, up_gate: 3084 us, act: 117 us, q_down: 108 us, down: 2820 us, weight: 116 us, total: 7077 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[1]): activated_expert: 64, prepare: 37 us, cpy_input: 574 us, q_input: 1529 us, up_gate: 6271 us, act: 423 us, q_down: 277 us, down: 6368 us, weight: 719 us, total: 16202 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[0]): activated_expert: 64, prepare: 29 us, cpy_input: 769 us, q_input: 1280 us, up_gate: 6578 us, act: 448 us, q_down: 176 us, down: 6524 us, weight: 682 us, total: 16489 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[1]): activated_expert: 64, prepare: 62 us, cpy_input: 1328 us, q_input: 2220 us, up_gate: 11495 us, act: 914 us, q_down: 457 us, down: 11256 us, weight: 1407 us, total: 29142 us, max_local_num: 256, qlen: 2048
+Profiling Results (numa[0]): activated_expert: 64, prepare: 65 us, cpy_input: 1642 us, q_input: 2165 us, up_gate: 11732 us, act: 930 us, q_down: 456 us, down: 11608 us, weight: 1385 us, total: 29986 us, max_local_num: 256, qlen: 2048
+== phase2 (qapar_bcache: KT_PHASE_PROF=1 KT_AMX_MIN_QLEN=0 KT_QA_PAR=1 KT_AMX_BCACHE=1) 15:35:46
+== rows 32
+  n_cold= 64 T=  256 rows/expert=  32.0 us=   7431.3 us/expert=   116.1 us/row= 3.63
+== rows 128
+  n_cold= 64 T= 1024 rows/expert= 128.0 us=  18379.0 us/expert=   287.2 us/row= 2.24
+== rows 256
+  n_cold= 64 T= 2048 rows/expert= 256.0 us=  30396.0 us/expert=   474.9 us/row= 1.86
+Profiling Results (numa[1]): activated_expert: 64, prepare: 14 us, cpy_input: 103 us, q_input: 670 us, up_gate: 3031 us, act: 119 us, q_down: 113 us, down: 2768 us, weight: 140 us, total: 6962 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[0]): activated_expert: 64, prepare: 12 us, cpy_input: 153 us, q_input: 678 us, up_gate: 3052 us, act: 120 us, q_down: 109 us, down: 2812 us, weight: 115 us, total: 7055 us, max_local_num: 32, qlen: 256
+Profiling Results (numa[1]): activated_expert: 64, prepare: 35 us, cpy_input: 592 us, q_input: 1749 us, up_gate: 5829 us, act: 445 us, q_down: 338 us, down: 5714 us, weight: 762 us, total: 15467 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[0]): activated_expert: 64, prepare: 31 us, cpy_input: 788 us, q_input: 1647 us, up_gate: 6209 us, act: 469 us, q_down: 249 us, down: 5883 us, weight: 715 us, total: 15995 us, max_local_num: 128, qlen: 1024
+Profiling Results (numa[1]): activated_expert: 64, prepare: 89 us, cpy_input: 1336 us, q_input: 2293 us, up_gate: 10330 us, act: 942 us, q_down: 543 us, down: 10589 us, weight: 1436 us, total: 27561 us, max_local_num: 256, qlen: 2048
+Profiling Results (numa[0]): activated_expert: 64, prepare: 57 us, cpy_input: 1634 us, q_input: 2237 us, up_gate: 10547 us, act: 966 us, q_down: 616 us, down: 10925 us, weight: 1410 us, total: 28396 us, max_local_num: 256, qlen: 2048
+numcheck2 qapar_bcache T=8 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
+numcheck2 qapar_bcache T=40 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
+numcheck2 qapar_bcache T=200 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
+numcheck2 qapar_bcache T=1024 n_cold=64 max_abs_diff=0.000e+00 rel=0.00e+00
+== serving A/B 15:36
