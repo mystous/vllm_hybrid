@@ -7,3 +7,5 @@
 | FP8, mem 0.95, 청크 4096 | 131,072 | 769.3 / 96.0 / 3,764 | 873.6 / 115.0 / 4,130 | 97.5 |
 
 **판정**: KV 를 더 키우면 (mem-fraction 0.94~0.95) decode TPOT 가 10~13% 느려져 이득이 사라지거나 프로세스가 죽음 (CUDA graph 풀·prefill 작업버퍼 여유 부족 추정). **고동시성 표준 구성 = FP8 KV + mem 0.92 (73,728 토큰)**. 재현·admission 제한 변형 → `…_ide039e_fp8_final92/`.
+
+> **정정 (12:10)**: 본 변형들과 `…_ide039e_fp8_final92/` 재현 (C96 768 / 92.1) 은 **AMX 경로 선택 환경변수 (KT_AMX_MIN_QLEN=1000000 KT_AMX_MIN_ROWS=3) 없이** 실행됨 → qlen 96~128 > 80 이라 kt 기본 규칙이 모든 expert 를 mat_mul 로 보내 1~2행 expert 에서 손해. 1차 FP8 (861 / 901) 은 변수가 켜져 있었음. 따라서 'mem-fraction 상향이 decode 를 늦춘다' 는 결론은 근거 없음 — 변수를 켜고 재측정 (`…_ide039f_fp8_amxrows/`). IDE_038-b (expert 별 m≥3 선택) 는 **qlen > 80 체제 (C≥81) 에서 실질 이득** (+12%) 으로 재평가.
