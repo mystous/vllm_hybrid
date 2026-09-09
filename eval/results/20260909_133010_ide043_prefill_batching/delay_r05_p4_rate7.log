@@ -1,0 +1,48 @@
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML
+  raw_cnt = _raw_device_count_nvml()
+INFO 09-09 04:34:28 [importing.py:60] Triton is installed but 0 active driver(s) found (expected 1). Disabling Triton to prevent runtime errors.
+INFO 09-09 04:34:28 [importing.py:95] Triton not installed or not compatible; certain GPU-related functions will not be available.
+W0909 04:34:28.842000 105804 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML
+  raw_cnt = _raw_device_count_nvml()
+INFO 09-09 04:34:30 [main.py:71] Unspecified platform detected, switching to CPU Platform instead.
+WARNING 09-09 04:34:30 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+WARNING 09-09 04:34:30 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+WARNING 09-09 04:34:30 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+Namespace(subparser='bench', bench_type='serve', dispatch_function=<function BenchmarkServingSubcommand.cmd at 0x7f5667d84900>, trust_remote_code=False, seed=42, num_prompts=400, dataset_name='sonnet', no_stream=False, dataset_path='/tmp/sonnet.txt', no_oversample=False, skip_chat_template=False, enable_multimodal_chat=False, disable_shuffle=False, custom_output_len=256, custom_ensure_client_side_data=False, spec_bench_output_len=256, spec_bench_category=None, sonnet_input_len=512, sonnet_output_len=128, sonnet_prefix_len=100, sharegpt_output_len=None, timed_trace_chunk_hash_size=16, timed_trace_sec_multiplier=1, timed_trace_label_timestamp='timestamp', timed_trace_label_input_length='input_length', timed_trace_label_output_length='output_length', timed_trace_label_hash_ids='hash_ids', blazedit_min_distance=0.0, blazedit_max_distance=1.0, asr_max_audio_len_sec=inf, asr_min_audio_len_sec=0.0, random_input_len=1024, random_output_len=128, random_range_ratio='0.0', random_prefix_len=0, random_batch_size=1, no_reranker=False, random_mm_base_items_per_request=1, random_mm_num_mm_items_range_ratio=0.0, random_mm_limit_mm_per_prompt={'image': 255, 'video': 1}, random_mm_bucket_config={(256, 256, 1): 0.5, (720, 1280, 1): 0.5, (720, 1280, 16): 0.0}, hf_subset=None, hf_split=None, hf_name=None, hf_output_len=None, bfcl_categories=None, prefix_repetition_prefix_len=256, prefix_repetition_suffix_len=256, prefix_repetition_num_prefixes=10, prefix_repetition_output_len=128, speed_bench_dataset_subset='qualitative', speed_bench_output_len=4096, speed_bench_category=None, label=None, backend='openai', base_url='http://127.0.0.1:30000', host='127.0.0.1', port=8000, endpoint='/v1/completions', header=None, max_concurrency=160, model='q480', input_len=None, output_len=None, tokenizer='/home/mystous/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f', tokenizer_mode='auto', use_beam_search=False, logprobs=None, request_rate=7.0, burstiness=1.0, probe_request_rate=0.0, disable_tqdm=False, num_warmups=0, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=False, self_timed=None, percentile_metrics='ttft,tpot', metric_percentiles='50,95,99', goodput=None, request_id_prefix='bench-d730d75f-', top_p=None, top_k=None, min_p=None, temperature=None, frequency_penalty=None, presence_penalty=None, repetition_penalty=None, served_model_name=None, lora_modules=None, lora_assignment='random', ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None, ready_check_timeout_sec=0, chat_template_kwargs=None, extra_body=None, skip_tokenizer_init=False, insecure=False, plot_timeline=False, timeline_itl_thresholds='25,50', plot_dataset_stats=False)
+WARNING: vllm bench serve no longer sets temperature==0 (greedy) in requests by default. The default will be determined on the server side and can be model/API specific. For the old behavior, include --temperature=0.
+Starting initial single prompt test run...
+Skipping endpoint ready check.
+Starting main benchmark run...
+Traffic request rate: 7.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: 160
+  0%|          | 0/400 [00:00<?, ?it/s]  0%|          | 1/400 [00:25<2:48:02, 25.27s/it]  0%|          | 2/400 [00:27<1:16:30, 11.53s/it]  3%|▎         | 12/400 [00:28<08:37,  1.33s/it]   8%|▊         | 34/400 [00:28<02:09,  2.83it/s] 11%|█         | 44/400 [00:30<01:49,  3.25it/s] 13%|█▎        | 51/400 [00:32<01:43,  3.38it/s] 14%|█▍        | 56/400 [00:33<01:38,  3.48it/s] 16%|█▌        | 63/400 [00:33<01:13,  4.60it/s] 16%|█▋        | 66/400 [00:34<01:11,  4.68it/s] 18%|█▊        | 70/400 [00:35<01:20,  4.11it/s] 19%|█▉        | 75/400 [00:36<01:04,  5.08it/s] 20%|██        | 81/400 [00:37<01:00,  5.25it/s] 21%|██▏       | 85/400 [00:38<00:59,  5.25it/s] 22%|██▏       | 89/400 [00:38<00:58,  5.36it/s] 23%|██▎       | 92/400 [00:39<01:00,  5.10it/s] 24%|██▍       | 95/400 [00:39<00:54,  5.60it/s] 26%|██▌       | 102/400 [00:40<00:46,  6.39it/s] 28%|██▊       | 113/400 [00:42<00:40,  7.15it/s] 29%|██▉       | 115/400 [00:42<00:40,  7.05it/s] 29%|██▉       | 117/400 [00:43<00:46,  6.03it/s] 30%|███       | 120/400 [00:43<00:43,  6.49it/s] 32%|███▏      | 126/400 [00:44<00:41,  6.64it/s] 33%|███▎      | 132/400 [00:44<00:31,  8.54it/s] 34%|███▍      | 136/400 [00:45<00:29,  8.90it/s] 35%|███▌      | 140/400 [00:46<00:41,  6.30it/s] 35%|███▌      | 141/400 [00:46<00:42,  6.09it/s] 38%|███▊      | 150/400 [00:47<00:27,  8.98it/s] 39%|███▉      | 155/400 [00:48<00:37,  6.47it/s] 40%|███▉      | 158/400 [00:48<00:35,  6.83it/s] 40%|████      | 161/400 [00:51<01:26,  2.76it/s] 40%|████      | 162/400 [00:53<01:54,  2.08it/s] 43%|████▎     | 172/400 [00:54<01:00,  3.79it/s] 49%|████▉     | 195/400 [00:56<00:32,  6.37it/s] 53%|█████▎    | 211/400 [00:59<00:28,  6.73it/s] 53%|█████▎    | 213/400 [00:59<00:30,  6.05it/s] 54%|█████▍    | 216/400 [01:00<00:27,  6.68it/s] 57%|█████▊    | 230/400 [01:02<00:26,  6.50it/s] 59%|█████▉    | 235/400 [01:02<00:22,  7.41it/s] 60%|██████    | 241/400 [01:03<00:24,  6.40it/s] 61%|██████▏   | 245/400 [01:04<00:22,  6.95it/s] 62%|██████▏   | 249/400 [01:04<00:19,  7.64it/s] 63%|██████▎   | 252/400 [01:04<00:19,  7.78it/s] 66%|██████▌   | 262/400 [01:05<00:11, 11.52it/s] 68%|██████▊   | 273/400 [01:05<00:09, 13.57it/s] 69%|██████▉   | 277/400 [01:06<00:11, 10.72it/s] 72%|███████▏  | 286/400 [01:07<00:09, 11.85it/s] 73%|███████▎  | 292/400 [01:07<00:07, 14.71it/s] 75%|███████▌  | 300/400 [01:08<00:08, 12.20it/s] 79%|███████▉  | 315/400 [01:09<00:06, 13.13it/s] 80%|████████  | 321/400 [01:11<00:11,  7.13it/s] 81%|████████  | 323/400 [01:12<00:12,  6.15it/s] 83%|████████▎ | 332/400 [01:12<00:07,  8.72it/s] 89%|████████▉ | 355/400 [01:13<00:02, 16.52it/s] 93%|█████████▎| 371/400 [01:13<00:01, 18.21it/s] 94%|█████████▎| 374/400 [01:14<00:01, 17.20it/s] 98%|█████████▊| 390/400 [01:14<00:00, 21.25it/s]100%|██████████| 400/400 [01:14<00:00,  5.36it/s]
+tip: install termplotlib and gnuplot to plot the metrics
+============ Serving Benchmark Result ============
+Successful requests:                     400       
+Failed requests:                         0         
+Maximum request concurrency:             160       
+Request rate configured (RPS):           7.00      
+Benchmark duration (s):                  74.64     
+Total input tokens:                      201136    
+Total generated tokens:                  51200     
+Request throughput (req/s):              5.36      
+Output token throughput (tok/s):         685.96    
+Peak output token throughput (tok/s):    1600.00   
+Peak concurrent requests:                183.00    
+Total token throughput (tok/s):          3380.71   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          897.88    
+Median TTFT (ms):                        882.17    
+P50 TTFT (ms):                           882.17    
+P95 TTFT (ms):                           1509.98   
+P99 TTFT (ms):                           1769.45   
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          178.50    
+Median TPOT (ms):                        195.55    
+P50 TPOT (ms):                           195.55    
+P95 TPOT (ms):                           204.75    
+P99 TPOT (ms):                           208.04    
+==================================================
+DONE_EXIT=0
