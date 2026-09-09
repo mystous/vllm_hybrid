@@ -1,0 +1,24 @@
+== EXP-E00/E01/E02 00:25 ==
+A00 BOOT_OK 100s kv_tokens=63654 kv_dtype=torch.bfloat16 max_running_requests= gpu_mem_used=[78578 MiB 78662 MiB 78662 MiB 78182 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+A00_C32: [flush=200] tok/s 605.73, TPOT 39.17 (p99 46.86), TTFT p50 1721.81 p99 2450.19, B_decode(p50/max) 20/32  (REF-COMMON K0+G0)
+A00_C64: [flush=200] tok/s 807.15, TPOT 59.81 (p99 74.15), TTFT p50 2794.50 p99 3928.31, B_decode(p50/max) 32/64  (REF-COMMON)
+A00 KV pool tokens N0=63654
+A10 BOOT_OK 100s kv_tokens=127309 kv_dtype=torch.float8_e5m2 max_running_requests= gpu_mem_used=[78604 MiB 78666 MiB 78666 MiB 78186 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+A10_C32: [flush=200] tok/s 589.86, TPOT 40.41 (p99 48.12), TTFT p50 1746.19 p99 2486.22, B_decode(p50/max) 20/32  (KV-ONLY F+G0)
+A10_C64: [flush=200] tok/s 787.88, TPOT 61.24 (p99 77.03), TTFT p50 2839.38 p99 3982.84, B_decode(p50/max) 32/64  (KV-ONLY)
+A01 BOOT_OK 100s kv_tokens=63654 kv_dtype=torch.bfloat16 max_running_requests= gpu_mem_used=[78516 MiB 78608 MiB 78608 MiB 78128 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+A01_C32: [flush=200] tok/s 599.83, TPOT 39.71 (p99 47.27), TTFT p50 1852.96 p99 2463.49, B_decode(p50/max) 20/32  (GRAPH-ONLY K0+GS)
+A01_C64: [flush=200] tok/s 799.78, TPOT 59.84 (p99 74.82), TTFT p50 2765.51 p99 3962.22, B_decode(p50/max) 32/64  (GRAPH-ONLY)
+A11m64 BOOT_OK 100s kv_tokens=127309 kv_dtype=torch.float8_e5m2 max_running_requests= gpu_mem_used=[78522 MiB 78612 MiB 78612 MiB 78132 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+A11m64_C32: [flush=200] tok/s 588.13, TPOT 40.38 (p99 48.81), TTFT p50 1733.94 p99 2495.87, B_decode(p50/max) 20/32  (EPOCH-CORE @max64)
+A11m64_C64: [flush=200] tok/s 787.04, TPOT 61.25 (p99 75.10), TTFT p50 2661.20 p99 4099.02, B_decode(p50/max) 32/64  (EPOCH-CORE @max64)
+BREPRO BOOT_OK 100s kv_tokens=127309 kv_dtype=torch.float8_e5m2 max_running_requests= gpu_mem_used=[78932 MiB 78946 MiB 78946 MiB 78466 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+BREPRO_C64: [flush=200] tok/s 779.29, TPOT 61.39 (p99 74.98), TTFT p50 2769.77 p99 4252.34, B_decode(p50/max) 38/64  (R3: 최종 B 의 C64 — 기록에 없던 값)
+BREPRO_C224: [flush=200] tok/s 1109.61, TPOT 148.75 (p99 196.73), TTFT p50 6962.28 p99 12787.11, B_decode(p50/max) 160/224  (R2/C3: 기록 1110.3/1098.2)
+BREPRO_C224: [flush=200] tok/s 1112.39, TPOT 147.61 (p99 193.33), TTFT p50 7141.85 p99 12779.86, B_decode(p50/max) 158/224  (R2 반복2)
+C1 BOOT_OK 100s kv_tokens=127309 kv_dtype=torch.float8_e5m2 max_running_requests=64 gpu_mem_used=[78264 MiB 78354 MiB 78354 MiB 77874 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+C1_C224: [flush=200] tok/s 658.81, TPOT 72.63 (p99 143.63), TTFT p50 25713.48 p99 36106.44, B_decode(p50/max) 42/63  (C1: admission 64 로 제한 — 실행경로 효과만)
+C2 BOOT_OK 100s kv_tokens=63654 kv_dtype=torch.float8_e5m2 max_running_requests= gpu_mem_used=[76950 MiB 76964 MiB 76964 MiB 76484 MiB 0 MiB 0 MiB 0 MiB 0 MiB ]
+C2_C224: [flush=200] tok/s 630.12, TPOT 151.33 (p99 188.29), TTFT p50 25375.68 p99 30562.33, B_decode(p50/max) 116/214  (C2: KV 를 A00 수준 63654 토큰으로 제한)
+C2_C64: [flush=200] tok/s 788.31, TPOT 61.16 (p99 73.79), TTFT p50 2782.34 p99 4051.03, B_decode(p50/max) 49/87  (C2 @C64)
+== TUNED-EXISTING (bf16 기준선에 동일 탐색 기회) + 각 구성 최적 C 00:56
