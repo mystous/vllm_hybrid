@@ -1,2 +1,17 @@
 == final sweep: 최종 구성 (KT_AVX_RB=1 KT_AVX_PF=2) 17:05
 == final sweep: 최종 구성 (KT_AVX_RB=1 KT_AVX_PF=2) 17:05
+finA boot ok 100s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 122880, K size: 1.82 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+finA_c192 C192: 1048.66 tok/s, TPOT 131.06, TTFT 6766.23  (운영점 A)
+finA_c160 C160: 1012.22 tok/s, TPOT 114.01, TTFT 5732.40  (운영점 A)
+finA_c128 C128: 961.91 tok/s, TPOT 95.95, TTFT 4829.77  (운영점 A)
+finA_c64 C64: 796.56 tok/s, TPOT 57.55, TTFT 2967.04  (운영점 A)
+finA_c32 C32: 781.73 tok/s, TPOT 36.63, TTFT 582.50  (운영점 A)
+finA GSM100: ACC 0.960 (96/100)
+finB boot ok 100s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 127309, K size: 1.88 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+finB_c224 C224: 1066.51 tok/s, TPOT 153.99, TTFT 7302.68  (운영점 B)
+finB_c192 C192: 1037.20 tok/s, TPOT 137.00, TTFT 6272.14  (운영점 B)
+finB GSM40: ACC 0.975 (39/40)
+== C32 fresh + logprob 비교 (A vs 정오 구성) 17:28
+== C32 fresh + logprob 비교 (A vs 정오 구성) 17:28
