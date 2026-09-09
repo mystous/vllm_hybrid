@@ -108,7 +108,22 @@ python3 -m sglang.launch_server --model-path <Qwen3-Coder-480B-A35B-Instruct-FP8
 # 부팅 후 pin_nonkt.sh 실행 (비-워커 스레드를 코어 48-55/104-111 로). 운영 시 --enable-mixed-chunk 추가.
 ```
 
-## 9. 파일 색인
+## 10. EPOCH-X 문서(2026-09-09 반입) 3축 평가 — 구현 전 오라클·계측 단계에서 전부 기각
+
+문서 방법론("full serving stack 을 고치기 전에 trace oracle 로 검증하고, oracle 이 이긴 영역만 코드로 옮긴다")을 그대로 적용했다. 사용한 입력은 실측 라우팅 트레이스(399 패스 × 62층 × 160 expert)와 당일 측정 상수(expert 당 CPU = 고정 8 µs + 스트리밍 58 µs + 행당 9.5 µs, 층당 핸드오프 130 µs).
+모델 타당성: 오라클의 스텝당 CPU 50.4 ms vs 같은 체제 실측 TPOT 57.6 ms (C64) → CPU 가 스텝의 87%. 일관.
+
+| 축 | 문서 게이트 | 실측 / 오라클 결과 | 판정 |
+|---|---|---|---|
+| **EHES** — expert 를 SwiGLU channel 로 분해해 CPU·GPU 분수 배치 | 동일 VRAM 예산에서 makespan −10~15% | 동일 예산 최적 분수 배치 = greedy full-expert 배치와 **+0.0%** 동일. 목적함수가 ρ 에 선형이고 제약이 바이트 예산 하나뿐이라 최적해가 꼭짓점(=현행). 예산을 112/128/160개 expert 에 얇게 펴면 CPU 시간 **+261% / +408% / +640%** (cold 채널이 남은 expert 마다 고정비+잔여 스트리밍을 그대로 지불). 이산성(半 expert) 완화 이득 최대 **−2.4%** | **기각** |
+| **SER** — CPU slice 만 독립 요청 간 rendezvous | TPOT p99 +5% 이내에서 rows/read ≥ 1.7 | 현행 rows/read **1.582** (중앙값 1, p90 3). decode 는 이미 lockstep 배치라 배치 내 독립 요청 행이 한 read 에 합쳐져 있고, 더 모으려면 **다음 스텝 50.4 ms** 를 기다려야 함 (문서 W_max 500 µs 의 100배). cohort skew S=1/2/4 는 rows/read 를 **1.18 / 1.08 / 1.02** 로 낮추고 CPU 시간 +39~101% | **기각** |
+| **GRC** — CPU 완료를 GPU-resident continuation 으로 소비 | 회수 가능 구간 ≥ 층당 30 µs | CPU 작업이 0 인 **빈 핸드오프** 실측: host 콜백 82 µs / callback-free 67 µs / **CUDA graph 재생 56 µs** (T=1), T=32 는 138 / 106 / **104 µs**. 남은 바닥은 activation 복사와 2소켓 워커 디스패치가 지배하고, 순수 동기화 잔여분은 이미 stream memop 1회 수준 (callback-free 가 15~32 µs 를 이미 회수). 전량 제거 가정 상한도 C224 에서 +4.5% | **기각** |
+
+부수 확인 (문서가 찾던 기전은 이미 확보됨): SER 이 노린 "weight read 당 행 수 증가" 는 **혼합 forward(IDE_052)** 가 rows/read **1.58 → 24.5 (15.5×)** 로 달성하고 있으며 이미 운영 기본으로 채택되어 있다. 또 층당 CPU 시간은 GPU 상주 expert 수 M 에 매우 민감해서(96 → 100 에서 −20%), 유효한 축은 expert 를 쪼개는 것이 아니라 **VRAM 확보** 이고, 그 VRAM 을 KV 에서 빼는 거래는 IDE_040 에서 이미 손해로 측정되었다.
+
+관련 디렉토리: `20260909_204840_ide055_056_epochx_oracle/`, `20260909_205537_ide057_grc_probe/`.
+
+## 11. 파일 색인
 
 - 요약: `eval/results/SUMMARY_20260909.md` (§11 추가 트랙), 이력: `shadow_assists/CPU_UTILIZATION_HISTORY_20260909.md`
 - 최종 재측정: `eval/results/20260909_170510_final_sweep/`, 도착률: `20260909_182418_final_arrival/`, 혼합 forward: `20260909_190222_ide052_mixed_chunk/`
