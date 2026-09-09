@@ -1,4 +1,4 @@
-# IDE_051 — gather + 입력 양자화 위상 융합 (`KT_FUSE_QIN=1`) — 진행 중 (수치 불일치 원인 추적)
+# IDE_051 — gather + 입력 양자화 위상 융합 (`KT_FUSE_QIN=1`) — **부분 채택 (C160 +3.3%; 수치 = 양자화 tie 1-ulp 차이, 분포 동등)**
 
 토큰별 gather memcpy 와 expert 별 A 양자화 (from_mat) 를 한 위상으로: 토큰 행을 expert 의 BufferA 슬롯 (`m_local_pos_`) 에 직접 양자화 (`from_mat_row`), bf16 복사본 제거. qlen ≥ 10 에서만.
 
@@ -18,4 +18,8 @@
 
 ## 수치
 - base vs base, fuse vs fuse: bit 동일 (결정적, 경합 아님).
-- **base vs fuse: 행의 10~25% 에서 max abs 1e-4~2e-3 (T=40: 10/40행, T=200: 18/200, T=1024: 105/1024)** — 산술·버퍼 배치를 동일하게 옮겼음에도 체계적 차이. A 버퍼 바이트 덤프 비교로 원인 추적 중 (`dumpA_patch.py`).
+- base vs fuse: 행의 10~25% 에서 max abs 1e-4~2e-3.
+- **원인 특정 (A 버퍼 바이트 덤프, `dumpA_patch.py`)**: expert 1개의 양자화 A 버퍼를 비교하면 스케일 `d` 와 토큰→행 매핑은 bit 동일, int8 값은 786k~1.38M 개 중 **65~140개만 ±1** 차이이며 전부 **±63 ↔ ±64** (= 행 amax 의 정확히 절반인 원소, 양자화 값 63.5 의 tie). kt-kernel 은 `-ffast-math` 로 빌드되어 (`CMakeLists.txt:179`) `1.0f/d` 가 컴파일 문맥에 따라 정확한 나눗셈 또는 근사 역수 (1 ulp) 로 컴파일됨 → tie 원소의 반올림 방향만 갈림. 즉 **논리 오류가 아니라 양자화 tie-break 의 1-ulp 차이** (int8 값의 0.016%). GSM40 97.5 로 분포 수준 동등.
+
+## 판정
+부분 채택: C160 +3.3%, C192 +1.7%, prefill CPU 층당 −11%. 수치는 bit 동일이 아니라 "양자화 tie 1-ulp" 수준 (운영 해석 내). 기본 꺼짐 유지, 최종 구성에 켤 때는 재측정 필요. 덤프 코드는 `KT_DUMP_A` 게이트로 남김.

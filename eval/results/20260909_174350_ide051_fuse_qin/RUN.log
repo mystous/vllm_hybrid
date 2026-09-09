@@ -92,3 +92,11 @@ fuse_off boot ok 100s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 
 pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
 off_c192 C192: 1034.79 tok/s, TPOT 132.58, TTFT 6882.56  (대조)
 off_c160 C160: 1005.85 tok/s, TPOT 114.87, TTFT 5751.78  (대조)
+dump patch applied (prefill path)
+already
+dumpA_q1024_2_base.bin m 128 128 max_m 128 128 d_equal True d_maxdiff 0.0 a_bytes_diff 127 of 786432 map_equal True
+  first a diffs at byte idx [3428, 6385, 14428, 15924, 15988, 19786, 21724, 23894] base [-64, 63, 63, -64, -64, 64, 64, 64] fuse [-63, 64, 64, -63, -63, 63, 63, 63]
+dumpA_q200_1_base.bin m 200 200 max_m 224 224 d_equal True d_maxdiff 0.0 a_bytes_diff 140 of 1376256 map_equal True
+  first a diffs at byte idx [6151, 22440, 22504, 28700, 34724, 34788, 47150, 51111] base [64, 64, 64, -64, 64, 64, 64, -64] fuse [63, 63, 63, -63, 63, 63, 63, -63]
+dumpA_q40_0_base.bin m 40 40 max_m 64 64 d_equal True d_maxdiff 0.0 a_bytes_diff 65 of 393216 map_equal True
+  first a diffs at byte idx [3298, 3362, 3426, 6319, 8900, 14083, 14107, 14147] base [63, 63, 63, -64, 63, -63, -63, -63] fuse [64, 64, 64, -63, 64, -64, -64, -64]

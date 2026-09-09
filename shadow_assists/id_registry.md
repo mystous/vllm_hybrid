@@ -41,7 +41,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_050` | **채택 (2026-09-09 17:55, 기본 PF=2)** | **AVX rb 커널 B 스트림 소프트웨어 prefetch** (`KT_AVX_PF=<2 KB 블록 거리>`) — 1행 expert 스트리밍이 소켓당 ~180 GB/s (DDR 피크 282 의 64%, torch 195) 에서 멈춤. 하드웨어 prefetcher 의 페이지 경계·MLP 한계를 SW prefetch 로 보완 | 부모 = `IDE_048`. **사전 등록**: 1행 µs/expert −7% 이상 (69 → ≤64) AND bit 동일. **결과**: 1행 69.7~70.6 → 65.6~66.0 µs (−6%), bit 동일; 원본 대비 누적 −13% (≈190 GB/s/소켓). `eval/results/20260909_170007_ide050_avx_prefetch/` |
 
-| `IDE_051` | 활성 (2026-09-09 18:55) | **gather+양자화 위상 융합** (`KT_FUSE_QIN=1`) — decode 규모 위상 분해 (24 cold expert, 1행): GEMM 2개 88% (소켓당 214 GB/s = DDR 피크 76%, 실용 상한), 나머지 5개 소위상 165 µs (11%) 는 장벽 지연. 토큰별 gather memcpy 와 expert 별 A 양자화를 한 위상으로 융합 (행을 BufferA 슬롯에 직접 양자화, bf16 복사본 제거) → 위상 1개·복사 1회 제거. 행 독립 스케일 → bit 동일 | 부모 = `IDE_046-b`, probe `20260909_174147_probe_decode_phase_threads`. **사전 등록**: 층당 (24 expert 1행) −90 µs 이상 (1493 → ≤1400) AND bit 동일 AND 서빙 C192 +3% 이상. 결과 `eval/results/*_ide051_fuse_qin/` |
+| `IDE_051` | **부분 채택 (2026-09-09 19:50; 기본 꺼짐)** | **gather+양자화 위상 융합** (`KT_FUSE_QIN=1`) — decode 규모 위상 분해 (24 cold expert, 1행): GEMM 2개 88% (소켓당 214 GB/s = DDR 피크 76%, 실용 상한), 나머지 5개 소위상 165 µs (11%) 는 장벽 지연. 토큰별 gather memcpy 와 expert 별 A 양자화를 한 위상으로 융합 (행을 BufferA 슬롯에 직접 양자화, bf16 복사본 제거) → 위상 1개·복사 1회 제거. 행 독립 스케일 → bit 동일 | 부모 = `IDE_046-b`, probe `20260909_174147_probe_decode_phase_threads`. **사전 등록**: 층당 (24 expert 1행) −90 µs 이상 (1493 → ≤1400) AND bit 동일 AND 서빙 C192 +3% 이상. **결과**: prefill 층당 −11%, decode −1%; 서빙 C160 1038.7 (+3.3%), C192 +1.7%, GSM40 97.5. 수치: A 버퍼 덤프로 원인 특정 — `-ffast-math` 하 `1/d` 의 1-ulp 차이로 양자화 tie (±63↔±64, 0.016%) 만 갈림. `eval/results/20260909_174350_ide051_fuse_qin/` |
 
 **다음 부여 번호**: `IDE_052`
 
