@@ -29,7 +29,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 구현 후보 단계. profile / 측정 결과로 진입·기각 판정 후에야 다음 단계 prefix(`PLN` 등) 로 파생된다.
 
-**다음 부여 번호**: `IDE_045`
+| `IDE_045` | 활성 (2026-09-09 15:15) | **expert 가중치 버퍼 2MB huge page** — cold expert 스트리밍 332GB/s (torch 96스레드 읽기 390 의 85%) 의 잔여 격차를 TLB miss·page walk 로 가정. `moe_base.hpp` 의 BufferB `aligned_alloc(64)` → 2MB 정렬 + `madvise(MADV_HUGEPAGE)` (`KT_HUGEPAGE=1`). 마이크로벤치 (rows 스윕 base vs hp) + 최선 구성 C160/C64/GSM40 | 부모 = `IDE_037` (rows 스윕), `IDE_039-i`. **사전 등록**: 마이크로벤치 expert당 스트리밍 시간 −5% 이상 AND C160 ≥ 1,010 (+3%) AND GSM40 ≥95. 결과 `eval/results/*_ide045_hugepage/` |
+
+**다음 부여 번호**: `IDE_046`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
@@ -66,7 +68,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_041` | 활성 (2026-09-09 13:30) | **정상 상태 도착률 특성화** — 최선 구성 (hot-96, FP8 KV 110k, graph 160) 에서 Poisson 5/7/9 req/s 의 처리량·TPOT·TTFT p50/p99. 발견: rate 5 에서 TPOT 211ms (버스트 120), prefill 배치 273회 중 1요청 140회 | 부모 = `IDE_039-i`. 결과 `eval/results/*_ide041_steady_arrival/` |
 | `IDE_042` | **기각 (2026-09-09 14:30, 메모리 불가)** | **prefill 청크 16384/32768** — prefill 의 CPU cold-expert 스트리밍 (층당 64×71µs, 청크 크기 무관) 상각 | 부모 = `IDE_041`. 사전 등록: C160 TTFT −20% 또는 처리량 +5%. 결과: 청크 16384/32768 은 mem 0.92/0.94 모두 벤치 중 CUDA OOM (활성화 +1.5GB) → 불가. `eval/results/*_ide042*` |
 | `IDE_043` | **채택 (2026-09-09 14:45, 운영 권고: delayer + 실행 배치 게이트 128)** | **스트리밍-인지 prefill 배칭** — 하이브리드에서 prefill forward 는 크기와 무관하게 층당 cold expert 전량 스트리밍 (≈64×71µs×62 = 280ms) 이 고정비라, 요청이 하나씩 도착하면 prefill 마다 decode 가 280ms 멈춤 (rate 5 실측 TPOT 211). SGLang 내장 prefill delayer (`--enable-prefill-delayer --prefill-delayer-queue-min-ratio R --prefill-delayer-max-delay-passes N --prefill-delayer-max-delay-ms T`) 로 대기열 ≥ R·running 또는 T ms 까지 prefill 을 모아 한 forward 로 실행 — EPOCH 의 deadline 배칭 발상을 **자기회귀 의존이 없는 prefill 에 적용** | 부모 = `IDE_041` + `IDE_037` (EPOCH). **사전 등록**: 같은 도착률 (5/7/9) 에서 TPOT −25% 이상 AND 처리량 ≥ 기준 AND TTFT p99 ≤ 기준의 2배; 버스트 C160 회귀 없음 (≥950). 결과: rate 5 TPOT 215→154 (−28%), TTFT p99 −14%; rate 7 TPOT 불변·TTFT p99 −37%; rate 9 는 기준 우세 (795/137 vs 720/172, 단 기준 TTFT p99 6.6s). -b (KV watermark) 기각, **-c 실행 배치 게이트 128 (패치)**: 경부하 TPOT −27% 유지 + 과부하 TTFT p99 6.6→1.6s (처리량 −7%, TPOT +22% 교환), 버스트 −3%. `eval/results/*_ide043{,b,c}*/`, `*_ide041b_baseline_rate9/` |
-| `IDE_044` | 활성 (2026-09-09 14:35) | **hot set 2차 반복 (α map 아래 수집한 C64 트레이스로 α∈{0.05, 0.25} 재도출)** — 1차 α=0.25 map 은 prompt-map 트레이스로 만든 것. 재도출 map 은 decode 커버리지 97.7~97.8%, B64 기대 cold 8.85~9.29 (1차 9.04 대비 ±3%). C160 + GSM40, 최선 구성 GSM100 | 부모 = `IDE_034`, `IDE_039-i`. **사전 등록**: C160 ≥ 1,010 tok/s (+3%) AND GSM40 ≥95. 결과 `eval/results/*_ide044_alpha_iter2/` |
+| `IDE_044` | **기각 (2026-09-09 15:10, 개선 없음)** | **hot set 2차 반복 (α map 아래 수집한 C64 트레이스로 α∈{0.05, 0.25} 재도출)** — 1차 α=0.25 map 은 prompt-map 트레이스로 만든 것. 재도출 map 은 decode 커버리지 97.7~97.8%, B64 기대 cold 8.85~9.29 (1차 9.04 대비 ±3%). C160 + GSM40, 최선 구성 GSM100 | 부모 = `IDE_034`, `IDE_039-i`. **사전 등록**: C160 ≥ 1,010 tok/s (+3%) AND GSM40 ≥95. **결과**: α0.05 재도출 C160 918.3/123.0 · C64 731.5, α0.25 재도출 C160 965.5/120.2 · C64 766.2 (둘 다 GSM40 97.5) — 1차 map 982.4/119.5 를 넘지 못함 (hot-96 은 커버리지 포화 ~97.8%, map 차이는 노이즈 이내). `eval/results/20260909_143914_ide044_alpha_iter2/` |
 
 ---
 
