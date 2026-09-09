@@ -15,3 +15,29 @@ finB_c192 C192: 1037.20 tok/s, TPOT 137.00, TTFT 6272.14  (운영점 B)
 finB GSM40: ACC 0.975 (39/40)
 == C32 fresh + logprob 비교 (A vs 정오 구성) 17:28
 == C32 fresh + logprob 비교 (A vs 정오 구성) 17:28
+lpA boot ok 100s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 122880, K size: 1.82 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+lpA_c32 C32: 578.01 tok/s, TPOT 37.19, TTFT 2358.87  (운영점 A, fresh; 정오 기준 572)
+saved /home/mystous/projects/vllm_hybrid/eval/results/20260909_170510_final_sweep/lp_A.json tokens 5620
+lpRef boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+saved /home/mystous/projects/vllm_hybrid/eval/results/20260909_170510_final_sweep/lp_ref.json tokens 5620
+LPCMP prompts=30 answer_tokens=5590 max_abs_logprob_diff=4.5000 worst_ppl_rel_diff=0.1043 mean_ppl_rel_diff=0.0121 mean_ppl_a=2.3120 mean_ppl_b=2.3184
+== logprob 노이즈 바닥: 정오 구성 2회 (ref2 vs ref3) 17:34
+== logprob 노이즈 바닥: 정오 구성 2회 (ref2 vs ref3) 17:34
+lpRef2 boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+urllib.error.URLError: <urlopen error [Errno 111] Connection refused>
+urllib.error.URLError: <urlopen error [Errno 111] Connection refused>
+FileNotFoundError: [Errno 2] No such file or directory: '/home/mystous/projects/vllm_hybrid/eval/results/20260909_170510_final_sweep/lp_ref2.json'
+FileNotFoundError: [Errno 2] No such file or directory: '/home/mystous/projects/vllm_hybrid/eval/results/20260909_170510_final_sweep/lp_ref2.json'
+FileNotFoundError: [Errno 2] No such file or directory: '/home/mystous/projects/vllm_hybrid/eval/results/20260909_170510_final_sweep/lp_ref2.json'
+== logprob 노이즈 바닥: 정오 구성 2회 (ref2 vs ref3) 17:38
+== logprob 노이즈 바닥: 정오 구성 2회 (ref2 vs ref3) 17:38
+lpRef2 boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+saved /home/mystous/projects/vllm_hybrid/eval/results/20260909_170510_final_sweep/lp_ref2.json tokens 5620
+saved /home/mystous/projects/vllm_hybrid/eval/results/20260909_170510_final_sweep/lp_ref3.json tokens 5620
+LPCMP ref2-vs-ref3 (same server): prompts=30 answer_tokens=5590 max_abs_logprob_diff=2.3750 worst_ppl_rel_diff=0.0224 mean_ppl_rel_diff=0.0012 mean_ppl_a=2.3276 mean_ppl_b=2.3302
+LPCMP ref-vs-ref2 (reboot): prompts=30 answer_tokens=5590 max_abs_logprob_diff=6.7498 worst_ppl_rel_diff=0.1043 mean_ppl_rel_diff=0.0210 mean_ppl_a=2.3120 mean_ppl_b=2.3276
+LPCMP ref2-vs-A: prompts=30 answer_tokens=5590 max_abs_logprob_diff=4.6317 worst_ppl_rel_diff=0.0608 mean_ppl_rel_diff=0.0187 mean_ppl_a=2.3276 mean_ppl_b=2.3184
