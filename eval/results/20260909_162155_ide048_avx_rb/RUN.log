@@ -61,3 +61,15 @@ numcheck rb T=40 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
 numcheck rb T=200 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
 numcheck rb T=1024 n_cold=64 max_abs_diff=0.000e+00 rel=0.00e+00
 == serving with KT_AVX_RB=1 16:26
+rb_nospec boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+rb_nospec_c160 C160: 975.93 tok/s, TPOT 118.10, TTFT 5968.71  (기준 fresh 965~985 / 120)
+rb_nospec_c64 C64: 781.94 tok/s, TPOT 59.80, TTFT 2867.22  (기준 728~766 / 61)
+rb_nospec GSM40: ACC 0.975 (39/40)
+rb_e3 boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 87449, K size: 1.29 GB, V size: 
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+rb_e3 gpu mem after boot: 79510 MiB 79530 MiB 79530 MiB 79050 MiB 0 MiB 0 MiB 0 MiB 0 MiB 
+rb_e3_c160 C160: 698.19 tok/s, TPOT 188.93, TTFT 2658.46  (기준 fresh 965~985 / TPOT 120 / TTFT 5.6~5.9s)
+rb_e3 accept(C160): accept len: 1.98 accept len: 2.26 accept len: 2.29 
+rb_e3_c64 C64: 512.46 tok/s, TPOT 105.08, TTFT 1385.04  (기준 728~766 / 60~63 / 3.0~3.2s)
+rb_e3 accept(C64): accept len: 1.94 accept len: 1.97 accept len: 2.24 
