@@ -41,3 +41,10 @@ saved /home/mystous/projects/vllm_hybrid/eval/results/20260909_170510_final_swee
 LPCMP ref2-vs-ref3 (same server): prompts=30 answer_tokens=5590 max_abs_logprob_diff=2.3750 worst_ppl_rel_diff=0.0224 mean_ppl_rel_diff=0.0012 mean_ppl_a=2.3276 mean_ppl_b=2.3302
 LPCMP ref-vs-ref2 (reboot): prompts=30 answer_tokens=5590 max_abs_logprob_diff=6.7498 worst_ppl_rel_diff=0.1043 mean_ppl_rel_diff=0.0210 mean_ppl_a=2.3120 mean_ppl_b=2.3276
 LPCMP ref2-vs-A: prompts=30 answer_tokens=5590 max_abs_logprob_diff=4.6317 worst_ppl_rel_diff=0.0608 mean_ppl_rel_diff=0.0187 mean_ppl_a=2.3276 mean_ppl_b=2.3184
+== 운영점 B + FUSE_QIN: C224 fresh → C192 → GSM100 18:10
+== 운영점 B + FUSE_QIN: C224 fresh → C192 → GSM100 18:10
+finB_fuse boot ok 100s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 127309, K size: 1.88 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+finB_fuse_c224 C224: 1098.24 tok/s, TPOT 149.64, TTFT 7077.66  (운영점 B 기준 1066.5 / 154.0)
+finB_fuse_c192 C192: 1071.50 tok/s, TPOT 133.05, TTFT 6016.02  (기준 1037.2 / 137.0)
+finB_fuse GSM100: ACC 0.970 (97/100)
