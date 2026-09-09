@@ -1,0 +1,40 @@
+amx min qlen patch applied
+== build 11:09:43
+INSTALLED
+BUILD_OK 11:12:56
+== rows bench (vec)
+  n_cold= 8 T=  1 rows/expert=  1.0 us=   474.9 us/expert=   59.4 us/row= 59.4
+  n_cold= 8 T=  2 rows/expert=  2.0 us=   606.8 us/expert=   75.8 us/row= 37.9
+  n_cold= 8 T=  4 rows/expert=  4.0 us=   944.7 us/expert=  118.1 us/row= 29.5
+  n_cold= 8 T=  8 rows/expert=  8.0 us=  1622.1 us/expert=  202.8 us/row= 25.3
+  n_cold= 8 T= 16 rows/expert= 16.0 us=  2560.2 us/expert=  320.0 us/row= 20.0
+  n_cold= 8 T= 32 rows/expert= 32.0 us=  4845.3 us/expert=  605.7 us/row= 18.9
+  n_cold= 8 T= 64 rows/expert= 64.0 us=  9443.8 us/expert= 1180.5 us/row= 18.4
+  n_cold=32 T=  1 rows/expert=  0.2 us=   468.3 us/expert=   14.6 us/row= 58.5
+  n_cold=32 T=  2 rows/expert=  0.5 us=   847.7 us/expert=   26.5 us/row= 53.0
+  n_cold=32 T=  4 rows/expert=  1.0 us=  1574.8 us/expert=   49.2 us/row= 49.2
+  n_cold=32 T=  8 rows/expert=  2.0 us=  2552.3 us/expert=   79.8 us/row= 39.9
+  n_cold=32 T= 16 rows/expert=  4.0 us=  3078.1 us/expert=   96.2 us/row= 24.0
+  n_cold=32 T= 32 rows/expert=  8.0 us=  4810.0 us/expert=  150.3 us/row= 18.8
+  n_cold=32 T= 64 rows/expert= 16.0 us=  8789.6 us/expert=  274.7 us/row= 17.2
+== rows bench (mat)
+  n_cold= 8 T=  1 rows/expert=  1.0 us=   619.8 us/expert=   77.5 us/row= 77.5
+  n_cold= 8 T=  2 rows/expert=  2.0 us=   623.4 us/expert=   77.9 us/row= 39.0
+  n_cold= 8 T=  4 rows/expert=  4.0 us=   724.0 us/expert=   90.5 us/row= 22.6
+  n_cold= 8 T=  8 rows/expert=  8.0 us=   897.1 us/expert=  112.1 us/row= 14.0
+  n_cold= 8 T= 16 rows/expert= 16.0 us=   786.2 us/expert=   98.3 us/row=  6.1
+  n_cold= 8 T= 32 rows/expert= 32.0 us=   875.5 us/expert=  109.4 us/row=  3.4
+  n_cold= 8 T= 64 rows/expert= 64.0 us=  1345.0 us/expert=  168.1 us/row=  2.6
+  n_cold=32 T=  1 rows/expert=  0.2 us=   617.0 us/expert=   19.3 us/row= 77.1
+  n_cold=32 T=  2 rows/expert=  0.5 us=  1035.8 us/expert=   32.4 us/row= 64.7
+  n_cold=32 T=  4 rows/expert=  1.0 us=  1907.0 us/expert=   59.6 us/row= 59.6
+  n_cold=32 T=  8 rows/expert=  2.0 us=  2891.4 us/expert=   90.4 us/row= 45.2
+  n_cold=32 T= 16 rows/expert=  4.0 us=  2848.7 us/expert=   89.0 us/row= 22.3
+  n_cold=32 T= 32 rows/expert=  8.0 us=  2945.2 us/expert=   92.0 us/row= 11.5
+  n_cold=32 T= 64 rows/expert= 16.0 us=  3197.3 us/expert=   99.9 us/row=  6.2
+lossless_amx boot ok 110s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+  greedy: ' Paris, and the capital of Germany is Berlin. What is the capital of I'
+lossless_amx_c32 C32: 529.99 tok/s, TPOT 43.99  (기준 무손실 572.1/39.9)
+lossless_amx_c64 C64: 713.92 tok/s, TPOT 67.34  (기준 769.2/60.9)
+lossless_amx GSM40: ACC 0.950 (38/40)
