@@ -1,0 +1,30 @@
+weights loaded
+{'T': 32, 'n_cold': 8, 'iters': 70, 'us': 4955.7, 'us_per_expert': 619.5}
+{'T': 64, 'n_cold': 8, 'iters': 70, 'us': 9465.5, 'us_per_expert': 1183.2}
+{'T': 81, 'n_cold': 8, 'iters': 70, 'us': 1749.3, 'us_per_expert': 218.7}
+{'T': 88, 'n_cold': 8, 'iters': 70, 'us': 1757.5, 'us_per_expert': 219.7}
+saved /tmp/mb480_slow.json
+CPUInfer[0xa9786b0]: Hello
+WorkerPool[0xa976ae0] 2 subpools, [numa:threads][0:48] [1:48] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 48 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 48 threads
+TP MOE layer 0, pool: 0xa976ae0, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+Profiling Results (numa[0]): activated_expert: 8, prepare: 2 us, cpy_input: 20 us, q_input: 141 us, up_gate: 3037 us, act: 20 us, q_down: 26 us, down: 1385 us, weight: 22 us, total: 4657 us, max_local_num: 32, qlen: 32
+Profiling Results (numa[1]): activated_expert: 8, prepare: 4 us, cpy_input: 20 us, q_input: 154 us, up_gate: 3041 us, act: 22 us, q_down: 27 us, down: 1464 us, weight: 29 us, total: 4765 us, max_local_num: 32, qlen: 32
+[kt-wrap] qlen: 32, numa_job: 4783 us, merge: 15 us, incremental: 0
+Profiling Results (numa[1]): activated_expert: 8, prepare: 4 us, cpy_input: 27 us, q_input: 246 us, up_gate: 6076 us, act: 36 us, q_down: 44 us, down: 2764 us, weight: 42 us, total: 9242 us, max_local_num: 64, qlen: 64
+Profiling Results (numa[0]): activated_expert: 8, prepare: 4 us, cpy_input: 29 us, q_input: 261 us, up_gate: 6103 us, act: 34 us, q_down: 45 us, down: 2910 us, weight: 51 us, total: 9441 us, max_local_num: 64, qlen: 64
+[kt-wrap] qlen: 64, numa_job: 9454 us, merge: 20 us, incremental: 0
+Profiling Results (numa[1]): activated_expert: 8, prepare: 4 us, cpy_input: 29 us, q_input: 302 us, up_gate: 605 us, act: 40 us, q_down: 55 us, down: 507 us, weight: 40 us, total: 1585 us, max_local_num: 81, qlen: 81
+Profiling Results (numa[0]): activated_expert: 8, prepare: 4 us, cpy_input: 40 us, q_input: 302 us, up_gate: 597 us, act: 41 us, q_down: 53 us, down: 507 us, weight: 43 us, total: 1592 us, max_local_num: 81, qlen: 81
+[kt-wrap] qlen: 81, numa_job: 1620 us, merge: 25 us, incremental: 0
+Profiling Results (numa[1]): activated_expert: 8, prepare: 4 us, cpy_input: 31 us, q_input: 315 us, up_gate: 582 us, act: 42 us, q_down: 57 us, down: 471 us, weight: 36 us, total: 1542 us, max_local_num: 88, qlen: 88
+Profiling Results (numa[0]): activated_expert: 8, prepare: 4 us, cpy_input: 39 us, q_input: 311 us, up_gate: 594 us, act: 44 us, q_down: 55 us, down: 493 us, weight: 30 us, total: 1573 us, max_local_num: 88, qlen: 88
+[kt-wrap] qlen: 88, numa_job: 1586 us, merge: 26 us, incremental: 0
+CPUInfer[0xa9786b0]: Goodbye
+SLOW_DONE

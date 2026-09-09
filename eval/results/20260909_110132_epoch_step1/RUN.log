@@ -1,0 +1,20 @@
+boot ok 110s
+pinned 1328 non-kt threads in 7 procs to 48-55,104-111,160-167,216-223
+C32: 516.82 tok/s, TPOT 42.95
+== EPOCH oracle C32 (α hot-96, c_row=15)
+decode passes 512 L=62 E=160 H=96
+W=1 (현 lockstep): {'W': 1, 'reads': 160567, 'rows_median': 1.0, 'rows_mean': 1.33, 'p90': 2.0, 'cpu_us_per_token': 1124.1, 'tokens_per_window': 32.0}
+W=2: {'W': 2, 'reads': 131589, 'rows_median': 1.0, 'rows_mean': 1.63, 'p90': 3.0, 'cpu_us_per_token': 882.3, 'tokens_per_window': 64.0, 'cpu_saving_vs_W1': '21.5%', 'latency_cost': '토큰당 대기 ≈ 1 스텝'}
+W=4: {'W': 4, 'reads': 99490, 'rows_median': 1.0, 'rows_mean': 2.15, 'p90': 4.0, 'cpu_us_per_token': 685.1, 'tokens_per_window': 128.0, 'cpu_saving_vs_W1': '39.1%', 'latency_cost': '토큰당 대기 ≈ 3 스텝'}
+W=8: {'W': 8, 'reads': 68876, 'rows_median': 2.0, 'rows_mean': 3.11, 'p90': 7.0, 'cpu_us_per_token': 523.4, 'tokens_per_window': 256.0, 'cpu_saving_vs_W1': '53.4%', 'latency_cost': '토큰당 대기 ≈ 7 스텝'}
+rows/read 히스토그램 (W=1): [(1, 124898), (2, 25244), (3, 6731), (4, 2153), (5, 661), (6, 300), (7, 321), (8, 126), (9, 77), (10, 30), (11, 8), (12, 6)]
+C64: 710.26 tok/s, TPOT 63.80
+== EPOCH oracle C64 (α hot-96, c_row=15)
+decode passes 384 L=62 E=160 H=96
+W=1 (현 lockstep): {'W': 1, 'reads': 200447, 'rows_median': 1.0, 'rows_mean': 1.58, 'p90': 3.0, 'cpu_us_per_token': 888.9, 'tokens_per_window': 64.0}
+W=2: {'W': 2, 'reads': 151089, 'rows_median': 1.0, 'rows_mean': 2.1, 'p90': 4.0, 'cpu_us_per_token': 688.2, 'tokens_per_window': 128.0, 'cpu_saving_vs_W1': '22.6%', 'latency_cost': '토큰당 대기 ≈ 1 스텝'}
+W=4: {'W': 4, 'reads': 104365, 'rows_median': 2.0, 'rows_mean': 3.04, 'p90': 7.0, 'cpu_us_per_token': 524.1, 'tokens_per_window': 256.0, 'cpu_saving_vs_W1': '41.0%', 'latency_cost': '토큰당 대기 ≈ 3 스텝'}
+W=8: {'W': 8, 'reads': 66991, 'rows_median': 3.0, 'rows_mean': 4.73, 'p90': 11.0, 'cpu_us_per_token': 401.6, 'tokens_per_window': 512.0, 'cpu_saving_vs_W1': '54.8%', 'latency_cost': '토큰당 대기 ≈ 7 스텝'}
+rows/read 히스토그램 (W=1): [(1, 132383), (2, 42078), (3, 15406), (4, 5759), (5, 2380), (6, 940), (7, 607), (8, 356), (9, 138), (10, 75), (11, 85), (12, 68)]
+== rows microbench 11:05:45
+rows bench records: 24
