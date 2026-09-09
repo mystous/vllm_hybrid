@@ -170,3 +170,30 @@ numcheck2 qapar_bcache T=40 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
 numcheck2 qapar_bcache T=200 n_cold=8 max_abs_diff=0.000e+00 rel=0.00e+00
 numcheck2 qapar_bcache T=1024 n_cold=64 max_abs_diff=0.000e+00 rel=0.00e+00
 == serving A/B 15:36
+s046_on boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+on_c64_r1 C64: 738.21 tok/s, TPOT 62.21, TTFT 3187.58  (기준 766/60.6/TTFT 2.99s)
+on_c64_r2 C64: 1083.48 tok/s, TPOT 54.81, TTFT 591.98  (r2)
+on_c160 C160: 1140.87 tok/s, TPOT 112.02, TTFT 3706.01  (기준 965~985/120)
+on GSM40: ACC 0.975 (39/40)
+s046_off boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+off_c64_r1 C64: 728.39 tok/s, TPOT 63.16, TTFT 3217.31  (대조)
+off_c64_r2 C64: 1074.28 tok/s, TPOT 55.64, TTFT 551.02  (r2)
+off_c160 C160: 1154.85 tok/s, TPOT 110.98, TTFT 3621.05  (대조)
+== CPU-bound test: kt-cpuinfer 48 (2풀×24) 15:47
+cpu48 boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 110592, K size: 1.63 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+cpu48_c64 C64: 593.99 tok/s, TPOT 76.58, TTFT 4058.81  (96스레드 기준 766/60.6/TTFT 2.99s — CPU 시간 2배면 TTFT 도 크게 상승해야 CPU-bound)
+cpu48_c160 C160: 908.99 tok/s, TPOT 141.54, TTFT 4536.85  (기준 965~985/120/TTFT 5.6~5.9s)
+== decode HT test threads=96 (vec 경로 기본, KT_AMX_MIN_ROWS=3) 15:52:43
+Profiling R  n_cold=  8 T=    1 rows/expert=   1.0 us=    475.0 us/expert=    59.4 us/row=59.38
+  n_cold=  8 T=    2 rows/expert=   2.0 us=    595.9 us/expert=    74.5 us/row=37.24
+  n_cold=  8 T=    4 rows/expert=   4.0 us=    712.2 us/expert=    89.0 us/row=22.26
+  n_cold= 24 T=    3 rows/expert=   1.0 us=   1805.4 us/expert=    75.2 us/row=75.22
+  n_cold= 24 T=    6 rows/expert=   2.0 us=   2010.2 us/expert=    83.8 us/row=41.88
+  n_cold= 24 T=   12 rows/expert=   4.0 us=   2177.1 us/expert=    90.7 us/row=22.68
+  n_cold= 32 T=    4 rows/expert=   1.0 us=   2367.2 us/expert=    74.0 us/row=73.97
+  n_cold= 32 T=    8 rows/expert=   2.0 us=   2647.8 us/expert=    82.7 us/row=41.37
+  n_cold= 32 T=   16 rows/expert=   4.0 us=   2843.3 us/expert=    88.9 us/row=22.21
+== decode HT test threads=192 (vec 경로 기본, KT_AMX_MIN_ROWS=3) 15:52:54
