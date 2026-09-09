@@ -1,0 +1,58 @@
+path=h2d_copy  m=    1  GPU us/expert=   816.2 (per-GPU   7.2 GB/s, expert 집계   28.9 GB/s)   CPU AMX/AVX ref=66
+path=h2d_copy  m=    2  GPU us/expert=   791.9 (per-GPU   7.4 GB/s, expert 집계   29.8 GB/s)   CPU AMX/AVX ref=72
+path=h2d_copy  m=    4  GPU us/expert=   813.4 (per-GPU   7.3 GB/s, expert 집계   29.0 GB/s)   CPU AMX/AVX ref=71
+path=h2d_copy  m=    8  GPU us/expert=   799.1 (per-GPU   7.4 GB/s, expert 집계   29.5 GB/s)   CPU AMX/AVX ref=120
+path=h2d_copy  m=   16  GPU us/expert=   818.7 (per-GPU   7.2 GB/s, expert 집계   28.8 GB/s)   CPU AMX/AVX ref=212
+path=h2d_copy  m=   32  GPU us/expert=   816.4 (per-GPU   7.2 GB/s, expert 집계   28.9 GB/s)   CPU AMX/AVX ref=495
+path=h2d_copy  m=   64  GPU us/expert=   797.9 (per-GPU   7.4 GB/s, expert 집계   29.6 GB/s)   CPU AMX/AVX ref=1003.85
+path=h2d_copy  m=  128  GPU us/expert=   802.6 (per-GPU   7.3 GB/s, expert 집계   29.4 GB/s)   CPU AMX/AVX ref=275
+path=h2d_copy  m=  256  GPU us/expert=   798.6 (per-GPU   7.4 GB/s, expert 집계   29.5 GB/s)   CPU AMX/AVX ref=500
+path=h2d_copy  m=  512  GPU us/expert=   805.1 (per-GPU   7.3 GB/s, expert 집계   29.3 GB/s)   CPU AMX/AVX ref=None
+path=h2d_copy  m= 1024  GPU us/expert=   794.2 (per-GPU   7.4 GB/s, expert 집계   29.7 GB/s)   CPU AMX/AVX ref=None
+Exception in thread Thread-45 (run_gpu):
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+Exception in thread Thread-46 (run_gpu):
+Exception in thread Thread-47 (run_gpu):
+    self.run()
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+Exception in thread Thread-48 (run_gpu):
+Traceback (most recent call last):
+Traceback (most recent call last):
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/tmp/trix_pcie_bench.py", line 39, in run_gpu
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self.run()
+    dptr = cp.cuda.runtime.hostGetDevicePointer(shard_ptr(e, g), 0)
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    self._target(*self._args, **self._kwargs)
+AttributeError: module 'cupy_backends.cuda.api.runtime' has no attribute 'hostGetDevicePointer'
+    self._target(*self._args, **self._kwargs)
+  File "/tmp/trix_pcie_bench.py", line 39, in run_gpu
+    self.run()
+  File "/tmp/trix_pcie_bench.py", line 39, in run_gpu
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    dptr = cp.cuda.runtime.hostGetDevicePointer(shard_ptr(e, g), 0)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    dptr = cp.cuda.runtime.hostGetDevicePointer(shard_ptr(e, g), 0)
+AttributeError: module 'cupy_backends.cuda.api.runtime' has no attribute 'hostGetDevicePointer'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    self._target(*self._args, **self._kwargs)
+  File "/tmp/trix_pcie_bench.py", line 39, in run_gpu
+AttributeError: module 'cupy_backends.cuda.api.runtime' has no attribute 'hostGetDevicePointer'
+    dptr = cp.cuda.runtime.hostGetDevicePointer(shard_ptr(e, g), 0)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'cupy_backends.cuda.api.runtime' has no attribute 'hostGetDevicePointer'
+Traceback (most recent call last):
+  File "/tmp/trix_pcie_bench.py", line 70, in <module>
+    wall = max(times.values()) * 1e6          # expert 1개 = 4 shard 병렬 → 가장 느린 GPU
+           ^^^^^^^^^^^^^^^^^^^
+ValueError: max() iterable argument is empty
+time="2026-09-09T20:11:13+09:00" level=fatal msg="exec failed with exit code 1"
+TRIX_DONE

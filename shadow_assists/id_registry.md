@@ -45,7 +45,10 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_052` | **채택 (2026-09-09 19:45, 운영 기본 권고)** | **prefill·decode 혼합 forward (`--enable-mixed-chunk`)** — 도착 체제에서 요청별 prefill forward (cold expert ~50개 스트리밍 ≈ 250 ms 고정비) 가 decode 를 끊어 rate 5 에서 TPOT 299 (버스트 149 의 2배). 혼합 배치는 decode 토큰을 prefill forward 에 태워, 어차피 스트리밍되는 cold expert 위에 decode 행을 얹음 (같은 스트리밍으로 더 많은 유효 행). delayer 와 결합도 측정 | 부모 = `IDE_043`, `final_arrival`. **사전 등록**: rate 5 TPOT ≤ 200 (delayer 없이) AND 버스트 C224 ≥ 1050 AND GSM40 ≥95. **결과**: 경부하 TPOT 299→184 (−38%; +delayer 142, −53%), 과부하 TTFT p99 7.2→1.27s (−82%) 에 처리량 −7% (delayer 보다 +4%), 버스트 1096 유지·TTFT p50 6.8→1.75s. GSM40 95.0, GSM100 94/96/97 (평균 95.7, 기준 97.0). `eval/results/20260909_190222_ide052_mixed_chunk/` |
 
-**다음 부여 번호**: `IDE_053`
+| `IDE_053` | 대기 (2026-09-09 20:12 사용자 중단; 부분 결과) | **TriX-on-PCIe: 제3 경로 (GPU 가 호스트 메모리의 cold expert 가중치를 직접 읽어 계산) 의 교차점 측정** — 보고서의 TriX 는 GH200/GB200 C2C coherent 메모리 전제; 이 노드 (PCIe H100) 에서는 pinned zero-copy / H2D 복사 경로. expert 1개 (INT4 24 MB·FP8 47 MB, TP 4분할) 를 행 수 m ∈ {1..2048} 에서 GPU 경로 vs CPU AMX 경로 (IDE_037/048 실측) 로 비교, 4 GPU 동시 스트리밍 집계 대역폭 측정 | 부모 = 심층조사 보고서 TriX. **사전 등록 (보고서 기준)**: 서빙 체제 (decode m≈1~2, prefill m≈50~400) 안에 GPU 경로 < CPU 경로인 교차점이 있으면 계속, 없으면 조기중단. **부분 결과**: H2D 복사 경로 ~800 µs/expert (per-GPU 7.3 GB/s — 측정 경로가 pageable 스테이징이라 PCIe 상한 아님), zero-copy 는 cupy API 부재로 미측정 → 결론 보류. `eval/results/20260909_201104_ide053_trix_pcie/` |
+| `IDE_054` | 대기 (2026-09-09 20:12 사용자 중단; 미착수) | **JIT-EO 프로토타입: MoE 학습에서 CPU optimizer (Adam, ZeRO-Offload 식) 업데이트를 전역 장벽 대신 expert 의 다음 사용 시점까지로 미룸** — 합성 MoE (12층·hidden 2048·32 expert·top-2) 1 GPU + CPU Adam. (a) 동기 (모든 expert 업데이트 후 다음 step) vs (b) JIT (expert 별 비동기 CPU Adam + 다음 forward 의 첫 사용 직전 H2D 대기). 지표: step 시간, next-use slack 분포, 파라미터 동일성 (bitwise) | 부모 = 심층조사 보고서 JIT-EO. **사전 등록**: 파라미터 동일 AND step 시간 −10% 이상이면 성립; slack 이 CPU Adam 시간보다 짧아 이득 <3% 이면 조기중단. 결과 `eval/results/*_ide054_jit_eo/` |
+
+**다음 부여 번호**: `IDE_055`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
