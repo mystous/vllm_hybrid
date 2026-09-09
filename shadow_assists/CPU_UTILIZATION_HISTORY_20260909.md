@@ -106,6 +106,18 @@ Qwen3-Coder-480B, TP=4 H100 + Xeon 96스레드, sonnet 512/128.
 - **IDE_036** 빈 deferred 생략: 효과 0 → 기각. hot-128 프로브로 하이브리드 경로 **층당 고정비 77µs(CF) / 126µs(host 콜백)** 실측(구조적 하한).
 - **M3**: 235B는 GPU-only 929.6/1915.8 vs hybrid 804/1549 → **GPU-only 우세(+16/+24%)**; 30B GPU-only 2456/4213, hybrid 부팅 segfault(미측정).
 
+### 2.7 IDE_037~050 심층조사 트랙 + 오후 트랙 (2026-09-09 11:00 ~ 18:40) — `eval/results/SUMMARY_20260909.md` §11
+- **IDE_037** EPOCH 오라클: 고정 동시성 no-go (읽기당 행 중앙값 1). 부산물 = rows 스윕에서 **AMX 절벽** 발견 (qlen>80 이면 AMX, 행당 18→2.3µs; 1~2행은 AMX 타일이 오히려 느림).
+- **IDE_038-b** expert 별 행 수 기준 AMX 선택 (m≥3): C96 +8%. **IDE_039** FP8 KV (실KV 37k 예약 발견) + graph 160: **C160 982.4 / TPOT 119.5, GSM40 97.5** (정오 최고).
+- **IDE_040** hot-88/80 고동시성: 토큰당 CPU 바이트 증가 > KV 이득 → 기각. **IDE_041** 도착률 특성화 → **IDE_043-c** 스트리밍-인지 prefill 배칭 (delayer + 실행 배치 128 미만 게이트): 경부하 TPOT −27%, 과부하 TTFT p99 −76% (처리량 −7%, 운영 옵션). **IDE_042** 청크 확대 OOM, **IDE_044** hot set 재도출 (커버리지 포화) 기각.
+- **IDE_045** huge page: 적용 확인 (133→245 GB) 했으나 효과 없음 (TLB 아님). 부산물: prefix cache 전량 적중 시 C64 +43% → prefill 이 처리량의 ~30%.
+- **IDE_046** prefill AMX GEMM 커널 (B 타일 언팩 캐시·A 양자화 병렬화, bit 동일): 층당 −3~6%, 서빙 동일. GEMM 은 L2 타일 적재 한계 (AMX 활용 24%). 스레드 절반 실험: TTFT +27% (CPU 는 prefill 임계의 1/4), TPOT +24~26% (decode 는 CPU 노출 큼) → 기각.
+- **IDE_047** EAGLE3 투기 디코딩 (lmsys draft): 수락 길이 2.0 (sonnet); C160 706, C64 461 → 기각. 구조적 원인: cold slot 이 서로 다른 expert 에 떨어져 검증 행 4배 → 스트리밍 expert 수 2~3배 + GPU 투기 오버헤드 ~135 ms/스텝.
+- **IDE_048** AVX-512 vec 커널 레지스터 블로킹 (bit 동일): 1행 −8%, 16행 −24%; 서빙 C64 782. **IDE_050** B 스트림 SW prefetch: 1행 −6% 추가 (누적 −13%, ≈190 GB/s/소켓). 채택 (기본 켬).
+- **IDE_049** CUDA graph 버킷 6~7종 명시로 GPU 메모리 회수 → KV 110k → 123~127k → graph 192/224: **C192 1049, C224 1067** (+8.6% vs 정오). 채택.
+- **최종 재측정 (`*_final_sweep/`)**: 운영점 A (graph 192·청크 8192·KV 122,880) C192 1048.7 / C160 1012.2 / C128 961.9 / C64 796.6 / C32 578.0, GSM100 96.0 (−1문항, logprob 비교로 분포 동등성 확인 중). 운영점 B (graph 224·청크 4096·KV 127,309) C224 1066.5, GSM40 97.5.
+- 하드웨어 사실: 소켓당 DDR5 8ch×2DPC 4400 → 이론 282 GB/s, torch 읽기 195, 커널 ≈190 (67%). 벤치 규칙: 192 프롬프트 뒤의 480 프롬프트 C160 은 prefix cache 로 +17% 부풀려짐 → C160 은 fresh 또는 480 뒤에만.
+
 ---
 
 ## 3. 성능 개선 누적 (Qwen3-Coder-480B, C32 sonnet 512/128, TP=4)
@@ -118,6 +130,8 @@ Qwen3-Coder-480B, TP=4 H100 + Xeon 96스레드, sonnet 512/128.
 | 09-08 | hot-96 + deferred 4 | 490.9 | 8.7× | 97.0 (100) |
 | 09-09 | + IDE_033/034/035 (무손실) | **572.1** (C64 769) | **10.2×** | **97.0 (100)** |
 | 09-09 | + 전량 deferral (최고 처리량) | **658.7** (C64 883.7) | 11.7× | 93~94 (100) |
+| 09-09 정오 | + AMX 선택 + FP8 KV + graph 160 (무손실) | C160 **982.4** | 17.4× | 97.5 (40) |
+| 09-09 저녁 | + AVX 레지스터 블로킹·prefetch + graph 버킷 축소·KV 확대 | **C192 1048.7 / C224 1066.5** (C64 796.6, C32 578.0) | **19.0×** | 96.0 (100) / 97.5 (40) |
 
 70B(GPU에 들어가는 모델)에서의 CPU 관련 이득: DRAM KV tier **+51.8%**(KV 압박 워크로드 한정). IDE_006 계열(CPU attention)은 개선 0(전부 손실).
 
@@ -139,6 +153,7 @@ Qwen3-Coder-480B, TP=4 H100 + Xeon 96스레드, sonnet 512/128.
 ## 5. 현재 판단 (2026-09-09 기준, 사실만)
 
 - CPU가 서빙 처리량에 기여한 방식은 두 가지뿐이다: **(a) GPU 메모리에 들어가지 않는 모델을 성립시키고(480B: 0 → 572~659 tok/s), (b) DRAM을 KV 저장 계층으로 쓰는 것(+51.8%, 압박 시)**. CPU를 임계 경로의 연산자로 넣은 시도(attention, 교차 실행)는 전부 손실이었다.
+- **09-09 저녁 갱신**: 최고 1067 tok/s (C224). decode 는 CPU cold expert 스트리밍에 묶여 있으며 (스레드 절반 → TPOT +25%), 스트리밍은 DDR 실용 상한의 ~90% (190 / 195~225 GB/s). 남은 CPU 측 여지 ≈ 5~10% (스트리밍) + 5% (층당 위상 장벽). 다음 큰 폭은 GPU 메모리 (KV) 확보 = hot expert 의 GPU 측 양자화 (손실, 사용자 판단) 또는 더 큰 GPU 메모리.
 - 480B 하이브리드에서 CPU의 현 상태: 큐는 99% 바쁘지만 일의 98%가 가중치 스트리밍(332GB/s)이고 AMX 연산은 expert당 1.5~6행으로 거의 놀고 있다. 처리량이 오른 기법들은 대부분 CPU의 일을 줄이거나 대기를 없앤 것이다.
 - 사용자 지시(09-09): 목표는 CPU를 더/더 효율적으로 써서 시스템을 올리는 것이며 지표·목표 재정의는 하지 않는다. 미착수 후보 중 이 방향에 맞는 것: expert 친화 admission(같은 expert에 행 모으기), 고동시성에서 hot expert를 CPU로 더 넘기고 KV를 키우는 분할, 스트리밍 효율(332→400GB/s). CPU drafter 계열은 IDE_026/9라운드에서 선점·부분 기각 이력이 있으므로 재제안 시 그 기록을 먼저 볼 것.
 
@@ -151,4 +166,4 @@ Qwen3-Coder-480B, TP=4 H100 + Xeon 96스레드, sonnet 512/128.
 - 08-27 캠페인: `features/IDE_023/{COMPREHENSIVE_REPORT_20260827.md, campaign_assessment_20260829.md, dual480b_results_20260829.md, PLN_003.md}`, `features/IDE_024/`, `features/IDE_025/`, `eval/results/20260827_*`
 - 신규성 탐색: `shadow_assists/brainstorming/{paper_novelty_candidates_20260827.md, problem_search_20260829.md}`, `features/IDE_026/{PLN_004.md, PROGRESS_20260829.md}`, `features/IDE_029/PLN_006.md`
 - Build 트랙: `features/IDE_030/{FINAL_RESULT_20260830.md, FINAL_RESULT_20260908.md, interleave_design.md, specgraph_worklog.md, upstream_reports/}`
-- 09-08~09: `features/IDE_031/{PLN_008.md, paper_outline.md, K1_DELTA.md, model/}`, `eval/results/SUMMARY_20260909.md`, `eval/results/20260909_*`
+- 09-08~09: `features/IDE_031/{PLN_008.md, paper_outline.md, K1_DELTA.md, model/}`, `eval/results/SUMMARY_20260909.md`, `eval/results/20260909_*`, 오후 하네스 `eval/harness/20260909_afternoon/`
