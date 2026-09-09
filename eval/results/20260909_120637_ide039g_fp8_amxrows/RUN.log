@@ -1,0 +1,12 @@
+fp8_92 boot ok 120s 
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+a_fp8_92_c96 C96: 831.41 tok/s, TPOT 83.39, TTFT 4178.15  (1차 861/81.8/3881; AMXROWS 없이 768/92.1)
+a_fp8_92_c128 C128: 899.38 tok/s, TPOT 106.04, TTFT 4705.55  (1차 901/102/5220)
+fp8_94 boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 127309, K size: 1.88 GB, V size:
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+a_fp8_94_c96 C96: 835.20 tok/s, TPOT 83.03, TTFT 4154.97  (AMXROWS 없이 773.5/91.7)
+a_fp8_94_c128 C128: 951.78 tok/s, TPOT 100.51, TTFT 4432.25  (AMXROWS 없이 854.9/115)
+a_fp8_94_c160 C160: 515.03 tok/s, TPOT 268.18, TTFT 5654.09  (KV 127k → 동시 ~188 가능)
+fp8_92_mr96 boot ok 110s KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 73728, K size: 1.09 GB, V size: 
+pinned 1459 non-kt threads in 8 procs to 48-55,104-111,160-167,216-223
+a_mr96_c128 C128: 743.76 tok/s, TPOT 91.71, TTFT 8254.00  (admission 96 제한)
