@@ -35,7 +35,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_047` | 활성 (2026-09-09 16:15) | **EAGLE3 투기적 디코딩 × 하이브리드** — decode 는 CPU 스트리밍에 묶여 있고 (스레드 절반 → TPOT +24~26%) cold expert 1개를 24 MB 스트리밍해 1.3행만 처리. 투기 디코딩은 스텝당 검증 토큰을 B×(k+1) 로 늘려 **같은 스트리밍으로 2~3배의 유효 행** 을 처리 (greedy 검증은 결과 동일 = 무손실). draft = `lmsys/SGLang-EAGLE3-Qwen3-Coder-480B-A35B-Instruct-SpecForge-EigenAI` (0.9B, GPU). 위험: KTransformers 경로의 forward mode (TARGET_VERIFY / DRAFT) 처리·CUDA graph 캡처 호환 | 부모 = `IDE_046` (CPU-bound 판별), `IDE_039-i`. 모델 예측 (hot-96, 수락 길이 2.5): C64 766→~1070, C160 982→~1670 (GPU 가 따라올 때). **사전 등록**: C64 처리량 +25% 이상 AND GSM40 ≥95 (greedy 동일성은 토큰 일치율로 별도 확인). 결과 `eval/results/*_ide047_eagle3/` |
 
-**다음 부여 번호**: `IDE_048`
+| `IDE_048` | 활성 (2026-09-09 16:20) | **AVX-512 vec 경로 (decode, 행 1~2) 레지스터 블로킹** — 원본 `GemmKernel224Int4::avx_kernel` 은 누산기가 메모리 (c512[]) 에 있고 행마다 B 언팩을 반복 → dpbssd 체인 latency-bound (IDE_037 실측: 행당 18µs = AVX-512 피크의 ~10%). 새 커널: k-group 당 B 4벡터 1회 언팩, 8/4/2/1 행 블록 누산기를 zmm 에 유지, 1~2행은 K 분할 누산기 (체인 8개). 정수 누산이라 bit 동일. env `KT_AVX_RB=1` | 부모 = `IDE_037`, `IDE_047` (검증 행 4배에서 행 비용 노출). 기대: decode C160 cold 행 ~28/층 × 15µs = 층당 −0.4 ms (−25% CPU decode) → TPOT −10~15%; 투기 디코딩과 결합 시 더 큼. **사전 등록**: vec rows 스윕 2~16행에서 행당 µs −50% 이상 AND 1행 −10% 이상 AND bit 동일 AND 서빙 C160 +8% 이상. 결과 `eval/results/*_ide048_avx_rb/` |
+
+**다음 부여 번호**: `IDE_049`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
