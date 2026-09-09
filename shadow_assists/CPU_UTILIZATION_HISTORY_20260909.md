@@ -116,6 +116,7 @@ Qwen3-Coder-480B, TP=4 H100 + Xeon 96스레드, sonnet 512/128.
 - **IDE_048** AVX-512 vec 커널 레지스터 블로킹 (bit 동일): 1행 −8%, 16행 −24%; 서빙 C64 782. **IDE_050** B 스트림 SW prefetch: 1행 −6% 추가 (누적 −13%, ≈190 GB/s/소켓). 채택 (기본 켬).
 - **IDE_049** CUDA graph 버킷 6~7종 명시로 GPU 메모리 회수 → KV 110k → 123~127k → graph 192/224: **C192 1049, C224 1067** (+8.6% vs 정오). 채택.
 - **최종 재측정 (`*_final_sweep/`)**: 운영점 A (graph 192·청크 8192·KV 122,880) C192 1048.7 / C160 1012.2 / C128 961.9 / C64 796.6 / C32 578.0, GSM100 96.0 (−1문항, logprob 비교로 분포 동등성 확인 중). 운영점 B (graph 224·청크 4096·KV 127,309) C224 1066.5, GSM40 97.5.
+- **도착 체제 (`final_arrival`, IDE_052)**: 흩어진 도착에서는 요청별 prefill forward 고정비 (~250 ms) 가 decode 를 굶김 (rate 5 TPOT 299 vs 버스트 149). 해법 2종: prefill 배칭 delayer (게이트 225: TPOT −43%, TTFT p99 −71%, 과부하 처리량 −10%) 와 **혼합 forward `--enable-mixed-chunk`** (decode 토큰을 prefill forward 에 태움: TPOT −38%, TTFT p99 −82%, 처리량 −7%, 버스트 유지; 결합 시 경부하 TPOT −53%). 운영 기본 = 혼합 forward.
 - 하드웨어 사실: 소켓당 DDR5 8ch×2DPC 4400 → 이론 282 GB/s, torch 읽기 195, 커널 ≈190 (67%). 벤치 규칙: 192 프롬프트 뒤의 480 프롬프트 C160 은 prefix cache 로 +17% 부풀려짐 → C160 은 fresh 또는 480 뒤에만.
 
 ---

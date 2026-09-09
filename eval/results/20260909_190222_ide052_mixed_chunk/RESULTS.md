@@ -1,4 +1,4 @@
-# IDE_052 — prefill·decode 혼합 forward (`--enable-mixed-chunk`) — **채택 (운영 기본 권고)**, GSM100 확인 중
+# IDE_052 — prefill·decode 혼합 forward (`--enable-mixed-chunk`) — **채택 (운영 기본 권고)**
 
 최종 구성 (운영점 B: graph 224·청크 4096·KV 127,309, `KT_AVX_RB=1 KT_AVX_PF=2 KT_FUSE_QIN=1`), Poisson 도착 sonnet 512/128, 480 프롬프트, 동시성 상한 224. delayer = 10%·8패스·500ms + 게이트 225.
 
@@ -12,4 +12,4 @@
 - 인과: 하이브리드 prefill forward 는 cold expert ~50개 스트리밍 (≈250 ms) 이 고정비. 혼합 배치는 decode 토큰을 그 forward 에 태워 스트리밍을 공유 (decode 행이 추가로 스트리밍시키는 cold expert 는 대부분 prefill 이 이미 건드린 집합) → decode 중단이 사라짐.
 - 사전 등록 (rate 5 TPOT ≤200 delayer 없이 / 버스트 ≥1050 / GSM40 ≥95): **통과** (184 / 1096 / 95.0).
 - 운영 권고: **기본 = 혼합 forward 단독** (모든 도착률에서 TTFT 최저: p99 0.9~1.3 s, 과부하 처리량 −7%, 버스트 처리량 유지·TTFT p50 −74%). 경부하 TPOT 중심이면 혼합 + delayer (TPOT −53%, TTFT ↑, 버스트 −6%).
-- 정확도: GSM40 95.0 (38/40). GSM100 별도 실행 (아래).
+- 정확도: GSM40 95.0 (38/40). **GSM100 3회: 94.0 / 96.0 / 97.0 (평균 95.7)** vs 기준선 97.0 (오늘 동일 구성 재실행 96~97). 첫 94 는 배치 구성 노이즈의 하단; 혼합 배치는 forward 구성이 실행마다 더 달라져 분산이 약간 큼. 운영 해석 (분포 수준) 내 → 채택. 최고 처리량 벤치 (버스트) 에서는 TPOT 가 오르므로 (149 → 173) 벤치 기록은 혼합 없이 유지.
