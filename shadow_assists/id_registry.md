@@ -55,7 +55,11 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_058` | 활성 (2026-09-10 00:20, 사용자 반입 실행계획서) | **EPOCH 실행계획서 묶음 A+B: EXP-E00 (구성·지표 고정) / E01 (44% 재현, 특히 기록에 없던 최종 B 구성의 C64) / E02 (KV × graph 2×2 + capacity-cap 대조군)** — 문서 `shadow_assists/brainstorming/epoch_experiment_plan_20260909.md` 의 §5~8. 공통 고정: hot-96 α0.25, common R, Dτ, chunk 4096, mixed off, mem 0.94. 셀: A00(K0+G0)/A10(F+G0)/A01(K0+GS)/A11(F+GS) @graph max 64 × C32/C64, BREPRO(graph 224 sparse) @C64/C224, C1(admission 64 제한), C2(KV 를 A00 풀 수준으로 제한) | 부모 = `IDE_039`, `IDE_049`. **판정 기준 (문서 §8.5)**: A11 이 A00 보다 큰 실행 가능 동시성을 주고 C1/C2 에서 줄어든 이득이 C3 에서 회복되면 capacity 경로 지지; 같은 C 에서도 빨라지면 그 몫은 실행 경로 효과. 결과 `eval/results/*_expE00_E01_E02/` |
 
-**다음 부여 번호**: `IDE_059`
+| `IDE_059` | 활성 (2026-09-10 15:54) | **EXP-E12 장시간 안정성 + 반복·신뢰구간** — 실행계획서 §17. 구성 3종 (TUNOPS = bf16 KV + graph96 + mixed 강한 기준선 / EPCORE = fp8 KV + sparse buckets, mixed off / EPOPS = EPOCH + mixed) 각각에 대해 (a) 최적 C 에서 고정 512 job 을 seed 5개 (42/7/1234/99/20260910) 로 반복 → 평균·표준편차·95% CI, (b) open-loop 부하 변화 soak: λ 1.5 → 용량 근접 (TUNOPS 3.0 / EPCORE 4.5 / EPOPS 5.0) → λ 1.5, 각 1200 s = 구성당 60분. soak 중 30 s 간격 GPU 메모리·`#running-req` 샘플링, 종료 후 OOM·retract·ERROR 카운트. 부모 = `IDE_058`. **판정 기준**: ① 반복 변동계수가 지금까지 보고한 차이 (+19.1%, +80%) 보다 작아야 그 차이가 유효 ② soak P1 대비 P3 의 처리량·TPOT 열화 ≤5% 이어야 지속 운전 가능 ③ 이상로그 0. 결과 `eval/results/*_expE12_soak_reps/` |
+
+| `IDE_060` | 활성 (2026-09-10 16:40) | **EXP-E11 구성 선택 비용모델과 held-out 검증** — 실행계획서 §17. EXP-E10 이 고정 구성의 손해 (긴 출력 고정 C64 에서 −21.4%) 를 보였으므로, 워크로드마다 구성을 고르는 규칙을 만들고 held-out 에서 검증한다. 모델: KV 용량 상수표 (버킷·chunk 무관, dtype 만 — boot 24건 실측) + B_eff = min(C, admission, eta·N_kv/L_avg) + T(B) = t0 + t1·pad(B)·rho + t2(q)·B·L_avg + prefill 몫 + eps. 보정 26셀에서 절대오차 중앙값 2.9% / p90 6.3%. 산출물 `shadow_assists/features/IDE_060/{selector_spec.md, calibration_split.json, model/selector.py}`. 부모 = `IDE_058`, `IDE_059`. **판정 기준 (§17.6)**: held-out selection regret 중앙값 ≤5%·최악 ≤10%·안전제약 위반 0, 그리고 동일 탐색 예산의 단일요인·무작위 탐색보다 우위. 모든 워크로드에서 고정 B 가 이미 최적이면 선택 알고리즘 주장을 추가하지 않는다 |
+
+**다음 부여 번호**: `IDE_061`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 

@@ -1,0 +1,59 @@
+{
+  "작성": "2026-09-10",
+  "목적": "EXP-E11 (실행계획서 §17.6) 학습·평가 분리 명시. 이 파일은 held-out 측정 이전에 커밋한다.",
+  "calibration": {
+    "설명": "비용모델 파라미터 적합에 쓰는 셀. 모두 2026-09-10 이전 측정이며 flush_cache 규율 적용 이후 실행.",
+    "워크로드": [
+      {"dataset": "sonnet", "input_len": 512, "output_len": 128, "prefix_len": 100},
+      {"dataset": "sonnet", "input_len": 4096, "output_len": 128, "prefix_len": 100},
+      {"dataset": "sonnet", "input_len": 512, "output_len": 1024, "prefix_len": 100}
+    ],
+    "구성_범위": {
+      "kt_cpuinfer": 96,
+      "실행_패치": "KT_AVX_RB=1 KT_AVX_PF=2 KT_FUSE_QIN=1 KT_AMX_MIN_QLEN=1000000 KT_AMX_MIN_ROWS=3 KT_CALLBACK_FREE=1",
+      "cold_defer": "KT_COLD_DEFER=1 KT_COLD_TAU=0.25",
+      "mixed_chunk": false,
+      "admission_cap": null,
+      "hot_map": "/tmp/hotmap_mixed_0.25.json (alpha=0.25, 이후 재학습 없음)"
+    },
+    "제외_규칙": [
+      "20260910_002116_expE00_E01_E02 : flush 도입 전 실행이라 prefix cache 오염 (A00 C64 971.75)",
+      "job 크기 < 3 x C : 램프 구간이 지배 (G_EPO 512x1024 C64, np=128)",
+      "C1 (admission cap 64), C2 (KV 63,654 로 축소 + C224) : 모델 적용 범위 밖 (초과 구독/회수)",
+      "F00, F10 : 실행 패치 해제 (R0) 구성",
+      "CPU48, CPU72 : cpuinfer 96 이 아님"
+    ],
+    "셀_수": 26,
+    "적합_결과": {
+      "t0_ms": 19.044, "t1_ms_per_req": 0.2112, "t2_bf16": 0.7013, "t2_fp8": 0.7265,
+      "eta": 1.0837, "P_tok_s": 1185.5, "rho": 2.1937, "eps": 0.7726,
+      "절대오차_중앙값_pct": 2.9, "p90_pct": 6.3, "최대_pct": 15.7
+    },
+    "추가_보정_예정": "chunk 항. graph_max 96 (후보 공간 밖) 에서 chunk 4096 vs 8192 를 측정해 P(chunk) 를 만든다 — eval/results/*_e11_stage1_chunkcal"
+  },
+  "held_out": {
+    "설명": "보정에 전혀 쓰이지 않은 조건. 데이터셋(도메인), 입력 길이, 출력 길이가 모두 새 조합이다.",
+    "워크로드": [
+      {"id": "WH1", "dataset": "random", "input_len": 1024, "output_len": 512, "ignore_eos": true,
+       "C": 128, "num_prompts": 384,
+       "선정이유": "예측 B_cap ~108 로 KV 가 binding 이 되어 B_eff 가 버킷 사이에 떨어진다 -> 버킷 간격이 padding 으로 드러난다"},
+      {"id": "WH2", "dataset": "random", "input_len": 3072, "output_len": 256, "ignore_eos": true,
+       "C": 64, "num_prompts": 192,
+       "선정이유": "prefill 토큰이 전체의 92% 라 chunk 크기가 드러난다"}
+    ],
+    "hot_map_재학습": false,
+    "후보_공간": {
+      "graph_max": [160, 192, 224],
+      "bucket_spacing": [16, 32],
+      "chunk": [4096, 8192],
+      "고정": "hot-96 alpha0.25, fp8_e5m2 KV, max-total-tokens 143360, Dtau(0.25), mixed off, cpuinfer 96"
+    },
+    "측정_계획": "12 후보 전수 x 2 워크로드 = 24 셀 (eval/results/*_e11_stage3_oracle). 각 후보는 별도 boot."
+  },
+  "판정": {
+    "selection_regret": "(Y_oracle - Y_selected) / Y_oracle, Y = 같은 C·같은 SLO 에서의 출력 처리량",
+    "목표": {"중앙값": "<=5%", "최악": "<=10%", "안전제약_위반": 0},
+    "비교정책": ["고정 EPOCH-B", "memory-only", "단일요인 탐색", "무작위 탐색(동일 예산)", "비용모델 선택", "전수탐색 oracle"],
+    "탐색비용도_보고": ["boot 수", "GPU wall time", "profile 수"]
+  }
+}
