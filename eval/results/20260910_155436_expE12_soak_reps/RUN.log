@@ -1,0 +1,40 @@
+== EXP-E12 soak + 반복 15:54 ==
+TUNOPS BOOT_OK 100s kv=63654
+REP TUNOPS C96 seed42: tok/s 862.82, dur 75.96s, req/s 6.74, TPOT 90.83/p99 99.50, TTFT p50 1641.07/p99 6399.92, ok 512
+REP TUNOPS C96 seed7: tok/s 859.62, dur 76.10s, req/s 6.73, TPOT 92.29/p99 103.35, TTFT p50 1608.36/p99 5763.88, ok 512
+REP TUNOPS C96 seed1234: tok/s 877.01, dur 74.73s, req/s 6.85, TPOT 90.29/p99 99.80, TTFT p50 1630.59/p99 5716.44, ok 512
+REP TUNOPS C96 seed99: tok/s 876.13, dur 74.80s, req/s 6.84, TPOT 90.38/p99 99.87, TTFT p50 1630.24/p99 5738.19, ok 512
+REP TUNOPS C96 seed20260910: tok/s 874.03, dur 74.98s, req/s 6.83, TPOT 90.69/p99 100.24, TTFT p50 1616.53/p99 5950.25, ok 512
+SOAK TUNOPS P1_low lam1.5 (N=1800): tok/s 190.86, dur 1207.19s, req/s 1.49, TPOT 61.96/p99 78.19, TTFT p50 365.05/p99 739.20, ok 1800
+   lambda_completed 1.49
+SOAK TUNOPS P2_cap lam3.0 (N=3600): tok/s 381.25, dur 1207.37s, req/s 2.98, TPOT 106.58/p99 139.22, TTFT p50 533.82/p99 904.78, ok 3597
+   lambda_completed 2.98
+SOAK TUNOPS P3_low lam1.5 (N=1800): tok/s 190.82, dur 1206.69s, req/s 1.49, TPOT 63.02/p99 81.94, TTFT p50 380.21/p99 809.04, ok 1799
+   lambda_completed 1.49
+SOAK TUNOPS 이상로그: OOM=0 retract=1 err=0
+EPCORE BOOT_OK 100s kv=127309
+REP EPCORE C224 seed42: tok/s 1037.52, dur 63.17s, req/s 8.11, TPOT 139.30/p99 195.93, TTFT p50 6443.68/p99 13240.39, ok 512
+REP EPCORE C224 seed7: tok/s 1047.58, dur 62.56s, req/s 8.18, TPOT 138.89/p99 195.58, TTFT p50 6211.90/p99 12776.04, ok 512
+REP EPCORE C224 seed1234: tok/s 1039.86, dur 63.01s, req/s 8.13, TPOT 141.13/p99 198.15, TTFT p50 6281.43/p99 12905.50, ok 512
+REP EPCORE C224 seed99: tok/s 1058.45, dur 61.92s, req/s 8.27, TPOT 138.06/p99 194.66, TTFT p50 6202.69/p99 12871.65, ok 512
+REP EPCORE C224 seed20260910: tok/s 1054.00, dur 62.18s, req/s 8.23, TPOT 137.32/p99 194.63, TTFT p50 6171.12/p99 12863.62, ok 512
+SOAK EPCORE P1_low lam1.5 (N=1800): tok/s 189.77, dur 1213.21s, req/s 1.48, TPOT 123.31/p99 186.25, TTFT p50 406.74/p99 793.22, ok 1799
+   lambda_completed 1.48
+SOAK EPCORE P2_cap lam4.5 (N=5400): tok/s 565.22, dur 1222.81s, req/s 4.42, TPOT 422.17/p99 467.53, TTFT p50 1665.35/p99 6963.54, ok 5400
+   lambda_completed 4.42
+SOAK EPCORE P3_low lam1.5 (N=1800): tok/s 189.78, dur 1213.35s, req/s 1.48, TPOT 121.15/p99 188.59, TTFT p50 402.24/p99 836.34, ok 1799
+   lambda_completed 1.48
+SOAK EPCORE 이상로그: OOM=0 retract=37 err=0
+EPOPS BOOT_OK 100s kv=127309
+REP EPOPS C224 seed42: tok/s 1016.34, dur 64.47s, req/s 7.94, TPOT 166.51/p99 192.23, TTFT p50 2259.84/p99 14106.99, ok 512
+REP EPOPS C224 seed7: tok/s 1025.60, dur 63.90s, req/s 8.01, TPOT 166.56/p99 193.03, TTFT p50 2284.90/p99 13362.51, ok 512
+REP EPOPS C224 seed1234: tok/s 1029.01, dur 63.69s, req/s 8.04, TPOT 165.63/p99 191.56, TTFT p50 2243.11/p99 13277.37, ok 512
+REP EPOPS C224 seed99: tok/s 1033.32, dur 63.42s, req/s 8.07, TPOT 165.34/p99 190.83, TTFT p50 2267.87/p99 13422.42, ok 512
+REP EPOPS C224 seed20260910: tok/s 1030.62, dur 63.59s, req/s 8.05, TPOT 166.22/p99 193.57, TTFT p50 2271.14/p99 13462.34, ok 512
+SOAK EPOPS P1_low lam1.5 (N=1800): tok/s 189.70, dur 1214.54s, req/s 1.48, TPOT 108.31/p99 156.54, TTFT p50 419.59/p99 810.30, ok 1800
+   lambda_completed 1.48
+SOAK EPOPS P2_cap lam5.0 (N=6000): tok/s 0.00, dur 1200.02s, req/s 0.00, TPOT 0.00/p99 0.00, TTFT p50 0.00/p99 0.00, ok 0
+   lambda_completed 5.0
+SOAK EPOPS P3_low lam1.5 (N=1800): tok/s , dur s, req/s , TPOT /p99 , TTFT p50 /p99 , ok 
+   lambda_completed 
+SOAK EPOPS 이상로그: OOM=0 retract=1 err=0
