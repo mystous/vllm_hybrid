@@ -59,7 +59,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_060` | 활성 (2026-09-10 16:40) | **EXP-E11 구성 선택 비용모델과 held-out 검증** — 실행계획서 §17. EXP-E10 이 고정 구성의 손해 (긴 출력 고정 C64 에서 −21.4%) 를 보였으므로, 워크로드마다 구성을 고르는 규칙을 만들고 held-out 에서 검증한다. 모델: KV 용량 상수표 (버킷·chunk 무관, dtype 만 — boot 24건 실측) + B_eff = min(C, admission, eta·N_kv/L_avg) + T(B) = t0 + t1·pad(B)·rho + t2(q)·B·L_avg + prefill 몫 + eps. 보정 26셀에서 절대오차 중앙값 2.9% / p90 6.3%. 산출물 `shadow_assists/features/IDE_060/{selector_spec.md, calibration_split.json, model/selector.py}`. 부모 = `IDE_058`, `IDE_059`. **판정 기준 (§17.6)**: held-out selection regret 중앙값 ≤5%·최악 ≤10%·안전제약 위반 0, 그리고 동일 탐색 예산의 단일요인·무작위 탐색보다 우위. 모든 워크로드에서 고정 B 가 이미 최적이면 선택 알고리즘 주장을 추가하지 않는다 |
 
-**다음 부여 번호**: `IDE_061`
+| `IDE_061` | 활성 (2026-09-10 17:35) | **hot expert 수 H 재탐색 — CPU 로 더 많은 expert 를 넘기는 방향** — 근거: (1) `perf` 설치로 처음 측정한 서빙 중 물리 DRAM 이 소켓당 읽기 112 GB/s (이론 천장 282 의 40%) 로 대역폭 여유가 절반 이상 남음 (2) H 를 줄이면 GPU 가중치 메모리가 줄어 KV 풀이 커지고 (IDE_058 에서 처리량 이득 경로가 KV 용량 → 동시성 임이 확인됨) 동시에 CPU 가 더 많은 expert 를 맡는다 — 목표(CPU 로 시스템 처리량)에 두 방향 모두 부합. H ∈ {64, 80, 96, 112} × (C64, C224) × fp8 KV·graph224. hot map 은 빈도 내림차순이라 `--kt-num-gpu-experts` 플래그만 바꾸면 상위 H 가 GPU 에 남는다 (재생성 불필요). 각 H 에서 KV 풀 토큰 수와 C224 구간의 물리 DRAM 을 함께 기록. 부모 = `IDE_058`, `IDE_059`. **판정 기준**: H 를 줄여 KV 풀이 커진 만큼 최대 처리량이 오르면 채택, CPU 가 병목이 되어 TPOT 가 SLO 를 넘기면 그 H 가 하한. 과거 hot-96 > hot-80 (bf16 KV·C32 에서 458.9 vs 319.9) 은 동시성이 낮고 KV 가 fp8 이 아니던 조건이므로 재판정한다 |
+
+**다음 부여 번호**: `IDE_062`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
