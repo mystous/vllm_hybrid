@@ -1,0 +1,13 @@
+== IDE_063 NaN 원인 분리 20:16 — 각 셀 λ5.0 x 3000요청 ==
+N1 BOOT_OK 100s kv=127309  env=[KT_COLD_DEFER=1 KT_COLD_TAU=0.25] args=[--kv-cache-dtype fp8_e5m2 --max-total-tokens 143360 --enable-mixed-chunk]
+N1 결과: NaN assert 0
+0건, 사망시점 0s (0=생존), 성공 3000/3000, tok/s 622.88, 마지막 실행중요청 0
+N2 BOOT_OK 100s kv=127309  env=[] args=[--kv-cache-dtype fp8_e5m2 --max-total-tokens 143360 --enable-mixed-chunk]
+N2 결과: NaN assert 0
+0건, 사망시점 0s (0=생존), 성공 2999/3000, tok/s 624.59, 마지막 실행중요청 0
+N3 BOOT_OK 100s kv=63654  env=[KT_COLD_DEFER=1 KT_COLD_TAU=0.25] args=[--enable-mixed-chunk]
+N3 서버 사망 감지 270s 지점
+N3 결과: NaN assert 4건, 사망시점 270s (0=생존), 성공 ?/3000, tok/s ?, 마지막 실행중요청 118
+N4 BOOT_OK 100s kv=127309  env=[KT_COLD_DEFER=1 KT_COLD_TAU=0.25] args=[--kv-cache-dtype fp8_e5m2 --max-total-tokens 143360]
+N4 결과: NaN assert 0
+0건, 사망시점 0s (0=생존), 성공 3000/3000, tok/s 512.65, 마지막 실행중요청 0
