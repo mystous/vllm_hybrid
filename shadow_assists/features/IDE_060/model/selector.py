@@ -28,12 +28,12 @@
   5. SLO.  예측 TPOT = T, 예측 TTFT ~ (대기 배치 / 처리율) — TTFT 는 open-loop 에서만
      의미가 있으므로 여기서는 TPOT 제약만 hard 로 두고 TTFT 는 보고만 한다.
 
-fit 대상 파라미터: t0, t1, t2_bf16, t2_fp8, eta, P, rho   (7개)
+fit 대상 파라미터: t0, t1, t2_bf16, t2_fp8, eta, P4096, P8192, rho, eps   (9개)
 """
 import json, math, csv, sys, os
 
 N_KV = {"bf16": 63654, "fp8": 127309}          # mem-fraction-static 0.94, hot-96, TP4 실측
-DEFAULT = dict(t0=17.0, t1=0.50, t2_bf16=0.5, t2_fp8=0.5, eta=0.9, P=3000.0, rho=1.6, eps=0.95)
+DEFAULT = dict(t0=17.0, t1=0.50, t2_bf16=0.5, t2_fp8=0.5, eta=0.9, P4096=1185.0, P8192=1185.0, rho=1.6, eps=0.95)
 
 
 def pad_batch(B, graph_max, buckets):
@@ -64,7 +64,8 @@ def predict(cfg, wl, p):
     t2 = p["t2_bf16"] if q == "bf16" else p["t2_fp8"]
     T = p["t0"] + p["t1"] * (Bp * (p["rho"] if eager else 1.0)) + t2 * B_eff * Lavg / 1000.0
     dec = B_eff / T * 1000.0
-    share = (wl["Lout"] * T / 1000.0) / (wl["Lout"] * T / 1000.0 + wl["Lin"] / p["P"])
+    P = p["P8192"] if cfg.get("chunk", 4096) >= 8192 else p["P4096"]
+    share = (wl["Lout"] * T / 1000.0) / (wl["Lout"] * T / 1000.0 + wl["Lin"] / P)
     # KV 가 요청을 다 담지 못하면 스케줄러가 실행 중 요청을 회수(retract)하고 나중에 다시
     # prefill 한다 -> 낭비된 작업만큼 처리량이 깎인다. 초과분에 비례하는 벌점 theta.
     over = max(0.0, wl["C"] / max(B_cap, 1e-9) - 1.0)
@@ -102,9 +103,9 @@ def nelder_mead(f, x0, steps, iters=4000, tol=1e-10):
     return simplex[i], fv[i]
 
 
-KEYS = ["t0", "t1", "t2_bf16", "t2_fp8", "eta", "P", "rho", "eps"]
-LO = dict(t0=1.0, t1=0.05, t2_bf16=0.0, t2_fp8=0.0, eta=0.3, P=300.0, rho=1.0, eps=0.5)
-HI = dict(t0=60.0, t1=2.0, t2_bf16=3.0, t2_fp8=3.0, eta=1.2, P=40000.0, rho=4.0, eps=1.0)
+KEYS = ["t0", "t1", "t2_bf16", "t2_fp8", "eta", "P4096", "P8192", "rho", "eps"]
+LO = dict(t0=1.0, t1=0.05, t2_bf16=0.0, t2_fp8=0.0, eta=0.3, P4096=300.0, P8192=300.0, rho=1.0, eps=0.5)
+HI = dict(t0=60.0, t1=2.0, t2_bf16=3.0, t2_fp8=3.0, eta=1.2, P4096=40000.0, P8192=40000.0, rho=15.0, eps=1.0)
 
 
 def fit(cells, x0=None):

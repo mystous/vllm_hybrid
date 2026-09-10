@@ -1,0 +1,518 @@
+{
+ "params": {
+  "t0": 17.845929347006326,
+  "t1": 0.2821294541465295,
+  "t2_bf16": 0.6045509920937282,
+  "t2_fp8": 0.6299001833196716,
+  "eta": 1.2,
+  "P4096": 652.3068319497847,
+  "P8192": 544.4871787180552,
+  "rho": 4.945043602941614,
+  "eps": 0.7986138212457621
+ },
+ "slo": {
+  "tpot_mean_ms": 200.0,
+  "tpot_p99_ms": 300.0,
+  "oversub_max": 0.1
+ },
+ "candidates": [
+  {
+   "id": "G160s16c4096",
+   "graph_max": 160,
+   "spacing": 16,
+   "chunk": 4096,
+   "buckets": [
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160
+   ]
+  },
+  {
+   "id": "G160s16c8192",
+   "graph_max": 160,
+   "spacing": 16,
+   "chunk": 8192,
+   "buckets": [
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160
+   ]
+  },
+  {
+   "id": "G160s32c4096",
+   "graph_max": 160,
+   "spacing": 32,
+   "chunk": 4096,
+   "buckets": [
+    32,
+    64,
+    96,
+    128,
+    160
+   ]
+  },
+  {
+   "id": "G160s32c8192",
+   "graph_max": 160,
+   "spacing": 32,
+   "chunk": 8192,
+   "buckets": [
+    32,
+    64,
+    96,
+    128,
+    160
+   ]
+  },
+  {
+   "id": "G192s16c4096",
+   "graph_max": 192,
+   "spacing": 16,
+   "chunk": 4096,
+   "buckets": [
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160,
+    176,
+    192
+   ]
+  },
+  {
+   "id": "G192s16c8192",
+   "graph_max": 192,
+   "spacing": 16,
+   "chunk": 8192,
+   "buckets": [
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160,
+    176,
+    192
+   ]
+  },
+  {
+   "id": "G192s32c4096",
+   "graph_max": 192,
+   "spacing": 32,
+   "chunk": 4096,
+   "buckets": [
+    32,
+    64,
+    96,
+    128,
+    160,
+    192
+   ]
+  },
+  {
+   "id": "G192s32c8192",
+   "graph_max": 192,
+   "spacing": 32,
+   "chunk": 8192,
+   "buckets": [
+    32,
+    64,
+    96,
+    128,
+    160,
+    192
+   ]
+  },
+  {
+   "id": "G224s16c4096",
+   "graph_max": 224,
+   "spacing": 16,
+   "chunk": 4096,
+   "buckets": [
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160,
+    176,
+    192,
+    208,
+    224
+   ]
+  },
+  {
+   "id": "G224s16c8192",
+   "graph_max": 224,
+   "spacing": 16,
+   "chunk": 8192,
+   "buckets": [
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160,
+    176,
+    192,
+    208,
+    224
+   ]
+  },
+  {
+   "id": "G224s32c4096",
+   "graph_max": 224,
+   "spacing": 32,
+   "chunk": 4096,
+   "buckets": [
+    32,
+    64,
+    96,
+    128,
+    160,
+    192,
+    224
+   ]
+  },
+  {
+   "id": "G224s32c8192",
+   "graph_max": 224,
+   "spacing": 32,
+   "chunk": 8192,
+   "buckets": [
+    32,
+    64,
+    96,
+    128,
+    160,
+    192,
+    224
+   ]
+  }
+ ],
+ "workloads": [
+  {
+   "id": "WH1",
+   "dataset": "random",
+   "Lin": 512,
+   "Lout": 512,
+   "C": 168,
+   "np": 504
+  },
+  {
+   "id": "WH2",
+   "dataset": "random",
+   "Lin": 3072,
+   "Lout": 256,
+   "C": 40,
+   "np": 120
+  }
+ ],
+ "predictions": {
+  "WH1": [
+   {
+    "cand": "G160s16c4096",
+    "tok_s": 400.46,
+    "tpot": 333.5,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": false
+   },
+   {
+    "cand": "G160s16c8192",
+    "tok_s": 400.09,
+    "tpot": 333.5,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": false
+   },
+   {
+    "cand": "G160s32c4096",
+    "tok_s": 400.46,
+    "tpot": 333.5,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": false
+   },
+   {
+    "cand": "G160s32c8192",
+    "tok_s": 400.09,
+    "tpot": 333.5,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": false
+   },
+   {
+    "cand": "G192s16c4096",
+    "tok_s": 892.63,
+    "tpot": 148.77,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G192s16c8192",
+    "tok_s": 890.83,
+    "tpot": 148.77,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G192s32c4096",
+    "tok_s": 866.6,
+    "tpot": 153.29,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G192s32c8192",
+    "tok_s": 864.9,
+    "tpot": 153.29,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G224s16c4096",
+    "tok_s": 892.63,
+    "tpot": 148.77,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G224s16c8192",
+    "tok_s": 890.83,
+    "tpot": 148.77,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G224s32c4096",
+    "tok_s": 866.6,
+    "tpot": 153.29,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G224s32c8192",
+    "tok_s": 864.9,
+    "tpot": 153.29,
+    "B_eff": 168,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   }
+  ],
+  "WH2": [
+   {
+    "cand": "G160s16c4096",
+    "tok_s": 244.95,
+    "tpot": 112.02,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G160s16c8192",
+    "tok_s": 238.3,
+    "tpot": 112.02,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G160s32c4096",
+    "tok_s": 236.76,
+    "tpot": 116.53,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G160s32c8192",
+    "tok_s": 230.53,
+    "tpot": 116.53,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G192s16c4096",
+    "tok_s": 244.95,
+    "tpot": 112.02,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G192s16c8192",
+    "tok_s": 238.3,
+    "tpot": 112.02,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G192s32c4096",
+    "tok_s": 236.76,
+    "tpot": 116.53,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G192s32c8192",
+    "tok_s": 230.53,
+    "tpot": 116.53,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G224s16c4096",
+    "tok_s": 244.95,
+    "tpot": 112.02,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G224s16c8192",
+    "tok_s": 238.3,
+    "tpot": 112.02,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G224s32c4096",
+    "tok_s": 236.76,
+    "tpot": 116.53,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   },
+   {
+    "cand": "G224s32c8192",
+    "tok_s": 230.53,
+    "tpot": 116.53,
+    "B_eff": 40,
+    "binding": "C",
+    "oversub": 0.0,
+    "feasible": true
+   }
+  ]
+ },
+ "policy_choice": {
+  "WH1": {
+   "cost_model": "G192s16c4096",
+   "fixed_epochb": "G224s32c4096",
+   "memory_only": "G224s16c4096",
+   "single_factor": {
+    "choice": "G192s16c4096",
+    "probed": [
+     "G160s32c4096",
+     "G192s16c4096",
+     "G192s16c8192",
+     "G192s32c4096",
+     "G224s32c4096"
+    ]
+   },
+   "random_budget6": {
+    "choice": "G192s16c4096",
+    "probed": [
+     "G224s32c4096",
+     "G160s16c8192",
+     "G160s16c4096",
+     "G192s16c4096",
+     "G160s32c8192",
+     "G224s32c8192"
+    ]
+   }
+  },
+  "WH2": {
+   "cost_model": "G160s16c4096",
+   "fixed_epochb": "G224s32c4096",
+   "memory_only": "G224s16c4096",
+   "single_factor": {
+    "choice": "G160s16c4096",
+    "probed": [
+     "G160s16c4096",
+     "G160s16c8192",
+     "G160s32c4096",
+     "G192s32c4096",
+     "G224s32c4096"
+    ]
+   },
+   "random_budget6": {
+    "choice": "G160s16c4096",
+    "probed": [
+     "G224s32c4096",
+     "G160s16c8192",
+     "G160s16c4096",
+     "G192s16c4096",
+     "G160s32c8192",
+     "G224s32c8192"
+    ]
+   }
+  }
+ }
+}
