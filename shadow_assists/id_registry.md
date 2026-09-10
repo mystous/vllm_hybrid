@@ -65,7 +65,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_063` | 활성 (2026-09-10 19:15, 최우선) | **EPOCH-OPS 의 NaN 사망 원인 분리** — IDE_059 (E12) 에서 EPOCH-OPS (fp8_e5m2 KV + mixed forward) 가 도착률 5.0 을 2분간 처리하다 샘플러 device-side assert (`probability tensor contains either inf, nan or element < 0`) 로 스케줄러 4랭크 전부 사망, 6,000요청 전부 실패. 같은 세션의 TUNOPS (bf16+mixed, λ3.0 20분) 와 EPOCH-CORE (fp8+mixed off, λ4.5 20분) 는 assert 0건. 다만 앞선 IDE_058/E07-ops 에서 동일 구성이 λ 3~11 (구간당 400요청) 을 통과했으므로 결정론적이지 않고 부하·지속시간·데이터 의존으로 보인다. 판별 셀 (각 λ5.0, 3,000요청 ≈ 10분, 사망 시 즉시 기록): N1 = fp8+mixed (재현), N2 = fp8+mixed+`KT_COLD_DEFER=0` (지연 expert 배제), N3 = bf16+mixed (fp8 배제), N4 = fp8+mixed off (mixed 배제). 부모 = `IDE_059`. **판정 기준**: N1 재현되고 N2 생존이면 지연 cold expert 경로가 NaN 원인, N3 생존이면 fp8_e5m2 KV, N4 생존이면 mixed forward. 재현 실패 시 발생률을 기록하고 장시간 관측으로 넘긴다. **영향**: "SLO 용량 2.3배" 를 낸 구성이 바로 이것이므로 배포 가능성 주장에 직접 영향 |
 
-**다음 부여 번호**: `IDE_064`
+| `IDE_064` | 활성 (2026-09-10 22:05) | **NaN 사망의 완화 수단 검증 (`SGLANG_SANITIZE_NAN_LOGITS`)** — `IDE_063` 에서 원인 특정은 실패했으나 (KV dtype·지연 expert·누적 이력 모두 기각, 도착률 5.0 + mixed forward 조건 5회 중 2회 사망 = 확률적) SGLang 소스에 이미 방어 수단이 있고 **기본값이 꺼져 있음**을 확인했다: `srt/environ.py:1071 SGLANG_SANITIZE_NAN_LOGITS = EnvBool(False)`. 켜면 `sanitize_nan_logits` 가 NaN·±Inf logit 을 ±1e30 으로 치환하고 (throttled 경고) 샘플러 crash 를 막는다. 또 `SGLANG_ENABLE_ASYNC_ASSERT` (기본 False) 를 켜면 조기 감지된다. 검증: EPOCH-OPS 구성 (fp8 + mixed) 에 `SGLANG_SANITIZE_NAN_LOGITS=1` 을 주고 도착률 5.0 × 3,000요청을 4회 반복 — (a) 사망 0회인지 (b) 경고로 NaN 발생 횟수·영향 토큰 수를 세고 (c) 이어서 GSM100 으로 품질 확인. 부모 = `IDE_063`. **판정 기준**: 4회 모두 생존하면 (기존 조건 사망률 40% 하에서 우연 확률 0.6^4 = 13%) 완화 수단으로 채택하고 EPOCH-OPS 를 이 설정과 함께 권고한다. 경고가 0건이면 NaN 자체가 안 난 것이므로 사망률 추정만 갱신한다. GSM100 이 96/100 수준을 유지해야 한다 |
+
+**다음 부여 번호**: `IDE_065`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
