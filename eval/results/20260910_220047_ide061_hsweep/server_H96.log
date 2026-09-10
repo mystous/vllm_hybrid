@@ -1,0 +1,634 @@
+/sgl-workspace/sglang/python/sglang/launch_server.py:57: UserWarning: 'python -m sglang.launch_server' is still supported, but 'sglang serve' is the recommended entrypoint.
+  Example: sglang serve --model-path <model> [options]
+  warnings.warn(
+[1;33m'--cuda-graph-max-bs' is deprecated and will be removed in a future release. Use '--cuda-graph-max-bs-decode' instead.[0m
+[1;33m'--cuda-graph-bs' is deprecated and will be removed in a future release. Use '--cuda-graph-bs-decode' instead.[0m
+[2026-09-10 13:01:08] Auto-enabling FlashInfer AllReduce Fusion on SM90/SM10X for Qwen3MoeForCausalLM
+[2026-09-10 13:01:10] Compiled-kernel caches now live under SGLANG_CACHE_DIR (/root/.cache/sglang). These older directories are no longer used by sglang, but may still be used by other frameworks on this machine, so they were left alone: /root/.triton, /root/.cache/flashinfer. Remove them yourself if nothing else needs them.
+[2026-09-10 13:01:10] server_args=ServerArgs(model_path='/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f', tokenizer_path='/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f', tokenizer_mode='auto', tokenizer_backend='huggingface', tokenizer_worker_num=1, detokenizer_worker_num=1, skip_tokenizer_init=False, load_format='auto', model_loader_extra_config='{}', trust_remote_code=False, context_length=32768, is_embedding=False, enable_multimodal=None, revision=None, model_impl='auto', model_config_parser='auto', json_model_override_args='{}', dtype='auto', quantization=None, quantization_param_path=None, kv_cache_dtype='fp8_e5m2', enable_fp32_lm_head=False, modelopt_quant=None, modelopt_checkpoint_restore_path=None, modelopt_checkpoint_save_path=None, modelopt_export_path=None, quantize_and_serve=False, rl_quant_profile=None, enable_tf32_matmul=False, mem_fraction_static=0.94, max_running_requests=None, max_queued_requests=None, max_total_tokens=143360, chunked_prefill_size=4096, enable_dynamic_chunking=False, max_prefill_tokens=16384, prefill_max_requests=None, schedule_policy='fcfs', enable_priority_scheduling=False, disable_priority_preemption=False, default_priority_value=None, abort_on_priority_when_disabled=False, schedule_low_priority_values_first=False, priority_scheduling_preemption_threshold=10, retraction_policy='length', schedule_conservativeness=1.0, page_size=1, c128_page_size=16, swa_full_tokens_ratio=0.8, disable_hybrid_swa_memory=False, radix_eviction_policy='lru', prefill_only_disable_kv_cache=False, disable_radix_cache=False, enable_page_major_kv_layout=False, enable_unified_memory=False, disable_chunked_prefix_cache=False, disable_overlap_schedule=False, num_continuous_decode_steps=1, scheduler_recv_interval=1, enable_mixed_chunk=False, nccl_port=None, dist_timeout=None, dist_init_addr=None, nnodes=1, node_rank=0, tp_size=4, dcp_size=1, pp_size=1, pp_max_micro_batch_size=None, pp_async_batch_depth=0, dp_size=1, load_balance_method='round_robin', attn_cp_size=1, moe_dp_size=1, dwdp_size=1, dcp_comm_backend='ag_rs', dcp_replicate_q_proj=None, enable_prefill_cp=False, cp_strategy=None, enable_dsa_cache_layer_split=False, enable_dsa_prefill_context_parallel=False, dsa_prefill_cp_mode='round-robin-split', enable_prefill_context_parallel=False, prefill_cp_mode='in-seq-split', enable_cp_decode_attn_tp=False, enable_dp_attention=False, enable_dp_attention_local_control_broadcast=False, enable_dp_lm_head=False, enable_tp_lm_head_all_to_all=False, enable_attn_tp_input_scattered=False, disable_attn_tp_gather=False, enable_p2p_check=False, device='cuda', base_gpu_id=0, gpu_id_step=1, random_seed=82072518, mlx_enable_sampling=False, watchdog_timeout=300, soft_watchdog_timeout=None, sleep_on_idle=False, use_ray=False, custom_sigquit_handler=None, numa_node=None, gc_threshold=None, host='127.0.0.1', port=30000, fastapi_root_path='', smg_grpc_mode=False, grpc_mode=False, grpc_port=None, sidecar=None, sidecar_args=None, skip_server_warmup=False, warmups=None, enable_http2=False, http2_max_concurrent_streams=200, ssl_keyfile=None, ssl_certfile=None, ssl_ca_certs=None, ssl_keyfile_password=None, enable_ssl_refresh=False, api_key=None, admin_api_key=None, served_model_name='q480', weight_version='default', chat_template=None, hf_chat_template_name=None, completion_template=None, file_storage_path='sglang_storage', enable_cache_report=False, reasoning_parser=None, default_chat_template_kwargs=None, strip_thinking_cache=False, enable_strict_thinking=False, tool_call_parser=None, tool_server=None, sampling_defaults='model', asr_max_buffer_seconds=60, asr_max_concurrent_sessions=32, preferred_sampling_params=None, allow_auto_truncate=False, stream_interval=1, batch_notify_size=16, stream_response_default_include_usage=False, incremental_streaming_output=False, enable_streaming_session=False, enable_session_radix_cache=False, log_level='info', log_level_http=None, log_requests=False, log_requests_level=2, log_requests_format='text', log_requests_target=None, uvicorn_access_log_exclude_prefixes=[], crash_dump_folder=None, show_time_cost=False, enable_metrics=False, smg_http_sidecar_port=None, enable_mfu_metrics=False, enable_metrics_for_all_schedulers=False, load_snapshot_publish_interval=15, tokenizer_metrics_custom_labels_header='x-custom-labels', tokenizer_metrics_allowed_custom_labels=None, extra_metric_labels=None, bucket_time_to_first_token=None, bucket_inter_token_latency=None, bucket_e2e_request_latency=None, prompt_tokens_buckets=None, generation_tokens_buckets=None, gc_warning_threshold_secs=0.0, decode_log_interval=40, enable_request_time_stats_logging=False, kv_events_config=None, enable_forward_pass_metrics=False, forward_pass_metrics_worker_id='', forward_pass_metrics_ipc_name=None, enable_trace=False, trace_modules='request', otlp_traces_endpoint='localhost:4317', export_metrics_to_file=False, export_metrics_to_file_dir=None, stat_loggers=None, constrained_json_whitespace_pattern=None, constrained_json_disable_any_whitespace=False, attention_backend='triton', decode_attention_backend=None, prefill_attention_backend=None, sampling_backend='flashinfer', grammar_backend='xgrammar', radix_cache_backend=None, mm_attention_backend=None, fp8_gemm_runner_backend='auto', fp4_gemm_runner_backend='auto', bf16_gemm_backend='auto', dsa_prefill_backend=None, dsa_decode_backend=None, dsa_paged_mqa_logits_backend='auto', dsa_topk_backend='sgl-kernel', disable_flashinfer_autotune=False, flashinfer_autotune_skip_ops=None, mamba_backend='triton', cuda_graph_config=CudaGraphConfig(decode=PhaseConfig(backend='full', max_bs=224, bs=[32, 64, 96, 128, 160, 192, 224], tc_compiler='eager', full_prefill_max_req=None, full_prefill_prefix_chunk_tokens=None), prefill=PhaseConfig(backend='disabled', max_bs=4096, bs=[4, 8, 12, 16, 20, 24, 28, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256, 288, 320, 352, 384, 416, 448, 480, 512, 576, 640, 704, 768, 832, 896, 960, 1024, 1280, 1536, 1792, 2048, 2304, 2560, 2816, 3072, 3328, 3584, 3840, 4096], tc_compiler='eager', full_prefill_max_req=None, full_prefill_prefix_chunk_tokens=None)), cuda_graph_backend_decode=None, cuda_graph_backend_prefill='disabled', cuda_graph_max_bs_decode=224, cuda_graph_max_bs_prefill=None, cuda_graph_bs_decode=[32, 64, 96, 128, 160, 192, 224], cuda_graph_bs_prefill=None, cuda_graph_tc_compiler=None, disable_prefill_cuda_graph=False, disable_decode_cuda_graph=False, disable_cuda_graph=False, disable_cuda_graph_padding=False, enable_profile_cuda_graph=False, enable_cudagraph_gc=False, debug_cuda_graph=False, enable_layerwise_nvtx_marker=False, enable_nccl_nvls=False, enable_symm_mem=False, triton_attention_reduce_in_fp32=False, triton_attention_num_kv_splits=8, triton_attention_split_tile_size=None, flashinfer_mla_disable_ragged=False, enable_fused_qk_norm_rope=False, enable_precise_embedding_interpolation=False, enable_fused_moe_sum_all_reduce=False, enable_deepseek_v4_fp4_indexer=False, disable_custom_all_reduce=False, enable_mscclpp=False, enable_torch_symm_mem=False, enable_scattered_sconv=False, pre_warm_nccl=False, enable_quant_communications=False, enable_flashinfer_allreduce_fusion=False, enforce_disable_flashinfer_allreduce_fusion=False, flashinfer_allreduce_fusion_backend='auto', enable_aiter_allreduce_fusion=False, enable_torch_compile=False, enable_torch_compile_debug_mode=False, torch_compile_max_bs=32, speculative_algorithm=None, speculative_draft_model_path=None, speculative_draft_model_revision=None, speculative_draft_load_format=None, speculative_num_steps=None, speculative_eagle_topk=None, speculative_num_draft_tokens=None, speculative_dflash_block_size=None, speculative_dspark_block_size=None, speculative_dspark_sps_table_path=None, speculative_dspark_confidence_sts_path=None, speculative_dspark_align_verify_tokens_to_graph_tier=False, speculative_accept_threshold_single=1.0, speculative_accept_threshold_acc=1.0, speculative_use_rejection_sampling=False, speculative_token_map=None, speculative_attention_mode='prefill', speculative_draft_attention_backend=None, speculative_draft_kv_cache_dtype=None, speculative_draft_window_size=None, speculative_moe_runner_backend='auto', speculative_moe_a2a_backend=None, speculative_draft_model_quantization=None, _speculative_draft_quantization_explicitly_set=False, speculative_skip_dp_mlp_sync=False, enable_multi_layer_eagle=False, speculative_adaptive=False, speculative_adaptive_config=None, decoupled_spec_bind_endpoint=None, decoupled_spec_connect_endpoints=None, decoupled_spec_rank=None, decoupled_spec_role='null', spec_trace_dir=None, speculative_ngram_min_bfs_breadth=1, speculative_ngram_max_bfs_breadth=10, speculative_ngram_match_type='BFS', speculative_ngram_max_trie_depth=18, speculative_ngram_capacity=10000000, speculative_ngram_external_corpus_path=None, speculative_ngram_external_sam_budget=0, speculative_ngram_external_corpus_max_tokens=10000000, ep_size=1, moe_a2a_backend='none', moe_runner_backend='auto', flashinfer_mxfp4_moe_precision='default', deepep_mode='auto', fuseep_mode=2, deepep_dispatcher_output_dtype='auto', ep_num_redundant_experts=0, ep_dispatch_algorithm='dynamic', init_expert_location='/tmp/hotmap_mixed_0.25.json', enable_eplb=False, eplb_algorithm='auto', eplb_rebalance_num_iterations=1000, eplb_rebalance_layers_per_chunk=None, eplb_min_rebalancing_utilization_threshold=1.0, expert_distribution_recorder_mode=None, expert_distribution_recorder_buffer_size=1000, expert_balancedness_report_mode='off', deepep_config=None, moe_dense_tp_size=None, elastic_ep_backend=None, enable_elastic_expert_backup=False, mooncake_ib_device=None, enable_waterfill=False, ep_join_mode=None, ep_join_rank_offset=0, elastic_ep_initial_size=None, max_ep_size=None, elastic_ep_scale_timeout=600, elastic_ep_rejoin=False, disable_flashinfer_cutlass_moe_fp4_allgather=False, disable_shared_experts_fusion=False, enforce_shared_experts_fusion=False, max_mamba_cache_size=None, mamba_ssm_dtype=None, mamba_max_states_per_path=-1, enable_mamba_cache_stochastic_rounding=False, mamba_cache_philox_rounds=0, mamba_full_memory_ratio=0.9, mamba_radix_cache_strategy='auto', uses_mamba_radix_cache=False, mamba_track_interval=256, enable_int8_mamba_checkpoint=False, int8_mamba_ckpt_size=None, linear_attn_backend='triton', linear_attn_decode_backend=None, linear_attn_prefill_backend=None, linear_attn_verify_backend=None, enable_linear_replayssm=False, linear_replayssm_cache_len=16, enable_linear_replayssm_spec=False, enable_hierarchical_cache=False, hicache_ratio=2.0, hicache_size=0, hicache_write_policy='write_through', hicache_io_backend='kernel', hicache_mem_layout='page_first', hicache_storage_backend=None, hicache_storage_prefetch_policy='timeout', hicache_storage_backend_extra_config=None, enable_hisparse=False, hisparse_config=None, enable_broadcast_mm_inputs_process=False, enable_prefix_mm_cache=False, mm_enable_dp_encoder=False, mm_process_config={}, mm_processor_worker_num=0, mm_io_worker_num=0, allowed_media_domains=[], media_url_max_file_size_mb=64, mm_preprocess_cache_size_mb=None, trust_mm_content_hashes=False, limit_mm_data_per_request=None, enable_mm_global_cache=False, image_processor_backend='auto', mm_global_cache_backend='mooncake', disable_fast_image_processor=False, mm_feature_transport='cpu', keep_mm_feature_on_device=False, enable_lora=None, enable_lora_overlap_loading=None, max_lora_rank=None, lora_target_modules=None, lora_paths=None, max_loaded_loras=None, max_loras_per_batch=8, lora_eviction_policy='lru', lora_backend='csgmv', max_lora_chunk_size=16, experts_shared_outer_loras=None, lora_use_virtual_experts=False, lora_strict_loading=False, lora_drain_wait_threshold=0.0, enable_two_batch_overlap=False, enable_single_batch_overlap=False, tbo_token_distribution_threshold=0.48, cpu_offload_gb=0, offload_group_size=-1, offload_num_in_group=1, offload_prefetch_step=1, offload_mode='cpu', enable_lmcache=False, lmcache_config_file=None, enable_flexkv=False, flexkv_config_file=None, kt_weight_path='/models/kt/qwen3-480b-int4', kt_method='AMXINT4', kt_cpuinfer=96, kt_threadpool_count=2, kt_num_gpu_experts=96, kt_max_deferred_experts_per_token=8, dllm_algorithm=None, dllm_algorithm_config=None, dllm_fdfo=True, disaggregation_mode='null', disaggregation_transfer_backend='mooncake', disaggregation_bootstrap_port=8998, disaggregation_ib_device=None, disaggregation_decode_enable_radix_cache=False, disaggregation_decode_enable_offload_kvcache=False, disaggregation_decode_retraction_backup=None, num_reserved_decode_tokens=512, disaggregation_decode_extra_slots=None, disaggregation_decode_polling_interval=1, optimistic_prefill_attempts=0, encoder_only=False, language_only=False, language_model_only=False, encoder_transfer_backend='zmq_to_scheduler', encoder_urls=[], encoder_bootstrap_port=8997, encoder_register_urls=[], enable_adaptive_dispatch_to_encoder=False, enable_pdmux=False, pdmux_config_path=None, sm_group_num=8, startup_weight_load_mode='serial', custom_weight_loader=[], weight_loader_disable_mmap=False, weight_loader_prefetch_checkpoints=False, weight_loader_prefetch_num_threads=4, weight_loader_drop_cache_after_load=False, remote_instance_weight_loader_seed_instance_ip=None, remote_instance_weight_loader_seed_instance_service_port=None, remote_instance_weight_loader_send_weights_group_ports=None, remote_instance_weight_loader_backend='nccl', remote_instance_weight_loader_start_seed_via_transfer_engine=False, engine_info_bootstrap_port=6789, modelexpress_config=None, download_dir=None, model_checksum=None, delete_ckpt_after_loading=False, decrypted_config_file=None, decrypted_draft_config_file=None, checkpoint_engine_wait_weights_before_ready=False, enable_prefill_delayer=False, prefill_delayer_max_delay_passes=30, prefill_delayer_token_usage_low_watermark=None, prefill_delayer_forward_passes_buckets=None, prefill_delayer_wait_seconds_buckets=None, prefill_delayer_queue_min_ratio=None, prefill_delayer_max_delay_ms=None, min_free_slots_delay=None, enable_deterministic_inference=False, rl_on_policy_target=None, kv_canary='none', kv_canary_real_data='none', kv_canary_sweep_interval=0, enable_dynamic_batch_tokenizer=False, dynamic_batch_tokenizer_batch_size=32, dynamic_batch_tokenizer_batch_timeout=0.002, enable_tokenizer_batch_encode=False, disable_tokenizer_batch_decode=False, debug_tensor_dump_output_folder=None, debug_tensor_dump_layers=None, debug_tensor_dump_input_file=None, enable_memory_saver=False, enable_weights_cpu_backup=False, enable_draft_weights_cpu_backup=False, enable_custom_logit_processor=False, enable_return_hidden_states=False, return_hidden_states_mode=None, enable_return_routed_experts=False, enable_return_indexer_topk=False, disable_outlines_disk_cache=False, enable_mis=False, weight_cache_mode='off', weight_cache_socket=None, weight_cache_timeout=1800, forward_hooks=None, msprobe_dump_config=None)
+[2026-09-10 13:01:13] Using default HuggingFace chat template with detected content format: string
+[2026-09-10 13:01:13] Auto-detected template features: tool_call_parser=qwen3_coder
+[2026-09-10 13:01:24 TP0] Init torch distributed begin.
+[2026-09-10 13:01:25 TP1] Init torch distributed begin.
+[2026-09-10 13:01:25 TP2] Init torch distributed begin.
+[2026-09-10 13:01:26 TP3] Init torch distributed begin.
+[2026-09-10 13:01:26 TP0] sglang is using nccl==2.29.7
+[2026-09-10 13:01:28 TP0] All Reduce config: symmetric_memory = 23.01 MB, local_buffer = 4.00 MB, multicast = True
+[2026-09-10 13:01:28 TP3] Init torch distributed ends. elapsed=1.89 s, mem usage=1.06 GB
+[2026-09-10 13:01:28 TP0] Init torch distributed ends. elapsed=3.57 s, mem usage=1.25 GB
+[2026-09-10 13:01:28 TP2] Init torch distributed ends. elapsed=2.63 s, mem usage=1.30 GB
+[2026-09-10 13:01:28 TP1] Init torch distributed ends. elapsed=3.24 s, mem usage=1.30 GB
+[2026-09-10 13:01:28 TP3] init_expert_location from init_by_mapping using ServerArgs.init_expert_location
+[2026-09-10 13:01:28 TP2] init_expert_location from init_by_mapping using ServerArgs.init_expert_location
+[2026-09-10 13:01:28 TP1] init_expert_location from init_by_mapping using ServerArgs.init_expert_location
+[2026-09-10 13:01:28 TP0] init_expert_location from init_by_mapping using ServerArgs.init_expert_location
+[2026-09-10 13:01:30 TP3] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang/python/sglang/srt/managers/mm_utils.py)
+[2026-09-10 13:01:30 TP0] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang/python/sglang/srt/managers/mm_utils.py)
+[2026-09-10 13:01:30 TP2] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang/python/sglang/srt/managers/mm_utils.py)
+[2026-09-10 13:01:30 TP1] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang/python/sglang/srt/managers/mm_utils.py)
+[2026-09-10 13:01:30 TP2] Load weight begin. avail mem=77.36 GB
+[2026-09-10 13:01:30 TP0] Load weight begin. avail mem=77.41 GB
+[2026-09-10 13:01:30 TP3] Load weight begin. avail mem=77.60 GB
+[2026-09-10 13:01:30 TP0] Detected fp8 checkpoint.
+[2026-09-10 13:01:30 TP1] Load weight begin. avail mem=77.36 GB
+[2026-09-10 13:01:30 TP2] FlashInfer TRTLLM MoE deferred finalize is disabled (moe_runner_backend=auto, quant_method=KTEPWrapperMethod).
+[2026-09-10 13:01:30 TP3] FlashInfer TRTLLM MoE deferred finalize is disabled (moe_runner_backend=auto, quant_method=KTEPWrapperMethod).
+[2026-09-10 13:01:30 TP0] FlashInfer TRTLLM MoE deferred finalize is disabled (moe_runner_backend=auto, quant_method=KTEPWrapperMethod).
+[2026-09-10 13:01:30 TP1] FlashInfer TRTLLM MoE deferred finalize is disabled (moe_runner_backend=auto, quant_method=KTEPWrapperMethod).
+Multi-thread loading shards:   0% Completed | 0/49 [00:00<?, ?it/s]Multi-thread loading shards:   2% Completed | 1/49 [00:00<00:44,  1.09it/s]Multi-thread loading shards:   4% Completed | 2/49 [00:01<00:34,  1.35it/s]Multi-thread loading shards:   6% Completed | 3/49 [00:02<00:31,  1.46it/s]Multi-thread loading shards:   8% Completed | 4/49 [00:02<00:30,  1.50it/s]Multi-thread loading shards:  10% Completed | 5/49 [00:03<00:28,  1.54it/s]Multi-thread loading shards:  12% Completed | 6/49 [00:04<00:27,  1.56it/s]Multi-thread loading shards:  14% Completed | 7/49 [00:04<00:26,  1.57it/s]Multi-thread loading shards:  16% Completed | 8/49 [00:05<00:26,  1.56it/s]Multi-thread loading shards:  18% Completed | 9/49 [00:05<00:25,  1.57it/s]Multi-thread loading shards:  20% Completed | 10/49 [00:06<00:24,  1.58it/s]Multi-thread loading shards:  22% Completed | 11/49 [00:07<00:23,  1.60it/s]Multi-thread loading shards:  24% Completed | 12/49 [00:07<00:23,  1.60it/s]Multi-thread loading shards:  27% Completed | 13/49 [00:08<00:22,  1.61it/s]Multi-thread loading shards:  29% Completed | 14/49 [00:09<00:21,  1.60it/s]Multi-thread loading shards:  31% Completed | 15/49 [00:09<00:21,  1.58it/s]Multi-thread loading shards:  33% Completed | 16/49 [00:10<00:20,  1.58it/s]Multi-thread loading shards:  35% Completed | 17/49 [00:10<00:19,  1.62it/s]Multi-thread loading shards:  37% Completed | 18/49 [00:11<00:19,  1.61it/s]Multi-thread loading shards:  39% Completed | 19/49 [00:12<00:18,  1.61it/s]Multi-thread loading shards:  41% Completed | 20/49 [00:12<00:18,  1.61it/s]Multi-thread loading shards:  43% Completed | 21/49 [00:13<00:17,  1.61it/s]Multi-thread loading shards:  45% Completed | 22/49 [00:14<00:16,  1.60it/s]Multi-thread loading shards:  47% Completed | 23/49 [00:14<00:16,  1.59it/s]Multi-thread loading shards:  49% Completed | 24/49 [00:15<00:15,  1.63it/s]Multi-thread loading shards:  51% Completed | 25/49 [00:15<00:14,  1.62it/s]Multi-thread loading shards:  53% Completed | 26/49 [00:16<00:14,  1.62it/s]Multi-thread loading shards:  55% Completed | 27/49 [00:17<00:13,  1.59it/s]Multi-thread loading shards:  57% Completed | 28/49 [00:18<00:15,  1.34it/s]Multi-thread loading shards:  59% Completed | 29/49 [00:18<00:14,  1.39it/s]Multi-thread loading shards:  61% Completed | 30/49 [00:19<00:13,  1.45it/s]Multi-thread loading shards:  63% Completed | 31/49 [00:20<00:12,  1.50it/s]Multi-thread loading shards:  65% Completed | 32/49 [00:20<00:11,  1.53it/s]Multi-thread loading shards:  67% Completed | 33/49 [00:21<00:10,  1.56it/s]Multi-thread loading shards:  69% Completed | 34/49 [00:21<00:09,  1.56it/s]Multi-thread loading shards:  71% Completed | 35/49 [00:22<00:08,  1.56it/s]Multi-thread loading shards:  73% Completed | 36/49 [00:23<00:08,  1.57it/s]Multi-thread loading shards:  76% Completed | 37/49 [00:23<00:07,  1.59it/s]Multi-thread loading shards:  78% Completed | 38/49 [00:24<00:06,  1.57it/s]Multi-thread loading shards:  80% Completed | 39/49 [00:25<00:06,  1.58it/s]Multi-thread loading shards:  82% Completed | 40/49 [00:25<00:05,  1.58it/s]Multi-thread loading shards:  84% Completed | 41/49 [00:26<00:04,  1.62it/s]Multi-thread loading shards:  86% Completed | 42/49 [00:26<00:04,  1.62it/s][2026-09-10 13:02:04 TP3] Load weight end. elapsed=34.53 s, type=Qwen3MoeForCausalLM, quant=fp8, avail mem=8.64 GB, mem usage=68.96 GB.
+Multi-thread loading shards:  88% Completed | 43/49 [00:27<00:03,  1.63it/s][2026-09-10 13:02:05 TP2] Load weight end. elapsed=34.77 s, type=Qwen3MoeForCausalLM, quant=fp8, avail mem=8.41 GB, mem usage=68.96 GB.
+[2026-09-10 13:02:05 TP1] Load weight end. elapsed=35.01 s, type=Qwen3MoeForCausalLM, quant=fp8, avail mem=8.41 GB, mem usage=68.96 GB.
+Multi-thread loading shards:  90% Completed | 44/49 [00:28<00:03,  1.63it/s]Multi-thread loading shards:  92% Completed | 45/49 [00:28<00:02,  1.64it/s]Multi-thread loading shards:  94% Completed | 46/49 [00:29<00:01,  1.66it/s]Multi-thread loading shards:  96% Completed | 47/49 [00:29<00:01,  1.64it/s]Multi-thread loading shards:  98% Completed | 48/49 [00:30<00:00,  1.55it/s]Multi-thread loading shards: 100% Completed | 49/49 [00:30<00:00,  2.00it/s]Multi-thread loading shards: 100% Completed | 49/49 [00:30<00:00,  1.59it/s]
+CPUInfer[0x2fb40ad0]: Hello
+WorkerPool[0x2fb40470] 2 subpools, [numa:threads][0:48] [1:48] 
+===========In NumaPool============
+In Numa Worker Pool at NUMA 0, 48 threads
+===========In NumaPool============
+In Numa Worker Pool at NUMA 1, 48 threads
+TP MOE layer 0, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 1, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 2, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 3, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 4, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 5, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 6, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 7, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 8, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 9, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 10, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 11, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 12, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 13, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 14, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 15, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 16, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 17, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 18, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 19, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 20, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 21, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 22, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 23, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 24, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 25, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 26, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 27, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 28, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 29, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 30, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 31, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 32, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 33, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 34, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 35, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 36, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 37, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 38, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 39, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 40, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 41, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 42, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 43, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 44, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 45, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 46, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 47, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 48, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 49, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE[2026-09-10 13:02:24 TP0] Load weight end. elapsed=53.75 s, type=Qwen3MoeForCausalLM, quant=fp8, avail mem=8.45 GB, mem usage=68.96 GB.
+[2026-09-10 13:02:24 TP0] max_total_tokens=143360 is larger than the profiled value 127309. Use the profiled value instead.
+[2026-09-10 13:02:24 TP3] max_total_tokens=143360 is larger than the profiled value 127309. Use the profiled value instead.
+[2026-09-10 13:02:24 TP2] max_total_tokens=143360 is larger than the profiled value 127309. Use the profiled value instead.
+[2026-09-10 13:02:24 TP1] max_total_tokens=143360 is larger than the profiled value 127309. Use the profiled value instead.
+[2026-09-10 13:02:24 TP2] KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 127309, K size: 1.88 GB, V size: 1.88 GB
+[2026-09-10 13:02:24 TP2] Memory pool end. avail mem=4.28 GB
+[2026-09-10 13:02:24 TP3] KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 127309, K size: 1.88 GB, V size: 1.88 GB
+[2026-09-10 13:02:24 TP0] KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 127309, K size: 1.88 GB, V size: 1.88 GB
+[2026-09-10 13:02:24 TP1] KV Cache is allocated. dtype: torch.float8_e5m2, #tokens: 127309, K size: 1.88 GB, V size: 1.88 GB
+[2026-09-10 13:02:24 TP3] Memory pool end. avail mem=4.51 GB
+[2026-09-10 13:02:24 TP0] Memory pool end. avail mem=4.33 GB
+[2026-09-10 13:02:24 TP1] Memory pool end. avail mem=4.28 GB
+[2026-09-10 13:02:25 TP0] [SymmDeviceMemory] Rank: 0, Group size: 4, device_idx: 0, Signal pad offset: 100663296
+[2026-09-10 13:02:25 TP3] [SymmDeviceMemory] Rank: 3, Group size: 4, device_idx: 3, Signal pad offset: 100663296
+[2026-09-10 13:02:25 TP1] [SymmDeviceMemory] Rank: 1, Group size: 4, device_idx: 1, Signal pad offset: 100663296
+[2026-09-10 13:02:25 TP2] [SymmDeviceMemory] Rank: 2, Group size: 4, device_idx: 2, Signal pad offset: 100663296
+[2026-09-10 13:02:25 TP3] [SymmDeviceMemory] Rank: 3, Group size: 4, device_idx: 3, Signal pad offset: 4096
+[2026-09-10 13:02:25 TP2] [SymmDeviceMemory] Rank: 2, Group size: 4, device_idx: 2, Signal pad offset: 4096
+[2026-09-10 13:02:25 TP1] [SymmDeviceMemory] Rank: 1, Group size: 4, device_idx: 1, Signal pad offset: 4096
+[2026-09-10 13:02:25 TP0] [SymmDeviceMemory] Rank: 0, Group size: 4, device_idx: 0, Signal pad offset: 4096
+[2026-09-10 13:02:25 TP1] [SymmDeviceMemory] Rank: 1, Group size: 4, device_idx: 1, Signal pad offset: 301989888
+[2026-09-10 13:02:25 TP0] [SymmDeviceMemory] Rank: 0, Group size: 4, device_idx: 0, Signal pad offset: 301989888
+[2026-09-10 13:02:25 TP3] [SymmDeviceMemory] Rank: 3, Group size: 4, device_idx: 3, Signal pad offset: 301989888
+[2026-09-10 13:02:25 TP2] [SymmDeviceMemory] Rank: 2, Group size: 4, device_idx: 2, Signal pad offset: 301989888
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
+[2026-09-10 13:02:25 TP3] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=3, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-09-10 13:02:25 TP2] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=2, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-09-10 13:02:25 TP0] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=0, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-09-10 13:02:25 TP1] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=1, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-09-10 13:02:25 TP0] [SymmDeviceMemory] Rank: 0, Group size: 4, device_idx: 0, Signal pad offset: 100663296
+[2026-09-10 13:02:25 TP1] [SymmDeviceMemory] Rank: 1, Group size: 4, device_idx: 1, Signal pad offset: 100663296
+[2026-09-10 13:02:25 TP3] [SymmDeviceMemory] Rank: 3, Group size: 4, device_idx: 3, Signal pad offset: 100663296
+[2026-09-10 13:02:25 TP2] [SymmDeviceMemory] Rank: 2, Group size: 4, device_idx: 2, Signal pad offset: 100663296
+[2026-09-10 13:02:25 TP1] [SymmDeviceMemory] Rank: 1, Group size: 4, device_idx: 1, Signal pad offset: 4096
+[2026-09-10 13:02:25 TP0] [SymmDeviceMemory] Rank: 0, Group size: 4, device_idx: 0, Signal pad offset: 4096
+[2026-09-10 13:02:25 TP3] [SymmDeviceMemory] Rank: 3, Group size: 4, device_idx: 3, Signal pad offset: 4096
+[2026-09-10 13:02:25 TP2] [SymmDeviceMemory] Rank: 2, Group size: 4, device_idx: 2, Signal pad offset: 4096
+[2026-09-10 13:02:25 TP1] [SymmDeviceMemory] Rank: 1, Group size: 4, device_idx: 1, Signal pad offset: 301989888
+[2026-09-10 13:02:25 TP2] [SymmDeviceMemory] Rank: 2, Group size: 4, device_idx: 2, Signal pad offset: 301989888
+[2026-09-10 13:02:25 TP0] [SymmDeviceMemory] Rank: 0, Group size: 4, device_idx: 0, Signal pad offset: 301989888
+[2026-09-10 13:02:25 TP3] [SymmDeviceMemory] Rank: 3, Group size: 4, device_idx: 3, Signal pad offset: 301989888
+[2026-09-10 13:02:25 TP3] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=3, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-09-10 13:02:25 TP0] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=0, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-09-10 13:02:25 TP1] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=1, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-09-10 13:02:25 TP2] FlashInfer AllReduce Fusion enabled and workspace initialized: backend=trtllm, rank=2, world_size=4, max_token_num=2048, hidden_dim=6144
+[2026-09-10 13:02:25 TP0] Disable prefill CUDA graph because cuda_graph_config resolved prefill.backend='disabled' (e.g. via --cuda-graph-backend-prefill=disabled or auto-disable rules).
+[2026-09-10 13:02:25 TP3] Disable prefill CUDA graph because cuda_graph_config resolved prefill.backend='disabled' (e.g. via --cuda-graph-backend-prefill=disabled or auto-disable rules).
+[2026-09-10 13:02:25 TP2] Disable prefill CUDA graph because cuda_graph_config resolved prefill.backend='disabled' (e.g. via --cuda-graph-backend-prefill=disabled or auto-disable rules).
+[2026-09-10 13:02:25 TP1] Disable prefill CUDA graph because cuda_graph_config resolved prefill.backend='disabled' (e.g. via --cuda-graph-backend-prefill=disabled or auto-disable rules).
+[2026-09-10 13:02:25 TP0] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[32, 64, 96, 128, 160, 192, 224], avail mem=2.70 GB
+[2026-09-10 13:02:25 TP3] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[32, 64, 96, 128, 160, 192, 224], avail mem=3.08 GB
+[2026-09-10 13:02:25 TP2] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[32, 64, 96, 128, 160, 192, 224], avail mem=2.61 GB
+[2026-09-10 13:02:25 TP1] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[32, 64, 96, 128, 160, 192, 224], avail mem=2.61 GB
+  0%|          | 0/7 [00:00<?, ?it/s]Capturing batches (bs=224 avail_mem=2.50 GB):   0%|          | 0/7 [00:00<?, ?it/s][2026-09-10 13:02:26 TP0] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=3584,K=6144,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-09-10 13:02:26 TP3] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=3584,K=6144,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-09-10 13:02:26 TP1] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=3584,K=6144,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-09-10 13:02:26 TP2] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=3584,K=6144,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-09-10 13:02:26 TP0] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=6144,K=3072,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-09-10 13:02:26 TP3] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=6144,K=3072,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-09-10 13:02:26 TP2] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=6144,K=3072,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-09-10 13:02:26 TP1] Using default W8A8 Block FP8 kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/kernels/ops/quantization/configs/N=6144,K=3072,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json
+[2026-09-10 13:02:27 TP3] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=96,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-09-10 13:02:27 TP2] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=96,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-09-10 13:02:27 TP3] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=96,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128]_down.json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-09-10 13:02:27 TP2] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=96,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128]_down.json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-09-10 13:02:27 TP1] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=96,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-09-10 13:02:27 TP1] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=96,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128]_down.json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[kt-cf] callback-free handoff ready (ci=0x2fb40ad0)
+[2026-09-10 13:02:27 TP0] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=96,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+[2026-09-10 13:02:27 TP0] Using default MoE kernel config. Performance might be sub-optimal! Config file not found at /sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/triton_utils/configs/triton_3_7_1/E=96,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128]_down.json, you can create them with https://github.com/sgl-project/sglang/tree/main/benchmark/kernels/fused_moe_triton
+Capturing batches (bs=224 avail_mem=2.50 GB):  14%|█▍        | 1/7 [00:03<00:22,  3.69s/it]Capturing batches (bs=192 avail_mem=2.21 GB):  14%|█▍        | 1/7 [00:03<00:22,  3.69s/it]Capturing batches (bs=192 avail_mem=2.21 GB):  29%|██▊       | 2/7 [00:04<00:10,  2.01s/it]Capturing batches (bs=160 avail_mem=2.20 GB):  29%|██▊       | 2/7 [00:04<00:10,  2.01s/it]Capturing batches (bs=160 avail_mem=2.20 GB):  43%|████▎     | 3/7 [00:05<00:05,  1.46s/it]Capturing batches (bs=128 avail_mem=2.17 GB):  43%|████▎     | 3/7 [00:05<00:05,  1.46s/it]Capturing batches (bs=128 avail_mem=2.17 GB):  57%|█████▋    | 4/7 [00:06<00:03,  1.24s/it]Capturing batches (bs=96 avail_mem=2.16 GB):  57%|█████▋    | 4/7 [00:06<00:03,  1.24s/it] Capturing batches (bs=96 avail_mem=2.16 GB):  71%|███████▏  | 5/7 [00:07<00:02,  1.08s/it]Capturing batches (bs=64 avail_mem=2.16 GB):  71%|███████▏  | 5/7 [00:07<00:02,  1.08s/it]Capturing batches (bs=64 avail_mem=2.16 GB):  86%|████████▌ | 6/7 [00:07<00:00,  1.01it/s]Capturing batches (bs=32 avail_mem=2.14 GB):  86%|████████▌ | 6/7 [00:07<00:00,  1.01it/s]Capturing batches (bs=32 avail_mem=2.14 GB): 100%|██████████| 7/7 [00:08<00:00,  1.05it/s]Capturing batches (bs=32 avail_mem=2.14 GB): 100%|██████████| 7/7 [00:08<00:00,  1.25s/it]
+[2026-09-10 13:02:34 TP3] Capture target decode CUDA graph end. elapsed=9.52 s, mem usage=0.49 GB, avail mem=2.59 GB.
+[2026-09-10 13:02:34 TP1] Capture target decode CUDA graph end. elapsed=9.52 s, mem usage=0.49 GB, avail mem=2.12 GB.
+[2026-09-10 13:02:34 TP3] Tree cache initialized: source=default impl=RadixCache hybrid_swa=False hybrid_ssm=False hicache_attached=False streaming_wrapped=False
+[2026-09-10 13:02:34 TP1] Tree cache initialized: source=default impl=RadixCache hybrid_swa=False hybrid_ssm=False hicache_attached=False streaming_wrapped=False
+[2026-09-10 13:02:34 TP2] Capture target decode CUDA graph end. elapsed=9.52 s, mem usage=0.49 GB, avail mem=2.12 GB.
+[2026-09-10 13:02:34 TP2] Tree cache initialized: source=default impl=RadixCache hybrid_swa=False hybrid_ssm=False hicache_attached=False streaming_wrapped=False
+[2026-09-10 13:02:34 TP0] Capture target decode CUDA graph end. elapsed=9.55 s, mem usage=0.57 GB, avail mem=2.13 GB.
+[2026-09-10 13:02:34 TP0] max_total_num_tokens=127309, chunked_prefill_size=4096, max_prefill_tokens=16384, max_running_requests=2048, context_len=32768, available_gpu_mem=2.13 GB
+[2026-09-10 13:02:34 TP0] Tree cache initialized: source=default impl=RadixCache hybrid_swa=False hybrid_ssm=False hicache_attached=False streaming_wrapped=False
+[2026-09-10 13:02:35] Engine startup timings (s): load_weight=53.75, kv_cache_allocation=0.06, scheduler_e2e=71.85, cuda_graph={prefill=0.00, decode=9.55, target_verify=0.00, draft_prefill=0.00, draft_decode=0.00, draft_extend=0.00}, tokenizer_e2e=85.39
+[2026-09-10 13:02:35] INFO:     Started server process [587173]
+[2026-09-10 13:02:35] INFO:     Waiting for application startup.
+[2026-09-10 13:02:35] Using default chat sampling params from model generation config: {'repetition_penalty': 1.05, 'temperature': 0.7, 'top_k': 20, 'top_p': 0.8}
+[2026-09-10 13:02:35] INFO:     Application startup complete.
+[2026-09-10 13:02:35] INFO:     Uvicorn running on http://127.0.0.1:30000 (Press CTRL+C to quit)
+[2026-09-10 13:02:36] INFO:     127.0.0.1:40796 - "GET /model_info HTTP/1.1" 200 OK
+[2026-09-10 13:02:37 TP0] Prefill batch, #new-seq: 1, #new-token: 6, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 2.76
+[2026-09-10 13:02:37] INFO:     127.0.0.1:40802 - "POST /generate HTTP/1.1" 200 OK
+[2026-09-10 13:02:37 TP3] Freezing GC in Scheduler process. gen0: 48->0, gen1: 217->0, gen2: 1040655->0
+[2026-09-10 13:02:37 TP1] Freezing GC in Scheduler process. gen0: 48->0, gen1: 217->0, gen2: 1040689->0
+[2026-09-10 13:02:37 TP0] Freezing GC in Scheduler process. gen0: 48->0, gen1: 217->0, gen2: 1041261->0
+[2026-09-10 13:02:37 TP2] Freezing GC in Scheduler process. gen0: 48->0, gen1: 217->0, gen2: 1040678->0
+[2026-09-10 13:02:37] Freezing GC in Tokenizer Manager process. gen0: 326->0, gen1: 3958->0, gen2: 911773->0
+[2026-09-10 13:02:37] INFO:     127.0.0.1:40810 - "POST /freeze_gc HTTP/1.1" 200 OK
+[2026-09-10 13:02:37] The server is fired up and ready to roll!
+[2026-09-10 13:02:37] Freezing GC in Detokenizer Manager process. gen0: 382->0, gen1: 0->0, gen2: 851044->0
+ layer 50, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 51, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 52, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 53, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 54, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 55, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 56, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 57, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 58, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 59, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 60, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 61, pool: 0x2fb40470, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 5 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 4 us, total: 12 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 1 us, up_gate: 7 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 5 us, total: 15 us
+Profiling Results (numa[1]): activated_expert: 6, q_input: 21 us, up_gate: 352 us, act: 7 us, q_down: 6 us, down: 152 us, weight: 8 us, total: 548 us
+Profiling Results (numa[0]): activated_expert: 6, q_input: 22 us, up_gate: 349 us, act: 6 us, q_down: 5 us, down: 159 us, weight: 8 us, total: 552 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 2 us, act: 0 us, q_down: 1 us, down: 1 us, weight: 6 us, total: 12 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 1 us, up_gate: 3 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 11 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 9 us, total: 12 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 86 us, act: 2 us, q_down: 1 us, down: 56 us, weight: 5 us, total: 159 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 95 us, act: 2 us, q_down: 1 us, down: 68 us, weight: 7 us, total: 182 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 10 us, up_gate: 146 us, act: 4 us, q_down: 3 us, down: 83 us, weight: 4 us, total: 253 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 10 us, up_gate: 152 us, act: 4 us, q_down: 4 us, down: 84 us, weight: 5 us, total: 261 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 75 us, act: 3 us, q_down: 2 us, down: 37 us, weight: 4 us, total: 129 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 6 us, up_gate: 79 us, act: 2 us, q_down: 1 us, down: 37 us, weight: 4 us, total: 131 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 6 us, up_gate: 96 us, act: 3 us, q_down: 2 us, down: 62 us, weight: 5 us, total: 176 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 8 us, up_gate: 91 us, act: 2 us, q_down: 3 us, down: 63 us, weight: 7 us, total: 175 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 145 us, act: 6 us, q_down: 3 us, down: 78 us, weight: 5 us, total: 250 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 12 us, up_gate: 149 us, act: 4 us, q_down: 3 us, down: 83 us, weight: 6 us, total: 259 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 5 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 5, q_input: 16 us, up_gate: 225 us, act: 8 us, q_down: 5 us, down: 123 us, weight: 10 us, total: 389 us
+Profiling Results (numa[0]): activated_expert: 5, q_input: 18 us, up_gate: 235 us, act: 5 us, q_down: 5 us, down: 128 us, weight: 7 us, total: 401 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 9 us, up_gate: 86 us, act: 1 us, q_down: 2 us, down: 59 us, weight: 5 us, total: 164 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 9 us, up_gate: 91 us, act: 3 us, q_down: 3 us, down: 56 us, weight: 5 us, total: 168 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 75 us, act: 2 us, q_down: 1 us, down: 34 us, weight: 3 us, total: 123 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 78 us, act: 2 us, q_down: 1 us, down: 37 us, weight: 4 us, total: 132 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 8 us, up_gate: 140 us, act: 3 us, q_down: 3 us, down: 79 us, weight: 5 us, total: 241 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 10 us, up_gate: 138 us, act: 6 us, q_down: 3 us, down: 79 us, weight: 6 us, total: 245 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 57 us, act: 2 us, q_down: 0 us, down: 37 us, weight: 4 us, total: 106 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 59 us, act: 1 us, q_down: 2 us, down: 34 us, weight: 5 us, total: 109 us
+Profiling Results (numa[0]): activated_expert: 5, q_input: 14 us, up_gate: 224 us, act: 7 us, q_down: 3 us, down: 140 us, weight: 7 us, total: 396 us
+Profiling Results (numa[1]): activated_expert: 5, q_input: 14 us, up_gate: 223 us, act: 8 us, q_down: 4 us, down: 137 us, weight: 9 us, total: 399 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 5 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 5, q_input: 15 us, up_gate: 220 us, act: 8 us, q_down: 4 us, down: 121 us, weight: 7 us, total: 379 us
+Profiling Results (numa[0]): activated_expert: 5, q_input: 16 us, up_gate: 224 us, act: 6 us, q_down: 4 us, down: 127 us, weight: 7 us, total: 387 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 6 us, up_gate: 57 us, act: 2 us, q_down: 0 us, down: 34 us, weight: 5 us, total: 107 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 57 us, act: 1 us, q_down: 1 us, down: 35 us, weight: 8 us, total: 110 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 8 us, up_gate: 140 us, act: 4 us, q_down: 3 us, down: 83 us, weight: 5 us, total: 245 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 10 us, up_gate: 138 us, act: 4 us, q_down: 3 us, down: 83 us, weight: 7 us, total: 248 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 10 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 17 us, up_gate: 158 us, act: 7 us, q_down: 4 us, down: 101 us, weight: 5 us, total: 294 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 14 us, up_gate: 164 us, act: 5 us, q_down: 4 us, down: 104 us, weight: 5 us, total: 299 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 59 us, act: 2 us, q_down: 1 us, down: 38 us, weight: 4 us, total: 110 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 7 us, up_gate: 61 us, act: 2 us, q_down: 1 us, down: 35 us, weight: 3 us, total: 111 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 9 us, up_gate: 141 us, act: 4 us, q_down: 3 us, down: 79 us, weight: 5 us, total: 244 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 10 us, up_gate: 137 us, act: 6 us, q_down: 3 us, down: 81 us, weight: 6 us, total: 247 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 13 us, up_gate: 164 us, act: 5 us, q_down: 4 us, down: 100 us, weight: 8 us, total: 296 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 13 us, up_gate: 165 us, act: 5 us, q_down: 3 us, down: 107 us, weight: 6 us, total: 302 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 59 us, act: 1 us, q_down: 1 us, down: 36 us, weight: 4 us, total: 110 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 60 us, act: 1 us, q_down: 0 us, down: 37 us, weight: 4 us, total: 112 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 13 us, up_gate: 162 us, act: 6 us, q_down: 3 us, down: 110 us, weight: 8 us, total: 304 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 12 us, up_gate: 173 us, act: 6 us, q_down: 3 us, down: 114 us, weight: 5 us, total: 316 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 57 us, act: 1 us, q_down: 0 us, down: 36 us, weight: 5 us, total: 108 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 60 us, act: 2 us, q_down: 1 us, down: 35 us, weight: 5 us, total: 112 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 5 us, up_gate: 87 us, act: 2 us, q_down: 3 us, down: 58 us, weight: 4 us, total: 162 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 8 us, up_gate: 87 us, act: 2 us, q_down: 2 us, down: 55 us, weight: 7 us, total: 163 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 13 us, up_gate: 158 us, act: 7 us, q_down: 4 us, down: 98 us, weight: 7 us, total: 288 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 14 us, up_gate: 163 us, act: 5 us, q_down: 4 us, down: 101 us, weight: 6 us, total: 296 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 7 us, up_gate: 59 us, act: 2 us, q_down: 1 us, down: 34 us, weight: 4 us, total: 109 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 8 us, up_gate: 59 us, act: 2 us, q_down: 1 us, down: 35 us, weight: 3 us, total: 111 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 8 us, up_gate: 138 us, act: 3 us, q_down: 3 us, down: 79 us, weight: 5 us, total: 239 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 10 us, up_gate: 136 us, act: 6 us, q_down: 3 us, down: 81 us, weight: 6 us, total: 245 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 6 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 12 us, up_gate: 138 us, act: 3 us, q_down: 3 us, down: 76 us, weight: 4 us, total: 239 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 135 us, act: 6 us, q_down: 3 us, down: 82 us, weight: 7 us, total: 246 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 9 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 14 us, up_gate: 161 us, act: 4 us, q_down: 4 us, down: 99 us, weight: 6 us, total: 290 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 13 us, up_gate: 160 us, act: 7 us, q_down: 4 us, down: 100 us, weight: 7 us, total: 294 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 4 us, total: 8 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 6 us, total: 8 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 10 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 13 us, up_gate: 171 us, act: 7 us, q_down: 4 us, down: 98 us, weight: 8 us, total: 303 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 14 us, up_gate: 176 us, act: 5 us, q_down: 4 us, down: 99 us, weight: 6 us, total: 306 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 4 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 5, q_input: 15 us, up_gate: 218 us, act: 5 us, q_down: 5 us, down: 122 us, weight: 9 us, total: 377 us
+Profiling Results (numa[0]): activated_expert: 5, q_input: 15 us, up_gate: 224 us, act: 5 us, q_down: 4 us, down: 123 us, weight: 7 us, total: 382 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 5 us, total: 10 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 136 us, act: 15 us, q_down: 3 us, down: 80 us, weight: 5 us, total: 252 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 13 us, up_gate: 172 us, act: 4 us, q_down: 4 us, down: 82 us, weight: 5 us, total: 282 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 4 us, total: 7 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 7 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 11 us, up_gate: 141 us, act: 4 us, q_down: 3 us, down: 82 us, weight: 5 us, total: 249 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 139 us, act: 5 us, q_down: 3 us, down: 80 us, weight: 9 us, total: 249 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 57 us, act: 2 us, q_down: 1 us, down: 36 us, weight: 4 us, total: 107 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 5 us, up_gate: 58 us, act: 1 us, q_down: 1 us, down: 37 us, weight: 3 us, total: 109 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 12 us, up_gate: 173 us, act: 4 us, q_down: 4 us, down: 101 us, weight: 6 us, total: 302 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 10 us, up_gate: 177 us, act: 5 us, q_down: 3 us, down: 100 us, weight: 5 us, total: 303 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 1 us, down: 1 us, weight: 4 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 15 us, up_gate: 159 us, act: 4 us, q_down: 4 us, down: 102 us, weight: 5 us, total: 292 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 15 us, up_gate: 165 us, act: 5 us, q_down: 4 us, down: 104 us, weight: 7 us, total: 302 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 5 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 13 us, up_gate: 158 us, act: 7 us, q_down: 4 us, down: 115 us, weight: 8 us, total: 307 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 14 us, up_gate: 167 us, act: 5 us, q_down: 4 us, down: 117 us, weight: 5 us, total: 314 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 10 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 14 us, up_gate: 157 us, act: 7 us, q_down: 4 us, down: 97 us, weight: 9 us, total: 290 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 14 us, up_gate: 166 us, act: 5 us, q_down: 4 us, down: 99 us, weight: 5 us, total: 295 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 13 us, up_gate: 159 us, act: 7 us, q_down: 4 us, down: 95 us, weight: 14 us, total: 294 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 16 us, up_gate: 161 us, act: 4 us, q_down: 4 us, down: 106 us, weight: 5 us, total: 299 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 5 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 5, q_input: 16 us, up_gate: 216 us, act: 8 us, q_down: 5 us, down: 121 us, weight: 9 us, total: 376 us
+Profiling Results (numa[0]): activated_expert: 5, q_input: 17 us, up_gate: 217 us, act: 6 us, q_down: 5 us, down: 125 us, weight: 7 us, total: 379 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 59 us, act: 2 us, q_down: 0 us, down: 37 us, weight: 4 us, total: 109 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 7 us, up_gate: 60 us, act: 2 us, q_down: 0 us, down: 34 us, weight: 5 us, total: 110 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 12 us, up_gate: 158 us, act: 7 us, q_down: 4 us, down: 106 us, weight: 5 us, total: 294 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 11 us, up_gate: 163 us, act: 5 us, q_down: 3 us, down: 107 us, weight: 6 us, total: 298 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 59 us, act: 2 us, q_down: 0 us, down: 34 us, weight: 3 us, total: 106 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 58 us, act: 2 us, q_down: 1 us, down: 34 us, weight: 3 us, total: 108 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 12 us, up_gate: 160 us, act: 5 us, q_down: 4 us, down: 96 us, weight: 8 us, total: 287 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 11 us, up_gate: 162 us, act: 4 us, q_down: 4 us, down: 98 us, weight: 7 us, total: 288 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 57 us, act: 1 us, q_down: 1 us, down: 34 us, weight: 6 us, total: 107 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 58 us, act: 1 us, q_down: 1 us, down: 34 us, weight: 4 us, total: 109 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 6 us, up_gate: 87 us, act: 4 us, q_down: 3 us, down: 70 us, weight: 5 us, total: 177 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 8 us, up_gate: 85 us, act: 4 us, q_down: 2 us, down: 80 us, weight: 5 us, total: 187 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 5, q_input: 15 us, up_gate: 217 us, act: 7 us, q_down: 5 us, down: 123 us, weight: 6 us, total: 375 us
+Profiling Results (numa[0]): activated_expert: 5, q_input: 16 us, up_gate: 225 us, act: 5 us, q_down: 4 us, down: 120 us, weight: 7 us, total: 381 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 2 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 6 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 9 us, up_gate: 85 us, act: 4 us, q_down: 3 us, down: 54 us, weight: 7 us, total: 164 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 10 us, up_gate: 92 us, act: 4 us, q_down: 2 us, down: 56 us, weight: 4 us, total: 171 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 58 us, act: 2 us, q_down: 1 us, down: 36 us, weight: 5 us, total: 111 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 60 us, act: 1 us, q_down: 1 us, down: 35 us, weight: 6 us, total: 112 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 8 us, up_gate: 140 us, act: 4 us, q_down: 3 us, down: 80 us, weight: 5 us, total: 243 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 10 us, up_gate: 134 us, act: 6 us, q_down: 3 us, down: 81 us, weight: 5 us, total: 241 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 4 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 13 us, up_gate: 156 us, act: 7 us, q_down: 4 us, down: 108 us, weight: 9 us, total: 298 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 14 us, up_gate: 164 us, act: 5 us, q_down: 4 us, down: 107 us, weight: 8 us, total: 304 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 61 us, act: 2 us, q_down: 0 us, down: 35 us, weight: 4 us, total: 109 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 5 us, up_gate: 57 us, act: 4 us, q_down: 2 us, down: 34 us, weight: 4 us, total: 108 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 12 us, up_gate: 156 us, act: 4 us, q_down: 4 us, down: 99 us, weight: 8 us, total: 287 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 11 us, up_gate: 165 us, act: 5 us, q_down: 4 us, down: 103 us, weight: 6 us, total: 296 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 136 us, act: 6 us, q_down: 3 us, down: 76 us, weight: 15 us, total: 250 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 12 us, up_gate: 139 us, act: 4 us, q_down: 3 us, down: 93 us, weight: 6 us, total: 260 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 59 us, act: 1 us, q_down: 1 us, down: 33 us, weight: 4 us, total: 106 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 60 us, act: 2 us, q_down: 0 us, down: 36 us, weight: 4 us, total: 108 us
+Profiling Results (numa[1]): activated_expert: 5, q_input: 14 us, up_gate: 216 us, act: 6 us, q_down: 5 us, down: 122 us, weight: 7 us, total: 373 us
+Profiling Results (numa[0]): activated_expert: 5, q_input: 14 us, up_gate: 222 us, act: 5 us, q_down: 4 us, down: 123 us, weight: 7 us, total: 378 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 4 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 5, q_input: 16 us, up_gate: 226 us, act: 8 us, q_down: 5 us, down: 120 us, weight: 7 us, total: 384 us
+Profiling Results (numa[0]): activated_expert: 5, q_input: 16 us, up_gate: 234 us, act: 6 us, q_down: 4 us, down: 119 us, weight: 7 us, total: 389 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 9 us, weight: 4 us, total: 16 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 3 us, up_gate: 60 us, act: 2 us, q_down: 1 us, down: 35 us, weight: 3 us, total: 107 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 56 us, act: 2 us, q_down: 1 us, down: 36 us, weight: 4 us, total: 108 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 9 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 58 us, act: 2 us, q_down: 0 us, down: 36 us, weight: 4 us, total: 109 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 55 us, act: 1 us, q_down: 1 us, down: 37 us, weight: 7 us, total: 109 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 4 us, total: 7 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 5 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 9 us, up_gate: 82 us, act: 2 us, q_down: 3 us, down: 57 us, weight: 7 us, total: 161 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 10 us, up_gate: 86 us, act: 3 us, q_down: 3 us, down: 56 us, weight: 4 us, total: 164 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 4 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 4, q_input: 12 us, up_gate: 160 us, act: 6 us, q_down: 4 us, down: 96 us, weight: 7 us, total: 288 us
+Profiling Results (numa[0]): activated_expert: 4, q_input: 13 us, up_gate: 163 us, act: 5 us, q_down: 4 us, down: 96 us, weight: 6 us, total: 290 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 4 us, total: 7 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 10 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 8 us, up_gate: 91 us, act: 3 us, q_down: 2 us, down: 56 us, weight: 5 us, total: 168 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 10 us, up_gate: 90 us, act: 3 us, q_down: 2 us, down: 58 us, weight: 4 us, total: 170 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 4 us, total: 8 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 2 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 6 us, total: 8 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 2 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 4 us, total: 8 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 4 us, total: 7 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 6 us, total: 9 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 61 us, act: 1 us, q_down: 1 us, down: 35 us, weight: 5 us, total: 110 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 7 us, up_gate: 57 us, act: 1 us, q_down: 1 us, down: 36 us, weight: 7 us, total: 112 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 4 us, up_gate: 56 us, act: 1 us, q_down: 1 us, down: 32 us, weight: 2 us, total: 98 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 5 us, up_gate: 57 us, act: 1 us, q_down: 1 us, down: 36 us, weight: 5 us, total: 107 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 4 us, total: 7 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 4 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 7 us, up_gate: 85 us, act: 2 us, q_down: 2 us, down: 56 us, weight: 4 us, total: 159 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 8 us, up_gate: 88 us, act: 3 us, q_down: 3 us, down: 59 us, weight: 5 us, total: 169 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 6 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 12 us, up_gate: 140 us, act: 4 us, q_down: 3 us, down: 76 us, weight: 5 us, total: 242 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 138 us, act: 6 us, q_down: 3 us, down: 83 us, weight: 6 us, total: 249 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 9 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 60 us, act: 2 us, q_down: 0 us, down: 36 us, weight: 2 us, total: 109 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 66 us, act: 2 us, q_down: 2 us, down: 36 us, weight: 3 us, total: 118 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 3 us, total: 6 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 10 us
+Profiling Results (numa[1]): activated_expert: 2, q_input: 8 us, up_gate: 96 us, act: 3 us, q_down: 2 us, down: 54 us, weight: 4 us, total: 170 us
+Profiling Results (numa[0]): activated_expert: 2, q_input: 9 us, up_gate: 96 us, act: 3 us, q_down: 3 us, down: 56 us, weight: 5 us, total: 174 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 7 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 10 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 11 us, up_gate: 138 us, act: 4 us, q_down: 3 us, down: 80 us, weight: 4 us, total: 244 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 135 us, act: 4 us, q_down: 3 us, down: 82 us, weight: 8 us, total: 245 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 6 us, total: 9 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 6 us, up_gate: 58 us, act: 2 us, q_down: 0 us, down: 34 us, weight: 4 us, total: 109 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 5 us, up_gate: 61 us, act: 1 us, q_down: 1 us, down: 36 us, weight: 6 us, total: 112 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 4 us, total: 8 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 5 us, up_gate: 58 us, act: 2 us, q_down: 2 us, down: 35 us, weight: 4 us, total: 109 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 56 us, act: 2 us, q_down: 1 us, down: 37 us, weight: 4 us, total: 109 us
+Profiling Results (numa[0]): activated_expert: 1, q_input: 7 us, up_gate: 58 us, act: 2 us, q_down: 0 us, down: 35 us, weight: 5 us, total: 110 us
+Profiling Results (numa[1]): activated_expert: 1, q_input: 6 us, up_gate: 56 us, act: 2 us, q_down: 1 us, down: 34 us, weight: 7 us, total: 109 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 134 us, act: 4 us, q_down: 3 us, down: 79 us, weight: 5 us, total: 238 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 8 us, up_gate: 142 us, act: 3 us, q_down: 3 us, down: 85 us, weight: 6 us, total: 250 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 0 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 3 us, total: 5 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 1 us, weight: 5 us, total: 8 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 11 us, up_gate: 136 us, act: 6 us, q_down: 3 us, down: 77 us, weight: 5 us, total: 240 us
+Profiling Results (numa[0]): activated_expert: 3, q_input: 11 us, up_gate: 138 us, act: 4 us, q_down: 3 us, down: 77 us, weight: 5 us, total: 241 us
+Profiling Results (numa[0]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 0 us, weight: 4 us, total: 7 us
+Profiling Results (numa[1]): activated_expert: 0, q_input: 0 us, up_gate: 1 us, act: 0 us, q_down: 0 us, down: 2 us, weight: 5 us, total: 9 us
+Profiling Results (numa[1]): activated_expert: 3, q_input: 10 us, up_gate: 137 us, act: 5 us, q_down: 3 us, down: 78 us, weight: 6 us[2026-09-10 13:02:44 TP0] Prefill batch, #new-seq: 1, #new-token: 1, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, #pending-token: 0, cuda graph: False, input throughput (token/s): 0.14
+[2026-09-10 13:02:44] INFO:     127.0.0.1:41262 - "GET /health HTTP/1.1" 200 OK
