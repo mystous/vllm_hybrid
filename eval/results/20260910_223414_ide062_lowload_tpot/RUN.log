@@ -1,0 +1,10 @@
+== IDE_062 저부하 TPOT 원인 특정 22:34 ==
+# 기준: TUNOPS(bf16,graph96,풀63654) 61.96 ms / EPCORE(fp8,graph224,풀127309) 123.31 ms
+D0 BOOT_OK 100s kv=127309
+D0 lam1.5: tok/s 182.12, TPOT 107.30/p99 135.78, ITL p50 82.92, TTFT p50 388.67, ok 450  22:38:44 S0 r= 120.5 w=  4.0 GB/s | S1 r= 120.3 w=  6.0 GB/s | 합  250.9 GB/s
+D1 BOOT_OK 100s kv=63654
+D1 lam1.5: tok/s 182.09, TPOT 106.70/p99 136.56, ITL p50 82.34, TTFT p50 386.50, ok 450  22:46:18 S0 r= 119.9 w=  4.1 GB/s | S1 r= 119.6 w=  6.1 GB/s | 합  249.7 GB/s
+D2 BOOT_OK 100s kv=63654
+D2 lam1.5: tok/s 188.02, TPOT 66.47/p99 83.42, ITL p50 46.95, TTFT p50 366.70, ok 450  22:53:53 S0 r=  97.0 w=  3.9 GB/s | S1 r=  97.0 w=  6.4 GB/s | 합  204.3 GB/s
+D3 BOOT_OK 100s kv=127309
+D3 lam1.5: tok/s 181.70, TPOT 107.68/p99 131.06, ITL p50 84.40, TTFT p50 374.91, ok 450  23:01:16 S0 r= 122.0 w=  4.2 GB/s | S1 r= 121.8 w=  6.2 GB/s | 합  254.2 GB/s
