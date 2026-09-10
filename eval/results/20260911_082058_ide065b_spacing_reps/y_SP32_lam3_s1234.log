@@ -1,0 +1,74 @@
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML
+  raw_cnt = _raw_device_count_nvml()
+INFO 09-10 23:29:11 [importing.py:60] Triton is installed but 0 active driver(s) found (expected 1). Disabling Triton to prevent runtime errors.
+INFO 09-10 23:29:11 [importing.py:95] Triton not installed or not compatible; certain GPU-related functions will not be available.
+W0910 23:29:11.471000 267832 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML
+  raw_cnt = _raw_device_count_nvml()
+INFO 09-10 23:29:13 [main.py:71] Unspecified platform detected, switching to CPU Platform instead.
+WARNING 09-10 23:29:13 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+WARNING 09-10 23:29:13 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+WARNING 09-10 23:29:13 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+Namespace(subparser='bench', bench_type='serve', dispatch_function=<function BenchmarkServingSubcommand.cmd at 0x7f9b88c8c9a0>, trust_remote_code=False, seed=1234, num_prompts=400, dataset_name='sonnet', no_stream=False, dataset_path='/tmp/sonnet.txt', no_oversample=False, skip_chat_template=False, enable_multimodal_chat=False, disable_shuffle=False, custom_output_len=256, custom_ensure_client_side_data=False, spec_bench_output_len=256, spec_bench_category=None, sonnet_input_len=512, sonnet_output_len=128, sonnet_prefix_len=100, sharegpt_output_len=None, timed_trace_chunk_hash_size=16, timed_trace_sec_multiplier=1, timed_trace_label_timestamp='timestamp', timed_trace_label_input_length='input_length', timed_trace_label_output_length='output_length', timed_trace_label_hash_ids='hash_ids', blazedit_min_distance=0.0, blazedit_max_distance=1.0, asr_max_audio_len_sec=inf, asr_min_audio_len_sec=0.0, random_input_len=1024, random_output_len=128, random_range_ratio='0.0', random_prefix_len=0, random_batch_size=1, no_reranker=False, random_mm_base_items_per_request=1, random_mm_num_mm_items_range_ratio=0.0, random_mm_limit_mm_per_prompt={'image': 255, 'video': 1}, random_mm_bucket_config={(256, 256, 1): 0.5, (720, 1280, 1): 0.5, (720, 1280, 16): 0.0}, hf_subset=None, hf_split=None, hf_name=None, hf_output_len=None, bfcl_categories=None, prefix_repetition_prefix_len=256, prefix_repetition_suffix_len=256, prefix_repetition_num_prefixes=10, prefix_repetition_output_len=128, speed_bench_dataset_subset='qualitative', speed_bench_output_len=4096, speed_bench_category=None, label=None, backend='openai', base_url='http://127.0.0.1:30000', host='127.0.0.1', port=8000, endpoint='/v1/completions', header=None, max_concurrency=None, model='q480', input_len=None, output_len=None, tokenizer='/home/mystous/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f', tokenizer_mode='auto', use_beam_search=False, logprobs=None, request_rate=3.0, burstiness=1.0, probe_request_rate=0.0, disable_tqdm=False, num_warmups=0, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=False, self_timed=None, percentile_metrics='ttft,tpot', metric_percentiles='50,95,99', goodput=None, request_id_prefix='bench-c24d4639-', top_p=None, top_k=None, min_p=None, temperature=None, frequency_penalty=None, presence_penalty=None, repetition_penalty=None, served_model_name=None, lora_modules=None, lora_assignment='random', ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None, ready_check_timeout_sec=0, chat_template_kwargs=None, extra_body=None, skip_tokenizer_init=False, insecure=False, plot_timeline=False, timeline_itl_thresholds='25,50', plot_dataset_stats=False)
+WARNING: vllm bench serve no longer sets temperature==0 (greedy) in requests by default. The default will be determined on the server side and can be model/API specific. For the old behavior, include --temperature=0.
+Starting initial single prompt test run...
+Skipping endpoint ready check.
+Starting main benchmark run...
+Traffic request rate: 3.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+  0%|          | 0/400 [00:00<?, ?it/s]  0%|          | 1/400 [00:29<3:17:32, 29.71s/it]  0%|          | 2/400 [00:31<1:28:54, 13.40s/it]  1%|          | 4/400 [00:32<34:01,  5.15s/it]    1%|▏         | 5/400 [00:32<24:26,  3.71s/it]  2%|▏         | 8/400 [00:33<11:09,  1.71s/it]  2%|▏         | 9/400 [00:34<10:50,  1.66s/it]  2%|▎         | 10/400 [00:35<09:53,  1.52s/it]  3%|▎         | 13/400 [00:36<05:25,  1.19it/s]  4%|▎         | 14/400 [00:36<04:46,  1.35it/s]  5%|▍         | 19/400 [00:37<02:32,  2.50it/s]  5%|▌         | 20/400 [00:38<03:24,  1.86it/s]  6%|▋         | 25/400 [00:40<02:49,  2.21it/s]  6%|▋         | 26/400 [00:41<03:09,  1.97it/s]  7%|▋         | 28/400 [00:41<02:42,  2.30it/s]  8%|▊         | 31/400 [00:43<02:43,  2.25it/s]  8%|▊         | 33/400 [00:45<03:21,  1.82it/s]  9%|▉         | 36/400 [00:45<02:21,  2.56it/s] 10%|▉         | 38/400 [00:45<02:13,  2.71it/s] 10%|█         | 40/400 [00:47<03:03,  1.96it/s] 14%|█▍        | 56/400 [00:48<00:56,  6.09it/s] 14%|█▍        | 57/400 [00:49<01:19,  4.32it/s] 14%|█▍        | 58/400 [00:53<02:48,  2.03it/s] 15%|█▍        | 59/400 [00:54<03:25,  1.66it/s] 15%|█▌        | 60/400 [00:55<03:39,  1.55it/s] 17%|█▋        | 68/400 [00:57<02:12,  2.50it/s] 19%|█▉        | 76/400 [00:59<01:37,  3.31it/s] 21%|██        | 83/400 [01:00<01:18,  4.03it/s] 21%|██▏       | 85/400 [01:00<01:11,  4.41it/s] 22%|██▏       | 88/400 [01:00<01:03,  4.91it/s] 24%|██▎       | 94/400 [01:02<01:21,  3.74it/s] 25%|██▌       | 101/400 [01:03<00:59,  5.05it/s] 26%|██▌       | 102/400 [01:04<01:26,  3.44it/s] 26%|██▌       | 103/400 [01:05<01:32,  3.22it/s] 26%|██▋       | 105/400 [01:06<01:35,  3.08it/s] 28%|██▊       | 110/400 [01:06<01:03,  4.54it/s] 28%|██▊       | 114/400 [01:07<00:52,  5.47it/s] 29%|██▉       | 115/400 [01:07<01:01,  4.63it/s] 30%|██▉       | 119/400 [01:08<01:01,  4.61it/s] 30%|███       | 121/400 [01:08<00:55,  5.06it/s] 30%|███       | 122/400 [01:09<01:07,  4.13it/s] 31%|███       | 123/400 [01:09<01:18,  3.52it/s] 32%|███▏      | 128/400 [01:11<01:17,  3.52it/s] 33%|███▎      | 133/400 [01:12<01:17,  3.43it/s] 34%|███▍      | 137/400 [01:14<01:21,  3.25it/s] 36%|███▌      | 142/400 [01:14<01:00,  4.30it/s] 36%|███▌      | 143/400 [01:16<01:53,  2.26it/s] 38%|███▊      | 151/400 [01:18<01:15,  3.31it/s] 38%|███▊      | 152/400 [01:18<01:16,  3.23it/s] 39%|███▉      | 155/400 [01:18<01:00,  4.06it/s] 39%|███▉      | 156/400 [01:19<01:04,  3.80it/s] 40%|███▉      | 158/400 [01:21<01:49,  2.21it/s] 40%|████      | 162/400 [01:22<01:23,  2.83it/s] 41%|████      | 163/400 [01:23<01:59,  1.98it/s] 41%|████      | 164/400 [01:24<02:22,  1.66it/s] 41%|████▏     | 165/400 [01:28<04:35,  1.17s/it] 42%|████▏     | 166/400 [01:28<03:51,  1.01it/s] 42%|████▏     | 169/400 [01:29<02:23,  1.61it/s] 42%|████▎     | 170/400 [01:31<03:19,  1.15it/s] 44%|████▎     | 174/400 [01:32<01:50,  2.04it/s] 44%|████▍     | 178/400 [01:33<01:31,  2.42it/s] 45%|████▍     | 179/400 [01:33<01:38,  2.25it/s] 45%|████▌     | 180/400 [01:34<01:31,  2.41it/s] 46%|████▌     | 183/400 [01:34<01:09,  3.11it/s] 46%|████▌     | 184/400 [01:35<01:13,  2.94it/s] 47%|████▋     | 188/400 [01:37<01:23,  2.53it/s] 48%|████▊     | 191/400 [01:37<01:00,  3.44it/s] 50%|████▉     | 199/400 [01:37<00:29,  6.79it/s] 50%|█████     | 201/400 [01:42<01:44,  1.90it/s] 50%|█████     | 202/400 [01:43<01:59,  1.65it/s] 51%|█████     | 204/400 [01:44<02:00,  1.63it/s] 52%|█████▏    | 206/400 [01:45<01:40,  1.92it/s] 54%|█████▎    | 214/400 [01:46<00:52,  3.54it/s] 55%|█████▌    | 220/400 [01:47<00:43,  4.15it/s] 56%|█████▌    | 223/400 [01:47<00:40,  4.42it/s] 56%|█████▌    | 224/400 [01:48<00:47,  3.69it/s] 58%|█████▊    | 233/400 [01:49<00:26,  6.36it/s] 58%|█████▊    | 234/400 [01:50<00:36,  4.52it/s] 60%|█████▉    | 238/400 [01:50<00:32,  4.93it/s] 60%|█████▉    | 239/400 [01:52<00:53,  3.02it/s] 62%|██████▎   | 250/400 [01:52<00:23,  6.30it/s] 63%|██████▎   | 252/400 [01:53<00:22,  6.62it/s] 64%|██████▍   | 256/400 [01:53<00:19,  7.35it/s] 64%|██████▍   | 258/400 [01:53<00:21,  6.70it/s] 65%|██████▍   | 259/400 [01:54<00:21,  6.69it/s] 65%|██████▌   | 260/400 [01:54<00:20,  6.83it/s] 66%|██████▌   | 262/400 [01:54<00:19,  6.98it/s] 66%|██████▋   | 265/400 [01:55<00:26,  5.19it/s] 66%|██████▋   | 266/400 [01:55<00:27,  4.87it/s] 67%|██████▋   | 269/400 [01:56<00:34,  3.78it/s] 69%|██████▉   | 276/400 [01:57<00:18,  6.66it/s] 69%|██████▉   | 277/400 [01:58<00:41,  2.99it/s] 70%|██████▉   | 278/400 [01:59<00:42,  2.87it/s] 72%|███████▏  | 287/400 [01:59<00:18,  6.16it/s] 72%|███████▏  | 288/400 [02:00<00:21,  5.20it/s] 72%|███████▏  | 289/400 [02:02<00:40,  2.76it/s] 74%|███████▎  | 294/400 [02:02<00:29,  3.62it/s] 74%|███████▍  | 295/400 [02:05<01:00,  1.73it/s] 75%|███████▍  | 299/400 [02:06<00:39,  2.54it/s] 76%|███████▌  | 303/400 [02:08<00:47,  2.06it/s] 78%|███████▊  | 310/400 [02:10<00:32,  2.77it/s] 80%|███████▉  | 319/400 [02:10<00:18,  4.47it/s] 80%|████████  | 320/400 [02:11<00:22,  3.62it/s] 80%|████████  | 322/400 [02:12<00:21,  3.59it/s] 81%|████████  | 324/400 [02:13<00:21,  3.59it/s] 82%|████████▏ | 326/400 [02:14<00:25,  2.93it/s] 82%|████████▏ | 328/400 [02:14<00:22,  3.21it/s] 84%|████████▍ | 335/400 [02:17<00:22,  2.84it/s] 84%|████████▍ | 338/400 [02:18<00:20,  3.01it/s] 85%|████████▌ | 340/400 [02:18<00:16,  3.54it/s] 86%|████████▌ | 342/400 [02:18<00:15,  3.78it/s] 86%|████████▌ | 343/400 [02:19<00:16,  3.49it/s] 86%|████████▌ | 344/400 [02:19<00:15,  3.70it/s] 86%|████████▋ | 346/400 [02:19<00:14,  3.61it/s] 87%|████████▋ | 349/400 [02:20<00:11,  4.47it/s] 88%|████████▊ | 353/400 [02:21<00:10,  4.67it/s] 90%|████████▉ | 358/400 [02:21<00:06,  6.12it/s] 90%|████████▉ | 359/400 [02:22<00:09,  4.36it/s] 90%|█████████ | 360/400 [02:22<00:10,  3.71it/s] 92%|█████████▏| 366/400 [02:23<00:06,  5.35it/s] 92%|█████████▏| 368/400 [02:24<00:06,  5.18it/s] 92%|█████████▏| 369/400 [02:24<00:05,  5.19it/s] 94%|█████████▍| 377/400 [02:24<00:02, 10.21it/s] 95%|█████████▍| 379/400 [02:24<00:02, 10.41it/s] 96%|█████████▌| 384/400 [02:24<00:01, 13.56it/s] 97%|█████████▋| 388/400 [02:25<00:00, 14.79it/s] 98%|█████████▊| 390/400 [02:25<00:01,  9.54it/s] 98%|█████████▊| 392/400 [02:26<00:01,  4.66it/s] 99%|█████████▉| 395/400 [02:27<00:00,  5.04it/s] 99%|█████████▉| 396/400 [02:27<00:00,  4.52it/s]100%|█████████▉| 398/400 [02:28<00:00,  4.35it/s]100%|██████████| 400/400 [02:28<00:00,  2.70it/s]
+Failed requests during benchmark run detected (capping to 10):
+Error 0: Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/selector_events.py", line 1013, in _read_ready__data_received
+    data = self._sock.recv(self.max_size)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/lib/endpoint_request_func.py", line 202, in async_request_openai_completions
+    async with session.post(url=api_url, json=payload, headers=headers) as response:
+  File "/usr/local/lib/python3.12/dist-packages/aiohttp/client.py", line 1693, in __aenter__
+    self._resp: _RetType_co = await self._coro
+                              ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/aiohttp/client.py", line 858, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/aiohttp/client.py", line 836, in _connect_and_send_request
+    await resp.start(conn)
+  File "/usr/local/lib/python3.12/dist-packages/aiohttp/client_reqrep.py", line 558, in start
+    message, payload = await protocol.read()  # type: ignore[union-attr]
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/aiohttp/streams.py", line 705, in read
+    await self._waiter
+aiohttp.client_exceptions.ClientOSError: [Errno 104] Connection reset by peer
+
+tip: install termplotlib and gnuplot to plot the metrics
+============ Serving Benchmark Result ============
+Successful requests:                     399       
+Failed requests:                         1         
+Request rate configured (RPS):           3.00      
+Benchmark duration (s):                  148.35    
+Total input tokens:                      200708    
+Total generated tokens:                  51072     
+Request throughput (req/s):              2.69      
+Output token throughput (tok/s):         344.26    
+Peak output token throughput (tok/s):    950.00    
+Peak concurrent requests:                128.00    
+Total token throughput (tok/s):          1697.19   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          554.82    
+Median TTFT (ms):                        574.68    
+P50 TTFT (ms):                           574.68    
+P95 TTFT (ms):                           808.93    
+P99 TTFT (ms):                           917.88    
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          234.15    
+Median TPOT (ms):                        242.27    
+P50 TPOT (ms):                           242.27    
+P95 TPOT (ms):                           271.21    
+P99 TPOT (ms):                           276.97    
+==================================================
+DONE_EXIT=0
