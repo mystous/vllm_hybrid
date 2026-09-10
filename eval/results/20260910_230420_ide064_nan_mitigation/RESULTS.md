@@ -50,7 +50,9 @@ This usually indicates numerical overflow (e.g. fp16 activations) or an upstream
 사망률 33% 하에서 4회 연속 생존이 우연일 확률은 0.67⁴ ≈ 20% 다. 단독으로는 결정적이지 않으나,
 **run2 에서 NaN 이 실제로 발생했는데도 생존했다는 직접 관측**이 있으므로 기전 수준에서 확정된다.
 
-따라서 EPOCH-OPS 구성을 권고할 때 `SGLANG_SANITIZE_NAN_LOGITS=1` 을 필수 설정으로 포함한다.
+따라서 `SGLANG_SANITIZE_NAN_LOGITS=1` 을 **모든 구성의 기본 설정**으로 포함한다.
+(당초 EPOCH-OPS 한정으로 적었으나, 2026-09-11 02:06 EXP-E11 3단계에서 mixed forward 가 꺼진
+fp8 구성도 같은 사망을 냈으므로 구성 한정이 아니다 — IDE_063 §판정 4 참조.)
 
 ## 남는 문제
 
