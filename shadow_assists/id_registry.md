@@ -1,5 +1,8 @@
 # ID Registry
 
+> 2026-09-11: EPOCH 검증 캠페인 (IDE_058~IDE_066) 의 측정 원본·하네스·계획서는
+> `eval/campaigns/20260910_epoch_validation/` 으로 모았다. 인계 문서는 같은 디렉토리의 `HANDOFF.md`.
+
 CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 영문 3글자 prefix 별 **넘버링 규칙** 과 **ID 할당 현황** 을 본 파일에서 단일 출처로 관리한다.
 
 > 본 파일은 ID 의 "할당·상태" 만 다룬다. ID 간 파생 관계(Tree) 는 `shadow_assists/README.md` Part VII Trace Tree, ID 의 본문 정의는 각 feature 디렉토리의 `README.md` 가 담당한다.
