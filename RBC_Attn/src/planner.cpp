@@ -129,10 +129,11 @@ void plan_group(const std::vector<std::vector<int32_t>>& rows,  // rows[i] = que
         }
         return;
     }
-    if (p.policy == 2) {                      // Q_OUTER: 그룹 전체 합집합 하나
+    if (p.policy == 2) {                      // Q_OUTER: 그룹 합집합 하나
         Task t;
-        t.queries.resize(nq);
-        std::iota(t.queries.begin(), t.queries.end(), 0);
+        for (int i = 0; i < nq; ++i)
+            if (!rows[i].empty()) t.queries.push_back(i);   // 빈 행은 슬롯을 주지 않는다
+        if (t.queries.empty()) return;
         t.blocks = uniq;
         fill_kmask(t);
         out.push_back(std::move(t));
@@ -221,14 +222,16 @@ void plan_group(const std::vector<std::vector<int32_t>>& rows,  // rows[i] = que
     for (const auto& a : cur)
         rbc_cost += task_cost((uint32_t)__builtin_popcountll(a.sig),
                               (uint32_t)a.blocks.size(), p);
-    const double qouter_cost = task_cost((uint32_t)nq, (uint32_t)uniq.size(), p);
-    if (qouter_cost < rbc_cost && (int)(nq * p.g) <= p.max_m) {
+    int nq_nonempty = 0;
+    for (int i = 0; i < nq; ++i) if (!rows[i].empty()) ++nq_nonempty;
+    const double qouter_cost = task_cost((uint32_t)nq_nonempty, (uint32_t)uniq.size(), p);
+    if (qouter_cost < rbc_cost && (int)(nq_nonempty * p.g) <= p.max_m) {
         Task t;
-        t.queries.resize(nq);
-        std::iota(t.queries.begin(), t.queries.end(), 0);
+        for (int i = 0; i < nq; ++i)
+            if (!rows[i].empty()) t.queries.push_back(i);
         t.blocks = uniq;
         fill_kmask(t);
-        out.push_back(std::move(t));
+        if (!t.queries.empty()) out.push_back(std::move(t));
         return;
     }
     emit_atoms(cur);
