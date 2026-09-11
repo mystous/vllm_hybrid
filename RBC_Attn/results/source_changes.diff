@@ -1,0 +1,242 @@
+diff --git a/RBC_Attn/rbc/data.py b/RBC_Attn/rbc/data.py
+index 4240008fd..83262fa25 100644
+--- a/RBC_Attn/rbc/data.py
++++ b/RBC_Attn/rbc/data.py
+@@ -57,6 +57,9 @@ def causal_filter(ptr, block_ids, q_positions, bk):
+ # --------------------------------------------------------------------------
+ # 합성 패턴
+ # --------------------------------------------------------------------------
++_LAST_EXCLUSIVE = [True]      # common_private 의 개인 block 이 완전 배타였는지
++
++
+ def make_pattern(pattern: str, hkv: int, nq: int, n_blocks: int, sel: int,
+                  rng: np.random.Generator):
+     """query-major CSR 를 만든다. 반환 (ptr[hkv, nq+1], block_ids_list[hkv])."""
+@@ -64,17 +67,25 @@ def make_pattern(pattern: str, hkv: int, nq: int, n_blocks: int, sel: int,
+     for h in range(hkv):
+         rows = []
+         if pattern == "common_private":
+-            # 설계 §3: 공통 sel/2 개 + 자기만 쓰는 sel/2 개 (겹치지 않음)
++            # 설계 §3: 공통 sel/2 개 + 자기만 쓰는 sel/2 개.
++            # 풀이 부족하면 순열을 순환 사용한다 (완전 배타는 nq*n_priv <= pool 일 때만).
++            # 순환이 일어나면 멀리 떨어진 query 사이에 우연한 공유가 생기므로
++            # `private_exclusive` 로 그 사실을 기록한다.
+             n_common = max(1, sel // 2)
+             n_priv = sel - n_common
+             common = rng.choice(n_blocks, size=n_common, replace=False)
+             pool = np.setdiff1d(np.arange(n_blocks), common)
+-            if pool.size < n_priv * nq:
+-                raise ValueError("private block 을 겹치지 않게 배정할 블록이 부족하다")
++            if pool.size < n_priv:
++                raise ValueError(
++                    f"개인 block {n_priv}개를 배정할 풀이 없다 (풀 {pool.size}, "
++                    f"블록 {n_blocks}). Nk 를 늘리거나 sel 을 줄여야 한다")
++            exclusive = pool.size >= n_priv * nq
+             perm = rng.permutation(pool)
+             for i in range(nq):
+-                priv = perm[i * n_priv:(i + 1) * n_priv]
+-                rows.append(np.unique(np.concatenate([common, priv])))
++                lo = (i * n_priv) % perm.size
++                idx = (lo + np.arange(n_priv)) % perm.size
++                rows.append(np.unique(np.concatenate([common, perm[idx]])))
++            _LAST_EXCLUSIVE[0] = exclusive
+         elif pattern == "random":
+             for _ in range(nq):
+                 rows.append(np.sort(rng.choice(n_blocks, size=sel, replace=False)))
+@@ -124,7 +135,8 @@ def make_synthetic(pattern="common_private", hkv=2, nq=256, nk=65536, g=8, d=128
+     v = rng.standard_normal((hkv, nk, d), dtype=np.float32) * 0.5
+     return dict(q=q, k=k, v=v, ptr=ptr, block_ids=ids, bk=bk,
+                 q_positions=q_positions, causal=causal, source_dtype=dtype,
+-                scale=np.float32(scale))
++                scale=np.float32(scale),
++                private_exclusive=bool(_LAST_EXCLUSIVE[0]))
+ 
+ 
+ # --------------------------------------------------------------------------
+diff --git a/RBC_Attn/rbc/native.py b/RBC_Attn/rbc/native.py
+new file mode 100644
+index 000000000..b9cc30a6b
+--- /dev/null
++++ b/RBC_Attn/rbc/native.py
+@@ -0,0 +1,140 @@
++"""FlashInfer native paged-attention 대조.
++
++**LSE 단위 규약**: 이 flashinfer 버전은 LSE 를 log2 밑으로 돌려준다 (측정으로 확인:
++native/ours 비율 1.442695 = 1/ln2, 환산 후 최대차 9.5e-07). `run()` 은 자연로그로
++환산해 돌려주므로 우리 커널·FP64 참조와 같은 정의가 된다. 값을 맞추려고 바꾼 것이
++아니라 두 구현의 LSE 정의를 일치시킨 것이다.
++
++설계 §6 의 매핑 계약:
++  - 원래 KV block 을 page 로 그대로 쓴다 (page_size = BK). K/V 를 query 마다 복제하지 않는다.
++  - `(KV head, query position)` 을 논리 request 로 취급한다. 한 request 의 page 목록은
++    그 query 가 선택한 KV block 목록이다 (CSR 을 그대로 indptr/indices 로 쓴다).
++  - 절대 causal 경계는 마지막 page 의 유효 길이 `last_page_len` 으로 표현한다:
++        last_page_len = min(BK, q_pos - last_block*BK + 1)
++    선택된 block 중 최대 번호가 q_pos 를 담는 block 이면 정확히 부분 block 이 되고,
++    그보다 앞이면 BK 가 된다.
++  - 빈 선택 행은 native 매핑이 없다 → 명시적으로 미지원 처리한다 (설계 §6).
++
++이것은 동등 연산의 native control 이며, MSA 저자 커널 전체를 대체하는 비교가 아니다.
++"""
++
++from __future__ import annotations
++
++import numpy as np
++
++try:
++    import flashinfer
++    import torch
++    HAVE_FLASHINFER = True
++    FLASHINFER_VERSION = flashinfer.__version__
++    FLASHINFER_ERROR = None
++except Exception as _e:                                     # pragma: no cover
++    HAVE_FLASHINFER = False
++    FLASHINFER_VERSION = None
++    FLASHINFER_ERROR = f"{type(_e).__name__}: {_e}"
++
++
++LN2 = 0.6931471805599453      # flashinfer LSE 가 log2 밑이므로 환산에 쓴다
++
++
++class NativeUnsupported(RuntimeError):
++    """native 경로가 이 입력을 표현할 수 없다 (우회하지 않고 그대로 올린다)."""
++
++
++def build_metadata(ptr, block_ids, q_positions, bk, causal):
++    """CSR + 절대 위치로부터 native page 메타데이터를 만든다.
++
++    반환 (indptr[int32], indices[int32], last_page_len[int32]).
++    빈 행이 있으면 NativeUnsupported.
++    """
++    ptr = np.asarray(ptr, dtype=np.int64)
++    block_ids = np.asarray(block_ids, dtype=np.int32)
++    nq = len(ptr) - 1
++    rows = np.diff(ptr)
++    if np.any(rows == 0):
++        empty = int((rows == 0).sum())
++        raise NativeUnsupported(
++            f"빈 선택 행 {empty}개 — native paged 매핑에 대응하는 표현이 없다 (설계 §6)")
++
++    last_page_len = np.empty(nq, dtype=np.int32)
++    for i in range(nq):
++        row = block_ids[ptr[i]:ptr[i + 1]]
++        if np.any(np.diff(row) <= 0):
++            raise NativeUnsupported(f"query {i} 행이 정렬/중복 계약을 위반")
++        last_b = int(row[-1])
++        if causal:
++            valid = int(q_positions[i]) - last_b * bk + 1
++            if valid <= 0:
++                raise NativeUnsupported(
++                    f"query {i}: 마지막 선택 block {last_b} 이 q_pos {q_positions[i]} 보다 뒤다")
++            last_page_len[i] = min(bk, valid)
++        else:
++            last_page_len[i] = bk
++    return ptr.astype(np.int32), block_ids, last_page_len
++
++
++class NativeRunner:
++    """FlashInfer BatchDecodeWithPagedKVCacheWrapper 기반 대조 실행기."""
++
++    def __init__(self, device="cuda", workspace_mb=256):
++        if not HAVE_FLASHINFER:
++            raise NativeUnsupported(f"flashinfer 없음: {FLASHINFER_ERROR}")
++        self.device = device
++        self.ws = torch.empty(workspace_mb * 1024 * 1024, dtype=torch.uint8, device=device)
++        self.wrapper = flashinfer.BatchDecodeWithPagedKVCacheWrapper(self.ws, kv_layout="NHD")
++        self._planned = None
++
++    def plan(self, indptr, indices, last_page_len, *, g, d, bk, scale=None):
++        """native 계획 (CPU plan 상당). fresh 측정에 이 시간이 들어간다.
++
++        이 flashinfer 버전(0.6.x)은 `sm_scale` 을 run() 이 아니라 plan() 에서 받는다.
++        지시서 §1-4 가 허용하는 버전 API 대응이며 알고리즘·dtype·mask 는 바꾸지 않는다.
++        """
++        dev = self.device
++        self._ind = (torch.from_numpy(indptr).to(dev),
++                     torch.from_numpy(indices).to(dev),
++                     torch.from_numpy(last_page_len).to(dev))
++        kw = dict(num_qo_heads=g, num_kv_heads=1, head_dim=d, page_size=bk,
++                  q_data_type=torch.bfloat16, kv_data_type=torch.bfloat16)
++        if scale is not None:
++            kw["sm_scale"] = float(scale)
++        self.wrapper.plan(self._ind[0], self._ind[1], self._ind[2], **kw)
++        self._planned = (g, d, bk)
++
++    def run(self, q, k, v, *, bk, scale, return_lse=True):
++        """q: [Nq, G, D], k/v: [Nk, D] (CUDA). 반환 (out[Nq,G,D], lse[Nq,G])."""
++        if self._planned is None:
++            raise RuntimeError("plan 을 먼저 불러야 한다")
++        nq, g, d = q.shape
++        nk = k.shape[0]
++        n_pages = nk // bk
++        if n_pages * bk != nk:
++            raise NativeUnsupported(
++                f"native paged 는 Nk={nk} 가 page_size={bk} 의 배수여야 한다 (tail block 미지원)")
++        # [n_pages, page_size, num_kv_heads=1, head_dim] — 복사 없이 view
++        kc = k.view(n_pages, bk, 1, d)
++        vc = v.view(n_pages, bk, 1, d)
++        res = self.wrapper.run(q, (kc, vc), return_lse=return_lse)
++        if return_lse:
++            out, lse = res
++            return out, lse * LN2          # log2 -> 자연로그
++        return res, None
++
++
++def versions() -> dict:
++    out = dict(flashinfer=FLASHINFER_VERSION, available=HAVE_FLASHINFER,
++               error=FLASHINFER_ERROR)
++    try:
++        import torch as _t
++        out["torch"] = _t.__version__
++        out["cuda"] = _t.version.cuda
++        if _t.cuda.is_available():
++            out["device"] = _t.cuda.get_device_name(0)
++    except Exception:
++        pass
++    try:
++        import triton as _tr
++        out["triton"] = _tr.__version__
++    except Exception:
++        pass
++    return out
+diff --git a/RBC_Attn/src/planner.cpp b/RBC_Attn/src/planner.cpp
+index e2b89ad93..33b3f6963 100644
+--- a/RBC_Attn/src/planner.cpp
++++ b/RBC_Attn/src/planner.cpp
+@@ -129,10 +129,11 @@ void plan_group(const std::vector<std::vector<int32_t>>& rows,  // rows[i] = que
+         }
+         return;
+     }
+-    if (p.policy == 2) {                      // Q_OUTER: 그룹 전체 합집합 하나
++    if (p.policy == 2) {                      // Q_OUTER: 그룹 합집합 하나
+         Task t;
+-        t.queries.resize(nq);
+-        std::iota(t.queries.begin(), t.queries.end(), 0);
++        for (int i = 0; i < nq; ++i)
++            if (!rows[i].empty()) t.queries.push_back(i);   // 빈 행은 슬롯을 주지 않는다
++        if (t.queries.empty()) return;
+         t.blocks = uniq;
+         fill_kmask(t);
+         out.push_back(std::move(t));
+@@ -221,14 +222,16 @@ void plan_group(const std::vector<std::vector<int32_t>>& rows,  // rows[i] = que
+     for (const auto& a : cur)
+         rbc_cost += task_cost((uint32_t)__builtin_popcountll(a.sig),
+                               (uint32_t)a.blocks.size(), p);
+-    const double qouter_cost = task_cost((uint32_t)nq, (uint32_t)uniq.size(), p);
+-    if (qouter_cost < rbc_cost && (int)(nq * p.g) <= p.max_m) {
++    int nq_nonempty = 0;
++    for (int i = 0; i < nq; ++i) if (!rows[i].empty()) ++nq_nonempty;
++    const double qouter_cost = task_cost((uint32_t)nq_nonempty, (uint32_t)uniq.size(), p);
++    if (qouter_cost < rbc_cost && (int)(nq_nonempty * p.g) <= p.max_m) {
+         Task t;
+-        t.queries.resize(nq);
+-        std::iota(t.queries.begin(), t.queries.end(), 0);
++        for (int i = 0; i < nq; ++i)
++            if (!rows[i].empty()) t.queries.push_back(i);
+         t.blocks = uniq;
+         fill_kmask(t);
+-        out.push_back(std::move(t));
++        if (!t.queries.empty()) out.push_back(std::move(t));
+         return;
+     }
+     emit_atoms(cur);
