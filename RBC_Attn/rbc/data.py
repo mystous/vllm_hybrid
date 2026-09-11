@@ -57,6 +57,9 @@ def causal_filter(ptr, block_ids, q_positions, bk):
 # --------------------------------------------------------------------------
 # 합성 패턴
 # --------------------------------------------------------------------------
+_LAST_EXCLUSIVE = [True]      # common_private 의 개인 block 이 완전 배타였는지
+
+
 def make_pattern(pattern: str, hkv: int, nq: int, n_blocks: int, sel: int,
                  rng: np.random.Generator):
     """query-major CSR 를 만든다. 반환 (ptr[hkv, nq+1], block_ids_list[hkv])."""
@@ -64,17 +67,25 @@ def make_pattern(pattern: str, hkv: int, nq: int, n_blocks: int, sel: int,
     for h in range(hkv):
         rows = []
         if pattern == "common_private":
-            # 설계 §3: 공통 sel/2 개 + 자기만 쓰는 sel/2 개 (겹치지 않음)
+            # 설계 §3: 공통 sel/2 개 + 자기만 쓰는 sel/2 개.
+            # 풀이 부족하면 순열을 순환 사용한다 (완전 배타는 nq*n_priv <= pool 일 때만).
+            # 순환이 일어나면 멀리 떨어진 query 사이에 우연한 공유가 생기므로
+            # `private_exclusive` 로 그 사실을 기록한다.
             n_common = max(1, sel // 2)
             n_priv = sel - n_common
             common = rng.choice(n_blocks, size=n_common, replace=False)
             pool = np.setdiff1d(np.arange(n_blocks), common)
-            if pool.size < n_priv * nq:
-                raise ValueError("private block 을 겹치지 않게 배정할 블록이 부족하다")
+            if pool.size < n_priv:
+                raise ValueError(
+                    f"개인 block {n_priv}개를 배정할 풀이 없다 (풀 {pool.size}, "
+                    f"블록 {n_blocks}). Nk 를 늘리거나 sel 을 줄여야 한다")
+            exclusive = pool.size >= n_priv * nq
             perm = rng.permutation(pool)
             for i in range(nq):
-                priv = perm[i * n_priv:(i + 1) * n_priv]
-                rows.append(np.unique(np.concatenate([common, priv])))
+                lo = (i * n_priv) % perm.size
+                idx = (lo + np.arange(n_priv)) % perm.size
+                rows.append(np.unique(np.concatenate([common, perm[idx]])))
+            _LAST_EXCLUSIVE[0] = exclusive
         elif pattern == "random":
             for _ in range(nq):
                 rows.append(np.sort(rng.choice(n_blocks, size=sel, replace=False)))
@@ -124,7 +135,8 @@ def make_synthetic(pattern="common_private", hkv=2, nq=256, nk=65536, g=8, d=128
     v = rng.standard_normal((hkv, nk, d), dtype=np.float32) * 0.5
     return dict(q=q, k=k, v=v, ptr=ptr, block_ids=ids, bk=bk,
                 q_positions=q_positions, causal=causal, source_dtype=dtype,
-                scale=np.float32(scale))
+                scale=np.float32(scale),
+                private_exclusive=bool(_LAST_EXCLUSIVE[0]))
 
 
 # --------------------------------------------------------------------------
