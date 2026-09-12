@@ -1,0 +1,39 @@
+{
+  "note": "지시서 §3 의 대응표. 원 배포본 경로는 참고용이며 이 서버 구현은 명세로부터 재구현한 것이다.",
+  "map": {
+    "비용과 병합": {
+      "원배포본": "src/planner.cpp: Cost, row_tasks, join",
+      "서버": "src/planner.cpp: struct Cost, task_cost(), plan_group() 의 bounded greedy 병합 루프"
+    },
+    "task 분할": {
+      "원배포본": "src/planner.cpp: remap, min_tasks loop",
+      "서버": "src/planner.cpp: rbc_plan() 의 min_tasks 보강 블록 (가장 긴 task 를 KV 방향 이등분)"
+    },
+    "최종 descriptor": {
+      "원배포본": "src/planner.cpp: rbc_plan",
+      "서버": "src/planner.cpp: rbc_plan() 평탄화 구간 + rbc_fetch()"
+    },
+    "Python 계획 연결": {
+      "원배포본": "rbc/planner.py: make_plan",
+      "서버": "rbc/planner.py: plan_head() (ctypes, np.empty 후 rbc_fetch 복사)"
+    },
+    "GPU 본체": {
+      "원배포본": "rbc/kernels.py: attention_tasks",
+      "서버": "rbc/kernels.py: _rbc_main_kernel"
+    },
+    "GPU 결합": {
+      "원배포본": "rbc/kernels.py: merge_tasks",
+      "서버": "rbc/kernels.py: _rbc_merge_kernel"
+    },
+    "runtime": {
+      "원배포본": "rbc/runtime.py: DevicePlan",
+      "서버": "rbc/runtime.py: upload_plan(), DevicePlan, Workspace"
+    },
+    "pipeline": {
+      "원배포본": "stream_bench.py",
+      "서버": "stream_bench.py: plan_chunk/run_chunk, pipeline_once()"
+    }
+  },
+  "v01_test_counts": {"host": 57, "gpu": 37,
+    "비고": "원 배포본의 460/24 와 수치가 다르다. 지시서 §3 대로 기능·허용오차 기준으로 대응시키며 수 차이로 무효 처리하지 않는다."}
+}

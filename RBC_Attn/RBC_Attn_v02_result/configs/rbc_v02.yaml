@@ -1,0 +1,80 @@
+# RBC-Attn v0.2 캠페인 설정 (지시서 §10.2 초안을 그대로 따른다)
+#
+# 이 파일의 전체 Cartesian product 를 실행하지 않는다. tools/run_v02_campaign.py 가
+# E0~E5 순서와 상위 후보 제한에 따라 부분집합만 실행한다.
+version: rbc-v02
+scope: exact_mask_operator
+
+correctness:
+  inherit_server_v01_metric: true
+  bf16_relative_limit: 0.005
+  fp16_relative_limit: 0.001
+  reject_nonfinite_nonempty_rows: true
+
+input:
+  patterns: [common_private, random, clustered, disjoint, full]
+  nq: [256, 512, 2048]
+  nk: [16384, 65536, 131072]
+  g: [4, 8, 16]
+  d: 128
+  bk: 128
+  selected_blocks: [8, 16, 32]
+  reproduce_seed: 42
+  calibration_seeds: [0, 1, 2, 3, 4]
+  evaluation_seeds: [101, 102, 103, 104, 105, 106, 107, 108, 109]
+
+plan:
+  policies: [q_outer, signature, bounded_merge]
+  split_candidates: [none, one_wave, two_waves]
+  default_forced_min_tasks: 0
+  compare_after_finalize: true
+  bounded_merge_default: false
+
+kernel:
+  max_m: [16, 32, 64, 128]
+  bn: [32, 64, 128]
+  num_warps: [4, 8]
+  num_stages: [1, 2, 3]
+  staged_search: true
+  direct_output: true
+  full_membership_fast_path: true
+  force_register_limit: false
+
+runtime:
+  slots: 2
+  descriptor_h2d: packed_single_slab
+  plan_cache: disabled_for_dynamic_mask_tests
+  steady_state_allocation: forbidden
+  default_execution: whole_query
+
+measurement:
+  paired_outer_repeats: 9
+  graph_replays_per_sample: 100
+  bootstrap_resamples: 10000
+  record_raw_samples: true
+  cache_modes: [warm_replay, rotating_working_set]
+  primary_mask_origin: gpu
+
+acceptance:
+  target_total_latency_reduction: 0.10
+  diagnostic_gpu_reduction: 0.05
+  selector_median_regret_max: 0.03
+  selector_worst_regret_max: 0.05
+  engineering_representative_plan_pack_us: 50
+
+# --- 이 서버 구현에서의 해석 (지시서에 없는 값을 새로 만들지 않고, 매핑만 기록한다) ---
+server_mapping:
+  policy_names:
+    q_outer: q_outer            # planner policy 2
+    signature: signature_only   # planner policy 1
+    bounded_merge: rbc          # planner policy 0
+  split_candidates:
+    none: min_tasks=0
+    one_wave: min_tasks=SM
+    two_waves: min_tasks=2*SM   # v0.1 의 강제 분할과 같은 값 (legacy 후보로만 유지)
+  representative_inputs:
+    - {nq: 512, nk: 65536, g: 8, d: 128, bk: 128, sel: 16, pattern: common_private}
+    - {nq: 512, nk: 65536, g: 8, d: 128, bk: 128, sel: 16, pattern: random}
+    - {nq: 512, nk: 65536, g: 8, d: 128, bk: 128, sel: 16, pattern: clustered}
+  known_unsupported:
+    disjoint_nq512_sel16: UNSUPPORTED_DISJOINT_GEOMETRY   # Nq*sel > 사용 가능 block
