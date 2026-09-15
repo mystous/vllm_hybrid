@@ -72,8 +72,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 
 | `IDE_065` | 활성 (2026-09-11 05:30) | **버킷 간격을 운영 동시성에 맞추는 이득 — 주 워크로드 검증** — `IDE_060`/E11 3단계에서 버킷 간격 32→16 이 held-out 긴 입력에서 +9.4~11.6%, 그 외 +2~3% 로 세 graph 값에서 일관 재현됐다. 이 이득은 실행 중 배치가 버킷 값과 어긋날 때의 padding 낭비를 줄이는 것이므로, 배치가 계속 변하는 **open-loop 운전에서 더 크게 나타나야 한다**. 주 워크로드 (sonnet 512/128) 에서 간격 32 (32~224/32, 7버킷) 대 간격 16 (16~224/16, 14버킷) 을 도착률 3·5·7 및 고정 C224 로 비교. 완화 `SGLANG_SANITIZE_NAN_LOGITS=1` 적용. 부모 = `IDE_060`. **판정 기준**: open-loop 에서 간격 16 이 유의하게 높으면 표준 구성을 간격 16 으로 바꾼다. 고정 C224 (224 가 양쪽 모두 버킷) 에서는 차이가 없어야 하며, 차이가 나면 버킷 수 자체의 부작용 (그래프 메모리·캡처) 을 의심한다. **위험**: E11 에서 버킷 7개 이상 + chunk 8192 조합이 런타임 메모리 부족으로 사망했으므로 chunk 는 4096 고정 |
 | `IDE_066` | 활성 (2026-09-11 05:30) | **NaN 발생 지점 특정 — CPU expert 출력 계측** — `IDE_063`/`IDE_064` 에서 원인 축을 특정하지 못했고 (KV dtype·지연 expert·누적 이력·mixed forward 모두 기각) 발생률은 약 40만 토큰당 1회. SGLang 의 비-투기 경로에는 NaN 계측이 샘플러 (`layers/sampler.py:95`, `next_token_logits`) 한 곳뿐이라 더 좁힐 수 없다. KTransformers CPU expert 출력과 MoE 합산 직후에 NaN 검사를 넣어 (throttled 카운터, 동기화 없는 `torch.isnan().any()` 후 비동기 기록) 어느 단계에서 처음 나타나는지 본다. 완화를 켜 서버가 살아 있는 상태로 도착률 5.0 을 반복. 부모 = `IDE_063`. **판정 기준**: CPU expert 출력에서 먼저 잡히면 INT4 역양자화·AMX 커널이 원인 구간, 샘플러에서만 잡히면 GPU 경로 또는 합산 이후. 계측 자체가 처리량을 5% 이상 떨어뜨리면 표본만 줄여 재시도 |
+| `IDE_068` | 활성 (2026-09-15) | **CPU MoE 오프로딩의 서버 한계 — 최대 모델 크기와 GPU 최소 장수** — 두 질문을 같은 노드(violet-h100-016, H100×8 / Xeon 8480+×2 AMX / DDR5 2 TB, turbo OFF)에서 실측한다. (A) 이 서버가 CPU MoE 오프로딩으로 지원할 수 있는 **최대 모델** — 후보 = 공개 최대 MoE `moonshotai/Kimi-K2-Instruct` (1.03 TB FP8, DeepseekV3 arch, 384+1 experts/층, 61층). 다운로드 → `kt quant int4` → 하이브리드 서빙 성립·품질·처리량. (B) **GPU-only 로 8장이 필요한 가장 큰 보유 모델** = `Qwen3-Coder-480B-A35B-FP8` (450 GB, TP=4 OOM 은 `TSK_047` 에서 실증) 을 오프로딩으로 GPU 를 몇 장까지 줄일 수 있는가 — GPU-only TP8/EP8 기준선, 하이브리드 TP4(재현)/TP2/TP1. 부모 `IDE_023`. 선행 `TSK_043`(R1 성립·품질 결함 `SUB_167`), `TSK_047`(480B TP4 성립), `IDE_030`(480B hot-96 튜닝). **판정 기준**: 성립 = 전 요청 완료 + greedy 4문항 정상. 처리량·TTFT·TPOT 는 binding, CPU busy 는 보조. 모든 수치는 turbo OFF 하한. 브랜치 `feat/moe-offload-limits`, 결과 = `features/IDE_068/RESULT.md` (GitHub push 승인) |
 
-**다음 부여 번호**: `IDE_067`
+**다음 부여 번호**: `IDE_069`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
@@ -111,14 +112,16 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_042` | **기각 (2026-09-09 14:30, 메모리 불가)** | **prefill 청크 16384/32768** — prefill 의 CPU cold-expert 스트리밍 (층당 64×71µs, 청크 크기 무관) 상각 | 부모 = `IDE_041`. 사전 등록: C160 TTFT −20% 또는 처리량 +5%. 결과: 청크 16384/32768 은 mem 0.92/0.94 모두 벤치 중 CUDA OOM (활성화 +1.5GB) → 불가. `eval/results/*_ide042*` |
 | `IDE_043` | **채택 (2026-09-09 14:45, 운영 권고: delayer + 실행 배치 게이트 128)** | **스트리밍-인지 prefill 배칭** — 하이브리드에서 prefill forward 는 크기와 무관하게 층당 cold expert 전량 스트리밍 (≈64×71µs×62 = 280ms) 이 고정비라, 요청이 하나씩 도착하면 prefill 마다 decode 가 280ms 멈춤 (rate 5 실측 TPOT 211). SGLang 내장 prefill delayer (`--enable-prefill-delayer --prefill-delayer-queue-min-ratio R --prefill-delayer-max-delay-passes N --prefill-delayer-max-delay-ms T`) 로 대기열 ≥ R·running 또는 T ms 까지 prefill 을 모아 한 forward 로 실행 — EPOCH 의 deadline 배칭 발상을 **자기회귀 의존이 없는 prefill 에 적용** | 부모 = `IDE_041` + `IDE_037` (EPOCH). **사전 등록**: 같은 도착률 (5/7/9) 에서 TPOT −25% 이상 AND 처리량 ≥ 기준 AND TTFT p99 ≤ 기준의 2배; 버스트 C160 회귀 없음 (≥950). 결과: rate 5 TPOT 215→154 (−28%), TTFT p99 −14%; rate 7 TPOT 불변·TTFT p99 −37%; rate 9 는 기준 우세 (795/137 vs 720/172, 단 기준 TTFT p99 6.6s). -b (KV watermark) 기각, **-c 실행 배치 게이트 128 (패치)**: 경부하 TPOT −27% 유지 + 과부하 TTFT p99 6.6→1.6s (처리량 −7%, TPOT +22% 교환), 버스트 −3%. `eval/results/*_ide043{,b,c}*/`, `*_ide041b_baseline_rate9/` |
 | `IDE_044` | **기각 (2026-09-09 15:10, 개선 없음)** | **hot set 2차 반복 (α map 아래 수집한 C64 트레이스로 α∈{0.05, 0.25} 재도출)** — 1차 α=0.25 map 은 prompt-map 트레이스로 만든 것. 재도출 map 은 decode 커버리지 97.7~97.8%, B64 기대 cold 8.85~9.29 (1차 9.04 대비 ±3%). C160 + GSM40, 최선 구성 GSM100 | 부모 = `IDE_034`, `IDE_039-i`. **사전 등록**: C160 ≥ 1,010 tok/s (+3%) AND GSM40 ≥95. **결과**: α0.05 재도출 C160 918.3/123.0 · C64 731.5, α0.25 재도출 C160 965.5/120.2 · C64 766.2 (둘 다 GSM40 97.5) — 1차 map 982.4/119.5 를 넘지 못함 (hot-96 은 커버리지 포화 ~97.8%, map 차이는 노이즈 이내). `eval/results/20260909_143914_ide044_alpha_iter2/` |
+| `IDE_067` | 활성 (2026-09-12) | **CPU–GPU 공동 실행 제어** — 요청별 준비 완료 시각과 CPU·전송·GPU 공통 자원 제약을 함께 계산해 다음 batch 와 그 batch 를 실행 가능하게 만드는 준비를 같은 일정으로 결정한다. 연구 단위를 attention 연산자 한 호출에서 서빙 노드의 요청 처리 과정 전체로 확대 | 부모 = `IDE_006` (하이브리드 서빙), RBC v0.2 의 E4 결과 (연산자 단위에서는 CPU 준비비가 GPU 이득을 압도). **사전 등록**: 같은 자원·모델·요청에서 전체 완료시간 또는 동일 SLO 하 정상 처리율 3~5% 이상 개선, 5개 독립 도착열 paired 비교. 금지: CPU 사용률 자체를 목표로 삼기, 양자화·품질 변경, baseline 의 async·cache 끄기, 미래 token/routing 선지식 |
 
 ---
 
 ## Prefix: `PLN` — Plan
 
 IDE 의 진입·정확도·throughput 가정을 풀기 위한 PoC / microbench 플랜. PLN 결과에 따라 `FEA_###` 진입 또는 IDE 기각.
+| `PLN_010` | 활성 (2026-09-15) | IDE_068 실행 계획 — 실험 A(최대 모델) ∥ 실험 B(GPU 최소 장수) | 부모 `IDE_068`. GPU 는 직렬 점유(B 먼저), CPU-only 작업(Kimi 다운로드·변환)은 병렬. B: `TSK_050`, A: `TSK_051`. 게이트 `TST_024`/`TST_025`. 30분 단위 보고 + `PROGRESS.md` append + push |
 
-**다음 부여 번호**: `PLN_009`
+**다음 부여 번호**: `PLN_011`
 
 | ID | 상태 | 제목 | 비고 |
 |---|---|---|---|
@@ -130,14 +133,17 @@ IDE 의 진입·정확도·throughput 가정을 풀기 위한 PoC / microbench �
 | `PLN_008` | 활성 (2026-09-08 — K1 조건부 통과: D1 부분선행 3편으로 주장③ 보조 강등, D2 중단조건 미발동, H축 전이 선행 0. M0 파라미터 8종 확보·게이트 미통과(중앙값 18%), M1 12셀 측정 완료 — 게이트 실패(중앙값 52%, 순위일치 93%): 긴 컨텍스트 prefill 항 결손. 모델 1회 수정(v2 KV-ctx)→새 셀 8개 재검증: 절대게이트 실패(중앙값 60%) but 순위일치 100%. **원인 해결(09-09 00:05)**: random 데이터셋 셀에 실측 random 라우팅 트레이스 투입 시 v1 모델 15셀 중앙값 13.5% — 실패는 모델 결함 아닌 트레이스 입력 불일치. v3 새 셀 8개 사전등록·측정 대기). M2 HiCache warm +51% 실측. 235B 하이브리드 성립(스모크 16/16) | IDE_031 연구 플랜: K1 22편 전문 정독 (3일) → M0 기계 모델 v2 + 재예측 ±20% (4~5일) → M1 사전 예측 12셀 무작위+극단 (2~3일) → M2 분할 정책 + HiCache 통합 (5~6일) → M3 480B·235B·30B × 워크로드 3종 (6~7일) → 워크샵 8쪽 집필. 총 4~5주 | 부모 `IDE_031`. 사전등록·순환적합 금지 규율은 `PLN_006` 승계. 본문 = `features/IDE_031/PLN_008.md` |
 | `PLN_004` | **E0~E4 완료 / E5 보류** (2026-08-29) | SCED 실험 플랜 (이론·가설·절차) | 부모 `IDE_026`. **판정: H1 ✅ (knee, 43~53×) / H2 부분 (expert 한정) / H3 ❌ 기각 (eager 체제 M 32·128, 기전 규명) / H4 부분 (spec 1.45~1.55×) / H5 축소판 ((G,K) 비분리, best G32-K3 817 tok/s) / H6 미검**. ★ 신규 발견 = curvature 역전 (microbench knee 의 시스템 발현 포착). 논문 서사 = 측정-중심 pivot. 결과: `eval/results/20260829_*_pln004_*` (E0/E1/E3 RESULTS + E4_RESULTS). E5 는 `SUB_167` 게이트 |
 | `PLN_003` | 활성 (2026-08-27) | Hybrid Regime Sweep — violet-h100-016 캠페인 | 부모 `IDE_023`/`IDE_024`/`IDE_025`. 신규 노드에서 가능한 모든 hybrid 경로 동시 검증: `TSK_046` (baseline re-anchor) → `TSK_045` (KV tier) → `TSK_044` (co-location) ∥ `TSK_043` (MoE offload, long-pole). 본문 = `features/IDE_023/PLN_003.md`, 진행 로그 = `features/IDE_023/PROGRESS_20260827.md` (10분 단위) |
+| `PLN_009` | 활성 (2026-09-12) | CPU–GPU 서빙 노드 전체 성능 개선 — 공동 실행 제어 연구계획 | 부모 `IDE_067`. 계획서 = `CPU_GPU_서빙노드_전체성능개선_20260912.md`. M0 (세 부하 연결 계측) → I0 (native 통과 연결부) → I1 (공동 제어 축 하나) → I2 (하이브리드 일반화). `PLN_008`/`IDE_031` 보다 우선. RBC (v0.2) 는 §6.5 조건 충족 시에만 하위 실행 후보로 연결 |
 
 ---
 
 ## Prefix: `TSK` — Task
 
 FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디렉토리 내 `task.md` 항목과 매핑된다.
+| `TSK_050` | 활성 (2026-09-15) | 실험 B — 480B 오프로딩 GPU 최소 장수 | 부모 `PLN_010`. 셀: b0 GPU-only TP8+EP8 기준선 (SGLang 은 TP8 순수 분할이 FP8 block 제약으로 불가 → EP 로 우회), b0a GPU-only TP4 OOM 재실증, b1 하이브리드 TP4 (`TSK_047` 재현), b2 TP2, b3 TP1. 각 셀 = 부팅 → greedy 4문항 → sonnet 512/128 C16 64req 벤치 + CPU·GPU 샘플러. expert 는 전량 CPU(`--kt-num-gpu-experts 0`)가 기본이고, 성립 후 남는 HBM 에 hot expert 를 올리는 변형은 선택 |
+| `TSK_051` | 활성 (2026-09-15) | 실험 A — 최대 모델 Kimi-K2-Instruct 오프로딩 서빙 | 부모 `PLN_010`. 1.03 TB 다운로드(`/data/hf`, 실측 39.5 MB/s 단일 스트림) → `kt quant -m int4 -i fp8` (예상 ~0.5 TB) → 하이브리드 TP8 부팅 → greedy 4문항 → C8 벤치. DeepseekV3 arch 이므로 `SUB_167` 품질 결함 재현 가능성 있음 — 재현 시 "적재·서빙 성립, 품질 미통과" 로 기록하고 DRAM 용량 한계(2 TB 대비 사용량)를 별도 보고 |
 
-**다음 부여 번호**: `TSK_048`
+**다음 부여 번호**: `TSK_052`
 
 > `TSK_020`~`TSK_042` 는 vllm_config_perf 시대 외부 발급분 (번호 소진 처리, 정의는 `vllm_config_perf/` 참조).
 
@@ -167,14 +173,18 @@ FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디�
 | `TSK_045` | **완료** (2026-08-27) | IDE_025 DRAM KV/prefix tier 측정 | 부모 `PLN_003`/`IDE_025`. **결과: 압박 구성에서 +51.8% (418.0→634.4 tok/s), TTFT p50 −65%, DRAM→GPU reload 91.3GB/280회 실증. 비압박 회귀 −1.31% (경계) → 압박/공유-prefix 워크로드 한정 ON 권고**. `eval/results/20260827_120530_tsk045_kv_tier/RESULTS.md` |
 | `TSK_046` | **완료 (scope 축소)** (2026-08-27) | 신규 노드 baseline re-anchor | 부모 `PLN_003`. **t1 vanilla 70B-FP8 = 3,039.0 tok/s** (sonnet 2048/400×500p×C=64) 확정. t2 ngram spec = 2,669 (−12%, 신형 bench 의 temperature 기본값 영향) 기록. **spec decode greedy 재측정 (t3~t5) 은 사용자 지적 ("GPU 최적화일 뿐") 으로 폐기** — CPU 트랙과 무관. `eval/results/20260827_114623_tsk046_baseline/` |
 | `TSK_019` | 재정의 (2026-05-06 — 4 layer plan 으로 frame 변경. SUB_016~024 신규 발행) | swiftllm cdec divergence + NEO architecture 재구성 | 부모 `PLN_001`. **1 차 frame (2026-05-06 기각)**: SUB_001~006 (cdec dispatch divergence surgery — D1~D5 + D2.3 BF16-FP16 cast). 6 개 모두 시도 후 reject (v37~v44 측정 chain). v41 NEO draft 가 max performance state 로 입증. **2 차 frame (2026-05-06 BF16 manual kernel)**: SUB_007~015 (v1.1 BF16 manual kernel 의 NEO 미적용 7 개 + Group B 2 개). v1.1 자체가 v1.0 보다 -3.91% 회귀로 영역 무력화. **3 차 frame (현재)**: 두 agent (Explore + general-purpose) cross-check 결과 NEO 원본의 4 layer (forward path overlap / mode selection / swap path / cdec executor) 가 모두 signature/흔적 단계로 적재 — 정식 적재 path 로 SUB_016~024 (9 개) 신규 발행. 상세: `features/IDE_006/TSK_019.md`. Ground rules: `features/IDE_006/TSK_019_ground_rules.md` (R1~R10). 측정 chain 은 `features/IDE_006/PLN_001_neo_baseline_results.md` §5.7 |
+| `TSK_048` | 활성 (2026-09-12) | M0 — 전체 실행 경로 한 번 연결 (요청·batch ID 단위 계측) | 부모 `PLN_009`. 엔진 1개·모델 1개에서 저부하 / 용량 근접 / 긴 입력 burst 세 부하. 요청·준비·GPU·메모리·응답·자원 event 를 요청/batch ID 로 연결. clock domain 정합 필요. 산출물: 회수 가능한 준비 대기·자원 간섭·불필요한 이동의 위치와 크기 |
+| `TSK_049` | 활성 (2026-09-12) | I0 — 공통 연결부 (native 통과 + 계측) | 부모 `PLN_009`. `node_control/{state,policy,reservation,cost,trace}` + `adapters/vllm`. 정책을 끈 상태가 baseline 과 같은 결과를 내는지 먼저 확인 (B1 기준선). private API 추측 patch 금지 — 실제 버전에서 source map 작성 |
 
 ---
 
 ## Prefix: `TST` — Test
 
 PLN/FEA 의 검증 단위. 정확도·throughput·통합성을 각각의 TST 로 분리해 측정한다. CLAUDE.md Method 의 feature 디렉토리 내 `test.md` 및 test 코드와 매핑된다.
+| `TST_024` | 활성 (2026-09-15) | TSK_050 게이트 | 부모 `PLN_010`. (1) b0 기준선 부팅·벤치 성립 (2) 각 하이브리드 셀: 전 요청 완료 + greedy 4문항 정상 (3) 최소 장수 = 성립한 최소 TP (4) 처리량은 기준선 대비 비율로 보고, 손실 크기를 숨기지 않음 |
+| `TST_025` | 활성 (2026-09-15) | TSK_051 게이트 | 부모 `PLN_010`. (1) 변환본이 DRAM 에 적재되고 서버 HEALTH OK (2) 전 요청 완료 (3) greedy 4문항 정상 — 미통과 시 `SUB_167` 연계로 기록 (4) DRAM 사용량·HBM 사용량 실측 기록 |
 
-**다음 부여 번호**: `TST_024`
+**다음 부여 번호**: `TST_026`
 
 > `TST_019` 는 vllm_config_perf 시대 외부 발급분 (번호 소진 처리).
 
