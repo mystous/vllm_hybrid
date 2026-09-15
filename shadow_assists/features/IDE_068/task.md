@@ -8,8 +8,8 @@
 - [x] b2  하이브리드 TP2 — 43.33 tok/s
 - [x] b3  하이브리드 TP1 — 43.24 tok/s, HBM 24 GiB
 - [x] b4~b6 남는 HBM 에 expert 16/40/96 배치 — +8/+15/+19 % (hotmap 없는 하한)
-- [ ] b7~b8 TP1 cuda graph ON 변형
-- [ ] **b9~b14 GPU 3·5·6·7 장 (사용자 요청)** — 하이브리드 TP3/5/6/7 + GPU-only TP6/TP7 (EP) 부팅 시도, 되는 조합만 벤치
+- [x] b7~b8 TP1 cuda graph ON — 효과 없음 (±1 %)
+- [x] b9~b14 GPU 3·5·6·7 장 — 6/6 엔진 거부 (vocab 151936·expert 160 정수 제약). DP 대안(B5)은 사용자 지시로 중단
 - [ ] RESULT.md — 장수별 성립·처리량·지연·품질·HBM 사용량 표
 
 ## TSK_051 — 실험 A: 최대 모델 Kimi-K2-Instruct

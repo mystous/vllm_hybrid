@@ -64,3 +64,8 @@
 - 하이브리드 TP3/5/6/7: 전부 40초 내 `AssertionError: 151936 is not divisible by N` — vocab 151,936 = 2⁷×1187 (소수) 이라 TP 는 2 의 거듭제곱만 가능.
 - GPU-only TP6+EP6 / TP7+EP7: `assert num_physical_experts % ep_size == 0` — expert 160 이 6·7 로 안 나뉨.
 - 결론: 480B 의 TP 가능 장수 = {1, 2, 4, 8}. 3·5·6·7 은 DP(복제)로만 사용 가능 → B5 에서 DP3×TP1 1점 측정 중.
+
+## 2026-09-15 10:31 — B5(DP3) 사용자 지시로 중단, 실험 A 로 전환
+- 사용자: "굳이 필요 없어. 멈추고 실험 A 진행하자" → DP3×TP1 셀 중단 (부팅·greedy 는 성립했으나 벤치 미완, 결과 미기록). 실험 B 는 B4 까지로 종결.
+- 실험 A 자동 연결: 다운로드 완료(hf 종료 + incomplete 0 + safetensors 61) 감지 → `run_expA.sh all` (kt quant int4 → 하이브리드 TP8 부팅 → greedy 4문항 → C8 벤치).
+- Kimi-K2 398 GB / 1,029 GB (blob 완료 41, 스냅샷 safetensors 25/61). 완료 예상 12:00 전후, 변환 ~1.7 h → 서빙 결과 14:00 전후.
