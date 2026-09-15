@@ -53,3 +53,9 @@
 - **최고 = t7 @C64 637.24 tok/s** (출발점 43.39 대비 **14.7×**, IDE_030 C64 408.2 대비 +56 %). greedy 전 셀 4/4.
 - spec decode 두 종은 이 구성에서 역효과 — CPU expert 가 지배하는 스텝에 draft 검증 토큰이 더해져 CPU 비용이 커진다.
 - 같은 구성의 C32 가 run 마다 454~520 으로 흔들린다 (±7 %) → 3라운드에서 반복 측정으로 jitter 를 잡고 C48/80/96 을 본다. dual 비교 (TSK_053) 가 먼저 실행 중.
+
+## 2026-09-15 15:10 — dual 1차: 기준선 확보, 컨테이너 복제 실패 → 재사용으로 전환
+- **GPU-only TP8+EP8 기준선 (`20260915_144748_ide069_dual_vs_tp8/ref_gpu_tp8_ep8/`)**: C32 **1,029.75 tok/s** (15.9 s), C64 **2,031.11 tok/s** (16.1 s). greedy 4/4. GPU-only 는 C 에 비례해 커진다 (C16 701.6 → C32 1,030 → C64 2,031).
+- `docker commit sgl-kt` 가 nerdctl snapshot mount 오류로 실패 (`failed to export layer: mount callback failed`, 14 분 소요 후) → 컨테이너 미생성, dual 두 셀 rc=1.
+- 전환: 8-30 dual 실험의 cpuset 컨테이너 재사용 — **sgl-kt5 = 소켓0 (0-55,112-167 / mems 0), sgl-kt2 = 소켓1 (56-111,168-223 / mems 1)**, kt-kernel 0.7.0.post2 + 패치 2건 확인. sgl-kt(post1 소스빌드)와 소프트웨어가 다르므로 dual 앞에 **sgl-kt5 단독 hot96 def4 C32** 를 먼저 재어 t2(519.8)와의 등가성을 확인한다.
+- 3라운드(jitter·C sweep) 종료 후 dual v2 자동.

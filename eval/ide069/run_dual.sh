@@ -16,30 +16,19 @@ SNAP=$(ls -d $HOME/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-In
 TOK=$HOME/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/$(basename "$SNAP")
 M_CN=/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/$(basename "$SNAP")
 MODEL=q480
-IMG=sgl-kt-tuned:ide069
-S0=sgl-kt-s0; S1=sgl-kt-s1
+# nerdctl commit 이 snapshot mount 오류로 실패(15:01) → 8-30 dual 에서 만든 cpuset 컨테이너를 재사용한다.
+# sgl-kt5 = 소켓0 (0-55,112-167 / mems 0), sgl-kt2 = 소켓1 (56-111,168-223 / mems 1). kt-kernel 0.7.0.post2 + 패치.
+S0=sgl-kt5; S1=sgl-kt2
+SKIP_REF=${SKIP_REF:-0}
 KTC="--kt-weight-path /models/kt/qwen3-480b-int4 --kt-method AMXINT4 --kt-threadpool-count 2"
 HOT="--kt-num-gpu-experts 96 --init-expert-location /models/kt/ide069/hotmap.json --kt-max-deferred-experts-per-token 4 --cuda-graph-backend-prefill disabled --cuda-graph-max-bs 64 --mem-fraction-static 0.92 --max-total-tokens 24576 --ep-dispatch-algorithm dynamic"
 COLD="--kt-num-gpu-experts 0 --disable-cuda-graph --mem-fraction-static 0.80 --max-total-tokens 65536"
 log "== IDE_069 dual vs tp8 start $TS =="
 log "turbo no_turbo=$(cat /sys/devices/system/cpu/intel_pstate/no_turbo)"
 
-# ---------- 0. 컨테이너 준비 ----------
+# ---------- 0. 컨테이너 상태 확인 ----------
 stop_server
-if ! docker image inspect "$IMG" >/dev/null 2>&1; then
-  log "commit sgl-kt → $IMG"; docker commit --pause=false sgl-kt "$IMG" 2>&1 | tail -1 | tee -a "$RUN_LOG"
-fi
-mk() {  # mk <name> <cpus> <mems>
-  local n=$1 cpus=$2 mems=$3
-  docker rm -f "$n" >/dev/null 2>&1 || true
-  docker run -d --name "$n" --net host --ipc host --shm-size 64g --gpus all \
-    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    --cpuset-cpus "$cpus" --cpuset-mems "$mems" \
-    -v "$HOME/.cache/huggingface:/models" "$IMG" sleep infinity >/dev/null 2>&1
-  docker exec "$n" bash -c 'python3 -c "import kt_kernel, sglang; print(\"kt+sglang ok\")"; nproc; nvidia-smi -L | wc -l; grep Cpus_allowed_list /proc/self/status' 2>&1 | tr '\n' ' ' | tee -a "$RUN_LOG"; echo | tee -a "$RUN_LOG"
-}
-mk $S0 0-55,112-167 0
-mk $S1 56-111,168-223 1
+for c in $S0 $S1; do docker start $c >/dev/null 2>&1; docker exec $c bash -c "grep Cpus_allowed_list /proc/self/status; pip show kt-kernel | grep ^Version" 2>&1 | tr "\n" " " | tee -a "$RUN_LOG"; echo | tee -a "$RUN_LOG"; done
 
 # ---------- 공용 ----------
 boot_in() {  # boot_in <cn> <port> <gpus> <out> <args...>
@@ -85,7 +74,7 @@ bench_port() {  # bench_port <port> <out> <conc> <n>   (백그라운드에서 �
     --percentile-metrics ttft,tpot,itl --metric-percentiles 50,95 > "$out/bench.log" 2>&1
   grep -E "Successful requests|Benchmark duration|Output token throughput|Total token throughput|Median TTFT|P95 TTFT|Median TPOT|P95 TPOT" "$out/bench.log" | sed 's/  */ /g' > "$out/bench_summary.txt"
 }
-samplers_on()  { ( nvidia-smi --query-gpu=index,utilization.gpu,memory.used,power.draw --format=csv,noheader -l 5 > "$1/gpu_util.csv" 2>&1 & echo $! > "$1/.gpu_mon" ); ( bash "$CPU_SAMPLER" "$1/cpu_util.txt" & echo $! > "$1/.cpu_mon" ); }
+samplers_on()  { mkdir -p "$1"; ( nvidia-smi --query-gpu=index,utilization.gpu,memory.used,power.draw --format=csv,noheader -l 5 > "$1/gpu_util.csv" 2>&1 & echo $! > "$1/.gpu_mon" ); ( bash "$CPU_SAMPLER" "$1/cpu_util.txt" & echo $! > "$1/.cpu_mon" ); }
 samplers_off() { kill "$(cat "$1/.gpu_mon")" 2>/dev/null; kill "$(cat "$1/.cpu_mon")" 2>/dev/null; }
 sum_tps() { python3 - "$@" <<'PY'
 import sys,re
@@ -99,6 +88,7 @@ PY
 }
 
 # ---------- 1. 기준선: GPU-only TP8+EP8 (C32, C64) ----------
+if [ "$SKIP_REF" = 0 ]; then
 log "-- ref: GPU-only TP8+EP8 --"
 out=$BASE/ref_gpu_tp8_ep8
 boot_in sgl-kt $PORT 0,1,2,3,4,5,6,7 "$out" --model-path $M_CN --served-model-name $MODEL --host 127.0.0.1 --port $PORT --tp 8 --ep-size 8 --attention-backend triton --trust-remote-code --mem-fraction-static 0.90 --max-total-tokens 131072
@@ -109,6 +99,7 @@ if [ $rc = 0 ]; then
   for c in 32 64; do samplers_on "$out/c$c"; bench_port $PORT "$out/c$c" $c $((c*4)); samplers_off "$out/c$c"; log "ref C$c: $(cat $out/c$c/bench_summary.txt | tr '\n' ' ')"; done
 fi
 stop_all
+fi
 
 # ---------- 2. dual ----------
 run_dual() {  # run_dual <name> <extra-args>
@@ -136,6 +127,17 @@ run_dual() {  # run_dual <name> <extra-args>
   fi
   stop_all
 }
+# ---------- 1b. 검증: sgl-kt5 단독 TP4 hot96 def4 (sgl-kt 의 t2 519.8 과 대조 — 컨테이너 등가성) ----------
+out=$BASE/single_s5_hot96_def4; mkdir -p "$out"
+log "-- single in $S0 (hot96 def4, cpuinfer 96) --"
+boot_in $S0 30000 0,1,2,3 "$out" --model-path $M_CN --served-model-name $MODEL --host 127.0.0.1 --port 30000 --tp 4 --attention-backend triton --trust-remote-code --context-length 32768 $KTC --kt-cpuinfer 96 $HOT
+wait_health $S0 30000 2400; rc=$?; log "single boot rc=$rc"; echo "rc=$rc" > "$out/verdict.txt"
+if [ $rc = 0 ]; then
+  log "smoke: $(smoke_port 30000 "$out")"
+  samplers_on "$out/c32"; bench_port 30000 "$out/c32" 32 128; samplers_off "$out/c32"; log "single C32: $(cat $out/c32/bench_summary.txt | tr '\n' ' ')"
+else docker exec $S0 bash -c 'tail -40 /tmp/sgl_server.log' > "$out/server_tail.log"; fi
+stop_all
+
 run_dual dual_cold_expert0 $COLD
 run_dual dual_hot96_def4  $HOT
 log "== dual done $(date +%H:%M:%S) =="
