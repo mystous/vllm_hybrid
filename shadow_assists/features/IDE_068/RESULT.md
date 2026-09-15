@@ -11,7 +11,7 @@
 | | 질문 | 답 | 상태 |
 |---|---|---|---|
 | **B** | GPU-only 로 8장이 필요한 가장 큰 보유 모델(Qwen3-Coder-480B-A35B-FP8, 450 GB)을 오프로딩하면 GPU 를 몇 장까지 줄일 수 있는가 | **1장** — TP1 에서 서빙 성립, greedy 4/4, 43.24 tok/s. TP4·TP2·TP1 처리량이 같다 | 본 셀·B2 완료 |
-| **A** | 이 서버가 CPU MoE 오프로딩으로 지원할 수 있는 최대 모델 | 후보 Kimi-K2-Instruct 1.03 TB (공개 최대 MoE) | 다운로드 중 |
+| **A** | 이 서버가 CPU MoE 오프로딩으로 지원할 수 있는 최대 모델 | **Kimi-K2-Instruct (1 T 파라미터, FP8 1,030 GB) 서빙 성립** — greedy 4/4, 22.78 tok/s (C8), DRAM 576 GB / 2,014 GB 사용, HBM 13 GiB/장. 공개 MoE 중 최대이며 DRAM 여유가 2.5배 남는다 | 완료 |
 
 ---
 
@@ -104,7 +104,7 @@ cuda graph 는 이 구성에서 **효과가 없다** (±1 %, run 간 편차 수�
 
 ## 실험 A — 최대 모델 (TSK_051)
 
-(다운로드 중 — 완료 후 기록)
+**답: 공개 최대 MoE 인 Kimi-K2-Instruct (1 T 파라미터, FP8 1,030 GB) 가 이 서버에서 CPU 오프로딩으로 서빙된다.** DRAM 사용 576 GB 로 2 TB 의 29 % 이며, 이 서버가 지원하는 상한은 공개 모델이 아니라 DRAM 이 정한다 (아래 A.4).
 
 ### A.1 후보 선정
 
@@ -113,7 +113,40 @@ cuda graph 는 이 구성에서 **효과가 없다** (±1 %, run 간 편차 수�
 | DeepSeek-R1-0528 (671 B) | 688.6 GB FP8 | 원본 스냅샷이 삭제되어 있음 (kt INT4 328 GB 만 잔존). 재다운로드 없이는 불가 |
 | **Kimi-K2-Instruct (1 T)** | **1,029.2 GB FP8** | 공개 최대 MoE. DeepseekV3 arch, 61층, 384 routed + 1 shared experts, top-8, moe_intermediate 2048, FP8 block 128×128. 다운로드 중 |
 
-DRAM 2 TB 기준 INT4 expert 상한은 산술상 약 3.5~4 T 파라미터이며, 그 이상의 공개 모델은 없다. 따라서 "이 서버가 지원하는 최대" 는 공개 최대 모델이 성립하는지로 답한다.
+### A.2 파이프라인 (`eval/results/20260915_130830_ide068_expA_kimi_k2/`)
+
+| 단계 | 결과 |
+|---|---|
+| 다운로드 | `hf download --max-workers 16`, 09:23 → 12:08 (**2 h 45 min**), 디스크 959 GiB (= 1,030 GB), 62 safetensors. 평균 실효 ≈104 MB/s (RX 105~118 MB/s) |
+| 변환 | `kt quant -m int4 -i fp8 --cpu-threads 96 --numa-nodes 2` — **4,114 s (68.6 min)**, 출력 **488 GB, 64 files**. 원본 대비 0.47×. 층당 초반 ≈12 s → 후반 65 s (DRAM free 22 GB 로 page cache 압박) |
+| 서빙 | SGLang TP8 하이브리드, `--kt-cpuinfer 96 --kt-threadpool-count 2 --kt-num-gpu-experts 0 --disable-cuda-graph --max-total-tokens 65536 --mem-fraction-static 0.80 --trust-remote-code`. **HEALTH OK 240 s** |
+
+### A.3 결과
+
+| 셀 | 부팅 | greedy | 완료 | 출력 tok/s | 전체 tok/s | TTFT p50 ms | TTFT p95 ms | TPOT p50 ms | TPOT p95 ms | 벤치 s | CPU busy 평균/최대 % | GPU util 평균 % | HBM GiB/장 | DRAM used GB |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **a1** 하이브리드 TP8 (C8, 32req, sonnet 512/128) | HEALTH OK 240 s | **4/4** | **32/32** | **22.78** | 111.96 | 7,112.82 | 13,043.71 | 282.73 | 302.48 | 179.79 | 43.6 / 51.0 | 75.3 (320 표본) | **12.5~13.0 ×8** | **576** |
+
+greedy 4문항 원문 (`a1_hyb_tp8/smoke_texts.txt`):
+
+- Q1 → `Paris. It has been the capital since 987 CE. Paris is known as the "City of Light" …`
+- Q2 → 재귀 fibonacci (`if n <= 0: return 0 / elif n == 1: return 1 / else: return fibonacci(n-1) + fibonacci(n-2)`)
+- Q3 → `5050` 에 이어 `1+2+3+...+1000 = 500500`, `…+10000 = 50005000`
+- Q4 → `def reverse_string(s): return s[::-1]`
+
+**SUB_167 과의 관계.** Kimi-K2 는 R1-0528 과 같은 DeepseekV3 arch (FP8 block 128×128 `weight_scale_inv`, shared expert 1개) 인데 같은 변환기·같은 서빙 경로에서 출력이 정상이다. TSK_043 때 "DeepSeek 계열 특이" 로 좁힌 가설은 **R1-0528 체크포인트 특이** 또는 **당시 kt-kernel 0.7.0.post2 의 결함 (현재 컨테이너는 post1)** 으로 더 좁혀진다. R1 원본이 삭제되어 이 노드에서 직접 재검은 하지 못했다.
+
+### A.4 용량 한계 — 이 서버가 지원하는 상한
+
+| 자원 | 총량 | Kimi-K2 사용 | 여유 | 비고 |
+|---|---|---|---|---|
+| DRAM | 2,014 GB | **576 GB** (used, 벤치 후 582) | 1,432 GB (page cache 1,415 포함) | INT4 expert 488 GB + CPU 풀·버퍼 |
+| HBM (8장) | 640 GB | **≈104 GB** (13 GiB ×8) | ≈536 GB | 비-expert 가중치 + KV 65,536 tokens |
+| 디스크 (/data) | 25 TB | 1,030 + 488 GB | 21 TB | — |
+
+- 같은 비율(INT4 expert ≈ 파라미터 수 × 0.49 B + 풀 오버헤드)로 외삽하면 DRAM 2 TB 는 **약 3~3.5 T 파라미터** 까지 expert 를 담을 수 있다. 그 크기의 공개 MoE 는 없다.
+- 따라서 "이 서버가 지원하는 최대" 는 공개 모델 기준 **Kimi-K2 1 T (성립 확인)** 이고, 하드웨어 기준으로는 그 2.5~3배 여유가 남는다. HBM 은 13 GiB/장만 쓰므로 GPU 측은 제약이 아니다 — 실험 B 와 같은 논리로 TP 를 줄일 여지도 있다 (미측정).
+- 처리량 22.78 tok/s (C8) 는 480B 의 43 tok/s (C16) 와 같은 규모의 CPU expert 병목이다 (TPOT 283 vs 300 ms). turbo OFF·expert 전량 CPU·hotmap 없음·cuda graph OFF 의 **하한**이다.
 
 ---
 
@@ -121,4 +154,6 @@ DRAM 2 TB 기준 INT4 expert 상한은 산술상 약 3.5~4 T 파라미터이며,
 
 - 모든 CPU 수치는 turbo OFF (2.0 GHz) 하한이다.
 - 하이브리드 셀은 `--disable-cuda-graph` (TSK_047 과 동일 조건). IDE_030 은 cuda graph + hot expert + deferral 로 훨씬 높은 처리량을 얻었으므로, 본 실험의 43 tok/s 는 "최소 장수 성립" 의 조건이지 이 경로의 성능 상한이 아니다.
-- 단일 run, C16 한 점. jitter 는 b1/b2/b3 의 편차(43.24~43.39, 0.3 %)로 가늠할 수 있다.
+- 단일 run, C16 한 점 (A 는 C8 한 점). jitter 는 b1/b2/b3 의 편차(43.24~43.39, 0.3 %)로 가늠할 수 있다.
+- 실험 A 는 TP8 만 측정했다. Kimi-K2 의 HBM 사용이 13 GiB/장이므로 TP 축소(vocab 163,840 = 2¹⁵×5 → TP ∈ {1,2,4,5,8,10,…})가 가능해 보이나 측정하지 않았다.
+- Kimi-K2 의 품질은 greedy 4문항으로만 확인했다. 벤치마크 정확도(GSM 등)는 측정하지 않았다.

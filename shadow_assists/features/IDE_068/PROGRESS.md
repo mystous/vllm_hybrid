@@ -103,3 +103,7 @@
 - Q1 "Paris. It has been the capital since 987 CE…" / Q2 fibonacci 재귀 정답 / Q3 "5050 … 1+…+1000 = 500500" / Q4 `s[::-1]`. **4/4 정상.**
 - 의미: Kimi-K2 는 R1 과 같은 DeepseekV3 arch (FP8 block 128×128 `weight_scale_inv`, shared expert 1개) 인데 같은 변환기·서빙 경로에서 출력이 정상이다. `SUB_167` 의 "DeepSeek 계열 특이 결함" 가설은 **R1-0528 체크포인트 특이** 또는 **당시 kt-kernel 0.7.0.post2 결함(현재 post1)** 으로 더 좁혀진다. R1 원본이 삭제돼 이 노드에서 직접 재검은 불가.
 - C8 32req 벤치 진행 중.
+
+## 2026-09-15 13:26 — ★ 실험 A 완료: Kimi-K2 1T 하이브리드 서빙 성립
+- **a1 TP8 C8 32req**: 32/32 완료, **22.78 out tok/s**, 전체 111.96 tok/s, TTFT p50 7,113 ms / p95 13,044 ms, TPOT p50 282.7 ms / p95 302.5 ms, 벤치 179.8 s. CPU busy 43.6 % (max 51.0), GPU util 평균 75.3 %. HBM 12.5~13.0 GiB ×8, DRAM used 576 GB (벤치 후 582).
+- 두 실험 모두 완료. RESULT.md §A 작성, registry IDE_068/PLN_010/TSK_050/051/TST_024/025 완료 처리, SUB_167 비고 갱신.
