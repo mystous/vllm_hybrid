@@ -1,0 +1,16 @@
+{
+ "LEGACY_070": {"dataset": "sonnet", "in": 512, "out": 128, "prefix": 100, "seed": 42, "ignore_eos": false, "cache_policy": "no_flush_between_reps", "n_per_C": 4,
+                "note": "IDE_070 프로토콜 재현: sonnet 512/128 prefix100 seed42, 요청 4×C, 반복 간 flush 없음, ignore_eos 미사용 (IDE_070 lib.sh 와 동일)"},
+ "SHORT_COLD": {"dataset": "sonnet", "in": 512, "out": 128, "prefix": 0, "seed": 20260916, "ignore_eos": true, "cache_policy": "engine_cache_flush_before_each_rep", "n_per_C": 4,
+                "note": "새 요청 집합 (seed 20260916, prefix 0 = 요청 간 공유 접두 없음), 매 반복 전 /flush_cache"},
+ "PREFIX_WARM": {"dataset": "sonnet", "in": 512, "out": 128, "prefix": 100, "seed": 20260917, "ignore_eos": true, "cache_policy": "flush_then_prefix_only_prepare", "n_per_C": 4,
+                "note": "공통 prefix100 + 서로 다른 suffix. flush 후 prefix 만 1회 요청해 준비, 측정 suffix 는 미리 요청하지 않음"},
+ "DECODE_HEAVY": {"dataset": "sonnet", "in": 512, "out": 1024, "prefix": 0, "seed": 20260918, "ignore_eos": true, "cache_policy": "engine_cache_flush_before_each_rep", "n_per_C": 2},
+ "PREFILL_HEAVY": {"dataset": "sonnet", "in": 4096, "out": 128, "prefix": 0, "seed": 20260919, "ignore_eos": true, "cache_policy": "engine_cache_flush_before_each_rep", "n_per_C": 2},
+ "LONG_CONTEXT": {"dataset": "random", "in": 16384, "out": 256, "prefix": 0, "range_ratio": 0.0, "seed": 20260920, "ignore_eos": true, "cache_policy": "engine_cache_flush_before_each_rep", "n_per_C": 2,
+                  "note": "sonnet.txt (517행) 로는 16k 입력을 만들 수 없어 random 토큰 데이터셋 사용"},
+ "CODE_MIX": {"dataset": "custom", "path_cn": "/home/mystous/.cache/huggingface/kt/ide071/datasets/code_mix.jsonl", "out": 256, "seed": 20260921, "ignore_eos": false, "cache_policy": "engine_cache_flush_before_each_rep", "n_per_C": 2,
+              "note": "openai/openai_humaneval 164 문항 프롬프트 (MIT). manifest: datasets/code_mix_manifest.json"},
+ "MIXED_SERVICE": {"dataset": "custom", "path_cn": "/home/mystous/.cache/huggingface/kt/ide071/datasets/mixed_service.jsonl", "out": 128, "seed": 20260922, "ignore_eos": false, "cache_policy": "engine_cache_flush_before_each_rep", "n_per_C": 4,
+                   "note": "사전 고정 비율: SHORT 60% / CODE 20% / PREFILL_HEAVY 10% / DECODE_HEAVY 10% (manifest 참조)"}
+}

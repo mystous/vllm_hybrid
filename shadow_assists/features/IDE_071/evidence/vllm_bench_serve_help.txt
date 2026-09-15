@@ -1,0 +1,59 @@
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML
+  raw_cnt = _raw_device_count_nvml()
+INFO 09-15 15:33:49 [importing.py:60] Triton is installed but 0 active driver(s) found (expected 1). Disabling Triton to prevent runtime errors.
+INFO 09-15 15:33:49 [importing.py:95] Triton not installed or not compatible; certain GPU-related functions will not be available.
+W0915 15:33:49.600000 335714 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML
+  raw_cnt = _raw_device_count_nvml()
+INFO 09-15 15:33:51 [main.py:71] Unspecified platform detected, switching to CPU Platform instead.
+WARNING 09-15 15:33:51 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+WARNING 09-15 15:33:51 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+WARNING 09-15 15:33:51 [cpu.py:500] Failed to import from vllm._C: ModuleNotFoundError("No module named 'vllm._C'")
+usage: vllm bench serve [options]
+
+Benchmark the online serving throughput.
+
+Config Groups:
+  options                 
+  custom dataset options  
+  spec bench dataset options
+  sonnet dataset options  
+  sharegpt dataset options
+  timed-trace dataset options
+  blazedit dataset options
+  asr dataset options     
+  random dataset options  
+  random multimodal dataset options extended from random dataset
+  hf dataset options      
+  BFCL dataset options    Berkeley Function Calling Leaderboard dataset.
+  
+      https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard
+  
+      BFCL ships one JSON-lines file per category at the repo root (e.g.
+      ``BFCL_v3_simple.json``, ``BFCL_v3_live_simple.json``) rather than a
+      single HuggingFace split. Each record has ``{id, question, function}``
+      where ``function`` uses a non-OpenAI schema dialect (``"type": "dict"``).
+  
+      This dataset loader:
+        - downloads the selected per-category files via ``hf_hub_download``
+          and interleaves rows round-robin so sampling is balanced
+        - translates BFCL function schemas to OpenAI tool format
+        - sets :attr:`SampleRequest.chat_messages` directly and attaches
+          ``tools`` / ``tool_choice`` via :attr:`SampleRequest.request_overrides`,
+          producing production-alike tool calling traffic when used with an
+          ``openai-chat`` backend
+      
+  prefix repetition dataset options
+  speed bench dataset options
+      SPEED-Bench dataset: https://huggingface.co/datasets/nvidia/SPEED-Bench
+  
+      Download the dataset using:
+  
+      `curl -LsSf https://raw.githubusercontent.com/NVIDIA-NeMo/Skills/refs/heads/main/nemo_skills/dataset/speed-bench/prepare.py | python3 -`
+      
+  sampling parameters     
+
+For full list:            vllm bench serve --help=all
+For a section:            vllm bench serve --help=ModelConfig    (case-insensitive)
+For a flag:               vllm bench serve --help=max-model-len  (_ or - accepted)
+Documentation:            https://docs.vllm.ai

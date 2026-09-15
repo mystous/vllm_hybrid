@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""IDE_071 — 셀 1개 실행기 (지시서 §16.1 상태 머신).
+PENDING→PREFLIGHT→BOOTING→VERIFY_EFFECTIVE_CONFIG→WARMUP→CACHE_PREPARE→MEASURING→DRAINING→PERSISTING→COMPLETED
+오류 → CAPTURE_FAILURE → CLEANUP_OWN_PROCESSES → 종료 상태. 이 프로세스는 예외를 밖으로 던지지 않고 status 로 반환한다.
+사용: run_cell.py <campaign_dir> <cell.json> [attempt_id]
+"""
+import gzip, json, os, re, sys, time, traceback
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import *
+
+WORKLOADS = json.load(open(f"{os.path.dirname(os.path.abspath(__file__))}/configs/workloads.json"))
+R0 = json.load(open(f"{os.path.dirname(os.path.abspath(__file__))}/configs/r0.json"))
+
+def build_args(sa):
+    parts = []
+    for k, v in sa.items():
+        if v is None or v is False: continue
+        if v is True: parts.append(f"--{k}")
+        elif isinstance(v, list): parts.append(f"--{k} " + " ".join(str(x) for x in v))
+        else: parts.append(f"--{k} {v}")
+    return " ".join(parts)
+
+def log(cell_dir, msg):
+    line = f"{now()['wall_kst']} {msg}"
+    print(line, flush=True)
+    with open(f"{cell_dir}/cell.log", "a") as f: f.write(line + "\n")
+
+def set_state(st, cell_dir, state, **kw):
+    st["state"] = state; st["state_history"].append({"state": state, "t": now()}); st.update(kw)
+    jdump(st, f"{cell_dir}/status.json")
+
+def runtime_proofs(cell, sinfo):
+    """서버 로그·server_info 에서 설정 적용 증거를 수집한다 (지시서 §3.2, §5 R06)."""
+    r = dexec(CN, f"grep -c 'kt-cf\\] callback-free handoff ready' {LOG_IN_CN}; grep -c 'IDE_070 per-layer gpu experts' {LOG_IN_CN}; "
+                  f"grep -oE 'KV Cache is allocated.*|#tokens: [0-9]+|max_total_num_tokens=[0-9]+' {LOG_IN_CN} | head -3; "
+                  f"grep -oE 'Capture cuda graph.*bs.*' {LOG_IN_CN} | head -2; grep -oE 'attention backend.*|Attention backend.*' {LOG_IN_CN} | head -2; "
+                  f"grep -c 'IDE_070 per-layer gpu experts: layer' {LOG_IN_CN}")
+    lines = r.stdout.splitlines()
+    proofs = {"cf_ready_lines": lines[0] if lines else None, "per_layer_log_lines": lines[1] if len(lines) > 1 else None, "raw_grep": lines[2:]}
+    args = sinfo if isinstance(sinfo, dict) else {}
+    keys = ["kt_num_gpu_experts", "kt_max_deferred_experts_per_token", "kt_cpuinfer", "kt_threadpool_count", "max_total_tokens", "mem_fraction_static",
+            "kv_cache_dtype", "cuda_graph_max_bs", "cuda_graph_bs", "disable_cuda_graph", "attention_backend", "prefill_attention_backend", "decode_attention_backend",
+            "chunked_prefill_size", "max_running_requests", "schedule_conservativeness", "schedule_policy", "num_continuous_decode_steps", "scheduler_recv_interval",
+            "disable_overlap_schedule", "enable_mixed_chunk", "page_size", "moe_runner_backend", "disable_custom_all_reduce", "init_expert_location", "ep_dispatch_algorithm",
+            "speculative_algorithm", "max_prefill_tokens", "tp_size", "ep_size", "cuda_graph_backend_prefill", "cuda_graph_backend_decode", "triton_attention_num_kv_splits",
+            "tokenizer_worker_num", "detokenizer_worker_num", "enable_dp_attention", "dp_size", "prefill_max_requests", "disable_cuda_graph_padding"]
+    proofs["effective_server_args"] = {k: args.get(k) for k in keys if k in args}
+    proofs["effective_extra"] = {k: args.get(k) for k in ("max_total_num_tokens", "max_req_num", "version", "model_path", "kv_cache_dtype") if k in args}
+    # per-layer 검증: 층별 expert 수 62개
+    if cell.get("env", {}).get("KT_GPU_EXPERTS_PER_LAYER"):
+        r2 = dexec(CN, f"grep -oE 'per-layer gpu experts: layer [0-9]+ -> [0-9]+' {LOG_IN_CN} | sort -u")
+        per = {}
+        for l in r2.stdout.splitlines():
+            m = re.search(r"layer (\d+) -> (\d+)", l)
+            if m: per[int(m.group(1))] = int(m.group(2))
+        proofs["per_layer_effective"] = [per.get(i) for i in range(62)]; proofs["per_layer_sum"] = sum(v for v in per.values())
+    return proofs
+
+def main():
+    camp_dir, cell_path = sys.argv[1], sys.argv[2]; attempt = sys.argv[3] if len(sys.argv) > 3 else "a1"
+    cell = json.load(open(cell_path)); cid = cell["cell_id"]
+    cell_dir = f"{camp_dir}/{cid}/{attempt}"; os.makedirs(cell_dir, exist_ok=True)
+    st = {"campaign_dir": camp_dir, "cell_id": cid, "attempt_id": attempt, "state": "PENDING", "state_history": [], "reps": [], "t_created": now(), "errors": []}
+    set_state(st, cell_dir, "PENDING")
+    jdump(cell, f"{cell_dir}/cell_spec.json")
+    coll = None; booted = False
+    try:
+        # ---- PREFLIGHT
+        set_state(st, cell_dir, "PREFLIGHT")
+        for c in (CN, BENCH_CN):
+            if sh(f"{DOCKER} ps --format '{{{{.Names}}}}' | grep -qx {c}").returncode != 0:
+                raise RuntimeError(f"container {c} not running")
+        stop_server()
+        if cell.get("patch") == "per_layer":
+            r = sh(f"bash {REPO}/eval/ide070/patch_per_layer_experts.sh {CN}", timeout=120); log(cell_dir, f"patch per_layer: {r.stdout.strip()[:80]}")
+        # ---- BOOTING
+        set_state(st, cell_dir, "BOOTING")
+        sa = dict(cell["server_args"]) if cell.get("replace_server_args") else dict(R0["server_args"])
+        if not cell.get("replace_server_args"): sa.update(cell.get("server_args", {}))
+        for k in cell.get("server_args_remove", []): sa.pop(k, None)
+        env = dict(R0.get("env", {})); env.update(cell.get("env", {}))
+        env = {k: v for k, v in env.items() if v is not None}
+        gpus = cell.get("gpus", R0["gpus"])
+        req = {"server_args": sa, "env": env, "gpus": gpus}
+        jdump(req, f"{cell_dir}/requested_config.json")
+        b = boot_server(build_args(sa), env, gpus, cell_dir, timeout=cell.get("boot_timeout", 1200), prefix=cell.get("launch_prefix", ""))
+        st["boot"] = b; booted = (b["verdict"] == "HEALTH_OK")
+        if not booted:
+            st["errors"].append({"t": now(), "stage": "BOOTING", "verdict": b["verdict"], "error_lines": b.get("error_lines")})
+            set_state(st, cell_dir, "FAILED_BOOT", exit_status="FAILED_BOOT"); stop_server(); return
+        # ---- VERIFY_EFFECTIVE_CONFIG
+        set_state(st, cell_dir, "VERIFY_EFFECTIVE_CONFIG")
+        sinfo = server_info(); jdump(sinfo, f"{cell_dir}/server_info.json")
+        proofs = runtime_proofs(cell, sinfo); jdump(proofs, f"{cell_dir}/runtime_proofs.json")
+        eff = {"requested": req, "effective_server_args": proofs.get("effective_server_args"), "effective_extra": proofs.get("effective_extra"), "config_hash": config_hash(req)}
+        jdump(eff, f"{cell_dir}/effective_config.json")
+        mismatch = []
+        for k, v in sa.items():
+            ek = k.replace("-", "_")
+            if ek in (proofs.get("effective_server_args") or {}):
+                ev = proofs["effective_server_args"][ek]
+                if isinstance(v, (int, float)) and isinstance(ev, (int, float)) and abs(float(v) - float(ev)) > 1e-9: mismatch.append((k, v, ev))
+                elif isinstance(v, str) and isinstance(ev, str) and v != ev: mismatch.append((k, v, ev))
+        st["config_mismatch"] = mismatch
+        if cell.get("env", {}).get("KT_CALLBACK_FREE") and (proofs.get("cf_ready_lines") in (None, "0")):
+            st["errors"].append({"t": now(), "stage": "VERIFY", "msg": "KT_CALLBACK_FREE set but no [kt-cf] ready line"}); mismatch.append(("KT_CALLBACK_FREE", "1", "no proof"))
+        if cell.get("env", {}).get("KT_GPU_EXPERTS_PER_LAYER") and proofs.get("per_layer_sum") != cell.get("expected_slots", 5952):
+            mismatch.append(("per_layer_sum", cell.get("expected_slots", 5952), proofs.get("per_layer_sum")))
+        if mismatch and cell.get("strict_config", True):
+            set_state(st, cell_dir, "INVALID_CONFIG", exit_status="INVALID_CONFIG"); save_server_log(cell_dir); stop_server(); return
+        pids = all_server_host_pids(); st["server_pids"] = pids; kt = kt_worker_cpus(pids); st["kt_worker_cpus"] = sorted(kt)
+        # pinning
+        if cell.get("pin_nonkt"):
+            free = sorted(set(range(224)) - kt - {c + 112 for c in kt if c < 112} - {c - 112 for c in kt if c >= 112})
+            # 지시서: 비-kt 스레드는 남은 물리 코어와 그 HT 형제에 배치 (kt 물리 코어의 HT 형제는 제외)
+            n = pin_nonkt(set(free), pids); st["pin"] = {"free_cpus": free, "moved_threads": n}
+            # 벤치 클라이언트 컨테이너 프로세스도 예비 코어로
+            log(cell_dir, f"pin_nonkt moved {n} threads to {free[:4]}..{free[-1]}")
+        jdump(thread_affinity_snapshot(pids), f"{cell_dir}/thread_affinity.json")
+        # ---- WARMUP
+        set_state(st, cell_dir, "WARMUP")
+        model = sa["served-model-name"]
+        wl0 = WORKLOADS[cell["workloads"][0]["workload_id"]]
+        w = run_bench(dict(wl0), 16, 32, model, f"{cell_dir}/warmup", wl0["seed"], timeout=900)
+        st["warmup"] = {"rc": w["rc"], "wall_seconds": w["wall_seconds"], "summary": w["summary"]}
+        if w["rc"] != 0 or not w["summary"] or (w["summary"].get("completed") or 0) < 32:
+            st["errors"].append({"t": now(), "stage": "WARMUP", "rc": w["rc"], "stderr_tail": open(f"{cell_dir}/warmup/bench.stderr.log").read()[-1500:]})
+        # ---- MEASURING (workload × rep)
+        for wspec in cell["workloads"]:
+            wid = wspec["workload_id"]; wl = dict(WORKLOADS[wid]); C = wspec["C"]; n = wspec.get("n") or wl["n_per_C"] * C
+            reps = wspec.get("reps", 3)
+            if wspec.get("request_rate"): wl["request_rate"] = wspec["request_rate"]; wl["max_concurrency"] = False
+            for r in range(1, reps + 1):
+                rep_id = f"{wid}_C{C}_rep{r}"; rd = f"{cell_dir}/{rep_id}"; os.makedirs(rd, exist_ok=True)
+                ts = {"rep_id": rep_id, "workload": wid, "C": C, "n": n}
+                set_state(st, cell_dir, "CACHE_PREPARE", current_rep=rep_id)
+                ts["cache_prepare_start"] = now()
+                if wl["cache_policy"].startswith("engine_cache_flush") or wl["cache_policy"] == "flush_then_prefix_only_prepare":
+                    fl = flush_cache(); ts["flush"] = fl; time.sleep(3)
+                if wl["cache_policy"] == "flush_then_prefix_only_prepare":
+                    # 공통 prefix 만 1회 요청 (측정 프롬프트는 요청하지 않음): 같은 seed·prefix 로 num-prompts 1, output 1
+                    run_bench(dict(wl, out=1), 1, 1, model, f"{rd}/prefix_prepare", wl["seed"], timeout=300)
+                ts["cache_prepare_end"] = now()
+                jdump(thread_affinity_snapshot(pids), f"{rd}/thread_affinity_start.json")
+                coll = Collectors(rd, pids); coll.start(kt_cpus=kt)
+                set_state(st, cell_dir, "MEASURING", current_rep=rep_id)
+                ts["measure_start"] = now()
+                b = run_bench(wl, C, n, model, rd, wl["seed"], timeout=cell.get("bench_timeout", 1800))
+                ts["measure_end"] = now()
+                set_state(st, cell_dir, "DRAINING", current_rep=rep_id); time.sleep(2)
+                coll.stop(); coll = None
+                jdump(thread_affinity_snapshot(pids), f"{rd}/thread_affinity_end.json")
+                ts["drain_end"] = now(); jdump(ts, f"{rd}/timestamps.json")
+                s = b["summary"] or {}
+                rep_rec = {"rep_id": rep_id, "workload_id": wid, "C": C, "n": n, "rc": b["rc"], "wall_seconds": b["wall_seconds"],
+                           "completed": s.get("completed"), "failed": s.get("failed"), "duration": s.get("duration"),
+                           "input_tokens": s.get("total_input_tokens"), "output_tokens": s.get("total_output_tokens"),
+                           "output_tps": s.get("output_throughput"), "total_tps": s.get("total_token_throughput"),
+                           "ttft_p50": s.get("median_ttft_ms"), "ttft_p95": s.get("p95_ttft_ms"), "ttft_p99": s.get("p99_ttft_ms"),
+                           "tpot_p50": s.get("median_tpot_ms"), "tpot_p95": s.get("p95_tpot_ms"), "tpot_p99": s.get("p99_tpot_ms"),
+                           "itl_p50": s.get("median_itl_ms"), "itl_p95": s.get("p95_itl_ms"), "e2el_p50": s.get("median_e2el_ms"), "e2el_p95": s.get("p95_e2el_ms"),
+                           "valid": bool(s) and b["rc"] == 0 and (s.get("failed") or 0) == 0 and (s.get("completed") or 0) == n}
+                if not rep_rec["valid"]:
+                    rep_rec["invalid_reason"] = f"rc={b['rc']} completed={s.get('completed')} failed={s.get('failed')} n={n}"
+                    st["errors"].append({"t": now(), "stage": "MEASURING", "rep": rep_id, "reason": rep_rec["invalid_reason"], "stderr_tail": open(f"{rd}/bench.stderr.log").read()[-1500:]})
+                jdump(rep_rec, f"{rd}/metrics.json"); st["reps"].append(rep_rec); jdump(st, f"{cell_dir}/status.json")
+                log(cell_dir, f"{rep_id}: tps={rep_rec['output_tps']} tpot50={rep_rec['tpot_p50']} ttft50={rep_rec['ttft_p50']} ok={rep_rec['completed']}/{n} valid={rep_rec['valid']}")
+                if not health():
+                    st["errors"].append({"t": now(), "stage": "MEASURING", "rep": rep_id, "reason": "server not healthy after rep"})
+                    set_state(st, cell_dir, "FAILED_RUNTIME", exit_status="FAILED_RUNTIME"); save_server_log(cell_dir); stop_server(); return
+        # ---- PERSISTING
+        set_state(st, cell_dir, "PERSISTING")
+        n_log = save_server_log(cell_dir); st["server_log_bytes"] = n_log
+        jdump(thread_affinity_snapshot(pids), f"{cell_dir}/thread_affinity_end.json")
+        st["hbm_end"] = sh("nvidia-smi --query-gpu=index,memory.used --format=csv,noheader").stdout.strip()
+        stop_server()
+        valid = [r for r in st["reps"] if r["valid"]]
+        exit_status = "COMPLETED" if valid and len(valid) == len(st["reps"]) else ("FAILED_REQUESTS" if valid else "FAILED_REQUESTS")
+        set_state(st, cell_dir, exit_status, exit_status=exit_status)
+    except Exception as e:
+        tb = traceback.format_exc()
+        st["errors"].append({"t": now(), "stage": st.get("state"), "exception": str(e), "traceback": tb[-3000:]})
+        set_state(st, cell_dir, "CAPTURE_FAILURE")
+        try:
+            if coll: coll.stop()
+            if booted: save_server_log(cell_dir)
+        except Exception: pass
+        set_state(st, cell_dir, "CLEANUP_OWN_PROCESSES"); stop_server()
+        set_state(st, cell_dir, "FAILED_RUNTIME", exit_status="FAILED_RUNTIME")
+    finally:
+        if cell.get("patch") == "per_layer":
+            sh(f"bash {REPO}/eval/ide070/patch_per_layer_experts.sh {CN} --revert", timeout=120)
+        st["t_finished"] = now(); jdump(st, f"{cell_dir}/status.json")
+        # errors.jsonl
+        for e in st["errors"]: jappend(e, f"{cell_dir}/errors.jsonl")
+
+if __name__ == "__main__":
+    main()
