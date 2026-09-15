@@ -2,12 +2,14 @@
 
 ## TSK_050 — 실험 B: 480B 오프로딩 GPU 최소 장수
 
-- [ ] b0  GPU-only TP8 + EP8 기준선 — 부팅, greedy 4문항, C16 벤치
-- [ ] b0a GPU-only TP4 — OOM 재실증 (TSK_047 재현, 45초 예상)
-- [ ] b1  하이브리드 TP4, expert 전량 CPU — 부팅, greedy, C16 벤치 (TSK_047 44.5 tok/s 대조)
-- [ ] b2  하이브리드 TP2
-- [ ] b3  하이브리드 TP1
-- [ ] (선택) 성립한 최소 TP 에서 남는 HBM 에 hot expert 배치 — 처리량 회복 여부
+- [x] b0  GPU-only TP8 + EP8 기준선 — 701.60 tok/s, greedy 4/4
+- [x] b0a GPU-only TP4 — OOM 40초
+- [x] b1  하이브리드 TP4 — 43.39 tok/s
+- [x] b2  하이브리드 TP2 — 43.33 tok/s
+- [x] b3  하이브리드 TP1 — 43.24 tok/s, HBM 24 GiB
+- [x] b4~b6 남는 HBM 에 expert 16/40/96 배치 — +8/+15/+19 % (hotmap 없는 하한)
+- [ ] b7~b8 TP1 cuda graph ON 변형
+- [ ] **b9~b14 GPU 3·5·6·7 장 (사용자 요청)** — 하이브리드 TP3/5/6/7 + GPU-only TP6/TP7 (EP) 부팅 시도, 되는 조합만 벤치
 - [ ] RESULT.md — 장수별 성립·처리량·지연·품질·HBM 사용량 표
 
 ## TSK_051 — 실험 A: 최대 모델 Kimi-K2-Instruct

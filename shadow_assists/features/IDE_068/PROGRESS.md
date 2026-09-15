@@ -52,3 +52,6 @@
 ## 2026-09-15 10:09 — 30분 점검
 - B3 b7 (TP1, cuda graph ON, expert 전량 CPU): HEALTH OK 70초, 벤치 중 — 서버 로그 `cuda graph: True`, gen throughput 51~57 tok/s (graph OFF 였던 b3 의 서버 로그 33~55 대비 상승). 완료 후 집계.
 - Kimi-K2: 287 GB (blob 완료 33·진행 16). 09:55 → 10:09 사이 100 GB — 실효 ≈ 120 MB/s. 완료 예상 11:50 전후.
+
+## 2026-09-15 10:14 — 사용자 요청: GPU 3·5·6·7 장 추가
+- B4 (`run_expB4.sh`) 를 B3 종료 직후 자동 연결. 하이브리드 TP3/5/6/7 + GPU-only TP6/TP7(EP). 480B 는 attention head 96 / KV head 8 이라 TP5·TP7 은 head 분할이 안 되고 TP3·TP6 은 KV head 가 안 나뉠 가능성이 있음 — 추측으로 빼지 않고 전부 부팅 시도, 실패 시 엔진 오류를 기록.
