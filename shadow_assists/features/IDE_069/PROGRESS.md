@@ -86,3 +86,8 @@
 | GPU-only TP8+EP8 (같은 총부하) | 1,029.75 (C32) | 2,031.11 (C64) | — |
 - 두 인스턴스는 완전 대칭 (±2 %), greedy 양쪽 4/4, 간섭 없음. expert 0 dual 은 단일 4장(43 @C16 / 8-30 66.6 @C32)과 같다 — CPU 대역폭을 둘로 나눈 만큼 각자 절반.
 - **⚠ 컨테이너 등가성 미달**: sgl-kt5 단독 hot96 def4 cpuinfer 96 C32 = **336.27** vs sgl-kt 의 같은 구성 519.8/486.9 → sgl-kt5/sgl-kt2 (kt-kernel 0.7.0.post2 정식판) 가 sgl-kt (post1 소스빌드 + sglang 로컬 수정 3파일 = IDE_033 계열 개선) 보다 **약 30 % 느리다**. 따라서 위 dual 수치는 느린 소프트웨어 기준이며, TP8 과의 격차 일부는 소프트웨어 차이다. 라우터 셀 종료 후 sgl-kt 의 kt_kernel·sglang 수정본을 두 컨테이너에 동기화하고 dual hot 을 재측정한다.
+
+## 2026-09-15 17:17 — 라우터(expert 0) 결과, 스크립트 편집 사고, 복구
+- **라우터 단일 엔드포인트 (expert 0 ×2, round_robin, kt post2 컨테이너)**: C32 **46.12** tok/s (TTFT p50 7,972 ms) / C64 **58.13** (TTFT p50 8,460 ms). 같은 총부하의 합산 방식 49.19 / 66.01 대비 **−6.2 % / −11.9 %** — 라우터 오버헤드 + 불균형.
+- **사고**: 라우터 스크립트 실행 중에 같은 파일(`run_router.sh`)을 편집(ONLY_HOT 옵션 추가) → bash 가 실행 중 파일을 읽으므로 오프셋이 어긋나 hot 변형 직전 `syntax error: unexpected end of file` 로 사망 (16:11). "router done" 미기록으로 후속 체인이 대기만 하다 17:15 발견 — **GPU 유휴 약 64분**. 교훈: 실행 중인 스크립트는 편집하지 않는다 (사본을 만들어 다음 실행에 쓴다).
+- 복구: 대기 체인 종료 → 동기화(sgl-kt 의 kt_kernel post1·sglang 수정 10파일·deep_gemm 비활성 → sgl-kt5/2) → 단독 검증 → dual hot → router hot 을 17:17 재시작.
