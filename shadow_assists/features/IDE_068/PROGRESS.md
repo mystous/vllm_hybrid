@@ -90,3 +90,7 @@
 
 ## 2026-09-15 13:09 — 30분 점검: INT4 변환 55/61
 - kt quant **layer 55 / 61** (마지막 층 65.9 s — 초반 12 s 대비 느려짐, DRAM free 22 GB·page cache 1,432 GB 로 캐시 압박 추정). 출력 435 GB → 최종 ≈480 GB. 완료 예상 **13:20 전후**, 즉시 TP8 부팅 자동.
+
+## 2026-09-15 13:17 — Kimi-K2 INT4 변환 완료, TP8 부팅 착수
+- `kt quant -m int4 -i fp8` **완료 13:17:04, 소요 4,114 s (68.6 min)**, QUANT_EXIT=0. 출력 **488 GB, 64 files** (`/models/kt/kimi-k2-int4`). 원본 1,030 GB → 0.47×.
+- a1 하이브리드 TP8 부팅 시작 13:17:16 (`--kt-cpuinfer 96 --kt-num-gpu-experts 0 --disable-cuda-graph --max-total-tokens 65536`). tiktoken tokenizer 로드 확인 (#words 163,840).
