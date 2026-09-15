@@ -38,3 +38,7 @@
 - **b3 하이브리드 TP1**: 64/64 완료, **43.24 out tok/s**, TTFT p50 8,694 ms / p95 11,008 ms, TPOT p50 300.1 ms / p95 304.4 ms, 벤치 189.5 s. greedy 4/4 정상. **HBM 24.0 GiB (1장)**, DRAM 307 GB. CPU busy 평균 43.9 %.
 - TP4 / TP2 / TP1 = 43.39 / 43.33 / 43.24 tok/s — GPU 장수와 무관. 답: **최소 1장** (GPU-only 는 8장 필요·TP4 OOM).
 - B2 자동 착수 (`20260915_094613_ide068_expB2_480b_gpuexperts`): b4 TP1 + GPU expert 16개 부팅 중.
+
+## 2026-09-15 09:55 — B2 b4: TP1 + GPU expert 16개
+- **b4 TP1 + `--kt-num-gpu-experts 16`** (물리 id 0~15, hotmap 없음): HEALTH OK 70초, 64/64, **46.81 out tok/s** (b3 43.24 대비 **+8.3 %**), TTFT p50 8,014 ms, TPOT p50 274.0 ms (300.1 → 274.0, −8.7 %), 벤치 175.0 s. greedy 4/4. **HBM 65.7 GiB (1장)** — expert 16개×62층 FP8 ≈ 46 GB 가 올라감. CPU busy 43.7 %.
+- b5 TP2 + 40개 부팅 중.
