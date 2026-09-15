@@ -144,8 +144,9 @@ FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디�
 | `TSK_050` | **완료** (2026-09-15) — b0 기준선 701.60 / b3 TP1 43.24 / B2 +8~19 % / B3 graph 무효 / B4 6/6 거부 | 실험 B — 480B 오프로딩 GPU 최소 장수 | 부모 `PLN_010`. 셀: b0 GPU-only TP8+EP8 기준선 (SGLang 은 TP8 순수 분할이 FP8 block 제약으로 불가 → EP 로 우회), b0a GPU-only TP4 OOM 재실증, b1 하이브리드 TP4 (`TSK_047` 재현), b2 TP2, b3 TP1. 각 셀 = 부팅 → greedy 4문항 → sonnet 512/128 C16 64req 벤치 + CPU·GPU 샘플러. expert 는 전량 CPU(`--kt-num-gpu-experts 0`)가 기본이고, 성립 후 남는 HBM 에 hot expert 를 올리는 변형은 선택 |
 | `TSK_051` | **완료** (2026-09-15) — 다운로드 2h45m, 변환 68.6min 488 GB, TP8 HEALTH 240 s, greedy 4/4, C8 22.78 tok/s | 실험 A — 최대 모델 Kimi-K2-Instruct 오프로딩 서빙 | 부모 `PLN_010`. 1.03 TB 다운로드(`/data/hf`, 실측 39.5 MB/s 단일 스트림) → `kt quant -m int4 -i fp8` (예상 ~0.5 TB) → 하이브리드 TP8 부팅 → greedy 4문항 → C8 벤치. DeepseekV3 arch 이므로 `SUB_167` 품질 결함 재현 가능성 있음 — 재현 시 "적재·서빙 성립, 품질 미통과" 로 기록하고 DRAM 용량 한계(2 TB 대비 사용량)를 별도 보고 |
 | `TSK_052` | 활성 (2026-09-15) | IDE_069 실행 — hotmap 재생성 + 셀 sweep | 부모 `IDE_069`. (1) recorder per_pass 로 sonnet 라우팅 트레이스 → hotmap.json (2) TP4 셀: hot 0/64/96/112 × graph × deferral 0/2/4 × C16/32/64 (3) dispatch dynamic, spec decode (4) 품질 게이트 |
+| `TSK_053` | 활성 (2026-09-15) | IDE_069 후속 — TP4+CPU 오프로딩 ×2 (GPU 8장) 대 GPU-only TP8 성능 비교 | 부모 `IDE_069`. 사용자 지시. 인스턴스 A(GPU 0-3, 소켓0) / B(GPU 4-7, 소켓1, cgroup cpuset 컨테이너 — 8-29 dual 실험의 kt 스레드 고정 결함 회피) 각 hot96+def4, cpuinfer 48. 동시 벤치 합산 vs TP8+EP8 GPU-only C32/C64. 선행 8-30 교정판: expert 전량 CPU 에서는 dual 60.5 < single 66.6 |
 
-**다음 부여 번호**: `TSK_053`
+**다음 부여 번호**: `TSK_054`
 
 > `TSK_020`~`TSK_042` 는 vllm_config_perf 시대 외부 발급분 (번호 소진 처리, 정의는 `vllm_config_perf/` 참조).
 
