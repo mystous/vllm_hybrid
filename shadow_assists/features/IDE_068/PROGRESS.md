@@ -98,3 +98,8 @@
 ## 2026-09-15 13:22 — ★ Kimi-K2-Instruct (1 T) 하이브리드 TP8 부팅 성공
 - **a1 HEALTH OK 240 s** (488 GB INT4 expert → DRAM 적재 포함). **HBM 12.8~13.3 GiB/장** (비-expert 가중치 + KV, max-total-tokens 65536). **DRAM used 576 GB** (free 30 GB, page cache 1,419 GB).
 - greedy 4문항 진행 중 → C8 32req 벤치 자동.
+
+## 2026-09-15 13:24 — ★ Kimi-K2 greedy 4/4 정상 — SUB_167 결함 재현 안 됨
+- Q1 "Paris. It has been the capital since 987 CE…" / Q2 fibonacci 재귀 정답 / Q3 "5050 … 1+…+1000 = 500500" / Q4 `s[::-1]`. **4/4 정상.**
+- 의미: Kimi-K2 는 R1 과 같은 DeepseekV3 arch (FP8 block 128×128 `weight_scale_inv`, shared expert 1개) 인데 같은 변환기·서빙 경로에서 출력이 정상이다. `SUB_167` 의 "DeepSeek 계열 특이 결함" 가설은 **R1-0528 체크포인트 특이** 또는 **당시 kt-kernel 0.7.0.post2 결함(현재 post1)** 으로 더 좁혀진다. R1 원본이 삭제돼 이 노드에서 직접 재검은 불가.
+- C8 32req 벤치 진행 중.
