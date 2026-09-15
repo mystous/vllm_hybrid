@@ -48,3 +48,7 @@
 - **b6 TP4 + GPU expert 96**: HEALTH OK 100초, 64/64, **51.55 tok/s** (+18.8 %), TTFT p50 4,548 ms, TPOT 273.4 ms, HBM 75.7~76.2 GiB ×4. greedy 4/4.
 - hotmap 없는 물리 id 배치의 이득은 +8~19 % 에 그친다. IDE_030 의 hotmap 96개 = 490.9 tok/s 와의 차이가 빈도 기반 배치의 가치.
 - GPU 전부 유휴. Kimi 다운로드 대기 중 → 그 사이 TP1 에서 cuda graph 를 켠 변형(B3)을 돌려 최소 장수 구성의 현실적 처리량을 본다.
+
+## 2026-09-15 10:09 — 30분 점검
+- B3 b7 (TP1, cuda graph ON, expert 전량 CPU): HEALTH OK 70초, 벤치 중 — 서버 로그 `cuda graph: True`, gen throughput 51~57 tok/s (graph OFF 였던 b3 의 서버 로그 33~55 대비 상승). 완료 후 집계.
+- Kimi-K2: 287 GB (blob 완료 33·진행 16). 09:55 → 10:09 사이 100 GB — 실효 ≈ 120 MB/s. 완료 예상 11:50 전후.
