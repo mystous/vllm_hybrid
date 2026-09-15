@@ -275,6 +275,14 @@ graph TD
     IDE_023 --> PLN_003["PLN_003<br/>regime sweep"]
     PLN_003 --> TSK_043["TSK_043~046"]
     IDE_023 --> TSK_047["TSK_047<br/>480B 검증·SUB_167 확정"]
+    U915["사용자 지시 (09-15)<br/>오프로딩 한계 2문항"] --> IDE_068["IDE_068<br/>서버 한계: 최대 모델 · GPU 최소 장수<br/>(Kimi-K2 1T 성립 / 480B GPU 1장)"]
+    IDE_023 --> IDE_068
+    IDE_068 --> PLN_010["PLN_010<br/>A ∥ B 실행 계획"]
+    PLN_010 --> TSK_050["TSK_050 실험 B<br/>480B TP8 기준선 701.6 → TP1 43.2<br/>3·5·6·7장 TP 불가"]
+    PLN_010 --> TSK_051["TSK_051 실험 A<br/>Kimi-K2 1,030 GB → INT4 488 GB<br/>TP8 greedy 4/4 · 22.8 tok/s"]
+    TSK_050 --> TST_024["TST_024 통과"]
+    TSK_051 --> TST_025["TST_025 통과"]
+    TSK_051 -.SUB_167 가설 축소.-> TSK_047
     UN["사용자 지시 (08-29)<br/>논문급 신규성 탐색"] --> IDE_026["IDE_026<br/>SCED (보류)"]
     IDE_026 --> PLN_004["PLN_004<br/>E0~E4 (H3 기각)"]
     UN --> C1["C-트랙 후보 1 (기각)"]
