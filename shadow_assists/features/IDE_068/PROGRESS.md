@@ -24,3 +24,8 @@
 - **b1 하이브리드 TP4 (expert 전량 CPU)**: HEALTH OK **70초**. 64/64 완료. **43.39 out tok/s** (TSK_047 44.5 와 일치), 전체 213.6 tok/s, TTFT p50 8,622 ms / p95 11,318 ms, TPOT p50 299.1 ms / p95 303.0 ms, 벤치 188.8 s. greedy 4/4 정상. **HBM 17.0~17.5 GiB/장** (GPU 4장만), DRAM 사용 315 GB.
 - 기준선 대비: 처리량 701.60 → 43.39 (**6.2 %**), TPOT 20.14 → 299.1 ms (14.9×). GPU 8장 → 4장.
 - b2 하이브리드 TP2: HEALTH OK 70초, 벤치 진행 중.
+
+## 2026-09-15 09:41 — 30분 점검
+- b2 하이브리드 TP2: greedy Q1·Q2 정상 확인, C16 벤치 17/64 진행 (서버 로그 gen throughput 32.8~54.5 tok/s, #running-req 16, cuda graph False). HBM 20.0~20.5 GiB/장 (GPU 2장).
+- Kimi-K2: net RX 118 MB/s 유지, blob 진행 16개(합 96 GB)·완료 17개, 디렉터리 117~131 GB. 디스크 반영 속도는 RX 의 약 절반(≈55~60 MB/s) — xet 청크 처리로 추정. 완료 예상 13:30~14:00 로 수정.
+- B2(GPU expert 배치 16/40/96) 는 expB 종료 직후 자동 연결됨.
