@@ -94,3 +94,7 @@
 ## 2026-09-15 13:17 — Kimi-K2 INT4 변환 완료, TP8 부팅 착수
 - `kt quant -m int4 -i fp8` **완료 13:17:04, 소요 4,114 s (68.6 min)**, QUANT_EXIT=0. 출력 **488 GB, 64 files** (`/models/kt/kimi-k2-int4`). 원본 1,030 GB → 0.47×.
 - a1 하이브리드 TP8 부팅 시작 13:17:16 (`--kt-cpuinfer 96 --kt-num-gpu-experts 0 --disable-cuda-graph --max-total-tokens 65536`). tiktoken tokenizer 로드 확인 (#words 163,840).
+
+## 2026-09-15 13:22 — ★ Kimi-K2-Instruct (1 T) 하이브리드 TP8 부팅 성공
+- **a1 HEALTH OK 240 s** (488 GB INT4 expert → DRAM 적재 포함). **HBM 12.8~13.3 GiB/장** (비-expert 가중치 + KV, max-total-tokens 65536). **DRAM used 576 GB** (free 30 GB, page cache 1,419 GB).
+- greedy 4문항 진행 중 → C8 32req 벤치 자동.
