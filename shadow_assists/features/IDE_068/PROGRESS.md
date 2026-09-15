@@ -55,3 +55,7 @@
 
 ## 2026-09-15 10:14 — 사용자 요청: GPU 3·5·6·7 장 추가
 - B4 (`run_expB4.sh`) 를 B3 종료 직후 자동 연결. 하이브리드 TP3/5/6/7 + GPU-only TP6/TP7(EP). 480B 는 attention head 96 / KV head 8 이라 TP5·TP7 은 head 분할이 안 되고 TP3·TP6 은 KV head 가 안 나뉠 가능성이 있음 — 추측으로 빼지 않고 전부 부팅 시도, 실패 시 엔진 오류를 기록.
+
+## 2026-09-15 10:16 — B3 완료: TP1 cuda graph 효과 없음
+- b7 TP1 expert 0 graph ON: 43.53 tok/s (OFF 43.24), TPOT 297.6 ms. b8 TP1 expert 16 graph ON: 46.10 (OFF 46.81), TPOT 281.4 ms. 모두 greedy 4/4. ±1 % 로 편차 수준 — CPU expert 구간이 지배라 GPU launch overhead 감소가 드러나지 않음.
+- B4 착수: b9 하이브리드 TP3 부팅 시도 중.

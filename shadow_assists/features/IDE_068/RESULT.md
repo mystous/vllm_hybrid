@@ -65,6 +65,19 @@ IDE_030 은 TP4 에서 hot-expert 96개 + hotmap(빈도 기반 배치) + deferra
 - 빈도 무관 배치(물리 id 0..N−1)라 hot expert 가 아니다. 160개 중 16개 = 10 %, 40개 = 25 %, 96개 = 60 % 를 GPU 로 옮겼는데 처리량은 +8 / +15 / +19 % 에 그친다 — top-8 라우팅이 앞쪽 id 에 몰리지 않기 때문이다. IDE_030 이 같은 96개를 **빈도 상위**로 배치해 490.9 tok/s 를 얻은 것과의 차이가 hotmap 의 가치다.
 - TTFT 는 GPU expert 수에 비례해 줄었다 (8.7 → 8.0 → 6.9 → 4.5 s). prefill 은 모든 expert 를 건드리므로 GPU 에 있는 expert 비율만큼 CPU 구간이 줄어든다.
 
+### B.5 B3 — TP1 에서 cuda graph 를 켜면 (`eval/results/20260915_100411_ide068_expB3_480b_tp1_cudagraph/`)
+
+b3/b4 는 TSK_047 조건(`--disable-cuda-graph`)이었다. IDE_030 이 KT 경로에서 `--cuda-graph-backend-prefill disabled --cuda-graph-max-bs 64` 로 graph 를 켤 수 있음을 보였으므로 같은 TP1 구성에서 켜 보았다.
+
+| 셀 | 구성 | graph | 출력 tok/s | TTFT p50 ms | TPOT p50 ms | HBM GiB |
+|---|---|---|---|---|---|---|
+| b3 | TP1, expert 0 | OFF | 43.24 | 8,694 | 300.1 | 24.0 |
+| b7 | TP1, expert 0 | **ON** | 43.53 | 8,785 | 297.6 | 22.3 |
+| b4 | TP1, expert 16 | OFF | 46.81 | 8,014 | 274.0 | 65.7 |
+| b8 | TP1, expert 16 | **ON** | 46.10 | 7,710 | 281.4 | 66.0 |
+
+cuda graph 는 이 구성에서 **효과가 없다** (±1 %, run 간 편차 수준). 스텝이 CPU expert 구간에 묶여 있어 GPU 측 launch overhead 를 줄여도 드러나지 않는다. graph 가 효과를 내려면 IDE_030 처럼 hot expert 가 GPU 에 충분히 올라가 GPU 구간이 스텝의 주요 부분이 되어야 한다.
+
 ---
 
 ## 실험 A — 최대 모델 (TSK_051)
