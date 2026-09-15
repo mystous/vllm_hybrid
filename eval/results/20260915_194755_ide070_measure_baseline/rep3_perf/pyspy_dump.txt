@@ -1,0 +1,21 @@
+Process 1884396: python3 -m sglang.launch_server --model-path /models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f --served-model-name q480 --host 127.0.0.1 --port 30000 --tp 4 --attention-backend triton --trust-remote-code --context-length 32768 --kt-weight-path /models/kt/qwen3-480b-int4 --kt-method AMXINT4 --kt-cpuinfer 96 --kt-threadpool-count 2 --kt-num-gpu-experts 96 --init-expert-location /models/kt/ide069/hotmap.json --kt-max-deferred-experts-per-token 4 --cuda-graph-backend-prefill disabled --cuda-graph-max-bs 64 --mem-fraction-static 0.95 --max-total-tokens 40960 --ep-dispatch-algorithm dynamic --expert-distribution-recorder-mode stat
+Python v3.12.3 (/usr/bin/python3.12)
+
+Thread 727449 (active): "MainThread"
+    run (asyncio/runners.py:118)
+    run (asyncio/runners.py:194)
+    run (uvicorn/server.py:77)
+    run (uvicorn/main.py:621)
+    _setup_and_run_http_server (http_server.py:2656)
+    launch_server (http_server.py:2818)
+    run_server (sglang/launch_server.py:53)
+    <module> (sglang/launch_server.py:70)
+    _run_code (<frozen runpy>:88)
+    _run_module_as_main (<frozen runpy>:198)
+Thread 729214 (idle): "subprocess-watchdog"
+    wait (threading.py:359)
+    wait (threading.py:655)
+    _monitor_loop (utils/watchdog.py:205)
+    run (threading.py:1010)
+    _bootstrap_inner (threading.py:1073)
+    _bootstrap (threading.py:1030)

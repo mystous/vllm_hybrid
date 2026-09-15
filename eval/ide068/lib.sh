@@ -24,8 +24,9 @@ boot() {
   mkdir -p "$out"
   free -g > "$out/free_before.txt"
   nvidia-smi --query-gpu=index,memory.used --format=csv,noheader > "$out/hbm_before.csv"
-  echo "CUDA_VISIBLE_DEVICES=$gpus python3 -m sglang.launch_server $*" > "$out/launch_cmd.txt"
-  docker exec -d "$CN" bash -c "CUDA_VISIBLE_DEVICES=$gpus python3 -m sglang.launch_server $* > $LOG_IN_CN 2>&1"
+  # BOOT_ENV: 서버 프로세스에 추가로 넣을 환경변수 (예: "KT_GPU_EXPERTS_PER_LAYER=/models/kt/ide070/x.json"), IDE_070 추가
+  echo "${BOOT_ENV:-} CUDA_VISIBLE_DEVICES=$gpus python3 -m sglang.launch_server $*" > "$out/launch_cmd.txt"
+  docker exec -d "$CN" bash -c "${BOOT_ENV:-} CUDA_VISIBLE_DEVICES=$gpus python3 -m sglang.launch_server $* > $LOG_IN_CN 2>&1"
   local i=0; BOOT_VERDICT=TIMEOUT
   while ((i<tmo)); do
     if curl -sf "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then BOOT_VERDICT=HEALTH_OK; break; fi
@@ -74,6 +75,7 @@ PY
 # bench <cell_dir> <model> <tokenizer_host_path> <concurrency> <num_prompts>
 bench() {
   local out=$1 model=$2 tok=$3 conc=$4 n=$5
+  mkdir -p "$out"   # IDE_070: 호출자가 rep 디렉터리를 만들지 않아도 되게 (없으면 리다이렉션 실패로 벤치가 실행되지 않음)
   ( nvidia-smi --query-gpu=index,utilization.gpu,memory.used,power.draw --format=csv,noheader -l 5 > "$out/gpu_util.csv" 2>&1 & echo $! > "$out/.gpu_mon" )
   ( bash "$CPU_SAMPLER" "$out/cpu_util.txt" & echo $! > "$out/.cpu_mon" )
   date +%s > "$out/bench_t0.txt"
