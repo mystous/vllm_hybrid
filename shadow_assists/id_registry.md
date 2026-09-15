@@ -74,8 +74,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_066` | 활성 (2026-09-11 05:30) | **NaN 발생 지점 특정 — CPU expert 출력 계측** — `IDE_063`/`IDE_064` 에서 원인 축을 특정하지 못했고 (KV dtype·지연 expert·누적 이력·mixed forward 모두 기각) 발생률은 약 40만 토큰당 1회. SGLang 의 비-투기 경로에는 NaN 계측이 샘플러 (`layers/sampler.py:95`, `next_token_logits`) 한 곳뿐이라 더 좁힐 수 없다. KTransformers CPU expert 출력과 MoE 합산 직후에 NaN 검사를 넣어 (throttled 카운터, 동기화 없는 `torch.isnan().any()` 후 비동기 기록) 어느 단계에서 처음 나타나는지 본다. 완화를 켜 서버가 살아 있는 상태로 도착률 5.0 을 반복. 부모 = `IDE_063`. **판정 기준**: CPU expert 출력에서 먼저 잡히면 INT4 역양자화·AMX 커널이 원인 구간, 샘플러에서만 잡히면 GPU 경로 또는 합산 이후. 계측 자체가 처리량을 5% 이상 떨어뜨리면 표본만 줄여 재시도 |
 | `IDE_068` | **완료** (2026-09-15) — A: Kimi-K2 1T 서빙 성립(greedy 4/4, 22.78 tok/s, DRAM 576 GB) / B: 480B GPU 1장 성립(43.24 tok/s, TP4/2/1 동일), 3·5·6·7장 TP 불가 | **CPU MoE 오프로딩의 서버 한계 — 최대 모델 크기와 GPU 최소 장수** — 두 질문을 같은 노드(violet-h100-016, H100×8 / Xeon 8480+×2 AMX / DDR5 2 TB, turbo OFF)에서 실측한다. (A) 이 서버가 CPU MoE 오프로딩으로 지원할 수 있는 **최대 모델** — 후보 = 공개 최대 MoE `moonshotai/Kimi-K2-Instruct` (1.03 TB FP8, DeepseekV3 arch, 384+1 experts/층, 61층). 다운로드 → `kt quant int4` → 하이브리드 서빙 성립·품질·처리량. (B) **GPU-only 로 8장이 필요한 가장 큰 보유 모델** = `Qwen3-Coder-480B-A35B-FP8` (450 GB, TP=4 OOM 은 `TSK_047` 에서 실증) 을 오프로딩으로 GPU 를 몇 장까지 줄일 수 있는가 — GPU-only TP8/EP8 기준선, 하이브리드 TP4(재현)/TP2/TP1. 부모 `IDE_023`. 선행 `TSK_043`(R1 성립·품질 결함 `SUB_167`), `TSK_047`(480B TP4 성립), `IDE_030`(480B hot-96 튜닝). **판정 기준**: 성립 = 전 요청 완료 + greedy 4문항 정상. 처리량·TTFT·TPOT 는 binding, CPU busy 는 보조. 모든 수치는 turbo OFF 하한. 브랜치 `feat/moe-offload-limits`, 결과 = `features/IDE_068/RESULT.md` (GitHub push 승인) |
 | `IDE_069` | **완료** (2026-09-15) — 최종 hot96+def4+KV40k C64 642±7 tok/s (출발점 43.4 대비 14.8×), dual ×2 702.5, GPU-only TP8 2031 | **480B TP4 하이브리드 처리량 향상 — HBM 추가 사용 + hot expert 배치** — IDE_068 실험 B 의 TP4 셀(43.39 tok/s, expert 전량 CPU, HBM 17 GiB/장)을 출발점으로 남는 HBM(장당 ≈60 GB)에 빈도 상위 expert 를 올려 처리량을 올린다. IDE_030 처방(hotmap 96 + cuda graph + deferral 4 → C32 490.9) 재현이 1차 목표이고, 그 위에서 hot 수·deferral·동시성·dispatch·spec decode 를 sweep 한다. 사용자 지시: "다양한 시도를 통해서 Metric 을 향상". 부모 `IDE_068`. 게이트: greedy 4/4 + (deferral 사용 시) GSM 40문항 저하 없음. 브랜치 `feat/480b-tp4-hot-expert` |
+| `IDE_070` | 활성 (2026-09-15) | **CPU MoE 오프로딩 병목 진단·개선 — 사용자 문서 `cpu_offload_no_01.md` 실행** — IDE_069 최종(TP4 hot96 def4 KV40k, C64 642±7)을 기준선으로 (1) 측정 먼저: perf stat(IPC·cycles/token·LLC miss·ctx switch), pcm-memory/pcm-numa(소켓별 DRAM GB/s·remote NUMA %), turbostat(실제 GHz), numastat, py-spy, recorder 로 cold expert calls/token (2) 코드 무변경 A 시리즈: turbo ON A/B(측정 후 원복), worker 80/96/112 sweep, TP4 GPU 토폴로지 0-3 vs 0,1,4,5 (3) 구조 후보: uniform hot96 → layer 별 비균일 GPU expert 배치 (같은 HBM 예산, knapsack) (4) 이후 NUMA 할당·비동기 파이프라인. 목표 C64 750~850. 판정: 3회 반복, ≥+5 % 채택, TPOT p95 +5 %·TTFT p95 +10 % 이내, 품질 저하 없음. 부모 `IDE_069`. 브랜치 `feat/cpu-offload-diag` |
 
-**다음 부여 번호**: `IDE_070`
+**다음 부여 번호**: `IDE_071`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 
@@ -145,8 +146,11 @@ FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디�
 | `TSK_051` | **완료** (2026-09-15) — 다운로드 2h45m, 변환 68.6min 488 GB, TP8 HEALTH 240 s, greedy 4/4, C8 22.78 tok/s | 실험 A — 최대 모델 Kimi-K2-Instruct 오프로딩 서빙 | 부모 `PLN_010`. 1.03 TB 다운로드(`/data/hf`, 실측 39.5 MB/s 단일 스트림) → `kt quant -m int4 -i fp8` (예상 ~0.5 TB) → 하이브리드 TP8 부팅 → greedy 4문항 → C8 벤치. DeepseekV3 arch 이므로 `SUB_167` 품질 결함 재현 가능성 있음 — 재현 시 "적재·서빙 성립, 품질 미통과" 로 기록하고 DRAM 용량 한계(2 TB 대비 사용량)를 별도 보고 |
 | `TSK_052` | **완료** (2026-09-15) | IDE_069 실행 — hotmap 재생성 + 셀 sweep | 부모 `IDE_069`. (1) recorder per_pass 로 sonnet 라우팅 트레이스 → hotmap.json (2) TP4 셀: hot 0/64/96/112 × graph × deferral 0/2/4 × C16/32/64 (3) dispatch dynamic, spec decode (4) 품질 게이트 |
 | `TSK_053` | **완료** (2026-09-15) — dual hot 702.5 @총64 vs TP8 2031 (2.9×), 라우터 −6~−10 % | IDE_069 후속 — TP4+CPU 오프로딩 ×2 (GPU 8장) 대 GPU-only TP8 성능 비교 | 부모 `IDE_069`. 사용자 지시. 인스턴스 A(GPU 0-3, 소켓0) / B(GPU 4-7, 소켓1, cgroup cpuset 컨테이너 — 8-29 dual 실험의 kt 스레드 고정 결함 회피) 각 hot96+def4, cpuinfer 48. 동시 벤치 합산 vs TP8+EP8 GPU-only C32/C64. 선행 8-30 교정판: expert 전량 CPU 에서는 dual 60.5 < single 66.6 |
+| `TSK_054` | 활성 (2026-09-15) | IDE_070 (1) 측정 기준선 — perf/pcm/turbostat/numastat/py-spy/recorder 동시 수집 | 부모 `IDE_070`. hot96 def4 KV40k C64 3회 |
+| `TSK_055` | 활성 (2026-09-15) | IDE_070 (2) A 시리즈 — turbo·worker·GPU 토폴로지 (코드 무변경) | 부모 `IDE_070`. A1 turbo ON(원복), A4 80/96/112, A6 GPU 0,1,4,5 |
+| `TSK_056` | 활성 (2026-09-15) | IDE_070 (3) layer 별 비균일 GPU expert 배치 | 부모 `IDE_070`. kt_ep_wrapper 에 layer 별 num_gpu_experts 주입 (env JSON), 전역 knapsack (같은 5,952 슬롯) |
 
-**다음 부여 번호**: `TSK_054`
+**다음 부여 번호**: `TSK_057`
 
 > `TSK_020`~`TSK_042` 는 vllm_config_perf 시대 외부 발급분 (번호 소진 처리, 정의는 `vllm_config_perf/` 참조).
 
@@ -187,8 +191,9 @@ PLN/FEA 의 검증 단위. 정확도·throughput·통합성을 각각의 TST 로
 | `TST_024` | **완료 (통과)** (2026-09-15) — (1)(2)(3)(4) 충족, 최소 장수 1 | TSK_050 게이트 | 부모 `PLN_010`. (1) b0 기준선 부팅·벤치 성립 (2) 각 하이브리드 셀: 전 요청 완료 + greedy 4문항 정상 (3) 최소 장수 = 성립한 최소 TP (4) 처리량은 기준선 대비 비율로 보고, 손실 크기를 숨기지 않음 |
 | `TST_025` | **완료 (통과)** (2026-09-15) — 적재·완료·greedy 4/4·용량표 모두 충족 | TSK_051 게이트 | 부모 `PLN_010`. (1) 변환본이 DRAM 에 적재되고 서버 HEALTH OK (2) 전 요청 완료 (3) greedy 4문항 정상 — 미통과 시 `SUB_167` 연계로 기록 (4) DRAM 사용량·HBM 사용량 실측 기록 |
 | `TST_026` | **완료 (통과)** (2026-09-15) | TSK_052 게이트 | 부모 `IDE_069`. 각 셀 greedy 4/4. deferral>0 셀은 GSM 40문항 ≥ 기준(deferral 0 셀) − 2문항. 처리량은 C 별 표로, 최고치의 조건을 명시 |
+| `TST_027` | 활성 (2026-09-15) | IDE_070 게이트 | 부모 `IDE_070`. C64 3회 반복 평균 ≥ 기준선 +5 % 채택 / TPOT p95 +5 %·TTFT p95 +10 % 이내 / greedy 4/4 + GSM40 저하 없음 / OOM·실패 0 |
 
-**다음 부여 번호**: `TST_027`
+**다음 부여 번호**: `TST_028`
 
 > `TST_019` 는 vllm_config_perf 시대 외부 발급분 (번호 소진 처리).
 
