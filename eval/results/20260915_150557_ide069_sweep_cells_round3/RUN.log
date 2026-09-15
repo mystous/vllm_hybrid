@@ -1,0 +1,130 @@
+15:05:57 == IDE_069 sweep 20260915_150557 spec=cells_round3.txt ==
+15:05:57 turbo no_turbo=1
+15:06:09 -- cell t13_hot96_def4_kv40k_rep1 (gx=96 def=4 graph=on mf=0.95 mt=40960 C=32,48,64,80 --ep-dispatch-algorithm dynamic) --
+15:08:08 boot verdict=HEALTH_OK 110s gpus=0,1,2,3
+15:08:13 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+10000 = 500050
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+15:08:19 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 35.22 
+Output token throughput (tok/s): 465.20 
+Total token throughput (tok/s): 2291.96 
+Median TTFT (ms): 2106.03 
+P95 TTFT (ms): 2816.35 
+Median TPOT (ms): 52.14 
+P95 TPOT (ms): 54.02 
+CPU busy n=24 avg=35.58 max=49.96 p50=46.73
+15:09:09 bench C48 n=192:
+Successful requests: 192 
+Failed requests: 0 
+Benchmark duration (s): 43.53 
+Output token throughput (tok/s): 564.57 
+Total token throughput (tok/s): 2782.46 
+Median TTFT (ms): 2661.83 
+P95 TTFT (ms): 3032.29 
+Median TPOT (ms): 66.26 
+P95 TPOT (ms): 72.80 
+CPU busy n=28 avg=37.43 max=49.02 p50=47.00
+15:10:08 bench C64 n=256:
+Successful requests: 256 
+Failed requests: 0 
+Benchmark duration (s): 51.40 
+Output token throughput (tok/s): 637.54 
+Total token throughput (tok/s): 3142.23 
+Median TTFT (ms): 2981.72 
+P95 TTFT (ms): 3763.93 
+Median TPOT (ms): 77.02 
+P95 TPOT (ms): 86.36 
+CPU busy n=32 avg=38.39 max=49.30 p50=46.58
+15:11:14 bench C80 n=320:
+Successful requests: 320 
+Failed requests: 0 
+Benchmark duration (s): 170.83 
+Output token throughput (tok/s): 239.77 
+Total token throughput (tok/s): 1181.43 
+Median TTFT (ms): 3166.89 
+P95 TTFT (ms): 13944.79 
+Median TPOT (ms): 296.74 
+P95 TPOT (ms): 319.27 
+CPU busy n=91 avg=43.80 max=49.48 p50=46.61
+15:14:30 -- cell t14_hot96_def4_kv40k_rep2 (gx=96 def=4 graph=on mf=0.95 mt=40960 C=32,64 --ep-dispatch-algorithm dynamic) --
+15:16:19 boot verdict=HEALTH_OK 100s gpus=0,1,2,3
+15:16:25 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+10000 = 500050
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+15:16:30 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 34.72 
+Output token throughput (tok/s): 471.90 
+Total token throughput (tok/s): 2324.99 
+Median TTFT (ms): 2028.51 
+P95 TTFT (ms): 2953.37 
+Median TPOT (ms): 51.42 
+P95 TPOT (ms): 55.75 
+CPU busy n=23 avg=34.47 max=47.69 p50=46.50
+15:17:18 bench C64 n=256:
+Successful requests: 256 
+Failed requests: 0 
+Benchmark duration (s): 50.35 
+Output token throughput (tok/s): 650.75 
+Total token throughput (tok/s): 3207.32 
+Median TTFT (ms): 2981.22 
+P95 TTFT (ms): 3770.87 
+Median TPOT (ms): 76.28 
+P95 TPOT (ms): 84.42 
+CPU busy n=31 avg=38.10 max=48.81 p50=46.47
+15:18:34 -- cell t15_hot96_def4_kv56k (gx=96 def=4 graph=on mf=0.96 mt=57344 C=64,96 --ep-dispatch-algorithm dynamic) --
+15:20:23 boot verdict=HEALTH_OK 100s gpus=0,1,2,3
+15:20:28 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+10000 = 500050
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+15:20:34 bench C64 n=256:
+Successful requests: 256 
+Failed requests: 0 
+Benchmark duration (s): 51.68 
+Output token throughput (tok/s): 634.06 
+Total token throughput (tok/s): 3125.07 
+Median TTFT (ms): 3025.52 
+P95 TTFT (ms): 4306.71 
+Median TPOT (ms): 77.55 
+P95 TPOT (ms): 87.03 
+CPU busy n=32 avg=38.67 max=50.21 p50=46.93
+15:21:40 bench C96 n=384:
+Successful requests: 384 
+Failed requests: 0 
+Benchmark duration (s): 149.52 
+Output token throughput (tok/s): 328.72 
+Total token throughput (tok/s): 1619.98 
+Median TTFT (ms): 3868.40 
+P95 TTFT (ms): 5156.47 
+Median TPOT (ms): 257.16 
+P95 TPOT (ms): 318.90 
+CPU busy n=81 avg=43.03 max=49.12 p50=46.42
+15:24:37 -- cell t16_hot96_def4_kv24k_rep (gx=96 def=4 graph=on mf=0.92 mt=24576 C=32 --ep-dispatch-algorithm dynamic) --
+15:26:26 boot verdict=HEALTH_OK 100s gpus=0,1,2,3
+15:26:31 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+10000 = 500050
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+15:26:36 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 33.65 
+Output token throughput (tok/s): 486.90 
+Total token throughput (tok/s): 2398.85 
+Median TTFT (ms): 1965.58 
+P95 TTFT (ms): 2704.74 
+Median TPOT (ms): 50.12 
+P95 TPOT (ms): 51.42 
+CPU busy n=23 avg=34.12 max=47.69 p50=45.68
+15:27:36 == sweep done 15:27:36 ==

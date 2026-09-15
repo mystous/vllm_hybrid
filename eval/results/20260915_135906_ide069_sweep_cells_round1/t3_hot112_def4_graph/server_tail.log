@@ -1,0 +1,200 @@
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1134, in load_model
+    loaded = load_model_with_memory_saver(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner_components/load_model_utils.py", line 321, in load_model_with_memory_saver
+    model = loader.load_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 985, in load_model
+    model = _initialize_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 345, in _initialize_model
+    return model_class(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 962, in __init__
+    self.model = Qwen3MoeModel(
+                 ^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 927, in __init__
+    super().__init__(
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 904, in __init__
+    self.layers, self.start_layer, self.end_layer = make_layers(
+                                                    ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 1470, in make_layers
+    + get_offloader().wrap_modules(
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/offloader.py", line 41, in wrap_modules
+    return list(all_modules_generator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 1472, in <genexpr>
+    layer_fn(idx=idx, prefix=add_prefix(idx, prefix))
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 906, in <lambda>
+    lambda idx, prefix: decoder_layer_type(
+                        ^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 780, in __init__
+    self.mlp = Qwen3MoeSparseMoeBlock(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 259, in __init__
+    self.experts = get_moe_impl_class(quant_config)(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 402, in __init__
+    self.quant_method.create_weights(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py", line 241, in create_weights
+    self.gpu_method.create_weights(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/fp8.py", line 1410, in create_weights
+    Fp8MoEMethod.create_fp8_moe_weight_(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/fp8.py", line 1222, in create_fp8_moe_weight_
+    torch.empty(
+  File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 840.00 MiB. GPU 3 has a total capacity of 79.18 GiB of which 713.31 MiB is free. Process 3245379 has 78.47 GiB memory in use. Of the allocated memory 76.92 GiB is allocated by PyTorch, and 2.62 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+
+[2026-09-15 05:08:49] Received sigquit from a child process. It usually means the child failed.
+[2026-09-15 05:08:49] kill_process_tree called: parent_pid=693404, include_parent=True, pid=693404
+[rank2]:[W915 05:08:49.398008310 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 2 while trying to allocate 880803840 bytes (free: 496304128, total: 85017493504).
+[rank2]:[W915 05:08:49.398443353 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 2 while trying to allocate 880803840 bytes (free: 496304128, total: 85017493504).
+[rank1]:[W915 05:08:49.426351583 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 1 while trying to allocate 880803840 bytes (free: 496304128, total: 85017493504).
+[rank1]:[W915 05:08:49.426956710 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 1 while trying to allocate 880803840 bytes (free: 496304128, total: 85017493504).
+[2026-09-15 05:08:49 TP2] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5048, in run_scheduler_process
+    scheduler = Scheduler(
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 995, in init_model_worker
+    self.init_tp_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 921, in init_tp_model_worker
+    self.tp_worker = TpModelWorker(**worker_kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 337, in __init__
+    self._init_model_runner()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 466, in _init_model_runner
+    self._model_runner = ModelRunner(
+                         ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 436, in __init__
+    self.initialize()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 630, in initialize
+    self.load_model()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1134, in load_model
+    loaded = load_model_with_memory_saver(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner_components/load_model_utils.py", line 321, in load_model_with_memory_saver
+    model = loader.load_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 985, in load_model
+    model = _initialize_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 345, in _initialize_model
+    return model_class(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 962, in __init__
+    self.model = Qwen3MoeModel(
+                 ^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 927, in __init__
+    super().__init__(
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 904, in __init__
+    self.layers, self.start_layer, self.end_layer = make_layers(
+                                                    ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 1470, in make_layers
+    + get_offloader().wrap_modules(
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/offloader.py", line 41, in wrap_modules
+    return list(all_modules_generator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 1472, in <genexpr>
+    layer_fn(idx=idx, prefix=add_prefix(idx, prefix))
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 906, in <lambda>
+    lambda idx, prefix: decoder_layer_type(
+                        ^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 780, in __init__
+    self.mlp = Qwen3MoeSparseMoeBlock(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 259, in __init__
+    self.experts = get_moe_impl_class(quant_config)(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 402, in __init__
+    self.quant_method.create_weights(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py", line 241, in create_weights
+    self.gpu_method.create_weights(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/fp8.py", line 1410, in create_weights
+    Fp8MoEMethod.create_fp8_moe_weight_(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/fp8.py", line 1222, in create_fp8_moe_weight_
+    torch.empty(
+  File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 840.00 MiB. GPU 2 has a total capacity of 79.18 GiB of which 473.31 MiB is free. Process 3245097 has 78.71 GiB memory in use. Of the allocated memory 76.92 GiB is allocated by PyTorch, and 2.62 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+
+[2026-09-15 05:08:49] Received sigquit from a child process. It usually means the child failed.
+[2026-09-15 05:08:49] kill_process_tree called: parent_pid=693404, include_parent=True, pid=693404
+[2026-09-15 05:08:49 TP1] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5048, in run_scheduler_process
+    scheduler = Scheduler(
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 995, in init_model_worker
+    self.init_tp_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 921, in init_tp_model_worker
+    self.tp_worker = TpModelWorker(**worker_kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 337, in __init__
+    self._init_model_runner()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 466, in _init_model_runner
+    self._model_runner = ModelRunner(
+                         ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 436, in __init__
+    self.initialize()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 630, in initialize
+    self.load_model()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1134, in load_model
+    loaded = load_model_with_memory_saver(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner_components/load_model_utils.py", line 321, in load_model_with_memory_saver
+    model = loader.load_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 985, in load_model
+    model = _initialize_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 345, in _initialize_model
+    return model_class(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 962, in __init__
+    self.model = Qwen3MoeModel(
+                 ^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 927, in __init__
+    super().__init__(
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 904, in __init__
+    self.layers, self.start_layer, self.end_layer = make_layers(
+                                                    ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 1470, in make_layers
+    + get_offloader().wrap_modules(
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/offloader.py", line 41, in wrap_modules
+    return list(all_modules_generator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/common.py", line 1472, in <genexpr>
+    layer_fn(idx=idx, prefix=add_prefix(idx, prefix))
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 906, in <lambda>
+    lambda idx, prefix: decoder_layer_type(
+                        ^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 780, in __init__
+    self.mlp = Qwen3MoeSparseMoeBlock(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 259, in __init__
+    self.experts = get_moe_impl_class(quant_config)(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 402, in __init__
+    self.quant_method.create_weights(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py", line 241, in create_weights
+    self.gpu_method.create_weights(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/fp8.py", line 1410, in create_weights
+    Fp8MoEMethod.create_fp8_moe_weight_(
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/fp8.py", line 1222, in create_fp8_moe_weight_
+    torch.empty(
+  File "/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py", line 122, in __torch_function__
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 840.00 MiB. GPU 1 has a total capacity of 79.18 GiB of which 473.31 MiB is free. Process 3245005 has 78.71 GiB memory in use. Of the allocated memory 76.92 GiB is allocated by PyTorch, and 2.62 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+
+[2026-09-15 05:08:49] Received sigquit from a child process. It usually means the child failed.
+[2026-09-15 05:08:49] kill_process_tree called: parent_pid=693404, include_parent=True, pid=693404

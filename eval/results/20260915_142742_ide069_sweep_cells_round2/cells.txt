@@ -1,0 +1,7 @@
+# name|gpu_experts|deferral|graph|mem_frac|max_total_tokens|concurrencies|extra
+t7_hot96_def4_kv40k|96|4|on|0.95|40960|32,64|--ep-dispatch-algorithm dynamic
+t8_hot96_def4_eagle3|96|4|on|0.92|24576|32|--ep-dispatch-algorithm dynamic --speculative-algorithm EAGLE3 --speculative-draft-model-path /models/hub/models--lmsys--SGLang-EAGLE3-Qwen3-Coder-480B-A35B-Instruct-SpecForge-EigenAI/snapshots/b2a87592e335783be6c617c3be93ceeab99334a2 --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4
+t9_hot96_def4_standalone4b|96|4|on|0.92|24576|32|--ep-dispatch-algorithm dynamic --speculative-algorithm STANDALONE --speculative-draft-model-path /models/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4
+t10_hot96_def4_cpu112|96|4|on|0.92|24576|32|--ep-dispatch-algorithm dynamic --kt-cpuinfer 112
+t11_hot96_def4_static|96|4|on|0.92|24576|32|--ep-dispatch-algorithm static
+t12_hot100_def4|100|4|on|0.95|16384|32|--ep-dispatch-algorithm dynamic

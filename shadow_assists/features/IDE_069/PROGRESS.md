@@ -91,3 +91,9 @@
 - **라우터 단일 엔드포인트 (expert 0 ×2, round_robin, kt post2 컨테이너)**: C32 **46.12** tok/s (TTFT p50 7,972 ms) / C64 **58.13** (TTFT p50 8,460 ms). 같은 총부하의 합산 방식 49.19 / 66.01 대비 **−6.2 % / −11.9 %** — 라우터 오버헤드 + 불균형.
 - **사고**: 라우터 스크립트 실행 중에 같은 파일(`run_router.sh`)을 편집(ONLY_HOT 옵션 추가) → bash 가 실행 중 파일을 읽으므로 오프셋이 어긋나 hot 변형 직전 `syntax error: unexpected end of file` 로 사망 (16:11). "router done" 미기록으로 후속 체인이 대기만 하다 17:15 발견 — **GPU 유휴 약 64분**. 교훈: 실행 중인 스크립트는 편집하지 않는다 (사본을 만들어 다음 실행에 쓴다).
 - 복구: 대기 체인 종료 → 동기화(sgl-kt 의 kt_kernel post1·sglang 수정 10파일·deep_gemm 비활성 → sgl-kt5/2) → 단독 검증 → dual hot → router hot 을 17:17 재시작.
+
+## 2026-09-15 17:33 — 동기화 후 dual·router 완료, IDE_069 종결
+- 단독 검증 (sgl-kt5, 동기화 후): **337.97** @C32 — 동기화 전 336.27 과 같음 → 30 % 차이는 소프트웨어가 아니라 **cpuset (소켓 하나 = DRAM 대역폭·물리코어 절반)**.
+- **dual hot96 def4 ×2 (동기화 후)**: C16each 합산 **519.33** (255.8+263.5), C32each 합산 **702.51** (350.3+352.3). 양쪽 greedy 4/4.
+- **라우터 hot96 def4**: round_robin C32 478.13 / C64 633.79, cache_aware C32 487.81 / C64 649.02. 합산 대비 −7.9/−9.8 % (RR), −6.1/−7.6 % (cache_aware).
+- 결론: GPU 8장이면 GPU-only (2,031) 가 dual 하이브리드 (703) 의 2.9배. dual 은 단일 4장 (642) 대비 +9 % — CPU 대역폭이 상한. RESULT.md §4, registry, README 트리 갱신. IDE_069 종결.

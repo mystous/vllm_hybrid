@@ -283,6 +283,11 @@ graph TD
     TSK_050 --> TST_024["TST_024 통과"]
     TSK_051 --> TST_025["TST_025 통과"]
     TSK_051 -.SUB_167 가설 축소.-> TSK_047
+    U915b["사용자 지시 (09-15)<br/>TP4 HBM·hot expert 로 향상"] --> IDE_069["IDE_069<br/>480B TP4 hot expert 튜닝<br/>(43 → 642 tok/s, 14.8×)"]
+    IDE_068 --> IDE_069
+    IDE_069 --> TSK_052["TSK_052 hotmap 재생성 + sweep 3라운드"]
+    IDE_069 --> TSK_053["TSK_053 dual ×2 vs GPU-only TP8<br/>(703 vs 2031, 라우터 −6~10%)"]
+    TSK_052 --> TST_026["TST_026 greedy·GSM40 통과"]
     UN["사용자 지시 (08-29)<br/>논문급 신규성 탐색"] --> IDE_026["IDE_026<br/>SCED (보류)"]
     IDE_026 --> PLN_004["PLN_004<br/>E0~E4 (H3 기각)"]
     UN --> C1["C-트랙 후보 1 (기각)"]

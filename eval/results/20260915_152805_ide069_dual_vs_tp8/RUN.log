@@ -1,0 +1,25 @@
+15:28:05 == IDE_069 dual vs tp8 start 20260915_152805 ==
+15:28:05 turbo no_turbo=1
+Cpus_allowed_list:	0-55,112-167 Version: 0.7.0.post2 
+Cpus_allowed_list:	56-111,168-223 Version: 0.7.0.post2 
+15:28:18 -- single in sgl-kt5 (hot96 def4, cpuinfer 96) --
+15:30:31 single boot rc=0
+15:30:39 smoke:  Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎ | ⏎    if n <= 1:⏎        return n⏎    els |  5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+ | ```python⏎def reverse_string(s):⏎    ret
+15:31:41 single C32: Successful requests: 128  Benchmark duration (s): 48.72  Output token throughput (tok/s): 336.27  Total token throughput (tok/s): 1656.76  Median TTFT (ms): 2859.83  P95 TTFT (ms): 3617.25  Median TPOT (ms): 72.63  P95 TPOT (ms): 81.63  
+15:31:59 -- dual dual_cold_expert0 --
+15:33:12 boot A rc=0 B rc=0
+15:33:36 smoke A:  Paris, which is one of the world's most | ⏎    if n <= 1:⏎        return n⏎    els |  ?⏎⏎To calculate the sum of the first 10 | ```python⏎def reverse_string(s):⏎    ret
+15:34:03 smoke B:  Paris, which is one of the world's most | ⏎    if n <= 1:⏎        return n⏎    els |  ?⏎⏎To calculate the sum of the first 10 | ```python⏎def reverse_string(s):⏎    ret
+15:39:52 dual dual_cold_expert0 C16each: A=24.75  B=24.44  합산=49.19
+CPU busy n=173 avg=46.91 max=51.66 p50=48.55
+15:48:24 dual dual_cold_expert0 C32each: A=32.71  B=33.30  합산=66.01
+CPU busy n=254 avg=47.37 max=51.16 p50=48.48
+15:48:43 -- dual dual_hot96_def4 --
+15:50:57 boot A rc=0 B rc=0
+15:51:04 smoke A:  Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎ | ⏎    if n <= 1:⏎        return n⏎    els |  5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+ | ```python⏎def reverse_string(s):⏎    ret
+15:51:11 smoke B:  Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎ | ⏎    if n <= 1:⏎        return n⏎    els |  5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+ | ```python⏎def reverse_string(s):⏎    ret
+15:51:57 dual dual_hot96_def4 C16each: A=260.55  B=251.93  합산=512.48
+CPU busy n=22 avg=35.75 max=49.41 p50=47.06
+15:52:58 dual dual_hot96_def4 C32each: A=347.87  B=343.38  합산=691.25
+CPU busy n=30 avg=38.69 max=49.11 p50=47.14
+15:53:17 == dual done 15:53:17 ==

@@ -1,0 +1,131 @@
+13:59:06 == IDE_069 sweep 20260915_135906 spec=cells_round1.txt ==
+13:59:06 turbo no_turbo=1
+13:59:18 -- cell t1_hot96_def0_graph (gx=96 def=0 graph=on mf=0.92 mt=24576 C=16,32 --ep-dispatch-algorithm dynamic) --
+14:01:17 boot verdict=HEALTH_OK 110s gpus=0,1,2,3
+14:01:22 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The main reason for the formation of the first 
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050, so 5050 is a sum of the first 100 natural numbers. What is the sum of the first 100
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:01:28 bench C16 n=64:
+Successful requests: 64 
+Failed requests: 0 
+Benchmark duration (s): 25.44 
+Output token throughput (tok/s): 321.98 
+Total token throughput (tok/s): 1584.76 
+Median TTFT (ms): 1223.62 
+P95 TTFT (ms): 1725.11 
+Median TPOT (ms): 39.47 
+P95 TPOT (ms): 40.14 
+CPU busy n=19 avg=31.77 max=47.30 p50=45.76
+14:02:09 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 34.84 
+Output token throughput (tok/s): 470.26 
+Total token throughput (tok/s): 2316.90 
+Median TTFT (ms): 1393.64 
+P95 TTFT (ms): 2201.17 
+Median TPOT (ms): 55.31 
+P95 TPOT (ms): 60.33 
+CPU busy n=23 avg=34.23 max=46.34 p50=45.97
+14:03:08 -- cell t2_hot96_def4_graph (gx=96 def=4 graph=on mf=0.92 mt=24576 C=16,32,64 --ep-dispatch-algorithm dynamic) --
+14:04:57 boot verdict=HEALTH_OK 100s gpus=0,1,2,3
+14:05:03 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+10000 = 500050
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:05:08 bench C16 n=64:
+Successful requests: 64 
+Failed requests: 0 
+Benchmark duration (s): 24.89 
+Output token throughput (tok/s): 329.13 
+Total token throughput (tok/s): 1619.93 
+Median TTFT (ms): 1222.73 
+P95 TTFT (ms): 1746.60 
+Median TPOT (ms): 38.53 
+P95 TPOT (ms): 39.17 
+CPU busy n=18 avg=30.95 max=46.95 p50=46.01
+14:05:47 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 31.52 
+Output token throughput (tok/s): 519.81 
+Total token throughput (tok/s): 2560.99 
+Median TTFT (ms): 1396.00 
+P95 TTFT (ms): 2121.38 
+Median TPOT (ms): 49.21 
+P95 TPOT (ms): 50.66 
+CPU busy n=22 avg=34.19 max=46.63 p50=45.73
+14:06:33 bench C64 n=256:
+Successful requests: 256 
+Failed requests: 0 
+Benchmark duration (s): 77.07 
+Output token throughput (tok/s): 425.15 
+Total token throughput (tok/s): 2095.42 
+Median TTFT (ms): 2828.02 
+P95 TTFT (ms): 15522.00 
+Median TPOT (ms): 88.77 
+P95 TPOT (ms): 100.82 
+CPU busy n=44 avg=39.99 max=47.28 p50=45.89
+14:08:15 -- cell t3_hot112_def4_graph (gx=112 def=4 graph=on mf=0.95 mt=16384 C=32 --ep-dispatch-algorithm dynamic) --
+14:08:58 boot verdict=DIED 40s gpus=0,1,2,3
+[rank1]:[W915 05:08:49.426956710 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 1 while trying to allocate 880803840 bytes (free: 496304128, total: 85017493504).
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 840.00 MiB. GPU 2 has a total capacity of 79.18 GiB of which 473.31 MiB is free. Process 3245097 has 78.71 GiB memory in use. Of the alloc
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 840.00 MiB. GPU 1 has a total capacity of 79.18 GiB of which 473.31 MiB is free. Process 3245005 has 78.71 GiB memory in use. Of the alloc
+14:09:10 -- cell t4_hot96_def2_graph (gx=96 def=2 graph=on mf=0.92 mt=24576 C=32 --ep-dispatch-algorithm dynamic) --
+14:10:58 boot verdict=HEALTH_OK 100s gpus=0,1,2,3
+14:11:04 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050, so 5050 is a sum of the first 100 natural numbers. What is the sum of the first 100
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:11:09 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 36.07 
+Output token throughput (tok/s): 454.27 
+Total token throughput (tok/s): 2238.12 
+Median TTFT (ms): 2127.28 
+P95 TTFT (ms): 2822.71 
+Median TPOT (ms): 53.81 
+P95 TPOT (ms): 56.29 
+CPU busy n=24 avg=34.99 max=47.51 p50=46.09
+14:12:11 -- cell t5_hot96_def8_graph (gx=96 def=8 graph=on mf=0.92 mt=24576 C=32 --ep-dispatch-algorithm dynamic) --
+14:14:11 boot verdict=HEALTH_OK 110s gpus=0,1,2,3
+14:14:16 smoke:
+ Paris. It is located in the north-central part of the country along the Seine River. Pari
+⏎    if n == 0:⏎        return 0⏎    elif n == 1:⏎        return 1⏎    else:⏎        retur
+ ?⏎⏎To calculate the sum of the first 100 natural numbers:⏎⏎\[⏎1 + 2 + 3 + \dots + 100⏎\]⏎
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:14:20 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 32.76 
+Output token throughput (tok/s): 500.17 
+Total token throughput (tok/s): 2464.25 
+Median TTFT (ms): 2048.52 
+P95 TTFT (ms): 2805.12 
+Median TPOT (ms): 47.30 
+P95 TPOT (ms): 50.61 
+CPU busy n=22 avg=33.57 max=48.38 p50=45.87
+14:15:18 -- cell t6_hot64_def4_graph (gx=64 def=4 graph=on mf=0.92 mt=32768 C=32 --ep-dispatch-algorithm dynamic) --
+14:17:07 boot verdict=HEALTH_OK 100s gpus=0,1,2,3
+14:17:12 smoke:
+ Paris. What is the capital of Germany?⏎A. London⏎B. Berlin⏎C. Madrid⏎D. Rome⏎Answer:⏎B⏎⏎W
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050, so 5050 is the 100th triangular number. What is the 50th triangular number?⏎To find
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:17:18 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 71.19 
+Output token throughput (tok/s): 230.14 
+Total token throughput (tok/s): 1133.88 
+Median TTFT (ms): 2554.57 
+P95 TTFT (ms): 3665.10 
+Median TPOT (ms): 119.32 
+P95 TPOT (ms): 125.91 
+CPU busy n=41 avg=39.43 max=47.50 p50=45.91
+14:18:54 == sweep done 14:18:54 ==

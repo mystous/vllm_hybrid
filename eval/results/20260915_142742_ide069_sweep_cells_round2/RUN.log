@@ -1,0 +1,108 @@
+14:27:42 == IDE_069 sweep 20260915_142742 spec=cells_round2.txt ==
+14:27:42 turbo no_turbo=1
+14:27:53 -- cell t7_hot96_def4_kv40k (gx=96 def=4 graph=on mf=0.95 mt=40960 C=32,64 --ep-dispatch-algorithm dynamic) --
+14:29:42 boot verdict=HEALTH_OK 100s gpus=0,1,2,3
+14:29:47 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+10000 = 500050
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:29:53 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 35.67 
+Output token throughput (tok/s): 459.34 
+Total token throughput (tok/s): 2263.07 
+Median TTFT (ms): 2073.20 
+P95 TTFT (ms): 2854.32 
+Median TPOT (ms): 52.21 
+P95 TPOT (ms): 57.21 
+CPU busy n=24 avg=35.01 max=47.79 p50=46.55
+14:30:43 bench C64 n=256:
+Successful requests: 256 
+Failed requests: 0 
+Benchmark duration (s): 51.42 
+Output token throughput (tok/s): 637.24 
+Total token throughput (tok/s): 3140.71 
+Median TTFT (ms): 2979.17 
+P95 TTFT (ms): 3706.93 
+Median TPOT (ms): 77.45 
+P95 TPOT (ms): 86.63 
+CPU busy n=32 avg=38.72 max=51.75 p50=46.82
+14:32:01 -- cell t8_hot96_def4_eagle3 (gx=96 def=4 graph=on mf=0.92 mt=24576 C=32 --ep-dispatch-algorithm dynamic --speculative-algorithm EAGLE3 --speculative-draft-model-path /models/hub/models--lmsys--SGLang-EAGLE3-Qwen3-Coder-480B-A35B-Instruct-SpecForge-EigenAI/snapshots/b2a87592e335783be6c617c3be93ceeab99334a2 --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4) --
+14:34:11 boot verdict=HEALTH_OK 120s gpus=0,1,2,3
+14:34:17 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The main reason for the formation of the first 
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050, so 5050 is a sum of the first 100 natural numbers. What is the sum of the first 100
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:34:24 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 55.83 
+Output token throughput (tok/s): 293.46 
+Total token throughput (tok/s): 1445.82 
+Median TTFT (ms): 710.94 
+P95 TTFT (ms): 2853.35 
+Median TPOT (ms): 95.64 
+P95 TPOT (ms): 133.95 
+CPU busy n=34 avg=38.71 max=48.25 p50=46.59
+14:35:45 -- cell t9_hot96_def4_standalone4b (gx=96 def=4 graph=on mf=0.92 mt=24576 C=32 --ep-dispatch-algorithm dynamic --speculative-algorithm STANDALONE --speculative-draft-model-path /models/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4) --
+14:38:06 boot verdict=HEALTH_OK 130s gpus=0,1,2,3
+14:38:11 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050, so 5050 is the sum of the first 100 positive integers. What is the sum of the first
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:38:16 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 96.50 
+Output token throughput (tok/s): 169.77 
+Total token throughput (tok/s): 836.45 
+Median TTFT (ms): 20170.67 
+P95 TTFT (ms): 22222.52 
+Median TPOT (ms): 25.44 
+P95 TPOT (ms): 33.98 
+CPU busy n=54 avg=41.06 max=46.92 p50=45.89
+14:40:18 -- cell t10_hot96_def4_cpu112 (gx=96 def=4 graph=on mf=0.92 mt=24576 C=32 --ep-dispatch-algorithm dynamic --kt-cpuinfer 112) --
+14:42:08 boot verdict=HEALTH_OK 100s gpus=0,1,2,3
+14:42:13 smoke:
+ Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎A⏎⏎The "Regulations on the Reporting, Investigatio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+10000 = 500050
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:42:19 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 33.90 
+Output token throughput (tok/s): 483.24 
+Total token throughput (tok/s): 2380.81 
+Median TTFT (ms): 2059.77 
+P95 TTFT (ms): 2740.65 
+Median TPOT (ms): 49.65 
+P95 TPOT (ms): 51.77 
+CPU busy n=23 avg=40.38 max=57.39 p50=53.96
+14:43:19 -- cell t11_hot96_def4_static (gx=96 def=4 graph=on mf=0.92 mt=24576 C=32 --ep-dispatch-algorithm static) --
+14:43:41 boot verdict=DIED 20s gpus=0,1,2,3
+    raise ValueError(
+ValueError: --ep-dispatch-algorithm static picks a different physical replica per rank, which only holds up when an a2a backend routes each token to a single rank. Use --ep-dispatch-algorithm dynamic 
+14:43:52 -- cell t12_hot100_def4 (gx=100 def=4 graph=on mf=0.95 mt=16384 C=32 --ep-dispatch-algorithm dynamic) --
+14:45:52 boot verdict=HEALTH_OK 110s gpus=0,1,2,3
+14:45:57 smoke:
+ Paris. What is the capital of Germany?⏎The capital of Germany is Berlin.
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+10000 = 500050
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+14:46:02 bench C32 n=128:
+Successful requests: 128 
+Failed requests: 0 
+Benchmark duration (s): 45.96 
+Output token throughput (tok/s): 356.45 
+Total token throughput (tok/s): 1756.17 
+Median TTFT (ms): 2154.30 
+P95 TTFT (ms): 7220.87 
+Median TPOT (ms): 65.75 
+P95 TPOT (ms): 71.83 
+CPU busy n=29 avg=36.56 max=47.29 p50=45.76
+14:47:13 == sweep done 14:47:13 ==

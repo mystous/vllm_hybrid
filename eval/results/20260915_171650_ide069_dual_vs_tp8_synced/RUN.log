@@ -1,0 +1,17 @@
+17:16:50 == IDE_069 dual vs tp8 start 20260915_171650 ==
+17:16:50 turbo no_turbo=1
+Cpus_allowed_list:	0-55,112-167 Version: 0.7.0.post1 
+Cpus_allowed_list:	56-111,168-223 Version: 0.7.0.post1 
+17:17:03 -- single in sgl-kt5 (hot96 def4, cpuinfer 96) --
+17:18:55 single boot rc=0
+17:19:02 smoke:  Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎ | ⏎    if n <= 1:⏎        return n⏎    els |  5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+ | ```python⏎def reverse_string(s):⏎    ret
+17:20:04 single C32: Successful requests: 128  Benchmark duration (s): 48.48  Output token throughput (tok/s): 337.97  Total token throughput (tok/s): 1665.13  Median TTFT (ms): 2923.84  P95 TTFT (ms): 3685.12  Median TPOT (ms): 71.57  P95 TPOT (ms): 81.58  
+17:20:22 -- dual dual_hot96_def4 --
+17:22:27 boot A rc=0 B rc=0
+17:22:34 smoke A:  Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎ | ⏎    if n <= 1:⏎        return n⏎    els |  5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+ | ```python⏎def reverse_string(s):⏎    ret
+17:22:40 smoke B:  Paris.⏎A. Correct⏎B. Incorrect⏎Answer:⏎ | ⏎    if n <= 1:⏎        return n⏎    els |  5050⏎1+2+3+...+1000 = 500500⏎1+2+3+...+ | ```python⏎def reverse_string(s):⏎    ret
+17:23:25 dual dual_hot96_def4 C16each: A=255.81  B=263.52  합산=519.33
+CPU busy n=22 avg=35.79 max=49.82 p50=47.09
+17:24:26 dual dual_hot96_def4 C32each: A=350.26  B=352.25  합산=702.51
+CPU busy n=30 avg=38.39 max=48.88 p50=47.25
+17:24:44 == dual done 17:24:44 ==
