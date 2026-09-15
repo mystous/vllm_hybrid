@@ -288,6 +288,16 @@ graph TD
     IDE_069 --> TSK_052["TSK_052 hotmap 재생성 + sweep 3라운드"]
     IDE_069 --> TSK_053["TSK_053 dual ×2 vs GPU-only TP8<br/>(703 vs 2031, 라우터 −6~10%)"]
     TSK_052 --> TST_026["TST_026 greedy·GSM40 통과"]
+    U915c["사용자 지시서 (09-15)<br/>cpu_offload_no_01 — 측정→A→B→C→D→E"] --> IDE_070["IDE_070<br/>CPU offload 성능 진단·개선"]
+    IDE_069 --> IDE_070
+    IDE_070 --> TSK_054["TSK_054 측정 기준선<br/>(pcm/pcm-numa/perf/recorder)"]
+    IDE_070 --> TSK_055["TSK_055 A 시리즈<br/>(turbo BIOS 잠금 → A1 불가)"]
+    IDE_070 --> TSK_056["TSK_056 C 층별 비균일 배치<br/>(5,952 슬롯, 75~142)"]
+    IDE_070 --> TSK_057["TSK_057 B NUMA"]
+    IDE_070 --> TSK_058["TSK_058 D callback-free 스택"]
+    IDE_070 --> TSK_059["TSK_059 E AWQ GPU expert"]
+    IDE_033 -.기전 재사용.-> TSK_058
+    TSK_056 --> TST_027["TST_027 게이트 (3회·가드레일)"]
     UN["사용자 지시 (08-29)<br/>논문급 신규성 탐색"] --> IDE_026["IDE_026<br/>SCED (보류)"]
     IDE_026 --> PLN_004["PLN_004<br/>E0~E4 (H3 기각)"]
     UN --> C1["C-트랙 후보 1 (기각)"]

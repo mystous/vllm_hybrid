@@ -8,7 +8,7 @@ set -euo pipefail
 export PATH=$HOME/bin:$PATH
 CN=$1; MODE=${2:-apply}
 F=/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py
-docker exec "$CN" python3 - "$MODE" <<'PY'
+docker exec -i "$CN" python3 - "$MODE" <<'PY'   # -i 필수: 없으면 heredoc 이 전달되지 않아 아무것도 하지 않고 종료 (9-15 20:30 nu5952 무효 원인)
 import sys, re
 mode = sys.argv[1]
 p = "/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py"

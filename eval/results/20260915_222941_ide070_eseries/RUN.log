@@ -1,0 +1,12 @@
+22:29:41 == IDE_070 E-series 20260915_222941 cells=e1_awq_h96_nograph,e2_awq_h128_nograph reps=3 awq=/models/hub/models--QuantTrio--Qwen3-Coder-480B-A35B-Instruct-AWQ/snapshots/9ce3eaa67fe88609afec235117e97eb03d9b3cda ==
+22:29:52 -- cell e1_awq_h96_nograph hot=96 model=/models/hub/models--QuantTrio--Qwen3-Coder-480B-A35B-Instruct-AWQ/snapshots/9ce3eaa67fe88609afec235117e97eb03d9b3cda extra='--disable-cuda-graph' --
+22:32:40 boot verdict=DIED 100s gpus=0,1,2,3
+22:32:40 cell e1_awq_h96_nograph boot failed (DIED): [2026-09-15 13:31:39] Pyspy failed (py-spy dump  --pid 774658). Error: Error: Failed to get process executable name. Check that the process is running.
+    0: No such file or directory (os error 2)
+    1: No such file or directory (os error 2)
+22:32:52 -- cell e2_awq_h128_nograph hot=128 model=/models/hub/models--QuantTrio--Qwen3-Coder-480B-A35B-Instruct-AWQ/snapshots/9ce3eaa67fe88609afec235117e97eb03d9b3cda extra='--disable-cuda-graph' --
+22:35:45 boot verdict=DIED 100s gpus=0,1,2,3
+22:35:45 cell e2_awq_h128_nograph boot failed (DIED): RuntimeError: moe_sum_reduce CUDA kernel (small-token) launch failed
+RuntimeError: Failed at /sgl-workspace/sglang/python/sglang/kernels/jit/csrc/elementwise/activation.cuh:208: CUDA error: an illegal memory access was encountered
+RuntimeError: moe_sum_reduce CUDA kernel (small-token) launch failed
+22:35:57 == E-series done ==

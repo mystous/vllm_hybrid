@@ -1,0 +1,400 @@
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 980, in forward
+    hidden_states, residual = layer(
+                              ^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 853, in forward
+    hidden_states = self.mlp(hidden_states, forward_batch)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 306, in forward
+    return self.forward_normal(hidden_states)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 336, in forward_normal
+    final_hidden_states = self.experts(hidden_states, topk_output)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1458, in forward
+    return self.forward_impl(
+           ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1491, in forward_impl
+    combine_input = self.run_moe_core(
+                    ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1532, in run_moe_core
+    return self.quant_method.apply(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py", line 418, in apply
+    gpu_combine_input = self.gpu_method.apply(layer, masked_dispatch_output)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/awq/awq.py", line 480, in apply
+    return layer.scheme.apply_weights(layer, dispatch_output)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/awq/schemes/awq_moe.py", line 141, in apply_weights
+    return self.kernel.apply(layer, dispatch_output)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/hardware_backend/gpu/quantization/awq_kernels.py", line 255, in apply
+    return self.runner.run(dispatch_output, quant_info)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/runner.py", line 147, in run
+    return self.fused_func(dispatch_output, quant_info, self.config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/marlin.py", line 174, in fused_experts_none_to_marlin
+    output = fused_marlin_moe(
+             ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 1279, in __call__
+    return self._op(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py", line 423, in fused_marlin_moe
+    moe_sum_reduce(
+  File "/usr/local/lib/python3.12/dist-packages/sgl_kernel/moe.py", line 90, in moe_sum_reduce
+    torch.ops.sgl_kernel.moe_sum_reduce.default(
+  File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 875, in __call__
+    return self._op(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: moe_sum_reduce CUDA kernel (small-token) launch failed
+
+[2026-09-15 13:34:37 TP0] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5064, in run_scheduler_process
+    scheduler.run_event_loop()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 1703, in run_event_loop
+    dispatch_event_loop(self)
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 4913, in dispatch_event_loop
+    scheduler.event_loop_overlap()
+  File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 1801, in event_loop_overlap
+    batch_result = self.run_batch(batch)
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/nvtx_utils.py", line 109, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 3694, in run_batch
+    batch_result = self.model_worker.forward_batch_generation(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 609, in forward_batch_generation
+    out = self.model_runner.forward(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1745, in forward
+    output = self._forward_raw(
+             ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1941, in _forward_raw
+    ret = self.eager_runner.execute(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/runner/eager_runner.py", line 213, in execute
+    return self._execute_extend(forward_batch, pp_proxy_tensors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/runner/eager_runner.py", line 348, in _execute_extend
+    ret = model_runner.model.forward(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 1014, in forward
+    hidden_states = self.model(
+                    ^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 980, in forward
+    hidden_states, residual = layer(
+                              ^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 853, in forward
+    hidden_states = self.mlp(hidden_states, forward_batch)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 306, in forward
+    return self.forward_normal(hidden_states)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 336, in forward_normal
+    final_hidden_states = self.experts(hidden_states, topk_output)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1458, in forward
+    return self.forward_impl(
+           ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1491, in forward_impl
+    combine_input = self.run_moe_core(
+                    ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1532, in run_moe_core
+    return self.quant_method.apply(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py", line 418, in apply
+    gpu_combine_input = self.gpu_method.apply(layer, masked_dispatch_output)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/awq/awq.py", line 480, in apply
+    return layer.scheme.apply_weights(layer, dispatch_output)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/awq/schemes/awq_moe.py", line 141, in apply_weights
+    return self.kernel.apply(layer, dispatch_output)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/hardware_backend/gpu/quantization/awq_kernels.py", line 255, in apply
+    return self.runner.run(dispatch_output, quant_info)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/runner.py", line 147, in run
+    return self.fused_func(dispatch_output, quant_info, self.config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/marlin.py", line 174, in fused_experts_none_to_marlin
+    output = fused_marlin_moe(
+             ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 1279, in __call__
+    return self._op(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py", line 350, in fused_marlin_moe
+    silu_and_mul(intermediate_cache1.view(-1, gemm1_n), intermediate_cache2)
+  File "/sgl-workspace/sglang/python/sglang/kernels/ops/activation/activation.py", line 183, in silu_and_mul
+    return run_activation("silu", input, out, expert_ids, expert_step)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/kernels/ops/activation/activation.py", line 135, in run_activation
+    _run_activation_inplace(op_name, input, out)
+  File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 1279, in __call__
+    return self._op(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/kernels/ops/activation/activation.py", line 76, in _run_activation_inplace
+    module.run_activation(input_2d, out_2d, op_name)
+  File "python/tvm_ffi/cython/function.pxi", line 968, in tvm_ffi.core.Function.__call__
+RuntimeError: Failed at /sgl-workspace/sglang/python/sglang/kernels/jit/csrc/elementwise/activation.cuh:208: CUDA error: an illegal memory access was encountered
+
+[2026-09-15 13:34:38 TP2] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5064, in run_scheduler_process
+    scheduler.run_event_loop()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 1703, in run_event_loop
+    dispatch_event_loop(self)
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 4913, in dispatch_event_loop
+    scheduler.event_loop_overlap()
+  File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 1801, in event_loop_overlap
+    batch_result = self.run_batch(batch)
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/utils/nvtx_utils.py", line 109, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 3694, in run_batch
+    batch_result = self.model_worker.forward_batch_generation(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 609, in forward_batch_generation
+    out = self.model_runner.forward(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1745, in forward
+    output = self._forward_raw(
+             ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1941, in _forward_raw
+    ret = self.eager_runner.execute(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/runner/eager_runner.py", line 213, in execute
+    return self._execute_extend(forward_batch, pp_proxy_tensors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/runner/eager_runner.py", line 348, in _execute_extend
+    ret = model_runner.model.forward(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 1014, in forward
+    hidden_states = self.model(
+                    ^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 980, in forward
+    hidden_states, residual = layer(
+                              ^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 853, in forward
+    hidden_states = self.mlp(hidden_states, forward_batch)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 306, in forward
+    return self.forward_normal(hidden_states)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 336, in forward_normal
+    final_hidden_states = self.experts(hidden_states, topk_output)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1458, in forward
+    return self.forward_impl(
+           ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1491, in forward_impl
+    combine_input = self.run_moe_core(
+                    ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/layer.py", line 1532, in run_moe_core
+    return self.quant_method.apply(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py", line 418, in apply
+    gpu_combine_input = self.gpu_method.apply(layer, masked_dispatch_output)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/awq/awq.py", line 480, in apply
+    return layer.scheme.apply_weights(layer, dispatch_output)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/quantization/awq/schemes/awq_moe.py", line 141, in apply_weights
+    return self.kernel.apply(layer, dispatch_output)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/hardware_backend/gpu/quantization/awq_kernels.py", line 255, in apply
+    return self.runner.run(dispatch_output, quant_info)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/runner.py", line 147, in run
+    return self.fused_func(dispatch_output, quant_info, self.config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/moe_runner/marlin.py", line 174, in fused_experts_none_to_marlin
+    output = fused_marlin_moe(
+             ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 1279, in __call__
+    return self._op(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/moe/fused_moe_triton/fused_marlin_moe.py", line 423, in fused_marlin_moe
+    moe_sum_reduce(
+  File "/usr/local/lib/python3.12/dist-packages/sgl_kernel/moe.py", line 90, in moe_sum_reduce
+    torch.ops.sgl_kernel.moe_sum_reduce.default(
+  File "/usr/local/lib/python3.12/dist-packages/torch/_ops.py", line 875, in __call__
+    return self._op(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: moe_sum_reduce CUDA kernel (small-token) launch failed
+
+ layer 50, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 51, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 52, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 53, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 54, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 55, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 56, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 57, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 58, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+TP MOE layer 59, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 60, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 0 at numa 0
+Creating AMX_MOE_TP 1 at numa 1
+TP Load from loader
+TP MOE layer 61, pool: 0x2b99f640, expert num: 160, num_experts_per_tok: 8
+Creating AMX_MOE_TP 1 at numa 1
+Creating AMX_MOE_TP 0 at numa 0
+TP Load from loader
+[2026-09-15 13:34:43] Pyspy dump for PID 776527 (py-spy dump --native --pid 776527):
+Process 776527: sglang::scheduler_TP0
+Python v3.12.3 (/usr/bin/python3.12)
+
+Thread 776527 (active+gil)
+    0x7f7fbedd81ca (libc.so.6)
+
+[rank3]:[W915 13:34:43.375428000 ProcessGroupNCCL.cpp:1624] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[2026-09-15 13:34:43] Pyspy dump for PID 776592 (py-spy dump --native --pid 776592):
+Process 776592: sglang::scheduler_TP1
+Python v3.12.3 (/usr/bin/python3.12)
+
+Thread 776592 (active+gil)
+    0x7fb1efb991ca (libc.so.6)
+
+[rank0]:[W915 13:34:43.518504615 ProcessGroupNCCL.cpp:1624] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[rank1]:[W915 13:34:43.554980122 ProcessGroupNCCL.cpp:1624] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[rank2]:[W915 13:34:43.631811864 ProcessGroupNCCL.cpp:1624] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[2026-09-15 13:34:44] Pyspy dump for PID 776658 (py-spy dump --native --pid 776658):
+Process 776658: sglang::scheduler_TP2
+Python v3.12.3 (/usr/bin/python3.12)
+
+Thread 776658 (active+gil)
+    0x7f136cd561ca (libc.so.6)
+
+[2026-09-15 13:34:44] Pyspy dump for PID 776724 (py-spy dump --native --pid 776724):
+Process 776724: sglang::scheduler_TP3
+Python v3.12.3 (/usr/bin/python3.12)
+
+Thread 776724 (active+gil)
+    0x7fc4325001ca (libc.so.6)
+
+[2026-09-15 13:34:44] CUDA user-triggered coredump is not enabled. Set CUDA_ENABLE_USER_TRIGGERED_COREDUMP=1 before CUDA initialization.
+[rank3]:[W915 13:34:44.392783843 nccl_devcomm_manager.hpp:225] Failed to destroy the NCCL device communicator, skipping
+[2026-09-15 13:34:44] CUDA coredump pipe not found for PID 776527: /sgl-workspace/sglang/corepipe.cuda.violet-h100-016.776527. Ensure CUDA_ENABLE_USER_TRIGGERED_COREDUMP=1 was set before this process initialized CUDA.
+[2026-09-15 13:34:44] CUDA coredump pipe not found for PID 776592: /sgl-workspace/sglang/corepipe.cuda.violet-h100-016.776592. Ensure CUDA_ENABLE_USER_TRIGGERED_COREDUMP=1 was set before this process initialized CUDA.
+[2026-09-15 13:34:44] CUDA coredump pipe not found for PID 776658: /sgl-workspace/sglang/corepipe.cuda.violet-h100-016.776658. Ensure CUDA_ENABLE_USER_TRIGGERED_COREDUMP=1 was set before this process initialized CUDA.
+[2026-09-15 13:34:44] CUDA coredump pipe not found for PID 776724: /sgl-workspace/sglang/corepipe.cuda.violet-h100-016.776724. Ensure CUDA_ENABLE_USER_TRIGGERED_COREDUMP=1 was set before this process initialized CUDA.
+[2026-09-15 13:34:44] Waiting 60.0 seconds for CUDA coredumps before exiting.
+[rank0]:[W915 13:34:44.573079061 nccl_devcomm_manager.hpp:225] Failed to destroy the NCCL device communicator, skipping
+[rank1]:[W915 13:34:44.582592605 nccl_devcomm_manager.hpp:225] Failed to destroy the NCCL device communicator, skipping
+[rank2]:[W915 13:34:44.628349596 nccl_devcomm_manager.hpp:225] Failed to destroy the NCCL device communicator, skipping
+[2026-09-15 13:35:44] kill_process_tree called: parent_pid=776379, include_parent=True, pid=776379

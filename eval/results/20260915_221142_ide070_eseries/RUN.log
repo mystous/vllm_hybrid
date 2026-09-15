@@ -1,0 +1,17 @@
+22:11:42 == IDE_070 E-series 20260915_221142 cells=e1_awq_h96,e2_awq_h128,e3_awq_h144 reps=3 awq=/models/hub/models--QuantTrio--Qwen3-Coder-480B-A35B-Instruct-AWQ/snapshots/9ce3eaa67fe88609afec235117e97eb03d9b3cda ==
+22:11:54 -- cell e1_awq_h96 hot=96 model=/models/hub/models--QuantTrio--Qwen3-Coder-480B-A35B-Instruct-AWQ/snapshots/9ce3eaa67fe88609afec235117e97eb03d9b3cda --
+22:24:25 boot verdict=DIED 700s gpus=0,1,2,3
+22:24:25 cell e1_awq_h96 boot failed (DIED): Exception: Capture cuda graph failed: Failed at /sgl-workspace/sglang/python/sglang/kernels/jit/csrc/elementwise/activation.cuh:208: CUDA error: an illegal memory access was encountered
+RuntimeError: Failed at /sgl-workspace/sglang/python/sglang/kernels/jit/csrc/elementwise/activation.cuh:208: CUDA error: an illegal memory access was encountered
+Exception: Capture cuda graph failed: Failed at /sgl-workspace/sglang/python/sglang/kernels/jit/csrc/elementwise/activation.cuh:208: CUDA error: an illegal memory access was encountered
+22:24:37 -- cell e2_awq_h128 hot=128 model=/models/hub/models--QuantTrio--Qwen3-Coder-480B-A35B-Instruct-AWQ/snapshots/9ce3eaa67fe88609afec235117e97eb03d9b3cda --
+22:26:25 boot verdict=DIED 100s gpus=0,1,2,3
+22:26:25 cell e2_awq_h128 boot failed (DIED): RuntimeError: moe_sum_reduce CUDA kernel (small-token) launch failed
+RuntimeError: Failed at /sgl-workspace/sglang/python/sglang/kernels/jit/csrc/elementwise/activation.cuh:208: CUDA error: an illegal memory access was encountered
+Exception: Capture cuda graph failed: Failed at /sgl-workspace/sglang/python/sglang/kernels/jit/csrc/elementwise/activation.cuh:208: CUDA error: an illegal memory access was encountered
+22:26:37 -- cell e3_awq_h144 hot=144 model=/models/hub/models--QuantTrio--Qwen3-Coder-480B-A35B-Instruct-AWQ/snapshots/9ce3eaa67fe88609afec235117e97eb03d9b3cda --
+22:28:36 boot verdict=DIED 110s gpus=0,1,2,3
+22:28:36 cell e3_awq_h144 boot failed (DIED): Exception: Capture cuda graph failed: CUDA error: an illegal memory access was encountered
+Search for `cudaErrorIllegalAddress' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+22:28:47 == E-series done ==

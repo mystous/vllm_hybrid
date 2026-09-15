@@ -30,7 +30,8 @@ bench_perf() {
   ( bash "$CPU_SAMPLER" "$out/cpu_util.txt" & echo $! > "$out/.cpu_mon" )
   ( vmstat 2 > "$out/vmstat.txt" 2>&1 & echo $! > "$out/.vmstat" )
   date +%s > "$out/bench_t0.txt"
-  sudo perf stat "$@" -o "$out/perf_stat.txt" -- docker exec "$BENCH_CN" vllm bench serve --backend openai --base-url "http://127.0.0.1:$PORT" --endpoint /v1/completions \
+  # sudo 아래에서는 ~/bin/docker 셔임이 PATH 에 없어 /usr/bin/docker(실제 dockerd, 컨테이너 없음) 가 잡힘 → nerdctl 직접 호출
+  sudo perf stat "$@" -o "$out/perf_stat.txt" -- "$(sudo which nerdctl)" exec "$BENCH_CN" vllm bench serve --backend openai --base-url "http://127.0.0.1:$PORT" --endpoint /v1/completions \
     --model "$MODEL" --tokenizer "$TOK" --dataset-name sonnet --dataset-path /tmp/sonnet.txt \
     --sonnet-input-len 512 --sonnet-output-len 128 --sonnet-prefix-len 100 \
     --num-prompts "$N" --max-concurrency "$C" --request-rate inf --seed 42 \
