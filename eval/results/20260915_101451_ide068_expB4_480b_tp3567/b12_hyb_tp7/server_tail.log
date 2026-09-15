@@ -1,0 +1,200 @@
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 962, in __init__
+    self.model = Qwen3MoeModel(
+                 ^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 927, in __init__
+    super().__init__(
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 887, in __init__
+    self.embed_tokens = VocabParallelEmbedding(
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 288, in __init__
+    self.shard_indices = self._get_indices(
+                         ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 363, in _get_indices
+    vocab_range_from_global_vocab_size(org_vocab_size_padded, tp_rank, tp_size)
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 73, in vocab_range_from_global_vocab_size
+    per_partition_vocab_size = divide(global_vocab_size, world_size)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/distributed/utils.py", line 63, in divide
+    ensure_divisibility(numerator, denominator)
+  File "/sgl-workspace/sglang/python/sglang/srt/distributed/utils.py", line 55, in ensure_divisibility
+    assert numerator % denominator == 0, "{} is not divisible by {}".format(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 151936 is not divisible by 7
+
+[2026-09-15 01:18:26] Received sigquit from a child process. It usually means the child failed.
+[2026-09-15 01:18:26] kill_process_tree called: parent_pid=678292, include_parent=True, pid=678292
+[2026-09-15 01:18:26 TP2] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5048, in run_scheduler_process
+    scheduler = Scheduler(
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 995, in init_model_worker
+    self.init_tp_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 921, in init_tp_model_worker
+    self.tp_worker = TpModelWorker(**worker_kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 337, in __init__
+    self._init_model_runner()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 466, in _init_model_runner
+    self._model_runner = ModelRunner(
+                         ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 436, in __init__
+    self.initialize()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 630, in initialize
+    self.load_model()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1134, in load_model
+    loaded = load_model_with_memory_saver(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner_components/load_model_utils.py", line 321, in load_model_with_memory_saver
+    model = loader.load_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 985, in load_model
+    model = _initialize_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 345, in _initialize_model
+    return model_class(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 962, in __init__
+    self.model = Qwen3MoeModel(
+                 ^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 927, in __init__
+    super().__init__(
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 887, in __init__
+    self.embed_tokens = VocabParallelEmbedding(
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 288, in __init__
+    self.shard_indices = self._get_indices(
+                         ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 363, in _get_indices
+    vocab_range_from_global_vocab_size(org_vocab_size_padded, tp_rank, tp_size)
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 73, in vocab_range_from_global_vocab_size
+    per_partition_vocab_size = divide(global_vocab_size, world_size)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/distributed/utils.py", line 63, in divide
+    ensure_divisibility(numerator, denominator)
+  File "/sgl-workspace/sglang/python/sglang/srt/distributed/utils.py", line 55, in ensure_divisibility
+    assert numerator % denominator == 0, "{} is not divisible by {}".format(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 151936 is not divisible by 7
+
+[2026-09-15 01:18:26 TP3] Load weight begin. avail mem=77.37 GB
+[2026-09-15 01:18:26] Received sigquit from a child process. It usually means the child failed.
+[2026-09-15 01:18:26] kill_process_tree called: parent_pid=678292, include_parent=True, pid=678292
+[2026-09-15 01:18:26 TP3] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5048, in run_scheduler_process
+    scheduler = Scheduler(
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 995, in init_model_worker
+    self.init_tp_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 921, in init_tp_model_worker
+    self.tp_worker = TpModelWorker(**worker_kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 337, in __init__
+    self._init_model_runner()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 466, in _init_model_runner
+    self._model_runner = ModelRunner(
+                         ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 436, in __init__
+    self.initialize()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 630, in initialize
+    self.load_model()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1134, in load_model
+    loaded = load_model_with_memory_saver(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner_components/load_model_utils.py", line 321, in load_model_with_memory_saver
+    model = loader.load_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 985, in load_model
+    model = _initialize_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 345, in _initialize_model
+    return model_class(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 962, in __init__
+    self.model = Qwen3MoeModel(
+                 ^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 927, in __init__
+    super().__init__(
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 887, in __init__
+    self.embed_tokens = VocabParallelEmbedding(
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 288, in __init__
+    self.shard_indices = self._get_indices(
+                         ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 363, in _get_indices
+    vocab_range_from_global_vocab_size(org_vocab_size_padded, tp_rank, tp_size)
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 73, in vocab_range_from_global_vocab_size
+    per_partition_vocab_size = divide(global_vocab_size, world_size)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/distributed/utils.py", line 63, in divide
+    ensure_divisibility(numerator, denominator)
+  File "/sgl-workspace/sglang/python/sglang/srt/distributed/utils.py", line 55, in ensure_divisibility
+    assert numerator % denominator == 0, "{} is not divisible by {}".format(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 151936 is not divisible by 7
+
+[2026-09-15 01:18:26] Received sigquit from a child process. It usually means the child failed.
+[2026-09-15 01:18:26] kill_process_tree called: parent_pid=678292, include_parent=True, pid=678292
+[2026-09-15 01:18:26 TP0] Load weight begin. avail mem=77.42 GB
+[2026-09-15 01:18:26 TP0] Detected fp8 checkpoint.
+[2026-09-15 01:18:26 TP0] Scheduler hit an exception: Traceback (most recent call last):
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 5048, in run_scheduler_process
+    scheduler = Scheduler(
+                ^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 518, in __init__
+    self.init_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 995, in init_model_worker
+    self.init_tp_model_worker()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/scheduler.py", line 921, in init_tp_model_worker
+    self.tp_worker = TpModelWorker(**worker_kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 337, in __init__
+    self._init_model_runner()
+  File "/sgl-workspace/sglang/python/sglang/srt/managers/tp_worker.py", line 466, in _init_model_runner
+    self._model_runner = ModelRunner(
+                         ^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 436, in __init__
+    self.initialize()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 630, in initialize
+    self.load_model()
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner.py", line 1134, in load_model
+    loaded = load_model_with_memory_saver(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_executor/model_runner_components/load_model_utils.py", line 321, in load_model_with_memory_saver
+    model = loader.load_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 985, in load_model
+    model = _initialize_model(
+            ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/model_loader/loader.py", line 345, in _initialize_model
+    return model_class(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 962, in __init__
+    self.model = Qwen3MoeModel(
+                 ^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py", line 927, in __init__
+    super().__init__(
+  File "/sgl-workspace/sglang/python/sglang/srt/models/qwen2_moe.py", line 887, in __init__
+    self.embed_tokens = VocabParallelEmbedding(
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 288, in __init__
+    self.shard_indices = self._get_indices(
+                         ^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 363, in _get_indices
+    vocab_range_from_global_vocab_size(org_vocab_size_padded, tp_rank, tp_size)
+  File "/sgl-workspace/sglang/python/sglang/srt/layers/vocab_parallel_embedding.py", line 73, in vocab_range_from_global_vocab_size
+    per_partition_vocab_size = divide(global_vocab_size, world_size)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sgl-workspace/sglang/python/sglang/srt/distributed/utils.py", line 63, in divide
+    ensure_divisibility(numerator, denominator)
+  File "/sgl-workspace/sglang/python/sglang/srt/distributed/utils.py", line 55, in ensure_divisibility
+    assert numerator % denominator == 0, "{} is not divisible by {}".format(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 151936 is not divisible by 7
+
+[2026-09-15 01:18:26] Received sigquit from a child process. It usually means the child failed.
+[2026-09-15 01:18:26] kill_process_tree called: parent_pid=678292, include_parent=True, pid=678292

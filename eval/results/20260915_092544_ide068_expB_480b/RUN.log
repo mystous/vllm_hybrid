@@ -1,0 +1,77 @@
+09:25:44 == IDE_068 expB start 20260915_092544 model=/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f ==
+09:25:44 turbo: no_turbo=1 max_freq=2000000
+09:25:56 -- cell b0_gpu_tp8_ep8 --
+09:28:26 boot verdict=HEALTH_OK 140s gpus=0,1,2,3,4,5,6,7
+09:28:32 smoke:
+ Paris. What is the capital of Germany?⏎The capital of Germany is Berlin.
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ 5050⏎What is the sum of 1+2+3+...+500?⏎To find the sum of the first 500 natural numbers (
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+09:28:34 bench C16 n=64:
+Successful requests: 64 
+Failed requests: 0 
+Benchmark duration (s): 11.68 
+Output token throughput (tok/s): 701.60 
+Total token throughput (tok/s): 3453.17 
+Median TTFT (ms): 335.16 
+P95 TTFT (ms): 455.27 
+Median TPOT (ms): 20.14 
+P95 TPOT (ms): 21.10 
+CPU busy n=12 avg=5.80 max=8.97 p50=5.62
+09:29:11 -- cell b0a_gpu_tp4 --
+09:29:55 boot verdict=DIED 40s gpus=0,1,2,3
+09:30:06 -- cell b1_hyb_tp4 --
+09:31:23 boot verdict=HEALTH_OK 70s gpus=0,1,2,3
+09:31:28 smoke:
+ Paris, which is one of the world's most visited cities. It is known for its art, fashion,
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ ?⏎⏎To calculate the sum of the first 100 natural numbers (1 + 2 + 3 + ... + 100), you can
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+09:31:55 bench C16 n=64:
+Successful requests: 64 
+Failed requests: 0 
+Benchmark duration (s): 188.80 
+Output token throughput (tok/s): 43.39 
+Total token throughput (tok/s): 213.56 
+Median TTFT (ms): 8622.12 
+P95 TTFT (ms): 11317.95 
+Median TPOT (ms): 299.05 
+P95 TPOT (ms): 302.98 
+CPU busy n=100 avg=45.10 max=51.07 p50=47.74
+09:35:29 -- cell b2_hyb_tp2 --
+09:36:46 boot verdict=HEALTH_OK 70s gpus=0,1
+09:36:51 smoke:
+ Paris, which is one of the world's most beautiful cities. It is known for its art, fashio
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ ?⏎⏎To calculate the sum of the first 100 natural numbers (1 + 2 + 3 + ... + 100), you can
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+09:37:18 bench C16 n=64:
+Successful requests: 64 
+Failed requests: 0 
+Benchmark duration (s): 189.06 
+Output token throughput (tok/s): 43.33 
+Total token throughput (tok/s): 213.27 
+Median TTFT (ms): 8643.05 
+P95 TTFT (ms): 11075.44 
+Median TPOT (ms): 300.07 
+P95 TPOT (ms): 302.02 
+CPU busy n=100 avg=44.42 max=49.01 p50=47.05
+09:40:52 -- cell b3_hyb_tp1 --
+09:42:00 boot verdict=HEALTH_OK 60s gpus=0
+09:42:05 smoke:
+ Paris.  What is the capital of Paris?⏎⏎The capital of Paris is not a standard concept, as
+⏎    if n <= 1:⏎        return n⏎    else:⏎        return fibonacci(n-1) + fibonacci(n-2)⏎
+ ?⏎⏎To calculate the sum of the first 100 natural numbers (1 + 2 + 3 + ... + 100), you can
+```python⏎def reverse_string(s):⏎    return s[::-1]⏎```
+09:42:24 bench C16 n=64:
+Successful requests: 64 
+Failed requests: 0 
+Benchmark duration (s): 189.46 
+Output token throughput (tok/s): 43.24 
+Total token throughput (tok/s): 212.82 
+Median TTFT (ms): 8694.06 
+P95 TTFT (ms): 11008.23 
+Median TPOT (ms): 300.12 
+P95 TPOT (ms): 304.42 
+CPU busy n=100 avg=43.89 max=48.32 p50=46.47
+09:45:59 == expB done 09:45:59 ==
