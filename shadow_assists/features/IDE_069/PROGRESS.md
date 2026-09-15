@@ -59,3 +59,7 @@
 - `docker commit sgl-kt` 가 nerdctl snapshot mount 오류로 실패 (`failed to export layer: mount callback failed`, 14 분 소요 후) → 컨테이너 미생성, dual 두 셀 rc=1.
 - 전환: 8-30 dual 실험의 cpuset 컨테이너 재사용 — **sgl-kt5 = 소켓0 (0-55,112-167 / mems 0), sgl-kt2 = 소켓1 (56-111,168-223 / mems 1)**, kt-kernel 0.7.0.post2 + 패치 2건 확인. sgl-kt(post1 소스빌드)와 소프트웨어가 다르므로 dual 앞에 **sgl-kt5 단독 hot96 def4 C32** 를 먼저 재어 t2(519.8)와의 등가성을 확인한다.
 - 3라운드(jitter·C sweep) 종료 후 dual v2 자동.
+
+## 2026-09-15 15:24 — 라우터 단일 엔드포인트 셀 추가 (사용자 지시)
+- 사용자: "모델 인스턴스 2개가 뜨면 따로따로 동작시켜서 출력을 합쳐서 보여 줄 거냐" → 합산 방식(독립 포트 2개, 동시 벤치, tok/s 합산) 설명 후 라우터 실험도 진행 지시.
+- `run_router.sh`: sglang_router 0.3.2 (`--worker-urls :30000 :30001 --policy round_robin|cache_aware`) 를 sgl-kt5 에서 :30002 로 띄우고 단일 엔드포인트로 C32/C64 벤치. dual v2 종료 후 자동.

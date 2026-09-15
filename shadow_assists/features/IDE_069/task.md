@@ -14,3 +14,4 @@
 - [ ] 소켓1 cpuset 컨테이너 준비 (패치 4건 재적용)
 - [ ] dual: A(0-3, 소켓0) + B(4-7, 소켓1), hot96 def4 graph, cpuinfer 48 — 동시 C16/C32 each
 - [ ] 합산 vs TP8 비교표
+- [ ] **라우터 단일 엔드포인트** (사용자 지시): sglang_router 0.3.2 로 A+B 를 :30002 로 묶어 C32/C64 — expert 0 (round_robin), hot96 def4 (round_robin, cache_aware). 합산 방식과 대조 = 라우터 오버헤드·부하 불균형
