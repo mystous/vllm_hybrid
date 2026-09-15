@@ -69,3 +69,7 @@
 - 사용자: "굳이 필요 없어. 멈추고 실험 A 진행하자" → DP3×TP1 셀 중단 (부팅·greedy 는 성립했으나 벤치 미완, 결과 미기록). 실험 B 는 B4 까지로 종결.
 - 실험 A 자동 연결: 다운로드 완료(hf 종료 + incomplete 0 + safetensors 61) 감지 → `run_expA.sh all` (kt quant int4 → 하이브리드 TP8 부팅 → greedy 4문항 → C8 벤치).
 - Kimi-K2 398 GB / 1,029 GB (blob 완료 41, 스냅샷 safetensors 25/61). 완료 예상 12:00 전후, 변환 ~1.7 h → 서빙 결과 14:00 전후.
+
+## 2026-09-15 10:39 — 30분 점검
+- 실험 B 종결 (b0~b14). 실험 A 대기: Kimi-K2 **453 GB / 1,029 GB (44 %)**, RX 105 MB/s, blob 완료 41·진행 16, 스냅샷 safetensors 25/61. 완료 예상 12:10 전후. GPU 8장 유휴, DRAM used 80 GB.
+- 자동 연결(`chain_expA.sh`) 대기 중 — 완료 감지 즉시 `kt quant int4` 착수.
