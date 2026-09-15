@@ -42,3 +42,9 @@
 ## 2026-09-15 09:55 — B2 b4: TP1 + GPU expert 16개
 - **b4 TP1 + `--kt-num-gpu-experts 16`** (물리 id 0~15, hotmap 없음): HEALTH OK 70초, 64/64, **46.81 out tok/s** (b3 43.24 대비 **+8.3 %**), TTFT p50 8,014 ms, TPOT p50 274.0 ms (300.1 → 274.0, −8.7 %), 벤치 175.0 s. greedy 4/4. **HBM 65.7 GiB (1장)** — expert 16개×62층 FP8 ≈ 46 GB 가 올라감. CPU busy 43.7 %.
 - b5 TP2 + 40개 부팅 중.
+
+## 2026-09-15 10:02 — B2 완료 (b5, b6)
+- **b5 TP2 + GPU expert 40**: HEALTH OK 90초, 64/64, **49.90 tok/s** (+15.2 % vs 전량 CPU), TTFT p50 6,891 ms, TPOT 268.0 ms, HBM 70.0 GiB ×2. greedy 4/4.
+- **b6 TP4 + GPU expert 96**: HEALTH OK 100초, 64/64, **51.55 tok/s** (+18.8 %), TTFT p50 4,548 ms, TPOT 273.4 ms, HBM 75.7~76.2 GiB ×4. greedy 4/4.
+- hotmap 없는 물리 id 배치의 이득은 +8~19 % 에 그친다. IDE_030 의 hotmap 96개 = 490.9 tok/s 와의 차이가 빈도 기반 배치의 가치.
+- GPU 전부 유휴. Kimi 다운로드 대기 중 → 그 사이 TP1 에서 cuda graph 를 켠 변형(B3)을 돌려 최소 장수 구성의 현실적 처리량을 본다.
