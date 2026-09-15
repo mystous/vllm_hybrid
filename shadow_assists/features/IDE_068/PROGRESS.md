@@ -79,3 +79,7 @@
 
 ## 2026-09-15 11:39 — 30분 점검
 - Kimi-K2 **784 GB / 1,029 GB (76 %)**, RX 117 MB/s, blob 완료 68·진행 14, 스냅샷 safetensors 49/61. 30분간 +163 GB. 잔여 245 GB → 완료 예상 12:20 전후. 자동 연결 대기 중, GPU 유휴.
+
+## 2026-09-15 12:09 — Kimi-K2 다운로드 완료, INT4 변환 착수
+- 다운로드 완료 12:08 (시작 09:23 → 2 h 45 min). 디스크 959 GiB (= 1,030 GB), blob 82 완료, 스냅샷 safetensors 62. 평균 실효 ≈ 104 MB/s.
+- `kt quant /models/hub/.../Kimi-K2-Instruct -m int4 -i fp8 -o /models/kt/kimi-k2-int4 --cpu-threads 96 --numa-nodes 2` 12:08:30 시작. DRAM used 76 GB / buff·cache 1,574 GB (page cache 에 원본 적재됨). R1 642 GB 가 65 분이었으므로 1,030 GB 는 ~105 분 → 13:55 전후 완료 예상, 이어서 TP8 부팅 자동.
