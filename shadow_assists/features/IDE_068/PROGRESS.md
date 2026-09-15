@@ -33,3 +33,8 @@
 ## 2026-09-15 09:46 — b2 TP2 성립, b3 TP1 부팅 성공
 - **b2 하이브리드 TP2**: 64/64 완료, **43.33 out tok/s**, TTFT p50 8,643 ms / p95 11,075 ms, TPOT p50 300.1 ms / p95 302.0 ms, 벤치 189.1 s. greedy 4/4 정상. HBM 20.0~20.5 GiB/장 (2장). **TP4 (43.39) 와 동일** — 처리량이 GPU 장수와 무관 = CPU expert 구간이 지배.
 - **b3 하이브리드 TP1**: HEALTH OK **60초**, HBM **24.6 GiB (1장)**, DRAM 307 GB. smoke·벤치 진행 중.
+
+## 2026-09-15 09:50 — 실험 B 본 셀 완료: 480B 가 GPU 1장에서 성립
+- **b3 하이브리드 TP1**: 64/64 완료, **43.24 out tok/s**, TTFT p50 8,694 ms / p95 11,008 ms, TPOT p50 300.1 ms / p95 304.4 ms, 벤치 189.5 s. greedy 4/4 정상. **HBM 24.0 GiB (1장)**, DRAM 307 GB. CPU busy 평균 43.9 %.
+- TP4 / TP2 / TP1 = 43.39 / 43.33 / 43.24 tok/s — GPU 장수와 무관. 답: **최소 1장** (GPU-only 는 8장 필요·TP4 OOM).
+- B2 자동 착수 (`20260915_094613_ide068_expB2_480b_gpuexperts`): b4 TP1 + GPU expert 16개 부팅 중.
