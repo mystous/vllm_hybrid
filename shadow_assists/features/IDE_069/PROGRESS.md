@@ -40,3 +40,16 @@
 ## 2026-09-15 14:33 — GSM 40 게이트 통과, dual 비교 준비
 - **GSM8K 40문항 (hot96, chat greedy)**: deferral 0 = **39/40 (97.5 %)**, deferral 4 = **39/40 (97.5 %)** → 저하 0. t2 구성(def4) 채택 가능. `eval/results/20260915_141917_ide069_gsm40_hot96/`.
 - 사용자 추가 지시: TP4+오프로딩 ×2 (GPU 8장) 대 GPU-only TP8 비교, 오프로딩은 **hot expert 상주(hot96+def4)·비상주(expert 0) 둘 다**. `run_dual.sh` 작성 — 인스턴스별 cgroup cpuset 컨테이너(소켓0/1, sgl-kt 를 이미지로 커밋해 동일 상태), cpuinfer 48·threadpool 2 (8-30 교정판 처방), 동시 벤치 C16each/C32each 합산 vs TP8 C32/C64. 2라운드 종료 후 자동.
+
+## 2026-09-15 14:48 — sweep 2라운드 완료
+| 셀 | 구성 | C32 tok/s | C64 tok/s | TPOT p50 (C32) | 비고 |
+|---|---|---|---|---|---|
+| **t7** | hot96 def4, mf 0.95, **KV 40,960** | 459.34 | **637.24** | 52.2 ms | C64 신기록 (24k KV 때 425.15) |
+| t8 | + EAGLE3 spec (480B 전용 draft) | 293.46 | — | 95.6 ms | 악화 — 검증 토큰이 CPU expert 비용을 키움 |
+| t9 | + STANDALONE spec (Qwen3-4B) | 169.77 | — | 25.4 ms (TTFT 20 s) | 악화 |
+| t10 | cpuinfer 112 | 483.24 | — | 49.7 ms | 96 대비 차이 없음/소폭 하락 |
+| t11 | dispatch static | 엔진 거부 | — | — | `ValueError` static 은 a2a 백엔드 전제 |
+| t12 | hot100, KV 16,384 | 356.45 | — | 65.8 ms | KV 압박(TTFT p95 7.2 s) 이 hot 4개 이득을 상쇄 |
+- **최고 = t7 @C64 637.24 tok/s** (출발점 43.39 대비 **14.7×**, IDE_030 C64 408.2 대비 +56 %). greedy 전 셀 4/4.
+- spec decode 두 종은 이 구성에서 역효과 — CPU expert 가 지배하는 스텝에 draft 검증 토큰이 더해져 CPU 비용이 커진다.
+- 같은 구성의 C32 가 run 마다 454~520 으로 흔들린다 (±7 %) → 3라운드에서 반복 측정으로 jitter 를 잡고 C48/80/96 을 본다. dual 비교 (TSK_053) 가 먼저 실행 중.

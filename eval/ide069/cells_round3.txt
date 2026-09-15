@@ -1,0 +1,6 @@
+# 3라운드 — 최고 구성(hot96 def4 KV40k)의 C sweep + 반복(jitter) + KV 상한 탐침
+# name|gpu_experts|deferral|graph|mem_frac|max_total_tokens|concurrencies|extra
+t13_hot96_def4_kv40k_rep1|96|4|on|0.95|40960|32,48,64,80|--ep-dispatch-algorithm dynamic
+t14_hot96_def4_kv40k_rep2|96|4|on|0.95|40960|32,64|--ep-dispatch-algorithm dynamic
+t15_hot96_def4_kv56k|96|4|on|0.96|57344|64,96|--ep-dispatch-algorithm dynamic
+t16_hot96_def4_kv24k_rep|96|4|on|0.92|24576|32|--ep-dispatch-algorithm dynamic
