@@ -10,7 +10,7 @@
 set -uo pipefail
 source "$HOME/projects/vllm_hybrid/eval/ide068/lib.sh"
 TS=$(date +%Y%m%d_%H%M%S)
-BASE=$REPO/eval/results/${TS}_ide069_dual_vs_tp8
+BASE=$REPO/eval/results/${TS}_ide069_dual_vs_tp8${TAG}
 mkdir -p "$BASE"; RUN_LOG=$BASE/RUN.log
 SNAP=$(ls -d $HOME/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/*/ | head -1)
 TOK=$HOME/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/$(basename "$SNAP")
@@ -20,6 +20,8 @@ MODEL=q480
 # sgl-kt5 = 소켓0 (0-55,112-167 / mems 0), sgl-kt2 = 소켓1 (56-111,168-223 / mems 1). kt-kernel 0.7.0.post2 + 패치.
 S0=sgl-kt5; S1=sgl-kt2
 SKIP_REF=${SKIP_REF:-0}
+ONLY_HOT=${ONLY_HOT:-0}
+TAG=${TAG:-}
 KTC="--kt-weight-path /models/kt/qwen3-480b-int4 --kt-method AMXINT4 --kt-threadpool-count 2"
 HOT="--kt-num-gpu-experts 96 --init-expert-location /models/kt/ide069/hotmap.json --kt-max-deferred-experts-per-token 4 --cuda-graph-backend-prefill disabled --cuda-graph-max-bs 64 --mem-fraction-static 0.92 --max-total-tokens 24576 --ep-dispatch-algorithm dynamic"
 COLD="--kt-num-gpu-experts 0 --disable-cuda-graph --mem-fraction-static 0.80 --max-total-tokens 65536"
@@ -138,7 +140,7 @@ if [ $rc = 0 ]; then
 else docker exec $S0 bash -c 'tail -40 /tmp/sgl_server.log' > "$out/server_tail.log"; fi
 stop_all
 
-run_dual dual_cold_expert0 $COLD
+[ "$ONLY_HOT" = 1 ] || run_dual dual_cold_expert0 $COLD
 run_dual dual_hot96_def4  $HOT
 log "== dual done $(date +%H:%M:%S) =="
 echo "$BASE"

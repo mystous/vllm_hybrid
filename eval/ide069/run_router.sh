@@ -4,12 +4,14 @@
 set -uo pipefail
 source "$HOME/projects/vllm_hybrid/eval/ide068/lib.sh"
 TS=$(date +%Y%m%d_%H%M%S)
-BASE=$REPO/eval/results/${TS}_ide069_router_dual
+BASE=$REPO/eval/results/${TS}_ide069_router_dual${TAG}
 mkdir -p "$BASE"; RUN_LOG=$BASE/RUN.log
 SNAP=$(ls -d $HOME/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/*/ | head -1)
 TOK=$HOME/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/$(basename "$SNAP")
 M_CN=/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/$(basename "$SNAP")
 MODEL=q480; S0=sgl-kt5; S1=sgl-kt2; RPORT=30002
+ONLY_HOT=${ONLY_HOT:-0}
+TAG=${TAG:-}
 KTC="--kt-weight-path /models/kt/qwen3-480b-int4 --kt-method AMXINT4 --kt-threadpool-count 2"
 HOT="--kt-num-gpu-experts 96 --init-expert-location /models/kt/ide069/hotmap.json --kt-max-deferred-experts-per-token 4 --cuda-graph-backend-prefill disabled --cuda-graph-max-bs 64 --mem-fraction-static 0.92 --max-total-tokens 24576 --ep-dispatch-algorithm dynamic"
 COLD="--kt-num-gpu-experts 0 --disable-cuda-graph --mem-fraction-static 0.80 --max-total-tokens 65536"
@@ -59,7 +61,7 @@ run_variant() {  # run_variant <name> <policies(,)> <extra-args>
   stop_all
 }
 stop_all
-run_variant router_cold_expert0 round_robin $COLD
+[ "$ONLY_HOT" = 1 ] || run_variant router_cold_expert0 round_robin $COLD
 run_variant router_hot96_def4 round_robin,cache_aware $HOT
 log "== router done $(date +%H:%M:%S) =="
 echo "$BASE"
