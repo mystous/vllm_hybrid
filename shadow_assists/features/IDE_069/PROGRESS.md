@@ -36,3 +36,7 @@
 - hot 수가 지배 항: 64 → 96 에서 2.26× (230 → 520). hot112 는 산술상 불가 — TP4 샤드 기준 expert 1개/층 ≈ 11.8 MB × 62층 = 0.73 GB/expert → 112개 = 82 GB > 79.2 GB 용량 (KV 를 0 으로 해도 안 들어감). t3 OOM 이 이를 확인.
 - C64 는 KV 상한 → 2라운드 t7 (mf 0.95, max-total-tokens 40,960).
 - 2라운드 (GSM 게이트 뒤 자동): t7 KV 확대 / t8 EAGLE3 spec / t9 STANDALONE(Qwen3-4B) spec / t10 cpuinfer 112 / t11 dispatch static / t12 hot100 (상한 탐침).
+
+## 2026-09-15 14:33 — GSM 40 게이트 통과, dual 비교 준비
+- **GSM8K 40문항 (hot96, chat greedy)**: deferral 0 = **39/40 (97.5 %)**, deferral 4 = **39/40 (97.5 %)** → 저하 0. t2 구성(def4) 채택 가능. `eval/results/20260915_141917_ide069_gsm40_hot96/`.
+- 사용자 추가 지시: TP4+오프로딩 ×2 (GPU 8장) 대 GPU-only TP8 비교, 오프로딩은 **hot expert 상주(hot96+def4)·비상주(expert 0) 둘 다**. `run_dual.sh` 작성 — 인스턴스별 cgroup cpuset 컨테이너(소켓0/1, sgl-kt 를 이미지로 커밋해 동일 상태), cpuinfer 48·threadpool 2 (8-30 교정판 처방), 동시 벤치 C16each/C32each 합산 vs TP8 C32/C64. 2라운드 종료 후 자동.
