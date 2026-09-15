@@ -22,3 +22,17 @@
 - IDE_030 기록 (C32 490.9 / C64 408.2) 을 **재현하고 +5.9 % 초과**. 출발점 43.39 (C16) 대비 C32 기준 **12.0×**.
 - deferral 4 의 기여: C32 470.26 → 519.81 (+10.5 %), C16 +2.2 %. 근사 연산이므로 GSM 40 게이트 예정.
 - C64 는 KV 상한(max-total-tokens 24,576 < 64×640) 에 걸림 → 2라운드에서 KV 확대 대 hot expert 수의 trade-off 를 본다.
+
+## 2026-09-15 14:22 — sweep 1라운드 완료
+| 셀 | 구성 | C32 tok/s | TPOT p50 | HBM/장 |
+|---|---|---|---|---|
+| t1 | hot96 def0 graph | 470.26 | 55.3 ms | 74.6 GiB |
+| **t2** | **hot96 def4 graph** | **519.81** | 49.2 ms | 74.6 GiB |
+| t3 | hot112 def4 mf0.95 | **OOM 40 s** | — | — |
+| t4 | hot96 def2 | 454.27 | 53.8 ms | 74.6 GiB |
+| t5 | hot96 def8 | 500.17 | 47.3 ms | 74.6 GiB |
+| t6 | hot64 def4 | 230.14 | 119.3 ms | 53.1 GiB |
+- 최고 = t2 (hot96, deferral 4): **519.81 tok/s @C32**. deferral 은 4 가 최적 (0/2/4/8 = 470/454/520/500).
+- hot 수가 지배 항: 64 → 96 에서 2.26× (230 → 520). hot112 는 산술상 불가 — TP4 샤드 기준 expert 1개/층 ≈ 11.8 MB × 62층 = 0.73 GB/expert → 112개 = 82 GB > 79.2 GB 용량 (KV 를 0 으로 해도 안 들어감). t3 OOM 이 이를 확인.
+- C64 는 KV 상한 → 2라운드 t7 (mf 0.95, max-total-tokens 40,960).
+- 2라운드 (GSM 게이트 뒤 자동): t7 KV 확대 / t8 EAGLE3 spec / t9 STANDALONE(Qwen3-4B) spec / t10 cpuinfer 112 / t11 dispatch static / t12 hot100 (상한 탐침).
