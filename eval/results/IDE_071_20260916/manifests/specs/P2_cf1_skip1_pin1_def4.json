@@ -1,0 +1,34 @@
+{
+ "cell_id": "P2_cf1_skip1_pin1_def4",
+ "phase_id": "P2",
+ "parent_cell_id": "R00_r0_def4",
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 3
+  }
+ ],
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1"
+ },
+ "server_args": {
+  "kt-max-deferred-experts-per-token": 4
+ },
+ "gpus": "0,1,2,3",
+ "status": "PENDING",
+ "pin_nonkt": true,
+ "required_runtime_proofs": [
+  "callback_free_path_used",
+  "skip_empty_effective_state",
+  "all_rank_tid_affinity",
+  "per_layer_deferred_limit"
+ ],
+ "note": "skip-empty 는 소스상 deferred ≥ top-k(8) 이고 callback-free 일 때만 활성 (experts_base.py:853) — def0/4 에서는 NO_EFFECTIVE_PATH 로 표기",
+ "expected_effect": "NO_EFFECTIVE_PATH_skip_empty",
+ "config_hash": "86b34ac8ba0af32a"
+}

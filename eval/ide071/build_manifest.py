@@ -151,12 +151,55 @@ def p7(anchor):
     out.append(mk("P7_gpu0145", note="GPU 0,1,4,5 대조군 1회", gpus="0,1,4,5"))
     return out
 
+
+AWQ_CN = "/models/hub/models--QuantTrio--Qwen3-Coder-480B-A35B-Instruct-AWQ/snapshots/9ce3eaa67fe88609afec235117e97eb03d9b3cda"
+EAGLE3_CN = "/models/hub/models--lmsys--SGLang-EAGLE3-Qwen3-Coder-480B-A35B-Instruct-SpecForge-EigenAI/snapshots/b2a87592e335783be6c617c3be93ceeab99334a2"
+Q4B_CN = "/models/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c"
+
+def p8(anchor):
+    """W4 (AWQ) 단계별 분리 (§12.1) + TP/EP 구성 (§12.3). 작은 요청 셀은 SHORT_COLD C1/2/4/8/16 을 각 4 요청씩."""
+    out = []
+    small = [{"workload_id": "SHORT_COLD", "C": c, "n": max(4, c), "reps": 1} for c in (1, 2, 4, 8, 16)]
+    gpu_only = {"model-path": AWQ_CN, "served-model-name": "q480awq", "host": "127.0.0.1", "port": 30000, "tp": 4, "attention-backend": "triton", "trust-remote-code": True,
+                "context-length": 32768, "mem-fraction-static": 0.90, "max-total-tokens": 16384}
+    out.append(cell("W01_awq_gpuonly_tp4_graphoff", "P8", None, kind="FORMAT", prec="GPU_AWQ4_ALL_GPU_KV_BF16", workloads=small, replace_server_args=True, sa=dict(gpu_only, **{"disable-cuda-graph": True}), note="AWQ GPU-only TP4, 작은 KV, graph OFF, kt 없음"))
+    out.append(cell("W02_awq_gpuonly_tp4_graphoff_half", "P8", "W01_awq_gpuonly_tp4_graphoff", kind="FORMAT", prec="GPU_AWQ4_ALL_GPU_KV_FP16", workloads=small, replace_server_args=True, sa=dict(gpu_only, **{"disable-cuda-graph": True, "dtype": "half"}), note="dtype half"))
+    out.append(cell("W02b_awq_gpuonly_tp4_graphoff_awq_marlin", "P8", "W01_awq_gpuonly_tp4_graphoff", kind="FORMAT", prec="GPU_AWQ4_ALL_GPU_KV_BF16", workloads=small, replace_server_args=True, sa=dict(gpu_only, **{"disable-cuda-graph": True, "quantization": "awq_marlin"}), note="runner 명시 awq_marlin"))
+    out.append(cell("W03_awq_gpuonly_tp4_graphon", "P8", "W01_awq_gpuonly_tp4_graphoff", kind="FORMAT", prec="GPU_AWQ4_ALL_GPU_KV_BF16", workloads=small + [{"workload_id": "SHORT_COLD", "C": 64, "reps": 2}], replace_server_args=True, sa=dict(gpu_only, **{"cuda-graph-max-bs": 64, "cuda-graph-backend-prefill": "disabled"}), note="GPU-only graph ON"))
+    hyb = {"model-path": AWQ_CN, "served-model-name": "q480awq", "host": "127.0.0.1", "port": 30000, "tp": 4, "attention-backend": "triton", "trust-remote-code": True, "context-length": 32768,
+           "kt-weight-path": "/models/kt/qwen3-480b-int4", "kt-method": "AMXINT4", "kt-cpuinfer": 96, "kt-threadpool-count": 2, "kt-num-gpu-experts": 96, "init-expert-location": HOTMAP_V1,
+           "kt-max-deferred-experts-per-token": 4, "ep-dispatch-algorithm": "dynamic", "mem-fraction-static": 0.95, "max-total-tokens": 40960}
+    out.append(cell("W04_awq_hybrid_h96_graphoff", "P8", "W01_awq_gpuonly_tp4_graphoff", kind="FORMAT", prec="GPU_AWQ4_CPU_INT4_KV_BF16", workloads=small, replace_server_args=True, sa=dict(hyb, **{"disable-cuda-graph": True}), note="MIXED_WEIGHT_PROVENANCE (GPU AWQ / CPU INT4 from FP8)"))
+    out.append(cell("W05_awq_hybrid_h96_graphon", "P8", "W04_awq_hybrid_h96_graphoff", kind="FORMAT", prec="GPU_AWQ4_CPU_INT4_KV_BF16", workloads=small + [{"workload_id": "SHORT_COLD", "C": 64, "reps": 3}], replace_server_args=True, sa=dict(hyb, **{"cuda-graph-max-bs": 64, "cuda-graph-backend-prefill": "disabled"}), note=""))
+    for h in (112, 128, 144):
+        out.append(cell(f"W06_awq_hybrid_h{h}_graphon", "P8", "W05_awq_hybrid_h96_graphon", kind="FORMAT", prec="GPU_AWQ4_CPU_INT4_KV_BF16", replace_server_args=True, sa=dict(hyb, **{"kt-num-gpu-experts": h, "cuda-graph-max-bs": 64, "cuda-graph-backend-prefill": "disabled"}), note=f"hot {h}"))
+    out.append(cell("W07_awq_gpuonly_tp4_all160", "P8", "W03_awq_gpuonly_tp4_graphon", kind="FORMAT", prec="GPU_AWQ4_ALL_GPU_KV_BF16", replace_server_args=True, sa=dict(gpu_only, **{"cuda-graph-max-bs": 64, "cuda-graph-backend-prefill": "disabled", "max-total-tokens": 40960}), note="GPU-only all160 W4, KV 40,960"))
+    # TP/EP (§12.3) — 앵커 구성 기준
+    base_env = dict(anchor.get("env", {})); base_sa = dict(anchor.get("server_args", {})); pin = anchor.get("pin_nonkt", False)
+    def mk(cid, sa_add=None, note="", **kw):
+        s = dict(base_sa); s.update(sa_add or {}); return cell(cid, "P8", anchor["cell_id"], env=dict(base_env), sa=s, pin_nonkt=pin, prec=anchor.get("precision_family"), note=note, **kw)
+    out.append(mk("T01_tp4_ep4_hybrid", {"ep-size": 4}, note="TP4+EP4 하이브리드 (kt wrapper 지원 여부는 부팅으로 판정)"))
+    out.append(mk("T02_tp4_dp_attention", {"enable-dp-attention": True, "dp-size": 4}, note="DP attention (지원 여부)"))
+    out.append(mk("T03_tp2_hybrid", {"tp": 2}, note="TP2 하이브리드 단일 (HBM 성립 여부)", gpus="0,1"))
+    return out
+
+def p9(anchor):
+    out = []; base_env = dict(anchor.get("env", {})); base_sa = dict(anchor.get("server_args", {})); pin = anchor.get("pin_nonkt", False)
+    W = [{"workload_id": "SHORT_COLD", "C": c, "reps": 2} for c in (1, 4, 16)] + [{"workload_id": "SHORT_COLD", "C": 64, "reps": 2}]
+    def mk(cid, sa_add, note):
+        s = dict(base_sa); s.update(sa_add); return cell(cid, "P9", anchor["cell_id"], env=dict(base_env), sa=s, pin_nonkt=pin, prec=anchor.get("precision_family"), workloads=W, note=note, sem="SEMANTICS_UNVERIFIED")
+    for steps, dt in ((1, 2), (2, 3), (3, 4)):
+        out.append(mk(f"S01_eagle3_steps{steps}_draft{dt}", {"speculative-algorithm": "EAGLE3", "speculative-draft-model-path": EAGLE3_CN, "speculative-num-steps": steps, "speculative-eagle-topk": 1, "speculative-num-draft-tokens": dt}, "EAGLE3 (rejection sampling 기본, threshold 미변경)"))
+    out.append(mk("S02_standalone4b_steps3_draft4", {"speculative-algorithm": "STANDALONE", "speculative-draft-model-path": Q4B_CN, "speculative-num-steps": 3, "speculative-eagle-topk": 1, "speculative-num-draft-tokens": 4}, "STANDALONE Qwen3-4B 대조군 1개"))
+    out.append(mk("S03_ngram_steps3_draft4", {"speculative-algorithm": "NGRAM", "speculative-num-steps": 3, "speculative-num-draft-tokens": 4}, "n-gram (지원 여부)"))
+    return out
+
 if __name__ == "__main__":
     camp = sys.argv[1]; phase = sys.argv[2]; anchor = None; outp = None
     a = sys.argv[3:]
     if "--anchor" in a: anchor = json.load(open(a[a.index("--anchor") + 1]))
     if "--out" in a: outp = a[a.index("--out") + 1]
-    gen = {"P1": lambda: p1(), "P2": lambda: p2(), "P3": lambda: p3(anchor), "P4": lambda: p4(anchor), "P5": lambda: p5(anchor), "P6": lambda: p6(anchor), "P7": lambda: p7(anchor)}[phase]
+    gen = {"P1": lambda: p1(), "P2": lambda: p2(), "P3": lambda: p3(anchor), "P4": lambda: p4(anchor), "P5": lambda: p5(anchor), "P6": lambda: p6(anchor), "P7": lambda: p7(anchor), "P8": lambda: p8(anchor), "P9": lambda: p9(anchor)}[phase]
     cells = gen(); os.makedirs(f"{camp}/manifests", exist_ok=True)
     outp = outp or f"{camp}/manifests/cells_{phase}.jsonl"
     with open(outp, "w") as f:

@@ -1,0 +1,28 @@
+{
+ "cell_id": "P3_amx_min_rows_8",
+ "phase_id": "P3",
+ "parent_cell_id": "P2_cf1_skip1_pin1_def8",
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 3
+  }
+ ],
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1",
+  "KT_AMX_MIN_ROWS": "8"
+ },
+ "server_args": {
+  "kt-max-deferred-experts-per-token": 8
+ },
+ "gpus": "0,1,2,3",
+ "status": "PENDING",
+ "pin_nonkt": true,
+ "note": "AMX if qlen>MIN_QLEN or m>=MIN_ROWS (moe.hpp:240-252); 기본 1<<30",
+ "config_hash": "9a4e21f96a09094f"
+}

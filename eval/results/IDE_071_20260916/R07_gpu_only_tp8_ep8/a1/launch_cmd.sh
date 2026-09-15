@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# container sgl-kt
+ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python3 -m sglang.launch_server --model-path /models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f --served-model-name q480 --host 127.0.0.1 --port 30000 --tp 8 --ep-size 8 --attention-backend triton --trust-remote-code --context-length 32768 --cuda-graph-max-bs 64 --cuda-graph-backend-prefill disabled --mem-fraction-static 0.9 --max-total-tokens 131072

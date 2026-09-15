@@ -1,0 +1,25 @@
+{
+ "cell_id": "P2X_cf1_overlap_off",
+ "phase_id": "P2",
+ "parent_cell_id": "P2_cf1_skip0_pin0_def4",
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 3
+  }
+ ],
+ "env": {
+  "KT_CALLBACK_FREE": "1"
+ },
+ "server_args": {
+  "disable-overlap-schedule": true
+ },
+ "gpus": "0,1,2,3",
+ "status": "PENDING",
+ "note": "overlap scheduler OFF × callback-free ON",
+ "config_hash": "3041fa315548a022"
+}

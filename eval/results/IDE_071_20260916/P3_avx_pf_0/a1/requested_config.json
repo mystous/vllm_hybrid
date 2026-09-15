@@ -1,0 +1,30 @@
+{
+ "server_args": {
+  "model-path": "/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f",
+  "served-model-name": "q480",
+  "host": "127.0.0.1",
+  "port": 30000,
+  "tp": 4,
+  "attention-backend": "triton",
+  "trust-remote-code": true,
+  "context-length": 32768,
+  "kt-weight-path": "/models/kt/qwen3-480b-int4",
+  "kt-method": "AMXINT4",
+  "kt-cpuinfer": 96,
+  "kt-threadpool-count": 2,
+  "kt-num-gpu-experts": 96,
+  "init-expert-location": "/models/kt/ide069/hotmap.json",
+  "kt-max-deferred-experts-per-token": 8,
+  "ep-dispatch-algorithm": "dynamic",
+  "cuda-graph-max-bs": 64,
+  "cuda-graph-backend-prefill": "disabled",
+  "mem-fraction-static": 0.95,
+  "max-total-tokens": 40960
+ },
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1",
+  "KT_AVX_PF": "0"
+ },
+ "gpus": "0,1,2,3"
+}

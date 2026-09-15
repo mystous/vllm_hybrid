@@ -1,0 +1,436 @@
+{
+ "campaign_dir": "/home/mystous/projects/vllm_hybrid/eval/results/IDE_071_20260916/compact",
+ "cell_id": "S2_b3_v2_nu5952__load1024",
+ "attempt_id": "a1",
+ "state": "FAILED_RUNTIME",
+ "state_history": [
+  {
+   "state": "PENDING",
+   "t": {
+    "wall_utc": "2026-09-15T22:36:33.352499+00:00",
+    "wall_kst": "2026-09-16T07:36:33.352499+09:00",
+    "epoch": 1789511793.3524995,
+    "monotonic": 749795.045575283
+   }
+  },
+  {
+   "state": "PREFLIGHT",
+   "t": {
+    "wall_utc": "2026-09-15T22:36:33.353189+00:00",
+    "wall_kst": "2026-09-16T07:36:33.353189+09:00",
+    "epoch": 1789511793.3531892,
+    "monotonic": 749795.04626477
+   }
+  },
+  {
+   "state": "BOOTING",
+   "t": {
+    "wall_utc": "2026-09-15T22:36:40.310770+00:00",
+    "wall_kst": "2026-09-16T07:36:40.310770+09:00",
+    "epoch": 1789511800.31077,
+    "monotonic": 749802.003845941
+   }
+  },
+  {
+   "state": "VERIFY_EFFECTIVE_CONFIG",
+   "t": {
+    "wall_utc": "2026-09-15T22:38:27.907907+00:00",
+    "wall_kst": "2026-09-16T07:38:27.907907+09:00",
+    "epoch": 1789511907.9079075,
+    "monotonic": 749909.600983353
+   }
+  },
+  {
+   "state": "SMOKE",
+   "t": {
+    "wall_utc": "2026-09-15T22:38:31.528448+00:00",
+    "wall_kst": "2026-09-16T07:38:31.528448+09:00",
+    "epoch": 1789511911.5284483,
+    "monotonic": 749913.221524563
+   }
+  },
+  {
+   "state": "WARMUP",
+   "t": {
+    "wall_utc": "2026-09-15T22:38:34.992851+00:00",
+    "wall_kst": "2026-09-16T07:38:34.992851+09:00",
+    "epoch": 1789511914.9928505,
+    "monotonic": 749916.685928362
+   }
+  },
+  {
+   "state": "CACHE_PREPARE",
+   "t": {
+    "wall_utc": "2026-09-15T22:43:39.592373+00:00",
+    "wall_kst": "2026-09-16T07:43:39.592373+09:00",
+    "epoch": 1789512219.5923731,
+    "monotonic": 750221.285449056
+   }
+  },
+  {
+   "state": "MEASURING",
+   "t": {
+    "wall_utc": "2026-09-15T22:43:42.659234+00:00",
+    "wall_kst": "2026-09-16T07:43:42.659234+09:00",
+    "epoch": 1789512222.659234,
+    "monotonic": 750224.352315465
+   }
+  },
+  {
+   "state": "DRAINING",
+   "t": {
+    "wall_utc": "2026-09-15T22:43:58.841974+00:00",
+    "wall_kst": "2026-09-16T07:43:58.841974+09:00",
+    "epoch": 1789512238.8419735,
+    "monotonic": 750240.535049247
+   }
+  },
+  {
+   "state": "FAILED_RUNTIME",
+   "t": {
+    "wall_utc": "2026-09-15T22:44:00.863893+00:00",
+    "wall_kst": "2026-09-16T07:44:00.863893+09:00",
+    "epoch": 1789512240.8638928,
+    "monotonic": 750242.556968551
+   }
+  }
+ ],
+ "reps": [
+  {
+   "rep_id": "COMPACT_LOAD_C64_rep1",
+   "workload_id": "COMPACT_LOAD",
+   "C": 64,
+   "n": 1024,
+   "rc": 0,
+   "wall_seconds": 15.965664195944555,
+   "completed": 0,
+   "failed": 1024,
+   "duration": 1.6536321049788967,
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "output_tps": 0.0,
+   "total_tps": 0.0,
+   "ttft_p50": 0.0,
+   "ttft_p95": 0.0,
+   "ttft_p99": 0.0,
+   "tpot_p50": 0.0,
+   "tpot_p95": 0.0,
+   "tpot_p99": 0.0,
+   "itl_p50": 0.0,
+   "itl_p95": 0.0,
+   "e2el_p50": 0.0,
+   "e2el_p95": 0.0,
+   "valid": false,
+   "invalid_reason": "rc=0 completed=0 failed=1024 n=1024"
+  }
+ ],
+ "t_created": {
+  "wall_utc": "2026-09-15T22:36:33.352473+00:00",
+  "wall_kst": "2026-09-16T07:36:33.352473+09:00",
+  "epoch": 1789511793.3524733,
+  "monotonic": 749795.045549442
+ },
+ "errors": [
+  {
+   "t": {
+    "wall_utc": "2026-09-15T22:43:39.589907+00:00",
+    "wall_kst": "2026-09-16T07:43:39.589907+09:00",
+    "epoch": 1789512219.589907,
+    "monotonic": 750221.282983075
+   },
+   "stage": "WARMUP",
+   "rc": 0,
+   "stderr_tail": "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML\n  raw_cnt = _raw_device_count_nvml()\nW0915 22:38:44.076000 457769 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'\n/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML\n  raw_cnt = _raw_device_count_nvml()\n\n  0%|          | 0/32 [00:00<?, ?it/s]\n  3%|▎         | 1/32 [04:51<2:30:48, 291.88s/it]\n100%|██████████| 32/32 [04:51<00:00,  9.12s/it]  \n/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py:1158: UserWarning: All requests failed. This is likely due to a misconfiguration on the benchmark arguments.\n  metrics, actual_output_lens = calculate_metrics(\n"
+  },
+  {
+   "t": {
+    "wall_utc": "2026-09-15T22:44:00.847333+00:00",
+    "wall_kst": "2026-09-16T07:44:00.847333+09:00",
+    "epoch": 1789512240.847333,
+    "monotonic": 750242.540408739
+   },
+   "stage": "MEASURING",
+   "rep": "COMPACT_LOAD_C64_rep1",
+   "reason": "rc=0 completed=0 failed=1024 n=1024",
+   "stderr_tail": "it__.py:1112: UserWarning: Can't initialize NVML\n  raw_cnt = _raw_device_count_nvml()\nW0915 22:43:51.715000 458212 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'\n/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML\n  raw_cnt = _raw_device_count_nvml()\n\n  0%|          | 0/1024 [00:00<?, ?it/s]\n  3%|▎         | 30/1024 [00:00<00:03, 297.16it/s]\n  9%|▉         | 94/1024 [00:00<00:01, 495.64it/s]\n 15%|█▌        | 157/1024 [00:00<00:01, 556.62it/s]\n 22%|██▏       | 221/1024 [00:00<00:01, 589.19it/s]\n 27%|██▋       | 281/1024 [00:00<00:01, 591.55it/s]\n 34%|███▎      | 345/1024 [00:00<00:01, 607.61it/s]\n 40%|███▉      | 409/1024 [00:00<00:00, 616.31it/s]\n 46%|████▋     | 474/1024 [00:00<00:00, 625.60it/s]\n 52%|█████▏    | 537/1024 [00:00<00:00, 625.62it/s]\n 59%|█████▊    | 601/1024 [00:01<00:00, 628.77it/s]\n 65%|██████▌   | 666/1024 [00:01<00:00, 634.35it/s]\n 71%|███████▏  | 730/1024 [00:01<00:00, 633.17it/s]\n 78%|███████▊  | 794/1024 [00:01<00:00, 627.50it/s]\n 84%|████████▍ | 858/1024 [00:01<00:00, 629.33it/s]\n 90%|████████▉ | 921/1024 [00:01<00:00, 624.70it/s]\n 97%|█████████▋| 990/1024 [00:01<00:00, 642.18it/s]\n100%|██████████| 1024/1024 [00:01<00:00, 619.28it/s]\n/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py:1158: UserWarning: All requests failed. This is likely due to a misconfiguration on the benchmark arguments.\n  metrics, actual_output_lens = calculate_metrics(\n"
+  },
+  {
+   "t": {
+    "wall_utc": "2026-09-15T22:44:00.863840+00:00",
+    "wall_kst": "2026-09-16T07:44:00.863840+09:00",
+    "epoch": 1789512240.8638403,
+    "monotonic": 750242.556917163
+   },
+   "stage": "MEASURING",
+   "rep": "COMPACT_LOAD_C64_rep1",
+   "reason": "server not healthy after rep"
+  }
+ ],
+ "boot": {
+  "verdict": "HEALTH_OK",
+  "boot_seconds": 107.59606997505762,
+  "t_boot_start": {
+   "wall_utc": "2026-09-15T22:36:40.311767+00:00",
+   "wall_kst": "2026-09-16T07:36:40.311767+09:00",
+   "epoch": 1789511800.311767,
+   "monotonic": 749802.004842858
+  },
+  "t_boot_end": {
+   "wall_utc": "2026-09-15T22:38:27.907836+00:00",
+   "wall_kst": "2026-09-16T07:38:27.907836+09:00",
+   "epoch": 1789511907.9078357,
+   "monotonic": 749909.600912833
+  },
+  "launch_cmd": "KT_CALLBACK_FREE=1 KT_CF_SKIP_EMPTY_IMM=1 KT_GPU_EXPERTS_PER_LAYER=/models/kt/ide070/layer_budget_5952.json CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m sglang.launch_server --model-path /models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f --served-model-name q480 --host 127.0.0.1 --port 30000 --tp 4 --attention-backend triton --trust-remote-code --context-length 32768 --kt-weight-path /models/kt/qwen3-480b-int4 --kt-method AMXINT4 --kt-cpuinfer 96 --kt-threadpool-count 2 --kt-num-gpu-experts 96 --init-expert-location /models/kt/ide070/hotmap_v2.json --kt-max-deferred-experts-per-token 8 --ep-dispatch-algorithm dynamic --cuda-graph-max-bs 64 --cuda-graph-backend-prefill disabled --mem-fraction-static 0.95 --max-total-tokens 40960"
+ },
+ "config_mismatch": [],
+ "server_pids": [
+  {
+   "pid": 3376866,
+   "comm": "bash"
+  },
+  {
+   "pid": 3376874,
+   "comm": "python3"
+  },
+  {
+   "pid": 3380247,
+   "comm": "python3"
+  },
+  {
+   "pid": 3380248,
+   "comm": "sglang::schedul"
+  },
+  {
+   "pid": 3380552,
+   "comm": "sglang::schedul"
+  },
+  {
+   "pid": 3380669,
+   "comm": "sglang::schedul"
+  },
+  {
+   "pid": 3380848,
+   "comm": "sglang::schedul"
+  },
+  {
+   "pid": 3380849,
+   "comm": "sglang::detoken"
+  },
+  {
+   "pid": 3395968,
+   "comm": "python3"
+  },
+  {
+   "pid": 3395970,
+   "comm": "python3"
+  },
+  {
+   "pid": 3395972,
+   "comm": "python3"
+  },
+  {
+   "pid": 3395973,
+   "comm": "python3"
+  }
+ ],
+ "kt_worker_cpus": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+  32,
+  33,
+  34,
+  35,
+  36,
+  37,
+  38,
+  39,
+  40,
+  41,
+  42,
+  43,
+  44,
+  45,
+  46,
+  47,
+  56,
+  57,
+  58,
+  59,
+  60,
+  61,
+  62,
+  63,
+  64,
+  65,
+  66,
+  67,
+  68,
+  69,
+  70,
+  71,
+  72,
+  73,
+  74,
+  75,
+  76,
+  77,
+  78,
+  79,
+  80,
+  81,
+  82,
+  83,
+  84,
+  85,
+  86,
+  87,
+  88,
+  89,
+  90,
+  91,
+  92,
+  93,
+  94,
+  95,
+  96,
+  97,
+  98,
+  99,
+  100,
+  101,
+  102,
+  103
+ ],
+ "pin": {
+  "free_cpus": [
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   160,
+   161,
+   162,
+   163,
+   164,
+   165,
+   166,
+   167,
+   216,
+   217,
+   218,
+   219,
+   220,
+   221,
+   222,
+   223
+  ],
+  "moved_threads": 1197
+ },
+ "smoke": [
+  [
+   "The capital of France is",
+   " Paris. What is the capital of Germany?\nThe capital of Germa"
+  ],
+  [
+   "def fibonacci(n):",
+   "\n    if n == 0:\n        return 0\n    elif n == 1:\n        re"
+  ],
+  [
+   "1+2+3+...+100 =",
+   " ?\nTo calculate the sum of the first 100 natural numbers (1 "
+  ],
+  [
+   "chat:reverse_string",
+   "```python\ndef reverse_string(s):\n    return s[::-1]\n```"
+  ]
+ ],
+ "warmup": {
+  "rc": 0,
+  "wall_seconds": 304.5769677310018,
+  "summary": {
+   "completed": 0,
+   "failed": 32,
+   "duration": 291.9215170410462,
+   "total_input_tokens": 0,
+   "total_output_tokens": 0,
+   "request_throughput": 0.0,
+   "output_throughput": 0.0,
+   "total_token_throughput": 0.0,
+   "mean_ttft_ms": 0.0,
+   "median_ttft_ms": 0.0,
+   "p90_ttft_ms": 0.0,
+   "p95_ttft_ms": 0.0,
+   "p99_ttft_ms": 0.0,
+   "max_ttft_ms": null,
+   "mean_tpot_ms": 0.0,
+   "median_tpot_ms": 0.0,
+   "p90_tpot_ms": 0.0,
+   "p95_tpot_ms": 0.0,
+   "p99_tpot_ms": 0.0,
+   "max_tpot_ms": null,
+   "mean_itl_ms": 0.0,
+   "median_itl_ms": 0.0,
+   "p95_itl_ms": 0.0,
+   "p99_itl_ms": 0.0,
+   "mean_e2el_ms": 0.0,
+   "median_e2el_ms": 0.0,
+   "p95_e2el_ms": 0.0,
+   "p99_e2el_ms": 0.0,
+   "max_concurrency": 16,
+   "request_rate": "inf",
+   "num_prompts": 32,
+   "n_request_rows": 32
+  }
+ },
+ "current_rep": "COMPACT_LOAD_C64_rep1",
+ "exit_status": "FAILED_RUNTIME",
+ "t_finished": {
+  "wall_utc": "2026-09-15T22:44:08.249316+00:00",
+  "wall_kst": "2026-09-16T07:44:08.249316+09:00",
+  "epoch": 1789512248.249316,
+  "monotonic": 750249.942393006
+ }
+}

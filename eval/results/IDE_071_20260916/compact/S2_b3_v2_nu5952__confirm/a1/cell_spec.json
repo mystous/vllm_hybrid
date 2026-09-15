@@ -1,0 +1,38 @@
+{
+ "cell_id": "S2_b3_v2_nu5952__confirm",
+ "phase_id": "COMPACT",
+ "parent_cell_id": "S2_b3_v2_nu5952",
+ "change_kind": "PATCH",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 3
+  },
+  {
+   "workload_id": "COMPACT_ALT",
+   "C": 64,
+   "reps": 1
+  }
+ ],
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1",
+  "KT_GPU_EXPERTS_PER_LAYER": "/models/kt/ide070/layer_budget_5952.json"
+ },
+ "server_args": {
+  "kt-max-deferred-experts-per-token": 8,
+  "init-expert-location": "/models/kt/ide070/hotmap_v2.json"
+ },
+ "gpus": "0,1,2,3",
+ "pin_nonkt": true,
+ "boot_timeout": 600,
+ "bench_timeout": 900,
+ "note": "B3 + hotmap_v2 + 층별 5,952 (복합 변경)",
+ "patch": "per_layer",
+ "expected_slots": 5952,
+ "config_hash": "be2313ecf1cfb059",
+ "gsm40": true
+}

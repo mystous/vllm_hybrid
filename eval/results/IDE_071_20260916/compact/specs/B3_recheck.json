@@ -1,0 +1,28 @@
+{
+ "cell_id": "B3_recheck",
+ "phase_id": "COMPACT",
+ "parent_cell_id": null,
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 1
+  }
+ ],
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1"
+ },
+ "server_args": {
+  "kt-max-deferred-experts-per-token": 8
+ },
+ "gpus": "0,1,2,3",
+ "pin_nonkt": true,
+ "boot_timeout": 600,
+ "bench_timeout": 900,
+ "note": "부모 B3 재확인 1회 (새 프로세스)",
+ "config_hash": "927c300a16a09107"
+}

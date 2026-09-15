@@ -1,0 +1,50 @@
+{
+ "cell_id": "S5_b4_chunk2048",
+ "phase_id": "COMPACT",
+ "parent_cell_id": "B4",
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_FP8E5M2",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 1
+  }
+ ],
+ "env": {
+  "SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN": "1",
+  "KT_AVX_RB": "1",
+  "KT_AVX_PF": "2",
+  "KT_FUSE_QIN": "1",
+  "KT_AMX_MIN_QLEN": "1000000",
+  "KT_AMX_MIN_ROWS": "3",
+  "KT_CALLBACK_FREE": "1",
+  "KT_COLD_DEFER": "1",
+  "KT_COLD_TAU": "0.25"
+ },
+ "server_args": {
+  "init-expert-location": "/models/kt/ide070/hotmap_mixed_0.25.json",
+  "kt-max-deferred-experts-per-token": 8,
+  "mem-fraction-static": 0.94,
+  "chunked-prefill-size": 2048,
+  "kv-cache-dtype": "fp8_e5m2",
+  "cuda-graph-max-bs": 224,
+  "cuda-graph-bs": [
+   32,
+   64,
+   96,
+   128,
+   160,
+   192,
+   224
+  ],
+  "max-total-tokens": 143360
+ },
+ "gpus": "0,1,2,3",
+ "pin_nonkt": false,
+ "boot_timeout": 600,
+ "bench_timeout": 900,
+ "note": "B4, chunked-prefill 2048",
+ "config_hash": "657f255db3f22120"
+}

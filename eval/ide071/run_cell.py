@@ -56,6 +56,28 @@ def runtime_proofs(cell, sinfo):
         proofs["per_layer_effective"] = [per.get(i) for i in range(62)]; proofs["per_layer_sum"] = sum(v for v in per.values())
     return proofs
 
+
+def smoke_greedy4(cell_dir, model):
+    """부팅 smoke: IDE_068 lib.sh 와 같은 greedy 4문항 (completions 3 + chat 1), temperature 0."""
+    import urllib.request
+    out = []
+    def post(path, body):
+        req = urllib.request.Request(f"http://127.0.0.1:{PORT}{path}", json.dumps(body).encode(), {"Content-Type": "application/json"})
+        return json.loads(urllib.request.urlopen(req, timeout=600).read())
+    for pmt in ["The capital of France is", "def fibonacci(n):", "1+2+3+...+100 ="]:
+        try: r = post("/v1/completions", {"model": model, "prompt": pmt, "max_tokens": 48, "temperature": 0}); out.append({"prompt": pmt, "text": r["choices"][0]["text"], "finish_reason": r["choices"][0].get("finish_reason"), "usage": r.get("usage")})
+        except Exception as e: out.append({"prompt": pmt, "error": str(e)})
+    try:
+        r = post("/v1/chat/completions", {"model": model, "messages": [{"role": "user", "content": "Write a Python function that reverses a string. Just the code."}], "max_tokens": 96, "temperature": 0})
+        out.append({"prompt": "chat:reverse_string", "text": r["choices"][0]["message"]["content"], "finish_reason": r["choices"][0].get("finish_reason"), "usage": r.get("usage")})
+    except Exception as e: out.append({"prompt": "chat:reverse_string", "error": str(e)})
+    jdump(out, f"{cell_dir}/smoke_greedy4.json"); return out
+
+def gsm40(cell_dir, model):
+    """기존 하네스 eval/harness/20260909_mechanism/gsm_eval.py (GSM8K test 앞 40문항, temperature 0, max_tokens 768) → gsm40.json"""
+    r = sh(f"{HOME}/venv-bench/bin/python {REPO}/eval/harness/20260909_mechanism/gsm_eval.py {cell_dir}/gsm40.json 40 {model}", timeout=3600)
+    open(f"{cell_dir}/gsm40.log", "w").write(r.stdout + r.stderr); return r.stdout.strip()[-80:]
+
 def main():
     camp_dir, cell_path = sys.argv[1], sys.argv[2]; attempt = sys.argv[3] if len(sys.argv) > 3 else "a1"
     cell = json.load(open(cell_path)); cid = cell["cell_id"]
@@ -117,9 +139,10 @@ def main():
             # 벤치 클라이언트 컨테이너 프로세스도 예비 코어로
             log(cell_dir, f"pin_nonkt moved {n} threads to {free[:4]}..{free[-1]}")
         jdump(thread_affinity_snapshot(pids), f"{cell_dir}/thread_affinity.json")
-        # ---- WARMUP
-        set_state(st, cell_dir, "WARMUP")
+        # ---- SMOKE (greedy 4) + WARMUP
         model = sa["served-model-name"]
+        set_state(st, cell_dir, "SMOKE"); st["smoke"] = [(x.get("prompt"), (x.get("text") or x.get("error") or "")[:60]) for x in smoke_greedy4(cell_dir, model)]
+        set_state(st, cell_dir, "WARMUP")
         wl0 = WORKLOADS[cell["workloads"][0]["workload_id"]]
         w = run_bench(dict(wl0), 16, 32, model, f"{cell_dir}/warmup", wl0["seed"], timeout=900)
         st["warmup"] = {"rc": w["rc"], "wall_seconds": w["wall_seconds"], "summary": w["summary"]}
@@ -168,6 +191,9 @@ def main():
                 if not health():
                     st["errors"].append({"t": now(), "stage": "MEASURING", "rep": rep_id, "reason": "server not healthy after rep"})
                     set_state(st, cell_dir, "FAILED_RUNTIME", exit_status="FAILED_RUNTIME"); save_server_log(cell_dir); stop_server(); return
+        # ---- GSM40 (요청 시)
+        if cell.get("gsm40"):
+            set_state(st, cell_dir, "GSM40"); st["gsm40"] = gsm40(cell_dir, model); log(cell_dir, f"gsm40: {st['gsm40']}")
         # ---- PERSISTING
         set_state(st, cell_dir, "PERSISTING")
         n_log = save_server_log(cell_dir); st["server_log_bytes"] = n_log

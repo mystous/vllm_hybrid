@@ -49,7 +49,24 @@ def write_report(camp, st, t0, feat):
         ph = st.get("phase"); cells = [json.loads(l)["cell_id"] for l in open(f"{camp}/manifests/cells_{ph}.jsonl")]
         nxt = [x for x in cells if x not in st.get("cells", {})][:5]
     except Exception: pass
-    md = f"""# 중간 실행 보고 — {t['wall_kst']}
+    comp = ""
+    cp = f"{camp}/compact/compact_state.json"
+    if os.path.exists(cp):
+        cs = json.load(open(cp)); b = cs.get("budget", {}); cc = cs.get("current") or {}
+        done = {k: v["attempts"][-1]["exit_status"] for k, v in cs.get("cells", {}).items()}
+        last = []
+        for f in sorted(glob.glob(f"{camp}/compact/*/a*/*/metrics.json"), key=os.path.getmtime)[-4:]:
+            m = json.load(open(f)); last.append(f"{f.split('/')[-4]} {m['rep_id']}: out_tps={m.get('output_tps')} ttft95={m.get('ttft_p95')} tpot95={m.get('tpot_p95')} ok={m.get('completed')}/{m.get('n')} valid={m.get('valid')}")
+        comp = f"""
+## compact (cpu_offload_no_02_compact)
+- compact_status: {cs.get('status')} · current: {cc.get('cell')}/{cc.get('attempt')}
+- 일반 벤치 소비 {b.get('bench')}/{b.get('bench_max')} · 진단 {b.get('diag')} · 연속부하 {b.get('load')} · 재시도 {b.get('retry')} · GSM {b.get('gsm')}
+- 부팅 소비 {b.get('boot')}/{b.get('boot_max')} · 셀 상태: {done}
+- 재사용 대조군: {', '.join(f"{k}={v['source_cell']} mean {v['mean']:.1f}" for k, v in cs.get('reused', {}).items())}
+- 직전 실측: """ + " | ".join(last) + f"""
+- targets: {cs.get('targets')}
+"""
+    md = comp + f"""# 중간 실행 보고 — {t['wall_kst']}
 
 - campaign_id: {st.get('campaign_id')}
 - elapsed_seconds: {int(t['monotonic'] - t0)}

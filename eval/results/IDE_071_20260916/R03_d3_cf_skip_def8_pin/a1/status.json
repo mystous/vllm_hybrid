@@ -1,0 +1,398 @@
+{
+ "campaign_dir": "eval/results/IDE_071_20260916",
+ "cell_id": "R03_d3_cf_skip_def8_pin",
+ "attempt_id": "a1",
+ "state": "FAILED_RUNTIME",
+ "state_history": [
+  {
+   "state": "PENDING",
+   "t": {
+    "wall_utc": "2026-09-15T16:27:16.373267+00:00",
+    "wall_kst": "2026-09-16T01:27:16.373267+09:00",
+    "epoch": 1789489636.373267,
+    "monotonic": 727638.066342615
+   }
+  },
+  {
+   "state": "PREFLIGHT",
+   "t": {
+    "wall_utc": "2026-09-15T16:27:16.373916+00:00",
+    "wall_kst": "2026-09-16T01:27:16.373916+09:00",
+    "epoch": 1789489636.3739157,
+    "monotonic": 727638.066991349
+   }
+  },
+  {
+   "state": "BOOTING",
+   "t": {
+    "wall_utc": "2026-09-15T16:27:22.997573+00:00",
+    "wall_kst": "2026-09-16T01:27:22.997573+09:00",
+    "epoch": 1789489642.997573,
+    "monotonic": 727644.690649975
+   }
+  },
+  {
+   "state": "VERIFY_EFFECTIVE_CONFIG",
+   "t": {
+    "wall_utc": "2026-09-15T16:29:08.758522+00:00",
+    "wall_kst": "2026-09-16T01:29:08.758522+09:00",
+    "epoch": 1789489748.758522,
+    "monotonic": 727750.451597746
+   }
+  },
+  {
+   "state": "WARMUP",
+   "t": {
+    "wall_utc": "2026-09-15T16:29:11.921837+00:00",
+    "wall_kst": "2026-09-16T01:29:11.921837+09:00",
+    "epoch": 1789489751.9218373,
+    "monotonic": 727753.61491368
+   }
+  },
+  {
+   "state": "CACHE_PREPARE",
+   "t": {
+    "wall_utc": "2026-09-15T16:29:34.379745+00:00",
+    "wall_kst": "2026-09-16T01:29:34.379745+09:00",
+    "epoch": 1789489774.3797452,
+    "monotonic": 727776.072821705
+   }
+  },
+  {
+   "state": "MEASURING",
+   "t": {
+    "wall_utc": "2026-09-15T16:29:34.488865+00:00",
+    "wall_kst": "2026-09-16T01:29:34.488865+09:00",
+    "epoch": 1789489774.4888647,
+    "monotonic": 727776.181943828
+   }
+  },
+  {
+   "state": "DRAINING",
+   "t": {
+    "wall_utc": "2026-09-15T16:34:56.881123+00:00",
+    "wall_kst": "2026-09-16T01:34:56.881123+09:00",
+    "epoch": 1789490096.881123,
+    "monotonic": 728098.574198684
+   }
+  },
+  {
+   "state": "FAILED_RUNTIME",
+   "t": {
+    "wall_utc": "2026-09-15T16:34:58.948152+00:00",
+    "wall_kst": "2026-09-16T01:34:58.948152+09:00",
+    "epoch": 1789490098.9481516,
+    "monotonic": 728100.641227321
+   }
+  }
+ ],
+ "reps": [
+  {
+   "rep_id": "LEGACY_070_C64_rep1",
+   "workload_id": "LEGACY_070",
+   "C": 64,
+   "n": 256,
+   "rc": 0,
+   "wall_seconds": 322.32489194592927,
+   "completed": 128,
+   "failed": 128,
+   "duration": 309.3299666180974,
+   "input_tokens": 64337,
+   "output_tokens": 16384,
+   "output_tps": 52.96609371256904,
+   "total_tps": 260.95434878981234,
+   "ttft_p50": 1493.6261315597221,
+   "ttft_p95": 2478.6821318382863,
+   "ttft_p99": 2480.2493697288446,
+   "tpot_p50": 63.65697640525983,
+   "tpot_p95": 75.0553267330067,
+   "tpot_p99": 75.05589171656494,
+   "itl_p50": 66.61538151092827,
+   "itl_p95": 81.7899547982961,
+   "e2el_p50": 9908.859230519738,
+   "e2el_p95": 10566.403544467175,
+   "valid": false,
+   "invalid_reason": "rc=0 completed=128 failed=128 n=256"
+  }
+ ],
+ "t_created": {
+  "wall_utc": "2026-09-15T16:27:16.373242+00:00",
+  "wall_kst": "2026-09-16T01:27:16.373242+09:00",
+  "epoch": 1789489636.3732421,
+  "monotonic": 727638.066318192
+ },
+ "errors": [
+  {
+   "t": {
+    "wall_utc": "2026-09-15T16:34:58.885773+00:00",
+    "wall_kst": "2026-09-16T01:34:58.885773+09:00",
+    "epoch": 1789490098.885773,
+    "monotonic": 728100.57884901
+   },
+   "stage": "MEASURING",
+   "rep": "LEGACY_070_C64_rep1",
+   "reason": "rc=0 completed=128 failed=128 n=256",
+   "stderr_tail": "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML\n  raw_cnt = _raw_device_count_nvml()\nW0915 16:29:43.514000 351663 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'\n/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:1112: UserWarning: Can't initialize NVML\n  raw_cnt = _raw_device_count_nvml()\n\n  0%|          | 0/256 [00:00<?, ?it/s]\n  0%|          | 1/256 [00:09<39:17,  9.25s/it]\n 25%|██▌       | 65/256 [00:19<00:50,  3.80it/s]\n 50%|█████     | 129/256 [05:09<05:50,  2.76s/it]\n 85%|████████▌ | 218/256 [05:09<00:48,  1.27s/it]\n100%|██████████| 256/256 [05:09<00:00,  1.21s/it]\n"
+  },
+  {
+   "t": {
+    "wall_utc": "2026-09-15T16:34:58.948093+00:00",
+    "wall_kst": "2026-09-16T01:34:58.948093+09:00",
+    "epoch": 1789490098.9480932,
+    "monotonic": 728100.641170181
+   },
+   "stage": "MEASURING",
+   "rep": "LEGACY_070_C64_rep1",
+   "reason": "server not healthy after rep"
+  }
+ ],
+ "boot": {
+  "verdict": "HEALTH_OK",
+  "boot_seconds": 105.75969612109475,
+  "t_boot_start": {
+   "wall_utc": "2026-09-15T16:27:22.998743+00:00",
+   "wall_kst": "2026-09-16T01:27:22.998743+09:00",
+   "epoch": 1789489642.9987433,
+   "monotonic": 727644.691819205
+  },
+  "t_boot_end": {
+   "wall_utc": "2026-09-15T16:29:08.758438+00:00",
+   "wall_kst": "2026-09-16T01:29:08.758438+09:00",
+   "epoch": 1789489748.7584379,
+   "monotonic": 727750.451515326
+  },
+  "launch_cmd": "KT_CALLBACK_FREE=1 KT_CF_SKIP_EMPTY_IMM=1 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m sglang.launch_server --model-path /models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f --served-model-name q480 --host 127.0.0.1 --port 30000 --tp 4 --attention-backend triton --trust-remote-code --context-length 32768 --kt-weight-path /models/kt/qwen3-480b-int4 --kt-method AMXINT4 --kt-cpuinfer 96 --kt-threadpool-count 2 --kt-num-gpu-experts 96 --init-expert-location /models/kt/ide069/hotmap.json --kt-max-deferred-experts-per-token 8 --ep-dispatch-algorithm dynamic --cuda-graph-max-bs 64 --cuda-graph-backend-prefill disabled --mem-fraction-static 0.95 --max-total-tokens 40960"
+ },
+ "config_mismatch": [],
+ "server_pids": [
+  {
+   "pid": 116754,
+   "comm": "bash"
+  },
+  {
+   "pid": 116761,
+   "comm": "python3"
+  },
+  {
+   "pid": 120063,
+   "comm": "python3"
+  },
+  {
+   "pid": 120064,
+   "comm": "sglang::schedul"
+  },
+  {
+   "pid": 120131,
+   "comm": "sglang::schedul"
+  },
+  {
+   "pid": 120365,
+   "comm": "sglang::schedul"
+  },
+  {
+   "pid": 120461,
+   "comm": "sglang::schedul"
+  },
+  {
+   "pid": 120462,
+   "comm": "sglang::detoken"
+  },
+  {
+   "pid": 134487,
+   "comm": "python3"
+  },
+  {
+   "pid": 134489,
+   "comm": "python3"
+  },
+  {
+   "pid": 134490,
+   "comm": "python3"
+  },
+  {
+   "pid": 134491,
+   "comm": "python3"
+  }
+ ],
+ "kt_worker_cpus": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+  32,
+  33,
+  34,
+  35,
+  36,
+  37,
+  38,
+  39,
+  40,
+  41,
+  42,
+  43,
+  44,
+  45,
+  46,
+  47,
+  56,
+  57,
+  58,
+  59,
+  60,
+  61,
+  62,
+  63,
+  64,
+  65,
+  66,
+  67,
+  68,
+  69,
+  70,
+  71,
+  72,
+  73,
+  74,
+  75,
+  76,
+  77,
+  78,
+  79,
+  80,
+  81,
+  82,
+  83,
+  84,
+  85,
+  86,
+  87,
+  88,
+  89,
+  90,
+  91,
+  92,
+  93,
+  94,
+  95,
+  96,
+  97,
+  98,
+  99,
+  100,
+  101,
+  102,
+  103
+ ],
+ "pin": {
+  "free_cpus": [
+   48,
+   49,
+   50,
+   51,
+   52,
+   53,
+   54,
+   55,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110,
+   111,
+   160,
+   161,
+   162,
+   163,
+   164,
+   165,
+   166,
+   167,
+   216,
+   217,
+   218,
+   219,
+   220,
+   221,
+   222,
+   223
+  ],
+  "moved_threads": 1197
+ },
+ "warmup": {
+  "rc": 0,
+  "wall_seconds": 22.434065308072604,
+  "summary": {
+   "completed": 32,
+   "failed": 0,
+   "duration": 9.781279303017072,
+   "total_input_tokens": 16023,
+   "total_output_tokens": 4096,
+   "request_throughput": 3.271555694164615,
+   "output_throughput": 418.7591288530707,
+   "total_token_throughput": 2056.888406590559,
+   "mean_ttft_ms": 1118.9077741910296,
+   "median_ttft_ms": 1137.6893279957585,
+   "p90_ttft_ms": 1369.5804597693495,
+   "p95_ttft_ms": 1369.870195625117,
+   "p99_ttft_ms": 1370.4168612568174,
+   "max_ttft_ms": null,
+   "mean_tpot_ms": 29.68029143199587,
+   "median_tpot_ms": 29.557406432985324,
+   "p90_tpot_ms": 31.017313784677686,
+   "p95_tpot_ms": 31.169392093264417,
+   "p99_tpot_ms": 31.175067918723467,
+   "max_tpot_ms": null,
+   "mean_itl_ms": 29.68029341558233,
+   "median_itl_ms": 30.201465997379273,
+   "p95_itl_ms": 35.328723886050284,
+   "p99_itl_ms": 38.942535975947976,
+   "mean_e2el_ms": 4888.304786054505,
+   "median_e2el_ms": 4888.019247504417,
+   "p95_e2el_ms": 5089.831789984601,
+   "p99_e2el_ms": 5091.388138721231,
+   "max_concurrency": 16,
+   "request_rate": "inf",
+   "num_prompts": 32,
+   "n_request_rows": 32
+  }
+ },
+ "current_rep": "LEGACY_070_C64_rep1",
+ "exit_status": "FAILED_RUNTIME",
+ "t_finished": {
+  "wall_utc": "2026-09-15T16:35:05.570713+00:00",
+  "wall_kst": "2026-09-16T01:35:05.570713+09:00",
+  "epoch": 1789490105.5707126,
+  "monotonic": 728107.263789616
+ }
+}

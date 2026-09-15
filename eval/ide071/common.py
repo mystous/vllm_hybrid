@@ -295,10 +295,16 @@ def summarize_raw(raw_path, requests_out):
     n = len(d.get("input_lens", []) or [])
     with open(requests_out, "w") as f:
         for i in range(n):
+            itl = (d.get("itls") or [[]]*n)[i] or []
+            ttft = (d.get("ttfts") or [None]*n)[i]
+            e2 = (d.get("e2els") or [None]*n)[i]
+            tp = (d.get("tpots") or [None]*n)[i]
             row = {"idx": i, "input_len": d["input_lens"][i], "output_len": (d.get("output_lens") or [None]*n)[i],
-                   "ttft_ms": (d.get("ttfts") or [None]*n)[i] and d["ttfts"][i] * 1000, "e2el_ms": (d.get("e2els") or [None]*n)[i] and d["e2els"][i] * 1000,
-                   "itl_ms_count": len((d.get("itls") or [[]]*n)[i]) if d.get("itls") else None,
-                   "tpot_ms": (d.get("tpots") or [None]*n)[i] and d["tpots"][i] * 1000,
+                   "ttft_ms": ttft * 1000 if ttft is not None else None,
+                   "itl_count": len(itl), "itl_sum_ms": sum(itl) * 1000 if itl else None,
+                   "tpot_ms": (tp * 1000 if tp is not None else (sum(itl) * 1000 / len(itl) if itl else None)),
+                   "tpot_source": "vllm_tpots" if tp is not None else ("mean_itl" if itl else None),
+                   "e2el_ms": (e2 * 1000 if e2 is not None else ((ttft + sum(itl)) * 1000 if ttft is not None and itl else None)),
                    "error": (d.get("errors") or [None]*n)[i]}
             f.write(json.dumps(row) + "\n")
     s["n_request_rows"] = n

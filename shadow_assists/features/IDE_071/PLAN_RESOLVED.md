@@ -45,3 +45,11 @@
 | P2 | 18 + 교차 2 (20) | manifests/cells_P2.jsonl |
 | P3~P7 | 앵커 확정 후 생성 | — |
 | P8~P11 | 조건부·최종 | — |
+
+## 2026-09-16 07:15 — 범위 대체: `cpu_offload_no_02_compact` (사용자 업로드 `44007c4b-cpu_offload_no_02_compact______.md`, 사본 `cpu_offload_no_02_compact_지시서.md`)
+- 이전 12단계 계획의 실행 범위·반복·수렴·완료 조건을 대체. P1·P2·P3(35셀 중 20셀 완료)까지의 측정은 기록으로 보존하고 P3 잔여·P4~P11 은 `OUT_OF_SCOPE` (미실행 목록은 manifests/cells_P3~P7.jsonl 에 남음).
+- 사용자 지시 "이미 수행한 것은 반복하지 않음" → 대조군 재사용: B3 = `P2_cf1_skip1_pin1_def8` (a1, SHORT_COLD C64 3회), B4 = `R04_d4_epoch` (a1, SHORT_COLD C64 3회). 주 벤치 워크로드 = SHORT_COLD (sonnet 512/128, prefix 0, seed 20260916, 요청 256, ignore_eos, 매 반복 전 /flush_cache). compact §6.1 의 prefix100 대신 대조군과 동일 조건을 유지하기 위해 prefix 0 사용 (기록).
+- 별도 입력 = COMPACT_ALT (seed 20261002, prefix 100), 연속 부하 = COMPACT_LOAD (C64·1,024 요청). 두 manifest 모두 sonnet.txt 행에서 생성 → 기존 hotmap 생성 입력과의 독립성 확인 불가: `CALIBRATION_OVERLAP_UNVERIFIED`.
+- 실행량 상한: 일반 벤치 20, 부팅 14, 재시도 2, 연속 부하 1, 진단 ≤1(선택), GSM40 ≤2. 계수는 `eval/results/IDE_071_20260916/compact/compact_state.json`.
+- 선택 규칙 (§5): delta = max(0.05, |parent_run1−parent_run2|/mean(parent_runs[:2])); 후보 gain > delta 면 확인 후보; 계열별 1개; S6 는 B4 계열 조건 충족 변경 ≥2 일 때만. 기록 `compact/selection_trace.jsonl`.
+- watchdog: 부팅 600 s, 벤치 900 s (부모 동일 부하 ~55 s × 5 이상), 연속 부하 1,800 s.

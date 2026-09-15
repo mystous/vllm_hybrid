@@ -1,0 +1,27 @@
+{
+ "cell_id": "R06_v2_nu5952",
+ "phase_id": "P1",
+ "parent_cell_id": "R05_v2_u96",
+ "change_kind": "PATCH",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 3
+  }
+ ],
+ "env": {
+  "KT_GPU_EXPERTS_PER_LAYER": "/models/kt/ide070/layer_budget_5952.json"
+ },
+ "server_args": {
+  "init-expert-location": "/models/kt/ide070/hotmap_v2.json"
+ },
+ "gpus": "0,1,2,3",
+ "status": "PENDING",
+ "patch": "per_layer",
+ "expected_slots": 5952,
+ "note": "층별 예산 5,952 + 패치. 서버 로그의 층별 62개 값 합계로 적용 확인",
+ "config_hash": "2e2bd335a9ed03f4"
+}
