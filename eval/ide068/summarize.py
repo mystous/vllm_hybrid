@@ -88,19 +88,25 @@ def main(dirs):
             if not os.path.isdir(cp) or not os.path.exists(os.path.join(cp, "verdict.txt")):
                 continue
             v = open(os.path.join(cp, "verdict.txt")).read().split()
-            b = bench(os.path.join(cp, "bench.log"))
-            c = cpu(os.path.join(cp, "cpu_util.txt"))
             h = hbm(os.path.join(cp, "hbm_after_boot.csv"))
             dr = dram(os.path.join(cp, "free_after_boot.txt"))
-            rows.append({
-                "run": os.path.basename(d.rstrip("/")), "cell": cell,
-                "verdict": v[0], "boot_s": v[1] if len(v) > 1 else "",
-                "smoke": smoke_ok(os.path.join(cp, "smoke_texts.txt")),
-                **{lab: b.get(k, "—") for k, lab in FIELDS},
-                "cpu": f"{c[0]:.1f} / {c[1]:.1f}" if c else "—",
-                "hbm": (f"{min(h):.1f}~{max(h):.1f} ×{len(h)}" if h else "—"),
-                "dram": f"{dr}" if dr is not None else "—",
-            })
+            smoke = smoke_ok(os.path.join(cp, "smoke_texts.txt"))
+            # 벤치가 셀 루트에 있거나 (단일 C) c<N>/ 하위에 있다 (C sweep)
+            subs = sorted([x for x in os.listdir(cp) if re.fullmatch(r"c\d+", x)],
+                          key=lambda x: int(x[1:]))
+            targets = [(cell, cp)] if not subs else [(f"{cell} @{x}", os.path.join(cp, x)) for x in subs]
+            for label, bp in targets:
+                b = bench(os.path.join(bp, "bench.log"))
+                c = cpu(os.path.join(bp, "cpu_util.txt"))
+                rows.append({
+                    "run": os.path.basename(d.rstrip("/")), "cell": label,
+                    "verdict": v[0], "boot_s": v[1] if len(v) > 1 else "",
+                    "smoke": smoke,
+                    **{lab: b.get(k, "—") for k, lab in FIELDS},
+                    "cpu": f"{c[0]:.1f} / {c[1]:.1f}" if c else "—",
+                    "hbm": (f"{min(h):.1f}~{max(h):.1f} ×{len(h)}" if h else "—"),
+                    "dram": f"{dr}" if dr is not None else "—",
+                })
     cols = ["cell", "verdict", "boot_s", "smoke", "완료", "출력 tok/s", "전체 tok/s",
             "TTFT p50", "TTFT p95", "TPOT p50", "TPOT p95", "소요 s", "cpu", "hbm", "dram"]
     hdr = ["셀", "부팅", "부팅 s", "greedy", "완료", "출력 tok/s", "전체 tok/s",
