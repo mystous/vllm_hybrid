@@ -78,6 +78,28 @@ b3/b4 는 TSK_047 조건(`--disable-cuda-graph`)이었다. IDE_030 이 KT 경로
 
 cuda graph 는 이 구성에서 **효과가 없다** (±1 %, run 간 편차 수준). 스텝이 CPU expert 구간에 묶여 있어 GPU 측 launch overhead 를 줄여도 드러나지 않는다. graph 가 효과를 내려면 IDE_030 처럼 hot expert 가 GPU 에 충분히 올라가 GPU 구간이 스텝의 주요 부분이 되어야 한다.
 
+### B.6 B4 — GPU 3·5·6·7 장: TP 가 성립하는 조합이 있는가 (사용자 요청, `eval/results/20260915_101451_ide068_expB4_480b_tp3567/`)
+
+추측으로 제외하지 않고 여섯 구성을 모두 부팅 시도했다. **전부 40초 안에 엔진 단언(assert)으로 종료**했다.
+
+| 셀 | 구성 | GPU | 결과 | 엔진 오류 |
+|---|---|---|---|---|
+| b9 | 하이브리드 TP3 | 3 | DIED 40 s | `AssertionError: 151936 is not divisible by 3` |
+| b10 | 하이브리드 TP5 | 5 | DIED 40 s | `AssertionError: 151936 is not divisible by 5` |
+| b11 | 하이브리드 TP6 | 6 | DIED 40 s | `AssertionError: 151936 is not divisible by 6` |
+| b12 | 하이브리드 TP7 | 7 | DIED 40 s | `AssertionError: 151936 is not divisible by 7` |
+| b13 | GPU-only TP6 + EP6 | 6 | DIED 40 s | `assert num_physical_experts % ep_size == 0` (160 % 6 ≠ 0) |
+| b14 | GPU-only TP7 + EP7 | 7 | DIED 40 s | `assert num_physical_experts % ep_size == 0` (160 % 7 ≠ 0) |
+
+**원인은 모델 구조의 정수 제약이다.**
+
+- vocab 151,936 = 2⁷ × 1187 (1187 은 소수). 임베딩·lm_head 를 TP 로 나누려면 vocab 이 TP 로 나뉘어야 하므로 **TP ∈ {1, 2, 4, 8, 16, …, 128}** 만 가능하다. 3·5·6·7 은 KV head(8) 나 attention head(96) 검사에 닿기도 전에 vocab 에서 막힌다.
+- expert 160 = 2⁵ × 5. EP 는 160 의 약수여야 하므로 EP6·EP7 은 불가. EP5 는 산술상 가능하나 TP5 가 vocab 에서 막히므로 GPU-only 5장도 불가.
+
+따라서 480B 에서 **TP 로 쓸 수 있는 GPU 장수는 1·2·4·8 뿐**이고, 3·5·6·7 은 TP 로는 성립하지 않는다. 이 결론은 실험이 아니라 산술이 정하는 것이지만, 여섯 셀의 오류 줄로 엔진이 실제로 그렇게 거부함을 확인했다.
+
+3·5·6·7 장을 쓰는 남은 방법은 **DP(복제)** 다 — rank 마다 TP1 모델을 통째로 복제하므로 장수 제약이 없다. 단 rank 마다 CPU expert 풀이 생겨 DRAM 이 rank 수 배가 되고 CPU 스레드를 나눠 써야 한다. 이는 TP 질문의 답이 아니므로 별도 셀(B5)로 1점만 측정한다.
+
 ---
 
 ## 실험 A — 최대 모델 (TSK_051)

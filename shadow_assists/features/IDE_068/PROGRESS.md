@@ -59,3 +59,8 @@
 ## 2026-09-15 10:16 — B3 완료: TP1 cuda graph 효과 없음
 - b7 TP1 expert 0 graph ON: 43.53 tok/s (OFF 43.24), TPOT 297.6 ms. b8 TP1 expert 16 graph ON: 46.10 (OFF 46.81), TPOT 281.4 ms. 모두 greedy 4/4. ±1 % 로 편차 수준 — CPU expert 구간이 지배라 GPU launch overhead 감소가 드러나지 않음.
 - B4 착수: b9 하이브리드 TP3 부팅 시도 중.
+
+## 2026-09-15 10:22 — B4 완료: GPU 3·5·6·7 장은 TP 로 불가 (6/6 엔진 거부)
+- 하이브리드 TP3/5/6/7: 전부 40초 내 `AssertionError: 151936 is not divisible by N` — vocab 151,936 = 2⁷×1187 (소수) 이라 TP 는 2 의 거듭제곱만 가능.
+- GPU-only TP6+EP6 / TP7+EP7: `assert num_physical_experts % ep_size == 0` — expert 160 이 6·7 로 안 나뉨.
+- 결론: 480B 의 TP 가능 장수 = {1, 2, 4, 8}. 3·5·6·7 은 DP(복제)로만 사용 가능 → B5 에서 DP3×TP1 1점 측정 중.
