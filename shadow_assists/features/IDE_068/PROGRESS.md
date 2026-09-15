@@ -83,3 +83,7 @@
 ## 2026-09-15 12:09 — Kimi-K2 다운로드 완료, INT4 변환 착수
 - 다운로드 완료 12:08 (시작 09:23 → 2 h 45 min). 디스크 959 GiB (= 1,030 GB), blob 82 완료, 스냅샷 safetensors 62. 평균 실효 ≈ 104 MB/s.
 - `kt quant /models/hub/.../Kimi-K2-Instruct -m int4 -i fp8 -o /models/kt/kimi-k2-int4 --cpu-threads 96 --numa-nodes 2` 12:08:30 시작. DRAM used 76 GB / buff·cache 1,574 GB (page cache 에 원본 적재됨). R1 642 GB 가 65 분이었으므로 1,030 GB 는 ~105 분 → 13:55 전후 완료 예상, 이어서 TP8 부팅 자동.
+
+## 2026-09-15 12:39 — 30분 점검: INT4 변환 절반
+- kt quant: **layer 31 / 61 완료** (12:08:30 → 12:39, 층당 ≈ 1 분, 마지막 층 11.73 s 저장). 출력 244 GB (30 shards) → 최종 ≈ 480 GB 예상. DRAM used 379 GB, page cache 1,535 GB.
+- 잔여 30 층 → **13:10 전후 완료** (당초 13:55 예상보다 빠름). 완료 즉시 TP8 하이브리드 부팅 자동.
