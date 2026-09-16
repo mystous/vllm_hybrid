@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 HOME = os.path.expanduser("~")
 REPO = f"{HOME}/projects/vllm_hybrid"
-FEAT = f"{REPO}/shadow_assists/features/IDE_071"
+FEAT = os.environ.get("IDE071_FEAT", f"{REPO}/shadow_assists/features/IDE_071")
 DOCKER = f"{HOME}/bin/docker"           # = sudo nerdctl 셔임
 NERDCTL = "/bin/nerdctl"
 CN = os.environ.get("IDE071_CN", "sgl-kt")

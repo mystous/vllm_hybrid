@@ -37,6 +37,10 @@ def runtime_proofs(cell, sinfo):
                   f"grep -c 'IDE_070 per-layer gpu experts: layer' {LOG_IN_CN}")
     lines = r.stdout.splitlines()
     proofs = {"cf_ready_lines": lines[0] if lines else None, "per_layer_log_lines": lines[1] if len(lines) > 1 else None, "raw_grep": lines[2:]}
+    r3 = dexec(CN, f"grep -m1 'server_args=ServerArgs' {LOG_IN_CN}; echo ==CAPTURE==; grep -iE 'capture' {LOG_IN_CN} | head -20")
+    sa_line, _, cap = r3.stdout.partition("==CAPTURE==")
+    proofs["server_args_log_line"] = sa_line.strip()[:20000]; proofs["capture_log_lines"] = [l for l in cap.strip().splitlines()][:20]
+    proofs["server_args_log_graph_fields"] = re.findall(r"(cuda_graph[a-z_]*|disable_cuda_graph[a-z_]*|chunked_prefill_size|page_size|kv_cache_dtype|max_running_requests|schedule_policy)=([^,]*)", sa_line)
     args = sinfo if isinstance(sinfo, dict) else {}
     keys = ["kt_num_gpu_experts", "kt_max_deferred_experts_per_token", "kt_cpuinfer", "kt_threadpool_count", "max_total_tokens", "mem_fraction_static",
             "kv_cache_dtype", "cuda_graph_max_bs", "cuda_graph_bs", "disable_cuda_graph", "attention_backend", "prefill_attention_backend", "decode_attention_backend",
@@ -143,7 +147,7 @@ def main():
         model = sa["served-model-name"]
         set_state(st, cell_dir, "SMOKE"); st["smoke"] = [(x.get("prompt"), (x.get("text") or x.get("error") or "")[:60]) for x in smoke_greedy4(cell_dir, model)]
         set_state(st, cell_dir, "WARMUP")
-        wl0 = WORKLOADS[cell["workloads"][0]["workload_id"]]
+        wl0 = WORKLOADS[cell["workloads"][0]["workload_id"]] if cell.get("workloads") else WORKLOADS["SHORT_COLD"]
         w = run_bench(dict(wl0), 16, 32, model, f"{cell_dir}/warmup", wl0["seed"], timeout=900)
         st["warmup"] = {"rc": w["rc"], "wall_seconds": w["wall_seconds"], "summary": w["summary"]}
         if w["rc"] != 0 or not w["summary"] or (w["summary"].get("completed") or 0) < 32:
@@ -191,6 +195,21 @@ def main():
                 if not health():
                     st["errors"].append({"t": now(), "stage": "MEASURING", "rep": rep_id, "reason": "server not healthy after rep"})
                     set_state(st, cell_dir, "FAILED_RUNTIME", exit_status="FAILED_RUNTIME"); save_server_log(cell_dir); stop_server(); return
+        # ---- REPLAY (요청 시): 워밍업과 같은 생성 인자 (SHORT_COLD seed, num-prompts 32, C16) 를 같은 서버에서 재전송 = WARM_SERVER_REPLAY
+        if cell.get("replay") and health():
+            set_state(st, cell_dir, "REPLAY"); rd = f"{cell_dir}/REPLAY_C16"; os.makedirs(rd, exist_ok=True)
+            jdump(thread_affinity_snapshot(pids), f"{rd}/thread_affinity_start.json"); coll = Collectors(rd, pids); coll.start(kt_cpus=kt)
+            b = run_bench(dict(wl0), 16, 32, model, rd, wl0["seed"], timeout=cell.get("replay_timeout", 300)); coll.stop(); coll = None
+            s2 = b["summary"] or {}
+            st["replay"] = {"rc": b["rc"], "wall_seconds": b["wall_seconds"], "completed": s2.get("completed"), "failed": s2.get("failed"), "output_tps": s2.get("output_throughput"), "healthy_after": health(),
+                            "kind": "WARM_SERVER_REPLAY", "input_note": "ORIGINAL_FAILURE_INPUT_UNAVAILABLE: IDE_071 load1024/a1 워밍업 프롬프트 원문 미보존 → 같은 생성 인자(sonnet seed, 32 요청, C16) 로 재생성; token 동일성은 seed 만으로 단정하지 않음"}
+            jdump(st["replay"], f"{rd}/metrics.json"); log(cell_dir, f"replay: {st['replay']}")
+            if not st["replay"]["healthy_after"]:
+                st["errors"].append({"t": now(), "stage": "REPLAY", "reason": "server not healthy after replay"}); set_state(st, cell_dir, "FAILED_RUNTIME", exit_status="FAILED_RUNTIME"); save_server_log(cell_dir); stop_server(); return
+        # ---- GSM20_PAIRED (요청 시)
+        if cell.get("gsm20") and health():
+            set_state(st, cell_dir, "GSM20"); r = sh(f"{HOME}/venv-bench/bin/python {REPO}/eval/ide071/gsm20_paired.py {cell_dir}/gsm20_paired.json {model}", timeout=1200)
+            open(f"{cell_dir}/gsm20_paired.log", "w").write(r.stdout + r.stderr); st["gsm20"] = r.stdout.strip()[-120:]; log(cell_dir, f"gsm20: {st['gsm20']}")
         # ---- GSM40 (요청 시)
         if cell.get("gsm40"):
             set_state(st, cell_dir, "GSM40"); st["gsm40"] = gsm40(cell_dir, model); log(cell_dir, f"gsm40: {st['gsm40']}")
@@ -201,7 +220,10 @@ def main():
         st["hbm_end"] = sh("nvidia-smi --query-gpu=index,memory.used --format=csv,noheader").stdout.strip()
         stop_server()
         valid = [r for r in st["reps"] if r["valid"]]
-        exit_status = "COMPLETED" if valid and len(valid) == len(st["reps"]) else ("FAILED_REQUESTS" if valid else "FAILED_REQUESTS")
+        if not cell.get("workloads"):   # 품질 전용 셀: 측정 반복 없음 → GSM 산출물 유무로 판정
+            exit_status = "COMPLETED" if (os.path.exists(f"{cell_dir}/gsm20_paired.json") or os.path.exists(f"{cell_dir}/gsm40.json")) else "FAILED_RUNTIME"
+        else:
+            exit_status = "COMPLETED" if valid and len(valid) == len(st["reps"]) else "FAILED_REQUESTS"
         set_state(st, cell_dir, exit_status, exit_status=exit_status)
     except Exception as e:
         tb = traceback.format_exc()

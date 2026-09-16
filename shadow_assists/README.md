@@ -300,6 +300,8 @@ graph TD
     TSK_056 --> TST_027["TST_027 게이트 (3회·가드레일)"]
     U916["사용자 지시서 (09-16)<br/>cpu_offload_no_02 → compact"] --> IDE_071["IDE_071<br/>후속 캠페인 (P1·P2·P3 일부 + compact S1~S6)<br/>BOUNDED_SEARCH_COMPLETE"]
     IDE_070 --> IDE_071
+    U916b["사용자 지시서 (09-16)<br/>cpu_offload_no_03_compact_verification"] --> IDE_072["IDE_072<br/>S2 후속 검증 V0/V1/V2/Q0<br/>BOUNDED_VALIDATION_COMPLETE"]
+    IDE_071 --> IDE_072
     UN["사용자 지시 (08-29)<br/>논문급 신규성 탐색"] --> IDE_026["IDE_026<br/>SCED (보류)"]
     IDE_026 --> PLN_004["PLN_004<br/>E0~E4 (H3 기각)"]
     UN --> C1["C-트랙 후보 1 (기각)"]

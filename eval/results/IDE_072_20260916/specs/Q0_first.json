@@ -1,0 +1,27 @@
+{
+ "cell_id": "Q0_first",
+ "phase_id": "IDE_072",
+ "parent_cell_id": "V2",
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [],
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_GPU_EXPERTS_PER_LAYER": "/models/kt/ide070/layer_budget_5952.json"
+ },
+ "server_args": {
+  "init-expert-location": "/models/kt/ide070/hotmap_v2.json",
+  "kt-max-deferred-experts-per-token": 0
+ },
+ "gpus": "0,1,2,3",
+ "pin_nonkt": true,
+ "patch": "per_layer",
+ "expected_slots": 5952,
+ "boot_timeout": 600,
+ "bench_timeout": 300,
+ "replay_timeout": 300,
+ "note": "Q0: smoke·warmup·GSM20 만 (성능 sweep 없음)",
+ "gsm20": true,
+ "config_hash": "798571471f44671b"
+}

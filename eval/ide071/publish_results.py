@@ -4,7 +4,7 @@ force push 금지. 5 MB 초과·.pt·perf.data 제외. 사용: publish_results.p
 import glob, json, os, subprocess, sys, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import *
-CAMP = f"{REPO}/eval/results/IDE_071_20260916"
+CAMP = sys.argv[1] if len(sys.argv) > 1 else f"{REPO}/eval/results/IDE_071_20260916"   # 캠페인 결과 루트 (IDE_072 는 인자로)
 BR = "feat/cpu-offload-ide071"
 
 def git(cmd, check=True):
@@ -36,7 +36,8 @@ def main():
     staged = git("diff --cached --name-only").splitlines()
     big = [l for l in git("diff --cached --numstat").splitlines() if l.split()[0] != "-" and int(l.split()[0]) > 200000]
     rec["staged_files"] = len(staged); rec["excluded_large"] = excluded[:50]; rec["excluded_count"] = len(excluded)
-    msg = "IDE_071 data: cpu_offload_no_02 (P1·P2·P3 일부) + cpu_offload_no_02_compact 전 셀 원자료·FULL_REPORT·RESULT·manifest\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01DLNvsR6jaGRWLwGy64zHCh"
+    TAG = os.path.basename(FEAT)
+    msg = f"{TAG} data: 전 셀 원자료·FULL_REPORT·RESULT·manifest ({os.path.basename(CAMP)})\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01DLNvsR6jaGRWLwGy64zHCh"
     if staged:
         git(f"commit -q -m {json.dumps(msg)}")
     rec["data_commit"] = git("rev-parse HEAD")
@@ -47,7 +48,7 @@ def main():
     # 원격 파일 존재 확인 (gh 또는 raw)
     exists = {}
     subprocess.run(f"git -C {REPO} fetch -q origin {BR}", shell=True)
-    for f in ("shadow_assists/features/IDE_071/FULL_REPORT.md", "shadow_assists/features/IDE_071/RESULT.md"):
+    for f in (os.path.relpath(FEAT, REPO) + "/FULL_REPORT.md", os.path.relpath(FEAT, REPO) + "/RESULT.md"):
         r = subprocess.run(f"git -C {REPO} cat-file -s origin/{BR}:{f}", shell=True, capture_output=True, text=True)
         exists[f] = {"rc": r.returncode, "size": r.stdout.strip()[:20], "err": r.stderr.strip()[:200], "method": "git fetch + cat-file -s origin/branch:path (gh 미인증)"}
     rec["remote_files"] = exists
@@ -56,11 +57,11 @@ def main():
     L = [f"# PUBLISH_RECEIPT — IDE_071 ({rec['t']['wall_kst']})", "", f"- 상태: **{status}**", f"- remote: {rec['remote']} · branch: {BR}", f"- data commit: `{rec['data_commit']}` · remote SHA: `{remote_sha}` · 일치: {rec['remote_matches']}",
          f"- push rc {push.returncode} {push.stderr.strip()[-200:]}", f"- staged 파일 {len(staged)} · 제외(5 MB 초과/.pt/perf.data) {len(excluded)} 개 (서버 보존, manifests/artifact_manifest.jsonl 참조)",
          "- 원격 파일 확인: " + "; ".join(f"{k}: rc={v['rc']} size={v['size']}" for k, v in exists.items()),
-         f"- GitHub 위치: https://github.com/mystous/vllm_hybrid/blob/{rec['data_commit']}/shadow_assists/features/IDE_071/FULL_REPORT.md , https://github.com/mystous/vllm_hybrid/blob/{rec['data_commit']}/shadow_assists/features/IDE_071/RESULT.md",
-         f"- raw 다운로드: https://raw.githubusercontent.com/mystous/vllm_hybrid/{rec['data_commit']}/shadow_assists/features/IDE_071/FULL_REPORT.md", "", "## 제외 대용량 파일 (상위 50)", "", "| path | bytes |", "|---|---|"] + [f"| {p} | {b} |" for p, b in excluded[:50]]
+         f"- GitHub 위치: https://github.com/mystous/vllm_hybrid/blob/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/FULL_REPORT.md , https://github.com/mystous/vllm_hybrid/blob/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/RESULT.md",
+         f"- raw 다운로드: https://raw.githubusercontent.com/mystous/vllm_hybrid/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/FULL_REPORT.md", "", "## 제외 대용량 파일 (상위 50)", "", "| path | bytes |", "|---|---|"] + [f"| {p} | {b} |" for p, b in excluded[:50]]
     open(f"{FEAT}/PUBLISH_RECEIPT.md", "w").write("\n".join(L) + "\n"); jdump(rec, f"{FEAT}/manifests/publish_receipt.json")
     git(f"add -- {FEAT}/PUBLISH_RECEIPT.md {FEAT}/manifests/publish_receipt.json")
-    git('commit -q -m "IDE_071: PUBLISH_RECEIPT (receipt commit)\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01DLNvsR6jaGRWLwGy64zHCh"')
+    git(f'commit -q -m "{TAG}: PUBLISH_RECEIPT (receipt commit)\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01DLNvsR6jaGRWLwGy64zHCh"')
     p2 = subprocess.run(f"git -C {REPO} push origin {BR}", shell=True, capture_output=True, text=True)
     rec["receipt_commit"] = git("rev-parse HEAD"); rec["receipt_push_rc"] = p2.returncode; jdump(rec, f"{FEAT}/manifests/publish_receipt.json")
     print(json.dumps({k: rec[k] for k in ("status", "data_commit", "remote_sha", "remote_matches", "receipt_commit", "receipt_push_rc", "staged_files", "excluded_count")}, indent=1))

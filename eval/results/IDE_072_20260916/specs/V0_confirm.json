@@ -1,0 +1,39 @@
+{
+ "cell_id": "V0_confirm",
+ "phase_id": "IDE_072",
+ "parent_cell_id": "V0_first",
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 3
+  },
+  {
+   "workload_id": "COMPACT_ALT",
+   "C": 64,
+   "reps": 1
+  }
+ ],
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1",
+  "KT_GPU_EXPERTS_PER_LAYER": "/models/kt/ide070/layer_budget_5952.json"
+ },
+ "server_args": {
+  "init-expert-location": "/models/kt/ide070/hotmap_v2.json",
+  "kt-max-deferred-experts-per-token": 8
+ },
+ "gpus": "0,1,2,3",
+ "pin_nonkt": true,
+ "patch": "per_layer",
+ "expected_slots": 5952,
+ "boot_timeout": 600,
+ "bench_timeout": 300,
+ "replay_timeout": 300,
+ "note": "V0 새 부팅 확인: SHORT_COLD 3회·COMPACT_ALT 1회·GSM20",
+ "gsm20": true,
+ "config_hash": "be2313ecf1cfb059"
+}

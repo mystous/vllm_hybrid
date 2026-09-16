@@ -1,0 +1,36 @@
+{
+ "cell_id": "V1_first",
+ "phase_id": "IDE_072",
+ "parent_cell_id": "V0",
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8_CPU_INT4_KV_BF16",
+ "workloads": [
+  {
+   "workload_id": "SHORT_COLD",
+   "C": 64,
+   "reps": 1
+  }
+ ],
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1",
+  "KT_GPU_EXPERTS_PER_LAYER": "/models/kt/ide070/layer_budget_5952.json",
+  "KT_AVX_RB": "0"
+ },
+ "server_args": {
+  "init-expert-location": "/models/kt/ide070/hotmap_v2.json",
+  "kt-max-deferred-experts-per-token": 8
+ },
+ "gpus": "0,1,2,3",
+ "pin_nonkt": true,
+ "patch": "per_layer",
+ "expected_slots": 5952,
+ "boot_timeout": 600,
+ "bench_timeout": 300,
+ "replay_timeout": 300,
+ "note": "V1 첫 부팅: smoke·warmup·SHORT_COLD 1회·REPLAY",
+ "replay": true,
+ "gsm20": false,
+ "config_hash": "531a698001549396"
+}
