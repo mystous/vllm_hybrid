@@ -39,7 +39,7 @@ def main():
     TAG = os.path.basename(FEAT)
     msg = f"{TAG} data: 전 셀 원자료·FULL_REPORT·RESULT·manifest ({os.path.basename(CAMP)})\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01DLNvsR6jaGRWLwGy64zHCh"
     if staged:
-        git(f"commit -q -m {json.dumps(msg)}")
+        open(f"{REPO}/.git/IDE_PUBLISH_MSG", "w").write(msg); git(f"commit -q -F {REPO}/.git/IDE_PUBLISH_MSG")   # json.dumps 로 넘기면 \u 이스케이프가 그대로 메시지에 남음 (a3f8cba78 사례)
     rec["data_commit"] = git("rev-parse HEAD")
     push = subprocess.run(f"git -C {REPO} push origin {BR}", shell=True, capture_output=True, text=True)
     rec["push_rc"] = push.returncode; rec["push_stderr"] = push.stderr[-500:]
@@ -61,7 +61,7 @@ def main():
          f"- raw 다운로드: https://raw.githubusercontent.com/mystous/vllm_hybrid/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/FULL_REPORT.md", "", "## 제외 대용량 파일 (상위 50)", "", "| path | bytes |", "|---|---|"] + [f"| {p} | {b} |" for p, b in excluded[:50]]
     open(f"{FEAT}/PUBLISH_RECEIPT.md", "w").write("\n".join(L) + "\n"); jdump(rec, f"{FEAT}/manifests/publish_receipt.json")
     git(f"add -- {FEAT}/PUBLISH_RECEIPT.md {FEAT}/manifests/publish_receipt.json")
-    git(f'commit -q -m "{TAG}: PUBLISH_RECEIPT (receipt commit)\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01DLNvsR6jaGRWLwGy64zHCh"')
+    open(f"{REPO}/.git/IDE_PUBLISH_MSG", "w").write(f"{TAG}: PUBLISH_RECEIPT (receipt commit)\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01DLNvsR6jaGRWLwGy64zHCh"); git(f"commit -q -F {REPO}/.git/IDE_PUBLISH_MSG")
     p2 = subprocess.run(f"git -C {REPO} push origin {BR}", shell=True, capture_output=True, text=True)
     rec["receipt_commit"] = git("rev-parse HEAD"); rec["receipt_push_rc"] = p2.returncode; jdump(rec, f"{FEAT}/manifests/publish_receipt.json")
     print(json.dumps({k: rec[k] for k in ("status", "data_commit", "remote_sha", "remote_matches", "receipt_commit", "receipt_push_rc", "staged_files", "excluded_count")}, indent=1))
