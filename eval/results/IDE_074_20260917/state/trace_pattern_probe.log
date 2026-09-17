@@ -1,0 +1,16 @@
+ops 825802 annotations 2604
+graph ids: 4
+ graph 2 {'kernel': 446208, 'gpu_memcpy': 79360, 'Memcpy DtoH (Device ->': 63488, 'Memcpy HtoD (Pinned ->': 15872}
+ graph 32 {'kernel': 215168, 'gpu_memcpy': 39680, 'Memcpy DtoH (Device ->': 31744, 'Memcpy HtoD (Pinned ->': 7936}
+ graph 0 {'kernel': 35948, 'gpu_memcpy': 6259, 'Memcpy HtoD (Pinned ->': 846, 'Memcpy HtoD (Pageable ': 60, 'Memcpy DtoD (Device ->': 1980, 'Memcpy DtoH (Device ->': 3373, 'gpu_memset': 1188}
+ graph 35 {'kernel': 1681, 'gpu_memcpy': 310, 'Memcpy DtoH (Device ->': 248, 'Memcpy HtoD (Pinned ->': 62}
+ graph 2 distinct node ids 2053 min/max 8589934593 8589936831
+ graph 32 distinct node ids 1991 min/max 137438953473 137438955649
+ graph 35 distinct node ids 1991 min/max 150323855361 150323857537
+annotation names: [('nccl:all_reduce', 1000), ('scheduler.run_batch', 397), ('copy_result_to_cpu', 397), ('scheduler.get_next_batch_to_ru', 397), ('step[DECODE bs=63]', 256), ('step[DECODE bs=2]', 128), ('scheduler.process_batch_result', 15), ('step[EXTEND bs=17 toks=8192]', 5), ('step[EXTEND bs=1 toks=1]', 1), ('step[EXTEND bs=2 toks=1018]', 1), ('step[EXTEND bs=4 toks=2013]', 1), ('step[EXTEND bs=15 toks=7171]', 1)]
+replay 경계 수 (graph id 별, node id 감소 기준): {2: 255, 32: 127}
+graph 2 첫 replay: ops 2053 HtoD 62 DtoH 248 fused_moe 124
+ HtoD bytes: [(786432, 62)]  DtoH bytes: [(4096, 124), (786432, 62), (2048, 62)]
+ HtoD 직전 op 와의 gap µs (첫 replay, 앞 10개): [(444.0, 'void moe_sum_reduce_kernel<c10::BFloat16'), (10.5, 'void moe_sum_reduce_kernel<c10::BFloat16'), (51.7, 'void moe_sum_reduce_kernel<c10::BFloat16'), (90.7, 'void moe_sum_reduce_kernel<c10::BFloat16'), (31.1, 'void moe_sum_reduce_kernel<c10::BFloat16'), (42.9, 'void moe_sum_reduce_kernel<c10::BFloat16'), (49.6, 'void moe_sum_reduce_kernel<c10::BFloat16'), (8.6, 'void moe_sum_reduce_kernel<c10::BFloat16'), (15.2, 'void moe_sum_reduce_kernel<c10::BFloat16'), (12.5, 'void moe_sum_reduce_kernel<c10::BFloat16')]
+ 직전 op 이름 분포: [('void moe_sum_reduce_kernel<c10::BFloat16', 62)]
+ HtoD 직후 op 이름: [('void at::native::vectorized_elementwise_kernel<8, ', 62)]

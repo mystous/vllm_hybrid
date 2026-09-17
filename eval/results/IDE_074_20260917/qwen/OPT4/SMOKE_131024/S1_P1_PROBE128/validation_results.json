@@ -1,0 +1,108 @@
+{
+ "session": "eval/results/IDE_074_20260917/qwen/OPT4/SMOKE_131024/S1_P1_PROBE128",
+ "checks": {
+  "execution": {
+   "pass": true,
+   "failed": 0,
+   "rc": 0,
+   "healthy_after": true
+  },
+  "gpu_activity": {
+   "pass": true,
+   "per_trace": {
+    "S1_P1_PROBE128_1789618372-TP-0.trace.json.gz": {
+     "kernel": 695728,
+     "gpu_memcpy": 124900,
+     "cpu_op": 170202,
+     "memcpy_names": {
+      "Memcpy HtoD (Pinned ->": 24577,
+      "Memcpy HtoD (Pageable ": 52,
+      "Memcpy DtoD (Device ->": 1916,
+      "Memcpy DtoH (Device ->": 98355
+     },
+     "base_ns": 1782967788000000000,
+     "first_step_epoch": 1789618385.2360084,
+     "last_step_epoch": 1789618409.1673834
+    },
+    "S1_P1_PROBE128_1789618372-TP-1.trace.json.gz": {
+     "kernel": 598436,
+     "gpu_memcpy": 1768,
+     "cpu_op": 160792,
+     "memcpy_names": {
+      "Memcpy HtoD (Pinned ->": 87,
+      "Memcpy HtoD (Pageable ": 52,
+      "Memcpy DtoD (Device ->": 1234,
+      "Memcpy DtoH (Device ->": 395
+     },
+     "base_ns": 1782967788000000000,
+     "first_step_epoch": 1789618385.190212,
+     "last_step_epoch": 1789618409.1673825
+    },
+    "S1_P1_PROBE128_1789618372-TP-2.trace.json.gz": {
+     "kernel": 598436,
+     "gpu_memcpy": 1768,
+     "cpu_op": 160792,
+     "memcpy_names": {
+      "Memcpy HtoD (Pinned ->": 87,
+      "Memcpy HtoD (Pageable ": 52,
+      "Memcpy DtoD (Device ->": 1234,
+      "Memcpy DtoH (Device ->": 395
+     },
+     "base_ns": 1782967788000000000,
+     "first_step_epoch": 1789618385.1898608,
+     "last_step_epoch": 1789618409.1673815
+    },
+    "S1_P1_PROBE128_1789618372-TP-3.trace.json.gz": {
+     "kernel": 598436,
+     "gpu_memcpy": 1768,
+     "cpu_op": 160792,
+     "memcpy_names": {
+      "Memcpy HtoD (Pinned ->": 87,
+      "Memcpy HtoD (Pageable ": 52,
+      "Memcpy DtoD (Device ->": 1234,
+      "Memcpy DtoH (Device ->": 395
+     },
+     "base_ns": 1782967788000000000,
+     "first_step_epoch": 1789618385.221095,
+     "last_step_epoch": 1789618409.1673827
+    }
+   },
+   "status_if_fail": "INVALID_NO_GPU_ACTIVITY"
+  },
+  "window": {
+   "pass": true,
+   "trace_first_step_epoch": 1789618385.2360084,
+   "bench_t_start_epoch": 1789618372.1446567,
+   "bench_t_end_epoch": 1789618409.6075563,
+   "trace_last_step_epoch": 1789618409.1673834,
+   "lead_s(first_step - bench_start)": 13.091351747512817,
+   "status_if_fail": "INVALID_WINDOW"
+  },
+  "cpu_events": {
+   "pass": true,
+   "rows_total": 51274,
+   "rows_in_session": 24490,
+   "slots_mapped": 806,
+   "footer": [],
+   "status_if_fail": "PARTIAL_DEPENDENCY_MEASUREMENT"
+  },
+  "correlation_clock": {
+   "pass": true,
+   "matched": 23808,
+   "unmatched_gpu_layers": 0,
+   "count_mismatch_pairs": [],
+   "n_count_mismatch": 0,
+   "t_go_minus_dtoh_end_us": {
+    "p50": 5.25,
+    "min": 2.75,
+    "max": 1512.25
+   },
+   "clock_violations(t_go<dtoh_end)": 0,
+   "clock_violations_beyond_tolerance": 0,
+   "clock_tolerance_us": 5.0,
+   "clock_alignment_bound_note": "음수 최소 2.75 µs = 관측된 정렬 오차 상한; ±5.0 µs 이내 음수는 지터로 분류(원값 보존)",
+   "status_if_fail": "UNMEASURED_CLOCK_ALIGNMENT/PARTIAL_DEPENDENCY_MEASUREMENT"
+  }
+ },
+ "overall_pass": true
+}

@@ -16,7 +16,7 @@ def main():
     rec = {"t": now(), "branch": git("branch --show-current"), "remote": re.sub(r"https://[^@]*@", "https://", git("remote get-url origin"))}
     assert rec["branch"] == BR, rec["branch"]
     # 게시 대상: feature 디렉터리 전체 + 하네스 + 결과 (제외 규칙)
-    paths = [f"{FEAT}", f"{REPO}/eval/ide071", f"{REPO}/shadow_assists/id_registry.md", f"{REPO}/shadow_assists/README.md", f"{REPO}/.gitignore"] + ([f"{REPO}/eval/ide073"] if os.path.isdir(f"{REPO}/eval/ide073") and "IDE_073" in FEAT else [])
+    paths = [f"{FEAT}", f"{REPO}/eval/ide071", f"{REPO}/shadow_assists/id_registry.md", f"{REPO}/shadow_assists/README.md", f"{REPO}/.gitignore"] + ([f"{REPO}/eval/ide073"] if os.path.isdir(f"{REPO}/eval/ide073") and "IDE_073" in FEAT else []) + ([f"{REPO}/eval/ide074"] if os.path.isdir(f"{REPO}/eval/ide074") and "IDE_074" in FEAT else [])
     excluded = []
     files = []
     for p in sorted(glob.glob(f"{CAMP}/**/*", recursive=True)):

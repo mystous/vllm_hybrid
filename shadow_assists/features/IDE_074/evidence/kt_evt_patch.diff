@@ -1,0 +1,154 @@
+--- cpuinfer.h.orig	2026-09-17 04:03:35.127761498 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/cpu_backend/cpuinfer.h	2026-09-17 04:03:35.128761495 +0000
+@@ -35,6 +35,7 @@
+ #include "./vendors/vendor.h"
+ #include "llama.cpp/ggml-impl.h"
+ #include "task_queue.h"
++#include "kt_evt.h"   // IDE_074
+ #include "worker_pool.h"
+ 
+ class CPUInfer {
+@@ -67,6 +68,9 @@
+ 
+   ~CPUInfer() {
+     printf("CPUInfer[0x%lx]: Goodbye\n", (intptr_t)this);
++#ifndef KTRANSFORMERS_CPU_ONLY
++    if (evt_run_.load()) { evt_run_ = false; if (evt_flusher_.joinable()) evt_flusher_.join(); if (evt_fp_) fclose(evt_fp_); }   // IDE_074
++#endif
+     delete backend_;
+     delete task_queue_;
+   }
+@@ -148,6 +152,33 @@
+   }
+   Packet packets_[kMaxPackets];
+   std::atomic<int> n_packets_{0};
++  // ---- IDE_074: per-packet CPU-side event timestamps. env KT_EVT=<csv path> 로만 활성 (미설정 시 rec==nullptr, 기존 경로 동일) ----
++  static constexpr int kEvtCap = 1 << 20;
++  KtEvtRec* evt_ = nullptr; unsigned evt_n_ = 0; std::atomic<unsigned> evt_dropped_{0}; unsigned evt_written_ = 0;
++  unsigned slot_epoch_[kMaxPackets] = {0};
++  std::thread evt_flusher_; std::atomic<bool> evt_run_{false}; FILE* evt_fp_ = nullptr;
++  static const char* evt_path_() { static const char* v = std::getenv("KT_EVT"); return v; }
++  static bool evt_complete_(const KtEvtRec& r) { return r.def_present ? (r.t_def_end != 0) : (r.t_done_set != 0); }
++  void evt_write_(const KtEvtRec& r) {
++    fprintf(evt_fp_, "%d,%u,%d,%d,%u,%u,%u,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld\n", r.slot, r.epoch, r.qlen, r.n_cold_ids, r.imm_present, r.def_present, r.def_skipped,
++            r.t_go, r.t_imm_enq, r.t_done_enq, r.t_def_enq, r.t_def_start, r.t_numa_start[0], r.t_numa_end[0], r.t_numa_start[1], r.t_numa_end[1], r.t_def_end, r.t_done_set);
++  }
++  void evt_flush_(bool final_) {
++    unsigned n = __atomic_load_n(&evt_n_, __ATOMIC_ACQUIRE); if (n > (unsigned)kEvtCap) n = kEvtCap;
++    while (evt_written_ < n) { KtEvtRec& r = evt_[evt_written_]; if (!final_ && !evt_complete_(r)) break; evt_write_(r); ++evt_written_; }
++    fflush(evt_fp_);
++    if (final_) { fprintf(evt_fp_, "#dropped=%u,written=%u\n", evt_dropped_.load(), evt_written_); fflush(evt_fp_); }
++  }
++  void evt_ensure_() {
++    if (evt_ != nullptr || evt_path_() == nullptr) return;
++    evt_ = (KtEvtRec*)calloc((size_t)kEvtCap, sizeof(KtEvtRec));
++    evt_fp_ = fopen(evt_path_(), "a");
++    if (!evt_fp_) { fprintf(stderr, "[kt-evt] fopen %s failed\n", evt_path_()); fflush(stderr); free(evt_); evt_ = nullptr; return; }
++    fprintf(evt_fp_, "slot,epoch,qlen,n_cold_ids,imm_present,def_present,def_skipped,t_go,t_imm_enq,t_done_enq,t_def_enq,t_def_start,t_numa0_start,t_numa0_end,t_numa1_start,t_numa1_end,t_def_end,t_done_set\n"); fflush(evt_fp_);
++    evt_run_ = true;
++    evt_flusher_ = std::thread([this]() { while (evt_run_.load(std::memory_order_acquire)) { evt_flush_(false); std::this_thread::sleep_for(std::chrono::milliseconds(200)); } evt_flush_(true); });
++    fprintf(stderr, "[kt-evt] event log ready: %s (cap %d)\n", evt_path_(), kEvtCap); fflush(stderr);
++  }
+   volatile unsigned int* go_host_ = nullptr;   unsigned int* go_dev_ = nullptr;
+   volatile unsigned int* done_host_ = nullptr; unsigned int* done_dev_ = nullptr;
+   std::thread poller_; std::atomic<bool> poller_run_{false};
+@@ -163,6 +194,7 @@
+     cudaHostGetDevicePointer((void**)&go_dev_, (void*)go_host_, 0);
+     cudaHostGetDevicePointer((void**)&done_dev_, (void*)done_host_, 0);
+     ensure_driver_fns_();
++    evt_ensure_();   // IDE_074
+     poller_run_ = true;
+     poller_ = std::thread([this]() { this->poll_loop_(); });
+     fprintf(stderr, "[kt-cf] callback-free handoff ready (ci=%p)\n", (void*)this); fflush(stderr);
+@@ -210,13 +242,30 @@
+         if (__atomic_load_n(&go_host_[slot], __ATOMIC_ACQUIRE) != 1u) continue;
+         __atomic_store_n(&go_host_[slot], 0u, __ATOMIC_RELEASE);
+         Packet& p = packets_[slot]; any = true;
++        // IDE_074: 레코드 확보 (KT_EVT 미설정이면 evt_==nullptr → rec==nullptr, 아래 분기 전부 비활성)
++        KtEvtRec* rec = nullptr;
++        if (evt_) {
++          unsigned i = evt_n_; __atomic_store_n(&evt_n_, i + 1, __ATOMIC_RELEASE);
++          if (i < (unsigned)kEvtCap) {
++            rec = &evt_[i]; rec->slot = slot; rec->epoch = ++slot_epoch_[slot]; rec->t_go = kt_evt_now();
++            rec->imm_present = p.imm_fn != nullptr; rec->def_present = p.def_fn != nullptr;
++            if (p.def_args) { FwdArgsView* a = (FwdArgsView*)p.def_args; rec->qlen = *(int*)a->qlen_ptr; int nc = 0; const int64_t* ids = (const int64_t*)a->expert_ids;
++              for (int t = 0; t < rec->qlen * a->k; ++t) { int64_t e = ids[t]; if (e >= 0 && e < p.n_experts && (!p.gpu_mask || !p.gpu_mask[e])) ++nc; } rec->n_cold_ids = nc; }
++          } else evt_dropped_.fetch_add(1, std::memory_order_relaxed);
++        }
+         // immediate task -> done signal -> deferred task  (== KT sync(allow_pending=1) semantics)
+         if (p.imm_fn) p.imm_fn(p.imm_args);   // enqueues into task_queue_
++        if (rec) rec->t_imm_enq = kt_evt_now();
+         volatile unsigned int* d = done_host_ + slot;
+         bool run_def = (p.def_fn != nullptr);
+-        if (run_def && skip_empty_def_on_() && def_is_empty_(p)) { run_def = false; n_def_skipped_.fetch_add(1, std::memory_order_relaxed); }
+-        task_queue_->enqueue([d]() { __atomic_store_n(d, 1u, __ATOMIC_RELEASE); });
+-        if (run_def) { p.def_fn(p.def_args); n_def_run_.fetch_add(1, std::memory_order_relaxed); }
++        if (run_def && skip_empty_def_on_() && def_is_empty_(p)) { run_def = false; n_def_skipped_.fetch_add(1, std::memory_order_relaxed); if (rec) rec->def_skipped = 1; }
++        task_queue_->enqueue([d, rec]() { __atomic_store_n(d, 1u, __ATOMIC_RELEASE); if (rec) rec->t_done_set = kt_evt_now(); });
++        if (rec) rec->t_done_enq = kt_evt_now();
++        if (run_def) {
++          if (rec) task_queue_->enqueue([rec]() { rec->t_def_start = kt_evt_now(); kt_evt_cur = rec; });
++          p.def_fn(p.def_args); n_def_run_.fetch_add(1, std::memory_order_relaxed);
++          if (rec) { task_queue_->enqueue([rec]() { rec->t_def_end = kt_evt_now(); kt_evt_cur = nullptr; }); rec->t_def_enq = kt_evt_now(); }
++        } else if (rec) { rec->t_def_end = 0; rec->def_present = 0; }   // deferred 없음/skip → done_set 으로 완료 판정
+       }
+       if (!any) { for (int k = 0; k < 32; ++k) __builtin_ia32_pause(); }
+     }
+--- moe-tp.hpp.orig	2026-09-17 04:03:35.127761498 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/operators/moe-tp.hpp	2026-09-17 04:03:35.130761490 +0000
+@@ -17,6 +17,7 @@
+ #include <vector>
+ 
+ #include "../cpu_backend/shared_mem_buffer.h"
++#include "../cpu_backend/kt_evt.h"   // IDE_074
+ #include "common.hpp"
+ 
+ // Forward declaration for Llamafile backend type checking
+@@ -214,8 +215,11 @@
+     auto pool = config.pool;
+     static bool _wp_on = std::getenv("KT_PHASE_PROF") != nullptr; static thread_local unsigned _wp_cnt = 0;
+     auto _wp_t0 = std::chrono::steady_clock::now();
+-    pool->dispense_backend()->do_numa_job([this, pool, qlen, k, expert_ids, input, weights](int numa_id) {
++    KtEvtRec* _evt_r = kt_evt_cur;   // IDE_074: task worker 스레드의 현재 레코드 (KT_EVT 미설정이면 nullptr)
++    pool->dispense_backend()->do_numa_job([this, pool, qlen, k, expert_ids, input, weights, _evt_r](int numa_id) {
++      if (_evt_r && numa_id >= 0 && numa_id < 2) _evt_r->t_numa_start[numa_id] = kt_evt_now();
+       tps[numa_id]->forward(qlen, k, expert_ids, weights, input, this->local_output_numa[numa_id]);
++      if (_evt_r && numa_id >= 0 && numa_id < 2) _evt_r->t_numa_end[numa_id] = kt_evt_now();
+     });
+     auto _wp_t1 = std::chrono::steady_clock::now();
+     merge_results(qlen, output, incremental);
+--- moe_base.hpp.orig	2026-09-17 04:03:35.127761498 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/operators/amx/moe_base.hpp	2026-09-17 04:03:35.130761490 +0000
+@@ -708,7 +708,8 @@
+     }
+     auto end_time = std::chrono::high_resolution_clock::now();
+     auto forward_total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+-    printf(
++    static bool _pd_on = std::getenv("KT_PHASE_PROF") != nullptr; static thread_local unsigned _pd_cnt = 0;   // IDE_074: decode printf 게이트 (기존: 매 호출 무조건 출력)
++    if (_pd_on && ((++_pd_cnt) & 63) == 0) printf(
+         "Profiling Results (numa[%d]): activated_expert: %d, q_input: %ld us, "
+         "up_gate: %ld us, act: %ld us, q_down: %ld us, down: %ld us, weight: %ld us, total: %ld us\n",
+         tp_part_idx, activated_expert, q_input_time, up_gate_time, act_time, q_down_time, down_time, weight_time,
+--- experts_base.py.orig	2026-09-17 04:03:35.127761498 +0000
++++ /usr/local/lib/python3.12/dist-packages/kt_kernel/experts_base.py	2026-09-17 04:03:35.131761487 +0000
+@@ -930,6 +930,10 @@
+                 else:
+                     _ci.rearm_packet(self._cf_eager_slot, _imm, _def if _has else _dummy, _has, *_cf_mask_args)
+                 _slot = self._cf_eager_slot
++            _evt_path = _os_cf.environ.get("KT_EVT")   # IDE_074: slot → (layer, rows, capturing) 맵
++            if _evt_path:
++                import time as _t_ev
++                with open(_evt_path + ".map", "a") as _f_ev: _f_ev.write(f"{_slot},{self.layer_idx},{int(output_cpu[next_slot].shape[0])},{int(torch.cuda.is_current_stream_capturing())},{_t_ev.time_ns()}\n")
+             _ci.go_on_stream(self._cf_pending_stream, _slot)
+             self._cf_last_slot = _slot
+             self._cf_pending_imm = None; self._cf_pending_def = None
+// IDE_074: CPU-side per-packet event record (CLOCK_REALTIME ns; kineto GPU 트레이스와 같은 host 시계 도메인)
+#pragma once
+#include <time.h>
+struct KtEvtRec {
+  int slot; unsigned epoch; int qlen; int n_cold_ids;
+  long long t_go, t_imm_enq, t_done_enq, t_def_enq, t_def_start, t_numa_start[2], t_numa_end[2], t_def_end, t_done_set;
+  unsigned char imm_present, def_present, def_skipped, written;
+};
+inline long long kt_evt_now() { timespec ts; clock_gettime(CLOCK_REALTIME, &ts); return (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec; }
+inline thread_local KtEvtRec* kt_evt_cur = nullptr;   // task worker 스레드: 현재 실행 중인 deferred 작업의 레코드

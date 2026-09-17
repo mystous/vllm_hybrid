@@ -1,0 +1,141 @@
+{
+ "session": "S1_P1_PROBE128",
+ "mode": "P1",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 37.41309346095659,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 24.107026588986628,
+  "total_input_tokens": 65886,
+  "total_output_tokens": 16384,
+  "request_throughput": 5.309655237966063,
+  "output_throughput": 679.6358704596561,
+  "total_token_throughput": 3412.6979408395937,
+  "mean_ttft_ms": 2711.5355309515508,
+  "median_ttft_ms": 2464.658005977981,
+  "p90_ttft_ms": 3531.5632528276183,
+  "p95_ttft_ms": 3533.9857914252207,
+  "p99_ttft_ms": 9223.186556586328,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 64.36584722673508,
+  "median_tpot_ms": 65.36299622879827,
+  "p90_tpot_ms": 73.15777842895912,
+  "p95_tpot_ms": 73.1883668767446,
+  "p99_tpot_ms": 78.73945364315158,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 64.36584915835144,
+  "median_itl_ms": 60.4195884661749,
+  "p95_itl_ms": 71.62589044310153,
+  "p99_itl_ms": 88.94038095022553,
+  "mean_e2el_ms": 10885.998128746905,
+  "median_e2el_ms": 10850.437904999126,
+  "p95_e2el_ms": 10934.411794220796,
+  "p99_e2el_ms": 12676.190786269735,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T04:12:52.144657+00:00",
+  "wall_kst": "2026-09-17T13:12:52.144657+09:00",
+  "epoch": 1789618372.1446567,
+  "monotonic": 856373.83773249
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T04:13:29.607556+00:00",
+  "wall_kst": "2026-09-17T13:13:29.607556+09:00",
+  "epoch": 1789618409.6075563,
+  "monotonic": 856411.300632519
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T04:13:30.863408+00:00",
+   "wall_kst": "2026-09-17T13:13:30.863408+09:00",
+   "epoch": 1789618410.863408,
+   "monotonic": 856412.556486938
+  },
+  "drain_seconds": 1.2558758079539984,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "first_request_server_log": {
+  "line": "",
+  "wall_utc_s_res": null
+ },
+ "kt_evt_lines": [
+  26537,
+  51151
+ ],
+ "observer": {
+  "mode": "P1",
+  "collectors": [
+   {
+    "collector_id": "timeseries(cpu/gpu/mem)",
+    "actual_start": {
+     "wall_utc": "2026-09-17T04:12:52.127297+00:00",
+     "wall_kst": "2026-09-17T13:12:52.127297+09:00",
+     "epoch": 1789618372.127297,
+     "monotonic": 856373.820375766
+    },
+    "clock_domain": "host CLOCK_REALTIME+monotonic",
+    "actual_end": {
+     "wall_utc": "2026-09-17T04:14:59.845829+00:00",
+     "wall_kst": "2026-09-17T13:14:59.845829+09:00",
+     "epoch": 1789618499.8458288,
+     "monotonic": 856501.538904977
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "S1_P1_PROBE128_1789618372",
+    "arm_time": {
+     "wall_utc": "2026-09-17T04:12:52.144610+00:00",
+     "wall_kst": "2026-09-17T13:12:52.144610+09:00",
+     "epoch": 1789618372.1446104,
+     "monotonic": 856373.837687217
+    },
+    "arm_resp": "Start profiling.\n",
+    "note": "start_step=1 → arm 이후 첫 forward 에서 실제 시작 (트레이스 첫 이벤트로 확인)",
+    "clock_domain": "kineto host CLOCK_REALTIME (baseTimeNanoseconds+ts)",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T04:14:54.844040+00:00",
+     "wall_kst": "2026-09-17T13:14:54.844040+09:00",
+     "epoch": 1789618494.84404,
+     "monotonic": 856496.537115972
+    },
+    "trace_files": [
+     [
+      "S1_P1_PROBE128_1789618372-TP-0.trace.json.gz",
+      59080822
+     ],
+     [
+      "S1_P1_PROBE128_1789618372-TP-1.trace.json.gz",
+      24796424
+     ],
+     [
+      "S1_P1_PROBE128_1789618372-TP-2.trace.json.gz",
+      24805648
+     ],
+     [
+      "S1_P1_PROBE128_1789618372-TP-3.trace.json.gz",
+      24788954
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T04:14:59.845313+00:00",
+     "wall_kst": "2026-09-17T13:14:59.845313+09:00",
+     "epoch": 1789618499.8453128,
+     "monotonic": 856501.538389342
+    }
+   }
+  ]
+ },
+ "boot_id": "SMOKE_131024"
+}

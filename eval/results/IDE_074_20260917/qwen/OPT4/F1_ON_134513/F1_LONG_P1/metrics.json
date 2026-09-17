@@ -1,0 +1,141 @@
+{
+ "session": "F1_LONG_P1",
+ "mode": "P1",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_LONGER_PREFILL",
+ "C": 8,
+ "n": 32,
+ "rc": 0,
+ "wall_seconds": 39.28420510608703,
+ "summary": {
+  "completed": 32,
+  "failed": 0,
+  "duration": 25.706503680092283,
+  "total_input_tokens": 131147,
+  "total_output_tokens": 4096,
+  "request_throughput": 1.244821170479965,
+  "output_throughput": 159.33710982143552,
+  "total_token_throughput": 5261.042173725684,
+  "mean_ttft_ms": 2410.036968343775,
+  "median_ttft_ms": 2527.929796022363,
+  "p90_ttft_ms": 3240.78787858598,
+  "p95_ttft_ms": 3373.370473535033,
+  "p99_ttft_ms": 3427.1591577050276,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 31.616055219517616,
+  "median_tpot_ms": 30.839790999852706,
+  "p90_tpot_ms": 42.09198998763983,
+  "p95_tpot_ms": 42.92813959255572,
+  "p99_tpot_ms": 43.44234790319327,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 31.61606038063508,
+  "median_itl_ms": 24.974922940600663,
+  "p95_itl_ms": 26.34232807904482,
+  "p99_itl_ms": 31.229697538074102,
+  "mean_e2el_ms": 6425.275981222512,
+  "median_e2el_ms": 6407.063726568595,
+  "p95_e2el_ms": 6577.511966211023,
+  "p99_e2el_ms": 6578.247819980606,
+  "max_concurrency": 8,
+  "request_rate": "inf",
+  "num_prompts": 32,
+  "n_request_rows": 32
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T04:54:31.768189+00:00",
+  "wall_kst": "2026-09-17T13:54:31.768189+09:00",
+  "epoch": 1789620871.7681892,
+  "monotonic": 858873.461264903
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T04:55:11.075983+00:00",
+  "wall_kst": "2026-09-17T13:55:11.075983+09:00",
+  "epoch": 1789620911.0759833,
+  "monotonic": 858912.76905927
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T04:55:12.325219+00:00",
+   "wall_kst": "2026-09-17T13:55:12.325219+09:00",
+   "epoch": 1789620912.3252187,
+   "monotonic": 858914.018297808
+  },
+  "drain_seconds": 1.249253598973155,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "first_request_server_log": {
+  "line": "[2026-09-17 04:54:45 TP0] Prefill batch, #new-seq: 1, #new-token: 4098, #cached-token: 0, token usage: 0.30, #running-req: 0, #queue-req: 5, #pending-token: 0, ",
+  "wall_utc_s_res": "2026-09-17 04:54:45"
+ },
+ "kt_evt_lines": [
+  155001,
+  188109
+ ],
+ "observer": {
+  "mode": "P1",
+  "collectors": [
+   {
+    "collector_id": "timeseries(cpu/gpu/mem)",
+    "actual_start": {
+     "wall_utc": "2026-09-17T04:54:31.749560+00:00",
+     "wall_kst": "2026-09-17T13:54:31.749560+09:00",
+     "epoch": 1789620871.7495596,
+     "monotonic": 858873.442647701
+    },
+    "clock_domain": "host CLOCK_REALTIME+monotonic",
+    "actual_end": {
+     "wall_utc": "2026-09-17T04:57:02.456089+00:00",
+     "wall_kst": "2026-09-17T13:57:02.456089+09:00",
+     "epoch": 1789621022.4560888,
+     "monotonic": 859024.149164794
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "F1_LONG_P1_1789620871",
+    "arm_time": {
+     "wall_utc": "2026-09-17T04:54:31.768140+00:00",
+     "wall_kst": "2026-09-17T13:54:31.768140+09:00",
+     "epoch": 1789620871.7681396,
+     "monotonic": 858873.46121681
+    },
+    "arm_resp": "Start profiling.\n",
+    "note": "start_step=1 → arm 이후 첫 forward 에서 실제 시작 (트레이스 첫 이벤트로 확인)",
+    "clock_domain": "kineto host CLOCK_REALTIME (baseTimeNanoseconds+ts)",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T04:56:57.449623+00:00",
+     "wall_kst": "2026-09-17T13:56:57.449623+09:00",
+     "epoch": 1789621017.4496229,
+     "monotonic": 859019.142698722
+    },
+    "trace_files": [
+     [
+      "F1_LONG_P1_1789620871-TP-0.trace.json.gz",
+      78977682
+     ],
+     [
+      "F1_LONG_P1_1789620871-TP-1.trace.json.gz",
+      34224582
+     ],
+     [
+      "F1_LONG_P1_1789620871-TP-2.trace.json.gz",
+      34267814
+     ],
+     [
+      "F1_LONG_P1_1789620871-TP-3.trace.json.gz",
+      34209237
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T04:57:02.455617+00:00",
+     "wall_kst": "2026-09-17T13:57:02.455617+09:00",
+     "epoch": 1789621022.4556172,
+     "monotonic": 859024.148693428
+    }
+   }
+  ]
+ },
+ "boot_id": "F1_ON_134513"
+}

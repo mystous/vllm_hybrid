@@ -304,6 +304,8 @@ graph TD
     IDE_071 --> IDE_072
     U917["사용자 지시서 (09-17)<br/>cpu_offload_no_04_two_models_baseline_opt_probe"] --> IDE_073["IDE_073<br/>2모델 × GPU8/BASIC4/OPT4 + 프로브 D0~D3<br/>COMPLETED_WITH_FAILURES"]
     IDE_072 --> IDE_073
+    U917b["사용자 지시서 (09-17)<br/>CPU_MoE_bottleneck_measurement_todo"] --> IDE_074["IDE_074<br/>Hot/Cold 병목 직접 계측 (M0~M9)<br/>COMPLETED_WITH_FAILURES"]
+    IDE_073 --> IDE_074
     UN["사용자 지시 (08-29)<br/>논문급 신규성 탐색"] --> IDE_026["IDE_026<br/>SCED (보류)"]
     IDE_026 --> PLN_004["PLN_004<br/>E0~E4 (H3 기각)"]
     UN --> C1["C-트랙 후보 1 (기각)"]
