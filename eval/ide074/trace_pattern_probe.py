@@ -2,7 +2,7 @@
 """IDE_074 M3 사전 조사 — 기존 D2 retry2 TP-0 트레이스에서 graph id / graph node id / memcpy 패턴으로
 층 단위 분절이 가능한지 확인한다 (추정으로 이벤트를 만들지 않음; 패턴 존재 여부와 계수만 기록)."""
 import gzip, json, collections, sys, os
-tf = os.path.expanduser("~/.cache/huggingface/kt/ide073/profiles/qwen/D2_1789610161-TP-0.trace.json.gz")
+tf = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/.cache/huggingface/kt/ide073/profiles/qwen/D2_1789610161-TP-0.trace.json.gz")   # IDE_075: 인자 지원
 j = json.load(gzip.open(tf)); base = j.get("baseTimeNanoseconds", 0) / 1e3
 ev = [e for e in j["traceEvents"] if e.get("ph") == "X"]
 ops = [e for e in ev if e.get("cat") in ("kernel", "gpu_memcpy", "gpu_memset")]
