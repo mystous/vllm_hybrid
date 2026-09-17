@@ -1,0 +1,146 @@
+{
+ "session": "G_CORR3_cbfree",
+ "mode": "CORR",
+ "client": "vllmw",
+ "kind": "PERF",
+ "workload": "M073_GLM_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 372.3908729789546,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 371.94589274702594,
+  "total_input_tokens": 67430,
+  "total_output_tokens": 16384,
+  "request_throughput": 0.3441360759616117,
+  "output_throughput": 44.0494177230863,
+  "total_token_throughput": 225.33922711442597,
+  "mean_ttft_ms": 64573.37515910967,
+  "median_ttft_ms": 47622.36318801297,
+  "p90_ttft_ms": 124688.78246415406,
+  "p95_ttft_ms": 129677.61761246365,
+  "p99_ttft_ms": 129680.82019940601,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 930.8897069642741,
+  "median_tpot_ms": 1055.1747727756915,
+  "p90_tpot_ms": 1180.9200110903932,
+  "p95_tpot_ms": 1181.5660850854415,
+  "p99_tpot_ms": 1301.208782840344,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 930.8324481183939,
+  "median_itl_ms": 427.54587705712765,
+  "p95_itl_ms": 686.6127328015864,
+  "p99_itl_ms": 15853.724907864816,
+  "mean_e2el_ms": 182796.36794357246,
+  "median_e2el_ms": 181185.73848501546,
+  "p95_e2el_ms": 275537.3649293033,
+  "p99_e2el_ms": 275540.93720975565,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T10:46:55.083406+00:00",
+  "wall_kst": "2026-09-17T19:46:55.083406+09:00",
+  "epoch": 1789642015.0834057,
+  "monotonic": 880016.776481496
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T10:53:07.474278+00:00",
+  "wall_kst": "2026-09-17T19:53:07.474278+09:00",
+  "epoch": 1789642387.474278,
+  "monotonic": 880389.167354475
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T10:53:08.815984+00:00",
+   "wall_kst": "2026-09-17T19:53:08.815984+09:00",
+   "epoch": 1789642388.8159845,
+   "monotonic": 880390.509061776
+  },
+  "drain_seconds": 1.2795818140730262,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  73960,
+  108759
+ ],
+ "first_go_ns": 1789642015262031396,
+ "last_deferred_end_ns": 1789642387075616809,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T10:46:43.760041+00:00",
+     "wall_kst": "2026-09-17T19:46:43.760041+09:00",
+     "epoch": 1789642003.7600415,
+     "monotonic": 880005.453120394
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T10:56:30.966260+00:00",
+     "wall_kst": "2026-09-17T19:56:30.966260+09:00",
+     "epoch": 1789642590.9662602,
+     "monotonic": 880592.659336271
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "G_CORR3_cbfree_1789642003",
+    "arm_time": {
+     "wall_utc": "2026-09-17T10:46:43.779265+00:00",
+     "wall_kst": "2026-09-17T19:46:43.779265+09:00",
+     "epoch": 1789642003.779265,
+     "monotonic": 880005.472342018
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T10:56:25.958844+00:00",
+     "wall_kst": "2026-09-17T19:56:25.958844+09:00",
+     "epoch": 1789642585.958844,
+     "monotonic": 880587.651920181
+    },
+    "trace_files": [
+     [
+      "G_CORR3_cbfree_1789642003-TP-0.trace.json.gz",
+      155345337
+     ],
+     [
+      "G_CORR3_cbfree_1789642003-TP-1.trace.json.gz",
+      100027212
+     ],
+     [
+      "G_CORR3_cbfree_1789642003-TP-2.trace.json.gz",
+      99935242
+     ],
+     [
+      "G_CORR3_cbfree_1789642003-TP-3.trace.json.gz",
+      99953071
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T10:56:30.965692+00:00",
+     "wall_kst": "2026-09-17T19:56:30.965692+09:00",
+     "epoch": 1789642590.9656918,
+     "monotonic": 880592.658768359
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "GLM_D9_194029"
+}

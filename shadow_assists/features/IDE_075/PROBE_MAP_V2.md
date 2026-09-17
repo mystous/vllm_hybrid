@@ -16,3 +16,15 @@
 
 GPU-side (변경 없음): kineto 트레이스의 graph id/node id + memcpy 패턴 (IDE_074 probe_map.md B). wait memop 은 트레이스에 없음 → HtoD 시작 = 해제 상한.
 검증: 합성 시험 `tests/test_recorder.cpp` (Q11 overflow 검출, 순서, SPSC stale, Q12 스냅샷), 세션별 task_count_valid(패킷당 task = imm+done+def, 기록 전용 0), lifecycle(fwd 미기록 ≤ 0.1 %: S2 5/24,490, S4 2/24,490, S5 1/24,490).
+
+## 확장 단계 추가 (v3 기록기·클라이언트·FOCUS)
+
+| probe | 파일::함수 | 찍는 스레드 | clock | 비용 | 비고 |
+|---|---|---|---|---|---|
+| rec 포인터 (v3) | `task_queue.h::Node.rec` — enqueue 시 Node 가 현재 레코드 포인터를 보유, worker 가 실행 전 thread_local 에 복원 | enqueue 스레드 / task worker | — | 포인터 1개 복사 | v2 의 SPSC pop 경쟁(레코드 누락) 제거. fwd 레코드 누락 0 |
+| 스레드 이름 | `cpuinfer.h` poller `kt-cf-poll`, flusher `kt-evt-flush`, `task_queue.cpp` worker `kt-task-worker` (pthread_setname_np) | 각 스레드 시작 시 1회 | — | 0 | TID 역할 분류·perf comm 식별용. NUMA 워커는 기존 이름 `numa_<n>_t_<i>` |
+| expert 단위 rows 표본 | `moe_base.hpp::forward_prefill` 끝, `(slot+epoch)%16==0` 인 작업만: expert id·rows 쌍 ≤64 개를 ring(65,536) 에 기록 | NUMA 서브풀 dispatch 스레드 | — | 표본 작업당 expert_num 스캔 1회 | `.experts` 파일 (flusher 가 기록). 모집단 확대 없음 |
+| 클라이언트 barrier·anchor (vllmw) | `eval/ide075/vllm_bench_wrapper.py` — `vllm.benchmarks.serve.benchmark` 진입 시 `<ctl>.ready` 생성 → `<ctl>.start` 대기 → `<ctl>.anchor.json` (realtime_ns, perf_counter, monotonic_ns) | 클라이언트 (vllm-h100 컨테이너) | CLOCK_REALTIME + perf_counter | 0 (요청 코드 무수정) | 요청별 `start_times`/`ttfts`/`itls` (vllm 저장) → anchor 로 realtime 변환. 동등성: OFF_Y 0.3 % 이내 |
+| perf sched (S14/S19/S25) | `perf record -e sched:sched_switch -e sched:sched_wakeup -p <scheduler pids>` | 커널 tracepoint | perf(sched_clock≈monotonic) → clock_anchors | 손실 6~10 % | **-p 는 대상 스레드 switch-out 만 기록** → off-CPU 길이 NOT_RECOVERABLE |
+| perf sched syswide (S28) | `IDE075_FOCUS_SYSWIDE=1`: `perf record -a -k CLOCK_MONOTONIC -m 4096 -e sched:sched_switch` | 커널 tracepoint | CLOCK_MONOTONIC → clock_anchors 직접 | 시스템 전체 | switch-in 포함 → 워커 off-CPU 구간 산출 가능 |
+| GPU 프로파일 (S9) | 프로파일 id 불일치로 metrics.json trace_files 가 비어 있던 것을 실제 파일 `S9_CORR_1789629816-TP-*` 로 복구 | — | kineto | — | 트레이스는 16:23~16:29 전체, 세션 창으로 절단 |

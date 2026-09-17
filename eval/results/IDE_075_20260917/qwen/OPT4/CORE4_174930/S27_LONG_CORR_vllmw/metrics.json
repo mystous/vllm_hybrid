@@ -1,0 +1,146 @@
+{
+ "session": "S27_LONG_CORR_vllmw",
+ "mode": "CORR",
+ "client": "vllmw",
+ "kind": "PERF",
+ "workload": "M073_QWEN_LONGER_PREFILL",
+ "C": 8,
+ "n": 32,
+ "rc": 0,
+ "wall_seconds": 26.142149275983684,
+ "summary": {
+  "completed": 32,
+  "failed": 0,
+  "duration": 25.70093845098745,
+  "total_input_tokens": 131147,
+  "total_output_tokens": 4096,
+  "request_throughput": 1.245090721532409,
+  "output_throughput": 159.37161235614835,
+  "total_token_throughput": 5262.181389131488,
+  "mean_ttft_ms": 2414.948171339347,
+  "median_ttft_ms": 2583.693489432335,
+  "p90_ttft_ms": 3223.030361509882,
+  "p95_ttft_ms": 3389.920575771248,
+  "p99_ttft_ms": 3400.9614273684565,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 31.565183175862472,
+  "median_tpot_ms": 30.639528712591407,
+  "p90_tpot_ms": 42.03241663750291,
+  "p95_tpot_ms": 42.996930904955946,
+  "p99_tpot_ms": 43.4298983158353,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 31.565186975802956,
+  "median_itl_ms": 24.81109549989924,
+  "p95_itl_ms": 26.924023003084585,
+  "p99_itl_ms": 30.960608251625665,
+  "mean_e2el_ms": 6423.726434673881,
+  "median_e2el_ms": 6416.837130964268,
+  "p95_e2el_ms": 6565.2130565431435,
+  "p99_e2el_ms": 6565.611684394535,
+  "max_concurrency": 8,
+  "request_rate": "inf",
+  "num_prompts": 32,
+  "n_request_rows": 32
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T09:05:22.600213+00:00",
+  "wall_kst": "2026-09-17T18:05:22.600213+09:00",
+  "epoch": 1789635922.6002133,
+  "monotonic": 873924.293289157
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T09:05:48.742362+00:00",
+  "wall_kst": "2026-09-17T18:05:48.742362+09:00",
+  "epoch": 1789635948.7423623,
+  "monotonic": 873950.435438433
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T09:05:50.023707+00:00",
+   "wall_kst": "2026-09-17T18:05:50.023707+09:00",
+   "epoch": 1789635950.0237072,
+   "monotonic": 873951.716783784
+  },
+  "drain_seconds": 1.2530012250645086,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  254077,
+  287185
+ ],
+ "first_go_ns": 1789635922819634213,
+ "last_deferred_end_ns": 1789635948328083331,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T09:05:10.824888+00:00",
+     "wall_kst": "2026-09-17T18:05:10.824888+09:00",
+     "epoch": 1789635910.8248878,
+     "monotonic": 873912.517972473
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T09:07:37.730847+00:00",
+     "wall_kst": "2026-09-17T18:07:37.730847+09:00",
+     "epoch": 1789636057.730847,
+     "monotonic": 874059.423922814
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "S27_LONG_CORR_vllmw_1789635910",
+    "arm_time": {
+     "wall_utc": "2026-09-17T09:05:10.842950+00:00",
+     "wall_kst": "2026-09-17T18:05:10.842950+09:00",
+     "epoch": 1789635910.8429496,
+     "monotonic": 873912.53602654
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T09:07:32.723339+00:00",
+     "wall_kst": "2026-09-17T18:07:32.723339+09:00",
+     "epoch": 1789636052.723339,
+     "monotonic": 874054.416414979
+    },
+    "trace_files": [
+     [
+      "S27_LONG_CORR_vllmw_1789635910-TP-0.trace.json.gz",
+      79054809
+     ],
+     [
+      "S27_LONG_CORR_vllmw_1789635910-TP-1.trace.json.gz",
+      34258177
+     ],
+     [
+      "S27_LONG_CORR_vllmw_1789635910-TP-2.trace.json.gz",
+      34291205
+     ],
+     [
+      "S27_LONG_CORR_vllmw_1789635910-TP-3.trace.json.gz",
+      34230996
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T09:07:37.730331+00:00",
+     "wall_kst": "2026-09-17T18:07:37.730331+09:00",
+     "epoch": 1789636057.730331,
+     "monotonic": 874059.423407307
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "CORE4_174930"
+}

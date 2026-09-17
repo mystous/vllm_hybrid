@@ -1,0 +1,138 @@
+{
+ "session": "S10_CORR",
+ "mode": "CORR",
+ "client": "probe",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 32.40686826698948,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 32.327691403,
+  "total_output_tokens": 16384,
+  "output_throughput": 506.8100841398025,
+  "median_ttft_ms": 2607.666686,
+  "p95_ttft_ms": 3168.969209,
+  "p99_ttft_ms": 14987.760096,
+  "median_tpot_ms": 97.91178133858267,
+  "p95_tpot_ms": 108.01304916535433,
+  "p99_tpot_ms": 108.04645752755904,
+  "median_itl_ms": 100.41038,
+  "p95_itl_ms": 122.435941,
+  "median_e2el_ms": 15218.016257,
+  "p95_e2el_ms": 15304.928646,
+  "t_client_ready_ns": 1789631089305046491,
+  "t_start_signal_seen_ns": 1789631089315521138,
+  "t_first_request_sent_ns": 1789631089316235752,
+  "t_last_response_ns": 1789631121643140163,
+  "client": "probe_client.py (aiohttp, stream)",
+  "C": 64,
+  "n": 128,
+  "out_tokens": 128,
+  "clock": "CLOCK_REALTIME ns (컨테이너, 같은 호스트)"
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T07:44:49.314498+00:00",
+  "wall_kst": "2026-09-17T16:44:49.314498+09:00",
+  "epoch": 1789631089.3144977,
+  "monotonic": 869091.007574557
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T07:45:21.721367+00:00",
+  "wall_kst": "2026-09-17T16:45:21.721367+09:00",
+  "epoch": 1789631121.721367,
+  "monotonic": 869123.414442824
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T07:45:24.115342+00:00",
+   "wall_kst": "2026-09-17T16:45:24.115342+09:00",
+   "epoch": 1789631124.1153424,
+   "monotonic": 869125.808420888
+  },
+  "drain_seconds": 2.384406958008185,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  78183,
+  102859
+ ],
+ "first_go_ns": 1789631089334281609,
+ "last_deferred_end_ns": 1789631121655020512,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T07:44:47.811558+00:00",
+     "wall_kst": "2026-09-17T16:44:47.811558+09:00",
+     "epoch": 1789631087.8115585,
+     "monotonic": 869089.504640625
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T07:46:43.578018+00:00",
+     "wall_kst": "2026-09-17T16:46:43.578018+09:00",
+     "epoch": 1789631203.5780177,
+     "monotonic": 869205.271094211
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "S10_CORR_1789631087",
+    "arm_time": {
+     "wall_utc": "2026-09-17T07:44:47.830281+00:00",
+     "wall_kst": "2026-09-17T16:44:47.830281+09:00",
+     "epoch": 1789631087.8302808,
+     "monotonic": 869089.523357473
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T07:46:38.570554+00:00",
+     "wall_kst": "2026-09-17T16:46:38.570554+09:00",
+     "epoch": 1789631198.5705543,
+     "monotonic": 869200.263630621
+    },
+    "trace_files": [
+     [
+      "S10_CORR_1789631087-TP-0.trace.json.gz",
+      58885612
+     ],
+     [
+      "S10_CORR_1789631087-TP-1.trace.json.gz",
+      24694496
+     ],
+     [
+      "S10_CORR_1789631087-TP-2.trace.json.gz",
+      24692264
+     ],
+     [
+      "S10_CORR_1789631087-TP-3.trace.json.gz",
+      24666306
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T07:46:43.577502+00:00",
+     "wall_kst": "2026-09-17T16:46:43.577502+09:00",
+     "epoch": 1789631203.5775023,
+     "monotonic": 869205.270578909
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "CORE2_162053"
+}

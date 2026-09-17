@@ -1,4 +1,4 @@
-# READINESS — IDE_075 (2026-09-17 16:00 KST). 후보별 준비 상태와 허용 주장 범위
+# READINESS — IDE_075 (2026-09-17 16:00 KST 기본 단계; 19:10 확장 단계 추가). 후보별 준비 상태와 허용 주장 범위
 
 근거 세션: S3_CORR·S4_CORR (CORE+profiler, 같은 부팅 CORE_153555), S5_RESOURCE, OFF S1/S6. 원값: `eval/results/IDE_075_20260917/qwen/OPT4/CORE_153555/*/v2/`. 지표 정의 `METRIC_DEFINITIONS_V2.yaml`. 아래 수치는 bs=63 디코드 graph, cohort cold_present_nonempty (S3 n=15,598 / S4 n=15,596) 의 p50 이며 반복은 2 세션(같은 부팅)뿐이다.
 
@@ -44,11 +44,29 @@ HtoD 32 µs, DtoH 4건은 hot 이전에 완료 (go − dtoh_end p50 5 µs). 노�
 ### GPU Hot 커널 — **선택 안 함**
 Hot 이 늦은 표본 10 %; hot 커널 합 p50 324 µs 는 예산 안에서 완료.
 
-### NUMA/worker 배치 — **CONDITIONAL_DIAGNOSTIC_ONLY**
-tail 10/15.6k, 8건 서브풀 시차 >1 ms (down 단계 5 ms). 원인 미분리 (off-CPU/원격 접근 미측정). 예산 소진으로 FOCUS 미실행.
+### NUMA/worker 배치 — **BLOCKED (스케줄링 원인 기각; 잔여 원인 미분리)**
+tail 10/15.6k (S3), 31/23,808 (S28), 8건 서브풀 시차 >1 ms (down 단계 5 ms). 확장 FOCUS2 (S28, 시스템 전체 sched_switch, 손실 0): tail 창 안 워커 off-CPU p50 0 · p90 0 · 최대 284 µs, >1 ms 0 건 → **워커 선점/off-CPU 는 tail 의 원인이 아님**. 워커 선점은 초당 1.26 회/스레드 (kworker·migration), 길이 수십~수백 µs. 남는 후보(원격 NUMA 접근·페이지·캐시)는 미측정 → 변경 근거 없음.
 
-### TP 통신 — **미측정 (조건부)**. prefill/chunk 정책 — **BLOCKED (EXTEND 분절 없음)**. GLM — **GLM_NORMAL_OUTPUT_BLOCKED**.
+### TP 통신 — **CONDITIONAL_DIAGNOSTIC_ONLY** (확장 단계에서 위치 귀속: post-MoE all-reduce 에서 rank 0 이 항상 마지막 도착, rank 1~3 커널 437 µs vs rank 0 12.5 µs, 도착 시차 p50 577 µs; post-attention 은 4 µs. 이는 rank 0 의 CPU 대기(cold 게시)가 all-reduce 도착 시차로 나타나는 것이며 통신 자체의 지연 근거는 아님). prefill/chunk 정책 — **CONDITIONAL_DIAGNOSTIC_ONLY** (EXTEND 층 연결 S3/S22 682/682, S13 1,178, S27 1,240: 스텝 토큰 ≤2.6k 와 7~8k 청크에서는 CPU 게시가 hot 보다 1.3~3.1 ms 빠름(늦음 0~1 %), 그러나 **4.0~5.1k 토큰 스텝에서는 CPU 게시가 0.1~1.1 ms 늦음** (늦음 비율 0.49~0.77; S27 6 그룹·S13 5 그룹·S3 5,065 tok 0.28), service 6.6~7.0 ms vs 예산 8.2~9.9 ms, 전 expert AMX 경로. 원인(스텝 구성·큐 대기·AMX 고정비) 미분리, 스텝별 n=61). GLM — **정상 출력 회복 (확장 단계 G00, TSK_060)**; 성능 후보 판단은 별도 (아래 확장 절).
+
+## 확장 단계 추가 관측 (2026-09-17 16:00~, 사용자 지시 "완료 못 한 것 전부"; 원장 phase=extended)
+
+근거 세션 (대표값은 **vllm 래퍼(vllmw) 클라이언트 + 기록기 v3** 인 CORE4_174930/S22·S23): bs=63 cold_present_nonempty p50 — cold_pub_delta 392.0 / 328.3 µs, enqueue→start 670.5 / 667.5 (선행 실행 669.8 / 666.0, 미분리 0.75 / 1.25), service 921.8 / 915.8, pre_h2d gap 337.3 / 341.3 (창 경계 zip 어긋남 그룹을 순서 검사로 재동기화한 최종값; S22 의 pub_delta 는 재동기화 전 346 → 392). **CORE_153555 S3/S4 (vllm bench, v2) 의 321/315 · 663/650 · 911/902 · 334/328 과 일치** → 공통 관측·후보 A·B 의 수치는 클라이언트 래퍼·기록기 v3·부팅에 걸쳐 재현됨 (부팅 3개, 세션 4개).
+
+- 클라이언트 동등성: vllmw 는 vllm bench 와 0.3 % 이내 (OFF_Y 705.1/703.1/705.7 tok/s). probe 클라이언트(aiohttp) 는 핀 여부와 무관하게 비동등 (410~510 tok/s, TPOT 1.5~1.8 배) 이고 **CPU 서비스 시간 자체를 늘림** (S9/S10/S17/S18: pub_delta 848~972, service 1,427~1,556 µs). probe 로 얻은 CORE2/CORE3 값은 '클라이언트 간섭 하 관측' 으로만 인용.
+- C1 (bs=1, S26 vllmw / S12 probe): cold_pub_delta −62.8 / −59.3 µs (CPU 게시가 GPU 소비보다 먼저), 늦은 비율 0.018, enq→start 3.75 µs, service 134 / 149 µs. **bs=1 에서는 cold 경로가 GPU 를 기다리게 하지 않음** → 후보 A 의 대상은 bs 가 큰 디코드(수십 이상) 로 한정.
+- LONG 디코드 (S27 vllmw, bs=8 그래프 26, n 23,693): cold_pub_delta −180.8 µs (CPU 먼저), service 245.8 µs, enq→start 3.75 µs. S13(probe) 은 +23.8 / 472.8 µs → probe 간섭. **bs=8 에서도 cold 경로는 GPU 를 기다리게 하지 않음.**
+- LONG prefill (S27/S13 EXTEND 스텝): 위 prefill/chunk 항목 — 4~5k 토큰 스텝에서 CPU 늦음 0.1~1.1 ms.
+- TID 역할 (RESOURCE/FOCUS, /proc stat 1 s): KT NUMA worker 96 스레드 94.6~94.9 CPU 상당(busy-poll 포함), 스케줄러 본체/자식 60 스레드 3.8~3.9, poller 1.0, task worker 0.9, **기록기 flusher 0.0** (관측 비용 무시 가능), python/tokenizer 0.1.
+- expert 단위 rows 표본 (v3, slot 별 1/16, CORE2/CORE3 각 7,948 decode 표본): 서브풀 unique expert p50 17~18, **expert 별 rows 1~2 인 비율 0.677** → 후보 A 의 "작은 m 의 vec_mul" 대상이 expert 의 2/3 임을 표본으로 확인.
+- tail off-CPU (FOCUS S14/S19/S25, perf -p): 워커 switch-out 은 워커당 초당 0.9~1.4 회, 상태 R(선점) 87~91 % / S 9~13 %, tail 창 안 switch-out 78~663 건 — 그러나 `perf record -p` 는 switch-in 을 기록하지 않아 **off-CPU 길이 NOT_RECOVERABLE**; perf 손실 6~41 %. 시스템 전체 기록(FOCUS2 S28, `-a -k CLOCK_MONOTONIC`) 결과는 FULL_REPORT §8b 갱신분 참조. NUMA/worker 배치 후보 상태는 그 결과에 따라 갱신.
+- 기록기 v3 vs v2: fwd 레코드 누락 0 (v2 는 SPSC 경쟁으로 일부 누락), 값 불변 (위 대표값 일치).
+- 계측 간섭 (CORE4, OFF vllm 평균 대비): S22 0.963 (DIAGNOSTIC_ONLY 경계), S23 0.973, S24 0.978 → 3 % 안팎; p95 비율 1.00~1.04.
+
+### GLM-4.7-FP8 BASIC4 — **정상 출력 회복, 성능 후보 없음 (관측만)**
+- 근본 원인 2건: (1) kt-kernel `moe_base.hpp` if-constexpr dangling-else (IDE_046-b/051 도입) 로 FP8/BF16 CPU 경로의 입력 gather·양자화가 컴파일에서 제거 → 출력 0 (커널 테스트 100 % 오차 → 수정 후 0.5829 %). (2) `routed_scaling_factor` 2.5 가 GPU 기여에만 적용 + decode 이중 적용 (`glm_rsf_patch.py`). D6 게이트 4/4 (rsf 수정 포함). **전 GPU(IDE_073 G-GPU8) greedy 텍스트와 대조: D6 는 4문항 중 3문항 완전 일치, 1문항 129자 공통 후 분기; rsf 미수정(D7) 은 4/4 정답이나 첫 토큰부터 분기** → 두 수정 모두 필요 (G00_code_review §8-5).
+- 처리량 (D6 G_OFF, 참고): 42.8 tok/s, TPOT p50 1,086 ms (C=64, PROBE128) — Qwen OPT4 의 1/16. FP8 per-channel CPU 경로의 비용 구조는 Qwen 과 다르므로 후보 A·B 를 GLM 에 그대로 적용할 근거 없음. D8(G_OFF2/G_CORR2/G_OFF3, glm47 토크나이저) 44.0~44.2 tok/s, D9(callback-free, G_CORR3/G_OFF4) 44.0/43.9 → callback-free 전달 경로의 처리량 효과 없음. GLM CPU↔GPU 의존성 값은 **NOT_ANALYZED** (GPU 층 분절 휴리스틱이 Qwen 그래프 전용; 데이터 보존, WORK_LOG 20:25). callback-free 경로는 GLM greedy 시퀀스를 바꿈 (전 GPU 기준 일치 1/4 vs 3/4; 정답 유지, 분포 비교 미실시).
 
 ## 전환 게이트 (§17.3)
 - [x] 고정 구성 보존 (CONFIG_DIFF.md) · [x] PCM/창/지표/분모 정정 · [x] producer→consumer 연결 (VALIDATED_HEURISTIC_MAPPING, 불일치 0) · [x] 지연의 큐/서비스/전송 귀속 · [x] 실제 분기(AVX)·작업 크기 확인 (expert 단위 rows 는 미수집) · [x] 기록 전용 task 0·동기 순서 불변 · [x] observer 영향 공개 (부팅 간 한계) · [x] 정상성: smoke 4/4 완료, lifecycle 미기록 ≤0.02 %, 새 오류 없음 · [x] 근거↔변경 표 (OPTIMIZATION_HANDOFF.md)
-종합: **READY_WITH_LIMITED_SCOPE** (후보 A·B). 한계: 2 세션·1 부팅, 일정 clock offset 미검출, DRAM 포화·NUMA 원인·TP·prefill 미확정.
+종합: **READY_WITH_LIMITED_SCOPE** (후보 A·B). 확장 단계 후 한계 갱신: 대표값은 3 부팅·4 세션(vllm/vllmw) 에서 재현; 일정 clock offset 은 anchor 실측으로 ≤ +3.5 µs; DRAM 포화 판정은 여전히 없음; NUMA tail 의 스케줄링 원인은 FOCUS2 로 기각(잔여 원인 미분리); TP 는 CPU 대기의 반영으로 귀속; prefill 은 ≤2.6k·8k 청크에서 CPU 가 빠르나 4~5k 스텝에서는 0.1~1.1 ms 늦음 (조건부). 후보 A 의 대상은 bs 큰 디코드로 한정 (bs=1 은 CPU 가 먼저).

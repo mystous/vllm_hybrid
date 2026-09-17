@@ -12,3 +12,15 @@
 | 실행 순서 | — | OFF_A → OFF_B → CORE (하네스 결함으로 OFF_OPEN/CORE 부팅 2회 소진) | 한계 |
 
 복원: CONFIG_DIFF(IDE_074) §4 와 동일 + `python3 /tmp/ide075_kt_evt_patch_v2.py revert`, `.so.orig` 복사. 현재 컨테이너는 v2 적용 상태.
+
+## 확장 단계 (phase=extended) 추가 변경
+
+| 항목 | 값 | 분류 |
+|---|---|---|
+| kt_kernel_ext.so v3 | d659ca0b… 8,327,200 B (2026-09-17 16:11). v2 의 SPSC 경쟁으로 fwd 레코드 누락 → Node 가 rec 포인터 보유, 스레드 이름(kt-cf-poll / kt-evt-flush / kt-task-worker), expert 단위 rows 표본 ring(`.experts`). CORE2·CORE3·CORE4·OFF_OPEN2/CLOSE2/X/Y 에 사용. 백업 `/sgl-workspace/ide074_backup/kt_kernel_ext.so.v3` | SOFTWARE(계측) |
+| kt_kernel_ext.so v4 (fp8fix) | 12926df2… 8,376,352 B (2026-09-17 18:11). v3 + `operators/amx/moe_base.hpp` 의 if-constexpr dangling-else 3곳 수정 (`eval/ide075/glm_fp8_dispatch_fix.py`; 수정 전 백업 `moe_base.hpp.pre_fp8fix`). INT4 경로: env 미설정 기본 동작 동일 (S29_CORR 로 처리량 회귀 확인). FP8/BF16 경로: 입력 gather·A 양자화 복원 → GLM 정상 출력. GLM_D6/D7·G_OFF/G_CORR·FOCUS2 에 사용 | SOFTWARE(수정) |
+| GLM python 패치 | `glm_rsf_patch.py` (site-packages `kt_ep_wrapper.py`: cpu_output × routed_scaling_factor, fast path 포함; `glm4_moe.py`: dual_stream KT 분기 제거). 백업 `*.rsf_orig`. D6 = apply, D7 = revert | SOFTWARE(수정) |
+| FOCUS perf | `IDE075_FOCUS_SYSWIDE=1` → `perf record -a -k CLOCK_MONOTONIC -m 4096 -e sched:sched_switch` (S28). 기존 S14/S19/S25 는 `-p` (switch-in 누락) | OBSERVER |
+| 클라이언트 | `vllm_bench_wrapper.py` (vllmw): vllm bench serve 본체 + benchmark() 진입 barrier·anchor. probe_client.py 는 비동등 판정 | OBSERVER |
+
+복원 (확장 단계 이후): `python3 /tmp/glm_rsf_patch.py revert` · `python3 /tmp/glm_fp8_dispatch_fix.py revert` (moe_base.hpp) · `python3 /tmp/kt_evt_patch_v3.py revert` → v2 → `kt_evt_patch_v2.py revert` → `.so.orig` 복사 (단, `.so.orig` 자체가 FP8 결함 포함; FP8 정상 .so 는 v4). 현재 컨테이너: v4 + rsf 패치(D7 이후 상태는 D7 실행 결과에 따름, WORK_LOG 참조).

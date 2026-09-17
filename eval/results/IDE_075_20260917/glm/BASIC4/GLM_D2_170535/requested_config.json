@@ -1,0 +1,35 @@
+{
+ "server_args": {
+  "host": "127.0.0.1",
+  "port": 30000,
+  "tp": 4,
+  "context-length": 32768,
+  "trust-remote-code": true,
+  "kv-cache-dtype": "auto",
+  "max-total-tokens": 40960,
+  "mem-fraction-static": 0.95,
+  "max-running-requests": 64,
+  "cuda-graph-max-bs": 64,
+  "cuda-graph-backend-prefill": "disabled",
+  "model-path": "/models/hub/models--zai-org--GLM-4.7-FP8/snapshots/7b3b5f81eee81be12a6f8da2710eac4bafb0166a",
+  "served-model-name": "glm47",
+  "attention-backend": "flashinfer",
+  "fp8-gemm-backend": "triton",
+  "enable-p2p-check": true,
+  "disable-shared-experts-fusion": true,
+  "enable-mixed-chunk": true,
+  "chunked-prefill-size": 4096,
+  "kt-weight-path": "/models/hub/models--zai-org--GLM-4.7-FP8/snapshots/7b3b5f81eee81be12a6f8da2710eac4bafb0166a",
+  "kt-method": "FP8_PERCHANNEL",
+  "kt-cpuinfer": 100,
+  "kt-threadpool-count": 2,
+  "kt-num-gpu-experts": 80,
+  "kt-max-deferred-experts-per-token": 2
+ },
+ "env": {
+  "SGLANG_TORCH_PROFILER_DIR": "/models/kt/ide075/GLM_D2_170535/profiles"
+ },
+ "gpus": "0,1,2,3",
+ "mode": "GLM_DIAG",
+ "rsf_patch": "RSF  449892b291e6 /sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py\nRSF  2955a21834a8 /sgl-workspace/sglang/python/sglang/srt/models/glm4_moe.py\n"
+}

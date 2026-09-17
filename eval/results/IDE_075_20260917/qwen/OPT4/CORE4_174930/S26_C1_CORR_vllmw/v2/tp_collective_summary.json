@@ -1,0 +1,55 @@
+{
+ "session": "eval/results/IDE_075_20260917/qwen/OPT4/CORE4_174930/S26_C1_CORR_vllmw/",
+ "by_graph_position": {
+  "35:post_attention": {
+   "step": "step[DECODE bs=1]",
+   "n": 129024,
+   "r0_dur_p50": 8.25,
+   "r1_dur_p50": 8.25,
+   "r2_dur_p50": 5.5,
+   "r3_dur_p50": 8.25,
+   "r0_dur_p95": 10.75,
+   "r1_dur_p95": 10.5,
+   "r2_dur_p95": 7.25,
+   "r3_dur_p95": 10.5,
+   "arrival_skew_p50": 2.75,
+   "arrival_skew_p95": 4.75,
+   "last_arrival_rank_counts": {
+    "2": 100872,
+    "0": 11854,
+    "3": 9899,
+    "1": 6399
+   },
+   "first_arrival_rank_counts": {
+    "0": 51245,
+    "1": 49502,
+    "3": 24915,
+    "2": 3362
+   },
+   "position_mismatch": 0
+  },
+  "35:post_moe": {
+   "step": "step[DECODE bs=1]",
+   "n": 126976,
+   "r0_dur_p50": 6.0,
+   "r1_dur_p50": 64.0,
+   "r2_dur_p50": 64.0,
+   "r3_dur_p50": 60.5,
+   "r0_dur_p95": 6.25,
+   "r1_dur_p95": 73.5,
+   "r2_dur_p95": 73.5,
+   "r3_dur_p95": 70.0,
+   "arrival_skew_p50": 58.0,
+   "arrival_skew_p95": 67.5,
+   "last_arrival_rank_counts": {
+    "0": 126976
+   },
+   "first_arrival_rank_counts": {
+    "1": 80963,
+    "2": 46013
+   },
+   "position_mismatch": 0
+  }
+ },
+ "note": "위치 귀속 = 직전 fused_moe 유무 (휴리스틱, TP0 HtoD 순번과 대조); rank 간 시각은 kineto host 정렬, GPU 간 offset 미검증; duration 은 동기화 포함 가능 (링크 시간 아님)"
+}

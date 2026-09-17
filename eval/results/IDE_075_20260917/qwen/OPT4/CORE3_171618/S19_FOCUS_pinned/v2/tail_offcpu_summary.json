@@ -1,0 +1,47 @@
+{
+ "decode_records": 23808,
+ "prefill_records": 682,
+ "tails": 1564,
+ "tails_prefill(service>12ms|skew>1ms)": 24,
+ "rows": 3176,
+ "decode_tail_offcpu_sum_us_p50_p90_max": [
+  0,
+  0,
+  0
+ ],
+ "decode_tail_offcpu_max_us_p50_p90_max": [
+  0,
+  0,
+  0
+ ],
+ "decode_tail_rows_with_offcpu": 0,
+ "decode_tail_rows_offcpu_gt_300us": 0,
+ "prefill_tail_offcpu_max_us_max": 0,
+ "rows_inside_perf_coverage": 210,
+ "workers_identified": 96,
+ "sched_switch_events": 204094,
+ "perf_switch_window_realtime_ns": [
+  1789633427337087572,
+  1789633436448009572
+ ],
+ "perf_lost_samples_pct": [
+  "6.17"
+ ],
+ "perf_warnings": "Warning:\nProcessed 504576 events and lost 14 chunks!\n\nCheck IO/CPU overload!\n\nWarning:\nProcessed 532073 samples and lost 6.17%!",
+ "worker_switch_outs_total": 835,
+ "worker_switch_ins_total": 0,
+ "worker_switch_out_states": {
+  "R": 739,
+  "S": 96
+ },
+ "worker_switch_outs_per_worker_per_s": 0.9546692054510691,
+ "offcpu_intervals_recoverable": false,
+ "offcpu_note": "perf -p 기록: 대상 스레드의 switch-out 만 기록되고 switch-in 이 없어 off-CPU 길이 NOT_RECOVERABLE (횟수·상태·선점자만)",
+ "tails_with_worker_switch_out": 11,
+ "switch_outs_in_tail_windows": 66,
+ "offcpu_max_us_over_tails": null,
+ "tails_with_offcpu_gt_1ms": 0,
+ "decode_tails_with_offcpu_gt_1ms": 0,
+ "clock": "perf monotonic → realtime 단일 anchor offset 1788761998306922572 ns (drift 미보정)",
+ "note": "off-CPU = sched_switch(prev=worker) ~ 다음 switch-in(next=worker). prev_state R = 선점(runnable), S/D = 대기"
+}

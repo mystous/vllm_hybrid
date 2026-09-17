@@ -79,7 +79,7 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_072` | 완료 (2026-09-16 09:10) — BOUNDED_VALIDATION_COMPLETE, 결과 `features/IDE_072/FULL_REPORT.md` | **IDE_071 후속 검증 — 사용자 지시서 `cpu_offload_no_03_compact_verification`** — V0(S2 재현)/V1(+KT_AVX_RB=0)/V2(skip-empty OFF)/Q0(V2+deferral 0, 품질만)/조건부 D0(graph OFF). 성능 11·REPLAY 3·LOAD 1·DIAG 1·재시도 2, 부팅 10, GSM20_PAIRED ×4. 부모 `IDE_071`. 브랜치 `feat/cpu-offload-ide071` |
 | `IDE_073` | 완료 (2026-09-17, COMPLETED_WITH_FAILURES: GLM OPT4 변환 차단·G-KT-BASIC4 품질 타임아웃) | **2모델(Qwen3-Coder-480B FP8, GLM-4.7-FP8) × GPU-only 8장 / KT 공식 기본 4장 / 최고 구성 4장 비교 + 최적화 구성 구간별 계측 — 사용자 지시서 `cpu_offload_no_04_two_models_baseline_opt_probe`** — 성능 30세션(6구성×5), 진단 ≤8, 재시도·조건부 ≤6, 부팅 ≤20, 품질 20문항×6. 부모 `IDE_072`. 브랜치 `feat/cpu-offload-two-models-20260917` |
 | `IDE_074` | 완료 (2026-09-17, COMPLETED_WITH_FAILURES: GLM 게이트 BLOCKED_NORMAL_OUTPUT) | **CPU MoE Hot/Cold 부분 상주 병목 측정 — Qwen OPT4 고정, CPU↔GPU 의존 관계(hot/cold/other ready·combine) 직접 계측, 계측 OFF/ON 비교; 사용자 지시서 `CPU_MoE_bottleneck_measurement_todo` (M0~M9)** — 상한 24세션·부팅 12회. 부모 `IDE_073`. 브랜치 `feat/cpu-moe-bottleneck-20260917` |
-| `IDE_075` | 완료 (2026-09-17, READY_WITH_LIMITED_SCOPE 후보 A·B; 부팅 2회 하네스 결함 소진) | **IDE_074 후속 추가 측정 — 기존 자료 정정(PCM 시각·시간창·분모·v2 지표), 기록 전용 task 없는 CPU 기록기, FIFO 대기/서비스 분리, expert rows·분기·단계 표본, 잔여 예산(세션 7·부팅 5) 내 OFF/CORE/CORR/RESOURCE 비교, READINESS/OPTIMIZATION_HANDOFF; 사용자 지시서 `IDE074_additional_measurement_plan`** — 부모 `IDE_074`. 브랜치 `feat/cpu-moe-bottleneck-followup-20260917` |
+| `IDE_075` | 완료 (2026-09-17, 기본 단계 READY_WITH_LIMITED_SCOPE 후보 A·B + 확장 단계(사용자 지시 '완료 못 한 것 전부'): 대표값 3부팅·4세션 재현, vllm 래퍼 barrier, 기록기 v3, C1/LONG/prefill/TP/TID/expert 표본/FOCUS, GLM 정상 출력 회복 `TSK_060`) | **IDE_074 후속 추가 측정 — 기존 자료 정정(PCM 시각·시간창·분모·v2 지표), 기록 전용 task 없는 CPU 기록기, FIFO 대기/서비스 분리, expert rows·분기·단계 표본, 잔여 예산(세션 7·부팅 5) 내 OFF/CORE/CORR/RESOURCE 비교, READINESS/OPTIMIZATION_HANDOFF; 사용자 지시서 `IDE074_additional_measurement_plan`** — 부모 `IDE_074`. 파생 `TSK_060`. 브랜치 `feat/cpu-moe-bottleneck-followup-20260917` |
 
 **다음 부여 번호**: `IDE_076`
 
@@ -157,8 +157,9 @@ FEA 구현을 위한 단계별 작업 단위. CLAUDE.md Method 의 feature 디�
 | `TSK_057` | 완료 (2026-09-15) | IDE_070 (4) B 시리즈 — NUMA 배치 (interleave / membind0 / threadpool 1 / socket0 전용) | 부모 `IDE_070`. 코드 무변경, numactl 접두 + kt 풀 수 |
 | `TSK_058` | 완료 (2026-09-15) — d2 크래시 기록 | IDE_070 (5) D 시리즈 — 비동기 파이프라인: 이 빌드의 IDE_033 callback-free 스택 (KT_CALLBACK_FREE, 빈 immediate 생략, 코어 재배치) + 9-10 캠페인 스택 재측정 | 부모 `IDE_070`, 기전 `IDE_033`/`IDE_034` |
 | `TSK_059` | 기각 (2026-09-15) — AWQ 부팅 불가 (graph·eager 모두) | IDE_070 (6) E 시리즈 — GPU expert W4 (QuantTrio AWQ 4-bit 체크포인트) hot 96/128/144 | 부모 `IDE_070`. compressed-tensors W4A16 체크포인트 부재 → AWQ 로 대체 시도 |
+| `TSK_060` | 완료 (2026-09-17) — GLM 4문항 게이트 4/4 | IDE_075 G00 — kt-kernel FP8/BF16 CPU 경로 0 출력 근본 원인 수정: `operators/amx/moe_base.hpp` 의 IDE_046-b/IDE_051 hunk `if constexpr (requires …) if (env) {…} else ORIGINAL` dangling-else (FP8·BF16 BufferA 에서 원본 gather·양자화 경로가 컴파일에서 제거) → 플래그+중괄호 재구성 (`eval/ide075/glm_fp8_dispatch_fix.py`, .so v4 12926df2…) | 부모 `IDE_075`. 결함 도입 `IDE_046`/`IDE_051`. 검증: kt FP8 테스트 2종 PASS 0.5829 %, GLM D6 게이트. 별개 결함 rsf(2.5 배 GPU 기여만) 는 `glm_rsf_patch.py` |
 
-**다음 부여 번호**: `TSK_060`
+**다음 부여 번호**: `TSK_061`
 
 > `TSK_020`~`TSK_042` 는 vllm_config_perf 시대 외부 발급분 (번호 소진 처리, 정의는 `vllm_config_perf/` 참조).
 

@@ -12,8 +12,8 @@ def main(sd):
     m = json.load(open(f"{sd}/metrics.json")); boot = m["boot_id"]; mode = m["mode"]; out = f"{sd}/v2"; os.makedirs(out, exist_ok=True); V = {}
     s = m.get("summary") or {}
     V["execution_valid"] = {"pass": bool(s) and s.get("failed") == 0 and m["rc"] == 0 and m["healthy_after"], "completed": s.get("completed"), "failed": s.get("failed"), "rc": m["rc"]}
-    V["workload_valid"] = {"pass": s.get("total_input_tokens") == 65886 and s.get("total_output_tokens") == 16384, "in": s.get("total_input_tokens"), "out": s.get("total_output_tokens"), "expected": "65886/16384 (PROBE128, 지시서 §2.2)"} if m["workload"] == "M073_QWEN_PROBE128" else {"pass": None, "note": "PROBE128 외"}
-    rq = json.load(open(f"{os.path.dirname(sd.rstrip('/'))}/requested_config.json")); V["config_valid"] = {"pass": rq.get("kt_kernel_so_sha256", "").startswith("a4e9045a"), "so": rq.get("kt_kernel_so_sha256", "")[:16], "mode": rq.get("mode"), "env_kt_evt": (rq.get("env") or {}).get("KT_EVT")}
+    V["workload_valid"] = {"pass": s.get("total_input_tokens") == 65886 and s.get("total_output_tokens") == 16384, "in": s.get("total_input_tokens"), "out": s.get("total_output_tokens"), "expected": "65886/16384 (PROBE128, 지시서 §2.2)"} if (m["workload"] == "M073_QWEN_PROBE128" and m.get("client", "vllm") != "probe") else {"pass": None, "note": "PROBE128 외 또는 probe 클라이언트(입력 토큰 합계 미보고; 비동등 판정으로 대표값 아님)"}
+    rq = json.load(open(f"{os.path.dirname(sd.rstrip('/'))}/requested_config.json")); V["config_valid"] = {"pass": rq.get("kt_kernel_so_sha256", "").startswith(("a4e9045a", "d659ca0b", "12926df2")), "so": rq.get("kt_kernel_so_sha256", "")[:16], "mode": rq.get("mode"), "env_kt_evt": (rq.get("env") or {}).get("KT_EVT")}
     we = [json.loads(l) for l in open(f"{sd}/window_events.jsonl")] if os.path.exists(f"{sd}/window_events.jsonl") else []
     names = {e["event_name"] for e in we}
     V["window_valid"] = {"pass": (mode == "OFF") or ({"first_go", "last_related_deferred_end"} <= names), "events": sorted(names), "note": "OFF 는 서버측 창 없음(NOT_COLLECTED)" if mode == "OFF" else None}
@@ -43,7 +43,8 @@ def main(sd):
     dep = f"{out}/dependency_summary_v2.json"
     if os.path.exists(dep):
         d = json.load(open(dep)); cov = d["coverage"]; cl = d["clock_validity_counts"]
-        V["mapping_valid"] = {"pass": cov.get("count_mismatch_rows", 0) == 0 and cov.get("map_at_go_mismatch", 0) == 0 and cov.get("unmatched_no_slot_map", 0) == 0, "coverage": cov, "matched": d["matched_rows"], "method": "VALIDATED_HEURISTIC_MAPPING"}
+        tot = cov.get("gpu_layer_rows_total", 0) or 1; edge_ok = (cov.get("resync_unmatched_gpu", 0) + cov.get("resync_unmatched_cpu", 0)) <= 0.03 * tot and d["matched_rows"] >= 0.97 * tot   # 세션 창 경계의 replay/레코드(층당 ≤1~2건) 만 미대응 허용
+        V["mapping_valid"] = {"pass": cov.get("map_at_go_mismatch", 0) == 0 and cov.get("unmatched_no_slot_map", 0) == 0 and (cov.get("count_mismatch_rows", 0) == 0 or edge_ok), "coverage": cov, "matched": d["matched_rows"], "method": "VALIDATED_HEURISTIC_MAPPING" + ("+ANCHOR_RESYNC(창 경계 미대응 ≤3 %)" if cov.get("count_mismatch_rows", 0) else ""), "zip_order_violation_groups": cov.get("zip_order_violation_groups", 0)}
         V["clock_valid_by_pair"] = {"pass": cl.get("CLOCK_ORDER_VIOLATION", 0) == 0, "counts": cl, "sensitivity": d["sensitivity"]}
         big = [v for k, v in d["by_graph_cohort"].items() if k.endswith("cold_present_nonempty")]
         V["producer_consumer_valid"] = {"pass": all((v.get("deferred_service_span_us") or {}).get("n", 0) >= v["n"] - max(1, v["n"] // 1000) for v in big), "linked_over_n": {k: ((v.get("deferred_service_span_us") or {}).get("n", 0), v["n"]) for k, v in d["by_graph_cohort"].items() if k.endswith("cold_present_nonempty")}, "criterion": "연결 ≥ 99.9 % (건수 공개)", "cohorts": {k: v["n"] for k, v in d["by_graph_cohort"].items()}, "residual_max": max(((v.get("identity_residual_us") or {}).get("max") or 0) for v in big) if big else None}

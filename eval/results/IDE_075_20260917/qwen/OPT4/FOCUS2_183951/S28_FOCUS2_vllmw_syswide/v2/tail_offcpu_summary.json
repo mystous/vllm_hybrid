@@ -1,0 +1,45 @@
+{
+ "decode_records": 23808,
+ "prefill_records": 682,
+ "tails": 31,
+ "tails_prefill(service>12ms|skew>1ms)": 6,
+ "rows": 74,
+ "decode_tail_offcpu_sum_us_p50_p90_max": [
+  0,
+  0,
+  284.0
+ ],
+ "decode_tail_offcpu_max_us_p50_p90_max": [
+  0,
+  0,
+  284.0
+ ],
+ "decode_tail_rows_with_offcpu": 6,
+ "decode_tail_rows_offcpu_gt_300us": 0,
+ "prefill_tail_offcpu_max_us_max": 38.0,
+ "rows_inside_perf_coverage": 62,
+ "workers_identified": 96,
+ "sched_switch_events": 10009122,
+ "perf_switch_window_realtime_ns": [
+  1789638157908375486,
+  1789638193980007486
+ ],
+ "perf_lost_samples_pct": [],
+ "perf_warnings": "",
+ "worker_switch_outs_total": 4379,
+ "worker_switch_ins_total": 4283,
+ "worker_switch_out_states": {
+  "S": 672,
+  "R": 3707
+ },
+ "worker_switch_outs_per_worker_per_s": 1.264555574678,
+ "offcpu_intervals_recoverable": true,
+ "offcpu_note": "system-wide 기록: switch-out→switch-in 구간",
+ "tails_with_worker_switch_out": 6,
+ "switch_outs_in_tail_windows": 24,
+ "offcpu_max_us_over_tails": 284.0,
+ "tails_with_offcpu_gt_1ms": 0,
+ "decode_tails_with_offcpu_gt_1ms": 0,
+ "clock": "perf monotonic → realtime 단일 anchor offset 1788761998306921486 ns (drift 미보정)",
+ "note": "off-CPU = sched_switch(prev=worker) ~ 다음 switch-in(next=worker). prev_state R = 선점(runnable), S/D = 대기"
+}

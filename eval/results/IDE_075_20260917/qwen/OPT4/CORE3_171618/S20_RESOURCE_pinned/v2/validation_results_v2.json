@@ -1,0 +1,95 @@
+{
+ "session": "eval/results/IDE_075_20260917/qwen/OPT4/CORE3_171618/S20_RESOURCE_pinned/",
+ "mode": "RESOURCE",
+ "checks": {
+  "execution_valid": {
+   "pass": true,
+   "completed": 128,
+   "failed": 0,
+   "rc": 0
+  },
+  "workload_valid": {
+   "pass": null,
+   "note": "PROBE128 외 또는 probe 클라이언트(입력 토큰 합계 미보고; 비동등 판정으로 대표값 아님)"
+  },
+  "config_valid": {
+   "pass": true,
+   "so": "d659ca0b274ca469",
+   "mode": "CORE",
+   "env_kt_evt": "/models/kt/ide075/CORE3_171618/kt_evt.csv"
+  },
+  "window_valid": {
+   "pass": true,
+   "events": [
+    "client_init_begin",
+    "client_process_end",
+    "client_ready",
+    "collector_arm",
+    "collector_stop",
+    "drain_confirmed",
+    "engine_cache_flushed",
+    "first_go",
+    "first_request_sent",
+    "last_related_deferred_end",
+    "last_response_received",
+    "log_flush_end",
+    "session_begin",
+    "start_signal_send"
+   ],
+   "note": null
+  },
+  "sampling_valid": {
+   "pass": true,
+   "footer": [],
+   "note": "footer 는 서버 종료 시 기록; 세션 중이면 없음",
+   "records_in_session": 24428
+  },
+  "lifecycle_valid": {
+   "pass": true,
+   "fwd_missing": 0,
+   "fwd_missing_share": 0.0,
+   "criterion": "미기록 ≤ 0.1 % (건수 공개)",
+   "packets": 24428,
+   "def_tasks_expected": 24428,
+   "fwd_recorded": 24428,
+   "done_store_recorded": 24428,
+   "imm_tasks": 394,
+   "def_task_seq_found_in_tasks": 24428,
+   "def_task_kinds": {
+    "3": 24428
+   },
+   "note": "패킷당 업무 task = imm(0/1) + done(1) + def(0/1); 기록 전용 task 0"
+  },
+  "task_count_valid": {
+   "pass": true,
+   "tasks_in_window_by_kind": {
+    "1": 394,
+    "2": 24428,
+    "3": 24428
+   },
+   "expected": {
+    "3(deferred)": 24428,
+    "2(done)": 24428,
+    "1(imm)": 394
+   }
+  },
+  "counter_running_valid": {
+   "pass": true,
+   "interval_rows": 240,
+   "not_counted_rows": 0
+  },
+  "counter_scope_valid": {
+   "pass": true,
+   "target": "171924,172101,172168,172332",
+   "note": "process-level -p, 스레드 상속 (perf 문서); TID 별 coverage 는 thread_role_map 와 대조"
+  },
+  "pcm_artifact_valid": {
+   "pass": true,
+   "bytes": 31502
+  },
+  "artifact_valid": {
+   "pass": false
+  }
+ },
+ "all_pass": false
+}

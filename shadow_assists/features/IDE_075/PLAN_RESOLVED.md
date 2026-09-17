@@ -35,3 +35,12 @@ vllm bench serve 클라이언트는 barrier 를 지원하지 않음(프로세스
 
 ## 8. GLM (G00)
 Qwen 트랙과 분리. 이번 예산 내 실행 없음. 기존 게이트 원자료 재검토만 (`GLM_NORMAL_OUTPUT_BLOCKED`).
+
+## 9. 확장 단계 (사용자 승인 2026-09-17 16:05: "세션 제약 없음, 미완 항목 전부 마무리")
+상한 밖 실행은 원장 `phase=extended` 로 별도 계수. 바이너리 v3 (경쟁 조건 수정·스레드 이름·expert 표본). 클라이언트: barrier 클라이언트(`probe_client.py`, vllm bench 와 같은 요청 의미, 요청별 ns timestamp) — OFF_OPEN2/OFF_CLOSE2 에서 vllm bench serve 와 나란히 1회씩 실행해 동등성 기록.
+| 부팅 | 세션 | 목적 |
+|---|---|---|
+| OFF_OPEN2 | S8 OFF(vllm), S8b OFF(probe) | 앞 대조 + 클라이언트 동등성 |
+| CORE2 (v3, KT_EVT) | S9/S10 CORR(probe), S11 RESOURCE(+TID CPU 시간), S12 C1 CORR, S13 LONG CORR(EXTEND 분절), S14 FOCUS(perf sched_switch/wakeup, tail off-CPU 귀속) | 잔여 공백 |
+| OFF_CLOSE2 | S15 OFF(vllm), S15b OFF(probe) | 뒤 대조 |
+| GLM | 별도 (G00 §16.2 재검토 + 진단 부팅) | 정상 출력 원인 |

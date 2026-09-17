@@ -1,0 +1,136 @@
+{
+ "session": "S28_FOCUS2_vllmw_syswide",
+ "mode": "FOCUS",
+ "client": "vllmw",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 23.686089769937098,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 23.290199393988587,
+  "total_input_tokens": 65886,
+  "total_output_tokens": 16384,
+  "request_throughput": 5.495873944000581,
+  "output_throughput": 703.4718648320744,
+  "total_token_throughput": 3532.3871044759985,
+  "mean_ttft_ms": 2469.528590710979,
+  "median_ttft_ms": 2214.846403512638,
+  "p90_ttft_ms": 3187.5290443073027,
+  "p95_ttft_ms": 3189.256157382624,
+  "p99_ttft_ms": 8660.254719159597,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 63.78144173940681,
+  "median_tpot_ms": 64.1438400828441,
+  "p90_tpot_ms": 72.68400332802452,
+  "p95_tpot_ms": 72.68522548045611,
+  "p99_tpot_ms": 75.15073366021356,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 63.781444926992364,
+  "median_itl_ms": 59.67730295378715,
+  "p95_itl_ms": 68.59637045999989,
+  "p99_itl_ms": 95.2979402791243,
+  "mean_e2el_ms": 10569.771691615642,
+  "median_e2el_ms": 10698.628072976135,
+  "p95_e2el_ms": 10717.645664227894,
+  "p99_e2el_ms": 12053.8240454509,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T09:42:48.951658+00:00",
+  "wall_kst": "2026-09-17T18:42:48.951658+09:00",
+  "epoch": 1789638168.9516585,
+  "monotonic": 876170.644734121
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T09:43:12.637748+00:00",
+  "wall_kst": "2026-09-17T18:43:12.637748+09:00",
+  "epoch": 1789638192.6377478,
+  "monotonic": 876194.330823891
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T09:43:13.962448+00:00",
+   "wall_kst": "2026-09-17T18:43:13.962448+09:00",
+   "epoch": 1789638193.962448,
+   "monotonic": 876195.655528222
+  },
+  "drain_seconds": 1.2570088759530336,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  26537,
+  51151
+ ],
+ "first_go_ns": 1789638169007156846,
+ "last_deferred_end_ns": 1789638192259513142,
+ "observer": {
+  "mode": "FOCUS",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T09:42:33.513854+00:00",
+     "wall_kst": "2026-09-17T18:42:33.513854+09:00",
+     "epoch": 1789638153.513854,
+     "monotonic": 876155.206935689
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T09:44:13.964652+00:00",
+     "wall_kst": "2026-09-17T18:44:13.964652+09:00",
+     "epoch": 1789638253.964652,
+     "monotonic": 876255.657727748
+    }
+   },
+   {
+    "collector_id": "tid_cpu_time",
+    "sample_interval_us": 1000000,
+    "actual_start": {
+     "wall_utc": "2026-09-17T09:42:33.514901+00:00",
+     "wall_kst": "2026-09-17T18:42:33.514901+09:00",
+     "epoch": 1789638153.5149012,
+     "monotonic": 876155.207977008
+    },
+    "clock_domain": "host",
+    "target_scope": "서버 host PID 전체 스레드 (/proc stat)"
+   },
+   {
+    "collector_id": "perf_sched",
+    "pid": 760910,
+    "target": "737381,737514,737603,737690",
+    "cmd": "exec sudo perf record -a -k CLOCK_MONOTONIC -m 4096 -e sched:sched_switch -o /home/mystous/projects/vllm_hybrid/eval/results/IDE_075_20260917/qwen/OPT4/FOCUS2_183951/S28_FOCUS2_vllmw_syswide/perf_sched.data",
+    "actual_start": {
+     "wall_utc": "2026-09-17T09:42:34.539401+00:00",
+     "wall_kst": "2026-09-17T18:42:34.539401+09:00",
+     "epoch": 1789638154.5394013,
+     "monotonic": 876156.232481258
+    },
+    "clock_domain": "host (perf 시각 → clock_anchors 로 변환)",
+    "note": "system-wide sched_switch (switch-in 포함), -k CLOCK_MONOTONIC → clock_anchors 직접 변환",
+    "actual_end": {
+     "wall_utc": "2026-09-17T09:44:13.963191+00:00",
+     "wall_kst": "2026-09-17T18:44:13.963191+09:00",
+     "epoch": 1789638253.9631913,
+     "monotonic": 876255.656269714
+    },
+    "exit_code": null
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": false,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "FOCUS2_183951"
+}

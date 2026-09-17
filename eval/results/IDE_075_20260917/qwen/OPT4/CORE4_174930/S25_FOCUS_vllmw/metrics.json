@@ -1,0 +1,135 @@
+{
+ "session": "S25_FOCUS_vllmw",
+ "mode": "FOCUS",
+ "client": "vllmw",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 24.649948214064352,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 24.188976151985116,
+  "total_input_tokens": 65886,
+  "total_output_tokens": 16384,
+  "request_throughput": 5.291666716100154,
+  "output_throughput": 677.3333396608197,
+  "total_token_throughput": 3401.1360994809343,
+  "mean_ttft_ms": 2494.6065698468374,
+  "median_ttft_ms": 2242.40715400083,
+  "p90_ttft_ms": 3320.395514916163,
+  "p95_ttft_ms": 3321.2401583383325,
+  "p99_ttft_ms": 8948.289721948126,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 67.24075317051182,
+  "median_tpot_ms": 66.88293151962607,
+  "p90_tpot_ms": 77.25548749389934,
+  "p95_tpot_ms": 77.25659876279936,
+  "p99_tpot_ms": 78.00555431438008,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 67.24075579638058,
+  "median_itl_ms": 62.051361019257456,
+  "p95_itl_ms": 72.17235490679741,
+  "p99_itl_ms": 90.94827566295862,
+  "mean_e2el_ms": 11034.18222250184,
+  "median_e2el_ms": 11252.209320024122,
+  "p95_e2el_ms": 11270.009054034017,
+  "p99_e2el_ms": 12456.524046902783,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T08:57:26.711449+00:00",
+  "wall_kst": "2026-09-17T17:57:26.711449+09:00",
+  "epoch": 1789635446.7114487,
+  "monotonic": 873448.404524231
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T08:57:51.361395+00:00",
+  "wall_kst": "2026-09-17T17:57:51.361395+09:00",
+  "epoch": 1789635471.3613951,
+  "monotonic": 873473.054472445
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T08:57:52.680525+00:00",
+   "wall_kst": "2026-09-17T17:57:52.680525+09:00",
+   "epoch": 1789635472.6805248,
+   "monotonic": 873474.373603031
+  },
+  "drain_seconds": 1.2592327169841155,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  100999,
+  125613
+ ],
+ "first_go_ns": 1789635446761257021,
+ "last_deferred_end_ns": 1789635470917740855,
+ "observer": {
+  "mode": "FOCUS",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T08:57:12.249239+00:00",
+     "wall_kst": "2026-09-17T17:57:12.249239+09:00",
+     "epoch": 1789635432.2492392,
+     "monotonic": 873433.942323078
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T08:58:19.835572+00:00",
+     "wall_kst": "2026-09-17T17:58:19.835572+09:00",
+     "epoch": 1789635499.8355725,
+     "monotonic": 873501.528648173
+    }
+   },
+   {
+    "collector_id": "tid_cpu_time",
+    "sample_interval_us": 1000000,
+    "actual_start": {
+     "wall_utc": "2026-09-17T08:57:12.250080+00:00",
+     "wall_kst": "2026-09-17T17:57:12.250080+09:00",
+     "epoch": 1789635432.2500803,
+     "monotonic": 873433.94315594
+    },
+    "clock_domain": "host",
+    "target_scope": "서버 host PID 전체 스레드 (/proc stat)"
+   },
+   {
+    "collector_id": "perf_sched",
+    "pid": 467172,
+    "target": "415714,415784,415871,416077",
+    "actual_start": {
+     "wall_utc": "2026-09-17T08:57:13.161204+00:00",
+     "wall_kst": "2026-09-17T17:57:13.161204+09:00",
+     "epoch": 1789635433.1612043,
+     "monotonic": 873434.854282339
+    },
+    "clock_domain": "host (perf 시각; perf script -F time 은 monotonic 기준 → clock_anchors 로 변환)",
+    "note": "off-CPU/runnable 귀속용",
+    "actual_end": {
+     "wall_utc": "2026-09-17T08:58:19.834022+00:00",
+     "wall_kst": "2026-09-17T17:58:19.834022+09:00",
+     "epoch": 1789635499.834022,
+     "monotonic": 873501.527099082
+    },
+    "exit_code": -2
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": false,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "CORE4_174930"
+}

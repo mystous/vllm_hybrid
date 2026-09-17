@@ -1,0 +1,146 @@
+{
+ "session": "G_CORR",
+ "mode": "CORR",
+ "client": "vllmw",
+ "kind": "PERF",
+ "workload": "M073_GLM_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 379.21152228605933,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 378.8044683529297,
+  "total_input_tokens": 67430,
+  "total_output_tokens": 16384,
+  "request_throughput": 0.33790520095117577,
+  "output_throughput": 43.2518657217505,
+  "total_token_throughput": 221.2592696290769,
+  "mean_ttft_ms": 65083.16297337478,
+  "median_ttft_ms": 49202.03712047078,
+  "p90_ttft_ms": 125219.72393933684,
+  "p95_ttft_ms": 130282.2220965405,
+  "p99_ttft_ms": 130284.68675337499,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 952.3077216667592,
+  "median_tpot_ms": 1071.155797161701,
+  "p90_tpot_ms": 1197.566099170922,
+  "p95_tpot_ms": 1215.756557210519,
+  "p99_tpot_ms": 1332.3196795761703,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 952.2491463276651,
+  "median_itl_ms": 438.33506805822253,
+  "p95_itl_ms": 679.9106542253867,
+  "p99_itl_ms": 15983.134067934006,
+  "mean_e2el_ms": 186026.2436250532,
+  "median_e2el_ms": 185700.0878234976,
+  "p95_e2el_ms": 279656.3954126905,
+  "p99_e2el_ms": 279659.29728765856,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T09:25:09.186532+00:00",
+  "wall_kst": "2026-09-17T18:25:09.186532+09:00",
+  "epoch": 1789637109.1865315,
+  "monotonic": 875110.879607289
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T09:31:28.398053+00:00",
+  "wall_kst": "2026-09-17T18:31:28.398053+09:00",
+  "epoch": 1789637488.3980527,
+  "monotonic": 875490.091129575
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T09:31:29.717633+00:00",
+   "wall_kst": "2026-09-17T18:31:29.717633+09:00",
+   "epoch": 1789637489.7176325,
+   "monotonic": 875491.410710757
+  },
+  "drain_seconds": 1.2584761910839006,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  null,
+  null
+ ],
+ "first_go_ns": null,
+ "last_deferred_end_ns": null,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T09:24:57.761065+00:00",
+     "wall_kst": "2026-09-17T18:24:57.761065+09:00",
+     "epoch": 1789637097.7610655,
+     "monotonic": 875099.454144762
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T09:34:57.705890+00:00",
+     "wall_kst": "2026-09-17T18:34:57.705890+09:00",
+     "epoch": 1789637697.7058904,
+     "monotonic": 875699.398966241
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "G_CORR_1789637097",
+    "arm_time": {
+     "wall_utc": "2026-09-17T09:24:57.781116+00:00",
+     "wall_kst": "2026-09-17T18:24:57.781116+09:00",
+     "epoch": 1789637097.7811162,
+     "monotonic": 875099.474193003
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T09:34:52.698148+00:00",
+     "wall_kst": "2026-09-17T18:34:52.698148+09:00",
+     "epoch": 1789637692.6981475,
+     "monotonic": 875694.391223843
+    },
+    "trace_files": [
+     [
+      "G_CORR_1789637097-TP-0.trace.json.gz",
+      155217689
+     ],
+     [
+      "G_CORR_1789637097-TP-1.trace.json.gz",
+      100040513
+     ],
+     [
+      "G_CORR_1789637097-TP-2.trace.json.gz",
+      99928788
+     ],
+     [
+      "G_CORR_1789637097-TP-3.trace.json.gz",
+      99891808
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T09:34:57.705322+00:00",
+     "wall_kst": "2026-09-17T18:34:57.705322+09:00",
+     "epoch": 1789637697.7053216,
+     "monotonic": 875699.398398395
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "GLM_D6_181159"
+}

@@ -1,0 +1,156 @@
+{
+ "session": "eval/results/IDE_075_20260917/qwen/OPT4/CORE4_174930/S22_CORR_vllmw/",
+ "by_graph_position": {
+  "2:post_attention": {
+   "step": "step[DECODE bs=63]",
+   "n": 16003,
+   "r0_dur_p50": 16.5,
+   "r1_dur_p50": 13.75,
+   "r2_dur_p50": 13.5,
+   "r3_dur_p50": 13.75,
+   "r0_dur_p95": 17.75,
+   "r1_dur_p95": 14.75,
+   "r2_dur_p95": 14.75,
+   "r3_dur_p95": 15.0,
+   "arrival_skew_p50": 59274.0,
+   "arrival_skew_p95": 68483.0,
+   "last_arrival_rank_counts": {
+    "0": 3602,
+    "1": 316,
+    "3": 5393,
+    "2": 6692
+   },
+   "first_arrival_rank_counts": {
+    "3": 1390,
+    "2": 2215,
+    "0": 12255,
+    "1": 143
+   },
+   "position_mismatch": 1
+  },
+  "2:post_moe": {
+   "step": "step[DECODE bs=63]",
+   "n": 15747,
+   "r0_dur_p50": 12.5,
+   "r1_dur_p50": 438.0,
+   "r2_dur_p50": 438.25,
+   "r3_dur_p50": 437.75,
+   "r0_dur_p95": 12.75,
+   "r1_dur_p95": 939.5,
+   "r2_dur_p95": 937.0,
+   "r3_dur_p95": 937.75,
+   "arrival_skew_p50": 59246.25,
+   "arrival_skew_p95": 68473.75,
+   "last_arrival_rank_counts": {
+    "0": 3546,
+    "1": 308,
+    "2": 5864,
+    "3": 6029
+   },
+   "first_arrival_rank_counts": {
+    "2": 2271,
+    "3": 1274,
+    "1": 11843,
+    "0": 359
+   },
+   "position_mismatch": 1
+  },
+  "32:post_attention": {
+   "step": "step[DECODE bs=2]",
+   "n": 8064,
+   "r0_dur_p50": 9.75,
+   "r1_dur_p50": 7.5,
+   "r2_dur_p50": 5.75,
+   "r3_dur_p50": 7.75,
+   "r0_dur_p95": 11.25,
+   "r1_dur_p95": 9.25,
+   "r2_dur_p95": 7.5,
+   "r3_dur_p95": 9.5,
+   "arrival_skew_p50": 2.75,
+   "arrival_skew_p95": 4.5,
+   "last_arrival_rank_counts": {
+    "1": 1854,
+    "0": 42,
+    "2": 5550,
+    "3": 618
+   },
+   "first_arrival_rank_counts": {
+    "0": 7684,
+    "3": 112,
+    "2": 134,
+    "1": 134
+   },
+   "position_mismatch": 0
+  },
+  "32:post_moe": {
+   "step": "step[DECODE bs=2]",
+   "n": 7936,
+   "r0_dur_p50": 6.0,
+   "r1_dur_p50": 63.75,
+   "r2_dur_p50": 57.75,
+   "r3_dur_p50": 63.5,
+   "r0_dur_p95": 6.25,
+   "r1_dur_p95": 74.0,
+   "r2_dur_p95": 67.75,
+   "r3_dur_p95": 73.5,
+   "arrival_skew_p50": 57.5,
+   "arrival_skew_p95": 67.5,
+   "last_arrival_rank_counts": {
+    "0": 7936
+   },
+   "first_arrival_rank_counts": {
+    "3": 2203,
+    "1": 5733
+   },
+   "position_mismatch": 0
+  },
+  "35:post_attention": {
+   "step": "step[DECODE bs=1]",
+   "n": 63,
+   "r0_dur_p50": 9.75,
+   "r1_dur_p50": 8.5,
+   "r2_dur_p50": 5.75,
+   "r3_dur_p50": 8.75,
+   "r0_dur_p95": 12.25,
+   "r1_dur_p95": 10.25,
+   "r2_dur_p95": 7.75,
+   "r3_dur_p95": 11.0,
+   "arrival_skew_p50": 3.5,
+   "arrival_skew_p95": 5.25,
+   "last_arrival_rank_counts": {
+    "3": 2,
+    "2": 56,
+    "1": 5
+   },
+   "first_arrival_rank_counts": {
+    "0": 41,
+    "3": 16,
+    "1": 6
+   },
+   "position_mismatch": 0
+  },
+  "35:post_moe": {
+   "step": "step[DECODE bs=1]",
+   "n": 62,
+   "r0_dur_p50": 5.75,
+   "r1_dur_p50": 282.75,
+   "r2_dur_p50": 281.75,
+   "r3_dur_p50": 277.75,
+   "r0_dur_p95": 6.25,
+   "r1_dur_p95": 398.25,
+   "r2_dur_p95": 399.75,
+   "r3_dur_p95": 396.75,
+   "arrival_skew_p50": 276.0,
+   "arrival_skew_p95": 393.75,
+   "last_arrival_rank_counts": {
+    "0": 62
+   },
+   "first_arrival_rank_counts": {
+    "2": 25,
+    "1": 37
+   },
+   "position_mismatch": 0
+  }
+ },
+ "note": "위치 귀속 = 직전 fused_moe 유무 (휴리스틱, TP0 HtoD 순번과 대조); rank 간 시각은 kineto host 정렬, GPU 간 offset 미검증; duration 은 동기화 포함 가능 (링크 시간 아님)"
+}

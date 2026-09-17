@@ -2,16 +2,17 @@
 
 ## 1. 재현 기준
 - 모델 `Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8` rev 003f183a…, CPU 가중치 `/models/kt/qwen3-480b-int4` AMXINT4, hotmap_v2 (SHA 7ce02cad…), layer_budget_5952 (SHA c8ba4247…, 62층 합 5,952), TP4 GPU 0~3, CPU 96 workers/NUMA pool 2, deferred 8, callback-free/skip-empty/RB ON, KV 40,960, decode graph ≤64, prefill graph off, chunk 8,192, mem 0.95, triton attention. launch argv: `evidence/environment.json: reference_launch_cmd`.
-- 런타임: SGLang 71de97b + 로컬 7파일, kt_kernel_ext.so **v2 a4e9045a…** (OFF/ON 공통; OFF 는 env KT_EVT 미설정). 원본 e29357f7… / v1 adf49e48… 은 `/sgl-workspace/ide074_backup/`. 복원: `python3 /tmp/ide075_kt_evt_patch_v2.py revert` + `.so.orig` 복사.
+- 런타임: SGLang 71de97b + 로컬 7파일, kt_kernel_ext.so **v2 a4e9045a…** (기본 단계) → **v3 d659ca0b…** (확장 단계 CORE2~4) → **v4 12926df2…** (FP8 dispatch 수정, FOCUS2·GLM D6~D8; INT4 기본 경로 동작 동일). 원본 e29357f7… / v1 / v2 / v3 는 `/sgl-workspace/ide074_backup/`. **다음 단계의 기준 바이너리는 v4** (원본 .so 는 FP8 결함 포함). 복원 절차: CONFIG_DIFF.md 확장 절.
+- 클라이언트: vllm bench serve 또는 래퍼 `eval/ide075/vllm_bench_wrapper.py` (동등). `probe_client.py` 는 사용 금지 (서버 스텝·CPU 서비스 시간을 늘림).
 - 입력: `M073_QWEN_MAIN_SHORT` (C64, n256, 131,786/32,768 tok), `M073_QWEN_PROBE128` (C64, n128, 65,886/16,384), frozen jsonl `~/.cache/huggingface/kt/ide073/inputs/qwen/` (SHA `IDE_074 evidence/environment.json: input_files`).
 - 다음 성능 비교 프로토콜: **새 MAIN_SHORT OFF 3회(같은 부팅) 를 분모로** 새로 측정 (IDE_074 의 743/747/769 는 v1 바이너리·역사값). 후보도 같은 부팅 배치·smoke·warmup·cache flush 로 3회. 계측 OFF 증빙 = requested_config.env 에 KT_EVT 없음 + task_count 기록 없음.
 
-## 2. 확인된 지연 경로 (C64 디코드 bs=63, S3/S4 CORR, cold_present_nonempty)
+## 2. 확인된 지연 경로 (C64 디코드 bs=63, S3/S4 CORR + 확장 S22/S23 CORR(vllmw, v3) 재현, cold_present_nonempty)
 ```
 go(L−1) → enqueue(+5 µs) → [직전 층 deferred 실행 중: 650~663 µs] → deferred(L−1) 서비스 902~912 µs (numa0/1 병렬, up_gate 55 % · down 34 %, 전 expert AVX vec_mul, rows 1~5)
    → done 게시 (+0.5) → GPU: hot_ready(L) 는 go(L−1) 로부터 1,248~1,270 µs 에 도착 → 게시가 hot 보다 315~321 µs 늦음 (90 %) → wait 해제 → HtoD 32 µs → combine +4~9
 ```
-GPU 는 그 315~334 µs 동안 실제 idle (다른 스트림 작업 0). 생산층별 서비스는 unique cold expert 수에 비례 (≈65 µs/expert). 대표 원자료: `S3_CORR/v2/fifo_casebook.md` (p50 사례 replay 31 L8→9, p95 사례 replay 95 L10→11, tail 사례 replay 246 L9→10 numa0 down 5.2 ms).
+GPU 는 그 315~334 µs 동안 실제 idle (다른 스트림 작업 0). 생산층별 서비스는 unique cold expert 수에 비례 (≈65 µs/expert). 확장 재현 (S22/S23/S29): 게시 지연 392/328/335, enq→start 671/668/673, 서비스 922/916/921 µs. expert 표본: expert 별 rows ≤2 가 67.7 %. bs=1 (S26): 게시가 GPU 보다 63 µs 빠름, 서비스 134 µs → 이 경로는 bs 가 큰 디코드에서만 병목. prefill(EXTEND): ≤2.6k·8k 스텝은 CPU 가 1.3~3.1 ms 빠름, 4~5k 스텝은 0.1~1.1 ms 늦음 (조건부). 대표 원자료: `S3_CORR/v2/fifo_casebook.md` (p50 사례 replay 31 L8→9, p95 사례 replay 95 L10→11, tail 사례 replay 246 L9→10 numa0 down 5.2 ms).
 
 ## 3. 최대 두 후보
 ### 후보 A — Cold expert 작업 서비스 시간 (AVX vec_mul 경로의 up_gate/down)
@@ -37,8 +38,8 @@ GPU 는 그 315~334 µs 동안 실제 idle (다른 스트림 작업 0). 생산�
 | FIFO/dispatch/신호 | 미분리 gap p50 0.75 µs, dequeue→exec 0 → 근거 없음 |
 | 복사 묶음화 | HtoD 32 µs·DtoH 는 hot 이전 완료 → 노출 비중 작음 |
 | GPU Hot 커널 | hot 이 늦은 표본 10 % 뿐 |
-| NUMA/worker 배치 | tail 10/15.6k, 원인 미분리 (FOCUS 예산 없음) |
-| TP 통신 | 위치 귀속 미확정, 조건부 미실행 |
-| prefill/chunk | EXTEND 분절 없음 |
-| GLM | 정상 출력 차단 (G00 별도 트랙) |
+| NUMA/worker 배치 | tail 10/15.6k (S3) · 31/23.8k (S28). FOCUS2(시스템 전체 sched, 손실 0): tail 창 안 워커 off-CPU 최대 284 µs, >1 ms 0 → 스케줄링/선점 원인 기각. 잔여 원인(원격 접근·페이지) 미측정 → 근거 없음 |
+| TP 통신 | post-MoE all-reduce 의 도착 시차(577 µs) 는 rank 0 의 CPU 대기 반영 → 통신 자체 후보 아님 |
+| prefill/chunk | ≤2.6k·7~8k 청크 스텝: CPU 1.3~3.1 ms 빠름 (병목 아님). 4.0~5.1k 토큰 스텝: CPU 0.1~1.1 ms 늦음 (늦음 0.5~0.77, S27/S13/S3 일치) → 조건부 진단 항목으로 남김 (원인 미분리, 스텝별 n 61). 변경 후보 없음 |
+| GLM | 정상 출력 회복 (TSK_060 + rsf 패치). 44 tok/s (C=64) 로 Qwen 과 비용 구조가 달라 후보 A·B 적용 근거 없음. CPU↔GPU 의존성은 GLM 전용 GPU 층 분절(step annotation 창 + HtoD 순번, 층 offset 3) 이 필요해 미분석 (데이터 보존: GLM_D9_194029/G_CORR3_cbfree) |
 | DRAM 기반 변경 | 부하 창 read 233 GB/s 는 관측값, 포화 비교 기준 없음 |

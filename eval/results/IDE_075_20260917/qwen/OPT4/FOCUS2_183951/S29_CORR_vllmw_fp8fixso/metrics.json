@@ -1,0 +1,146 @@
+{
+ "session": "S29_CORR_vllmw_fp8fixso",
+ "mode": "CORR",
+ "client": "vllmw",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 24.13743624195922,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 23.755698492052034,
+  "total_input_tokens": 65886,
+  "total_output_tokens": 16384,
+  "request_throughput": 5.388180862912749,
+  "output_throughput": 689.6871504528318,
+  "total_token_throughput": 3463.169059311186,
+  "mean_ttft_ms": 2566.583186342541,
+  "median_ttft_ms": 2313.454414019361,
+  "p90_ttft_ms": 3271.916824381333,
+  "p95_ttft_ms": 3274.0172134537715,
+  "p99_ttft_ms": 8831.676265565942,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 64.17786762813193,
+  "median_tpot_ms": 64.94375742517236,
+  "p90_tpot_ms": 72.74866712840611,
+  "p95_tpot_ms": 72.75090402805276,
+  "p99_tpot_ms": 76.13600561284372,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 64.17786969097334,
+  "median_itl_ms": 59.96333301300183,
+  "p95_itl_ms": 68.83857276989147,
+  "p99_itl_ms": 94.95939484331863,
+  "mean_e2el_ms": 10717.172375115297,
+  "median_e2el_ms": 10842.687767988537,
+  "p95_e2el_ms": 10863.431559008313,
+  "p99_e2el_ms": 12333.33081364516,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T09:44:31.456662+00:00",
+  "wall_kst": "2026-09-17T18:44:31.456662+09:00",
+  "epoch": 1789638271.4566622,
+  "monotonic": 876273.149738813
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T09:44:55.594094+00:00",
+  "wall_kst": "2026-09-17T18:44:55.594094+09:00",
+  "epoch": 1789638295.5940936,
+  "monotonic": 876297.287175055
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T09:44:56.905303+00:00",
+   "wall_kst": "2026-09-17T18:44:56.905303+09:00",
+   "epoch": 1789638296.9053035,
+   "monotonic": 876298.598384083
+  },
+  "drain_seconds": 1.2536821439862251,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  51275,
+  76013
+ ],
+ "first_go_ns": 1789638271512578550,
+ "last_deferred_end_ns": 1789638295230361634,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T09:44:19.944222+00:00",
+     "wall_kst": "2026-09-17T18:44:19.944222+09:00",
+     "epoch": 1789638259.9442225,
+     "monotonic": 876261.637304478
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T09:46:20.889788+00:00",
+     "wall_kst": "2026-09-17T18:46:20.889788+09:00",
+     "epoch": 1789638380.8897877,
+     "monotonic": 876382.582863494
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "S29_CORR_vllmw_fp8fixso_1789638259",
+    "arm_time": {
+     "wall_utc": "2026-09-17T09:44:19.964677+00:00",
+     "wall_kst": "2026-09-17T18:44:19.964677+09:00",
+     "epoch": 1789638259.9646769,
+     "monotonic": 876261.657755367
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T09:46:15.882556+00:00",
+     "wall_kst": "2026-09-17T18:46:15.882556+09:00",
+     "epoch": 1789638375.882556,
+     "monotonic": 876377.575635609
+    },
+    "trace_files": [
+     [
+      "S29_CORR_vllmw_fp8fixso_1789638259-TP-0.trace.json.gz",
+      62325592
+     ],
+     [
+      "S29_CORR_vllmw_fp8fixso_1789638259-TP-1.trace.json.gz",
+      28296918
+     ],
+     [
+      "S29_CORR_vllmw_fp8fixso_1789638259-TP-2.trace.json.gz",
+      28318102
+     ],
+     [
+      "S29_CORR_vllmw_fp8fixso_1789638259-TP-3.trace.json.gz",
+      28285986
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T09:46:20.889336+00:00",
+     "wall_kst": "2026-09-17T18:46:20.889336+09:00",
+     "epoch": 1789638380.8893356,
+     "monotonic": 876382.582413287
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "FOCUS2_183951"
+}

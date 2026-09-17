@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/mystous/projects/vllm_hybrid/eval/ide075/analyze_costs_v2.py", line 78, in <module>
+    if __name__ == "__main__": main(sys.argv[1])
+  File "/home/mystous/projects/vllm_hybrid/eval/ide075/analyze_costs_v2.py", line 14, in main
+    v2 = f"{sd}/v2"; rows = list(csv.DictReader(gzip.open(f"{v2}/producer_consumer_metrics_v2.csv.gz", "rt")))
+  File "/usr/lib64/python3.9/gzip.py", line 58, in open
+    binary_file = GzipFile(filename, gz_mode, compresslevel)
+  File "/usr/lib64/python3.9/gzip.py", line 173, in __init__
+    fileobj = self.myfileobj = builtins.open(filename, mode or 'rb')
+FileNotFoundError: [Errno 2] No such file or directory: 'eval/results/IDE_075_20260917/glm/BASIC4/GLM_D8_185927/G_CORR2//v2/producer_consumer_metrics_v2.csv.gz'

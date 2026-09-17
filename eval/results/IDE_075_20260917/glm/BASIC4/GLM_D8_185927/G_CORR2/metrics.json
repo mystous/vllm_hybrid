@@ -1,0 +1,146 @@
+{
+ "session": "G_CORR2",
+ "mode": "CORR",
+ "client": "vllmw",
+ "kind": "PERF",
+ "workload": "M073_GLM_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 373.13730620907154,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 372.72586099791806,
+  "total_input_tokens": 67430,
+  "total_output_tokens": 16384,
+  "request_throughput": 0.34341593485705296,
+  "output_throughput": 43.95723966170278,
+  "total_token_throughput": 224.86768096960185,
+  "mean_ttft_ms": 64424.99924073309,
+  "median_ttft_ms": 47469.87411455484,
+  "p90_ttft_ms": 124833.70684639085,
+  "p95_ttft_ms": 129915.79603845603,
+  "p99_ttft_ms": 129917.88563714945,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 933.947088356866,
+  "median_tpot_ms": 1060.9802263587214,
+  "p90_tpot_ms": 1180.63813325927,
+  "p95_tpot_ms": 1187.9997115305855,
+  "p99_tpot_ms": 1306.3553089406762,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 933.889641397817,
+  "median_itl_ms": 426.5609181020409,
+  "p95_itl_ms": 676.6817814204842,
+  "p99_itl_ms": 15870.29189729132,
+  "mean_e2el_ms": 183036.27946205507,
+  "median_e2el_ms": 181476.1430384824,
+  "p95_e2el_ms": 276373.56281254906,
+  "p99_e2el_ms": 276375.40344200097,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T10:12:17.174690+00:00",
+  "wall_kst": "2026-09-17T19:12:17.174690+09:00",
+  "epoch": 1789639937.17469,
+  "monotonic": 877938.867765912
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T10:18:30.311996+00:00",
+  "wall_kst": "2026-09-17T19:18:30.311996+09:00",
+  "epoch": 1789640310.311996,
+  "monotonic": 878312.005072121
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T10:18:31.632412+00:00",
+   "wall_kst": "2026-09-17T19:18:31.632412+09:00",
+   "epoch": 1789640311.6324117,
+   "monotonic": 878313.32549033
+  },
+  "drain_seconds": 1.2592569739790633,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  null,
+  null
+ ],
+ "first_go_ns": null,
+ "last_deferred_end_ns": null,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T10:12:05.704367+00:00",
+     "wall_kst": "2026-09-17T19:12:05.704367+09:00",
+     "epoch": 1789639925.704367,
+     "monotonic": 877927.397446201
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T10:21:53.097231+00:00",
+     "wall_kst": "2026-09-17T19:21:53.097231+09:00",
+     "epoch": 1789640513.097231,
+     "monotonic": 878514.790306781
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "G_CORR2_1789639925",
+    "arm_time": {
+     "wall_utc": "2026-09-17T10:12:05.723013+00:00",
+     "wall_kst": "2026-09-17T19:12:05.723013+09:00",
+     "epoch": 1789639925.7230134,
+     "monotonic": 877927.416090589
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T10:21:48.089982+00:00",
+     "wall_kst": "2026-09-17T19:21:48.089982+09:00",
+     "epoch": 1789640508.089982,
+     "monotonic": 878509.783057922
+    },
+    "trace_files": [
+     [
+      "G_CORR2_1789639925-TP-0.trace.json.gz",
+      155182533
+     ],
+     [
+      "G_CORR2_1789639925-TP-1.trace.json.gz",
+      99933184
+     ],
+     [
+      "G_CORR2_1789639925-TP-2.trace.json.gz",
+      99812149
+     ],
+     [
+      "G_CORR2_1789639925-TP-3.trace.json.gz",
+      99868345
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T10:21:53.096751+00:00",
+     "wall_kst": "2026-09-17T19:21:53.096751+09:00",
+     "epoch": 1789640513.0967515,
+     "monotonic": 878514.789827836
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "GLM_D8_185927"
+}

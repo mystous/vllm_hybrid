@@ -1,0 +1,175 @@
+{
+ "session": "eval/results/IDE_075_20260917/qwen/OPT4/CORE4_174930/S22_CORR_vllmw",
+ "mode": "CORR",
+ "checks": {
+  "execution_valid": {
+   "pass": true,
+   "completed": 128,
+   "failed": 0,
+   "rc": 0
+  },
+  "workload_valid": {
+   "pass": true,
+   "in": 65886,
+   "out": 16384,
+   "expected": "65886/16384 (PROBE128, 지시서 §2.2)"
+  },
+  "config_valid": {
+   "pass": true,
+   "so": "d659ca0b274ca469",
+   "mode": "CORE",
+   "env_kt_evt": "/models/kt/ide075/CORE4_174930/kt_evt.csv"
+  },
+  "window_valid": {
+   "pass": true,
+   "events": [
+    "client_init_begin",
+    "client_process_end",
+    "client_ready",
+    "collector_arm",
+    "collector_stop",
+    "drain_confirmed",
+    "engine_cache_flushed",
+    "first_go",
+    "first_request_sent",
+    "last_related_deferred_end",
+    "last_response_received",
+    "log_flush_end",
+    "session_begin",
+    "start_signal_send"
+   ],
+   "note": null
+  },
+  "sampling_valid": {
+   "pass": true,
+   "footer": [],
+   "note": "footer 는 서버 종료 시 기록; 세션 중이면 없음",
+   "records_in_session": 24490
+  },
+  "lifecycle_valid": {
+   "pass": true,
+   "fwd_missing": 0,
+   "fwd_missing_share": 0.0,
+   "criterion": "미기록 ≤ 0.1 % (건수 공개)",
+   "packets": 24490,
+   "def_tasks_expected": 24490,
+   "fwd_recorded": 24490,
+   "done_store_recorded": 24490,
+   "imm_tasks": 395,
+   "def_task_seq_found_in_tasks": 24490,
+   "def_task_kinds": {
+    "3": 24490
+   },
+   "note": "패킷당 업무 task = imm(0/1) + done(1) + def(0/1); 기록 전용 task 0"
+  },
+  "task_count_valid": {
+   "pass": true,
+   "tasks_in_window_by_kind": {
+    "1": 395,
+    "2": 24490,
+    "3": 24490
+   },
+   "expected": {
+    "3(deferred)": 24490,
+    "2(done)": 24490,
+    "1(imm)": 395
+   }
+  },
+  "gpu_activity_valid": {
+   "pass": true,
+   "per_trace": {
+    "133-TP-0.trace.json.gz": {
+     "kernel": 699064,
+     "memcpy": 125602
+    },
+    "133-TP-1.trace.json.gz": {
+     "kernel": 601338,
+     "memcpy": 1788
+    },
+    "133-TP-2.trace.json.gz": {
+     "kernel": 601338,
+     "memcpy": 1788
+    },
+    "133-TP-3.trace.json.gz": {
+     "kernel": 601338,
+     "memcpy": 1788
+    }
+   }
+  },
+  "mapping_valid": {
+   "pass": true,
+   "coverage": {
+    "gpu_layer_rows_total": 23870,
+    "count_mismatch_pairs": 86,
+    "count_mismatch_rows": 86,
+    "resync_unmatched_gpu": 216,
+    "resync_gpu_rows_without_dtoh": 1,
+    "resync_unmatched_cpu": 155,
+    "resync_pairs": 15717,
+    "method:ANCHOR_RESYNC(go>=dtoh_end<next)": 6084,
+    "zip_order_violation_groups": 38,
+    "method:ANCHOR_RESYNC(order_violation)": 9633,
+    "method:count_match_zip": 7936
+   },
+   "matched": 23653,
+   "method": "VALIDATED_HEURISTIC_MAPPING+ANCHOR_RESYNC(창 경계 미대응 ≤3 %)",
+   "zip_order_violation_groups": 38
+  },
+  "clock_valid_by_pair": {
+   "pass": false,
+   "counts": {
+    "OK": 22668,
+    "CLOCK_INDETERMINATE": 966,
+    "CLOCK_ORDER_VIOLATION": 19
+   },
+   "sensitivity": {
+    "2:cold_present_nonempty": {
+     "late_share_thr_0us": 0.9162881245944192,
+     "late_share_thr_1us": 0.9159636599610642,
+     "late_share_thr_2us": 0.9152498377676833,
+     "late_share_thr_5us": 0.9136924075275795,
+     "clock_indeterminate_share_5us": 0.006554185593770279,
+     "n": 15410,
+     "cold_gpu_ready_late_share": 1.0
+    },
+    "32:cold_present_nonempty": {
+     "late_share_thr_0us": 0.01989443767762891,
+     "late_share_thr_1us": 0.01989443767762891,
+     "late_share_thr_2us": 0.01989443767762891,
+     "late_share_thr_5us": 0.0194884287454324,
+     "clock_indeterminate_share_5us": 0.0016240357287860333,
+     "n": 2463,
+     "cold_gpu_ready_late_share": 1.0
+    }
+   }
+  },
+  "producer_consumer_valid": {
+   "pass": true,
+   "linked_over_n": {
+    "2:cold_present_nonempty": [
+     15410,
+     15410
+    ],
+    "32:cold_present_nonempty": [
+     2463,
+     2463
+    ]
+   },
+   "criterion": "연결 ≥ 99.9 % (건수 공개)",
+   "cohorts": {
+    "2:cold_present_nonempty": 15410,
+    "2:cold_path_empty": 16,
+    "2:no_cold_consumed": 255,
+    "2:unknown_path_or_mapping": 36,
+    "32:cold_present_nonempty": 2463,
+    "32:cold_path_empty": 5345,
+    "32:no_cold_consumed": 128
+   },
+   "residual_max": 0
+  },
+  "artifact_valid": {
+   "pass": true
+  }
+ },
+ "all_pass": false
+}

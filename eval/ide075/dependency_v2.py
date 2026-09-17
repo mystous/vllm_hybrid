@@ -17,6 +17,7 @@ from gpu_union import UnionIndex
 HOME = os.path.expanduser("~")
 KT_HOSTS = {"ide074": f"{HOME}/.cache/huggingface/kt/ide074", "ide075": f"{HOME}/.cache/huggingface/kt/ide075"}
 OPS = ("kernel", "gpu_memcpy", "gpu_memset")
+ROW_BYTES = int(os.environ.get("KT_ROW_BYTES", "12288"))   # hidden×2 (Qwen 6144→12288, GLM 5120→10240)
 
 
 def pct(v, q): v = sorted(v); return v[int(round(q * (len(v) - 1)))] if v else None
@@ -66,14 +67,43 @@ def main(sd, v2=False):
     for k in gl_by: gl_by[k].sort(key=lambda r: float(r["t_htod_start"]))
     cov = collections.Counter(); recmap = {}
     for (g, L), rows_ in gl_by.items():
-        rows_n = int(rows_[0]["htod_bytes"]) // 12288; s = cap.get((L, rows_n)); cov["gpu_layer_rows_total"] += len(rows_)
+        rows_n = int(rows_[0]["htod_bytes"]) // ROW_BYTES; s = cap.get((L, rows_n)); cov["gpu_layer_rows_total"] += len(rows_)
         if s is None: cov["unmatched_no_slot_map"] += len(rows_); continue
-        evs = ev_by_slot.get(s, [])
-        if len(evs) != len(rows_): cov["count_mismatch_pairs"] += 1; cov["count_mismatch_rows"] += abs(len(evs) - len(rows_)); continue   # 계수 불일치 → 이 (graph,layer) 전체 unresolved (zip 이동 금지)
-        for k, (a, b) in enumerate(zip(rows_, evs)):
+        evs = ev_by_slot.get(s, []); method = "count_match_zip"
+        if len(evs) != len(rows_):
+            cov["count_mismatch_pairs"] += 1; cov["count_mismatch_rows"] += abs(len(evs) - len(rows_)); method = "ANCHOR_RESYNC(go>=dtoh_end<next)"
+            # 재동기화: 각 GPU replay 의 dtoh_last_end 이후 첫 CPU t_go (다음 replay 의 dtoh_end 전) 를 대응. 남는 레코드는 unmatched 계수 (zip 이동 금지)
+            gos = [int(r["t_go"]) for r in evs]; pairs = []; used = set()
+            def _de(r_):
+                try: return float(r_["t_dtoh_last_end"]) * 1e3
+                except (ValueError, TypeError, KeyError): return None
+            for i, a in enumerate(rows_):
+                lo = _de(a); nxt_ = next((_de(r_) for r_ in rows_[i + 1:] if _de(r_) is not None), None); hi = nxt_ if nxt_ is not None else float("inf")
+                if lo is None: cov["resync_gpu_rows_without_dtoh"] += 1; continue
+                j = bisect.bisect_left(gos, int(lo - 5000))   # 5 µs 지터 허용
+                if j < len(gos) and gos[j] < hi and j not in used: pairs.append((a, evs[j])); used.add(j)
+                else: cov["resync_unmatched_gpu"] += 1
+            cov["resync_unmatched_cpu"] += len(evs) - len(used); cov["resync_pairs"] += len(pairs)
+        else:
+            pairs = list(zip(rows_, evs))
+            # zip 결과의 순서 검사: go < dtoh_last_end − 5 µs 인 쌍이 하나라도 있으면 (창 경계 양쪽에 각 1건씩 남아 계수만 우연히 일치한 경우) 그 (graph,layer) 는 anchor 재동기화로 대체
+            def _de2(r_):
+                try: return float(r_["t_dtoh_last_end"]) * 1e3
+                except (ValueError, TypeError, KeyError): return None
+            if any((_de2(a) is not None) and int(b["t_go"]) < _de2(a) - 5000 for a, b in pairs):
+                cov["zip_order_violation_groups"] += 1; method = "ANCHOR_RESYNC(order_violation)"
+                gos = [int(r["t_go"]) for r in evs]; pairs = []; used = set()
+                for i, a in enumerate(rows_):
+                    lo = _de2(a); nxt_ = next((_de2(r_) for r_ in rows_[i + 1:] if _de2(r_) is not None), None); hi = nxt_ if nxt_ is not None else float("inf")
+                    if lo is None: cov["resync_gpu_rows_without_dtoh"] += 1; continue
+                    j = bisect.bisect_left(gos, int(lo - 5000))
+                    if j < len(gos) and gos[j] < hi and j not in used: pairs.append((a, evs[j])); used.add(j)
+                    else: cov["resync_unmatched_gpu"] += 1
+                cov["resync_unmatched_cpu"] += len(evs) - len(used); cov["resync_pairs"] += len(pairs)
+        for k, (a, b) in enumerate(pairs):
             mm = map_at(s, int(b["t_go"]))
             if not mm or mm[1] != L or mm[2] != rows_n: cov["map_at_go_mismatch"] += 1; continue
-            recmap[(g, k, L)] = (a, b, s)
+            recmap[(g, k, L)] = (a, b, s); cov[f"method:{method}"] += 1
     rows = []
     def f(b, k): v = int(b.get(k) or 0); return v / 1e3 if v else None
     for (g, k, L), (a, b, s) in sorted(recmap.items()):
@@ -82,10 +112,10 @@ def main(sd, v2=False):
         pub_b = f(b, "t_done_store_b") if v2 else f(b, "t_done_set"); pub_a = f(b, "t_done_store_a") if v2 else pub_b
         prev = recmap.get((g, k, L - 1)); pb = prev[1] if prev else None
         cohort = "no_cold_consumed" if L == 0 else ("unknown_path_or_mapping" if pb is None else ("cold_path_empty" if (int(pb["n_cold_ids"]) == 0 or int(pb["def_skipped"])) else "cold_present_nonempty"))
-        row = {"graph_id": g, "replay": k, "consumer_layer": L, "producer_layer": L - 1 if pb is not None else None, "slot": s, "epoch": b["epoch"], "step_name": a["step_name"], "capture_rows": int(a["htod_bytes"]) // 12288, "cpu_qlen": b["qlen"], "path_cohort": cohort,
+        row = {"graph_id": g, "replay": k, "consumer_layer": L, "producer_layer": L - 1 if pb is not None else None, "slot": s, "epoch": b["epoch"], "step_name": a["step_name"], "capture_rows": int(a["htod_bytes"]) // ROW_BYTES, "cpu_qlen": b["qlen"], "path_cohort": cohort,
                "t_go_us": go, "t_dtoh_last_end_us": dtoh_e, "go_minus_dtoh_end_us": go - dtoh_e, "t_hot_ready_us": hot, "t_pub_before_us": pub_b, "t_pub_after_us": pub_a, "t_h2d_start_us": h2d_s, "t_h2d_end_us": h2d_e, "t_combine_start_us": cmb_s,
                "gpu_pre_h2d_gap_us": h2d_s - hot, "h2d_duration_us": h2d_e - h2d_s, "gpu_post_h2d_gap_us": (cmb_s - h2d_e) if cmb_s else None, "cold_gpu_ready_us": h2d_e, "cold_gpu_ready_lateness_us": max(0.0, h2d_e - hot), "combine_schedule_gap_us": (cmb_s - max(hot, h2d_e)) if cmb_s else None,
-               "mapping_method": "VALIDATED_HEURISTIC_MAPPING(slot/epoch count + map_at_go + order)", "clock_validity": "OK" if go - dtoh_e >= 0 else ("CLOCK_INDETERMINATE" if go - dtoh_e >= -5 else "CLOCK_ORDER_VIOLATION")}
+               "mapping_method": "VALIDATED_HEURISTIC_MAPPING(slot/epoch count + map_at_go + order)" if cov.get("count_mismatch_pairs", 0) == 0 else "VALIDATED_HEURISTIC_MAPPING+ANCHOR_RESYNC", "clock_validity": "OK" if go - dtoh_e >= 0 else ("CLOCK_INDETERMINATE" if go - dtoh_e >= -5 else "CLOCK_ORDER_VIOLATION")}
         busy, _ = U.busy((hot, h2d_s)); row["gpu_ops_inside_gap_us"] = busy; row["gpu_idle_inside_gap_us"] = (h2d_s - hot) - busy
         if pub_b is not None:
             row["cold_pub_delta_us"] = pub_b - hot; row["cold_pub_delta_low_us"] = pub_b - hot; row["cold_pub_delta_high_us"] = (pub_a - hot) if pub_a else None

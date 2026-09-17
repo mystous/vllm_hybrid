@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/tmp/probe_client.py", line 59, in <module>
+    asyncio.run(main())
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/tmp/probe_client.py", line 46, in main
+    t_ready = time.time_ns(); open(ctl + ".ready", "w").write(str(t_ready))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/models/kt/ide075/OFF_OPEN2_161158/ctl_S8b_OFF_OPEN2_probe.ready'
+time="2026-09-17T16:15:31+09:00" level=fatal msg="exec failed with exit code 1"

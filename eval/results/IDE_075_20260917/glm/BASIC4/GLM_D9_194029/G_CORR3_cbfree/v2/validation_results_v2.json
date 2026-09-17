@@ -1,0 +1,123 @@
+{
+ "session": "eval/results/IDE_075_20260917/glm/BASIC4/GLM_D9_194029/G_CORR3_cbfree/",
+ "mode": "CORR",
+ "checks": {
+  "execution_valid": {
+   "pass": true,
+   "completed": 128,
+   "failed": 0,
+   "rc": 0
+  },
+  "workload_valid": {
+   "pass": null,
+   "note": "PROBE128 외"
+  },
+  "config_valid": {
+   "pass": false,
+   "so": "",
+   "mode": "GLM_DIAG",
+   "env_kt_evt": "/models/kt/ide075/GLM_D9_194029/kt_evt.csv"
+  },
+  "window_valid": {
+   "pass": true,
+   "events": [
+    "client_init_begin",
+    "client_process_end",
+    "client_ready",
+    "collector_arm",
+    "collector_stop",
+    "drain_confirmed",
+    "engine_cache_flushed",
+    "first_go",
+    "first_request_sent",
+    "last_related_deferred_end",
+    "last_response_received",
+    "log_flush_end",
+    "session_begin",
+    "start_signal_send"
+   ],
+   "note": null
+  },
+  "sampling_valid": {
+   "pass": true,
+   "footer": [],
+   "note": "footer 는 서버 종료 시 기록; 세션 중이면 없음",
+   "records_in_session": 34621
+  },
+  "lifecycle_valid": {
+   "pass": true,
+   "fwd_missing": 0,
+   "fwd_missing_share": 0.0,
+   "criterion": "미기록 ≤ 0.1 % (건수 공개)",
+   "packets": 34621,
+   "def_tasks_expected": 34621,
+   "fwd_recorded": 34621,
+   "done_store_recorded": 34621,
+   "imm_tasks": 34621,
+   "def_task_seq_found_in_tasks": 34621,
+   "def_task_kinds": {
+    "3": 34621
+   },
+   "note": "패킷당 업무 task = imm(0/1) + done(1) + def(0/1); 기록 전용 task 0"
+  },
+  "task_count_valid": {
+   "pass": true,
+   "tasks_in_window_by_kind": {
+    "1": 34621,
+    "2": 34621,
+    "3": 34621
+   },
+   "expected": {
+    "3(deferred)": 34621,
+    "2(done)": 34621,
+    "1(imm)": 34621
+   }
+  },
+  "gpu_activity_valid": {
+   "pass": true,
+   "per_trace": {
+    "003-TP-0.trace.json.gz": {
+     "kernel": 1629519,
+     "memcpy": 183122
+    },
+    "003-TP-1.trace.json.gz": {
+     "kernel": 1083039,
+     "memcpy": 2541
+    },
+    "003-TP-2.trace.json.gz": {
+     "kernel": 1083039,
+     "memcpy": 2541
+    },
+    "003-TP-3.trace.json.gz": {
+     "kernel": 1083039,
+     "memcpy": 2541
+    }
+   }
+  },
+  "mapping_valid": {
+   "pass": false,
+   "coverage": {
+    "gpu_layer_rows_total": 32752,
+    "unmatched_no_slot_map": 32752
+   },
+   "matched": 0,
+   "method": "VALIDATED_HEURISTIC_MAPPING"
+  },
+  "clock_valid_by_pair": {
+   "pass": true,
+   "counts": {},
+   "sensitivity": {}
+  },
+  "producer_consumer_valid": {
+   "pass": true,
+   "linked_over_n": {},
+   "criterion": "연결 ≥ 99.9 % (건수 공개)",
+   "cohorts": {},
+   "residual_max": null
+  },
+  "artifact_valid": {
+   "pass": true
+  }
+ },
+ "all_pass": false
+}

@@ -1,0 +1,127 @@
+{
+ "session": "S14_FOCUS_sched",
+ "mode": "FOCUS",
+ "client": "probe",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 33.11392613395583,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 33.001256381,
+  "total_output_tokens": 16384,
+  "output_throughput": 496.4659469580938,
+  "median_ttft_ms": 2639.133876,
+  "p95_ttft_ms": 3199.148107,
+  "p99_ttft_ms": 15561.427774,
+  "median_tpot_ms": 99.41254337007874,
+  "p95_tpot_ms": 110.30942366929133,
+  "p99_tpot_ms": 110.31011899212598,
+  "median_itl_ms": 99.767485,
+  "p95_itl_ms": 123.863687,
+  "median_e2el_ms": 15439.025513,
+  "p95_e2el_ms": 15519.001357,
+  "t_client_ready_ns": 1789631794719981949,
+  "t_start_signal_seen_ns": 1789631794755828894,
+  "t_first_request_sent_ns": 1789631794756542768,
+  "t_last_response_ns": 1789631827757014492,
+  "client": "probe_client.py (aiohttp, stream)",
+  "C": 64,
+  "n": 128,
+  "out_tokens": 128,
+  "clock": "CLOCK_REALTIME ns (컨테이너, 같은 호스트)"
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T07:56:34.751515+00:00",
+  "wall_kst": "2026-09-17T16:56:34.751515+09:00",
+  "epoch": 1789631794.751515,
+  "monotonic": 869796.444590735
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T07:57:07.865441+00:00",
+  "wall_kst": "2026-09-17T16:57:07.865441+09:00",
+  "epoch": 1789631827.8654406,
+  "monotonic": 869829.558516869
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T07:57:10.256308+00:00",
+   "wall_kst": "2026-09-17T16:57:10.256308+09:00",
+   "epoch": 1789631830.2563083,
+   "monotonic": 869831.949385617
+  },
+  "drain_seconds": 2.382191061042249,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  289417,
+  314093
+ ],
+ "first_go_ns": 1789631794775989307,
+ "last_deferred_end_ns": 1789631827768578267,
+ "observer": {
+  "mode": "FOCUS",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T07:56:30.317142+00:00",
+     "wall_kst": "2026-09-17T16:56:30.317142+09:00",
+     "epoch": 1789631790.3171425,
+     "monotonic": 869792.010227538
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T07:57:36.911256+00:00",
+     "wall_kst": "2026-09-17T16:57:36.911256+09:00",
+     "epoch": 1789631856.9112558,
+     "monotonic": 869858.604331738
+    }
+   },
+   {
+    "collector_id": "tid_cpu_time",
+    "sample_interval_us": 1000000,
+    "actual_start": {
+     "wall_utc": "2026-09-17T07:56:30.318060+00:00",
+     "wall_kst": "2026-09-17T16:56:30.318060+09:00",
+     "epoch": 1789631790.3180604,
+     "monotonic": 869792.01113615
+    },
+    "clock_domain": "host",
+    "target_scope": "서버 host PID 전체 스레드 (/proc stat)"
+   },
+   {
+    "collector_id": "perf_sched",
+    "pid": 50979,
+    "target": "4013165,4013235,4013320,4013424",
+    "actual_start": {
+     "wall_utc": "2026-09-17T07:56:31.274171+00:00",
+     "wall_kst": "2026-09-17T16:56:31.274171+09:00",
+     "epoch": 1789631791.2741706,
+     "monotonic": 869792.967247764
+    },
+    "clock_domain": "host (perf 시각; perf script -F time 은 monotonic 기준 → clock_anchors 로 변환)",
+    "note": "off-CPU/runnable 귀속용",
+    "actual_end": {
+     "wall_utc": "2026-09-17T07:57:36.909861+00:00",
+     "wall_kst": "2026-09-17T16:57:36.909861+09:00",
+     "epoch": 1789631856.909861,
+     "monotonic": 869858.602938215
+    },
+    "exit_code": -2
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": false,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "CORE2_162053"
+}

@@ -1,0 +1,103 @@
+{
+ "session": "eval/results/IDE_075_20260917/qwen/OPT4/CORE2_162053/S13_LONG_CORR",
+ "by_graph_position": {
+  "26:post_attention": {
+   "step": "step[DECODE bs=8]",
+   "n": 32256,
+   "r0_dur_p50": 10.25,
+   "r1_dur_p50": 7.25,
+   "r2_dur_p50": 7.5,
+   "r3_dur_p50": 7.5,
+   "r0_dur_p95": 11.5,
+   "r1_dur_p95": 8.5,
+   "r2_dur_p95": 8.75,
+   "r3_dur_p95": 8.5,
+   "arrival_skew_p50": 3.25,
+   "arrival_skew_p95": 4.75,
+   "last_arrival_rank_counts": {
+    "2": 5957,
+    "1": 17916,
+    "3": 8275,
+    "0": 108
+   },
+   "first_arrival_rank_counts": {
+    "1": 9,
+    "0": 31733,
+    "2": 414,
+    "3": 100
+   },
+   "position_mismatch": 0
+  },
+  "26:post_moe": {
+   "step": "step[DECODE bs=8]",
+   "n": 31744,
+   "r0_dur_p50": 6.0,
+   "r1_dur_p50": 80.25,
+   "r2_dur_p50": 54.5,
+   "r3_dur_p50": 80.0,
+   "r0_dur_p95": 6.5,
+   "r1_dur_p95": 761.0,
+   "r2_dur_p95": 735.25,
+   "r3_dur_p95": 761.0,
+   "arrival_skew_p50": 73.25,
+   "arrival_skew_p95": 754.25,
+   "last_arrival_rank_counts": {
+    "0": 31744
+   },
+   "first_arrival_rank_counts": {
+    "3": 13704,
+    "1": 18040
+   },
+   "position_mismatch": 0
+  },
+  "35:post_attention": {
+   "step": "step[DECODE bs=1]",
+   "n": 63,
+   "r0_dur_p50": 9.5,
+   "r1_dur_p50": 8.25,
+   "r2_dur_p50": 5.75,
+   "r3_dur_p50": 8.75,
+   "r0_dur_p95": 12.5,
+   "r1_dur_p95": 10.5,
+   "r2_dur_p95": 7.25,
+   "r3_dur_p95": 11.0,
+   "arrival_skew_p50": 3.5,
+   "arrival_skew_p95": 5.25,
+   "last_arrival_rank_counts": {
+    "1": 7,
+    "2": 55,
+    "0": 1
+   },
+   "first_arrival_rank_counts": {
+    "0": 39,
+    "1": 14,
+    "3": 9,
+    "2": 1
+   },
+   "position_mismatch": 0
+  },
+  "35:post_moe": {
+   "step": "step[DECODE bs=1]",
+   "n": 62,
+   "r0_dur_p50": 5.75,
+   "r1_dur_p50": 244.5,
+   "r2_dur_p50": 243.75,
+   "r3_dur_p50": 241.0,
+   "r0_dur_p95": 6.25,
+   "r1_dur_p95": 374.75,
+   "r2_dur_p95": 375.5,
+   "r3_dur_p95": 372.0,
+   "arrival_skew_p50": 238.0,
+   "arrival_skew_p95": 369.0,
+   "last_arrival_rank_counts": {
+    "0": 62
+   },
+   "first_arrival_rank_counts": {
+    "2": 27,
+    "1": 35
+   },
+   "position_mismatch": 0
+  }
+ },
+ "note": "위치 귀속 = 직전 fused_moe 유무 (휴리스틱, TP0 HtoD 순번과 대조); rank 간 시각은 kineto host 정렬, GPU 간 offset 미검증; duration 은 동기화 포함 가능 (링크 시간 아님)"
+}

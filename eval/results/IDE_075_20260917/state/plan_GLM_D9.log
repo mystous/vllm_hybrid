@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/tmp/glm_rsf_patch.py", line 48, in <module>
+    if __name__ == "__main__": {"apply": apply, "revert": revert, "status": status}[sys.argv[1]]()
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/glm_rsf_patch.py", line 19, in apply
+    assert MARK not in open(f).read(), f
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: /sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py
+time="2026-09-17T19:40:29+09:00" level=fatal msg="exec failed with exit code 1"
+GATE D9_dispatchfix_rsf_cbfree GATE_PASS correct 4 []
+glm diag done D9 {'SESSIONS': 41, 'BOOT': 22, 'SESSIONS_074': 17, 'BOOT_074': 7, 'SMOKE': 16, 'WARMUP': 16, 'SESSIONS_REMAINING': -34, 'BOOT_REMAINING': -17}

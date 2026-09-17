@@ -1,0 +1,139 @@
+{
+ "session": "S9_CORR",
+ "mode": "CORR",
+ "client": "probe",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 34.763463305076584,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 34.685498571,
+  "total_output_tokens": 16384,
+  "output_throughput": 472.35878609219145,
+  "median_ttft_ms": 2807.53068,
+  "p95_ttft_ms": 3798.19331,
+  "p99_ttft_ms": 15096.911157,
+  "median_tpot_ms": 106.12648479527559,
+  "p95_tpot_ms": 125.05372718897638,
+  "p99_tpot_ms": 125.09677991338582,
+  "median_itl_ms": 106.03949,
+  "p95_itl_ms": 132.422619,
+  "median_e2el_ms": 17448.024708,
+  "p95_e2el_ms": 17556.122515,
+  "t_client_ready_ns": 1789630107605492615,
+  "t_start_signal_seen_ns": 1789630107615949950,
+  "t_first_request_sent_ns": 1789630107616630638,
+  "t_last_response_ns": 1789630142301384220,
+  "client": "probe_client.py (aiohttp, stream)",
+  "C": 64,
+  "n": 128,
+  "out_tokens": 128,
+  "clock": "CLOCK_REALTIME ns (컨테이너, 같은 호스트)"
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T07:28:27.611504+00:00",
+  "wall_kst": "2026-09-17T16:28:27.611504+09:00",
+  "epoch": 1789630107.6115036,
+  "monotonic": 868109.304579641
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T07:29:02.374967+00:00",
+  "wall_kst": "2026-09-17T16:29:02.374967+09:00",
+  "epoch": 1789630142.3749666,
+  "monotonic": 868144.068042946
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T07:29:04.765736+00:00",
+   "wall_kst": "2026-09-17T16:29:04.765736+09:00",
+   "epoch": 1789630144.7657363,
+   "monotonic": 868146.458815833
+  },
+  "drain_seconds": 2.3821278719697148,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  52143,
+  78059
+ ],
+ "first_go_ns": 1789630107635945049,
+ "last_deferred_end_ns": 1789630142313566255,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T07:28:26.112562+00:00",
+     "wall_kst": "2026-09-17T16:28:26.112562+09:00",
+     "epoch": 1789630106.1125622,
+     "monotonic": 868107.805645052
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T07:44:41.450780+00:00",
+     "wall_kst": "2026-09-17T16:44:41.450780+09:00",
+     "epoch": 1789631081.4507797,
+     "monotonic": 869083.143855716
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "S9_CORR_1789630106",
+    "arm_time": {
+     "wall_utc": "2026-09-17T07:28:26.139053+00:00",
+     "wall_kst": "2026-09-17T16:28:26.139053+09:00",
+     "epoch": 1789630106.139053,
+     "monotonic": 868107.832130002
+    },
+    "arm_resp": "Internal Server Error",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T07:34:40.934035+00:00",
+     "wall_kst": "2026-09-17T16:34:40.934035+09:00",
+     "epoch": 1789630480.934035,
+     "monotonic": 868482.62711101
+    },
+    "trace_files": [
+     [
+      "S9_CORR_1789629816-TP-0.trace.json.gz",
+      227659706
+     ],
+     [
+      "S9_CORR_1789629816-TP-1.trace.json.gz",
+      179262387
+     ],
+     [
+      "S9_CORR_1789629816-TP-2.trace.json.gz",
+      179291288
+     ],
+     [
+      "S9_CORR_1789629816-TP-3.trace.json.gz",
+      179223520
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T07:44:41.450066+00:00",
+     "wall_kst": "2026-09-17T16:44:41.450066+09:00",
+     "epoch": 1789631081.4500659,
+     "monotonic": 869083.143142984
+    },
+    "note_fix": "pid_tag 불일치(첫 하네스 16:23 arm 의 프로파일이 이어짐) → 실제 파일로 복구; 트레이스는 16:23~16:29 전체, 세션 창으로 절단"
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "CORE2_162053"
+}
