@@ -14,3 +14,6 @@
 ## 09-17 14:03 조건부 완료
 - F1_ON: C1 P1 57.6 tok/s (OFF 63.3), LONG P1 159.3 (OFF 164.9). GLM 게이트: 4문항 전부 finish_reason=length·절단·비정상 텍스트 → BLOCKED_NORMAL_OUTPUT, G OFF/ON 미실행. 예산: 세션 17/24, 부팅 7/12, 품질 4/80.
 - P1 4세션 재검증(정렬 지터 5 µs 허용) 전부 PASS. F1 세션 분석 중 → 보고서 재생성·게시 예정.
+
+## 09-17 14:08 종료 보고
+- 상태 COMPLETED_WITH_FAILURES (GLM 게이트 BLOCKED_NORMAL_OUTPUT) · 게시 PUBLISHED (data 87dee8e55 / receipt d95accc16) · 파일 5개 + 아카이브 2분할 전달 · 정기 보고 cron 삭제. 예산: 세션 17/24, 부팅 7/12, 품질 4/80.
