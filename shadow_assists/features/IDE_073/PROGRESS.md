@@ -87,3 +87,6 @@
 - 오류: ['Q-KT-BASIC4: DIED']
 - 다음: Q-GPU8 자격·성능 → Q-KT-BASIC4 → Q-OPT4 → Qwen 품질·프로브 → (GLM 다운로드 완료 후) G-GPU8 → G-KT-BASIC4 → G 변환/OPT4 · 잔여 추정: GLM 다운로드 ~75 min (80 MB/s 기준) · Qwen 3구성 ~2.5 h · GLM 3구성+변환 ~3.5 h → 전체 종료 추정 9-17 15~16시 (준비·부팅 실측 후 갱신)
 - 전달: saved (세션 cron 이 전달)
+
+## 11:10 종료 보고
+- 상태 COMPLETED_WITH_FAILURES · 게시 PUBLISHED (data fb3675577 / receipt 67d24dd84) · 파일 5개 전달 · 30분 보고 cron 삭제
