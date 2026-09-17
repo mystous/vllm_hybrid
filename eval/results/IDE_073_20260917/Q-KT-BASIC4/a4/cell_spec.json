@@ -1,0 +1,69 @@
+{
+ "cell_id": "Q-KT-BASIC4",
+ "phase_id": "IDE_073",
+ "parent_cell_id": null,
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8block_CPU_INT4",
+ "workloads": [
+  {
+   "workload_id": "M073_QWEN_MAIN_SHORT",
+   "C": 64,
+   "reps": 3
+  },
+  {
+   "workload_id": "M073_QWEN_LOW_CONCURRENCY",
+   "C": 1,
+   "n": 16,
+   "reps": 1
+  },
+  {
+   "workload_id": "M073_QWEN_LONGER_PREFILL",
+   "C": 8,
+   "n": 32,
+   "reps": 1
+  }
+ ],
+ "env": {},
+ "server_args": {
+  "host": "127.0.0.1",
+  "port": 30000,
+  "tp": 4,
+  "context-length": 32768,
+  "trust-remote-code": true,
+  "kv-cache-dtype": "auto",
+  "max-total-tokens": 40960,
+  "mem-fraction-static": 0.95,
+  "max-running-requests": 64,
+  "cuda-graph-max-bs": 64,
+  "cuda-graph-backend-prefill": "disabled",
+  "model-path": "/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f",
+  "served-model-name": "qwen480",
+  "attention-backend": "triton",
+  "kt-weight-path": "/models/kt/qwen3-480b-int4",
+  "kt-method": "AMXINT4",
+  "kt-cpuinfer": 112,
+  "kt-threadpool-count": 2,
+  "kt-num-gpu-experts": 96,
+  "kt-max-deferred-experts-per-token": 2,
+  "chunked-prefill-size": 8192
+ },
+ "replace_server_args": true,
+ "gpus": "0,1,2,3",
+ "pin_nonkt": false,
+ "patch": null,
+ "expected_slots": 5952,
+ "boot_timeout": 900,
+ "bench_timeout": 1200,
+ "replay_timeout": 300,
+ "quality20": {
+  "questions": "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/quality_requests.jsonl",
+  "thinking_off": false,
+  "model": "qwen480"
+ },
+ "replay": false,
+ "note": "공식 기본 4장: MAIN×3·LOW·LONG·품질20 (1 부팅, 공식 checkout PYTHONPATH)",
+ "model": "qwen",
+ "profile": "BASIC4",
+ "config_hash": "1b50d1a288f06f7c"
+}

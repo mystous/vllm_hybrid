@@ -1,0 +1,1406 @@
+# sglang @ /sgl-workspace/sglang
+diff --git a/python/sglang/srt/distributed/bootstrap.py b/python/sglang/srt/distributed/bootstrap.py
+index c696283..2fa2c06 100644
+--- a/python/sglang/srt/distributed/bootstrap.py
++++ b/python/sglang/srt/distributed/bootstrap.py
+@@ -254,7 +254,9 @@ def _init_parallel_groups(
+         attention_context_model_parallel_size=attn_cp_size,
+         moe_data_model_parallel_size=moe_dp_size,
+         decode_context_parallel_size=dcp_size,
+-        duplicate_tp_group=server_args.enable_pdmux,
++        duplicate_tp_group=(
++            server_args.enable_pdmux or bool(__import__("os").environ.get("SGL_INTERLEAVE"))
++        ),
+         duplicate_attn_cp_group=(
+             is_hip()
+             and server_args.enable_two_batch_overlap
+diff --git a/python/sglang/srt/layers/attention/dsa_backend.py b/python/sglang/srt/layers/attention/dsa_backend.py
+index 9078dba..47e629c 100644
+--- a/python/sglang/srt/layers/attention/dsa_backend.py
++++ b/python/sglang/srt/layers/attention/dsa_backend.py
+@@ -87,7 +87,10 @@ _DSA_TRITON_PREFILL = get_bool_env_var("SGLANG_DSA_TRITON_PREFILL")
+ _IS_GFX95 = is_gfx95_supported()
+ 
+ if is_cuda():
+-    import deep_gemm
++    try:
++        import deep_gemm
++    except ImportError:  # CUDA13 container lacks cu12 deep_gemm binaries; DSA unused for non-DeepSeek models
++        deep_gemm = None
+ 
+ if TYPE_CHECKING:
+     from sglang.srt.layers.radix_attention import RadixAttention
+diff --git a/python/sglang/srt/layers/moe/kt_ep_wrapper.py b/python/sglang/srt/layers/moe/kt_ep_wrapper.py
+index 63b52e5..e4e6abe 100644
+--- a/python/sglang/srt/layers/moe/kt_ep_wrapper.py
++++ b/python/sglang/srt/layers/moe/kt_ep_wrapper.py
+@@ -31,6 +31,40 @@ try:
+ except ImportError:
+     KTRANSFORMERS_AVAILABLE = False
+ 
++import logging as _kt_logging
++import os as _kt_os
++
++_kt_logger = _kt_logging.getLogger(__name__)
++_KT_NAN_PROBE = _kt_os.environ.get("KT_NAN_PROBE", "0") == "1"
++_KT_PROBE_EVERY = int(_kt_os.environ.get("KT_NAN_PROBE_EVERY", "4000"))
++
++
++def _kt_probe_accum(obj, cpu_out, gpu_out, layer_idx):
++    """CPU/GPU expert 출력의 NaN 을 장치 카운터에 누적. 주기적으로만 호스트로 읽는다."""
++    st = obj.__dict__.get("_kt_nan_stats")
++    if st is None:
++        dev = cpu_out.device
++        st = obj.__dict__["_kt_nan_stats"] = {
++            "n": 0,
++            "cpu": torch.zeros((), dtype=torch.long, device=dev),
++            "gpu": torch.zeros((), dtype=torch.long, device=dev),
++            "reported_cpu": 0,
++            "reported_gpu": 0,
++        }
++    st["cpu"] += torch.isnan(cpu_out).any().long()
++    st["gpu"] += torch.isnan(gpu_out).any().long()
++    st["n"] += 1
++    if st["n"] % _KT_PROBE_EVERY == 0:
++        c = int(st["cpu"].item())
++        g = int(st["gpu"].item())
++        if c != st["reported_cpu"] or g != st["reported_gpu"]:
++            _kt_logger.error(
++                "KT_NAN_PROBE layer=%s calls=%d cpu_expert_nan=%d gpu_expert_nan=%d",
++                layer_idx, st["n"], c, g,
++            )
++            st["reported_cpu"], st["reported_gpu"] = c, g
++
++
+ 
+ @dataclass
+ class KTConfig:
+@@ -216,12 +250,17 @@ class KTEPWrapperMethod(FusedMoEMethodBase):
+         # 2. Initialize KT wrapper for CPU experts
+         # CPU experts: num_gpu_experts to num_experts-1
+         if self.tp_rank == 0:
++            _gpu_mask = None
++            if self.num_gpu_experts > 0:
++                _gpu_mask = torch.zeros(num_experts, dtype=torch.bool)
++                _gpu_mask[: self.num_gpu_experts] = True
+             self.wrapper = KTMoEWrapper(
+                 layer_idx=self.kt_config.layer_idx,
+                 num_experts=num_experts,
+                 num_experts_per_tok=num_experts_per_tok,
+                 hidden_size=hidden_size,
+                 moe_intermediate_size=intermediate_size_full,
++                gpu_experts_mask=_gpu_mask,
+                 num_gpu_experts=self.num_gpu_experts,
+                 cpuinfer_threads=self.kt_config.cpuinfer_threads,
+                 threadpool_count=self.kt_config.threadpool_count,
+@@ -298,6 +337,12 @@ class KTEPWrapperMethod(FusedMoEMethodBase):
+         topk_weights, topk_ids, _ = topk_output
+ 
+         # Submit forward task to CPU (non-blocking)
++        import os as _os
++        if _os.environ.get("KT_DEBUG_NEGIDS") and not torch.cuda.is_current_stream_capturing():
++            _n = int((topk_ids < 0).sum())
++            if _n and not hasattr(self, "_negid_logged"):
++                self._negid_logged = True
++                print(f"[KT-NEGIDS] layer={self.kt_config.layer_idx} neg_count={_n} shape={tuple(topk_ids.shape)}", flush=True)
+         self.wrapper.submit_forward(
+             x, topk_ids, topk_weights, torch.cuda.current_stream(x.device).cuda_stream
+         )
+@@ -349,6 +394,14 @@ class KTEPWrapperMethod(FusedMoEMethodBase):
+         if self.tp_rank == 0:
+             self.submit(layer, dispatch_output)
+ 
++        if self.num_gpu_experts == 0:
++            # Fast path: no GPU experts -> skip the GPU fused-MoE pipeline entirely
++            if self.tp_rank == 0:
++                output = self.sync(x)
++            else:
++                output = torch.zeros_like(x)
++            return StandardCombineInput(hidden_states=output)
++
+         # Step 2: Prepare GPU computation by masking CPU expert IDs
+         # CPU expert IDs (>= num_gpu_experts) are set to -1 so GPU kernel skips them
+         topk_ids = topk_output.topk_ids
+@@ -368,6 +421,11 @@ class KTEPWrapperMethod(FusedMoEMethodBase):
+         output = gpu_combine_input.hidden_states
+         if self.tp_rank == 0:
+             cpu_output = self.sync(x)
++            if _KT_NAN_PROBE:
++                _kt_probe_accum(
++                    self, cpu_output, output,
++                    getattr(getattr(self, "kt_config", None), "layer_idx", "?"),
++                )
+             output = output + cpu_output
+ 
+         return StandardCombineInput(hidden_states=output)
+diff --git a/python/sglang/srt/layers/moe/topk.py b/python/sglang/srt/layers/moe/topk.py
+index 452d6b8..aa2d995 100644
+--- a/python/sglang/srt/layers/moe/topk.py
++++ b/python/sglang/srt/layers/moe/topk.py
+@@ -1968,9 +1968,17 @@ def _post_process_topk_ids(
+             # space, so keep the routed physical ids separately for statistics.
+             recorder_topk_ids = routed_cols
+         else:
++            import os as _os
++            if _os.environ.get("SGL_DEBUG_REMAP") and not hasattr(_post_process_topk_ids, "_dbg_done"):
++                _post_process_topk_ids._dbg_done = True
++                from sglang.srt.runtime_context import get_exec as _ge
++                print(f"[REMAP-DEBUG] dispatch_info={expert_location_dispatch_info is not None} algo={_ge().moe.ep_dispatch_algorithm!r} moecls={type(_ge().moe).__name__} pre_ids={topk_ids[0].tolist() if topk_ids.numel() else []}", flush=True)
+             topk_ids = _biased_grouped_topk_postprocess(
+                 topk_ids, expert_location_dispatch_info, num_token_non_padded
+             )
++            if _os.environ.get("SGL_DEBUG_REMAP") and not hasattr(_post_process_topk_ids, "_dbg_done2"):
++                _post_process_topk_ids._dbg_done2 = True
++                print(f"[REMAP-DEBUG] post_ids={topk_ids[0].tolist() if topk_ids.numel() else []}", flush=True)
+     elif _is_hip:
+         # On AMD HIP the aiter MoE kernels do not handle topk_ids=-1 safely
+         # (negative indices cause illegal memory access). Always fill the padded
+@@ -2090,6 +2098,15 @@ def select_experts(
+     num_token_non_padded: Optional[torch.Tensor] = None,
+     expert_location_dispatch_info: Optional[ExpertLocationDispatchInfo] = None,
+ ) -> StandardTopKOutput:
++    import os as _os
++    if _os.environ.get("SGL_DEBUG_REMAP"):
++        _c = getattr(select_experts, "_dbg_n", 0)
++        if _c < 8:
++            select_experts._dbg_n = _c + 1
++            import traceback as _tb
++            _st = _tb.extract_stack()
++            _chain = " <- ".join(f"{f.filename.split(chr(47))[-1]}:{f.lineno}:{f.name}" for f in _st[-6:-2])
++            print(f"[SEL-DEBUG] call#{_c} info={expert_location_dispatch_info is not None} chain: {_chain}", flush=True)
+     top_k = topk_config.top_k
+     use_grouped_topk = topk_config.use_grouped_topk
+     topk_group = topk_config.topk_group
+diff --git a/python/sglang/srt/managers/prefill_delayer.py b/python/sglang/srt/managers/prefill_delayer.py
+index 5c7e968..80870b2 100644
+--- a/python/sglang/srt/managers/prefill_delayer.py
++++ b/python/sglang/srt/managers/prefill_delayer.py
+@@ -249,7 +249,8 @@ class PrefillDelayer:
+             # Targets workloads where decode requests finish one-at-a-time
+             # and fragment prefill into many tiny batches.
+             queue_condition = False
+-            if self._queue_trigger_enabled and global_running_batch_max > 0:
++            _max_run_for_delay = int(__import__("os").environ.get("SGL_PD_MAX_RUNNING_FOR_DELAY", str(1 << 30)))
++            if self._queue_trigger_enabled and global_running_batch_max > 0 and global_running_batch_max < _max_run_for_delay:
+                 queue_min_effective = min(
+                     int(global_running_batch_max * self._queue_min_ratio),
+                     global_max_prefill_bs_max,
+diff --git a/python/sglang/srt/model_executor/model_runner.py b/python/sglang/srt/model_executor/model_runner.py
+index 017198c..623cb2c 100644
+--- a/python/sglang/srt/model_executor/model_runner.py
++++ b/python/sglang/srt/model_executor/model_runner.py
+@@ -982,6 +982,7 @@ class ModelRunner:
+         )
+ 
+     def init_cuda_graphs(self, capture_decode_cuda_graph: bool = True):
++        self._il_register_ladder_hooks()
+         capture = capture_cuda_graphs(
+             model_runner=self, capture_decode_cuda_graph=capture_decode_cuda_graph
+         )
+@@ -990,6 +991,40 @@ class ModelRunner:
+         self.decode_cuda_graph_runner = capture.decode.runner
+         self.graph_memory_usage = capture.memory_usage
+         self.graph_time_usage = capture.time_usage
++        import os as _os
++        self.decode_cuda_graph_runner_b = None
++        if (
++            _os.environ.get("SGL_INTERLEAVE")
++            and capture_decode_cuda_graph
++            and self.decode_cuda_graph_runner is not None
++            and not self.is_draft_worker
++        ):
++            logger.info("[interleave] capturing second decode graph set (kt channel 1)")
++            try:
++                from kt_kernel.experts_base import KExpertsCPUBuffer as _KB
++                _KB.set_channel(1)
++            except ImportError:
++                _KB = None
++            _os.environ["SGL_IL_PRIVATE_POOL"] = "1"
++            # Give set B its own attention backend instance: capture re-runs
++            # init_cuda_graph_state, which would reallocate the shared backend's
++            # static buffers out from under set A's captured graphs.
++            _orig_attn_backend = self.attn_backend
++            self.attn_backend = self._get_attention_backend(init_new_workspace=True)
++            from sglang.srt.distributed.parallel_state import set_pdmux_status
++            set_pdmux_status(True)
++            try:
++                _cap_b = capture_decode_graph(model_runner=self)
++            finally:
++                set_pdmux_status(False)
++                _os.environ.pop("SGL_IL_PRIVATE_POOL", None)
++                self.attn_backend = _orig_attn_backend
++            self.decode_cuda_graph_runner_b = _cap_b.runner
++            if _KB is not None:
++                _KB.set_channel(0)
++            self._il_stream_a = torch.cuda.Stream()
++            self._il_stream_b = torch.cuda.Stream()
++            logger.info("[interleave] second decode graph set ready")
+ 
+     def init_routed_experts_capturer(self):
+         if self.is_draft_worker:
+@@ -1354,10 +1389,178 @@ class ModelRunner:
+ 
+         return DecodeCudaGraphRunner
+ 
++
++    _IL_ROW_FIELDS = (
++        "input_ids", "positions", "seq_lens", "seq_lens_cpu",
++        "req_pool_indices", "out_cache_loc", "orig_seq_lens",
++    )
++
++    def _il_slice_fb(self, fb, lo, hi):
++        import dataclasses as _dc
++        kw = {}
++        for name in self._IL_ROW_FIELDS:
++            v = getattr(fb, name, None)
++            if v is not None and hasattr(v, "shape") and v.shape and v.shape[0] == fb.batch_size:
++                kw[name] = v[lo:hi]
++        kw["batch_size"] = hi - lo
++        slc = kw.get("seq_lens_cpu")
++        if slc is not None:
++            kw["seq_lens_sum"] = int(slc.sum())
++        elif kw.get("seq_lens") is not None:
++            kw["seq_lens_sum"] = int(kw["seq_lens"].sum().item())
++        return _dc.replace(fb, **kw)
++
++    def _il_merge_logits(self, a, b):
++        import dataclasses as _dc
++        kw = {}
++        for f in _dc.fields(a):
++            va, vb = getattr(a, f.name), getattr(b, f.name)
++            if va is None or vb is None:
++                kw[f.name] = va if vb is None else vb
++            elif hasattr(va, "shape") and va.dim() >= 1:
++                kw[f.name] = torch.cat([va, vb], dim=0)
++            else:
++                kw[f.name] = va
++        return _dc.replace(a, **kw)
++
++    _IL_EAGER = "__IL_EAGER__"
++
++    def _il_register_ladder_hooks(self):
++        """SGL_IL_LADDER: 캡처 중 각 decoder 층 경계에 rank-로컬 memop 사다리를
++        기록한다. A graph 는 층 L 종료 시 flag[384+L]=1 쓰기, B graph 는 층 L
++        진입 시 flag[384+L]>=1 대기 후 0 소비. 모든 rank 가 같은 격자를 가지므로
++        두 graph 의 collective 전역 순서가 A_L->B_L 로 결정적으로 고정된다."""
++        import os as _os
++        if not (_os.environ.get("SGL_INTERLEAVE") and _os.environ.get("SGL_IL_LADDER")):
++            return
++        if self.is_draft_worker:
++            return
++        try:
++            from kt_kernel.experts_base import KExpertsCPUBuffer
++            from kt_kernel import kt_kernel_ext
++        except ImportError:
++            return
++        layers = getattr(getattr(self.model, "model", None), "layers", None)
++        if layers is None:
++            logger.warning("[interleave] ladder: model.model.layers 없음 — hook 미등록")
++            return
++        # 사다리 전용 소형 CPUInfer: CPU MoE 는 rank0 에만 있어 다른 rank 엔
++        # 공유 CPUInfer 가 없다. 사다리는 모든 rank 에 같은 격자로 있어야
++        # collective 순서가 고정되므로 rank 마다 독립 플래그 배열을 둔다.
++        self._il_ladder_ci = kt_kernel_ext.CPUInfer(2)
++        # 플래그 배열(cudaHostAlloc)은 캡처 중 호출 불가(err 900) → 지금(eager)
++        # 더미 memop 으로 미리 할당해 둔다.
++        assert not torch.cuda.is_current_stream_capturing()
++        self._il_ladder_ci.write_flag_on_stream(torch.cuda.current_stream().cuda_stream, 0, 0)
++        torch.cuda.synchronize()
++        LADDER = 0
++        n_layers = len(layers)
++
++        def _ci():
++            return self._il_ladder_ci
++
++        def mk_pre(idx):
++            def pre(module, args):
++                if not torch.cuda.is_current_stream_capturing():
++                    return
++                ci = _ci()
++                if ci is None:
++                    return
++                st = torch.cuda.current_stream().cuda_stream
++                if KExpertsCPUBuffer.channel % 2 == 0:
++                    if idx == 0:
++                        for j in range(n_layers):
++                            ci.write_flag_on_stream(st, LADDER + j, 0)
++                else:
++                    ci.wait_signal_on_stream(st, LADDER + idx)
++            return pre
++
++        def mk_post(idx):
++            def post(module, args, output):
++                if not torch.cuda.is_current_stream_capturing():
++                    return
++                ci = _ci()
++                if ci is None:
++                    return
++                if KExpertsCPUBuffer.channel % 2 == 0:
++                    st = torch.cuda.current_stream().cuda_stream
++                    ci.write_flag_on_stream(st, LADDER + idx, 1)
++            return post
++
++        for idx, layer in enumerate(layers):
++            layer.register_forward_pre_hook(mk_pre(idx))
++            layer.register_forward_hook(mk_post(idx))
++        logger.info(f"[interleave] ladder hooks registered on {n_layers} layers")
++
++    def _interleaved_execute(self, forward_batch, pp_proxy_tensors):
++        import os as _os
++        fb = forward_batch
++        _ladder = bool(_os.environ.get("SGL_IL_LADDER"))
++        min_bs = 2 if _ladder else int(_os.environ.get("SGL_INTERLEAVE_MIN_BS", "8"))
++        if (
++            not fb.forward_mode.is_decode()
++            or fb.spec_info is not None
++            or fb.batch_size < min_bs
++        ):
++            return self._IL_EAGER if _ladder and fb.forward_mode.is_decode() and fb.spec_info is None else None
++        h = (fb.batch_size + 1) // 2 if _ladder else fb.batch_size // 2
++        fa = self._il_slice_fb(fb, 0, h)
++        fbb = self._il_slice_fb(fb, h, fb.batch_size)
++        ra = self.decode_cuda_graph_runner
++        rb = self.decode_cuda_graph_runner_b
++        if not (ra.can_run_graph(fa) and rb.can_run_graph(fbb)):
++            return self._IL_EAGER if _ladder else None
++        if _os.environ.get("SGL_IL_SEQ"):
++            # 판별 모드: 겹침 없이 A→B 순차 재생 (교착 원인 분리용)
++            out_a = ra.execute(fa, pp_proxy_tensors=pp_proxy_tensors)
++            out_b = rb.execute(fbb, pp_proxy_tensors=pp_proxy_tensors)
++            return self._il_merge_logits(out_a, out_b)
++        if _os.environ.get("SGL_IL_HALF"):
++            # 절반-겹침: A 는 현재 스트림, B 만 별도 스트림
++            cur = torch.cuda.current_stream()
++            self._il_stream_b.wait_stream(cur)
++            out_a = ra.execute(fa, pp_proxy_tensors=pp_proxy_tensors)
++            with torch.cuda.stream(self._il_stream_b):
++                out_b = rb.execute(fbb, pp_proxy_tensors=pp_proxy_tensors)
++                ev_b = torch.cuda.Event()
++                ev_b.record(self._il_stream_b)
++            cur.wait_event(ev_b)
++            return self._il_merge_logits(out_a, out_b)
++        cur = torch.cuda.current_stream()
++        self._il_stream_a.wait_stream(cur)
++        self._il_stream_b.wait_stream(cur)
++        with torch.cuda.stream(self._il_stream_a):
++            out_a = ra.execute(fa, pp_proxy_tensors=pp_proxy_tensors)
++            ev_a = torch.cuda.Event()
++            ev_a.record(self._il_stream_a)
++        with torch.cuda.stream(self._il_stream_b):
++            out_b = rb.execute(fbb, pp_proxy_tensors=pp_proxy_tensors)
++            ev_b = torch.cuda.Event()
++            ev_b.record(self._il_stream_b)
++        cur.wait_event(ev_a)
++        cur.wait_event(ev_b)
++        return self._il_merge_logits(out_a, out_b)
++
+     def init_decode_cuda_graph(self):
+         self.decode_cuda_graph_runner = None
++        self.decode_cuda_graph_runner_b = None
+         capture = capture_decode_graph(model_runner=self)
+         self.decode_cuda_graph_runner = capture.runner
++        import os as _os
++        if _os.environ.get("SGL_INTERLEAVE") and self.decode_cuda_graph_runner is not None:
++            # Interleaved dual-microbatch: capture a second, independent graph set
++            # whose kt pinned buffers live on channel 1 (no sharing with runner A).
++            try:
++                from kt_kernel.experts_base import KExpertsCPUBuffer as _KB
++                _KB.set_channel(1)
++            except ImportError:
++                _KB = None
++            capture_b = capture_decode_graph(model_runner=self)
++            self.decode_cuda_graph_runner_b = capture_b.runner
++            if _KB is not None:
++                _KB.set_channel(0)
++            self._il_stream_a = torch.cuda.Stream()
++            self._il_stream_b = torch.cuda.Stream()
+         self.graph_memory_usage = replace_graph_memory_usage(
+             self.graph_memory_usage,
+             capture.memory_usage,
+@@ -1671,11 +1874,20 @@ class ModelRunner:
+ 
+             # Replay cuda graph if applicable
+             if can_run_graph:
+-                ret = self.decode_cuda_graph_runner.execute(
+-                    forward_batch,
+-                    pp_proxy_tensors=pp_proxy_tensors,
+-                )
+-                return ModelRunnerOutput(logits_output=ret, can_run_graph=can_run_graph)
++                _il_eager = False
++                if getattr(self, "decode_cuda_graph_runner_b", None) is not None:
++                    _il_ret = self._interleaved_execute(forward_batch, pp_proxy_tensors)
++                    if _il_ret is self._IL_EAGER:
++                        _il_eager = True
++                    elif _il_ret is not None:
++                        return ModelRunnerOutput(logits_output=_il_ret, can_run_graph=True)
++                if not _il_eager:
++                    ret = self.decode_cuda_graph_runner.execute(
++                        forward_batch,
++                        pp_proxy_tensors=pp_proxy_tensors,
++                    )
++                    return ModelRunnerOutput(logits_output=ret, can_run_graph=can_run_graph)
++                can_run_graph = False
+ 
+             # DP / MLP-sync padding + attn-tp normalization. Only the decode
+             # cuda-graph path above pre-pads its static buffers and returns
+diff --git a/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py b/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py
+index 6f27a05..7b2a6a3 100644
+--- a/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py
++++ b/python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py
+@@ -330,7 +330,12 @@ class DecodeCudaGraphRunner(BaseCudaGraphRunner):
+             model_runner, self.captured_req_width
+         )
+         if KTRANSFORMERS_AVAILABLE:
+-            KTMoEWrapper.set_capture_batch_sizes(self.capture_bs)
++            # kt buffers are keyed by FLAT token count (= bs * per-request width);
++            # with speculative verify graphs each request contributes
++            # captured_req_width tokens, so register the flat sizes.
++            KTMoEWrapper.set_capture_batch_sizes(
++                sorted({b * self.captured_req_width for b in self.capture_bs})
++            )
+ 
+         self.ragged_verify_mode = (
+             ragged_verify_compact_graphs_enabled(self.model_runner.spec_algorithm)
+diff --git a/python/sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py b/python/sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py
+index ff2b649..c58c414 100644
+--- a/python/sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py
++++ b/python/sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py
+@@ -70,7 +70,14 @@ class FullCudaGraphBackend(BaseCudaGraphBackend):
+     @contextmanager
+     def capture_session(self, stream: torch.cuda.Stream):
+         if self._pool is None:
+-            self._pool = get_or_create_global_graph_memory_pool(self._device_module)
++            import os as _os
++            if _os.environ.get("SGL_IL_PRIVATE_POOL"):
++                # Interleaved second graph set: use a private memory pool so its
++                # intermediate buffers never alias the global pool's; required
++                # both for correctness after capture and for concurrent replay.
++                self._pool = self._device_module.graph_pool_handle()
++            else:
++                self._pool = get_or_create_global_graph_memory_pool(self._device_module)
+         set_graph_pool_id(self._pool)
+         self._capture_stream = stream
+         try:
+diff --git a/python/sglang/srt/models/qwen3_moe.py b/python/sglang/srt/models/qwen3_moe.py
+index dac64b9..1ea0f93 100644
+--- a/python/sglang/srt/models/qwen3_moe.py
++++ b/python/sglang/srt/models/qwen3_moe.py
+@@ -326,7 +326,13 @@ class Qwen3MoeSparseMoeBlock(nn.Module):
+ 
+         # router_logits: (num_tokens, n_experts)
+         router_logits, _ = self.gate(hidden_states)
+-        topk_output = self.topk(hidden_states, router_logits)
++        topk_output = self.topk(
++            hidden_states,
++            router_logits,
++            expert_location_dispatch_info=ExpertLocationDispatchInfo.init_new(
++                layer_id=self.layer_id,
++            ),
++        )
+         final_hidden_states = self.experts(hidden_states, topk_output)
+ 
+         if self.ep_size > 1 and not should_skip_post_experts_all_reduce(
+diff --git a/python/sglang/srt/speculative/eagle_worker_v2.py b/python/sglang/srt/speculative/eagle_worker_v2.py
+index ad6ceb2..d2633b7 100644
+--- a/python/sglang/srt/speculative/eagle_worker_v2.py
++++ b/python/sglang/srt/speculative/eagle_worker_v2.py
+@@ -351,6 +351,10 @@ class EagleDraftWorker(EagleDraftWorkerBase):
+         if _is_cpu or check_cuda_graph_backend(Phase.DECODE, Backend.DISABLED):
+             return
+ 
++        import os as _os
++        if _os.environ.get("SGL_SKIP_DRAFT_GRAPH"):
++            return
++
+         if get_model().model_impl == "mindspore":
+             return
+
+# ktransformers @ /sgl-workspace/ktransformers
+diff --git a/kt-kernel/CMakeLists.txt b/kt-kernel/CMakeLists.txt
+index 12fc703..403f062 100644
+--- a/kt-kernel/CMakeLists.txt
++++ b/kt-kernel/CMakeLists.txt
+@@ -786,6 +786,11 @@ if(CPUINFER_ENABLE_LTO)
+     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+     # Use THIN_LTO keyword only if supported compiler (Clang). GCC ignores it.
+     pybind11_add_module(${PROJECT_NAME} MODULE THIN_LTO ${ALL_SOURCES})
++if(KTRANSFORMERS_USE_CUDA)
++    # stream memops (cuStreamWaitValue32/cuStreamWriteValue32) need libcuda
++    find_package(CUDAToolkit REQUIRED)
++    target_link_libraries(${PROJECT_NAME} PRIVATE CUDA::cuda_driver)
++endif()
+     message(STATUS "LTO: enabled")
+ else()
+     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+@@ -839,6 +844,7 @@ if(KTRANSFORMERS_USE_SYCL)
+     target_compile_definitions(${PROJECT_NAME} PRIVATE KTRANSFORMERS_USE_CUDA_HOST_CALLBACKS=1)
+     target_include_directories(${PROJECT_NAME} PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
+     target_link_libraries(${PROJECT_NAME} PRIVATE CUDA::cudart)
++    target_link_libraries(${PROJECT_NAME} PRIVATE CUDA::cuda_driver)
+     message(STATUS "SYCL GPTQ INT4: CUDA host-stream bridge enabled with cudart ${CUDAToolkit_VERSION}")
+ endif()
+ 
+@@ -919,6 +925,8 @@ endif()
+ 
+ if(KTRANSFORMERS_USE_CUDA)
+     add_compile_definitions(USE_CUDA=1)
++    # stream memops (cuStreamWaitValue32) need the driver library
++    list(APPEND KT_EXTRA_CUDA_LIBS CUDA::cuda_driver)
+     # Link CUDA runtime (static or dynamic)
+     if(KTRANSFORMERS_CUDA_STATIC_RUNTIME)
+         # Platform-aware static library path
+diff --git a/kt-kernel/cpu_backend/cpuinfer.h b/kt-kernel/cpu_backend/cpuinfer.h
+index 227187d..9fd5a36 100644
+--- a/kt-kernel/cpu_backend/cpuinfer.h
++++ b/kt-kernel/cpu_backend/cpuinfer.h
+@@ -16,6 +16,7 @@
+ #include <mutex>
+ #include <queue>
+ #include <thread>
++#include <cstring>
+ #include <vector>
+ #if defined(KTRANSFORMERS_USE_CUDA) || defined(KTRANSFORMERS_USE_CUDA_HOST_CALLBACKS)
+ #include "vendors/cuda.h"
+@@ -30,6 +31,7 @@
+ #include "vendors/ascend_npu.h"
+ #endif
+ 
++#include <dlfcn.h>
+ #include "./vendors/vendor.h"
+ #include "llama.cpp/ggml-impl.h"
+ #include "task_queue.h"
+@@ -122,6 +124,215 @@ class CPUInfer {
+ #endif
+   }
+ #endif
++
++
++  // ---- IDE_033: Callback-free handoff (GPU->CPU via mapped go-flags + poller; CPU->GPU via done-flags memop) ----
++#ifndef KTRANSFORMERS_CPU_ONLY
++  static constexpr int kMaxPackets = 16384;
++  struct Packet {
++    void (*imm_fn)(void*) = nullptr; void* imm_args = nullptr;
++    void (*def_fn)(void*) = nullptr; void* def_args = nullptr;
++    const uint8_t* gpu_mask = nullptr; int n_experts = 0; size_t out_row_bytes = 0;
++    bool armed = false;
++  };
++  struct FwdArgsView { void* ci; void* moe; intptr_t qlen_ptr; int k; intptr_t expert_ids; intptr_t weights; intptr_t input; intptr_t output; bool incremental; };
++  static bool skip_empty_def_on_() { static bool v = std::getenv("KT_CF_SKIP_EMPTY_DEF") != nullptr; return v; }
++  std::atomic<long> n_def_skipped_{0}, n_def_run_{0};
++  // deferred 작업에 cold 작업이 하나도 없으면 true (출력 슬롯 0 채움 포함)
++  bool def_is_empty_(Packet& p) {
++    if (!p.gpu_mask || !p.def_args) return false;
++    FwdArgsView* a = (FwdArgsView*)p.def_args; int qlen = *(int*)a->qlen_ptr; const int64_t* ids = (const int64_t*)a->expert_ids;
++    for (int i = 0; i < qlen * a->k; ++i) { int64_t e = ids[i]; if (e >= 0 && e < p.n_experts && !p.gpu_mask[e]) return false; }
++    memset((void*)a->output, 0, (size_t)qlen * p.out_row_bytes);
++    return true;
++  }
++  Packet packets_[kMaxPackets];
++  std::atomic<int> n_packets_{0};
++  volatile unsigned int* go_host_ = nullptr;   unsigned int* go_dev_ = nullptr;
++  volatile unsigned int* done_host_ = nullptr; unsigned int* done_dev_ = nullptr;
++  std::thread poller_; std::atomic<bool> poller_run_{false};
++
++  void ensure_cf_() {
++    if (go_host_ != nullptr) return;
++    cudaError_t e;
++    e = cudaHostAlloc((void**)&go_host_, kMaxPackets * sizeof(unsigned int), cudaHostAllocMapped | cudaHostAllocPortable);
++    if (e != cudaSuccess) { fprintf(stderr, "[kt-cf] cudaHostAlloc go FAILED %d\n", (int)e); fflush(stderr); abort(); }
++    e = cudaHostAlloc((void**)&done_host_, kMaxPackets * sizeof(unsigned int), cudaHostAllocMapped | cudaHostAllocPortable);
++    if (e != cudaSuccess) { fprintf(stderr, "[kt-cf] cudaHostAlloc done FAILED %d\n", (int)e); fflush(stderr); abort(); }
++    for (int i = 0; i < kMaxPackets; ++i) { go_host_[i] = 0; done_host_[i] = 0; }
++    cudaHostGetDevicePointer((void**)&go_dev_, (void*)go_host_, 0);
++    cudaHostGetDevicePointer((void**)&done_dev_, (void*)done_host_, 0);
++    ensure_driver_fns_();
++    poller_run_ = true;
++    poller_ = std::thread([this]() { this->poll_loop_(); });
++    fprintf(stderr, "[kt-cf] callback-free handoff ready (ci=%p)\n", (void*)this); fflush(stderr);
++  }
++
++  // Register a packet (tasks persist: graph replays re-trigger the same slot). Returns slot id.
++  int arm_packet(std::pair<intptr_t, intptr_t> imm, std::pair<intptr_t, intptr_t> def, bool has_def, intptr_t mask_ptr = 0, int n_experts = 0, size_t out_row_bytes = 0) {
++    ensure_cf_();
++    int slot = n_packets_.fetch_add(1);
++    if (slot >= kMaxPackets) { fprintf(stderr, "[kt-cf] packet table full\n"); fflush(stderr); abort(); }
++    Packet& p = packets_[slot]; p.gpu_mask = (const uint8_t*)mask_ptr; p.n_experts = n_experts; p.out_row_bytes = out_row_bytes;
++    p.imm_fn = (void (*)(void*))imm.first; p.imm_args = (void*)imm.second;
++    if (p.imm_args) *((CPUInfer**)p.imm_args) = this;
++    if (has_def) { p.def_fn = (void (*)(void*))def.first; p.def_args = (void*)def.second; if (p.def_args) *((CPUInfer**)p.def_args) = this; }
++    else { p.def_fn = nullptr; p.def_args = nullptr; }
++    __atomic_store_n(&p.armed, true, __ATOMIC_RELEASE);
++    return slot;
++  }
++  // Re-arm an existing slot with (possibly) new task args (eager path reuse).
++  void rearm_packet(int slot, std::pair<intptr_t, intptr_t> imm, std::pair<intptr_t, intptr_t> def, bool has_def, intptr_t mask_ptr = 0, int n_experts = 0, size_t out_row_bytes = 0) {
++    Packet& p = packets_[slot]; p.gpu_mask = (const uint8_t*)mask_ptr; p.n_experts = n_experts; p.out_row_bytes = out_row_bytes;
++    p.imm_fn = (void (*)(void*))imm.first; p.imm_args = (void*)imm.second; if (p.imm_args) *((CPUInfer**)p.imm_args) = this;
++    if (has_def) { p.def_fn = (void (*)(void*))def.first; p.def_args = (void*)def.second; if (p.def_args) *((CPUInfer**)p.def_args) = this; }
++    else { p.def_fn = nullptr; p.def_args = nullptr; }
++    __atomic_store_n(&p.armed, true, __ATOMIC_RELEASE);
++  }
++  // GPU-side trigger: stream memop writes go_flag[slot]=1 (capturable, replay-safe: poller resets to 0).
++  void go_on_stream(intptr_t user_cuda_stream, int slot) {
++    ensure_cf_();
++    int r = cu_write_val32_((void*)user_cuda_stream, (unsigned long long)(uintptr_t)(go_dev_ + slot), 1u, 0u);
++    if (r != 0) { fprintf(stderr, "[kt-cf] go memop FAILED slot=%d r=%d\n", slot, r); fflush(stderr); abort(); }
++  }
++  // GPU waits until done_flag[slot]>=1 then resets to 0.
++  void wait_done_on_stream(intptr_t user_cuda_stream, int slot) {
++    ensure_cf_();
++    int r1 = cu_wait_val32_((void*)user_cuda_stream, (unsigned long long)(uintptr_t)(done_dev_ + slot), 1u, 1u);
++    int r2 = cu_write_val32_((void*)user_cuda_stream, (unsigned long long)(uintptr_t)(done_dev_ + slot), 0u, 0u);
++    if (r1 != 0 || r2 != 0) { fprintf(stderr, "[kt-cf] done memop FAILED slot=%d %d %d\n", slot, r1, r2); fflush(stderr); abort(); }
++  }
++  void poll_loop_() {
++    while (poller_run_.load(std::memory_order_acquire)) {
++      int n = n_packets_.load(std::memory_order_acquire);
++      bool any = false;
++      for (int slot = 0; slot < n; ++slot) {
++        if (__atomic_load_n(&go_host_[slot], __ATOMIC_ACQUIRE) != 1u) continue;
++        __atomic_store_n(&go_host_[slot], 0u, __ATOMIC_RELEASE);
++        Packet& p = packets_[slot]; any = true;
++        // immediate task -> done signal -> deferred task  (== KT sync(allow_pending=1) semantics)
++        if (p.imm_fn) p.imm_fn(p.imm_args);   // enqueues into task_queue_
++        volatile unsigned int* d = done_host_ + slot;
++        bool run_def = (p.def_fn != nullptr);
++        if (run_def && skip_empty_def_on_() && def_is_empty_(p)) { run_def = false; n_def_skipped_.fetch_add(1, std::memory_order_relaxed); }
++        task_queue_->enqueue([d]() { __atomic_store_n(d, 1u, __ATOMIC_RELEASE); });
++        if (run_def) { p.def_fn(p.def_args); n_def_run_.fetch_add(1, std::memory_order_relaxed); }
++      }
++      if (!any) { for (int k = 0; k < 32; ++k) __builtin_ia32_pause(); }
++    }
++  }
++#endif
++
++  // ---- Non-blocking completion signaling (interleaved dual-graph support) ----
++  // Instead of a blocking host-function sync (which serializes CUDA's host
++  // callback thread and deadlocks when two graph sets replay concurrently),
++  // the CPU worker writes a flag in mapped pinned memory after the preceding
++  // tasks, and the GPU stream waits on that flag with a stream memop
++  // (no SM occupancy, no host-thread blocking).
++#ifndef KTRANSFORMERS_CPU_ONLY
++  static constexpr int kNumSignalSlots = 512;
++
++  void ensure_signal_slots_() {
++    if (signal_host_ != nullptr) return;
++    cudaError_t e1 = cudaHostAlloc((void**)&signal_host_, kNumSignalSlots * sizeof(unsigned int),
++                  cudaHostAllocMapped | cudaHostAllocPortable);
++    if (e1 != cudaSuccess || signal_host_ == nullptr) {
++      fprintf(stderr, "[kt-signal] cudaHostAlloc FAILED err=%d\n", (int)e1);
++      fflush(stderr);
++      abort();
++    }
++    for (int i = 0; i < kNumSignalSlots; ++i) signal_host_[i] = 0;
++    cudaError_t e2 = cudaHostGetDevicePointer((void**)&signal_dev_, (void*)signal_host_, 0);
++    if (e2 != cudaSuccess || signal_dev_ == nullptr) {
++      fprintf(stderr, "[kt-signal] cudaHostGetDevicePointer FAILED err=%d\n", (int)e2);
++      fflush(stderr);
++      abort();
++    }
++    fprintf(stderr, "[kt-signal] slots ready host=%p dev=%p (ci=%p)\n", (void*)signal_host_, (void*)signal_dev_, (void*)this);
++    fflush(stderr);
++  }
++
++  struct SignalArgs {
++    CPUInfer* ci;
++    int slot;
++  };
++
++  static void signal_enqueue_(void* raw) {
++    // NOTE: raw points at a per-slot member of this CPUInfer (no heap churn).
++    // A CUDA graph capturing this host node re-invokes it with the same
++    // pointer on every replay, so the argument must stay valid forever.
++    SignalArgs* a = (SignalArgs*)raw;
++    CPUInfer* ci = a->ci;
++    int slot = a->slot;
++    ci->task_queue_->enqueue([ci, slot]() {
++      __atomic_store_n(&ci->signal_host_[slot], 1u, __ATOMIC_RELEASE);
++    });
++  }
++
++  // Enqueue (via host func, non-blocking) a marker task that sets flag[slot]=1
++  // once all previously submitted tasks on this queue have finished.
++  void submit_signal_with_cuda_stream(intptr_t user_cuda_stream, int slot) {
++    ensure_signal_slots_();
++    signal_args_[slot] = SignalArgs{this, slot};
++    cudaLaunchHostFunc((cudaStream_t)user_cuda_stream, (cudaHostFn_t)&signal_enqueue_, (void*)&signal_args_[slot]);
++  }
++
++  // Make the GPU stream wait until flag[slot] >= 1, then reset it to 0.
++  // Both are stream memops: capturable into CUDA graphs, replay-safe
++  // (fixed address, flag toggles 0 -> 1 -> 0 every replay).
++  typedef int (*cuWaitVal32_t)(void*, unsigned long long, unsigned int, unsigned int);
++  typedef int (*cuWriteVal32_t)(void*, unsigned long long, unsigned int, unsigned int);
++  cuWaitVal32_t cu_wait_val32_ = nullptr;
++  cuWriteVal32_t cu_write_val32_ = nullptr;
++
++  void ensure_driver_fns_() {
++    if (cu_wait_val32_ != nullptr) return;
++    void* h = dlopen("libcuda.so.1", RTLD_NOW | RTLD_GLOBAL);
++    if (h == nullptr) h = dlopen("libcuda.so", RTLD_NOW | RTLD_GLOBAL);
++    cu_wait_val32_ = (cuWaitVal32_t)dlsym(h, "cuStreamWaitValue32_v2");
++    if (cu_wait_val32_ == nullptr) cu_wait_val32_ = (cuWaitVal32_t)dlsym(h, "cuStreamWaitValue32");
++    cu_write_val32_ = (cuWriteVal32_t)dlsym(h, "cuStreamWriteValue32_v2");
++    if (cu_write_val32_ == nullptr) cu_write_val32_ = (cuWriteVal32_t)dlsym(h, "cuStreamWriteValue32");
++  }
++
++  // Plain stream memop: write flag[slot] = val on the GPU stream (no host
++  // enqueue). Used for the inter-graph layer ladder: graph A writes 1 at each
++  // layer boundary; graph B consumes it with wait_signal_on_stream. Capturable.
++  void write_flag_on_stream(intptr_t user_cuda_stream, int slot, unsigned int val) {
++    ensure_signal_slots_();
++    ensure_driver_fns_();
++    if (cu_write_val32_ == nullptr) {
++      fprintf(stderr, "[kt-signal] driver write memop MISSING\n"); fflush(stderr); abort();
++    }
++    int r = cu_write_val32_((void*)user_cuda_stream, (unsigned long long)(uintptr_t)(signal_dev_ + slot), val, 0u);
++    if (r != 0) {
++      fprintf(stderr, "[kt-signal] write_flag FAILED slot=%d val=%u r=%d\n", slot, val, r);
++      fflush(stderr);
++      abort();
++    }
++  }
++
++  void wait_signal_on_stream(intptr_t user_cuda_stream, int slot) {
++    ensure_signal_slots_();
++    ensure_driver_fns_();
++    if (cu_wait_val32_ == nullptr || cu_write_val32_ == nullptr) {
++      fprintf(stderr, "[kt-signal] driver memop fns MISSING\n"); fflush(stderr); abort();
++    }
++    // CU_STREAM_WAIT_VALUE_GEQ == 1
++    int r1 = cu_wait_val32_((void*)user_cuda_stream, (unsigned long long)(uintptr_t)(signal_dev_ + slot), 1u, 1u);
++    int r2 = cu_write_val32_((void*)user_cuda_stream, (unsigned long long)(uintptr_t)(signal_dev_ + slot), 0u, 0u);
++    if (r1 != 0 || r2 != 0) {
++      fprintf(stderr, "[kt-signal] memop FAILED slot=%d wait=%d write=%d\n", slot, r1, r2);
++      fflush(stderr);
++      abort();
++    }
++  }
++
++  volatile unsigned int* signal_host_ = nullptr;
++  unsigned int* signal_dev_ = nullptr;
++  SignalArgs signal_args_[kNumSignalSlots];
++#endif
++
+  public:
+   WorkerPool* backend_;
+   TaskQueue* task_queue_;
+diff --git a/kt-kernel/cpu_backend/task_queue.cpp b/kt-kernel/cpu_backend/task_queue.cpp
+index b38f360..c5c92fc 100644
+--- a/kt-kernel/cpu_backend/task_queue.cpp
++++ b/kt-kernel/cpu_backend/task_queue.cpp
+@@ -16,6 +16,37 @@
+ #include <iostream>
+ #include <thread>
+ 
++#include <cstdlib>
++#include <cstdio>
++#include <algorithm>
++#include <vector>
++static bool tq_on = std::getenv("KT_TQ_TIMING") != nullptr;
++static thread_local std::chrono::steady_clock::time_point tq_t0, tq_prev_end;
++static thread_local bool tq_have_prev = false;
++static thread_local std::vector<unsigned> tq_exec, tq_wait;
++static void tq_before_() {
++  tq_t0 = std::chrono::steady_clock::now();
++  if (tq_have_prev) tq_wait.push_back((unsigned)std::chrono::duration_cast<std::chrono::microseconds>(tq_t0 - tq_prev_end).count());
++}
++static unsigned tq_pct(std::vector<unsigned>& v, double p) { if (v.empty()) return 0; size_t i = (size_t)(p * (v.size() - 1)); std::nth_element(v.begin(), v.begin() + i, v.end()); return v[i]; }
++static void tq_after_() {
++  auto t1 = std::chrono::steady_clock::now();
++  unsigned us = (unsigned)std::chrono::duration_cast<std::chrono::microseconds>(t1 - tq_t0).count();
++  tq_exec.push_back(us); tq_prev_end = t1; tq_have_prev = true;
++  if (tq_exec.size() >= 2048) {
++    static const unsigned edges[] = {5, 30, 100, 300, 600, 1000, 2000, 4000};
++    unsigned hist[9] = {0}; double sum_e = 0, sum_w = 0;
++    for (unsigned e : tq_exec) { int b = 0; while (b < 8 && e >= edges[b]) ++b; hist[b]++; sum_e += e; }
++    for (unsigned w : tq_wait) sum_w += w;
++    fprintf(stderr, "[kt-tq] n=%zu exec_us p50=%u p90=%u p99=%u mean=%.0f | hist(<5,<30,<100,<300,<600,<1k,<2k,<4k,>=4k)=%u,%u,%u,%u,%u,%u,%u,%u,%u | wait_us p50=%u p90=%u p99=%u mean=%.0f | busy=%.2f\n",
++            tq_exec.size(), tq_pct(tq_exec, .5), tq_pct(tq_exec, .9), tq_pct(tq_exec, .99), sum_e / tq_exec.size(),
++            hist[0], hist[1], hist[2], hist[3], hist[4], hist[5], hist[6], hist[7], hist[8],
++            tq_pct(tq_wait, .5), tq_pct(tq_wait, .9), tq_pct(tq_wait, .99), tq_wait.empty() ? 0.0 : sum_w / tq_wait.size(),
++            sum_e / (sum_e + sum_w + 1e-9));
++    fflush(stderr); tq_exec.clear(); tq_wait.clear();
++  }
++}
++
+ TaskQueue::TaskQueue() : done(false), pending(0) {
+   Node* dummy = new Node();
+   head.store(dummy, std::memory_order_relaxed);
+@@ -72,7 +103,9 @@ void TaskQueue::worker() {
+       std::exception_ptr task_exception;
+       if (next->task) {
+         try {
++          if (tq_on) tq_before_();
+           next->task();
++          if (tq_on) tq_after_();
+         } catch (...) {
+           task_exception = std::current_exception();
+         }
+diff --git a/kt-kernel/ext_bindings.cpp b/kt-kernel/ext_bindings.cpp
+index 9485d06..108d8ec 100644
+--- a/kt-kernel/ext_bindings.cpp
++++ b/kt-kernel/ext_bindings.cpp
+@@ -649,6 +649,19 @@ PYBIND11_MODULE(kt_kernel_ext, m) {
+       .def("sync_with_cuda_stream", &CPUInfer::sync_with_cuda_stream, py::arg("user_cuda_stream"),
+            py::arg("allow_n_pending") = 0)
+       .def("submit_with_cuda_stream", &CPUInfer::submit_with_cuda_stream)
++#ifndef KTRANSFORMERS_CPU_ONLY
++      .def("submit_signal_with_cuda_stream", &CPUInfer::submit_signal_with_cuda_stream,
++           py::arg("user_cuda_stream"), py::arg("slot"))
++      .def("wait_signal_on_stream", &CPUInfer::wait_signal_on_stream,
++           py::arg("user_cuda_stream"), py::arg("slot"))
++      .def("write_flag_on_stream", &CPUInfer::write_flag_on_stream,
++           py::arg("user_cuda_stream"), py::arg("slot"), py::arg("val"))
++      .def("arm_packet", &CPUInfer::arm_packet, py::arg("imm"), py::arg("def"), py::arg("has_def"), py::arg("mask_ptr") = 0, py::arg("n_experts") = 0, py::arg("out_row_bytes") = 0)
++      .def("rearm_packet", &CPUInfer::rearm_packet, py::arg("slot"), py::arg("imm"), py::arg("def"), py::arg("has_def"), py::arg("mask_ptr") = 0, py::arg("n_experts") = 0, py::arg("out_row_bytes") = 0)
++      .def("cf_def_stats", [](CPUInfer& ci) { return std::make_pair(ci.n_def_skipped_.load(), ci.n_def_run_.load()); })
++      .def("go_on_stream", &CPUInfer::go_on_stream, py::arg("user_cuda_stream"), py::arg("slot"))
++      .def("wait_done_on_stream", &CPUInfer::wait_done_on_stream, py::arg("user_cuda_stream"), py::arg("slot"))
++#endif
+ #endif
+       ;
+ 
+diff --git a/kt-kernel/operators/amx/la/amx_buffers.hpp b/kt-kernel/operators/amx/la/amx_buffers.hpp
+index af7e718..072c3c6 100644
+--- a/kt-kernel/operators/amx/la/amx_buffers.hpp
++++ b/kt-kernel/operators/amx/la/amx_buffers.hpp
+@@ -44,6 +44,101 @@ struct BufferAImpl {
+     d = reinterpret_cast<float*>(a + max_m * k);
+   }
+ 
++  // IDE_051: 행 1개 (row) 만 src_row (bf16, 길이 k) 에서 양자화 (from_mat 과 동일 산술)
++  void from_mat_row(int m, const ggml_bf16_t* src_row, int row) {
++    assert(row < m && m <= max_m);
++    __m512 amax_v0 = _mm512_setzero_ps();
++    __m512 amax_v1 = _mm512_setzero_ps();
++    for (int j = 0; j < k; j += 32) {
++      __m512 f0, f1;
++      avx512_32xbf16_to_32xfp32((__m512i*)(src_row + j), &f0, &f1);
++      amax_v0 = vector_abs_max(amax_v0, f0);
++      amax_v1 = vector_abs_max(amax_v1, f1);
++    }
++    amax_v0 = vector_abs_max(amax_v0, amax_v1);
++    float amax = _mm512_reduce_max_ps(amax_v0);
++    d[row] = amax / ((1 << 7) - 1);
++    int m_block_size = (m + M_STEP - 1) / M_STEP * M_STEP;
++    int m_begin = row / M_STEP * M_STEP; int i = row - m_begin;
++    __m512 id = _mm512_set1_ps(d[row] ? 1.0f / d[row] : 0.0f);
++    for (int k_block_begin = 0; k_block_begin < k; k_block_begin += K_BLOCK) {
++      int k_block_size = std::min(K_BLOCK, k - k_block_begin);
++      for (int k_begin = 0; k_begin < k_block_size; k_begin += K_STEP) {
++        int8_t* dst = a + k_block_begin * m_block_size + m_begin * k_block_size + k_begin * M_STEP + i * K_STEP;
++        __m512 f0, f1, f2, f3;
++        avx512_32xbf16_to_32xfp32((__m512i*)(src_row + k_block_begin + k_begin), &f0, &f1);
++        avx512_32xbf16_to_32xfp32((__m512i*)(src_row + k_block_begin + k_begin) + 1, &f2, &f3);
++        __m512i i0 = _mm512_cvtps_epi32(_mm512_mul_ps(f0, id));
++        __m512i i1 = _mm512_cvtps_epi32(_mm512_mul_ps(f1, id));
++        __m512i i2 = _mm512_cvtps_epi32(_mm512_mul_ps(f2, id));
++        __m512i i3 = _mm512_cvtps_epi32(_mm512_mul_ps(f3, id));
++        __m128i s0 = _mm512_cvtsepi32_epi8(i0);
++        __m128i s1 = _mm512_cvtsepi32_epi8(i1);
++        __m128i s2 = _mm512_cvtsepi32_epi8(i2);
++        __m128i s3 = _mm512_cvtsepi32_epi8(i3);
++        if constexpr (requires(__m128i value) { K::prepare_a(value); }) {
++          s0 = K::prepare_a(s0);
++          s1 = K::prepare_a(s1);
++          s2 = K::prepare_a(s2);
++          s3 = K::prepare_a(s3);
++        }
++        _mm_store_si128((__m128i*)dst, s0);
++        _mm_store_si128((__m128i*)(dst + 16), s1);
++        _mm_store_si128((__m128i*)(dst + 32), s2);
++        _mm_store_si128((__m128i*)(dst + 48), s3);
++      }
++    }
++  }
++
++  // IDE_046-b: 행 블록 [m_begin, m_begin+M_STEP) 만 양자화 (from_mat 과 동일 산술, 행 독립)
++  void from_mat_block(int m, ggml_bf16_t* src, int m_begin) {
++    assert(m <= max_m);
++    for (int i = 0; i < M_STEP && m_begin + i < m; i++) {
++      __m512 amax_v0 = _mm512_setzero_ps();
++      __m512 amax_v1 = _mm512_setzero_ps();
++      for (int j = 0; j < k; j += 32) {
++        __m512 f0, f1;
++        avx512_32xbf16_to_32xfp32((__m512i*)(src + (m_begin + i) * k + j), &f0, &f1);
++        amax_v0 = vector_abs_max(amax_v0, f0);
++        amax_v1 = vector_abs_max(amax_v1, f1);
++      }
++      amax_v0 = vector_abs_max(amax_v0, amax_v1);
++      float amax = _mm512_reduce_max_ps(amax_v0);
++      d[m_begin + i] = amax / ((1 << 7) - 1);
++    }
++    int m_block_size = (m + M_STEP - 1) / M_STEP * M_STEP;
++    for (int k_block_begin = 0; k_block_begin < k; k_block_begin += K_BLOCK) {
++      int k_block_size = std::min(K_BLOCK, k - k_block_begin);
++      for (int k_begin = 0; k_begin < k_block_size; k_begin += K_STEP) {
++        for (int i = 0; i < M_STEP && m_begin + i < m; i++) {
++          __m512 id = _mm512_set1_ps(d[m_begin + i] ? 1.0f / d[m_begin + i] : 0.0f);
++          int8_t* dst = a + k_block_begin * m_block_size + m_begin * k_block_size + k_begin * M_STEP + i * K_STEP;
++          __m512 f0, f1, f2, f3;
++          avx512_32xbf16_to_32xfp32((__m512i*)(src + (m_begin + i) * k + k_block_begin + k_begin), &f0, &f1);
++          avx512_32xbf16_to_32xfp32((__m512i*)(src + (m_begin + i) * k + k_block_begin + k_begin) + 1, &f2, &f3);
++          __m512i i0 = _mm512_cvtps_epi32(_mm512_mul_ps(f0, id));
++          __m512i i1 = _mm512_cvtps_epi32(_mm512_mul_ps(f1, id));
++          __m512i i2 = _mm512_cvtps_epi32(_mm512_mul_ps(f2, id));
++          __m512i i3 = _mm512_cvtps_epi32(_mm512_mul_ps(f3, id));
++          __m128i s0 = _mm512_cvtsepi32_epi8(i0);
++          __m128i s1 = _mm512_cvtsepi32_epi8(i1);
++          __m128i s2 = _mm512_cvtsepi32_epi8(i2);
++          __m128i s3 = _mm512_cvtsepi32_epi8(i3);
++          if constexpr (requires(__m128i value) { K::prepare_a(value); }) {
++            s0 = K::prepare_a(s0);
++            s1 = K::prepare_a(s1);
++            s2 = K::prepare_a(s2);
++            s3 = K::prepare_a(s3);
++          }
++          _mm_store_si128((__m128i*)dst, s0);
++          _mm_store_si128((__m128i*)(dst + 16), s1);
++          _mm_store_si128((__m128i*)(dst + 32), s2);
++          _mm_store_si128((__m128i*)(dst + 48), s3);
++        }
++      }
++    }
++  }
++
+   void from_mat(int m, ggml_bf16_t* src, int ith, int nth) {
+     assert(m <= max_m);
+     assert(ith == 0 && nth == 1);
+diff --git a/kt-kernel/operators/amx/la/amx_kernels.hpp b/kt-kernel/operators/amx/la/amx_kernels.hpp
+index d6af299..4eefe7b 100644
+--- a/kt-kernel/operators/amx/la/amx_kernels.hpp
++++ b/kt-kernel/operators/amx/la/amx_kernels.hpp
+@@ -7,6 +7,8 @@
+ #include <cstdio>
+ #include <memory>
+ #include <mutex>
++#include <type_traits>
++#include <cstdlib>
+ 
+ #include "amx_buffers.hpp"
+ #include "amx_config.hpp"
+@@ -1762,6 +1764,82 @@ struct GemmKernel224Int4 {
+       }
+     }
+   }
++  // ---- IDE_048: 레지스터 블로킹 AVX-512 커널. 정수 누산이므로 원본과 결과 bit 동일.
++  static bool avx_rb_on() {
++    static bool v = std::getenv("KT_AVX_RB") != nullptr;
++    return v;
++  }
++  static int avx_pf_dist() {
++    static int v = [] { const char* e = std::getenv("KT_AVX_PF"); return e ? std::atoi(e) : 0; }();
++    return v;
++  }
++  template <int RB, int SPLIT>
++  static inline void avx_rb_rows(int m, int n, int k, int m_begin, int n_begin, int mb, int k_block_begin, __m512i* c512,
++                                 BufferA* ba, BufferB* bb) {
++    using K = GemmKernel224Int4;
++    __m512i acc[RB][2][SPLIT];
++#pragma GCC unroll 8
++    for (int r = 0; r < RB; r++) {
++#pragma GCC unroll 2
++      for (int ni = 0; ni < 2; ni++) {
++        acc[r][ni][0] = (k_block_begin == 0) ? _mm512_setzero_si512() : c512[(mb + r) * 2 + ni];
++#pragma GCC unroll 4
++        for (int j = 1; j < SPLIT; j++) acc[r][ni][j] = _mm512_setzero_si512();
++      }
++    }
++    const __m512i lo = K::lo_mask(), hi = K::hi_mask();
++    const int pf = avx_pf_dist();
++    for (int k_begin = 0; k_begin < K::K_BLOCK && k_block_begin + k_begin < k; k_begin += K::BufferB::B_K_STEP) {
++      const int32_t* a32_lo = (const int32_t*)ba->get_submat(m, k, m_begin, k_block_begin + k_begin) + mb * 16;
++      const int32_t* a32_hi = (const int32_t*)ba->get_submat(m, k, m_begin, k_block_begin + k_begin + K::K_STEP) + mb * 16;
++      const __m512i* b512 = (const __m512i*)bb->get_submat(n, k, n_begin, k_block_begin + k_begin);
++      if (pf > 0) {
++        // 같은 (n_begin, k_block) 안에서 B 블록은 k_begin 순으로 연속 (2 KB 간격) → pf 블록 앞을 미리 적재
++        const char* pfp = (const char*)(b512 + 32 * pf);
++        for (int l = 0; l < 32; l++) _mm_prefetch(pfp + l * 64, _MM_HINT_T0);
++      }
++#pragma GCC unroll 16
++      for (int k_i = 0; k_i < 16; k_i++) {
++        const __m512i braw0 = _mm512_loadu_si512((const void*)(b512 + k_i));
++        const __m512i braw1 = _mm512_loadu_si512((const void*)(b512 + 16 + k_i));
++        const __m512i b_lo0 = _mm512_slli_epi32(_mm512_and_si512(lo, braw0), 4);
++        const __m512i b_hi0 = _mm512_and_si512(hi, braw0);
++        const __m512i b_lo1 = _mm512_slli_epi32(_mm512_and_si512(lo, braw1), 4);
++        const __m512i b_hi1 = _mm512_and_si512(hi, braw1);
++        const int j = k_i % SPLIT;
++#pragma GCC unroll 8
++        for (int r = 0; r < RB; r++) {
++          const __m512i ma_lo = _mm512_set1_epi32(a32_lo[r * 16 + k_i]);
++          const __m512i ma_hi = _mm512_set1_epi32(a32_hi[r * 16 + k_i]);
++          acc[r][0][j] = _mm512_dpbssd_epi32(acc[r][0][j], ma_lo, b_lo0);
++          acc[r][0][j] = _mm512_dpbssd_epi32(acc[r][0][j], ma_hi, b_hi0);
++          acc[r][1][j] = _mm512_dpbssd_epi32(acc[r][1][j], ma_lo, b_lo1);
++          acc[r][1][j] = _mm512_dpbssd_epi32(acc[r][1][j], ma_hi, b_hi1);
++        }
++      }
++    }
++#pragma GCC unroll 8
++    for (int r = 0; r < RB; r++) {
++#pragma GCC unroll 2
++      for (int ni = 0; ni < 2; ni++) {
++        __m512i t = acc[r][ni][0];
++#pragma GCC unroll 4
++        for (int j = 1; j < SPLIT; j++) t = _mm512_add_epi32(t, acc[r][ni][j]);
++        c512[(mb + r) * 2 + ni] = t;
++      }
++    }
++  }
++  static void avx_kernel_rb(int m, int n, int k, int m_begin, int n_begin, int k_block_begin, float* c, BufferA* ba,
++                            BufferB* bb) {
++    __m512i* c512 = (__m512i*)c;
++    int m_block_end = std::min(m - m_begin, M_STEP);
++    int mb = 0;
++    for (; mb + 8 <= m_block_end; mb += 8) avx_rb_rows<8, 1>(m, n, k, m_begin, n_begin, mb, k_block_begin, c512, ba, bb);
++    for (; mb + 4 <= m_block_end; mb += 4) avx_rb_rows<4, 1>(m, n, k, m_begin, n_begin, mb, k_block_begin, c512, ba, bb);
++    for (; mb + 2 <= m_block_end; mb += 2) avx_rb_rows<2, 2>(m, n, k, m_begin, n_begin, mb, k_block_begin, c512, ba, bb);
++    for (; mb < m_block_end; mb += 1) avx_rb_rows<1, 4>(m, n, k, m_begin, n_begin, mb, k_block_begin, c512, ba, bb);
++  }
++
+   static void amx_kernel(int m, int n, int k, int m_begin, int n_begin, int k_block_begin, float* c, BufferA* ba,
+                          BufferB* bb) {
+     using K = GemmKernel224Int4;
+@@ -1805,6 +1883,76 @@ struct GemmKernel224Int4 {
+     // printf("\n");
+   }
+ 
++  // ---- IDE_046: B 타일 언팩 캐시. scratch 레이아웃: [(n_step_idx * KB_STEPS + k_step_idx)] × 4 KB
++  //      (lo tile2 1KB | lo tile3 1KB | hi tile2 1KB | hi tile3 1KB). fill=true 면 언팩+저장, false 면 저장분을 tileload.
++  static constexpr int BC_KB_STEPS = K_BLOCK / (2 * K_STEP);            // 28
++  static constexpr int BC_N_STEPS = N_BLOCK / N_STEP;                    // 4
++  static constexpr size_t BC_TILE_BYTES = (size_t)TILE_N * TILE_K;      // 1024
++  static constexpr size_t BC_SCRATCH_BYTES = (size_t)BC_N_STEPS * BC_KB_STEPS * 4 * BC_TILE_BYTES;  // 458752
++  static bool bcache_on() {
++    static bool v = std::getenv("KT_AMX_BCACHE") != nullptr;
++    return v;
++  }
++  static bool a_loadd_on() {
++    static bool v = std::getenv("KT_AMX_A_LOADD") != nullptr;
++    return v;
++  }
++  static int8_t* bcache_scratch() {
++    static thread_local int8_t* buf = nullptr;
++    if (!buf) buf = (int8_t*)std::aligned_alloc(64, BC_SCRATCH_BYTES);
++    return buf;
++  }
++  static void amx_kernel_bcached(int m, int n, int k, int m_begin, int n_begin, int n_start, int k_block_begin, float* c,
++                                 BufferA* ba, BufferB* bb, int8_t* scratch, bool fill) {
++#ifdef HAVE_AMX
++    using K = GemmKernel224Int4;
++    if (k_block_begin == 0) {
++      K::clean_c();
++    } else {
++      K::load_c((int32_t*)c, K::N_STEP * sizeof(int32_t));
++    }
++    const bool a_ld = a_loadd_on();
++    const int n_idx = (n_begin - n_start) / N_STEP;
++    for (int k_begin = 0; k_begin < K::K_BLOCK && k_block_begin + k_begin < k; k_begin += K::BufferB::B_K_STEP) {
++      const int kb_idx = k_begin / K::BufferB::B_K_STEP;
++      __m512i* sc = (__m512i*)(scratch + ((size_t)n_idx * BC_KB_STEPS + kb_idx) * 4 * BC_TILE_BYTES);
++      if (fill) {
++        const __m512i* b = (const __m512i*)bb->get_submat(n, k, n_begin, k_block_begin + k_begin);  // 32 행 × 64 B
++        const __m512i lo = lo_mask(), hi = hi_mask();
++        for (int i = 0; i < 2 * TILE_N; i++) {
++          __m512i raw = b[i];
++          sc[i] = _mm512_slli_epi32(_mm512_and_si512(lo, raw), 4);   // lo: 행 0..31 → tile2 (0..15) / tile3 (16..31)
++          sc[2 * TILE_N + i] = _mm512_and_si512(hi, raw);            // hi
++        }
++        asm volatile("" ::: "memory");
++      }
++      int8_t* a0 = (int8_t*)ba->get_submat(m, k, m_begin, k_block_begin + k_begin);
++      int8_t* a1 = (int8_t*)ba->get_submat(m, k, m_begin, k_block_begin + k_begin + K::K_STEP);
++      if (a_ld) {
++        _tile_loadd(0, a0, K::K_STEP);
++        _tile_loadd(1, a0 + (size_t)K::K_STEP * TILE_M, K::K_STEP);
++      } else {
++        K::load_a(a0, K::K_STEP * sizeof(int8_t));
++      }
++      _tile_loadd(2, sc, TILE_K);
++      _tile_loadd(3, sc + TILE_N, TILE_K);
++      K::run_tile();
++      if (a_ld) {
++        _tile_loadd(0, a1, K::K_STEP);
++        _tile_loadd(1, a1 + (size_t)K::K_STEP * TILE_M, K::K_STEP);
++      } else {
++        K::load_a(a1, K::K_STEP * sizeof(int8_t));
++      }
++      _tile_loadd(2, sc + 2 * TILE_N, TILE_K);
++      _tile_loadd(3, sc + 3 * TILE_N, TILE_K);
++      K::run_tile();
++    }
++    K::store_c((int32_t*)c, K::N_STEP * sizeof(int32_t));
++#else
++    (void)m; (void)n; (void)k; (void)m_begin; (void)n_begin; (void)n_start; (void)k_block_begin; (void)c; (void)ba; (void)bb; (void)scratch; (void)fill;
++#endif
++  }
++
+   static void apply_scale(int m, int n, int m_begin, int n_begin, float* c, BufferA* ba, BufferB* bb) {
+     using K = GemmKernel224Int4;
+     int to = m - m_begin;
+@@ -2487,6 +2635,40 @@ void integer_mat_mul(int m, int n, int k, typename K::BufferA* ba, typename K::B
+ 
+   auto [n_start, n_end] = K::split_range_n(n, ith, nth);
+ 
++  if constexpr (!amx_or_avx && std::is_same_v<K, GemmKernel224Int4>) {
++    if (K::avx_rb_on()) {
++      for (int k_block_begin = 0; k_block_begin < k; k_block_begin += K::K_BLOCK) {
++        for (int m_begin = 0; m_begin < m; m_begin += K::M_STEP) {
++          for (int n_begin = n_start; n_begin < n_end; n_begin += K::N_STEP) {
++            float* c = bc->get_submat(m, n, m_begin, n_begin);
++            K::avx_kernel_rb(m, n, k, m_begin, n_begin, k_block_begin, c, ba, bb);
++            if (k_block_begin + K::K_BLOCK >= k) {
++              K::apply_scale(m, n, m_begin, n_begin, c, ba, bb);
++            }
++          }
++        }
++      }
++      return;
++    }
++  }
++  if constexpr (amx_or_avx && AMX_AVAILABLE && std::is_same_v<K, GemmKernel224Int4>) {
++    if (m > K::M_STEP && (n_end - n_start) <= K::N_BLOCK && K::bcache_on()) {
++      int8_t* scratch = K::bcache_scratch();
++      for (int k_block_begin = 0; k_block_begin < k; k_block_begin += K::K_BLOCK) {
++        for (int m_begin = 0; m_begin < m; m_begin += K::M_STEP) {
++          for (int n_begin = n_start; n_begin < n_end; n_begin += K::N_STEP) {
++            float* c = bc->get_submat(m, n, m_begin, n_begin);
++            K::amx_kernel_bcached(m, n, k, m_begin, n_begin, n_start, k_block_begin, c, ba, bb, scratch, m_begin == 0);
++            if (k_block_begin + K::K_BLOCK >= k) {
++              K::apply_scale(m, n, m_begin, n_begin, c, ba, bb);
++            }
++          }
++        }
++      }
++      return;
++    }
++  }
++
+   for (int k_block_begin = 0; k_block_begin < k; k_block_begin += K::K_BLOCK) {
+     for (int m_begin = 0; m_begin < m; m_begin += K::M_STEP) {
+       for (int n_begin = n_start; n_begin < n_end; n_begin += K::N_STEP) {
+diff --git a/kt-kernel/operators/amx/moe.hpp b/kt-kernel/operators/amx/moe.hpp
+index a7db9d8..77a7ab8 100644
+--- a/kt-kernel/operators/amx/moe.hpp
++++ b/kt-kernel/operators/amx/moe.hpp
+@@ -1,3 +1,4 @@
++#include <cstdlib>
+ /**
+  * @Description  :
+  * @Author       : chenht2022
+@@ -235,13 +236,21 @@ class AMX_MOE_TP : public AMX_MOE_BASE<T, AMX_MOE_TP<T>> {
+   // CRTP virtual points - GEMM dispatch
+   // ============================================================================
+ 
++  int amx_min_rows_() const {
++    static int v = [] { const char* e = std::getenv("KT_AMX_MIN_ROWS"); return e ? std::atoi(e) : 1 << 30; }();
++    return v;
++  }
++  int amx_min_qlen_() const {
++    static int v = [this]() { const char* e = std::getenv("KT_AMX_MIN_QLEN"); return e ? std::atoi(e) : 4 * config_.expert_num / config_.num_experts_per_tok; }();
++    return v;
++  }
+   void do_gate_up_gemm(bool do_up, int expert_idx, int ith, int nth, int qlen) {
+     int m = m_local_num_[expert_idx];
+     auto& ba = gate_up_ba_[expert_idx];
+     auto& bb = do_up ? up_bb_[expert_idx] : gate_bb_[expert_idx];
+     auto& bc = do_up ? up_bc_[expert_idx] : gate_bc_[expert_idx];
+ 
+-    if (qlen > 4 * config_.expert_num / config_.num_experts_per_tok) {
++    if (qlen > amx_min_qlen_() || m >= amx_min_rows_()) {
+       amx::mat_mul(m, config_.intermediate_size, config_.hidden_size, ba, bb, bc, ith, nth);
+     } else {
+       amx::vec_mul(m, config_.intermediate_size, config_.hidden_size, ba, bb, bc, ith, nth);
+@@ -254,7 +263,7 @@ class AMX_MOE_TP : public AMX_MOE_BASE<T, AMX_MOE_TP<T>> {
+     auto& bb = down_bb_[expert_idx];
+     auto& bc = down_bc_[expert_idx];
+ 
+-    if (qlen > 4 * config_.expert_num / config_.num_experts_per_tok) {
++    if (qlen > amx_min_qlen_() || m >= amx_min_rows_()) {
+       amx::mat_mul(m, config_.hidden_size, config_.intermediate_size, ba, bb, bc, ith, nth);
+     } else {
+       amx::vec_mul(m, config_.hidden_size, config_.intermediate_size, ba, bb, bc, ith, nth);
+diff --git a/kt-kernel/operators/amx/moe_base.hpp b/kt-kernel/operators/amx/moe_base.hpp
+index fb636ee..f1d3796 100644
+--- a/kt-kernel/operators/amx/moe_base.hpp
++++ b/kt-kernel/operators/amx/moe_base.hpp
+@@ -1,3 +1,5 @@
++#define FORWARD_TIME_PROFILE 1
++#include <cstdlib>
+ /**
+  * @Description  : Common AMX MoE base class extracted from K2 implementation.
+  * @Author       : oql, Codex and Claude
+@@ -9,6 +11,15 @@
+  **/
+ #ifndef CPUINFER_OPERATOR_AMX_MOE_BASE_H
+ #define CPUINFER_OPERATOR_AMX_MOE_BASE_H
++#include <sys/mman.h>
++static inline void* kt_hp_alloc(size_t sz) {
++  static bool on = std::getenv("KT_HUGEPAGE") != nullptr;
++  if (!on) return std::aligned_alloc(64, sz);
++  size_t al = 2u << 20; size_t rsz = (sz + al - 1) / al * al;
++  void* p = std::aligned_alloc(al, rsz);
++  if (p) madvise(p, rsz, MADV_HUGEPAGE);
++  return p;
++}
+ 
+ // #define FORWARD_TIME_PROFILE
+ 
+@@ -132,14 +143,14 @@ class AMX_MOE_BASE {
+       down_bc_.push_back(make_buffer_c(config_.max_len, config_.hidden_size, nullptr));
+ 
+       void* gate_bb_ptr =
+-          std::aligned_alloc(64, buffer_b_required_size(config_.intermediate_size, config_.hidden_size));
++          kt_hp_alloc( buffer_b_required_size(config_.intermediate_size, config_.hidden_size));
+       gate_bb_.push_back(make_buffer_b(config_.intermediate_size, config_.hidden_size, gate_bb_ptr));
+ 
+-      void* up_bb_ptr = std::aligned_alloc(64, buffer_b_required_size(config_.intermediate_size, config_.hidden_size));
++      void* up_bb_ptr = kt_hp_alloc( buffer_b_required_size(config_.intermediate_size, config_.hidden_size));
+       up_bb_.push_back(make_buffer_b(config_.intermediate_size, config_.hidden_size, up_bb_ptr));
+ 
+       void* down_bb_ptr =
+-          std::aligned_alloc(64, buffer_b_required_size(config_.hidden_size, config_.intermediate_size));
++          kt_hp_alloc( buffer_b_required_size(config_.hidden_size, config_.intermediate_size));
+       down_bb_.push_back(make_buffer_b(config_.hidden_size, config_.intermediate_size, down_bb_ptr));
+     }
+     // TODO: need update to all *.hpp
+@@ -308,6 +319,16 @@ class AMX_MOE_BASE {
+       }
+     };
+ 
++    const bool fuse_qin_ = kt_fuse_qin_() && qlen >= 10;
++    if constexpr (requires(typename T::BufferA& x_, const ggml_bf16_t* p_) { x_.from_mat_row(1, p_, 0); }) if (fuse_qin_) {
++      pool->do_work_stealing_job(qlen, nullptr, [&](int i) {
++        for (int j = 0; j < k; j++) {
++          int e = expert_ids[i * k + j];
++          if (config_.should_skip_expert(e)) continue;
++          gate_up_ba_[e]->from_mat_row(m_local_num_[e], (const ggml_bf16_t*)input + i * config_.hidden_size, m_local_pos_[i][j]);
++        }
++      }, nullptr);
++    } else
+     direct_or_pool(qlen, [&](int i) {
+       for (int j = 0; j < k; j++) {
+         if (config_.should_skip_expert(expert_ids[i * k + j])) {
+@@ -326,12 +347,37 @@ class AMX_MOE_BASE {
+     }
+ #endif
+ 
++    if (fuse_qin_) {
++      // IDE_051: gather 단계에서 이미 양자화됨
++    } else
++    if constexpr (requires(typename T::BufferA& x_, ggml_bf16_t* p_) { x_.from_mat_block(1, p_, 0); }) if (kt_qa_par_() && qlen >= 10) {
++      const int mb = (max_local_num + T::M_STEP - 1) / T::M_STEP;
++      pool->do_work_stealing_job(activated_expert * mb, nullptr, [this, mb](int t) {
++        int expert_idx = m_expert_id_map_[t / mb]; int m_begin = (t % mb) * T::M_STEP;
++        if (m_begin < m_local_num_[expert_idx])
++          gate_up_ba_[expert_idx]->from_mat_block(m_local_num_[expert_idx], m_local_input_ptr_[expert_idx], m_begin);
++      }, nullptr);
++    } else
+     direct_or_pool(activated_expert, [this](int task_id) {
+       int expert_idx = m_expert_id_map_[task_id];
+       gate_up_ba_[expert_idx]->from_mat(m_local_num_[expert_idx], m_local_input_ptr_[expert_idx], 0, 1);
+     });
+ 
+ #ifdef FORWARD_TIME_PROFILE
++    {
++      static bool dump_on = std::getenv("KT_DUMP_A") != nullptr; static int dump_ct = 0;
++      if constexpr (requires(typename T::BufferA& x_) { x_.a; x_.d; }) if (dump_on && qlen >= 10 && dump_ct < 4 && tp_part_idx == 0) {
++        int e0 = m_expert_id_map_[0]; char fn[128]; snprintf(fn, sizeof fn, "/tmp/dumpA_q%d_%d_%s.bin", qlen, dump_ct, fuse_qin_ ? "fuse" : "base");
++        FILE* f = fopen(fn, "wb"); if (f) {
++          int m = m_local_num_[e0]; int mm = gate_up_ba_[e0]->max_m; int kk = config_.hidden_size;
++          fwrite(&m, 4, 1, f); fwrite(&mm, 4, 1, f); fwrite(&kk, 4, 1, f);
++          fwrite(gate_up_ba_[e0]->a, 1, (size_t)mm * kk, f); fwrite(gate_up_ba_[e0]->d, 4, mm, f);
++          // 토큰→행 매핑도 기록
++          for (int i = 0; i < qlen; i++) for (int j = 0; j < k; j++) if (expert_ids[i * k + j] == e0) { int rec[2] = {i, m_local_pos_[i][j]}; fwrite(rec, 4, 2, f); }
++          fclose(f); }
++        dump_ct++;
++      }
++    }
+     {
+       auto now_time = std::chrono::high_resolution_clock::now();
+       q_input_time = std::chrono::duration_cast<std::chrono::microseconds>(now_time - last).count();
+@@ -375,6 +421,14 @@ class AMX_MOE_BASE {
+     }
+ #endif
+ 
++    if constexpr (requires(typename T::BufferA& x_, ggml_bf16_t* p_) { x_.from_mat_block(1, p_, 0); }) if (kt_qa_par_() && qlen >= 10) {
++      const int mb = (max_local_num + T::M_STEP - 1) / T::M_STEP;
++      pool->do_work_stealing_job(activated_expert * mb, nullptr, [this, mb](int t) {
++        int expert_idx = m_expert_id_map_[t / mb]; int m_begin = (t % mb) * T::M_STEP;
++        if (m_begin < m_local_num_[expert_idx])
++          down_ba_[expert_idx]->from_mat_block(m_local_num_[expert_idx], m_local_gate_output_ptr_[expert_idx], m_begin);
++      }, nullptr);
++    } else
+     pool->do_work_stealing_job(
+         activated_expert, nullptr,
+         [this](int task_id) {
+@@ -443,7 +497,8 @@ class AMX_MOE_BASE {
+     }
+     auto end_time = std::chrono::high_resolution_clock::now();
+     auto forward_total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+-    printf(
++    static bool _pp_on = std::getenv("KT_PHASE_PROF") != nullptr; static thread_local unsigned _pp_cnt = 0;
++    if (_pp_on && ((++_pp_cnt) & 63) == 0) printf(
+         "Profiling Results (numa[%d]): activated_expert: %d, prepare: %ld us, cpy_input: %ld us, q_input: %ld us, "
+         "up_gate: %ld us, act: %ld us, q_down: %ld us, down: %ld us, weight: %ld us, total: %ld us, max_local_num: "
+         "%d, qlen: %d\n",
+@@ -452,6 +507,14 @@ class AMX_MOE_BASE {
+ #endif
+   }
+ 
++  bool kt_fuse_qin_() const {
++    static bool v = std::getenv("KT_FUSE_QIN") != nullptr;
++    return v;
++  }
++  bool kt_qa_par_() const {
++    static bool v = std::getenv("KT_QA_PAR") != nullptr;
++    return v;
++  }
+   void forward_decode(int k, const int64_t* expert_ids, const float* weights, const void* input, void* output) {
+     int qlen = 1;
+     auto pool = config_.pool->get_subpool(tp_part_idx);
+@@ -805,3 +868,4 @@ class TP_MOE<AMX_MOE_BASE<T, Derived>> : public TP_MOE_Common<AMX_MOE_BASE<T, De
+ };
+ 
+ #endif  // CPUINFER_OPERATOR_AMX_MOE_BASE_H
++#undef FORWARD_TIME_PROFILE
+diff --git a/kt-kernel/operators/moe-tp.hpp b/kt-kernel/operators/moe-tp.hpp
+index 66f722c..6391d87 100644
+--- a/kt-kernel/operators/moe-tp.hpp
++++ b/kt-kernel/operators/moe-tp.hpp
+@@ -1,3 +1,6 @@
++#include <chrono>
++#include <cstdlib>
++#include <cstdio>
+ #ifndef CPUINFER_OPERATOR_MOE_HPP
+ #define CPUINFER_OPERATOR_MOE_HPP
+ 
+@@ -209,11 +212,19 @@ class TP_MOE_Common : public MoE_Interface {
+     int qlen = *qlen_ptr;
+ 
+     auto pool = config.pool;
++    static bool _wp_on = std::getenv("KT_PHASE_PROF") != nullptr; static thread_local unsigned _wp_cnt = 0;
++    auto _wp_t0 = std::chrono::steady_clock::now();
+     pool->dispense_backend()->do_numa_job([this, pool, qlen, k, expert_ids, input, weights](int numa_id) {
+       tps[numa_id]->forward(qlen, k, expert_ids, weights, input, this->local_output_numa[numa_id]);
+     });
+-
++    auto _wp_t1 = std::chrono::steady_clock::now();
+     merge_results(qlen, output, incremental);
++    if (_wp_on && ((++_wp_cnt) & 63) == 0) {
++      auto _wp_t2 = std::chrono::steady_clock::now();
++      printf("[kt-wrap] qlen: %d, numa_job: %ld us, merge: %ld us, incremental: %d\n", qlen,
++             (long)std::chrono::duration_cast<std::chrono::microseconds>(_wp_t1 - _wp_t0).count(),
++             (long)std::chrono::duration_cast<std::chrono::microseconds>(_wp_t2 - _wp_t1).count(), (int)incremental);
++    }
+ #ifdef FORWARD_TIME_REPORT
+     auto end = std::chrono::high_resolution_clock::now();
+     auto forward_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+diff --git a/third_party/llama.cpp b/third_party/llama.cpp
+--- a/third_party/llama.cpp
++++ b/third_party/llama.cpp
+@@ -1 +1 @@
+-Subproject commit a94e6ff8774b7c9f950d9545baf0ce35e8d1ed2f
++Subproject commit a94e6ff8774b7c9f950d9545baf0ce35e8d1ed2f-dirty

@@ -5,7 +5,7 @@ import glob, json, os, subprocess, sys, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import *
 CAMP = sys.argv[1] if len(sys.argv) > 1 else f"{REPO}/eval/results/IDE_071_20260916"   # 캠페인 결과 루트 (IDE_072 는 인자로)
-BR = "feat/cpu-offload-ide071"
+BR = os.environ.get("IDE071_BR", "feat/cpu-offload-ide071")   # IDE_073: IDE071_BR=feat/cpu-offload-two-models-20260917
 
 def git(cmd, check=True):
     r = subprocess.run(f"git -C {REPO} {cmd}", shell=True, capture_output=True, text=True)
@@ -16,7 +16,7 @@ def main():
     rec = {"t": now(), "branch": git("branch --show-current"), "remote": re.sub(r"https://[^@]*@", "https://", git("remote get-url origin"))}
     assert rec["branch"] == BR, rec["branch"]
     # 게시 대상: feature 디렉터리 전체 + 하네스 + 결과 (제외 규칙)
-    paths = [f"{FEAT}", f"{REPO}/eval/ide071", f"{REPO}/shadow_assists/id_registry.md", f"{REPO}/shadow_assists/README.md"]
+    paths = [f"{FEAT}", f"{REPO}/eval/ide071", f"{REPO}/shadow_assists/id_registry.md", f"{REPO}/shadow_assists/README.md", f"{REPO}/.gitignore"] + ([f"{REPO}/eval/ide073"] if os.path.isdir(f"{REPO}/eval/ide073") and "IDE_073" in FEAT else [])
     excluded = []
     files = []
     for p in sorted(glob.glob(f"{CAMP}/**/*", recursive=True)):
@@ -48,16 +48,16 @@ def main():
     # 원격 파일 존재 확인 (gh 또는 raw)
     exists = {}
     subprocess.run(f"git -C {REPO} fetch -q origin {BR}", shell=True)
-    for f in (os.path.relpath(FEAT, REPO) + "/FULL_REPORT.md", os.path.relpath(FEAT, REPO) + "/RESULT.md"):
+    for f in [os.path.relpath(FEAT, REPO) + "/" + x for x in ("FULL_REPORT.md", "RESULT.md", "FULL_RAW_DATA.md", "COMPLETION_STATUS.md") if os.path.exists(f"{FEAT}/{x}")]:
         r = subprocess.run(f"git -C {REPO} cat-file -s origin/{BR}:{f}", shell=True, capture_output=True, text=True)
         exists[f] = {"rc": r.returncode, "size": r.stdout.strip()[:20], "err": r.stderr.strip()[:200], "method": "git fetch + cat-file -s origin/branch:path (gh 미인증)"}
     rec["remote_files"] = exists
     status = "PUBLISHED" if push.returncode == 0 and rec["remote_matches"] and all(v["rc"] == 0 for v in exists.values()) else ("PUBLISH_FAILED" if push.returncode != 0 else "PUSHED_UNVERIFIED")
     rec["status"] = status
-    L = [f"# PUBLISH_RECEIPT — IDE_071 ({rec['t']['wall_kst']})", "", f"- 상태: **{status}**", f"- remote: {rec['remote']} · branch: {BR}", f"- data commit: `{rec['data_commit']}` · remote SHA: `{remote_sha}` · 일치: {rec['remote_matches']}",
+    L = [f"# PUBLISH_RECEIPT — {TAG} ({rec['t']['wall_kst']})", "", f"- 상태: **{status}**", f"- remote: {rec['remote']} · branch: {BR}", f"- data commit: `{rec['data_commit']}` · remote SHA: `{remote_sha}` · 일치: {rec['remote_matches']}",
          f"- push rc {push.returncode} {push.stderr.strip()[-200:]}", f"- staged 파일 {len(staged)} · 제외(5 MB 초과/.pt/perf.data) {len(excluded)} 개 (서버 보존, manifests/artifact_manifest.jsonl 참조)",
          "- 원격 파일 확인: " + "; ".join(f"{k}: rc={v['rc']} size={v['size']}" for k, v in exists.items()),
-         f"- GitHub 위치: https://github.com/mystous/vllm_hybrid/blob/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/FULL_REPORT.md , https://github.com/mystous/vllm_hybrid/blob/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/RESULT.md",
+         f"- GitHub 위치: https://github.com/mystous/vllm_hybrid/blob/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/FULL_REPORT.md , https://github.com/mystous/vllm_hybrid/blob/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/" + ("RESULT.md" if os.path.exists(f"{FEAT}/RESULT.md") else "FULL_RAW_DATA.md"),
          f"- raw 다운로드: https://raw.githubusercontent.com/mystous/vllm_hybrid/{rec['data_commit']}/{os.path.relpath(FEAT, REPO)}/FULL_REPORT.md", "", "## 제외 대용량 파일 (상위 50)", "", "| path | bytes |", "|---|---|"] + [f"| {p} | {b} |" for p, b in excluded[:50]]
     open(f"{FEAT}/PUBLISH_RECEIPT.md", "w").write("\n".join(L) + "\n"); jdump(rec, f"{FEAT}/manifests/publish_receipt.json")
     git(f"add -- {FEAT}/PUBLISH_RECEIPT.md {FEAT}/manifests/publish_receipt.json")

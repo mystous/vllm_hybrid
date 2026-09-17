@@ -1,0 +1,52 @@
+# environment (redacted) 2026-09-17T07:50:53.627851+09:00
+
+## host
+violet-h100-016
+5.14.0-427.124.1.el9_4.x86_64
+PRETTY_NAME="Red Hat Enterprise Linux 9.4 (Plow)"
+
+## cpu
+no_turbo=1 governor=performance max_freq_khz=2000000
+Avg_MHz	Busy%	Bzy_MHz	PkgWatt
+49	2.44	1998	463.33
+567	28.33	2000	243.95
+0-223
+
+## memory
+32 	Configured Memory Speed: 4400 MT/s
+     32 	Size: 64 GB
+total        used        free      shared  buff/cache   available
+Mem:            2014          81         282           1        1661        1933
+Swap:              0           0           0
+
+## gpu
+index, uuid, pci.bus_id, driver_version, memory.total [MiB], power.limit [W], power.max_limit [W], clocks.max.sm [MHz], clocks.max.memory [MHz], clocks.applications.graphics [MHz], compute_mode, ecc.mode.current
+0, GPU-3b84c06a-611d-8e07-2726-44a868f646fe, 00000000:0A:00.0, 580.126.20, 81559 MiB, 700.00 W, 700.00 W, 1980 MHz, 2619 MHz, 1980 MHz, Default, Enabled
+1, GPU-8a39f0ec-5884-45d9-f056-53ace5e57df8, 00000000:18:00.0, 580.126.20, 81559 MiB, 700.00 W, 700.00 W, 1980 MHz, 2619 MHz, 1980 MHz, Default, Enabled
+2, GPU-3f7fea22-2c53-a28e-59a2-07cc6682cad0, 00000000:3A:00.0, 580.126.20, 81559 MiB, 700.00 W, 700.00 W, 1980 MHz, 2619 MHz, 1980 MHz, Default, Enabled
+3, GPU-5cfe0e43-68b1-5c29-9082-c085abacf446, 00000000:43:00.0, 580.126.20, 81559 MiB, 700.00 W, 700.00 W, 1980 MHz, 2619 MHz, 1980 MHz, Default, Enabled
+4, GPU-43a78ae4-f89f-ca72-2ff2-27e8a8a27f74, 00000000:87:00.0, 580.126.20, 81559 MiB, 700.00 W, 700.00 W, 1980 MHz, 2619 MHz, 1980 MHz, Default, Enabled
+5, GPU-11f36bf0-2679-fa1a-3940-f938f0b6a05d, 00000000:90:00.0, 580.126.20, 81559 MiB, 700.00 W, 700.00 W, 1980 MHz, 2619 MHz, 1980 MHz, Default, Enabled
+6, GPU-b73567b4-d441-96fe-2b36-39ff827022b2, 00000000:B8:00.0, 580.126.20, 81559 MiB, 700.00 W, 700.00 W, 1980 MHz, 2619 MHz, 1980 MHz, Default, Enabled
+7, GPU-f57f9621-9754-17cd-b327-841e495b1b25, 00000000:C1:00.0, 580.126.20, 81559 MiB, 700.00 W, 700.00 W, 1980 MHz, 2619 MHz, 1980 MHz, Default, Enabled
+
+## containers
+sgl-kt:   digest=
+vllm-h100:   digest=
+sgl-kt5:   digest=
+sgl-kt2:   digest=
+
+## software
+torch 2.13.0+cu130
+sglang 0.5.18
+flashinfer 0.6.17
+triton 3.7.1
+cuda 13.0
+nccl (2, 29, 7)
+e29357f786a53030296f75beaf3db2745baa730835ddc7d98aca88dd014aa46d  /usr/local/lib/python3.12/dist-packages/kt_kernel/kt_kernel_ext.cpython-312-x86_64-linux-gnu.so
+sglang git: 71de97b264b04dcd514cf904003028aefe9775c8 |  M python/sglang/srt/distributed/bootstrap.py |  M python/sglang/srt/layers/attention/dsa_backend.py |  M python/sglang/srt/layers/moe/kt_ep_wrapper.py |  M python/sglang/srt/layers/moe/topk.py |  M python/sglang/srt/managers/prefill_delayer.py |  M python/sglang/srt/model_executor/model_runner.py |  M python/sglang/srt/model_executor/runner/decode_cuda_graph_runner.py |  M python/sglang/srt/model_executor/runner_backend/full_cuda_graph_backend.py |  M python/sglang/srt/models/qwen3_moe.py |  M python/sglang/srt/speculative/eagle_worker_v2.py | ?? "benchmark/kernels/fused_moe_triton/E=160,N=640,device_name=NVIDIA_H100_80GB_HBM3,dtype=fp8_w8a8,block_shape=[128, 128].json" | ?? python/sglang/srt/layers/moe/kt_ep_wrapper.py.ide066.bak |  10 files changed, 326 insertions(+), 11 deletions(-)
+kt git: 6d460cc10780f2e0ad541b5d58ad28086dd32ef0 |  M kt-kernel/CMakeLists.txt |  M kt-kernel/cpu_backend/cpuinfer.h |  M kt-kernel/cpu_backend/task_queue.cpp |  M kt-kernel/ext_bindings.cpp |  M kt-kernel/operators/amx/la/amx_buffers.hpp |  M kt-kernel/operators/amx/la/amx_kernels.hpp |  M kt-kernel/operators/amx/moe.hpp |  M kt-kernel/operators/amx/moe_base.hpp |  M kt-kernel/operators/moe-tp.hpp |  m third_party/llama.cpp |  10 files changed, 633 insertions(+), 7 deletions(-)
+intra 112 inter 112
+
+## git
+feat/cpu-offload-two-models-20260917 43e557fc25545b0ffa09625e453bb0691a463879 https://github.com/mystous/vllm_hybrid.git

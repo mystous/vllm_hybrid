@@ -210,6 +210,11 @@ def main():
         if cell.get("gsm20") and health():
             set_state(st, cell_dir, "GSM20"); r = sh(f"{HOME}/venv-bench/bin/python {REPO}/eval/ide071/gsm20_paired.py {cell_dir}/gsm20_paired.json {model}", timeout=1200)
             open(f"{cell_dir}/gsm20_paired.log", "w").write(r.stdout + r.stderr); st["gsm20"] = r.stdout.strip()[-120:]; log(cell_dir, f"gsm20: {st['gsm20']}")
+        # ---- QUALITY20 (IDE_073: 동일 20문항, 모델별 questions.jsonl, GLM thinking off)
+        if cell.get("quality20") and health():
+            q = cell["quality20"]; set_state(st, cell_dir, "QUALITY20")
+            r = sh(f"{HOME}/venv-bench/bin/python {REPO}/eval/ide073/quality20.py {q['questions']} {q.get('model', model)} {cell_dir}/quality20.json {'--thinking-off' if q.get('thinking_off') else ''}", timeout=1800)
+            open(f"{cell_dir}/quality20.log", "w").write(r.stdout + r.stderr); st["quality20"] = r.stdout.strip()[-120:]; log(cell_dir, f"quality20: {st['quality20']}")
         # ---- GSM40 (요청 시)
         if cell.get("gsm40"):
             set_state(st, cell_dir, "GSM40"); st["gsm40"] = gsm40(cell_dir, model); log(cell_dir, f"gsm40: {st['gsm40']}")
@@ -221,7 +226,7 @@ def main():
         stop_server()
         valid = [r for r in st["reps"] if r["valid"]]
         if not cell.get("workloads"):   # 품질 전용 셀: 측정 반복 없음 → GSM 산출물 유무로 판정
-            exit_status = "COMPLETED" if (os.path.exists(f"{cell_dir}/gsm20_paired.json") or os.path.exists(f"{cell_dir}/gsm40.json")) else "FAILED_RUNTIME"
+            exit_status = "COMPLETED" if (os.path.exists(f"{cell_dir}/gsm20_paired.json") or os.path.exists(f"{cell_dir}/gsm40.json") or os.path.exists(f"{cell_dir}/quality20.json")) else "FAILED_RUNTIME"
         else:
             exit_status = "COMPLETED" if valid and len(valid) == len(st["reps"]) else "FAILED_REQUESTS"
         set_state(st, cell_dir, exit_status, exit_status=exit_status)

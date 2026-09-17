@@ -1,0 +1,45 @@
+
+Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang/python/sglang/srt/managers/mm_utils.py)
+ℹ Input path: 
+/models/hub/models--zai-org--GLM-4.7-FP8/snapshots/7b3b5f81eee81be12a6f8da2710ea
+c4bafb0166a
+ℹ Output path: /models/kt/glm47-int4
+ℹ Quantization method: INT4
+ℹ CPU threads: 96
+ℹ NUMA nodes: 2
+
+Disk Space Analysis:
+
+  Source model size:         337.20 GB
+  Estimated output size:     168.60 GB
+  Available space:           20953.30 GB
+
+⚠ Output path already exists: /models/kt/glm47-int4
+
+✓ Using unique name: /models/kt/glm47-int4-2
+
+
+→ Starting quantization...
+
+$ /usr/bin/python3 
+/usr/local/lib/python3.12/dist-packages/scripts/convert_cpu_weights.py 
+--input-path 
+/models/hub/models--zai-org--GLM-4.7-FP8/snapshots/7b3b5f81eee81be12a6f8da2710ea
+c4bafb0166a --input-type fp8 --output /models/kt/glm47-int4-2 --quant-method 
+int4 --cpuinfer-threads 96 --threadpool-count 2
+
+================================================================================
+
+Loading model configuration...
+Error during conversion: FP8 quantization_config found but 'weight_block_size' field is missing. Expected format: 'weight_block_size': [128, 128]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/scripts/convert_cpu_weights.py", line 1167, in main
+    model_config = load_model_config(args.input_path, args.input_type)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/scripts/convert_cpu_weights.py", line 118, in load_model_config
+    raise ValueError(
+ValueError: FP8 quantization_config found but 'weight_block_size' field is missing. Expected format: 'weight_block_size': [128, 128]
+
+================================================================================
+
+✗ Quantization failed with exit code 1

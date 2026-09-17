@@ -1,0 +1,73 @@
+[
+ {
+  "t": {
+   "wall_utc": "2026-09-16T23:07:49.547104+00:00",
+   "wall_kst": "2026-09-17T08:07:49.547104+09:00",
+   "epoch": 1789600069.5471036,
+   "monotonic": 838071.24017973
+  },
+  "stage": "WARMUP",
+  "rc": 1,
+  "stderr_tail": "main\n    return asyncio.run(main_async(args))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 194, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/base_events.py\", line 687, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py\", line 2137, in main_async\n    input_requests = get_samples(args, tokenizer)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2108, in get_samples\n    dataset = CustomDataset(\n              ^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2520, in __init__\n    self.load_data()\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2535, in load_data\n    jsonl_data = pd.read_json(path_or_buf=self.dataset_path, lines=True)\n                 ^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/utils/import_utils.py\", line 311, in __getattr__\n    raise ImportError(msg) from exc\nImportError: Please install vllm[bench] for bench support\ntime=\"2026-09-17T08:07:49+09:00\" level=fatal msg=\"exec failed with exit code 1\"\n"
+ },
+ {
+  "t": {
+   "wall_utc": "2026-09-16T23:08:08.673185+00:00",
+   "wall_kst": "2026-09-17T08:08:08.673185+09:00",
+   "epoch": 1789600088.6731849,
+   "monotonic": 838090.366260658
+  },
+  "stage": "MEASURING",
+  "rep": "M073_QWEN_MAIN_SHORT_C64_rep1",
+  "reason": "rc=1 completed=None failed=None n=256",
+  "stderr_tail": "main\n    return asyncio.run(main_async(args))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 194, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/base_events.py\", line 687, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py\", line 2137, in main_async\n    input_requests = get_samples(args, tokenizer)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2108, in get_samples\n    dataset = CustomDataset(\n              ^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2520, in __init__\n    self.load_data()\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2535, in load_data\n    jsonl_data = pd.read_json(path_or_buf=self.dataset_path, lines=True)\n                 ^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/utils/import_utils.py\", line 311, in __getattr__\n    raise ImportError(msg) from exc\nImportError: Please install vllm[bench] for bench support\ntime=\"2026-09-17T08:08:06+09:00\" level=fatal msg=\"exec failed with exit code 1\"\n"
+ },
+ {
+  "t": {
+   "wall_utc": "2026-09-16T23:08:28.621261+00:00",
+   "wall_kst": "2026-09-17T08:08:28.621261+09:00",
+   "epoch": 1789600108.6212606,
+   "monotonic": 838110.314336272
+  },
+  "stage": "MEASURING",
+  "rep": "M073_QWEN_MAIN_SHORT_C64_rep2",
+  "reason": "rc=1 completed=None failed=None n=256",
+  "stderr_tail": "main\n    return asyncio.run(main_async(args))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 194, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/base_events.py\", line 687, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py\", line 2137, in main_async\n    input_requests = get_samples(args, tokenizer)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2108, in get_samples\n    dataset = CustomDataset(\n              ^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2520, in __init__\n    self.load_data()\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2535, in load_data\n    jsonl_data = pd.read_json(path_or_buf=self.dataset_path, lines=True)\n                 ^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/utils/import_utils.py\", line 311, in __getattr__\n    raise ImportError(msg) from exc\nImportError: Please install vllm[bench] for bench support\ntime=\"2026-09-17T08:08:26+09:00\" level=fatal msg=\"exec failed with exit code 1\"\n"
+ },
+ {
+  "t": {
+   "wall_utc": "2026-09-16T23:08:48.725582+00:00",
+   "wall_kst": "2026-09-17T08:08:48.725582+09:00",
+   "epoch": 1789600128.7255821,
+   "monotonic": 838130.418657849
+  },
+  "stage": "MEASURING",
+  "rep": "M073_QWEN_MAIN_SHORT_C64_rep3",
+  "reason": "rc=1 completed=None failed=None n=256",
+  "stderr_tail": "main\n    return asyncio.run(main_async(args))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 194, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/base_events.py\", line 687, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py\", line 2137, in main_async\n    input_requests = get_samples(args, tokenizer)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2108, in get_samples\n    dataset = CustomDataset(\n              ^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2520, in __init__\n    self.load_data()\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2535, in load_data\n    jsonl_data = pd.read_json(path_or_buf=self.dataset_path, lines=True)\n                 ^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/utils/import_utils.py\", line 311, in __getattr__\n    raise ImportError(msg) from exc\nImportError: Please install vllm[bench] for bench support\ntime=\"2026-09-17T08:08:46+09:00\" level=fatal msg=\"exec failed with exit code 1\"\n"
+ },
+ {
+  "t": {
+   "wall_utc": "2026-09-16T23:09:08.653601+00:00",
+   "wall_kst": "2026-09-17T08:09:08.653601+09:00",
+   "epoch": 1789600148.6536012,
+   "monotonic": 838150.34667699
+  },
+  "stage": "MEASURING",
+  "rep": "M073_QWEN_LOW_CONCURRENCY_C1_rep1",
+  "reason": "rc=1 completed=None failed=None n=16",
+  "stderr_tail": "main\n    return asyncio.run(main_async(args))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 194, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/base_events.py\", line 687, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py\", line 2137, in main_async\n    input_requests = get_samples(args, tokenizer)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2108, in get_samples\n    dataset = CustomDataset(\n              ^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2520, in __init__\n    self.load_data()\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2535, in load_data\n    jsonl_data = pd.read_json(path_or_buf=self.dataset_path, lines=True)\n                 ^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/utils/import_utils.py\", line 311, in __getattr__\n    raise ImportError(msg) from exc\nImportError: Please install vllm[bench] for bench support\ntime=\"2026-09-17T08:09:06+09:00\" level=fatal msg=\"exec failed with exit code 1\"\n"
+ },
+ {
+  "t": {
+   "wall_utc": "2026-09-16T23:09:29.052951+00:00",
+   "wall_kst": "2026-09-17T08:09:29.052951+09:00",
+   "epoch": 1789600169.0529513,
+   "monotonic": 838170.746027226
+  },
+  "stage": "MEASURING",
+  "rep": "M073_QWEN_LONGER_PREFILL_C8_rep1",
+  "reason": "rc=1 completed=None failed=None n=32",
+  "stderr_tail": "main\n    return asyncio.run(main_async(args))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 194, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/asyncio/base_events.py\", line 687, in run_until_complete\n    return future.result()\n           ^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py\", line 2137, in main_async\n    input_requests = get_samples(args, tokenizer)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2108, in get_samples\n    dataset = CustomDataset(\n              ^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2520, in __init__\n    self.load_data()\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/datasets/datasets.py\", line 2535, in load_data\n    jsonl_data = pd.read_json(path_or_buf=self.dataset_path, lines=True)\n                 ^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/vllm/utils/import_utils.py\", line 311, in __getattr__\n    raise ImportError(msg) from exc\nImportError: Please install vllm[bench] for bench support\ntime=\"2026-09-17T08:09:26+09:00\" level=fatal msg=\"exec failed with exit code 1\"\n"
+ }
+]

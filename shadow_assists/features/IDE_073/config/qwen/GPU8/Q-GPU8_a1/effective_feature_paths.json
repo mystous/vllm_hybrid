@@ -1,0 +1,119 @@
+{
+ "per_layer_effective": null,
+ "per_layer_sum": null,
+ "cf_ready_lines": "0",
+ "server_args_log_graph_fields": [
+  [
+   "kv_cache_dtype",
+   "'auto'"
+  ],
+  [
+   "max_running_requests",
+   "64"
+  ],
+  [
+   "chunked_prefill_size",
+   "8192"
+  ],
+  [
+   "schedule_policy",
+   "'fcfs'"
+  ],
+  [
+   "page_size",
+   "1"
+  ],
+  [
+   "page_size",
+   "16"
+  ],
+  [
+   "cuda_graph_config",
+   "CudaGraphConfig(decode=PhaseConfig(backend='full'"
+  ],
+  [
+   "cuda_graph_backend_decode",
+   "None"
+  ],
+  [
+   "cuda_graph_backend_prefill",
+   "'disabled'"
+  ],
+  [
+   "cuda_graph_max_bs_decode",
+   "64"
+  ],
+  [
+   "cuda_graph_max_bs_prefill",
+   "None"
+  ],
+  [
+   "cuda_graph_bs_decode",
+   "None"
+  ],
+  [
+   "cuda_graph_bs_prefill",
+   "None"
+  ],
+  [
+   "cuda_graph_tc_compiler",
+   "None"
+  ],
+  [
+   "cuda_graph",
+   "False"
+  ],
+  [
+   "cuda_graph",
+   "False"
+  ],
+  [
+   "disable_cuda_graph",
+   "False"
+  ],
+  [
+   "disable_cuda_graph_padding",
+   "False"
+  ],
+  [
+   "cuda_graph",
+   "False"
+  ],
+  [
+   "cuda_graph",
+   "False"
+  ],
+  [
+   "kv_cache_dtype",
+   "None"
+  ]
+ ],
+ "capture_log_lines": [
+  "[2026-09-16 23:07:13 TP0 EP0] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[1, 2, 4, 8, 12, 16, 24, 32, 40, 48, 56, 64], avail mem=17.18 GB",
+  "[2026-09-16 23:07:13 TP7 EP7] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[1, 2, 4, 8, 12, 16, 24, 32, 40, 48, 56, 64], avail mem=17.55 GB",
+  "[2026-09-16 23:07:13 TP6 EP6] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[1, 2, 4, 8, 12, 16, 24, 32, 40, 48, 56, 64], avail mem=17.08 GB",
+  "[2026-09-16 23:07:13 TP5 EP5] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[1, 2, 4, 8, 12, 16, 24, 32, 40, 48, 56, 64], avail mem=17.08 GB",
+  "[2026-09-16 23:07:13 TP4 EP4] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[1, 2, 4, 8, 12, 16, 24, 32, 40, 48, 56, 64], avail mem=17.08 GB",
+  "[2026-09-16 23:07:13 TP3 EP3] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[1, 2, 4, 8, 12, 16, 24, 32, 40, 48, 56, 64], avail mem=17.08 GB",
+  "[2026-09-16 23:07:13 TP2 EP2] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[1, 2, 4, 8, 12, 16, 24, 32, 40, 48, 56, 64], avail mem=17.08 GB",
+  "[2026-09-16 23:07:13 TP1 EP1] Capture target decode CUDA graph begin. backend=full, num_tokens_per_req=1, bs=[1, 2, 4, 8, 12, 16, 24, 32, 40, 48, 56, 64], avail mem=17.08 GB",
+  "[2026-09-16 23:07:23 TP0 EP0] Capture target decode CUDA graph end. elapsed=10.44 s, mem usage=0.22 GB, avail mem=16.96 GB.",
+  "[2026-09-16 23:07:23 TP6 EP6] Capture target decode CUDA graph end. elapsed=10.44 s, mem usage=0.22 GB, avail mem=16.86 GB.",
+  "[2026-09-16 23:07:23 TP4 EP4] Capture target decode CUDA graph end. elapsed=10.50 s, mem usage=0.22 GB, avail mem=16.86 GB.",
+  "[2026-09-16 23:07:23 TP7 EP7] Capture target decode CUDA graph end. elapsed=10.50 s, mem usage=0.22 GB, avail mem=17.33 GB.",
+  "[2026-09-16 23:07:23 TP5 EP5] Capture target decode CUDA graph end. elapsed=10.50 s, mem usage=0.22 GB, avail mem=16.86 GB.",
+  "[2026-09-16 23:07:23 TP1 EP1] Capture target decode CUDA graph end. elapsed=10.50 s, mem usage=0.22 GB, avail mem=16.86 GB.",
+  "[2026-09-16 23:07:23 TP3 EP3] Capture target decode CUDA graph end. elapsed=10.50 s, mem usage=0.22 GB, avail mem=16.86 GB.",
+  "[2026-09-16 23:07:23 TP2 EP2] Capture target decode CUDA graph end. elapsed=10.51 s, mem usage=0.22 GB, avail mem=16.86 GB."
+ ],
+ "kt_worker_cpus": [],
+ "pin": null,
+ "feature_paths": {
+  "KT_CALLBACK_FREE": "kt_kernel/experts_base.py:880,996 (bool(env)); [kt-cf] ready 로그",
+  "KT_CF_SKIP_EMPTY_IMM": "experts_base.py:853 (CF and deferred>=topk)",
+  "KT_AVX_RB": "amx_kernels.hpp:1769 getenv!=NULL → avx_rb_on()",
+  "KT_GPU_EXPERTS_PER_LAYER": "kt_ep_wrapper.py create_kt_config_from_server_args (로컬 패치)",
+  "deferred": "experts_base.py select_deferred_experts protected_k=topk-max_deferred (KT_COLD_DEFER unset)",
+  "sglang_tree": "/sgl-workspace/sglang (로컬 패치 tree)"
+ }
+}

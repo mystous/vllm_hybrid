@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/mystous/projects/vllm_hybrid/eval/ide073/run_campaign.py", line 115, in <module>
+    main()
+  File "/home/mystous/projects/vllm_hybrid/eval/ide073/run_campaign.py", line 106, in main
+    stt = run(s, cid, model, prof, W, quality=qual, replay=replay, kinds=["PERF"] * sum(w.get("reps", 1) for w in W) + (["QUALITY"] if qual else []), attempt=att, note=note)
+  File "/home/mystous/projects/vllm_hybrid/eval/ide073/run_campaign.py", line 52, in run
+    c = cfg(model, profile)
+  File "/home/mystous/projects/vllm_hybrid/eval/ide073/run_campaign.py", line 33, in cfg
+    return dict(COMMON4, **g, **{"kt-weight-path": p["kt_weight_path"], "kt-method": p["kt_method"], "kt-cpuinfer": 96, "kt-threadpool-count": 2, "kt-num-gpu-experts": 80, "init-expert-location": p["hotmap"], "kt-max-deferred-experts-per-token": 8, "ep-dispatch-algorithm": "dynamic"}), {"KT_CALLBACK_FREE": "1", "KT_CF_SKIP_EMPTY_IMM": "1", "KT_GPU_EXPERTS_PER_LAYER": p["budget"], "KT_AVX_RB": "0"}, "0,1,2,3", True, "per_layer"
+KeyError: 'kt_weight_path'

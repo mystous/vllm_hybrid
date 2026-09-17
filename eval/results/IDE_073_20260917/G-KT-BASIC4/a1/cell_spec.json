@@ -1,0 +1,73 @@
+{
+ "cell_id": "G-KT-BASIC4",
+ "phase_id": "IDE_073",
+ "parent_cell_id": null,
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8perchannel_CPU_FP8perchannel",
+ "workloads": [
+  {
+   "workload_id": "M073_GLM_MAIN_SHORT",
+   "C": 64,
+   "reps": 3
+  },
+  {
+   "workload_id": "M073_GLM_LOW_CONCURRENCY",
+   "C": 1,
+   "n": 16,
+   "reps": 1
+  },
+  {
+   "workload_id": "M073_GLM_LONGER_PREFILL",
+   "C": 8,
+   "n": 32,
+   "reps": 1
+  }
+ ],
+ "env": {},
+ "server_args": {
+  "host": "127.0.0.1",
+  "port": 30000,
+  "tp": 4,
+  "context-length": 32768,
+  "trust-remote-code": true,
+  "kv-cache-dtype": "auto",
+  "max-total-tokens": 40960,
+  "mem-fraction-static": 0.95,
+  "max-running-requests": 64,
+  "cuda-graph-max-bs": 64,
+  "cuda-graph-backend-prefill": "disabled",
+  "model-path": "/models/hub/models--zai-org--GLM-4.7-FP8/snapshots/7b3b5f81eee81be12a6f8da2710eac4bafb0166a",
+  "served-model-name": "glm47",
+  "attention-backend": "flashinfer",
+  "fp8-gemm-backend": "triton",
+  "enable-p2p-check": true,
+  "disable-shared-experts-fusion": true,
+  "enable-mixed-chunk": true,
+  "chunked-prefill-size": 4096,
+  "kt-weight-path": "/models/hub/models--zai-org--GLM-4.7-FP8/snapshots/7b3b5f81eee81be12a6f8da2710eac4bafb0166a",
+  "kt-method": "FP8_PERCHANNEL",
+  "kt-cpuinfer": 100,
+  "kt-threadpool-count": 2,
+  "kt-num-gpu-experts": 80,
+  "kt-max-deferred-experts-per-token": 2
+ },
+ "replace_server_args": true,
+ "gpus": "0,1,2,3",
+ "pin_nonkt": false,
+ "patch": null,
+ "expected_slots": 7120,
+ "boot_timeout": 900,
+ "bench_timeout": 1200,
+ "replay_timeout": 300,
+ "quality20": {
+  "questions": "/home/mystous/.cache/huggingface/kt/ide073/inputs/glm/quality_requests.jsonl",
+  "thinking_off": true,
+  "model": "glm47"
+ },
+ "replay": false,
+ "note": "공식 기본 4장: MAIN×3·LOW·LONG·품질20 (1 부팅, 공식 checkout PYTHONPATH)",
+ "model": "glm",
+ "profile": "BASIC4",
+ "config_hash": "ea2291a0d6d77b36"
+}

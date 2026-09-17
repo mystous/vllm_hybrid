@@ -1,0 +1,26 @@
+{
+ "server_args": {
+  "host": "127.0.0.1",
+  "port": 30000,
+  "tp": 8,
+  "context-length": 32768,
+  "trust-remote-code": true,
+  "kv-cache-dtype": "auto",
+  "max-total-tokens": 40960,
+  "mem-fraction-static": 0.9,
+  "max-running-requests": 64,
+  "cuda-graph-max-bs": 64,
+  "cuda-graph-backend-prefill": "disabled",
+  "model-path": "/models/hub/models--zai-org--GLM-4.7-FP8/snapshots/7b3b5f81eee81be12a6f8da2710eac4bafb0166a",
+  "served-model-name": "glm47",
+  "attention-backend": "flashinfer",
+  "fp8-gemm-backend": "triton",
+  "enable-p2p-check": true,
+  "disable-shared-experts-fusion": true,
+  "enable-mixed-chunk": true,
+  "chunked-prefill-size": 4096,
+  "ep-size": 8
+ },
+ "env": {},
+ "gpus": "0,1,2,3,4,5,6,7"
+}

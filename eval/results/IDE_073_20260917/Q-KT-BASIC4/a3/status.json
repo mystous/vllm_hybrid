@@ -1,0 +1,89 @@
+{
+ "campaign_dir": "/home/mystous/projects/vllm_hybrid/eval/results/IDE_073_20260917",
+ "cell_id": "Q-KT-BASIC4",
+ "attempt_id": "a3",
+ "state": "FAILED_BOOT",
+ "state_history": [
+  {
+   "state": "PENDING",
+   "t": {
+    "wall_utc": "2026-09-16T23:19:15.147123+00:00",
+    "wall_kst": "2026-09-17T08:19:15.147123+09:00",
+    "epoch": 1789600755.1471233,
+    "monotonic": 838756.840199205
+   }
+  },
+  {
+   "state": "PREFLIGHT",
+   "t": {
+    "wall_utc": "2026-09-16T23:19:15.147907+00:00",
+    "wall_kst": "2026-09-17T08:19:15.147907+09:00",
+    "epoch": 1789600755.1479065,
+    "monotonic": 838756.840982443
+   }
+  },
+  {
+   "state": "BOOTING",
+   "t": {
+    "wall_utc": "2026-09-16T23:19:21.894691+00:00",
+    "wall_kst": "2026-09-17T08:19:21.894691+09:00",
+    "epoch": 1789600761.8946908,
+    "monotonic": 838763.587767718
+   }
+  },
+  {
+   "state": "FAILED_BOOT",
+   "t": {
+    "wall_utc": "2026-09-16T23:19:58.172266+00:00",
+    "wall_kst": "2026-09-17T08:19:58.172266+09:00",
+    "epoch": 1789600798.1722658,
+    "monotonic": 838799.865341353
+   }
+  }
+ ],
+ "reps": [],
+ "t_created": {
+  "wall_utc": "2026-09-16T23:19:15.147099+00:00",
+  "wall_kst": "2026-09-17T08:19:15.147099+09:00",
+  "epoch": 1789600755.1470985,
+  "monotonic": 838756.840174664
+ },
+ "errors": [
+  {
+   "t": {
+    "wall_utc": "2026-09-16T23:19:58.172208+00:00",
+    "wall_kst": "2026-09-17T08:19:58.172208+09:00",
+    "epoch": 1789600798.1722083,
+    "monotonic": 838799.865285316
+   },
+   "stage": "BOOTING",
+   "verdict": "DIED",
+   "error_lines": "20:[2026-09-16 23:19:56 TP1] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang-upstream/python/sglang/srt/managers/mm_utils.py)\n21:[2026-09-16 23:19:56 TP3] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang-upstream/python/sglang/srt/managers/mm_utils.py)\n22:[2026-09-16 23:19:56 TP0] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang-upstream/python/sglang/srt/managers/mm_utils.py)\n23:[2026-09-16 23:19:56 TP2] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang-upstream/python/sglang/srt/managers/mm_utils.py)\n32:[2026-09-16 23:19:56 TP0] Scheduler hit an exception: Traceback (most recent call last):\n94:TypeError: KTMoEWrapper.__new__() missing 1 required positional argument: 'gpu_experts_mask'\n96:[2026-09-16 23:19:56] Received sigquit from a child process. It usually means the child failed.\n"
+  }
+ ],
+ "boot": {
+  "verdict": "DIED",
+  "boot_seconds": 36.06278086092789,
+  "t_boot_start": {
+   "wall_utc": "2026-09-16T23:19:21.895954+00:00",
+   "wall_kst": "2026-09-17T08:19:21.895954+09:00",
+   "epoch": 1789600761.8959541,
+   "monotonic": 838763.589030083
+  },
+  "t_boot_end": {
+   "wall_utc": "2026-09-16T23:19:57.958734+00:00",
+   "wall_kst": "2026-09-17T08:19:57.958734+09:00",
+   "epoch": 1789600797.9587338,
+   "monotonic": 838799.651810944
+  },
+  "launch_cmd": "PYTHONPATH=/sgl-workspace/sglang-upstream/python CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m sglang.launch_server --host 127.0.0.1 --port 30000 --tp 4 --context-length 32768 --trust-remote-code --kv-cache-dtype auto --max-total-tokens 40960 --mem-fraction-static 0.95 --max-running-requests 64 --cuda-graph-max-bs 64 --cuda-graph-backend-prefill disabled --model-path /models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f --served-model-name qwen480 --attention-backend triton --kt-weight-path /models/kt/qwen3-480b-int4 --kt-method AMXINT4 --kt-cpuinfer 112 --kt-threadpool-count 2 --kt-num-gpu-experts 96 --kt-max-deferred-experts-per-token 2 --chunked-prefill-size 8192",
+  "error_lines": "20:[2026-09-16 23:19:56 TP1] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang-upstream/python/sglang/srt/managers/mm_utils.py)\n21:[2026-09-16 23:19:56 TP3] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang-upstream/python/sglang/srt/managers/mm_utils.py)\n22:[2026-09-16 23:19:56 TP0] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang-upstream/python/sglang/srt/managers/mm_utils.py)\n23:[2026-09-16 23:19:56 TP2] Ignore import error when loading sglang.srt.models.sarashina2_vision: cannot import name 'MultimodalDataItem' from 'sglang.srt.managers.mm_utils' (/sgl-workspace/sglang-upstream/python/sglang/srt/managers/mm_utils.py)\n32:[2026-09-16 23:19:56 TP0] Scheduler hit an exception: Traceback (most recent call last):\n94:TypeError: KTMoEWrapper.__new__() missing 1 required positional argument: 'gpu_experts_mask'\n96:[2026-09-16 23:19:56] Received sigquit from a child process. It usually means the child failed.\n"
+ },
+ "exit_status": "FAILED_BOOT",
+ "t_finished": {
+  "wall_utc": "2026-09-16T23:20:04.750725+00:00",
+  "wall_kst": "2026-09-17T08:20:04.750725+09:00",
+  "epoch": 1789600804.7507248,
+  "monotonic": 838806.443802269
+ }
+}

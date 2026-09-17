@@ -1,0 +1,76 @@
+{
+ "cell_id": "Q-OPT4-b1",
+ "phase_id": "IDE_073",
+ "parent_cell_id": null,
+ "change_kind": "CONFIG",
+ "semantics_family": "SEMANTICS_UNVERIFIED",
+ "precision_family": "GPU_FP8block_CPU_INT4",
+ "workloads": [
+  {
+   "workload_id": "M073_QWEN_MAIN_SHORT",
+   "C": 64,
+   "reps": 1
+  },
+  {
+   "workload_id": "M073_QWEN_LOW_CONCURRENCY",
+   "C": 1,
+   "n": 16,
+   "reps": 1
+  },
+  {
+   "workload_id": "M073_QWEN_LONGER_PREFILL",
+   "C": 8,
+   "n": 32,
+   "reps": 1
+  }
+ ],
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1",
+  "KT_GPU_EXPERTS_PER_LAYER": "/models/kt/ide070/layer_budget_5952.json",
+  "KT_AVX_RB": "0"
+ },
+ "server_args": {
+  "host": "127.0.0.1",
+  "port": 30000,
+  "tp": 4,
+  "context-length": 32768,
+  "trust-remote-code": true,
+  "kv-cache-dtype": "auto",
+  "max-total-tokens": 40960,
+  "mem-fraction-static": 0.95,
+  "max-running-requests": 64,
+  "cuda-graph-max-bs": 64,
+  "cuda-graph-backend-prefill": "disabled",
+  "model-path": "/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f",
+  "served-model-name": "qwen480",
+  "attention-backend": "triton",
+  "kt-weight-path": "/models/kt/qwen3-480b-int4",
+  "kt-method": "AMXINT4",
+  "kt-cpuinfer": 96,
+  "kt-threadpool-count": 2,
+  "kt-num-gpu-experts": 96,
+  "init-expert-location": "/models/kt/ide070/hotmap_v2.json",
+  "kt-max-deferred-experts-per-token": 8,
+  "ep-dispatch-algorithm": "dynamic",
+  "chunked-prefill-size": 8192
+ },
+ "replace_server_args": true,
+ "gpus": "0,1,2,3",
+ "pin_nonkt": true,
+ "patch": "per_layer",
+ "expected_slots": 5952,
+ "boot_timeout": 900,
+ "bench_timeout": 1200,
+ "replay_timeout": 300,
+ "quality20": {
+  "questions": "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/quality_requests.jsonl",
+  "thinking_off": false,
+  "model": "qwen480"
+ },
+ "replay": true,
+ "note": "최고 구성 4장 첫 부팅: MAIN×1·LOW·LONG·품질20·REPLAY",
+ "model": "qwen",
+ "profile": "OPT4",
+ "config_hash": "f0cdcc4f039f4f13"
+}

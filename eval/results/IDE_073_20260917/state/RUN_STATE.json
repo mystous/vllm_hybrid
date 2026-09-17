@@ -1,0 +1,285 @@
+{
+ "campaign_id": "IDE_073_20260917",
+ "t0_kst": "2026-09-17T07:45:00+0900",
+ "t0_epoch": 1789598700,
+ "phase": "glm/BASIC4",
+ "current": null,
+ "counts": {
+  "completed": 5,
+  "failed": 0,
+  "blocked": 0,
+  "registered": 6
+ },
+ "next": "Q-GPU8 자격·성능 → Q-KT-BASIC4 → Q-OPT4 → Qwen 품질·프로브 → (GLM 다운로드 완료 후) G-GPU8 → G-KT-BASIC4 → G 변환/OPT4",
+ "eta": "GLM 다운로드 ~75 min (80 MB/s 기준) · Qwen 3구성 ~2.5 h · GLM 3구성+변환 ~3.5 h → 전체 종료 추정 9-17 15~16시 (준비·부팅 실측 후 갱신)",
+ "t_update": "2026-09-17T07:59:34+0900",
+ "cells": {
+  "Q-GPU8": {
+   "status": "COMPLETED",
+   "model": "qwen",
+   "profile": "GPU8",
+   "attempt": "a2",
+   "boot_s": 77.43218670797069,
+   "reps": [
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep1",
+     1555.3561139652609,
+     256,
+     true
+    ],
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep2",
+     1553.597878425094,
+     256,
+     true
+    ],
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep3",
+     1555.6692736608318,
+     256,
+     true
+    ],
+    [
+     "M073_QWEN_LOW_CONCURRENCY_C1_rep1",
+     82.50222133105986,
+     16,
+     true
+    ],
+    [
+     "M073_QWEN_LONGER_PREFILL_C8_rep1",
+     267.38986127939853,
+     32,
+     true
+    ]
+   ],
+   "quality": "Q20 19/20 exact, unscored 0, truncated 0, errors 0",
+   "mismatch": [],
+   "n_errors": 0,
+   "wall_s": 344.5240387916565
+  },
+  "Q-KT-BASIC4": {
+   "status": "COMPLETED",
+   "model": "qwen",
+   "profile": "BASIC4",
+   "attempt": "a4",
+   "boot_s": 116.91953770804685,
+   "reps": [
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep1",
+     137.4265910404229,
+     256,
+     true
+    ],
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep2",
+     141.31157541026167,
+     256,
+     true
+    ],
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep3",
+     142.65785353880042,
+     256,
+     true
+    ],
+    [
+     "M073_QWEN_LOW_CONCURRENCY_C1_rep1",
+     30.388325339000737,
+     16,
+     true
+    ],
+    [
+     "M073_QWEN_LONGER_PREFILL_C8_rep1",
+     32.822447786121415,
+     32,
+     true
+    ]
+   ],
+   "quality": "Q20 19/20 exact, unscored 0, truncated 0, errors 0",
+   "mismatch": [],
+   "n_errors": 0,
+   "wall_s": 1295.2491359710693
+  },
+  "Q-OPT4-b1": {
+   "status": "COMPLETED",
+   "model": "qwen",
+   "profile": "OPT4",
+   "attempt": "a1",
+   "boot_s": 121.93733747804072,
+   "reps": [
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep1",
+     689.4328951074148,
+     256,
+     true
+    ],
+    [
+     "M073_QWEN_LOW_CONCURRENCY_C1_rep1",
+     63.12810638550363,
+     16,
+     true
+    ],
+    [
+     "M073_QWEN_LONGER_PREFILL_C8_rep1",
+     162.25968593180085,
+     32,
+     true
+    ]
+   ],
+   "quality": "Q20 20/20 exact, unscored 0, truncated 0, errors 0",
+   "mismatch": [],
+   "n_errors": 0,
+   "wall_s": 426.9292628765106
+  },
+  "Q-OPT4-b2": {
+   "status": "COMPLETED",
+   "model": "qwen",
+   "profile": "OPT4",
+   "attempt": "a1",
+   "boot_s": 114.02608674706426,
+   "reps": [
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep1",
+     705.7274958478081,
+     256,
+     true
+    ],
+    [
+     "M073_QWEN_MAIN_SHORT_C64_rep2",
+     749.6813018817861,
+     256,
+     true
+    ]
+   ],
+   "quality": null,
+   "mismatch": [],
+   "n_errors": 0,
+   "wall_s": 297.55236625671387
+  },
+  "G-GPU8": {
+   "status": "COMPLETED",
+   "model": "glm",
+   "profile": "GPU8",
+   "attempt": "a1",
+   "boot_s": 328.3808916689595,
+   "reps": [
+    [
+     "M073_GLM_MAIN_SHORT_C64_rep1",
+     1238.0263425880435,
+     256,
+     true
+    ],
+    [
+     "M073_GLM_MAIN_SHORT_C64_rep2",
+     1238.748488835167,
+     256,
+     true
+    ],
+    [
+     "M073_GLM_MAIN_SHORT_C64_rep3",
+     1231.5254739536454,
+     256,
+     true
+    ],
+    [
+     "M073_GLM_LOW_CONCURRENCY_C1_rep1",
+     79.35715931176998,
+     16,
+     true
+    ],
+    [
+     "M073_GLM_LONGER_PREFILL_C8_rep1",
+     228.78077849591773,
+     32,
+     true
+    ]
+   ],
+   "quality": "Q20 19/20 exact, unscored 0, truncated 0, errors 0",
+   "mismatch": [],
+   "n_errors": 0,
+   "wall_s": 622.4478597640991
+  },
+  "G-KT-BASIC4": {
+   "status": null,
+   "model": "glm",
+   "profile": "BASIC4",
+   "attempt": "a1",
+   "boot_s": 242.87220852891915,
+   "reps": [
+    [
+     "M073_GLM_MAIN_SHORT_C64_rep1",
+     46.44685664850061,
+     256,
+     true
+    ],
+    [
+     "M073_GLM_MAIN_SHORT_C64_rep2",
+     46.463548085715516,
+     256,
+     true
+    ],
+    [
+     "M073_GLM_MAIN_SHORT_C64_rep3",
+     46.43628725019262,
+     256,
+     true
+    ],
+    [
+     "M073_GLM_LOW_CONCURRENCY_C1_rep1",
+     17.510601512682996,
+     16,
+     true
+    ],
+    [
+     "M073_GLM_LONGER_PREFILL_C8_rep1",
+     7.4454543105236874,
+     32,
+     true
+    ]
+   ],
+   "quality": null,
+   "mismatch": [],
+   "n_errors": 0,
+   "wall_s": 3622.8219916820526
+  },
+  "G-OPT4-b1": {
+   "status": "NOT_RUN_DEPENDENCY",
+   "reason": "OPT4 plan OPT_TRANSFER_BLOCKED_FORMAT",
+   "model": "glm",
+   "profile": "OPT4"
+  },
+  "G-OPT4-b2": {
+   "status": "NOT_RUN_DEPENDENCY",
+   "reason": "OPT4 plan OPT_TRANSFER_BLOCKED_FORMAT",
+   "model": "glm",
+   "profile": "OPT4"
+  }
+ },
+ "recent": [
+  "Q-KT-BASIC4:FAILED_BOOT reps=[]",
+  "Q-OPT4-b1:COMPLETED reps=[('M073_QWEN_MAIN_SHORT_C64_rep1', 689.4), ('M073_QWEN_LOW_CONCURRENCY_C1_rep1', 63.1), ('M073_QWEN_LONGER_PREFILL_C8_rep1', 162.3)]",
+  "Q-OPT4-b2:COMPLETED reps=[('M073_QWEN_MAIN_SHORT_C64_rep1', 705.7), ('M073_QWEN_MAIN_SHORT_C64_rep2', 749.7)]",
+  "Q-KT-BASIC4:COMPLETED reps=[('M073_QWEN_MAIN_SHORT_C64_rep1', 137.4), ('M073_QWEN_MAIN_SHORT_C64_rep2', 141.3), ('M073_QWEN_MAIN_SHORT_C64_rep3', 142.7), ('M073_QWEN_LOW_CONCURRENCY_C1_rep1', 30.4), ('M073_QWEN_LONGER_PREFILL_C8_rep1', 32.8)]",
+  "G-GPU8:COMPLETED reps=[('M073_GLM_MAIN_SHORT_C64_rep1', 1238.0), ('M073_GLM_MAIN_SHORT_C64_rep2', 1238.7), ('M073_GLM_MAIN_SHORT_C64_rep3', 1231.5), ('M073_GLM_LOW_CONCURRENCY_C1_rep1', 79.4), ('M073_GLM_LONGER_PREFILL_C8_rep1', 228.8)]",
+  "G-KT-BASIC4:None reps=[('M073_GLM_MAIN_SHORT_C64_rep1', 46.4), ('M073_GLM_MAIN_SHORT_C64_rep2', 46.5), ('M073_GLM_MAIN_SHORT_C64_rep3', 46.4), ('M073_GLM_LOW_CONCURRENCY_C1_rep1', 17.5), ('M073_GLM_LONGER_PREFILL_C8_rep1', 7.4)]"
+ ],
+ "usage": {
+  "PERF": 25,
+  "DIAG": 3,
+  "EXTRA": 2,
+  "SESSIONS": 30,
+  "BOOT": 13,
+  "QUALITY_Q": 120
+ },
+ "errors_recent": [
+  "Q-KT-BASIC4: DIED"
+ ],
+ "status": "COMPLETED_WITH_FAILURES",
+ "failures": [
+  "G-OPT4-b1/b2 NOT_RUN_DEPENDENCY (GLM INT4 변환 차단: OPT_TRANSFER_BLOCKED_FORMAT)",
+  "glm 프로브 NOT_RUN (의존)",
+  "G-KT-BASIC4 품질 20문항 타임아웃(부분)",
+  "qwen D2 1차 트레이스 GPU 활동 누락(프로브 코드 오류) → 재실행 1회로 대체"
+ ],
+ "completed_at_kst": "2026-09-17T11:07:27.031964+09:00"
+}

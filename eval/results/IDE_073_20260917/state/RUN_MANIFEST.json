@@ -1,0 +1,197 @@
+{
+ "campaign_id": "IDE_073_20260917",
+ "budget": {
+  "PERF": 30,
+  "DIAG": 8,
+  "EXTRA": 6,
+  "SESSIONS": 44,
+  "BOOT": 20,
+  "QUALITY_Q": 120
+ },
+ "cells": {
+  "Q-GPU8": {
+   "model": "qwen",
+   "profile": "GPU8",
+   "workloads": [
+    {
+     "workload_id": "M073_QWEN_MAIN_SHORT",
+     "C": 64,
+     "reps": 3
+    },
+    {
+     "workload_id": "M073_QWEN_LOW_CONCURRENCY",
+     "C": 1,
+     "n": 16,
+     "reps": 1
+    },
+    {
+     "workload_id": "M073_QWEN_LONGER_PREFILL",
+     "C": 8,
+     "n": 32,
+     "reps": 1
+    }
+   ],
+   "quality": true,
+   "note": "GPU-only 8장 참조: 자격(smoke)·MAIN×3·LOW·LONG·품질20 (1 부팅)",
+   "status": "COMPLETED"
+  },
+  "Q-KT-BASIC4": {
+   "model": "qwen",
+   "profile": "BASIC4",
+   "workloads": [
+    {
+     "workload_id": "M073_QWEN_MAIN_SHORT",
+     "C": 64,
+     "reps": 3
+    },
+    {
+     "workload_id": "M073_QWEN_LOW_CONCURRENCY",
+     "C": 1,
+     "n": 16,
+     "reps": 1
+    },
+    {
+     "workload_id": "M073_QWEN_LONGER_PREFILL",
+     "C": 8,
+     "n": 32,
+     "reps": 1
+    }
+   ],
+   "quality": true,
+   "note": "공식 기본 4장: MAIN×3·LOW·LONG·품질20 (1 부팅, 공식 checkout PYTHONPATH)",
+   "status": "COMPLETED"
+  },
+  "Q-OPT4-b1": {
+   "model": "qwen",
+   "profile": "OPT4",
+   "workloads": [
+    {
+     "workload_id": "M073_QWEN_MAIN_SHORT",
+     "C": 64,
+     "reps": 1
+    },
+    {
+     "workload_id": "M073_QWEN_LOW_CONCURRENCY",
+     "C": 1,
+     "n": 16,
+     "reps": 1
+    },
+    {
+     "workload_id": "M073_QWEN_LONGER_PREFILL",
+     "C": 8,
+     "n": 32,
+     "reps": 1
+    }
+   ],
+   "quality": true,
+   "note": "최고 구성 4장 첫 부팅: MAIN×1·LOW·LONG·품질20·REPLAY",
+   "status": "COMPLETED"
+  },
+  "Q-OPT4-b2": {
+   "model": "qwen",
+   "profile": "OPT4",
+   "workloads": [
+    {
+     "workload_id": "M073_QWEN_MAIN_SHORT",
+     "C": 64,
+     "reps": 2
+    }
+   ],
+   "quality": false,
+   "note": "최고 구성 새 부팅: MAIN×2 (재기동 재현)",
+   "status": "COMPLETED"
+  },
+  "G-GPU8": {
+   "model": "glm",
+   "profile": "GPU8",
+   "workloads": [
+    {
+     "workload_id": "M073_GLM_MAIN_SHORT",
+     "C": 64,
+     "reps": 3
+    },
+    {
+     "workload_id": "M073_GLM_LOW_CONCURRENCY",
+     "C": 1,
+     "n": 16,
+     "reps": 1
+    },
+    {
+     "workload_id": "M073_GLM_LONGER_PREFILL",
+     "C": 8,
+     "n": 32,
+     "reps": 1
+    }
+   ],
+   "quality": true,
+   "note": "GPU-only 8장 참조: 자격(smoke)·MAIN×3·LOW·LONG·품질20 (1 부팅)",
+   "status": "COMPLETED"
+  },
+  "G-KT-BASIC4": {
+   "model": "glm",
+   "profile": "BASIC4",
+   "workloads": [
+    {
+     "workload_id": "M073_GLM_MAIN_SHORT",
+     "C": 64,
+     "reps": 3
+    },
+    {
+     "workload_id": "M073_GLM_LOW_CONCURRENCY",
+     "C": 1,
+     "n": 16,
+     "reps": 1
+    },
+    {
+     "workload_id": "M073_GLM_LONGER_PREFILL",
+     "C": 8,
+     "n": 32,
+     "reps": 1
+    }
+   ],
+   "quality": true,
+   "note": "성능 5세션 유효, 품질 20문항 부분(INVALID_TIMED_OUT), 품질 예산 120/120 소진으로 재실행 없음",
+   "status": "TIMED_OUT_DURING_QUALITY"
+  },
+  "G-OPT4-b1": {
+   "model": "glm",
+   "profile": "OPT4",
+   "workloads": [
+    {
+     "workload_id": "M073_GLM_MAIN_SHORT",
+     "C": 64,
+     "reps": 1
+    },
+    {
+     "workload_id": "M073_GLM_LOW_CONCURRENCY",
+     "C": 1,
+     "n": 16,
+     "reps": 1
+    },
+    {
+     "workload_id": "M073_GLM_LONGER_PREFILL",
+     "C": 8,
+     "n": 32,
+     "reps": 1
+    }
+   ],
+   "quality": true,
+   "note": "최고 구성 4장 첫 부팅: MAIN×1·LOW·LONG·품질20·REPLAY",
+   "status": "NOT_RUN_DEPENDENCY"
+  },
+  "G-OPT4-b2": {
+   "model": "glm",
+   "profile": "OPT4",
+   "workloads": [
+    {
+     "workload_id": "M073_GLM_MAIN_SHORT",
+     "C": 64,
+     "reps": 2
+    }
+   ],
+   "quality": false,
+   "note": "최고 구성 새 부팅: MAIN×2 (재기동 재현)",
+   "status": "NOT_RUN_DEPENDENCY"
+  }
+ }
+}
