@@ -1,0 +1,145 @@
+{
+ "session": "S3_CORR",
+ "mode": "CORR",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 36.62466810992919,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 23.43602889799513,
+  "total_input_tokens": 65886,
+  "total_output_tokens": 16384,
+  "request_throughput": 5.4616761464631045,
+  "output_throughput": 699.0945467472774,
+  "total_token_throughput": 3510.407004449372,
+  "mean_ttft_ms": 2522.8672721805196,
+  "median_ttft_ms": 2282.8256094944663,
+  "p90_ttft_ms": 3221.5197364334017,
+  "p95_ttft_ms": 3223.2358345820103,
+  "p99_ttft_ms": 8892.707956631233,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 63.45623938187335,
+  "median_tpot_ms": 64.05298251156351,
+  "p90_tpot_ms": 72.07368993792522,
+  "p95_tpot_ms": 72.10685219739446,
+  "p99_tpot_ms": 77.52045738728035,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 63.456241345228925,
+  "median_itl_ms": 60.17389602493495,
+  "p95_itl_ms": 69.1409436694812,
+  "p99_itl_ms": 89.10341599839882,
+  "mean_e2el_ms": 10581.809673678436,
+  "median_e2el_ms": 10547.373061534017,
+  "p95_e2el_ms": 10675.103423465043,
+  "p99_e2el_ms": 12365.67491534167,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T06:39:26.427098+00:00",
+  "wall_kst": "2026-09-17T15:39:26.427098+09:00",
+  "epoch": 1789627166.427098,
+  "monotonic": 865168.120173784
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T06:40:03.101900+00:00",
+  "wall_kst": "2026-09-17T15:40:03.101900+09:00",
+  "epoch": 1789627203.1019,
+  "monotonic": 865204.794976761
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T06:40:04.357062+00:00",
+   "wall_kst": "2026-09-17T15:40:04.357062+09:00",
+   "epoch": 1789627204.3570616,
+   "monotonic": 865206.050140373
+  },
+  "drain_seconds": 1.2549177369801328,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  51399,
+  76013
+ ],
+ "first_go_ns": 1789627179395244933,
+ "last_deferred_end_ns": 1789627202687281973,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T06:39:26.407483+00:00",
+     "wall_kst": "2026-09-17T15:39:26.407483+09:00",
+     "epoch": 1789627166.4074829,
+     "monotonic": 865168.100567375
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T06:41:23.729675+00:00",
+     "wall_kst": "2026-09-17T15:41:23.729675+09:00",
+     "epoch": 1789627283.7296746,
+     "monotonic": 865285.42275051
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "S3_CORR_1789627166",
+    "arm_time": {
+     "wall_utc": "2026-09-17T06:39:26.426432+00:00",
+     "wall_kst": "2026-09-17T15:39:26.426432+09:00",
+     "epoch": 1789627166.426432,
+     "monotonic": 865168.119509253
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T06:41:18.722136+00:00",
+     "wall_kst": "2026-09-17T15:41:18.722136+09:00",
+     "epoch": 1789627278.7221365,
+     "monotonic": 865280.415212601
+    },
+    "trace_files": [
+     [
+      "S3_CORR_1789627166-TP-0.trace.json.gz",
+      59481776
+     ],
+     [
+      "S3_CORR_1789627166-TP-1.trace.json.gz",
+      25208429
+     ],
+     [
+      "S3_CORR_1789627166-TP-2.trace.json.gz",
+      25226081
+     ],
+     [
+      "S3_CORR_1789627166-TP-3.trace.json.gz",
+      25192278
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T06:41:23.729176+00:00",
+     "wall_kst": "2026-09-17T15:41:23.729176+09:00",
+     "epoch": 1789627283.7291756,
+     "monotonic": 865285.422252078
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "CORE_153555"
+}

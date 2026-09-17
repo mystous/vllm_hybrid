@@ -1,0 +1,145 @@
+{
+ "session": "S4_CORR",
+ "mode": "CORR",
+ "kind": "DIAG",
+ "workload": "M073_QWEN_PROBE128",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 37.15621279599145,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 23.3557402479928,
+  "total_input_tokens": 65886,
+  "total_output_tokens": 16384,
+  "request_throughput": 5.480451428252221,
+  "output_throughput": 701.4977828162843,
+  "total_token_throughput": 3522.474523455548,
+  "mean_ttft_ms": 2534.342634632594,
+  "median_ttft_ms": 2258.400899998378,
+  "p90_ttft_ms": 3202.8308772598393,
+  "p95_ttft_ms": 3204.5933904126287,
+  "p99_ttft_ms": 8732.069766446977,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 63.09260902725949,
+  "median_tpot_ms": 65.04552677506581,
+  "p90_tpot_ms": 70.98142454110994,
+  "p95_tpot_ms": 70.982231014256,
+  "p99_tpot_ms": 74.6008821695266,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 63.092610962299,
+  "median_itl_ms": 59.573434526100755,
+  "p95_itl_ms": 69.20058478135616,
+  "p99_itl_ms": 104.7037645650562,
+  "mean_e2el_ms": 10547.103981094551,
+  "median_e2el_ms": 10576.046214497183,
+  "p95_e2el_ms": 10591.480806103209,
+  "p99_e2el_ms": 12166.247926814258,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T06:41:30.323881+00:00",
+  "wall_kst": "2026-09-17T15:41:30.323881+09:00",
+  "epoch": 1789627290.3238811,
+  "monotonic": 865292.016956833
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T06:42:07.532975+00:00",
+  "wall_kst": "2026-09-17T15:42:07.532975+09:00",
+  "epoch": 1789627327.532975,
+  "monotonic": 865329.226050861
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T06:42:08.801878+00:00",
+   "wall_kst": "2026-09-17T15:42:08.801878+09:00",
+   "epoch": 1789627328.801878,
+   "monotonic": 865330.494956458
+  },
+  "drain_seconds": 1.268729540053755,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  76261,
+  100999
+ ],
+ "first_go_ns": 1789627303599828981,
+ "last_deferred_end_ns": 1789627326916705261,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T06:41:30.303928+00:00",
+     "wall_kst": "2026-09-17T15:41:30.303928+09:00",
+     "epoch": 1789627290.303928,
+     "monotonic": 865291.997007532
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T06:43:28.288931+00:00",
+     "wall_kst": "2026-09-17T15:43:28.288931+09:00",
+     "epoch": 1789627408.288931,
+     "monotonic": 865409.982007475
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "S4_CORR_1789627290",
+    "arm_time": {
+     "wall_utc": "2026-09-17T06:41:30.323296+00:00",
+     "wall_kst": "2026-09-17T15:41:30.323296+09:00",
+     "epoch": 1789627290.323296,
+     "monotonic": 865292.01637336
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T06:43:23.282176+00:00",
+     "wall_kst": "2026-09-17T15:43:23.282176+09:00",
+     "epoch": 1789627403.2821755,
+     "monotonic": 865404.975251686
+    },
+    "trace_files": [
+     [
+      "S4_CORR_1789627290-TP-0.trace.json.gz",
+      59692971
+     ],
+     [
+      "S4_CORR_1789627290-TP-1.trace.json.gz",
+      25480062
+     ],
+     [
+      "S4_CORR_1789627290-TP-2.trace.json.gz",
+      25495348
+     ],
+     [
+      "S4_CORR_1789627290-TP-3.trace.json.gz",
+      25451886
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T06:43:28.288388+00:00",
+     "wall_kst": "2026-09-17T15:43:28.288388+09:00",
+     "epoch": 1789627408.2883883,
+     "monotonic": 865409.981465057
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "CORE_153555"
+}

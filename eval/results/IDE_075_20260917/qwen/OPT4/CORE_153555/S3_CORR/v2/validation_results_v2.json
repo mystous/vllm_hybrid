@@ -1,0 +1,157 @@
+{
+ "session": "eval/results/IDE_075_20260917/qwen/OPT4/CORE_153555/S3_CORR",
+ "mode": "CORR",
+ "checks": {
+  "execution_valid": {
+   "pass": true,
+   "completed": 128,
+   "failed": 0,
+   "rc": 0
+  },
+  "workload_valid": {
+   "pass": true,
+   "in": 65886,
+   "out": 16384,
+   "expected": "65886/16384 (PROBE128, 지시서 §2.2)"
+  },
+  "config_valid": {
+   "pass": true,
+   "so": "a4e9045a038bc7af",
+   "mode": "CORE",
+   "env_kt_evt": "/models/kt/ide075/CORE_153555/kt_evt.csv"
+  },
+  "window_valid": {
+   "pass": true,
+   "events": [
+    "client_process_begin",
+    "client_process_end",
+    "collector_arm",
+    "collector_stop",
+    "drain_confirmed",
+    "engine_cache_flushed",
+    "first_go",
+    "last_related_deferred_end",
+    "log_flush_end",
+    "session_begin"
+   ],
+   "note": null
+  },
+  "sampling_valid": {
+   "pass": true,
+   "footer": [],
+   "note": "footer 는 서버 종료 시 기록; 세션 중이면 없음",
+   "records_in_session": 24490
+  },
+  "lifecycle_valid": {
+   "pass": true,
+   "fwd_missing": 0,
+   "fwd_missing_share": 0.0,
+   "criterion": "미기록 ≤ 0.1 % (건수 공개)",
+   "packets": 24490,
+   "def_tasks_expected": 24490,
+   "fwd_recorded": 24490,
+   "done_store_recorded": 24490,
+   "imm_tasks": 395,
+   "def_task_seq_found_in_tasks": 24490,
+   "def_task_kinds": {
+    "3": 24490
+   },
+   "note": "패킷당 업무 task = imm(0/1) + done(1) + def(0/1); 기록 전용 task 0"
+  },
+  "task_count_valid": {
+   "pass": true,
+   "tasks_in_window_by_kind": {
+    "1": 395,
+    "2": 24490,
+    "3": 24490
+   },
+   "expected": {
+    "3(deferred)": 24490,
+    "2(done)": 24490,
+    "1(imm)": 395
+   }
+  },
+  "gpu_activity_valid": {
+   "pass": true,
+   "per_trace": {
+    "166-TP-0.trace.json.gz": {
+     "kernel": 695850,
+     "memcpy": 124894
+    },
+    "166-TP-1.trace.json.gz": {
+     "kernel": 598558,
+     "memcpy": 1762
+    },
+    "166-TP-2.trace.json.gz": {
+     "kernel": 598558,
+     "memcpy": 1762
+    },
+    "166-TP-3.trace.json.gz": {
+     "kernel": 598558,
+     "memcpy": 1762
+    }
+   }
+  },
+  "mapping_valid": {
+   "pass": true,
+   "coverage": {
+    "gpu_layer_rows_total": 23808
+   },
+   "matched": 23808,
+   "method": "VALIDATED_HEURISTIC_MAPPING"
+  },
+  "clock_valid_by_pair": {
+   "pass": true,
+   "counts": {
+    "OK": 23808
+   },
+   "sensitivity": {
+    "2:cold_present_nonempty": {
+     "late_share_thr_0us": 0.9002436209770484,
+     "late_share_thr_1us": 0.8992819592255418,
+     "late_share_thr_2us": 0.8987690729580715,
+     "late_share_thr_5us": 0.8965893063213233,
+     "clock_indeterminate_share_5us": 0.008334401846390564,
+     "n": 15598,
+     "cold_gpu_ready_late_share": 1.0
+    },
+    "32:cold_present_nonempty": {
+     "late_share_thr_0us": 0.014864864864864866,
+     "late_share_thr_1us": 0.014864864864864866,
+     "late_share_thr_2us": 0.014864864864864866,
+     "late_share_thr_5us": 0.014414414414414415,
+     "clock_indeterminate_share_5us": 0.0013513513513513514,
+     "n": 2220,
+     "cold_gpu_ready_late_share": 1.0
+    }
+   }
+  },
+  "producer_consumer_valid": {
+   "pass": true,
+   "linked_over_n": {
+    "2:cold_present_nonempty": [
+     15598,
+     15598
+    ],
+    "32:cold_present_nonempty": [
+     2220,
+     2220
+    ]
+   },
+   "criterion": "연결 ≥ 99.9 % (건수 공개)",
+   "cohorts": {
+    "2:cold_present_nonempty": 15598,
+    "2:cold_path_empty": 18,
+    "2:no_cold_consumed": 256,
+    "32:cold_present_nonempty": 2220,
+    "32:cold_path_empty": 5588,
+    "32:no_cold_consumed": 128
+   },
+   "residual_max": 0
+  },
+  "artifact_valid": {
+   "pass": true
+  }
+ },
+ "all_pass": true
+}

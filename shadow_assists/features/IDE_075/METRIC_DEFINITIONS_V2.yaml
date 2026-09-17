@@ -1,0 +1,56 @@
+# METRIC_DEFINITIONS_V2 — IDE_075 (지시서 §5). 단위 µs. 같은 producer/consumer 사건의 실제 timestamp 로만 계산. p50 들의 합으로 재구성하지 않음.
+schema_version: 2
+clocks:
+  cpu: "CLOCK_REALTIME ns (kt_evt.csv, kt_evt.csv.tasks)"
+  gpu: "kineto host 시계 = baseTimeNanoseconds + ts (CUPTI 변환). CPU↔GPU 정렬 오차는 순서검사 관측 상한(≈2.25 µs) 만 존재 → 5 µs 이내 차이는 CLOCK_INDETERMINATE"
+timestamps:
+  t_go(p): "poller 가 go 플래그 관측 (층 L−1 의 DtoH 4건 완료 이후)"
+  t_enqueue_a(p): "deferred 작업 enqueue 가시화 직후 (v2: t_def_enq_a; v1: t_def_enq)"
+  t_exec_start(p): "task worker 가 deferred task 실행 시작 (v2 tasks 링; v1: stamp 태스크 t_def_start)"
+  t_task_start(p)/t_task_end(p): "TP_MOE_Common::forward 진입/반환 (v2: t_fwd_entry/t_fwd_exit; v1: t_def_start/t_def_end)"
+  t_numa_start/end(p,s): "NUMA 서브풀 s 의 forward 호출 전후"
+  t_pub(c): "done 플래그 store bracket (v2: t_done_store_b/a; v1: t_done_set 단일점)"
+  t_hot_ready(c): "층 c 의 HtoD 직전 커널(moe_sum_reduce) 종료 (GPU)"
+  t_h2d_start/end(c): "cold 출력 HtoD (wait 해제 뒤 첫 노드)"
+  t_combine_start/end(c): "HtoD 직후 elementwise add 커널"
+  t_other_ready(c): "잔차 = attention 뒤 all-reduce 결과. 코드상 hot 이전 준비 → max(hot, other)=hot"
+legacy_to_v2:
+  cold_ready_lateness_us: {v2: cold_pub_lateness_us, note: "CPU 게시 지연이었음 (GPU 준비 아님)"}
+  cold_pub_minus_hot_ready_us: {v2: cold_pub_delta_us}
+  exposed_wait_us: {v2: gpu_pre_h2d_gap_us, note: "floor 미적용 원 간격"}
+  publish_to_release_us: {v2: pub_to_h2d_start_us, note: "순수 신호 전파시간 아님 (Hot 진행 시간 포함 가능)"}
+  submit_to_start_us: {v2: "go_to_enqueue_us + enqueue_to_start_us", note: "v1 은 def_start−go (입력 준비·선행 계산 미분리)"}
+  cpu_compute_span_us: {v2: deferred_service_span_us, note: "parent span (순수 행렬 계산만이 아님)"}
+  publish_delay_us: {v2: producer_end_to_pub_us}
+  cpu_to_gpu_ready_us: {v2: producer_end_to_gpu_ready_us 와 pub→h2d_end 분리}
+  cold_budget_us: {v2: overlap_budget_us}
+v2:
+  cold_pub_delta_us: "t_pub_b(c) − t_hot_ready(c) (signed 원값). low/high = store bracket 전/후"
+  cold_pub_lateness_us: "max(0, cold_pub_delta)"
+  gpu_pre_h2d_gap_us: "t_h2d_start(c) − t_hot_ready(c)"
+  h2d_duration_us: "t_h2d_end − t_h2d_start"
+  gpu_post_h2d_gap_us: "t_combine_start − t_h2d_end"
+  cold_gpu_ready_us: "t_h2d_end(c)"
+  cold_gpu_ready_lateness_us: "max(0, t_h2d_end − max(hot, other)); 같은 stream 순서상 항상 >0 → CPU 원인 귀속 금지"
+  hot_gpu_ready_lateness_us: "max(0, hot − max(cold_gpu_ready, other))"
+  combine_schedule_gap_us: "t_combine_start − max(hot, cold_gpu_ready)"
+  go_to_enqueue_us: "t_enqueue_a(p) − t_go(p)"
+  enqueue_to_start_us: "t_exec_start(p) − t_enqueue_a(p) (v1: task_start − enqueue)"
+  predecessor_exec_union_us: "|union(선행 task 실행 구간 ∩ [enqueue_a, exec_start))| (v2 tasks 링; v1 NOT_COLLECTED)"
+  predecessor_deferred_exec_us: "그중 kind=deferred 의 실행 구간"
+  queue_gap_unattributed_us: "enqueue_to_start − predecessor_exec_union"
+  deferred_service_span_us: "t_task_end − t_task_start"
+  task_exec_span_us: "tasks 링의 exec_end − exec_start (wrapper 포함)"
+  producer_end_to_pub_us: "t_pub_b(c) − t_task_end(p)"
+  producer_end_to_gpu_ready_us: "t_h2d_end(c) − t_task_end(p)"
+  pub_to_h2d_start_us: "t_h2d_start(c) − t_pub_b(c)"
+  overlap_budget_us: "t_hot_ready(c) − t_go(p)"
+  gpu_idle_inside_gap_us: "|[hot, h2d_start)| − |[hot,h2d_start) ∩ TP0 전체 op union|"
+  numa_completion_skew_us: "|numa0_end − numa1_end|"
+  identity_residual_us: "(pub−hot) − (Q+C+D−B), Q=task_start−go, C=task_end−task_start, D=pub−task_end, B=hot−go"
+cohorts:
+  no_cold_consumed: "consumer_layer == 0 (설계상 cold 소비 없음; 코드: 층 0 imm task 출력 0)"
+  cold_path_empty: "producer n_cold_ids == 0 또는 def_skipped"
+  cold_present_nonempty: "producer n_cold_ids > 0"
+  unknown_path_or_mapping: "producer 레코드 없음"
+late_share: "late_count / cold_present_nonempty count, 임계 0/1/2/5 µs 각각 보고"

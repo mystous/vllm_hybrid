@@ -1,0 +1,338 @@
+--- cpuinfer.h.orig	2026-09-17 04:03:35.127761498 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/cpu_backend/cpuinfer.h	2026-09-17 06:17:53.204638576 +0000
+@@ -18,6 +18,7 @@
+ #include <thread>
+ #include <cstring>
+ #include <vector>
++#include <string>
+ #if defined(KTRANSFORMERS_USE_CUDA) || defined(KTRANSFORMERS_USE_CUDA_HOST_CALLBACKS)
+ #include "vendors/cuda.h"
+ #elif KTRANSFORMERS_USE_MUSA
+@@ -35,6 +36,7 @@
+ #include "./vendors/vendor.h"
+ #include "llama.cpp/ggml-impl.h"
+ #include "task_queue.h"
++#include "kt_evt.h"   // IDE_075
+ #include "worker_pool.h"
+ 
+ class CPUInfer {
+@@ -67,6 +69,9 @@
+ 
+   ~CPUInfer() {
+     printf("CPUInfer[0x%lx]: Goodbye\n", (intptr_t)this);
++#ifndef KTRANSFORMERS_CPU_ONLY
++    if (evt_run_.load()) { evt_run_ = false; if (evt_flusher_.joinable()) evt_flusher_.join(); if (evt_fp_) fclose(evt_fp_); if (task_fp_) fclose(task_fp_); }   // IDE_075
++#endif
+     delete backend_;
+     delete task_queue_;
+   }
+@@ -148,6 +153,47 @@
+   }
+   Packet packets_[kMaxPackets];
+   std::atomic<int> n_packets_{0};
++  // ---- IDE_075: 저간섭 기록기. env KT_EVT=<csv> 로만 활성 ----
++  static constexpr int kEvtCap = 1 << 20; static constexpr unsigned kTaskCap = 1u << 20;
++  KtEvtRec* evt_ = nullptr; unsigned evt_n_ = 0; std::atomic<unsigned> evt_dropped_{0}; unsigned evt_written_ = 0; unsigned long long task_written_ = 0;
++  unsigned slot_epoch_[kMaxPackets] = {0};
++  std::thread evt_flusher_; std::atomic<bool> evt_run_{false}; FILE* evt_fp_ = nullptr; FILE* task_fp_ = nullptr;
++  static const char* evt_path_() { static const char* v = std::getenv("KT_EVT"); return v; }
++  static bool evt_complete_(const KtEvtRec& r) { return (r.def_present && !r.def_skipped) ? (r.t_fwd_exit != 0) : (r.t_done_store_a != 0); }
++  void evt_write_(const KtEvtRec& r) {
++    fprintf(evt_fp_, "%d,%u,%d,%d,%u,%u,%u,%lld,%lld,%lld,%llu,%lld,%lld,%llu,%lld,%lld,%llu,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
++            r.slot, r.epoch, r.qlen, r.n_cold_ids, r.imm_present, r.def_present, r.def_skipped, r.t_go, r.t_imm_enq_b, r.t_imm_enq_a, r.imm_task_seq, r.t_done_enq_b, r.t_done_enq_a, r.done_task_seq, r.t_def_enq_b, r.t_def_enq_a, r.def_task_seq,
++            r.t_done_store_b, r.t_done_store_a, r.t_fwd_entry, r.t_fwd_exit, r.t_imm_fwd_entry, r.t_imm_fwd_exit, r.t_numa_start[0], r.t_numa_end[0], r.t_numa_start[1], r.t_numa_end[1], r.t_merge_end,
++            r.activated_expert[0], r.activated_expert[1], r.max_local_num[0], r.max_local_num[1], r.sum_rows[0], r.sum_rows[1], r.n_amx[0], r.n_amx[1], r.n_avx[0], r.n_avx[1], r.qlen_seen[0], r.qlen_seen[1]);
++    for (int s = 0; s < 2; ++s) for (int k = 0; k < 9; ++k) fprintf(evt_fp_, ",%ld", r.stage_us[s][k]);
++    fputc('\n', evt_fp_);
++  }
++  void evt_flush_(bool final_) {
++    long long now = kt_evt_now();
++    unsigned n = __atomic_load_n(&evt_n_, __ATOMIC_ACQUIRE); if (n > (unsigned)kEvtCap) n = kEvtCap;
++    while (evt_written_ < n) { KtEvtRec& r = evt_[evt_written_]; if (!final_ && !evt_complete_(r) && now - r.t_go < 5000000000LL) break; evt_write_(r); ++evt_written_; }
++    fflush(evt_fp_);
++    if (kt_task_ring && task_fp_) {
++      unsigned long long last = kt_running_seq.load(std::memory_order_relaxed);
++      while (task_written_ < last) { KtTaskRec& t = kt_task_ring[(task_written_ + 1) % kt_task_cap]; if (t.seq != task_written_ + 1) { fprintf(task_fp_, "%llu,,,,,,,,,OVERWRITTEN_OR_MISSING\n", task_written_ + 1); ++task_written_; continue; }
++        if (!final_ && t.t_exec_end == 0 && now - t.t_enq_b < 5000000000LL) break;
++        fprintf(task_fp_, "%llu,%u,%u,%llu,%lld,%lld,%lld,%lld,%lld,%u\n", t.seq, t.kind, t.pending_at_enq, t.running_seq_at_enq, t.t_enq_b, t.t_enq_a, t.t_dequeue, t.t_exec_start, t.t_exec_end, t.tid); ++task_written_; }
++      fflush(task_fp_);
++    }
++    if (final_) { fprintf(evt_fp_, "#dropped=%u,written=%u,spsc_full=%u,spsc_stale=%u\n", evt_dropped_.load(), evt_written_, kt_evt_spsc_full.load(), kt_evt_spsc_stale.load()); fflush(evt_fp_); }
++  }
++  void evt_ensure_() {
++    if (evt_ != nullptr || evt_path_() == nullptr) return;
++    evt_ = (KtEvtRec*)calloc((size_t)kEvtCap, sizeof(KtEvtRec));
++    kt_task_ring = (KtTaskRec*)calloc((size_t)kTaskCap, sizeof(KtTaskRec)); kt_task_cap = kTaskCap;
++    evt_fp_ = fopen(evt_path_(), "a"); std::string tp = std::string(evt_path_()) + ".tasks"; task_fp_ = fopen(tp.c_str(), "a");
++    if (!evt_fp_ || !task_fp_) { fprintf(stderr, "[kt-evt] fopen failed\n"); fflush(stderr); free(evt_); evt_ = nullptr; free(kt_task_ring); kt_task_ring = nullptr; kt_task_cap = 0; return; }
++    fprintf(evt_fp_, "slot,epoch,qlen,n_cold_ids,imm_present,def_present,def_skipped,t_go,t_imm_enq_b,t_imm_enq_a,imm_task_seq,t_done_enq_b,t_done_enq_a,done_task_seq,t_def_enq_b,t_def_enq_a,def_task_seq,t_done_store_b,t_done_store_a,t_fwd_entry,t_fwd_exit,t_imm_fwd_entry,t_imm_fwd_exit,t_numa0_start,t_numa0_end,t_numa1_start,t_numa1_end,t_merge_end,act0,act1,maxrows0,maxrows1,sumrows0,sumrows1,namx0,namx1,navx0,navx1,qlen0,qlen1,s0_prepare,s0_cpy_input,s0_q_input,s0_up_gate,s0_act,s0_q_down,s0_down,s0_weight,s0_total,s1_prepare,s1_cpy_input,s1_q_input,s1_up_gate,s1_act,s1_q_down,s1_down,s1_weight,s1_total\n");
++    fprintf(task_fp_, "seq,kind,pending_at_enq,running_seq_at_enq,t_enq_b,t_enq_a,t_dequeue,t_exec_start,t_exec_end,tid\n"); fflush(evt_fp_); fflush(task_fp_);
++    evt_run_ = true;
++    evt_flusher_ = std::thread([this]() { while (evt_run_.load(std::memory_order_acquire)) { evt_flush_(false); std::this_thread::sleep_for(std::chrono::milliseconds(200)); } evt_flush_(true); });
++    fprintf(stderr, "[kt-evt] v2 event log ready: %s (+.tasks) cap %d/%u\n", evt_path_(), kEvtCap, kTaskCap); fflush(stderr);
++  }
+   volatile unsigned int* go_host_ = nullptr;   unsigned int* go_dev_ = nullptr;
+   volatile unsigned int* done_host_ = nullptr; unsigned int* done_dev_ = nullptr;
+   std::thread poller_; std::atomic<bool> poller_run_{false};
+@@ -163,6 +209,7 @@
+     cudaHostGetDevicePointer((void**)&go_dev_, (void*)go_host_, 0);
+     cudaHostGetDevicePointer((void**)&done_dev_, (void*)done_host_, 0);
+     ensure_driver_fns_();
++    evt_ensure_();   // IDE_075
+     poller_run_ = true;
+     poller_ = std::thread([this]() { this->poll_loop_(); });
+     fprintf(stderr, "[kt-cf] callback-free handoff ready (ci=%p)\n", (void*)this); fflush(stderr);
+@@ -210,13 +257,26 @@
+         if (__atomic_load_n(&go_host_[slot], __ATOMIC_ACQUIRE) != 1u) continue;
+         __atomic_store_n(&go_host_[slot], 0u, __ATOMIC_RELEASE);
+         Packet& p = packets_[slot]; any = true;
+-        // immediate task -> done signal -> deferred task  (== KT sync(allow_pending=1) semantics)
+-        if (p.imm_fn) p.imm_fn(p.imm_args);   // enqueues into task_queue_
++        KtEvtRec* rec = nullptr;   // IDE_075 (KT_EVT 미설정 → nullptr)
++        if (evt_) {
++          unsigned i = evt_n_; __atomic_store_n(&evt_n_, i + 1, __ATOMIC_RELEASE);
++          if (i < (unsigned)kEvtCap) {
++            rec = &evt_[i]; rec->slot = slot; rec->epoch = ++slot_epoch_[slot]; rec->t_go = kt_evt_now();
++            rec->imm_present = p.imm_fn != nullptr; rec->def_present = p.def_fn != nullptr;
++            if (p.def_args) { FwdArgsView* a = (FwdArgsView*)p.def_args; rec->qlen = *(int*)a->qlen_ptr; int nc = 0; const int64_t* ids = (const int64_t*)a->expert_ids;
++              for (int t = 0; t < rec->qlen * a->k; ++t) { int64_t e = ids[t]; if (e >= 0 && e < p.n_experts && (!p.gpu_mask || !p.gpu_mask[e])) ++nc; } rec->n_cold_ids = nc; }
++          } else evt_dropped_.fetch_add(1, std::memory_order_relaxed);
++        }
++        // immediate task -> done signal -> deferred task  (== KT sync(allow_pending=1) semantics)  [task 구성은 OFF 와 동일]
++        if (p.imm_fn) { if (rec) { kt_evt_next_kind = 1; rec->t_imm_enq_b = kt_evt_now(); } p.imm_fn(p.imm_args); if (rec) { rec->t_imm_enq_a = kt_evt_now(); rec->imm_task_seq = kt_evt_last_seq; kt_evt_push(rec, kt_evt_last_seq, 0); } }
+         volatile unsigned int* d = done_host_ + slot;
+         bool run_def = (p.def_fn != nullptr);
+-        if (run_def && skip_empty_def_on_() && def_is_empty_(p)) { run_def = false; n_def_skipped_.fetch_add(1, std::memory_order_relaxed); }
+-        task_queue_->enqueue([d]() { __atomic_store_n(d, 1u, __ATOMIC_RELEASE); });
+-        if (run_def) { p.def_fn(p.def_args); n_def_run_.fetch_add(1, std::memory_order_relaxed); }
++        if (run_def && skip_empty_def_on_() && def_is_empty_(p)) { run_def = false; n_def_skipped_.fetch_add(1, std::memory_order_relaxed); if (rec) rec->def_skipped = 1; }
++        if (rec) { kt_evt_next_kind = 2; rec->t_done_enq_b = kt_evt_now(); }
++        task_queue_->enqueue([d, rec]() { if (rec) rec->t_done_store_b = kt_evt_now(); __atomic_store_n(d, 1u, __ATOMIC_RELEASE); if (rec) rec->t_done_store_a = kt_evt_now(); });
++        if (rec) { rec->t_done_enq_a = kt_evt_now(); rec->done_task_seq = kt_evt_last_seq; }
++        if (run_def) { if (rec) { kt_evt_next_kind = 3; rec->t_def_enq_b = kt_evt_now(); } p.def_fn(p.def_args); n_def_run_.fetch_add(1, std::memory_order_relaxed); if (rec) { rec->t_def_enq_a = kt_evt_now(); rec->def_task_seq = kt_evt_last_seq; kt_evt_push(rec, kt_evt_last_seq, 1); } }
++        kt_evt_next_kind = 0;
+       }
+       if (!any) { for (int k = 0; k < 32; ++k) __builtin_ia32_pause(); }
+     }
+--- task_queue.h.orig	2026-09-17 06:17:53.200638587 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/cpu_backend/task_queue.h	2026-09-17 06:17:53.204638576 +0000
+@@ -18,6 +18,7 @@
+ #include <queue>
+ #include <thread>
+ #include <vector>
++#include "kt_evt.h"   // IDE_075
+ 
+ class TaskQueue {
+  public:
+@@ -32,6 +33,7 @@
+   struct Node {
+     std::function<void()> task;
+     std::atomic<Node*> next;
++    unsigned long long seq = 0;   // IDE_075
+     Node() : task(nullptr), next(nullptr) {}
+     Node(const std::function<void()>& t) : task(t), next(nullptr) {}
+   };
+@@ -40,6 +42,7 @@
+   std::atomic<Node*> tail;
+   std::atomic<bool> done;
+   std::atomic<size_t> pending;
++  std::atomic<unsigned long long> seq_ctr_{0};   // IDE_075
+   std::thread workerThread;
+   std::mutex mtx;
+   std::condition_variable cv;
+--- task_queue.cpp.orig	2026-09-17 06:17:53.201638584 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/cpu_backend/task_queue.cpp	2026-09-17 06:17:53.204638576 +0000
+@@ -13,6 +13,8 @@
+ #include <sched.h>
+ 
+ #include <chrono>
++#include <unistd.h>
++#include <sys/syscall.h>
+ #include <iostream>
+ #include <thread>
+ 
+@@ -71,10 +73,15 @@
+ }
+ 
+ void TaskQueue::enqueue(std::function<void()> task) {
++  // IDE_075: task_seq + enqueue bracket (기록 전용 task 없음; ring 미할당(OFF) 시 r==nullptr)
++  unsigned long long seq = seq_ctr_.fetch_add(1, std::memory_order_acq_rel) + 1; KtTaskRec* r = nullptr;
++  if (kt_task_ring) { r = &kt_task_ring[seq % kt_task_cap]; r->seq = seq; r->kind = kt_evt_next_kind; r->pending_at_enq = (unsigned)pending.load(std::memory_order_acquire); r->running_seq_at_enq = kt_running_seq.load(std::memory_order_relaxed); r->t_dequeue = r->t_exec_start = r->t_exec_end = 0; r->tid = 0; r->t_enq_b = kt_evt_now(); }
+   pending.fetch_add(1, std::memory_order_acq_rel);
+-  Node* node = new Node(task);
++  Node* node = new Node(task); node->seq = seq;
+   Node* prev = tail.exchange(node, std::memory_order_acq_rel);
+   prev->next.store(node, std::memory_order_release);
++  if (r) r->t_enq_a = kt_evt_now();
++  kt_evt_last_seq = seq;
+   {
+     std::lock_guard<std::mutex> lock(mtx);
+   }
+@@ -101,10 +108,15 @@
+     Node* next = curr->next.load(std::memory_order_acquire);
+     if (next) {
+       std::exception_ptr task_exception;
++      KtTaskRec* r = kt_task_ring ? &kt_task_ring[next->seq % kt_task_cap] : nullptr;   // IDE_075
++      if (r) r->t_dequeue = kt_evt_now();
++      kt_cur_task_seq = next->seq; kt_running_seq.store(next->seq, std::memory_order_relaxed);
+       if (next->task) {
+         try {
+           if (tq_on) tq_before_();
++          if (r) r->t_exec_start = kt_evt_now();
+           next->task();
++          if (r) { r->t_exec_end = kt_evt_now(); static thread_local unsigned _tid = (unsigned)syscall(SYS_gettid); r->tid = _tid; }
+           if (tq_on) tq_after_();
+         } catch (...) {
+           task_exception = std::current_exception();
+--- moe-tp.hpp.orig	2026-09-17 04:03:35.127761498 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/operators/moe-tp.hpp	2026-09-17 06:17:53.205638574 +0000
+@@ -17,6 +17,7 @@
+ #include <vector>
+ 
+ #include "../cpu_backend/shared_mem_buffer.h"
++#include "../cpu_backend/kt_evt.h"   // IDE_075
+ #include "common.hpp"
+ 
+ // Forward declaration for Llamafile backend type checking
+@@ -214,11 +215,20 @@
+     auto pool = config.pool;
+     static bool _wp_on = std::getenv("KT_PHASE_PROF") != nullptr; static thread_local unsigned _wp_cnt = 0;
+     auto _wp_t0 = std::chrono::steady_clock::now();
+-    pool->dispense_backend()->do_numa_job([this, pool, qlen, k, expert_ids, input, weights](int numa_id) {
++    KtEvtPend _pd = kt_evt_pop_for(kt_cur_task_seq);   // IDE_075: 이 task 에 대응하는 레코드만 (OFF: rec==nullptr)
++    KtEvtRec* _r = _pd.rec; if (_r && _pd.which == 0) { _r->t_imm_fwd_entry = kt_evt_now(); }
++    KtEvtRec* _rd = (_r && _pd.which == 1) ? _r : nullptr; if (_rd) _rd->t_fwd_entry = kt_evt_now();
++    pool->dispense_backend()->do_numa_job([this, pool, qlen, k, expert_ids, input, weights, _rd](int numa_id) {
++      if constexpr (requires (T& x) { x.kt_rec_; }) tps[numa_id]->kt_rec_ = _rd;
++      if (_rd && numa_id >= 0 && numa_id < 2) _rd->t_numa_start[numa_id] = kt_evt_now();
+       tps[numa_id]->forward(qlen, k, expert_ids, weights, input, this->local_output_numa[numa_id]);
++      if (_rd && numa_id >= 0 && numa_id < 2) _rd->t_numa_end[numa_id] = kt_evt_now();
++      if constexpr (requires (T& x) { x.kt_rec_; }) tps[numa_id]->kt_rec_ = nullptr;
+     });
+     auto _wp_t1 = std::chrono::steady_clock::now();
+     merge_results(qlen, output, incremental);
++    if (_rd) { _rd->t_merge_end = kt_evt_now(); _rd->t_fwd_exit = _rd->t_merge_end; }
++    if (_r && _pd.which == 0) _r->t_imm_fwd_exit = kt_evt_now();
+     if (_wp_on && ((++_wp_cnt) & 63) == 0) {
+       auto _wp_t2 = std::chrono::steady_clock::now();
+       printf("[kt-wrap] qlen: %d, numa_job: %ld us, merge: %ld us, incremental: %d\n", qlen,
+--- moe_base.hpp.orig	2026-09-17 04:03:35.127761498 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/operators/amx/moe_base.hpp	2026-09-17 06:17:53.205638574 +0000
+@@ -34,6 +34,7 @@
+ #include <cstring>
+ #include <filesystem>
+ #include <fstream>
++#include "../../cpu_backend/kt_evt.h"   // IDE_075
+ #include <memory>
+ #include <string>
+ #include <utility>
+@@ -50,6 +51,7 @@
+ class AMX_MOE_BASE {
+  public:
+   int tp_part_idx = 0;
++  KtEvtRec* kt_rec_ = nullptr;   // IDE_075: 현재 작업 레코드 (TP_MOE_Common::forward 가 설정)
+ 
+   ggml_bf16_t* m_local_input_ = nullptr;
+   ggml_bf16_t* m_local_gate_output_ = nullptr;
+@@ -497,6 +499,11 @@
+     }
+     auto end_time = std::chrono::high_resolution_clock::now();
+     auto forward_total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
++    if (kt_rec_ && tp_part_idx >= 0 && tp_part_idx < 2) {   // IDE_075: 단계 µs·규모를 레코드에 기록 (계산은 기존 타이머 그대로)
++      int _s = tp_part_idx; long* _st = kt_rec_->stage_us[_s]; _st[0] = prepare_time; _st[1] = cpy_input_time; _st[2] = q_input_time; _st[3] = up_gate_time; _st[4] = act_time; _st[5] = q_down_time; _st[6] = down_time; _st[7] = weight_time; _st[8] = forward_total_time;
++      kt_rec_->activated_expert[_s] = activated_expert; kt_rec_->max_local_num[_s] = max_local_num; kt_rec_->qlen_seen[_s] = qlen;
++      int _sum = 0; for (int _e = 0; _e < config_.expert_num; ++_e) _sum += m_local_num_[_e]; kt_rec_->sum_rows[_s] = _sum;
++    }
+     static bool _pp_on = std::getenv("KT_PHASE_PROF") != nullptr; static thread_local unsigned _pp_cnt = 0;
+     if (_pp_on && ((++_pp_cnt) & 63) == 0) printf(
+         "Profiling Results (numa[%d]): activated_expert: %d, prepare: %ld us, cpy_input: %ld us, q_input: %ld us, "
+@@ -708,7 +715,12 @@
+     }
+     auto end_time = std::chrono::high_resolution_clock::now();
+     auto forward_total_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+-    printf(
++    if (kt_rec_ && tp_part_idx >= 0 && tp_part_idx < 2) {   // IDE_075
++      int _s = tp_part_idx; long* _st = kt_rec_->stage_us[_s]; _st[0] = 0; _st[1] = 0; _st[2] = q_input_time; _st[3] = up_gate_time; _st[4] = act_time; _st[5] = q_down_time; _st[6] = down_time; _st[7] = weight_time; _st[8] = forward_total_time;
++      kt_rec_->activated_expert[_s] = activated_expert; kt_rec_->qlen_seen[_s] = 1; kt_rec_->sum_rows[_s] = activated_expert;
++    }
++    static bool _pd_on = std::getenv("KT_PHASE_PROF") != nullptr; static thread_local unsigned _pd_cnt = 0;   // IDE_074: decode printf 게이트 (기존: 매 호출 무조건 출력)
++    if (_pd_on && ((++_pd_cnt) & 63) == 0) printf(
+         "Profiling Results (numa[%d]): activated_expert: %d, q_input: %ld us, "
+         "up_gate: %ld us, act: %ld us, q_down: %ld us, down: %ld us, weight: %ld us, total: %ld us\n",
+         tp_part_idx, activated_expert, q_input_time, up_gate_time, act_time, q_down_time, down_time, weight_time,
+--- moe.hpp.orig	2026-09-17 06:17:53.201638584 +0000
++++ /sgl-workspace/ktransformers/kt-kernel/operators/amx/moe.hpp	2026-09-17 06:17:53.206638571 +0000
+@@ -251,8 +251,10 @@
+     auto& bc = do_up ? up_bc_[expert_idx] : gate_bc_[expert_idx];
+ 
+     if (qlen > amx_min_qlen_() || m >= amx_min_rows_()) {
++      if (this->kt_rec_ && ith == 0 && tp_part_idx < 2) __atomic_fetch_add(&this->kt_rec_->n_amx[tp_part_idx], 1, __ATOMIC_RELAXED);   // IDE_075 실제 분기 계수 (expert·gemm 당 1)
+       amx::mat_mul(m, config_.intermediate_size, config_.hidden_size, ba, bb, bc, ith, nth);
+     } else {
++      if (this->kt_rec_ && ith == 0 && tp_part_idx < 2) __atomic_fetch_add(&this->kt_rec_->n_avx[tp_part_idx], 1, __ATOMIC_RELAXED);
+       amx::vec_mul(m, config_.intermediate_size, config_.hidden_size, ba, bb, bc, ith, nth);
+     }
+   }
+@@ -264,8 +266,10 @@
+     auto& bc = down_bc_[expert_idx];
+ 
+     if (qlen > amx_min_qlen_() || m >= amx_min_rows_()) {
++      if (this->kt_rec_ && ith == 0 && tp_part_idx < 2) __atomic_fetch_add(&this->kt_rec_->n_amx[tp_part_idx], 1, __ATOMIC_RELAXED);
+       amx::mat_mul(m, config_.hidden_size, config_.intermediate_size, ba, bb, bc, ith, nth);
+     } else {
++      if (this->kt_rec_ && ith == 0 && tp_part_idx < 2) __atomic_fetch_add(&this->kt_rec_->n_avx[tp_part_idx], 1, __ATOMIC_RELAXED);
+       amx::vec_mul(m, config_.hidden_size, config_.intermediate_size, ba, bb, bc, ith, nth);
+     }
+   }
+--- experts_base.py.orig	2026-09-17 04:03:35.127761498 +0000
++++ /usr/local/lib/python3.12/dist-packages/kt_kernel/experts_base.py	2026-09-17 06:17:53.206638571 +0000
+@@ -930,6 +930,10 @@
+                 else:
+                     _ci.rearm_packet(self._cf_eager_slot, _imm, _def if _has else _dummy, _has, *_cf_mask_args)
+                 _slot = self._cf_eager_slot
++            _evt_path = _os_cf.environ.get("KT_EVT")   # IDE_075: slot 맵 (effective_from = 기록 ns; go 는 이 뒤에 GPU 에서 발생)
++            if _evt_path:
++                import time as _t_ev
++                with open(_evt_path + ".map", "a") as _f_ev: _f_ev.write(f"{_slot},{self.layer_idx},{int(output_cpu[next_slot].shape[0])},{int(torch.cuda.is_current_stream_capturing())},{_t_ev.time_ns()}\n")
+             _ci.go_on_stream(self._cf_pending_stream, _slot)
+             self._cf_last_slot = _slot
+             self._cf_pending_imm = None; self._cf_pending_def = None
+==== kt_evt.h
+// IDE_075: 저간섭 CPU-side 기록기 (CLOCK_REALTIME ns). 기록 전용 task 없음. env KT_EVT 미설정 시 모든 포인터 nullptr.
+#pragma once
+#include <time.h>
+#include <atomic>
+#include <cstdint>
+struct KtEvtRec {   // 패킷 go 1회당 1 레코드 (poller 가 생성, 이후 필드는 각 스레드가 자기 몫만 기록)
+  int slot; unsigned epoch; int qlen; int n_cold_ids; unsigned char imm_present, def_present, def_skipped, pad_;
+  long long t_go, t_imm_enq_b, t_imm_enq_a, t_done_enq_b, t_done_enq_a, t_def_enq_b, t_def_enq_a;
+  unsigned long long imm_task_seq, done_task_seq, def_task_seq;
+  long long t_done_store_b, t_done_store_a;                       // done-setter task (worker) 안의 store 전후
+  long long t_fwd_entry, t_fwd_exit, t_imm_fwd_entry, t_imm_fwd_exit, t_numa_start[2], t_numa_end[2], t_merge_end;
+  int activated_expert[2], max_local_num[2], sum_rows[2], n_amx[2], n_avx[2], qlen_seen[2]; long stage_us[2][9];
+};
+struct KtTaskRec { unsigned long long seq, running_seq_at_enq; long long t_enq_b, t_enq_a, t_dequeue, t_exec_start, t_exec_end; unsigned pending_at_enq, tid; unsigned char kind; };
+struct KtEvtPend { KtEvtRec* rec; unsigned long long seq; int which; };   // poller → task worker (enqueue 순)
+inline long long kt_evt_now() { timespec ts; clock_gettime(CLOCK_REALTIME, &ts); return (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec; }
+inline KtTaskRec* kt_task_ring = nullptr; inline unsigned kt_task_cap = 0;
+inline thread_local unsigned char kt_evt_next_kind = 0;       // enqueue 호출 스레드가 지정: 1 imm, 2 done_setter, 3 deferred, 0 기타
+inline thread_local unsigned long long kt_evt_last_seq = 0;   // 이 스레드의 마지막 enqueue seq
+inline thread_local unsigned long long kt_cur_task_seq = 0;   // task worker 스레드: 실행 중 task seq
+inline std::atomic<unsigned long long> kt_running_seq{0};
+constexpr unsigned KT_EVT_SPSC_CAP = 16384;
+inline KtEvtPend kt_evt_spsc[KT_EVT_SPSC_CAP]; inline std::atomic<unsigned> kt_evt_spsc_head{0}, kt_evt_spsc_tail{0}; inline std::atomic<unsigned> kt_evt_spsc_full{0}, kt_evt_spsc_stale{0};
+inline void kt_evt_push(KtEvtRec* r, unsigned long long seq, int which) {
+  unsigned t = kt_evt_spsc_tail.load(std::memory_order_relaxed), n = (t + 1) % KT_EVT_SPSC_CAP;
+  if (n == kt_evt_spsc_head.load(std::memory_order_acquire)) { kt_evt_spsc_full.fetch_add(1, std::memory_order_relaxed); return; }
+  kt_evt_spsc[t] = KtEvtPend{r, seq, which}; kt_evt_spsc_tail.store(n, std::memory_order_release);
+}
+inline KtEvtPend kt_evt_pop_for(unsigned long long seq) {   // 현재 task seq 에 해당하는 pend 만 반환; 더 오래된 pend 는 stale 로 버림
+  for (;;) {
+    unsigned h = kt_evt_spsc_head.load(std::memory_order_relaxed);
+    if (h == kt_evt_spsc_tail.load(std::memory_order_acquire)) return KtEvtPend{nullptr, 0, -1};
+    KtEvtPend p = kt_evt_spsc[h];
+    if (p.seq == seq) { kt_evt_spsc_head.store((h + 1) % KT_EVT_SPSC_CAP, std::memory_order_release); return p; }
+    if (p.seq < seq) { kt_evt_spsc_head.store((h + 1) % KT_EVT_SPSC_CAP, std::memory_order_release); kt_evt_spsc_stale.fetch_add(1, std::memory_order_relaxed); continue; }
+    return KtEvtPend{nullptr, 0, -1};
+  }
+}

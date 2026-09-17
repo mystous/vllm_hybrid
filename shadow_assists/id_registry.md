@@ -79,8 +79,9 @@ CLAUDE.md Ground RULE 의 ID Rule 에 따라, 본 저장소에서 사용되는 �
 | `IDE_072` | 완료 (2026-09-16 09:10) — BOUNDED_VALIDATION_COMPLETE, 결과 `features/IDE_072/FULL_REPORT.md` | **IDE_071 후속 검증 — 사용자 지시서 `cpu_offload_no_03_compact_verification`** — V0(S2 재현)/V1(+KT_AVX_RB=0)/V2(skip-empty OFF)/Q0(V2+deferral 0, 품질만)/조건부 D0(graph OFF). 성능 11·REPLAY 3·LOAD 1·DIAG 1·재시도 2, 부팅 10, GSM20_PAIRED ×4. 부모 `IDE_071`. 브랜치 `feat/cpu-offload-ide071` |
 | `IDE_073` | 완료 (2026-09-17, COMPLETED_WITH_FAILURES: GLM OPT4 변환 차단·G-KT-BASIC4 품질 타임아웃) | **2모델(Qwen3-Coder-480B FP8, GLM-4.7-FP8) × GPU-only 8장 / KT 공식 기본 4장 / 최고 구성 4장 비교 + 최적화 구성 구간별 계측 — 사용자 지시서 `cpu_offload_no_04_two_models_baseline_opt_probe`** — 성능 30세션(6구성×5), 진단 ≤8, 재시도·조건부 ≤6, 부팅 ≤20, 품질 20문항×6. 부모 `IDE_072`. 브랜치 `feat/cpu-offload-two-models-20260917` |
 | `IDE_074` | 완료 (2026-09-17, COMPLETED_WITH_FAILURES: GLM 게이트 BLOCKED_NORMAL_OUTPUT) | **CPU MoE Hot/Cold 부분 상주 병목 측정 — Qwen OPT4 고정, CPU↔GPU 의존 관계(hot/cold/other ready·combine) 직접 계측, 계측 OFF/ON 비교; 사용자 지시서 `CPU_MoE_bottleneck_measurement_todo` (M0~M9)** — 상한 24세션·부팅 12회. 부모 `IDE_073`. 브랜치 `feat/cpu-moe-bottleneck-20260917` |
+| `IDE_075` | 완료 (2026-09-17, READY_WITH_LIMITED_SCOPE 후보 A·B; 부팅 2회 하네스 결함 소진) | **IDE_074 후속 추가 측정 — 기존 자료 정정(PCM 시각·시간창·분모·v2 지표), 기록 전용 task 없는 CPU 기록기, FIFO 대기/서비스 분리, expert rows·분기·단계 표본, 잔여 예산(세션 7·부팅 5) 내 OFF/CORE/CORR/RESOURCE 비교, READINESS/OPTIMIZATION_HANDOFF; 사용자 지시서 `IDE074_additional_measurement_plan`** — 부모 `IDE_074`. 브랜치 `feat/cpu-moe-bottleneck-followup-20260917` |
 
-**다음 부여 번호**: `IDE_075`
+**다음 부여 번호**: `IDE_076`
 
 > **2026-08-27 정합화**: `vllm_config_perf` 시대에 본 레지스트리 미경유로 `IDE_009`~`IDE_022` 가 발급·사용됨 (`vllm_config_perf/docs/idea/IDE_009~014_*.md`, `vllm_config_perf/docs/spec_decoding/plan_README.md` IDE_015~021 외). 재사용 금지 원칙에 따라 해당 번호대는 소진 처리하고 카운터를 `IDE_023` 이후로 전진. 동일 사유로 TSK(→043)/TST(→020)/SUB(→167)/PLN(→003)/FEA(→002) 카운터도 전진.
 

@@ -1,0 +1,79 @@
+{
+ "session": "eval/results/IDE_075_20260917/qwen/OPT4/CORE_153555/S2_CORE",
+ "mode": "CORE",
+ "checks": {
+  "execution_valid": {
+   "pass": true,
+   "completed": 128,
+   "failed": 0,
+   "rc": 0
+  },
+  "workload_valid": {
+   "pass": true,
+   "in": 65886,
+   "out": 16384,
+   "expected": "65886/16384 (PROBE128, 지시서 §2.2)"
+  },
+  "config_valid": {
+   "pass": true,
+   "so": "a4e9045a038bc7af",
+   "mode": "CORE",
+   "env_kt_evt": "/models/kt/ide075/CORE_153555/kt_evt.csv"
+  },
+  "window_valid": {
+   "pass": true,
+   "events": [
+    "client_process_begin",
+    "client_process_end",
+    "collector_arm",
+    "collector_stop",
+    "drain_confirmed",
+    "engine_cache_flushed",
+    "first_go",
+    "last_related_deferred_end",
+    "log_flush_end",
+    "session_begin"
+   ],
+   "note": null
+  },
+  "sampling_valid": {
+   "pass": true,
+   "footer": [],
+   "note": "footer 는 서버 종료 시 기록; 세션 중이면 없음",
+   "records_in_session": 24490
+  },
+  "lifecycle_valid": {
+   "pass": true,
+   "fwd_missing": 5,
+   "fwd_missing_share": 0.0002041649652919559,
+   "criterion": "미기록 ≤ 0.1 % (건수 공개)",
+   "packets": 24490,
+   "def_tasks_expected": 24490,
+   "fwd_recorded": 24485,
+   "done_store_recorded": 24490,
+   "imm_tasks": 395,
+   "def_task_seq_found_in_tasks": 24490,
+   "def_task_kinds": {
+    "3": 24490
+   },
+   "note": "패킷당 업무 task = imm(0/1) + done(1) + def(0/1); 기록 전용 task 0"
+  },
+  "task_count_valid": {
+   "pass": true,
+   "tasks_in_window_by_kind": {
+    "1": 395,
+    "2": 24490,
+    "3": 24490
+   },
+   "expected": {
+    "3(deferred)": 24490,
+    "2(done)": 24490,
+    "1(imm)": 395
+   }
+  },
+  "artifact_valid": {
+   "pass": true
+  }
+ },
+ "all_pass": true
+}
