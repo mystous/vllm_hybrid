@@ -1,0 +1,89 @@
+{
+ "schema_version": "a1-a2-b-v1",
+ "campaign_id": "IDE_076_20260917",
+ "collected_at": "2026-09-17T22:48:55+09:00",
+ "host": "violet-h100-016",
+ "repo": {
+  "path": "/home/mystous/projects/vllm_hybrid",
+  "head": "edfb8bb9987435448c9d618d1fbdb81b52c7231d",
+  "branch": "feat/cpu-moe-a1a2b-20260917 (from feat/cpu-moe-bottleneck-followup-20260917)"
+ },
+ "containers": {
+  "sgl-kt": {
+   "image": "docker.io/lmsysorg/sglang:latest",
+   "id": "7f402bfb82b493fad76cd409ec167c00527663ee9b375006bdd0ddd4a7e5fdd9",
+   "sglang": "0.5.18 (HEAD 71de97b264b0 + 10 local files)",
+   "torch": "2.13.0+cu130"
+  },
+  "vllm-h100": {
+   "image": "docker.io/vllm/vllm-openai:nightly-a9a17e7095a66ef6c6685a1c7ddd657781a78d3c",
+   "vllm": "0.26.1rc1.dev1177+ga9a17e709"
+  }
+ },
+ "kt_kernel": {
+  "source_root": "/sgl-workspace/ktransformers/kt-kernel",
+  "upstream_commit": "6d460cc10780f2e0ad541b5d58ad28086dd32ef0",
+  "local_modified_files": 11,
+  "local_untracked": [
+   "cpu_backend/kt_evt.h"
+  ],
+  "compiler": "g++ 13.3.0 (Ubuntu)",
+  "cmake_build_type": "Release",
+  "cxx_flags": "-O3 -DNDEBUG (+CMakeLists -O3; ARCH -march=native)",
+  "build_dir": "build/temp.linux-x86_64-cpython-312/kt_kernel.kt_kernel_ext_Release",
+  "installed_so": "/usr/local/lib/python3.12/dist-packages/kt_kernel/kt_kernel_ext.cpython-312-x86_64-linux-gnu.so",
+  "installed_so_size": 8376352,
+  "installed_so_version_tag": "v4 (fp8fix; IDE_075 TSK_060) = reference_binary for IDE_076",
+  "python_module": "/usr/local/lib/python3.12/dist-packages/kt_kernel/experts_base.py (v3 recorder patch)"
+ },
+ "model": {
+  "hf": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+  "revision": "003f183a92fbe5b9a8325aaa8b2ae797c91dd90f",
+  "layers": 62,
+  "experts": 160,
+  "top_k": 8,
+  "hidden": 6144,
+  "moe_intermediate": 2560,
+  "cpu_weights": "/models/kt/qwen3-480b-int4 (AMXINT4, 67 files, 232 GB)"
+ },
+ "placement_H0": {
+  "hotmap": "/models/kt/ide070/hotmap_v2.json",
+  "layer_budget": "/models/kt/ide070/layer_budget_5952.json",
+  "logical_hot_slots": 5952
+ },
+ "sha256": {
+  "operators/amx/la/amx_kernels.hpp": "0c14adef5967b853183cc1a24399f559aa782b0b3ee9780e2187a66d0aa3fa3e",
+  "operators/amx/la/amx_buffers.hpp": "5d259f82790a31528f39044e7e5260dd2af7d6843498ac6a0cf0c8a82c3d5015",
+  "operators/amx/moe_base.hpp": "df0480b0c67f17ee2664a9476e722ed29f32cc5070f3ba937aec1e4e34fa07db",
+  "operators/amx/moe.hpp": "2507c5c6cdad98603b513f8745e0012ce1fa4f63ce0a7511e0c7f4007fce6d31",
+  "operators/moe-tp.hpp": "ee0a1214e0beb625f8a330b86081497915b620e6d2074bd0cf3c26430d4d7eef",
+  "cpu_backend/cpuinfer.h": "ebb06c4a7463b51d69bd76e338177aa16cca45684cdfb5d8e721cc7e16ea81ec",
+  "cpu_backend/task_queue.h": "f97579e7e26f76674fd2f55a6c4accb7c439e94d6294bd732854ba17437b6284",
+  "cpu_backend/task_queue.cpp": "edae0096f3b60cb479d144d942ffe8c0023038429551618425ed2d9d2052d865",
+  "cpu_backend/kt_evt.h": "ccde48e536bb0aca58c4da79d9b26f55ad97dc6ab845d767983911e41a8ea816",
+  "cpu_backend/worker_pool.cpp": "90d2e73c2ac36cccbbdc8eefd8ae16d5a10a9e4073fada91cfba787c306ef01d",
+  "cpu_backend/worker_pool.h": "319aaf8fb18688e1465a592cee6e84914e3de12d54c10dafe347db0cbbaa9f99",
+  "ext_bindings.cpp": "ae763d078fe3013732e3fa5f6f41d39487e362003841804555064c15b23e2c87",
+  "CMakeLists.txt": "f07b6a90645870cfc37a82e94c98cd57f15d437bf85b91792718714ce5baa98d",
+  "-": "8a643db63f3197062bd0d2ca9c397bbddd65775bb6fbc14acb20e4ad15f3e2d1",
+  "/usr/local/lib/python3.12/dist-packages/kt_kernel/kt_kernel_ext.cpython-312-x86_64-linux-gnu.so": "12926df2c30b724694171108635637e8cda14064ae9a643c03b114d6c9d6b926",
+  "/usr/local/lib/python3.12/dist-packages/kt_kernel/experts_base.py": "fc44bf94770903a662675199d8d37b93cb10c4621d2e383350c21228b842a09f",
+  "/sgl-workspace/sglang/python/sglang/srt/layers/moe/kt_ep_wrapper.py": "1bc658510ec65bf6a239b9fa03b918b6435b11d0f00522749f82c9d2c20a9229",
+  "/sgl-workspace/sglang/python/sglang/srt/models/qwen3_moe.py": "4a7ef0473677ab9f364c6c1987b48d85995a24e052180ff976d0461240a8b7f1",
+  "/models/kt/ide070/hotmap_v2.json": "7ce02cad7dd2d464b19587a07e868552b4ec3fc6fbf2017e9de7e0e48b2d00ab",
+  "/models/kt/ide070/layer_budget_5952.json": "c8ba4247ba226c6382f79fc3ecdf61efd486587a7bd91bc008359273b9520b94",
+  "/models/kt/qwen3-480b-int4/model.safetensors.index.json": "8d6732d0d5870a64bea638b028a5049b9060756d381cb31e2cdda0bc99e33f1d",
+  "/models/kt/qwen3-480b-int4/config.json": "7d3720a766100b946b4895112eda83df64979fe9417561deaaf4ee3396bc821b",
+  "/models/kt/qwen3-480b-int4/tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+  "/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f/tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+  "eval/ide075/vllm_bench_wrapper.py": "1604651496eea5c6fa3c016c8c54ce9df0ef54e81d29ce2bc186961f5ada02ac",
+  "eval/ide071/configs/workloads.json": "5a2b2bb2fbc0985634d913ab7b4d474ecf12021bf38bb08109978e443af3f376",
+  "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/perf_LONGER_PREFILL.custom.jsonl": "7f9364f29addfdac0bf95d65cf800c511f713f4bae18d52c009dc00cfbb4b7fd",
+  "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/perf_LONGER_PREFILL.jsonl": "4b47fa3b4f3f9029fafbe79333eac89219d68be234fa12a1a7842e60aff77d65",
+  "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/perf_LOW_CONCURRENCY.custom.jsonl": "e63ced0e0440e7fca52d58e659fdddb69297ad8551c1d4d12a996d6fdbeb2801",
+  "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/perf_LOW_CONCURRENCY.jsonl": "6a61668442a14722c8c68c75eb3e93a9bf1e58904e5a87050d93cbc67df4f82d",
+  "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/perf_MAIN_SHORT.custom.jsonl": "dbaaf3d4798d13c70ee671e33656687d6c93a0d3b8be40423bcf4513946043f1",
+  "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/perf_MAIN_SHORT.jsonl": "53cbce7df5a4b5ad0c5d06eccc78f41f2de87d6642bd24235d2565462e91a41c",
+  "/home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/quality_requests.jsonl": "73f81734bceeda4dd95d3f867cbb089a21e00ce887703c05f6743ff4a9af7742"
+ }
+}

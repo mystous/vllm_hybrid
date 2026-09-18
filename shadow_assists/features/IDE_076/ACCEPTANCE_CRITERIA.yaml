@@ -1,0 +1,61 @@
+# ACCEPTANCE_CRITERIA — IDE_076 (PLAN.md §5.3, §10.5). 후보 확인 실행 전에 등록. null 은 미확정(해소 전 최종 확인 실행 금지).
+# 근거: R0_REF (v4, H0, OFF) 2026-09-17 22:53~22:57 — MAIN_SHORT 745.4/746.0/747.5 tok/s (같은 부팅, 변동 0.3 %),
+#        IDE_075 OFF 부팅 간 변동 (v3, PROBE128) 693.5~716.4 tok/s (범위 3.3 %; 다른 날·부팅). C1 53.2, LONG 163.0 tok/s.
+schema_version: a1-a2-b-v1
+registered_at: "2026-09-17T23:02:00+09:00"
+baseline:
+  variant: R0 (신규 빌드 A1=OFF/A2=OFF/H0; reference_binary v4 R0_REF 와 먼저 대조)
+  reference_runs: eval/results/IDE_076_20260917/qwen/OPT4/R0_REF_R0_REF_224948
+numerics:
+  int4_same_path:            # A1 (R 특수화, 언팩 변경) 및 A2 (묶음 실행) — 정수 누산·스케일 계약 보존
+    compare_reference: current_rb           # 같은 descriptor·입력·가중치에서 기존 RB 경로 출력
+    atol: 0.0                               # 정수 누산 순서·스케일 적용 순서 보존 → int32 누산 결과 bit 동일, 최종 bf16 도 동일
+    rtol: 0.0
+    max_normalized_error: 0.0
+    reduction_order_preserved: true
+    note: "A1-a(GFNI 언팩)·A1-b·A1-c 는 산술 순서 불변이므로 bitwise 동일을 요구. 순서를 바꾸는 변경(A1-d 융합 등)은 별도 계약 등록 후에만"
+  unchanged_fp8_bf16_paths:  # 공통 코드 변경 시 GLM/BF16 native 회귀 (§13)
+    compare_reference: corrected_native_path
+    test: kt-kernel examples/test_fp8_perchannel_moe.py, test_fp8_moe.py (수정 전 0.5829 % 와 같은 값)
+    atol: null
+    rtol: null
+    rule: "상대 L1 오차가 v4 기준값과 동일(0.5829 %) 이고 GLM 4문항 게이트 텍스트가 D6 기준과 동일"
+  placement_int4_to_fp8:     # B — 실행 위치가 바뀌므로 bitwise 요구 안 함
+    compare_reference: frozen_hybrid_and_available_reference   # H0 hybrid 출력 + (가능 시) IDE_073 GPU8 greedy 텍스트
+    tensor_logit_limits: null    # B 후보 첫 replay 후 확정 (기준 H0 의 실행 간 변동을 먼저 측정)
+    quality_noninferiority_rule: "quality20(qwen) 정답 수 ≥ H0 − 1, smoke 4 요청 finish_reason 동일, 완료율 100 %"
+lifecycle:
+  missing_production_allowed: 0
+  duplicate_consumption_allowed: 0
+  stale_generation_allowed: 0
+  premature_publish_allowed: 0
+  method: eval/ide075/validate_v2.py (lifecycle_valid, task_count_valid) + 새 A2 descriptor coverage validator
+performance:
+  primary_workload: M073_QWEN_MAIN_SHORT
+  metric: output_tokens_per_second (vllm bench, 256 req, C64, ignore_eos, 128 out)
+  minimum_meaningful_gain: 0.02        # 부팅 간 변동(≈3 %) 과 같은 부팅 변동(0.3 %) 사이; 블록 짝 비교로 판정
+  confidence_or_precision_rule: "부팅 블록 ≥3 (R0→후보→후보→R0 교대), 후보 블록 평균 / 기준 블록 평균 − 1 ≥ 0.02 이고 짝지은 블록 차이가 전부 양수. 단발·같은 부팅 반복만으로 채택 안 함"
+  allowed_main_ttft_p95_regression: 0.10
+  allowed_main_tpot_p95_regression: 0.05
+  allowed_c1_latency_regression: 0.05   # C1 TPOT p50·TTFT p50
+  allowed_long_ttft_tpot_regression: 0.10   # LONG TTFT p95·TPOT p95
+  tail_and_stability_rule: "완료율 100 %, 실패 0, 오류·절단 0; ITL p99 상대 +10 % 이내; 지속 실행(§12.6) 중 메모리 증가·교착 없음"
+  kernel_only_gain_rule: "replay/microbench 이득만 있고 OFF MAIN 이 기준을 못 넘으면 KERNEL_ONLY_GAIN, 기본 OFF"
+quality:
+  fixed_dataset_and_generation_sha256: "quality_requests.jsonl 73f81734bceeda4dd95d3f867cbb089a21e00ce887703c05f6743ff4a9af7742 (qwen, IDE_073 quality20.py greedy)"
+  acceptance_rule: "A1/A2: greedy smoke 4 텍스트 기준과 동일(정수 계약) ; B: quality20 정답 ≥ H0 − 1 및 텍스트 일치율 보고"
+memory:
+  kv_capacity_must_equal_baseline: true   # 40,960 tokens
+  logical_hot_slots: 5952
+  per_rank_reserve_rule: "각 rank: 고정 모델 + hot expert + KV + workspace/graph + 예비 ≤ usable HBM; 부팅 시 allocator reserved/allocated 와 nvidia-smi 사용량 기록, OOM·mem-fraction 변경 금지"
+
+# B 수치 기준 (§8.10; 2026-09-18 09:20 사전 등록 — CONFIRMATION 데이터 수집 전). B 는 CPU INT4 ↔ GPU FP8 실행 위치가 바뀌므로 bitwise 동등을 요구하지 않는다.
+b_numerics:
+  method: "num_probe.py — 고정 텍스트 8 편 teacher-forcing(echo, logprobs=1) PPL 과 토큰별 logprob, 고정 프롬프트 8 개 greedy 32 토큰; 같은 블록의 H0 부팅(R0C) 과 비교"
+  binding:
+    ppl_rel_diff_max_abs: 0.03      # 텍스트별 PPL 상대차 최대 절대값 ≤ 3 %
+    logprob_abs_diff_mean: 0.05     # 토큰별 |Δlogprob| 평균 ≤ 0.05
+  informational:
+    logprob_abs_diff_max: "보고"
+    greedy_identical_fraction: "보고 (token-level 일치는 회귀 추적용, 판정 아님)"
+  quality: "부팅 smoke greedy 4 문항 텍스트 보고 (판정 아님)"

@@ -5,7 +5,7 @@ perf 시각(CLOCK_MONOTONIC 초) → REALTIME: clock_anchors.jsonl 의 (realtime
 각 tail 작업의 [t_numa_start, t_numa_end] (numa0/1) 안에서 NUMA worker TID 들이 off-CPU(sched_switch prev_state != R, 다음 switch-in 까지) 였던 시간의 합·최대, 그리고 worker 가 아닌 스레드가 kt cpu 를 점유한 시간을 집계.
 산출: <session>/v2/tail_offcpu.csv, tail_offcpu_summary.json"""
 import json, os, sys, csv, subprocess, collections, re, bisect
-HOME = os.path.expanduser("~"); KT = f"{HOME}/.cache/huggingface/kt/ide075"
+HOME = os.path.expanduser("~"); KT = os.environ.get("IDE_KT_HOST", f"{HOME}/.cache/huggingface/kt/ide075")   # IDE_076: 캠페인별 override
 
 
 def main(sd):

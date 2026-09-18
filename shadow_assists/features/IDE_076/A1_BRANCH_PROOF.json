@@ -1,0 +1,19 @@
+{
+ "a1_requested": "1",
+ "a1_effective": true,
+ "a2_effective": false,
+ "proof_on": true,
+ "a1_policy": "a1-v1: GFNI lo-nibble unpack (0x0000000001020408) in avx_rb_rows<RB,SPLIT>, all RB; integer accumulation order unchanged",
+ "a1_eligible_calls": 112640,
+ "a1_r1_calls": 112640,
+ "a1_r2_calls": 0,
+ "a1_r4_calls": 0,
+ "a1_r8_calls": 0,
+ "a1_fallback_not_enabled": 0,
+ "a2_eligible_jobs": 0,
+ "a2_bundled_jobs": 0,
+ "a2_fallback_jobs": 0,
+ "scenario": "hot_r1_e18 x (5 warm + 5 iters), 16 experts R=1",
+ "binary_sha256": "941a83c43187789427aa74335b60233b6f453b99ae97bbf2586e425fc2b6219a (v5: v4 + A1-a + kt_opt)",
+ "note": "eligible_calls = avx_rb_rows 호출 수 (RB 블록 단위); R=1 만 존재하는 시나리오라 r1_calls==eligible. 정수 결과는 a1on==a1off==v4 bitwise 동일 (6 시나리오)"
+}

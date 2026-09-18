@@ -12,7 +12,7 @@ def pct(v, q): v = sorted(v); return v[int(round(q * (len(v) - 1)))] if v else N
 
 def main(sd):
     v2 = f"{sd}/v2"; rows = list(csv.DictReader(gzip.open(f"{v2}/producer_consumer_metrics_v2.csv.gz", "rt")))
-    m = json.load(open(f"{sd}/metrics.json")); boot = m["boot_id"]; KT = f"{HOME}/.cache/huggingface/kt/ide075"
+    m = json.load(open(f"{sd}/metrics.json")); boot = m["boot_id"]; KT = os.environ.get("IDE_KT_HOST", f"{HOME}/.cache/huggingface/kt/ide075")   # IDE_076: 캠페인별 override
     tasks = {int(r["seq"]): r for r in csv.DictReader(l for l in open(f"{KT}/{boot}/kt_evt.csv.tasks") if not l.startswith("#")) if r.get("t_exec_start")}
     def fl(r, k): v = r.get(k); return float(v) if v not in (None, "", "None") else None
     # ---- queue wait breakdown (cold_present_nonempty, v2 필드 존재) ----

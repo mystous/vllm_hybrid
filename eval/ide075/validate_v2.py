@@ -5,7 +5,7 @@ mapping_valid(계수 일치·map_at_go) / producer_consumer_valid(prev 레코드
 sampling_valid(전수: drop 0) / artifact_valid(파일 parse) / observer_distortion_status(OFF 대비, 별도 계산) / lifecycle(패킷당 task 수 = imm+done+def, spsc full/stale 0)
 산출: <session>/v2/validation_results_v2.json"""
 import gzip, json, os, sys, csv, collections
-HOME = os.path.expanduser("~"); KT = f"{HOME}/.cache/huggingface/kt/ide075"
+HOME = os.path.expanduser("~"); KT = os.environ.get("IDE_KT_HOST", f"{HOME}/.cache/huggingface/kt/ide075")   # IDE_076: 캠페인별 override
 
 
 def main(sd):

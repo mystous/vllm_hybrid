@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); sys.path.insert(
 from gpu_layer_timeline import main as layer_timeline
 from gpu_union import UnionIndex
 HOME = os.path.expanduser("~")
-KT_HOSTS = {"ide074": f"{HOME}/.cache/huggingface/kt/ide074", "ide075": f"{HOME}/.cache/huggingface/kt/ide075"}
+KT_HOSTS = {"ide074": f"{HOME}/.cache/huggingface/kt/ide074", "ide075": f"{HOME}/.cache/huggingface/kt/ide075", "ide076": f"{HOME}/.cache/huggingface/kt/ide076"}
 OPS = ("kernel", "gpu_memcpy", "gpu_memset")
 ROW_BYTES = int(os.environ.get("KT_ROW_BYTES", "12288"))   # hidden×2 (Qwen 6144→12288, GLM 5120→10240)
 
@@ -30,7 +30,7 @@ def load_trace_union(tf):
 
 
 def main(sd, v2=False):
-    m = json.load(open(f"{sd}/metrics.json")); boot = m["boot_id"]; camp = "ide075" if "IDE_075" in sd else "ide074"; KT = KT_HOSTS[camp]
+    m = json.load(open(f"{sd}/metrics.json")); boot = m["boot_id"]; camp = "ide076" if "IDE_076" in sd else ("ide075" if "IDE_075" in sd else "ide074"); KT = KT_HOSTS[camp]
     out = f"{sd}/v2"; os.makedirs(out, exist_ok=True)
     prof = next((c for c in m["observer"]["collectors"] if c["collector_id"] == "torch_profiler"), None)
     tf0 = next((f"{KT}/{boot}/profiles/{n}" for n, _ in (prof or {}).get("trace_files", []) if "TP-0" in n), None)

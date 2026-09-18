@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# container vllm-h100
+vllm bench serve --backend openai --base-url http://127.0.0.1:30000 --endpoint /v1/completions --model qwen480 --tokenizer /home/mystous/.cache/huggingface/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f --num-prompts 256 --request-rate inf --seed 20260916 --percentile-metrics ttft,tpot,itl,e2el --metric-percentiles 50,90,95,99 --save-result --save-detailed --result-dir /home/mystous/.cache/huggingface/kt/ide071/bench --result-filename 1789664477835_1076430.json  --max-concurrency 64 --ignore-eos --dataset-name custom --dataset-path /home/mystous/.cache/huggingface/kt/ide073/inputs/qwen/perf_MAIN_SHORT.custom.jsonl --custom-output-len 128

@@ -1,0 +1,52 @@
+{
+ "schema_version": "a1-a2-b-v1",
+ "campaign_id": "IDE_076_20260917",
+ "calibration_boot": "CALIB_R0_CALIB_000347",
+ "binary_sha256": "db497d747215abae693fcc58a9d47d24739cf881d1850bc2dd3e75f0e461266e  /usr/local/lib/python3.12/dist-packages/kt_kernel/kt_kernel_ext.cpython-312-x86_64-linux-gnu.so",
+ "cpu_variant_at_collection": "v7 flags OFF (A1=0, A2=0)",
+ "server_args_extra": {
+  "expert-distribution-recorder-mode": "stat"
+ },
+ "sets": {
+  "CALIBRATION": {
+   "workloads": [
+    "M076_QWEN_CALIB (sonnet in512 out128 seed 20261001, C64 n128)",
+    "M076_QWEN_CALIB_B (seed 20261002)"
+   ],
+   "sessions": [
+    "CAL1_CORR",
+    "CAL2_CORR"
+   ],
+   "recorder_files": {
+    "CAL1_CORR": {
+     "expert_distribution_recorder_1789657730.810862.pt": "61eb7e46aac47ef411f04ca10615f216474d6aeea7c2466d31dacff1514571ca",
+     "expert_distribution_recorder_1789657730.8108606.pt": "65576ff8f9f12aa31166576abc2207bfaca5f02304dae8cbe270cce379c9c543",
+     "expert_distribution_recorder_1789657730.8108637.pt": "9c1d1d54c6056716f2865544ee815d9e0e9fa06a4f6e92f3afea781d43fa1fac"
+    },
+    "CAL2_CORR": {
+     "expert_distribution_recorder_1789657879.2298641.pt": "b79398e87f4195ec3fd7cf67391539f470b12cd4c27aa1ca2d06fe74a2a27c5e",
+     "expert_distribution_recorder_1789657879.2298834.pt": "fffbfe74661ce4a6e24c813e5a2060018645ec6a2824bf4c78f5503d9831cdd2",
+     "expert_distribution_recorder_1789657730.8108606.pt": "65576ff8f9f12aa31166576abc2207bfaca5f02304dae8cbe270cce379c9c543",
+     "expert_distribution_recorder_1789657879.2298646.pt": "d3fe5d0350ea8218f8dadf804fc216f20a3701c2839437e4eb41b8e6025c2183"
+    }
+   },
+   "kt_evt": "v3 recorder (CORR) — job 비용·expert 표본"
+  },
+  "SELECTION": {
+   "workload": "M076_QWEN_SELECT (sonnet in512 out128 seed 20261011, C64 n128)",
+   "use": "후보 배치 실측 선별 (OFF ×2)"
+  },
+  "CONFIRMATION": {
+   "workloads": [
+    "M073_QWEN_MAIN_SHORT (frozen manifest, seed 20260916 — 기존 알려진 입력)",
+    "M073_QWEN_LOW_CONCURRENCY",
+    "M073_QWEN_LONGER_PREFILL",
+    "quality_requests.jsonl (quality20)"
+   ],
+   "use": "동결 후보 독립 확인; 결과를 본 뒤 재튜닝 금지"
+  }
+ },
+ "tokenizer": "Qwen3-Coder-480B rev 003f183a (vllm-h100 client tokenizer)",
+ "sonnet_source": "/tmp/sonnet.txt in vllm-h100 (517 lines)",
+ "notes": "MAIN_SHORT 는 calibration 에 사용하지 않음. 디코드/prefill 분리: step 별 층당 선택 수 ≤512 → 디코드."
+}

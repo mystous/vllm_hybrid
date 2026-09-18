@@ -3,7 +3,7 @@
 연결: slot→layer 는 .map (effective_from) 으로. 산출: <boot>/expert_rows_samples.csv.gz, expert_rows_summary.json
 표본 percentile 은 표본 분포이며 모집단 percentile 로 확대하지 않음 (sample_probability=1/16 per slot)."""
 import gzip, json, os, sys, csv, collections, bisect
-HOME = os.path.expanduser("~"); KT = f"{HOME}/.cache/huggingface/kt/ide075"
+HOME = os.path.expanduser("~"); KT = os.environ.get("IDE_KT_HOST", f"{HOME}/.cache/huggingface/kt/ide075")   # IDE_076: 캠페인별 override
 
 
 def pct(v, q): v = sorted(v); return v[int(round(q * (len(v) - 1)))] if v else None

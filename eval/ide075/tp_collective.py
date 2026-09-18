@@ -5,7 +5,7 @@
 rank 별 같은 (replay, ordinal) 의 start 시각 차 = 도착 시차(kineto host 정렬, GPU 간 offset 미검증), duration 은 커널 시간(동기화 포함 가능).
 산출: <session>/v2/tp_collective.csv.gz, tp_collective_summary.json"""
 import gzip, json, os, sys, csv, collections, statistics as st
-HOME = os.path.expanduser("~"); KT = f"{HOME}/.cache/huggingface/kt/ide075"
+HOME = os.path.expanduser("~"); KT = os.environ.get("IDE_KT_HOST", f"{HOME}/.cache/huggingface/kt/ide075")   # IDE_076: 캠페인별 override
 OPS = ("kernel", "gpu_memcpy", "gpu_memset")
 
 

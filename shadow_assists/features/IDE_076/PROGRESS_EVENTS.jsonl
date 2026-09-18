@@ -1,0 +1,39 @@
+{"t_kst": "2026-09-17T22:49:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "O0 provenance done; R0_REF booting"}
+{"t_kst": "2026-09-17T23:00:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "R0_REF done; replay running"}
+{"t_kst": "2026-09-17T23:12:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "A1 gap evidence; A1-a build chain armed"}
+{"t_kst": "2026-09-17T23:15:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "A1 build; B tools ready"}
+{"t_kst": "2026-09-17T23:20:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "A1-a validated (replay); v6 build; B calibration gap found"}
+{"t_kst": "2026-09-17T23:33:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "E2E block1 done; e2e2 chain (v7) running"}
+{"t_kst": "2026-09-17T23:45:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "A2 implemented (source); e2e2 boots running"}
+{"t_kst": "2026-09-18T00:05:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "E2E block2; chains queued"}
+{"t_kst": "2026-09-18T00:13:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "incident: v7 NaN crash x2; CALIB collected"}
+{"t_kst": "2026-09-18T00:40:00+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "incident persists with v4; env recovery attempts"}
+{"t_kst": "2026-09-18T01:07:21+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "root cause isolated to callback-free path; mitigation patch under reproduction test (CFFIX_v4_1 M1/M2 alive)"}
+{"t_kst": "2026-09-18T01:31:51+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "root cause fixed (CF-rearm generation wait), v8f installed; crash-test boot f1 running; post2 chain armed"}
+{"t_kst": "2026-09-18T02:00:13+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "CF-rearm fix insufficient (f3 died); Xid43 pre-existing; diagnostic chain 2 running (legacy/no-overlap/no-skip-imm x3)"}
+{"t_kst": "2026-09-18T02:24:48+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "diag2: legacy callback 36 transitions clean (48 cumulative), no-overlap d1 clean; d2/d3 and no-skip-imm pending"}
+{"t_kst": "2026-09-18T03:01:16+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "diag2 complete: crash needs cf+overlap+skip-imm; NaN-origin probe boot p1 running"}
+{"t_kst": "2026-09-18T03:24:42+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "NaN-origin probe chain 3: r1 clean (no OOM), r2 running; awaiting a reproduction with probe log"}
+{"t_kst": "2026-09-18T03:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "probe chain 5 (side-stream, no record_stream) t1 running clean so far; in-stream probe masked the race (48 transitions clean)"}
+{"t_kst": "2026-09-18T04:29:31+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "NaN origin localized to GPU fused_moe output (probe v3); recompute probe v4 chain 7 starting"}
+{"t_kst": "2026-09-18T04:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "probe chain 7: v1-v3 clean (36 transitions), v4 boot in progress (GPU1-3 released: possible death → recompute log pending); probe v5 staged for v5/v6"}
+{"t_kst": "2026-09-18T05:24:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "probe chain 8 w1-w3 clean (heavy probe masks race); light probe v6.2 applied for w4+; chain 9 (8 boots) armed"}
+{"t_kst": "2026-09-18T05:54:42+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "probe chain 9 (light v6.2): x1-x2 clean (light-probe cumulative 48 transitions clean), x3 running; awaiting reproduction with GPU-side capture"}
+{"t_kst": "2026-09-18T06:24:42+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "probe chain 9 x1-x7 clean (light probe 108 transitions, no reproduction); x8 running; no-probe control chain (4 boots) armed next"}
+{"t_kst": "2026-09-18T06:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "user directive: died boots = failures; post3 E2E chain running (v4f built, A2 replay bitwise-identical, block p1 R0_REF in progress)"}
+{"t_kst": "2026-09-18T07:24:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "post3 block p1: R0_REF/R0/A1ae valid, A1e died (excluded); A1 running"}
+{"t_kst": "2026-09-18T07:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "post3 block p1 done: R0_REF 741.8 / R0 741.4 / A1 761.0 / A1ae 770.0 / A2 772.9 / A12 819.3 / A12e 791.1 (A1e died); block p2 starting"}
+{"t_kst": "2026-09-18T08:24:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "post3 block p2: R0 743.6, A12e 803.7, A12 died, A2 788.5; A1 p2 running"}
+{"t_kst": "2026-09-18T08:54:42+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "block p2 done (A1 747.2, A1e 769.4, A1ae died); B SELECTION started: H0 s1 634.2/656.5"}
+{"t_kst": "2026-09-18T09:24:42+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "B SELECTION done (HB_MIX1 +5.7% selected, DEC1 -21.9% rejected); CONFIRM chain armed with numerics probe; block p3 started (R0_REF 765.7)"}
+{"t_kst": "2026-09-18T09:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "block p3: R0_REF 765.7, R0 751.9, A1ae died, A1e 765.4 (+1.8%); A1 p3 running"}
+{"t_kst": "2026-09-18T10:24:42+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "block p3 done: A1 +2.3, A2 +4.5, A12 +4.5 (A1ae/A12e died); A1/A2 have 3 valid blocks; block p4 starting"}
+{"t_kst": "2026-09-18T10:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "block p4: R0 739.2, A12e 808.9 (+9.4), A12 781.8 (+5.8), A2 776.4 (+5.0); A1 p4 running; A2/A12/A12e/A1 have >=3 valid blocks"}
+{"t_kst": "2026-09-18T11:24:42+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "block p4 done (A1e 768.3 +3.9%, A1ae died); cumulative: A1 +1.6% (4), A1e +3.2% (3), A2 +5.0% (4), A12 +7.0% (3), A12e +7.7% (3); block p5 R0_REF loading"}
+{"t_kst": "2026-09-18T11:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "block p5: R0_REF died, R0 744.3, A1ae 773.7 (+4.0), A1e 767.8 (+3.2); A1 p5 loading"}
+{"t_kst": "2026-09-18T12:24:41+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "block p5 done: A12 775.2 (+4.2), A12e 796.2 (+7.0); A1/A2/R0_REF died; block p6 (last) starting"}
+{"t_kst": "2026-09-18T12:55:23+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "E2E done (A1 decision: A1 reject +1.6, A1e +3.1, A1ae +3.7 accept; A2 +5.0, A12 +5.9, A12e +7.7 accept); CONFIRMATION started (R0C c1)"}
+{"t_kst": "2026-09-18T13:24:44+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "CONFIRMATION c1: R0C ok (743.7/745.9/751.0), B died at M3 (M1/M2 -10.7% vs H0, numerics fail), A12B died at M2 (M1 705.3); A2B c1 next"}
+{"t_kst": "2026-09-18T13:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "CONFIRMATION: R0C c2 ok (752.0), probe noise H0-vs-H0 = 0 (gate valid); B c2 died; A12B c2 running; B decision: reject (MAIN -10%, numerics fail); integration candidate A12e"}
+{"t_kst": "2026-09-18T14:24:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "CONFIRMATION c3 running (R0C c3 742.2 ok; B c3 M1 667.0 M2 717.7 in progress); rollback test armed after chain"}
+{"t_kst": "2026-09-18T14:54:43+09:00", "kind": "progress", "delivered": "APPENDED", "stage": "CONFIRMATION done (B rejected), decisions finalized, rollback test boot done (MAIN 741.7/752.8/744.9 = R0_REF 746.3), adopted stack restored; remaining: docs/render, publish approval"}

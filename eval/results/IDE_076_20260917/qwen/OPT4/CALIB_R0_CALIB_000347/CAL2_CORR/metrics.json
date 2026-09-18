@@ -1,0 +1,146 @@
+{
+ "session": "CAL2_CORR",
+ "mode": "CORR",
+ "client": "vllmw",
+ "kind": "PERF",
+ "workload": "M076_QWEN_CALIB_B",
+ "C": 64,
+ "n": 128,
+ "rc": 0,
+ "wall_seconds": 26.68357335892506,
+ "summary": {
+  "completed": 128,
+  "failed": 0,
+  "duration": 26.322153665008955,
+  "total_input_tokens": 64588,
+  "total_output_tokens": 16384,
+  "request_throughput": 4.862823978197319,
+  "output_throughput": 622.4414692092569,
+  "total_token_throughput": 3076.1920559577607,
+  "mean_ttft_ms": 2587.1274820892722,
+  "median_ttft_ms": 2422.283145948313,
+  "p90_ttft_ms": 3101.1319294106215,
+  "p95_ttft_ms": 3101.570837397594,
+  "p99_ttft_ms": 9801.218834662614,
+  "max_ttft_ms": null,
+  "mean_tpot_ms": 73.50707989232654,
+  "median_tpot_ms": 74.14294686993422,
+  "p90_tpot_ms": 81.34533370804687,
+  "p95_tpot_ms": 81.34576918669119,
+  "p99_tpot_ms": 84.14192610900615,
+  "max_tpot_ms": null,
+  "mean_itl_ms": 73.50708232580494,
+  "median_itl_ms": 72.61659449432045,
+  "p95_itl_ms": 83.35058152442798,
+  "p99_itl_ms": 119.52410237281586,
+  "mean_e2el_ms": 11922.526628414744,
+  "median_e2el_ms": 11914.229121000972,
+  "p95_e2el_ms": 11931.345338159008,
+  "p99_e2el_ms": 13709.707271792004,
+  "max_concurrency": 64,
+  "request_rate": "inf",
+  "num_prompts": 128,
+  "n_request_rows": 128
+ },
+ "t_start": {
+  "wall_utc": "2026-09-17T15:09:10.709977+00:00",
+  "wall_kst": "2026-09-18T00:09:10.709977+09:00",
+  "epoch": 1789657750.709977,
+  "monotonic": 895752.403052606
+ },
+ "t_end": {
+  "wall_utc": "2026-09-17T15:09:37.393550+00:00",
+  "wall_kst": "2026-09-18T00:09:37.393550+09:00",
+  "epoch": 1789657777.3935497,
+  "monotonic": 895779.086625965
+ },
+ "drain": {
+  "t_drain_end": {
+   "wall_utc": "2026-09-17T15:09:38.708318+00:00",
+   "wall_kst": "2026-09-18T00:09:38.708318+09:00",
+   "epoch": 1789657778.7083182,
+   "monotonic": 895780.401396691
+  },
+  "drain_seconds": 1.2556363210314885,
+  "gpu_idle_confirmed": true
+ },
+ "healthy_after": true,
+ "kt_evt_lines": [
+  51275,
+  75889
+ ],
+ "first_go_ns": 1789657750766403706,
+ "last_deferred_end_ns": 1789657777052081284,
+ "observer": {
+  "mode": "CORR",
+  "collectors": [
+   {
+    "collector_id": "timeseries",
+    "actual_start": {
+     "wall_utc": "2026-09-17T15:08:59.154151+00:00",
+     "wall_kst": "2026-09-18T00:08:59.154151+09:00",
+     "epoch": 1789657739.1541512,
+     "monotonic": 895740.847227436
+    },
+    "clock_domain": "host",
+    "actual_end": {
+     "wall_utc": "2026-09-17T15:11:15.906879+00:00",
+     "wall_kst": "2026-09-18T00:11:15.906879+09:00",
+     "epoch": 1789657875.906879,
+     "monotonic": 895877.599955073
+    }
+   },
+   {
+    "collector_id": "torch_profiler",
+    "profile_id": "CAL2_CORR_1789657739",
+    "arm_time": {
+     "wall_utc": "2026-09-17T15:08:59.174152+00:00",
+     "wall_kst": "2026-09-18T00:08:59.174152+09:00",
+     "epoch": 1789657739.174152,
+     "monotonic": 895740.867227963
+    },
+    "arm_resp": "Start profiling.\n",
+    "clock_domain": "kineto host",
+    "stop_resp": "Stop profiling. This will take some time.\n",
+    "stop_time": {
+     "wall_utc": "2026-09-17T15:11:10.899898+00:00",
+     "wall_kst": "2026-09-18T00:11:10.899898+09:00",
+     "epoch": 1789657870.899898,
+     "monotonic": 895872.592974139
+    },
+    "trace_files": [
+     [
+      "CAL2_CORR_1789657739-TP-0.trace.json.gz",
+      75438957
+     ],
+     [
+      "CAL2_CORR_1789657739-TP-1.trace.json.gz",
+      58531567
+     ],
+     [
+      "CAL2_CORR_1789657739-TP-2.trace.json.gz",
+      58557657
+     ],
+     [
+      "CAL2_CORR_1789657739-TP-3.trace.json.gz",
+      58527473
+     ]
+    ],
+    "actual_end": {
+     "wall_utc": "2026-09-17T15:11:15.906347+00:00",
+     "wall_kst": "2026-09-18T00:11:15.906347+09:00",
+     "epoch": 1789657875.906347,
+     "monotonic": 895877.599423247
+    }
+   }
+  ],
+  "observer_config": {
+   "kt_evt": true,
+   "torch_profiler": true,
+   "perf_stat_interval": false,
+   "pcm_memory": false,
+   "light_monitor": "cpu 1 s / gpu 2 s / mem 5 s (IDE_074 동일)"
+  }
+ },
+ "boot_id": "CALIB_R0_CALIB_000347"
+}

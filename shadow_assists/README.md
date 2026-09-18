@@ -308,6 +308,8 @@ graph TD
     IDE_073 --> IDE_074
     U917c["사용자 지시서 (09-17)<br/>IDE074_additional_measurement_plan"] --> IDE_075["IDE_075<br/>후속 추가 측정 (정정·저간섭 기록기·FIFO 분해)<br/>READY_WITH_LIMITED_SCOPE + 확장 단계 완료"]
     IDE_075 --> TSK_060["TSK_060<br/>kt-kernel FP8/BF16 CPU 경로 0 출력 수정<br/>(moe_base.hpp dangling else) — GLM 정상 출력 회복"]
+    U917d["사용자 지시서 (09-17)<br/>CPU_MoE_A1_A2_B_implementation"] --> IDE_076["IDE_076<br/>A1·A2·B 구현·검증 (O0~O10)<br/>활성"]
+    IDE_075 --> IDE_076
     IDE_074 --> IDE_075
     UN["사용자 지시 (08-29)<br/>논문급 신규성 탐색"] --> IDE_026["IDE_026<br/>SCED (보류)"]
     IDE_026 --> PLN_004["PLN_004<br/>E0~E4 (H3 기각)"]

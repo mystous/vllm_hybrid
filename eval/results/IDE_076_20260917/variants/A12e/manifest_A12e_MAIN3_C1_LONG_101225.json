@@ -1,0 +1,76 @@
+{
+ "schema_version": "a1-a2-b-v1",
+ "campaign_id": "IDE_076_20260917",
+ "variant_id": "A12e",
+ "plan": "MAIN3_C1_LONG",
+ "tag": "v8f GFNI+A2+PF=1 (post-fix p3)",
+ "boot_id": "A12e_MAIN3_C1_LONG_101225",
+ "execution_policy": {
+  "execution_policy": "evidence_driven_no_count_cap",
+  "count_guards": "disabled (H.EXT=True; BUDGET_TOTAL 은 참조만, 종료 분기 없음)",
+  "safety_guards_kept": [
+   "HEALTH_OK boot verdict",
+   "server_died → plan abort",
+   "drain confirm",
+   "own server only stop"
+  ]
+ },
+ "binary_sha256": "a4add14d4708940d91a2bbe61313b351fbc1a340d7a2e0257e5dd718010d69c1",
+ "wrapper_experts_base_sha256": "f8a6f0569d97978cfa4ca3d543985d62ab5e373472edc71d0e0fabadec7e3983",
+ "cf_fix": "rearm",
+ "features": {
+  "a1_requested": "1",
+  "a2_requested": "1",
+  "a1_effective": null,
+  "a2_effective": null
+ },
+ "placement": {
+  "hotmap": "/models/kt/ide070/hotmap_v2.json",
+  "hotmap_sha256": "7ce02cad7dd2d464b19587a07e868552b4ec3fc6fbf2017e9de7e0e48b2d00ab",
+  "layer_budget": "/models/kt/ide070/layer_budget_5952.json",
+  "layer_budget_sha256": "c8ba4247ba226c6382f79fc3ecdf61efd486587a7bd91bc008359273b9520b94",
+  "logical_hot_slots": 5952
+ },
+ "env": {
+  "KT_CALLBACK_FREE": "1",
+  "KT_CF_SKIP_EMPTY_IMM": "1",
+  "KT_GPU_EXPERTS_PER_LAYER": "/models/kt/ide070/layer_budget_5952.json",
+  "KT_AVX_RB": "0",
+  "KT_OPT_A1_ENABLE": "1",
+  "KT_OPT_A2_ENABLE": "1",
+  "KT_AVX_PF": "1"
+ },
+ "server_args": {
+  "host": "127.0.0.1",
+  "port": 30000,
+  "tp": 4,
+  "context-length": 32768,
+  "trust-remote-code": true,
+  "kv-cache-dtype": "auto",
+  "max-total-tokens": 40960,
+  "mem-fraction-static": 0.95,
+  "max-running-requests": 64,
+  "cuda-graph-max-bs": 64,
+  "cuda-graph-backend-prefill": "disabled",
+  "model-path": "/models/hub/models--Qwen--Qwen3-Coder-480B-A35B-Instruct-FP8/snapshots/003f183a92fbe5b9a8325aaa8b2ae797c91dd90f",
+  "served-model-name": "qwen480",
+  "attention-backend": "triton",
+  "kt-weight-path": "/models/kt/qwen3-480b-int4",
+  "kt-method": "AMXINT4",
+  "kt-cpuinfer": 96,
+  "kt-threadpool-count": 2,
+  "kt-num-gpu-experts": 96,
+  "init-expert-location": "/models/kt/ide070/hotmap_v2.json",
+  "kt-max-deferred-experts-per-token": 8,
+  "ep-dispatch-algorithm": "dynamic",
+  "chunked-prefill-size": 8192
+ },
+ "model_revision": "003f183a92fbe5b9a8325aaa8b2ae797c91dd90f",
+ "client": "vllm bench serve / vllmw wrapper (eval/ide075/vllm_bench_wrapper.py)",
+ "t_start": {
+  "wall_utc": "2026-09-18T01:12:26.193372+00:00",
+  "wall_kst": "2026-09-18T10:12:26.193372+09:00",
+  "epoch": 1789693946.1933722,
+  "monotonic": 931947.88644966
+ }
+}

@@ -4,7 +4,7 @@
 각 층: DtoH 4건(마지막 종료), 직전 커널 종료(=hot_ready), HtoD start/end, 직후 커널(combine). CPU: kt_evt 에서 같은 step 창 안의 eager 슬롯 레코드(qlen==rows)를 t_go 순으로 대응 (계수 일치 필요).
 지표(v2 이름): cold_pub_delta, gpu_pre_h2d_gap, deferred_service_span, enqueue_to_start, stage 단계. 산출: <session>/v2/eager_layer_metrics.csv.gz, eager_summary.json"""
 import gzip, json, os, sys, csv, collections, statistics as st, bisect
-HOME = os.path.expanduser("~"); KT = f"{HOME}/.cache/huggingface/kt/ide075"; OPS = ("kernel", "gpu_memcpy", "gpu_memset")
+HOME = os.path.expanduser("~"); KT = os.environ.get("IDE_KT_HOST", f"{HOME}/.cache/huggingface/kt/ide075")   # IDE_076: 캠페인별 override; OPS = ("kernel", "gpu_memcpy", "gpu_memset")
 ROW_BYTES = int(os.environ.get("KT_ROW_BYTES", "12288"))   # hidden×2 (Qwen 6144→12288, GLM 5120→10240)
 
 
